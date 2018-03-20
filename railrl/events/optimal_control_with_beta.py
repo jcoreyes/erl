@@ -13,7 +13,7 @@ fig, (ax1, ax2) = plt.subplots(1, 2)
 
 
 def debug(env, obs, agent_info):
-    best_obs_seq = agent_info['best_obs_seq']
+    subgoal_seq = agent_info['subgoal_seq']
     best_action_seq = agent_info['best_action_seq']
     real_obs_seq = env.true_states(
         obs, best_action_seq
@@ -21,7 +21,7 @@ def debug(env, obs, agent_info):
     ax1.clear()
     env.plot_trajectory(
         ax1,
-        np.array(best_obs_seq),
+        np.array(subgoal_seq),
         np.array(best_action_seq),
         goal=env._target_position,
     )
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     data = joblib.load(args.file)
     env = data['env']
     beta = data['beta_q']
-    # beta_v = data['beta_v']
+    beta_v = data['beta_v']
     lagrange_multiplier = args.lm / reward_scale
     planning_horizon = args.ph
     goal_slice = env.ob_to_goal_slice
@@ -138,16 +138,18 @@ if __name__ == "__main__":
     print("multitask goal slice: ", multitask_goal_slice)
     policy = BetaLbfgsController(
         beta,
-        beta,
+        beta_v,
         env,
         goal_slice=goal_slice,
         max_cost=128,
+        use_max_cost=True,
+        max_num_steps_to_reach_goal=0,
         learned_policy=data['policy'],
         multitask_goal_slice=multitask_goal_slice,
         planning_horizon=planning_horizon,
         replan_every_time_step=True,
         only_use_terminal_env_loss=False,
-        use_learned_policy=False,
+        use_learned_policy=True,
         solver_kwargs={
             'factr': 1e9,
         },

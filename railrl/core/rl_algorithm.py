@@ -191,7 +191,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     observation,
                 )
                 if self.render:
-                    self.training_env.render()
+                    self.training_env.render(debug_info=agent_info)
                 next_ob, raw_reward, terminal, env_info = (
                     self.training_env.step(action)
                 )
@@ -211,7 +211,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 if terminal or len(
                         self._current_path_builder) >= self.max_path_length:
                     self._handle_rollout_ending()
-                    observation = self._start_new_rollout()
+                    observation = self._start_new_rollout(
+                        terminal=terminal,
+                        previous_rollout_last_ob=next_ob,
+                    )
                 else:
                     observation = next_ob
 
@@ -457,7 +460,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.log("Started Training: {0}".format(self._can_train()))
         logger.pop_prefix()
 
-    def _start_new_rollout(self):
+    def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
         return self.training_env.reset()
 

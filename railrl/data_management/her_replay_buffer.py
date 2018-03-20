@@ -346,6 +346,7 @@ class SimplePrioritizedHerReplayBuffer(PrioritizedHerReplayBuffer):
         if max_time_to_next_goal is not None:
             assert max_time_to_next_goal >= self.num_goals_to_sample
         self.max_time_to_next_goal = max_time_to_next_goal
+        self.last_path_start_idx = None
 
 
     def add_sample(self, observation, action, reward, terminal,
@@ -362,13 +363,7 @@ class SimplePrioritizedHerReplayBuffer(PrioritizedHerReplayBuffer):
         self._advance()
 
     def add_path(self, path):
-        """
-        This implementation is the same, but I added a few:
-        ```
-        self._it_sum[i] = self._max_priority ** self._alpha
-        self._it_min[i] = self._max_priority ** self._alpha
-        ```
-        """
+        self.last_path_start_idx = self._top
         obs = path["observations"]
         actions = path["actions"]
         rewards = path["rewards"]
@@ -399,22 +394,50 @@ class SimplePrioritizedHerReplayBuffer(PrioritizedHerReplayBuffer):
             goals,
             num_steps_left,
         )):
-            self.add_sample(observation, action, reward, terminal,
-                            next_observation, goal, num_steps_left)
             num_goals_to_sample = min(self.num_goals_to_sample, path_len-i)
             if self.max_time_to_next_goal is None:
                 max_i = path_len
             else:
+                # Don't add +1 because we index into next_obs and not ob
                 max_i = min(i + self.max_time_to_next_goal, path_len)
-            goal_idxs = np.random.randint(i, max_i, num_goals_to_sample)
+            if self.max_time_to_next_goal == self.num_goals_to_sample:
+                goal_idxs = np.arange(
+                    i,
+                    min(i + self.num_goals_to_sample, path_len)
+                )
+            else:
+                goal_idxs = np.random.randint(i, max_i, num_goals_to_sample)
             for goal_i in goal_idxs:
-                # TODO: maybe update num_steps_left
+                # Add both to the replay buffer to keep it balanced between
+                # HER data and real data.
+                self.add_sample(observation, action, reward, terminal,
+                                next_observation, goal, np.array([goal_i - i]))
                 self.add_sample(observation, action, reward, terminal,
                                 next_observation, next_obs[goal_i],
-                                num_steps_left)
+                                np.array([goal_i - i]))
 
     def random_batch(self, batch_size, beta=1.0):
         indices = self._sample_indices(batch_size)
+        weights = self._get_weights(indices, beta)
+        return dict(
+            observations=self._observations[indices],
+            actions=self._actions[indices],
+            rewards=self._rewards[indices],
+            terminals=self._terminals[indices],
+            next_observations=self._next_obs[indices],
+            goals=self._goals[indices],
+            num_steps_left=self._num_steps_left[indices],
+            indices=np.array(indices).reshape(-1, 1),
+            is_weights=weights.reshape(-1, 1),
+        )
+
+    def most_recent_path_batch(self, beta=1.0):
+        last_path_start_idx = self.last_path_start_idx
+        # We just looped around the replay buffer
+        if last_path_start_idx > self._top:
+            last_path_start_idx = 0
+
+        indices = np.arange(last_path_start_idx, self._top)
         weights = self._get_weights(indices, beta)
         return dict(
             observations=self._observations[indices],

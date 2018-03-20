@@ -1,3 +1,6 @@
+import argparse
+import joblib
+
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
 from railrl.data_management.her_replay_buffer import HerReplayBuffer, \
@@ -9,15 +12,18 @@ from railrl.events.controllers import BetaLbfgsController, BetaMultigoalLbfgs
 from railrl.events.networks import BetaQ, TanhFlattenMlpPolicy, BetaV
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.gaussian_and_epislon import \
+    GaussianAndEpislonStrategy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import setup_logger, run_experiment
+from railrl.policies.simple import RandomPolicy
 from railrl.torch.networks import TanhMlpPolicy
 
 
 def experiment(variant):
-    env = MultitaskPoint2dWall()
-    # env = MultitaskPoint2DEnv()
-    es = GaussianStrategy(
+    env = variant['env_class']()
+    es = GaussianAndEpislonStrategy(
+    # es = GaussianStrategy(
         action_space=env.action_space,
         **variant['es_kwargs']
     )
@@ -40,6 +46,13 @@ def experiment(variant):
         env,
         hidden_sizes=[32, 32],
     )
+    if variant['load_file'] is not None:
+        data = joblib.load(variant['load_file'])
+        beta_q = data['beta_q']
+        beta_q2 = data['beta_q2']
+        beta_v = data['beta_v']
+        policy = data['policy']
+
     goal_slice = env.ob_to_goal_slice
     multitask_goal_slice = slice(None)
     controller = BetaMultigoalLbfgs(
@@ -47,21 +60,15 @@ def experiment(variant):
         beta_v,
         env,
         goal_slice=goal_slice,
-        max_cost=128,
         learned_policy=policy,
         multitask_goal_slice=multitask_goal_slice,
-        planning_horizon=3,
-        replan_every_time_step=True,
-        only_use_terminal_env_loss=False,
-        use_learned_policy=False,
-        solver_kwargs={
-            'factr': 1e12,
-        },
+        **variant['controller_kwargs']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
-        policy=policy,
-        # policy=controller,
+        # policy=policy,
+        # policy=RandomPolicy(env.action_space),
+        policy=controller,
     )
     replay_buffer = SimplePrioritizedHerReplayBuffer(
         env=env,
@@ -83,34 +90,61 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--file', type=str,
+                        help='path to the snapshot file')
+    parser.add_argument('--pause', action='store_true')
+    parser.add_argument('--mt', type=int, help='max time to goal', default=0)
+    args = parser.parse_args()
+
     n_seeds = 1
     exp_prefix = "dev-beta-learning"
 
     # n_seeds = 3
-    # exp_prefix = "beta-learning-uwall-toggle-per"
+    # exp_prefix = "beta-learning-uwall-smart-her-wall-random-exploration" \
+    #              "-random-goals-mtau-2"
 
     variant = dict(
+        # env_class=MultitaskPoint2DEnv,
+        load_file=args.file,
+        env_class=MultitaskPoint2dWall,
         algo_kwargs=dict(
             num_epochs=100,
             num_steps_per_epoch=500,
             num_steps_per_eval=50,
+            num_updates_per_env_step=1,
             max_path_length=25,
-            batch_size=100,
-            discount=0.8,
+            batch_size=512,
+            discount=0.,
             prioritized_replay=False,
-            render=False,
-            render_during_eval=False,
+            render=True,
+            render_during_eval=True,
+            # save_replay_buffer=True,
+
+            finite_horizon=True,
+            max_num_steps_left=1,
         ),
         replay_buffer_kwargs=dict(
-            max_size=int(1E4),
-            num_goals_to_sample=4,
-            max_time_to_next_goal=5,
-            # fraction_goals_are_rollout_goals=0.5,
+            max_size=int(1E5),
+            num_goals_to_sample=2,
+            max_time_to_next_goal=2,
+            fraction_goals_are_rollout_goals=1,
             # resampling_strategy='truncated_geometric',
             # truncated_geom_factor=0.5,
         ),
+        controller_kwargs=dict(
+            max_cost=128,
+            planning_horizon=5,
+            replan_every_time_step=True,
+            only_use_terminal_env_loss=False,
+            use_learned_policy=True,
+            solver_kwargs={
+                'factr': 1e5,
+            },
+        ),
         es_kwargs=dict(
-            max_sigma=0.5,
+            epsilon=0.2,
+            max_sigma=0.,
         )
     )
     search_space = {
@@ -127,12 +161,6 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 variant=variant,
                 exp_id=exp_id,
+                # snapshot_gap=1,
+                # snapshot_mode='gap',
             )
-#
-# setup_logger(
-#         # 'name-of-beta-learning-experiment',
-#         # 'beta-learning-point2d-wall-prioritized',
-#         'beta-learning-point2d-wall',
-#         variant=variant,
-#     )
-#     experiment(variant)

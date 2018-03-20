@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument('file', type=str,
                         help='path to the snapshot file')
     parser.add_argument('--pause', action='store_true')
+    parser.add_argument('--mt', type=int, help='max time to goal', default=0)
     args = parser.parse_args()
     if args.pause:
         import ipdb; ipdb.set_trace()
@@ -34,7 +35,7 @@ if __name__ == "__main__":
     path_obs = path['observations']
     path_actions = path['actions']
     path_next_obs = path['next_observations']
-    num_steps_left = np.zeros((1, 1))
+    num_steps_left = np.array([[args.mt]])
 
     obs = path_obs[0:1]
     next_obs = path_next_obs[0:1]
@@ -84,6 +85,22 @@ if __name__ == "__main__":
 
     obs = (0, 0)
     goal = (1, 0)
+    plt.figure()
+    plt.title("pos {}. goal {}".format(obs, goal))
+    heatmap = make_heat_map(create_beta_eval(obs, goal),
+                            [-1, 1], [-1, 1], resolution=50)
+    plot_heatmap(heatmap)
+
+    obs = (1, 1)
+    goal = (0, 4)
+    plt.figure()
+    plt.title("pos {}. goal {}".format(obs, goal))
+    heatmap = make_heat_map(create_beta_eval(obs, goal),
+                            [-1, 1], [-1, 1], resolution=50)
+    plot_heatmap(heatmap)
+
+    obs = (0, 2)
+    goal = (0, 4)
     plt.figure()
     plt.title("pos {}. goal {}".format(obs, goal))
     heatmap = make_heat_map(create_beta_eval(obs, goal),

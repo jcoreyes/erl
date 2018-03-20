@@ -1,5 +1,6 @@
 import torch
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+import numpy as np
 
 
 class BetaQ(FlattenMlp):
@@ -31,6 +32,21 @@ class BetaQ(FlattenMlp):
             dim=1,
         )
         return super().forward(flat_inputs, **kwargs)
+
+    def create_eval_function(self, obs, goal, num_steps_left):
+        def beta_eval(a1, a2):
+            actions = np.array([[a1, a2]])
+            return self.eval_np(
+                observations=np.array([[
+                    *obs
+                ]]),
+                actions=actions,
+                goals=np.array([[
+                    *goal
+                ]]),
+                num_steps_left=np.array([[num_steps_left]])
+            )[0, 0]
+        return beta_eval
 
 
 class BetaV(FlattenMlp):

@@ -132,7 +132,7 @@ class Point2dWall(Serializable, Env):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-    def render(self, mode='human', close=False):
+    def render(self, close=False, debug_info=None):
         if close:
             self.drawer = None
             return
@@ -156,6 +156,29 @@ class Point2dWall(Serializable, Env):
             self.BALL_RADIUS,
             Color('blue'),
         )
+        if debug_info is not None:
+            debug_subgoals = debug_info.get('subgoal_seq', None)
+            if debug_subgoals is not None:
+                plasma_cm = plt.get_cmap('plasma')
+                num_goals = len(debug_subgoals)
+                for i, subgoal in enumerate(debug_subgoals):
+                    color = plasma_cm(float(i) / num_goals)
+                    # RGBA, but RGB need to be ints
+                    color = Color(
+                        int(color[0] * 255),
+                        int(color[1] * 255),
+                        int(color[2] * 255),
+                        int(color[3] * 255),
+                    )
+                    self.drawer.draw_solid_circle(
+                        subgoal,
+                        self.BALL_RADIUS/2,
+                        color,
+                    )
+            best_action = debug_info.get('oracle_qmax_action', None)
+            if best_action is not None:
+                self.drawer.draw_segment(self._position, self._position +
+                                         best_action, Color('red'))
 
         # draw the walls
         for wall in self.WALLS:
@@ -195,7 +218,7 @@ class Point2dWall(Serializable, Env):
 
 
     @staticmethod
-    def plot_trajectory(ax, states, actions, goal=None):
+    def plot_trajectory(ax, states, actions, goal=None, extra_action=None):
         assert len(states) == len(actions) + 1
         x = states[:, 0]
         y = -states[:, 1]
@@ -215,6 +238,10 @@ class Point2dWall(Serializable, Env):
         ax.quiver(x[:-1], y[:-1], actions_x, actions_y, scale_units='xy',
                   angles='xy', scale=1, color='r',
                   width=0.0035, )
+        if extra_action is not None:
+            ax.quiver(x[:1], y[:1], extra_action[0][None], extra_action[1][None],
+                      angles='xy', scale=1, color='g',
+                      width=0.0035, )
 
         for wall in Point2dWall.WALLS:
             for seg in wall.segments:

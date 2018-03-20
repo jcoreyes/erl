@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument('file', type=str,
                         help='path to the snapshot file')
     parser.add_argument('--pause', action='store_true')
+    parser.add_argument('--mt', type=int, help='max time to goal', default=0)
     args = parser.parse_args()
     if args.pause:
         import ipdb; ipdb.set_trace()
@@ -23,7 +24,7 @@ if __name__ == "__main__":
     beta_v = data['beta_v']
     env = data['env']
 
-    num_steps_left = np.zeros((1, 1))
+    num_steps_left = np.array([[args.mt]])
 
     def create_beta_goal(obs):
         def beta_eval(g1, g2):
