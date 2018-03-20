@@ -1,7 +1,6 @@
 import rospy
 from std_msgs.msg import Empty
 
-import intera_interface
 import numpy as np
 
 class PDController(object):
@@ -9,13 +8,10 @@ class PDController(object):
     PD Controller for Moving to Neutral
     """
     def __init__(self):
-
         # control parameters
         self._rate = 1000  # Hz
         self._missed_cmds = 20.0  # Missed cycles before triggering timeout
 
-        # create our limb instance
-        self._limb = intera_interface.Limb('right')
         # initialize parameters
         self._springs = dict()
         self._damping = dict()
@@ -25,14 +21,28 @@ class PDController(object):
         cuff_ns = 'robot/limb/right/suppress_cuff_interaction'
         self._pub_cuff_disable = rospy.Publisher(cuff_ns, Empty, queue_size=1)
 
-        self._des_angles = {'right_j0': 0.298009765625, 'right_j2': -0.350818359375, 'right_j4': 0.0557021484375, 'right_j3': 1.1678642578125, 'right_j1': -1.1768076171875, 'right_j6': 3.2978828125, 'right_j5': 1.3938330078125}
+        self._des_angles = {'right_j0': 0.298009765625,
+                            'right_j2': -0.350818359375,
+                            'right_j4': 0.0557021484375,
+                            'right_j3': 1.1678642578125,
+                            'right_j1': -1.1768076171875,
+                            'right_j6': 3.2978828125,
+                            'right_j5': 1.3938330078125}
+
 
         self.max_stiffness = 20
         self.time_to_maxstiffness = .3
         self.t_release = rospy.get_time()
 
         self._imp_ctrl_is_active = True
-        self._limb_joint_names = ['right_j0', 'right_j1', 'right_j2', 'right_j3', 'right_j4', 'right_j5', 'right_j6']
+        self._limb_joint_names = ['right_j0',
+                                  'right_j1',
+                                  'right_j2',
+                                  'right_j3',
+                                  'right_j4',
+                                  'right_j5',
+                                  'right_j6']
+
         for joint in self._limb_joint_names:
             self._springs[joint] = 30
             self._damping[joint] = 4
@@ -51,7 +61,7 @@ class PDController(object):
             else:
                 print("warning t_delta smaller than zero!")
 
-    def _update_forces(self):
+    def _update_forces(self, cur_pos, cur_vel):
         """
         Calculates the current angular difference between the start position
         and the current joint positions applying the joint torque spring forces
@@ -70,19 +80,19 @@ class PDController(object):
         # record current angles/velocities
 
         #TODO: REPLACE WITH CALLS TO OBSERVATION SERVER
-        cur_pos = self._limb.joint_angles()
-        cur_vel = self._limb.joint_velocities()
+        #cur_pos = self._limb.joint_angles()
+        #cur_vel = self._limb.joint_velocities()
 
         # calculate current forces
-        for joint in list(self._des_angles.keys()):
+       # for joint in list(self._des_angles.keys()):
+        for idx, joint in enumerate(self._limb_joint_names):
             # spring portion
             cmd[joint] = self._springs[joint] * (self._des_angles[joint] -
-                                                 cur_pos[joint])
+                                                 cur_pos[idx])
             # damping portion
-            cmd[joint] -= self._damping[joint] * cur_vel[joint]
+            cmd[joint] -= self._damping[joint] * cur_vel[idx]
 
-        if self.robot == 'sawyer':
-            cmd = np.array([
-                cmd[joint] for joint in self._limb_joint_names
-            ])
+        cmd = np.array([
+            cmd[joint] for joint in self._limb_joint_names
+        ])
         return cmd
