@@ -14,7 +14,7 @@ from rllab.spaces.box import Box
 from sawyer_control.srv import observation
 from sawyer_control.msg import actions
 #from gravity_torques.srv import *
-from robot_info.srv import getRobotPoseAndJacobian
+from sawyer_control.srv import getRobotPoseAndJacobian
 
 NUM_JOINTS = 7
 
