@@ -16,8 +16,6 @@ from sawyer_control.msg import actions
 #from gravity_torques.srv import *
 from sawyer_control.srv import getRobotPoseAndJacobian
 
-import pdb
-
 NUM_JOINTS = 7
 
 """
@@ -109,6 +107,7 @@ MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 # box_highs = np.array([ 0.84045825,  0.30408276, 0.8880568 ])
 
 box_lows = np.array([-0.04304189, -0.43462352, 0.27961519])
+
 box_highs = np.array([ 0.84045825,  0.38408276, 1.8880568 ])
 
 # Testing bounding box for Sawyer on pedestal
@@ -393,7 +392,7 @@ class SawyerEnv(Env, Serializable):
                 else:
                     action = action + torques
         if self.in_reset:
-            np.clip(action, -4.0, 4.0, out=action)
+            np.clip(action, -4, 4, out=action)
         if not self.in_reset:
             action = self.amplify * action
             action = np.clip(np.asarray(action),-MAX_TORQUES, MAX_TORQUES)
@@ -458,7 +457,7 @@ class SawyerEnv(Env, Serializable):
         return angles % (2*np.pi)
 
     def _joint_angles(self):
-        angles, _, _, _ = self.request_observation() 
+        angles, _, _, _ = self.request_observation()
         angles = np.array(angles)
         if self.use_angle_wrapping:
             angles = self._wrap_angles(angles)
@@ -547,10 +546,6 @@ class SawyerEnv(Env, Serializable):
         return differences
 
     def step(self, action, task='reaching'):
-        """if self._rs.state().stopped:
-            print('VIBRATION')
-            print(self.in_reset)
-            self._rs.enable()"""
         self.nan_check(action)
         actual_commanded_action = self._act(action)
         observation = self._get_observation()
@@ -768,7 +763,7 @@ class SawyerEnv(Env, Serializable):
         try:
             get_robot_pose_jacobian = rospy.ServiceProxy('get_robot_pose_jacobian', getRobotPoseAndJacobian,
                                                          persistent=True)
-            resp = get_robot_pose_jacobian(name) # change for gripper
+            resp = get_robot_pose_jacobian(name)
             pose_jac_dict = self.get_pose_jacobian(resp.poses, resp.jacobians)
             return pose_jac_dict
         except rospy.ServiceException as e:
@@ -1018,5 +1013,5 @@ class SawyerEnv(Env, Serializable):
         pass
 
     def turn_off_robot(self):
-        self._rs.stop()
+        pass
 

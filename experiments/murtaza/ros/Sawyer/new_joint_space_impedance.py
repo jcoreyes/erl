@@ -77,14 +77,7 @@ class PDController(object):
         # create our command dict
         cmd = dict()
 
-        # record current angles/velocities
-
-        #TODO: REPLACE WITH CALLS TO OBSERVATION SERVER
-        #cur_pos = self._limb.joint_angles()
-        #cur_vel = self._limb.joint_velocities()
-
         # calculate current forces
-       # for joint in list(self._des_angles.keys()):
         for idx, joint in enumerate(self._limb_joint_names):
             # spring portion
             cmd[joint] = self._springs[joint] * (self._des_angles[joint] -
