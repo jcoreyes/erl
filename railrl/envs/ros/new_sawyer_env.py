@@ -16,6 +16,8 @@ from sawyer_control.msg import actions
 #from gravity_torques.srv import *
 from sawyer_control.srv import getRobotPoseAndJacobian
 
+import pdb
+
 NUM_JOINTS = 7
 
 """
@@ -107,8 +109,11 @@ MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 # box_highs = np.array([ 0.84045825,  0.30408276, 0.8880568 ])
 
 box_lows = np.array([-0.04304189, -0.43462352, 0.27961519])
-
 box_highs = np.array([ 0.84045825,  0.38408276, 1.8880568 ])
+
+# Testing bounding box for Sawyer on pedestal
+box_lows = np.array([-0.4063314307903516, -0.4371988870414967, 0.19114132196594727])
+box_highs = np.array([0.5444314339226455, 0.5495988452507109, 0.8264100134638303])
 
 joint_names = [
     '_l2',
@@ -388,7 +393,7 @@ class SawyerEnv(Env, Serializable):
                 else:
                     action = action + torques
         if self.in_reset:
-            np.clip(action, -4, 4, out=action)
+            np.clip(action, -4.0, 4.0, out=action)
         if not self.in_reset:
             action = self.amplify * action
             action = np.clip(np.asarray(action),-MAX_TORQUES, MAX_TORQUES)
