@@ -4,12 +4,17 @@ from collections import OrderedDict
 import numpy as np
 import rospy
 from numpy import linalg
-from experiments.murtaza.ros.Sawyer.joint_space_impedance import PDController
+from experiments.murtaza.ros.Sawyer.new_joint_space_impedance import PDController
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core.serializable import Serializable
 from rllab.envs.base import Env
 from railrl.core import logger
 from rllab.spaces.box import Box
+
+from sawyer_control.srv import observation
+from sawyer_control.msg import actions
+#from gravity_torques.srv import *
+from sawyer_control.srv import getRobotPoseAndJacobian
 
 NUM_JOINTS = 7
 
@@ -105,6 +110,10 @@ box_lows = np.array([-0.04304189, -0.43462352, 0.27961519])
 
 box_highs = np.array([ 0.84045825,  0.38408276, 1.8880568 ])
 
+# Testing bounding box for Sawyer on pedestal
+box_lows = np.array([-0.4063314307903516, -0.4371988870414967, 0.19114132196594727])
+box_highs = np.array([0.5444314339226455, 0.5495988452507109, 0.8264100134638303])
+
 joint_names = [
     '_l2',
     '_l3',
@@ -148,15 +157,14 @@ class SawyerEnv(Env, Serializable):
             temperature=1.05,
             safe_reset_length=150,
             reward_magnitude=1,
-            use_safety_checks=True,
+            use_safety_checks=False,
             use_angle_wrapping=False,
             use_angle_parameterization=False,
             wrap_reward_angle_computation=True,
     ):
 
         Serializable.quick_init(self, locals())
-        rospy.init_node('sawyer_env', anonymous=True)
-        self.rate = rospy.Rate(update_hz)
+        self.init_rospy(update_hz)
 
         #defaults:
         self.joint_angle_experiment = False
@@ -369,7 +377,6 @@ class SawyerEnv(Env, Serializable):
         self.amplify=5*np.ones(7)
         self.loss_param = {'delta':0.001, 'c':0.0025}
 
-
     @safe
     def _act(self, action):
         if self.safety_box:
@@ -390,9 +397,7 @@ class SawyerEnv(Env, Serializable):
             action = self.amplify * action
             action = np.clip(np.asarray(action),-MAX_TORQUES, MAX_TORQUES)
 
-        #TODO: REPLACE WITH CALL TO ACTION NODE
-        joint_to_values = dict(zip(self.arm_joint_names, action))
-        self._set_joint_values(joint_to_values)
+        self.send_action(action)
         self.rate.sleep()
         return action
 
@@ -452,10 +457,8 @@ class SawyerEnv(Env, Serializable):
         return angles % (2*np.pi)
 
     def _joint_angles(self):
-        joint_to_angles = self.arm.joint_angles()
-        angles =  np.array([
-            joint_to_angles[joint] for joint in self.arm_joint_names
-        ])
+        angles, _, _, _ = self.request_observation()
+        angles = np.array(angles)
         if self.use_angle_wrapping:
             angles = self._wrap_angles(angles)
         if self.use_angle_parameterization:
@@ -469,25 +472,12 @@ class SawyerEnv(Env, Serializable):
         return angles
 
     def _end_effector_pose(self):
-        state_dict = self.arm.endpoint_pose()
-        pos = state_dict['position']
+        _, _, _, endpoint_pose = self.request_observation()
         if self.end_effector_experiment_total:
-            orientation = state_dict['orientation']
-            return np.array([
-                pos.x,
-                pos.y,
-                pos.z,
-                orientation.x,
-                orientation.y,
-                orientation.z,
-                orientation.w
-            ])
+            return np.array(endpoint_pose)
         else:
-            return np.array([
-                pos.x,
-                pos.y,
-                pos.z
-            ])
+            x, y, z, _, _, _, _ = endpoint_pose
+            return np.array([x, y, z])
 
     def _Lorentz_reward(self, differences_pos, differences_angle, action):
         l2_dist = sum(np.array([2.5, 2.5, 0]) * (differences_pos) ** 2)
@@ -556,10 +546,6 @@ class SawyerEnv(Env, Serializable):
         return differences
 
     def step(self, action, task='reaching'):
-        if self._rs.state().stopped:
-            print('VIBRATION')
-            print(self.in_reset)
-            self._rs.enable()
         self.nan_check(action)
         actual_commanded_action = self._act(action)
         observation = self._get_observation()
@@ -636,8 +622,10 @@ class SawyerEnv(Env, Serializable):
 
 
     def unexpected_velocity_check(self):
-        velocities_dict = self._get_joint_values['velocity']()
-        velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
+        #velocities_dict = self._get_joint_values['velocity']()
+        #velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
+        _, velocities, _, _ = self.request_observation()
+        velocities = np.array(velocities)
         ERROR_THRESHOLD = 5 * np.ones(7)
         is_peaks = (np.abs(velocities) > ERROR_THRESHOLD).any()
         if is_peaks:
@@ -681,26 +669,25 @@ class SawyerEnv(Env, Serializable):
                 raise EnvironmentError('ERROR: NaN action attempted')
 
     def _get_observation(self):
-
-        #TODO: REPLACE WTIH CALL TO OBSERVATION NODE
         angles = self._joint_angles()
-        torques_dict = self._get_joint_values['torque']()
-        velocities_dict = self._get_joint_values['velocity']()
-        velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
-        torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
+        _, velocities, torques, _ = self.request_observation()
+        velocities = np.array(velocities)
+        torques = np.array(torques)
+        endpoint_pose = self._end_effector_pose()
 
         temp = np.hstack((
             angles,
             velocities,
             torques,
-            self._end_effector_pose(),
+            endpoint_pose,
             self.desired
         ))
         return temp
 
     def safe_move_to_neutral(self):
         for i in range(self.safe_reset_length):
-            torques = self.PDController._update_forces()
+            cur_pos, cur_vel, _, _ = self.request_observation()
+            torques = self.PDController._update_forces(cur_pos, cur_vel)
             actual_commanded_actions = self._act(torques)
             curr_time = time.time()
             self.init_delay = curr_time
@@ -714,8 +701,10 @@ class SawyerEnv(Env, Serializable):
 
     def previous_angles_reset_check(self):
         close_to_desired_reset_pos = self.is_in_correct_position()
-        velocities_dict = self._get_joint_values['velocity']()
-        velocities = np.abs(np.array([velocities_dict[joint] for joint in self.arm_joint_names]))
+        #velocities_dict = self._get_joint_values['velocity']()
+        #velocities = np.abs(np.array([velocities_dict[joint] for joint in self.arm_joint_names]))
+        _, velocities, _, _ = self.request_observation()
+        velocities = np.abs(np.array(velocities))
         VELOCITY_THRESHOLD = .002 * np.ones(7)
         no_velocity = (velocities < VELOCITY_THRESHOLD).all()
         return close_to_desired_reset_pos and no_velocity
@@ -988,6 +977,28 @@ class SawyerEnv(Env, Serializable):
 
         return statistics
 
+    def init_rospy(self, update_hz):
+        rospy.init_node('sawyer_env', anonymous=True)
+        self.action_publisher = rospy.Publisher('actions_publisher', actions, queue_size=10)
+        self.rate = rospy.Rate(update_hz)
+
+    def send_action(self, action):
+        self.action_publisher.publish(action)
+
+    def request_observation(self):
+        rospy.wait_for_service('observations')
+        try:
+            request = rospy.ServiceProxy('observations', observation, persistent=True)
+            obs = request()
+            return (
+                    obs.angles,
+                    obs.velocities,
+                    obs.torques,
+                    obs.endpoint_pose
+            )
+        except rospy.ServiceException as e:
+            print(e)
+
     @property
     def horizon(self):
         raise NotImplementedError
@@ -1002,4 +1013,5 @@ class SawyerEnv(Env, Serializable):
         pass
 
     def turn_off_robot(self):
-        self._rs.stop()
+        pass
+
