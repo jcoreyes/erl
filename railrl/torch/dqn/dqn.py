@@ -100,8 +100,8 @@ class DQN(TorchRLAlgorithm):
         """
         Save some statistics for eval
         """
-        if self.eval_statistics is None:
-            self.eval_statistics = OrderedDict()
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
             self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Y Predictions',

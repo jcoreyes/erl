@@ -165,7 +165,8 @@ class TwinSAC(TorchRLAlgorithm):
         """
         Save some statistics for eval
         """
-        if self.eval_statistics is None:
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
             """
             Eval should set this to None.
             This way, these statistics are only computed for one batch.
@@ -184,7 +185,6 @@ class TwinSAC(TorchRLAlgorithm):
                 policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
                 policy_loss = policy_loss + policy_reg_loss
 
-            self.eval_statistics = OrderedDict()
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
             self.eval_statistics['VF Loss'] = np.mean(ptu.get_numpy(vf_loss))

@@ -119,7 +119,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             )
         self.eval_policy = eval_policy
         self.eval_sampler = eval_sampler
-        self.eval_statistics = None
+        self.eval_statistics = OrderedDict()
+        self.need_to_update_eval_statistics = True
 
         self.action_space = env.action_space
         self.obs_space = env.observation_space
@@ -394,7 +395,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
     def evaluate(self, epoch):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
-        self.eval_statistics = None
 
         logger.log("Collecting samples for evaluation")
         test_paths = self.eval_sampler.obtain_samples()
@@ -413,11 +413,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics['AverageReturn'] = average_returns
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+        self.need_to_update_eval_statistics = True
 
     def offline_evaluate(self, epoch):
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)
-        self.eval_statistics = None
+        self.need_to_update_eval_statistics = True
 
     def _can_evaluate(self):
         """
@@ -427,7 +428,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         """
         return (
             len(self._exploration_paths) > 0
-            and self.eval_statistics is not None
+            and not self.need_to_update_eval_statistics
         )
 
     def _can_train(self):
