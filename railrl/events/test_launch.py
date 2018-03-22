@@ -5,7 +5,7 @@ import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
 from railrl.data_management.her_replay_buffer import HerReplayBuffer, \
     PrioritizedHerReplayBuffer, SimplePrioritizedHerReplayBuffer
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv, CustomBeta
 from railrl.envs.multitask.point2d_wall import MultitaskPoint2dWall
 from railrl.events.beta_learning import BetaLearning
 from railrl.events.controllers import BetaLbfgsController, BetaMultigoalLbfgs
@@ -37,6 +37,7 @@ def experiment(variant):
         False,
         hidden_sizes=[32, 32],
     )
+    # custom_beta = CustomBeta(env)
     beta_v = BetaV(
         env,
         False,
@@ -57,6 +58,7 @@ def experiment(variant):
     multitask_goal_slice = slice(None)
     controller = BetaMultigoalLbfgs(
         beta_q,
+        # custom_beta,
         beta_v,
         env,
         goal_slice=goal_slice,
@@ -79,6 +81,7 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         beta_q=beta_q,
         beta_q2=beta_q2,
+        # custom_beta=custom_beta,
         beta_v=beta_v,
         policy=policy,
         replay_buffer=replay_buffer,
@@ -98,28 +101,32 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     n_seeds = 1
+    mode = 'local'
     exp_prefix = "dev-beta-learning"
 
     # n_seeds = 3
-    # exp_prefix = "beta-learning-uwall-smart-her-wall-random-exploration" \
-    #              "-random-goals-mtau-2"
+    # mode = 'ec2'
+    # exp_prefix = "beta-learning-wall-sweep-epsilon-off-policy-data-no-optimal" \
+    #              "-q-no-wrong-goal-added-during-rollout"
 
     variant = dict(
-        # env_class=MultitaskPoint2DEnv,
         load_file=args.file,
-        env_class=MultitaskPoint2dWall,
+        env_class=MultitaskPoint2DEnv,
+        # env_class=MultitaskPoint2dWall,
         algo_kwargs=dict(
-            num_epochs=100,
-            num_steps_per_epoch=500,
+            num_epochs=30,
+            num_steps_per_epoch=100,
             num_steps_per_eval=50,
-            num_updates_per_env_step=1,
+            num_updates_per_env_step=10,
             max_path_length=25,
-            batch_size=512,
+            batch_size=128,
             discount=0.,
             prioritized_replay=False,
             render=True,
             render_during_eval=True,
             # save_replay_buffer=True,
+
+            policy_and_target_update_period=1,
 
             finite_horizon=True,
             max_num_steps_left=1,
@@ -135,20 +142,24 @@ if __name__ == "__main__":
         controller_kwargs=dict(
             max_cost=128,
             planning_horizon=5,
-            replan_every_time_step=True,
-            only_use_terminal_env_loss=False,
+            use_max_cost=False,
+            replan_every_time_step=False,
+            only_use_terminal_env_loss=True,
             use_learned_policy=True,
             solver_kwargs={
-                'factr': 1e5,
+                'factr': 1e9,
             },
         ),
         es_kwargs=dict(
             epsilon=0.2,
             max_sigma=0.,
-        )
+        ),
+        algorithm='Beta Learning',
+        version='Dev',
     )
     search_space = {
-        # 'algo_kwargs.prioritized_replay': [True, False],
+        'es_kwargs.epsilon': [0.5],
+        'algo_kwargs.use_off_policy_data': [True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -157,7 +168,7 @@ if __name__ == "__main__":
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             run_experiment(
                 experiment,
-                mode='local',
+                mode=mode,
                 exp_prefix=exp_prefix,
                 variant=variant,
                 exp_id=exp_id,

@@ -15,6 +15,7 @@ from torch import nn
 
 import matplotlib.pyplot as plt
 
+
 class BetaLearning(TorchRLAlgorithm):
     def __init__(
             self,
@@ -24,6 +25,9 @@ class BetaLearning(TorchRLAlgorithm):
             beta_q2,
             beta_v,
             policy,
+
+            use_off_policy_data=True,
+            custom_beta=None,
             goal_reached_epsilon=1e-3,
             learning_rate=1e-3,
             prioritized_replay=False,
@@ -55,6 +59,8 @@ class BetaLearning(TorchRLAlgorithm):
         self.beta_q2 = beta_q2
         self.target_beta_q = self.beta_q.copy()
         self.target_beta_q2 = self.beta_q2.copy()
+        self.use_off_policy_data = use_off_policy_data
+        self.custom_beta = custom_beta
         self.policy = policy
         self.target_policy = policy
         self.prioritized_replay = prioritized_replay
@@ -97,25 +103,44 @@ class BetaLearning(TorchRLAlgorithm):
         self.legend_axis = None
         self.train_batches = []
 
+        self.extra_eval_statistics = OrderedDict()
+
     def _can_train(self):
         # Add n_rollouts_total check so that the call to
         # self.replay_buffer.most_recent_path_batch works
         return (
-                self.replay_buffer.num_steps_can_sample() >=
-                self.min_num_steps_before_training
-        ) and self.replay_buffer.last_path_start_idx is not None
+                       self.replay_buffer.num_steps_can_sample() >=
+                       self.min_num_steps_before_training
+               ) and self.replay_buffer.last_path_start_idx is not None
+
+    def create_save_gradient_norm_hook(self, key):
+        def save_gradient_norm(gradient):
+            if key not in self.extra_eval_statistics:
+                self.extra_eval_statistics[key] = gradient.data.norm()
+                self.extra_eval_statistics.update(
+                    create_stats_ordered_dict(
+                        key,
+                        ptu.get_numpy(gradient.data.norm(p=2, dim=1))
+                    )
+                )
+
+        return save_gradient_norm
 
     def _do_training(self):
         beta = self.per_beta_schedule.get_value(
             self._n_train_steps_total,
         )
-        for tmp, np_batch in enumerate([
-            # self.replay_buffer.random_batch(
-            #     self.batch_size,
-            #     beta=beta,
-            # ),
-            self.replay_buffer.most_recent_path_batch(beta=beta),
-        ]):
+        batches = [
+            self.replay_buffer.most_recent_path_batch(beta=beta)
+        ]
+        if self.use_off_policy_data:
+            batches.append(
+                self.replay_buffer.random_batch(
+                    self.batch_size,
+                    beta=beta,
+                )
+            )
+        for tmp, np_batch in enumerate(batches):
             next_obs = np_batch['next_observations']
             goals = np_batch['goals']
             terminals = np_batch['terminals']
@@ -124,7 +149,8 @@ class BetaLearning(TorchRLAlgorithm):
             np_batch['events'] = events
             terminals = 1 - (1 - terminals) * (1 - events)
             if self.finite_horizon:
-                terminals = 1 - (1 - terminals) * (np_batch['num_steps_left'] != 0)
+                terminals = 1 - (1 - terminals) * (
+                        np_batch['num_steps_left'] != 0)
             np_batch['terminals'] = terminals
             batch = np_to_pytorch_batch(np_batch)
 
@@ -172,11 +198,12 @@ class BetaLearning(TorchRLAlgorithm):
             next_beta = torch.min(next_beta_1, next_beta_2)
             if self.finite_horizon:
                 targets = (
-                    terminals * events + (1 - terminals) * next_beta
+                        terminals * events + (1 - terminals) * next_beta
                 ).detach()
             else:
                 targets = (
-                    terminals * events + (1 - terminals) * self.discount * next_beta
+                        terminals * events + (
+                        1 - terminals) * self.discount * next_beta
                 ).detach()
 
             predictions = self.beta_q(obs, actions, goals, num_steps_left)
@@ -192,6 +219,12 @@ class BetaLearning(TorchRLAlgorithm):
 
             self.beta_q_optimizer.zero_grad()
             beta_q_loss.backward()
+            beta_q_grad_norms = []
+            for param in self.beta_q.parameters():
+                beta_q_grad_norms.append(
+                    param.grad.data.norm()
+                )
+
             self.beta_q_optimizer.step()
 
             self.beta_q2_optimizer.zero_grad()
@@ -199,12 +232,23 @@ class BetaLearning(TorchRLAlgorithm):
             self.beta_q2_optimizer.step()
 
             policy_actions = self.policy(obs, goals, num_steps_left)
-            beta_q_output = self.beta_q(
-                observations=obs,
-                actions=policy_actions,
-                goals=goals,
-                num_steps_left=num_steps_left,
-            )
+
+            policy_actions.register_hook(self.create_save_gradient_norm_hook(
+                'dQ/da'))
+            if self.custom_beta is None:
+                beta_q_output = self.beta_q(
+                    observations=obs,
+                    actions=policy_actions,
+                    goals=goals,
+                    num_steps_left=num_steps_left,
+                )
+            else:
+                beta_q_output = self.custom_beta(
+                    observations=obs,
+                    actions=policy_actions,
+                    goals=goals,
+                    num_steps_left=num_steps_left,
+                )
 
             beta_v_loss = self.v_criterion(
                 self.beta_v(obs, goals, num_steps_left),
@@ -214,9 +258,17 @@ class BetaLearning(TorchRLAlgorithm):
             beta_v_loss.backward()
             self.beta_v_optimizer.step()
             policy_loss = - beta_q_output.mean()
-            if self._n_train_steps_total % self.policy_and_target_update_period == 0:
+            if (self._n_train_steps_total %
+                    self.policy_and_target_update_period == 0
+                    or self.eval_statistics is None
+            ):
                 self.policy_optimizer.zero_grad()
                 policy_loss.backward()
+                policy_grad_norms = []
+                for param in self.policy.parameters():
+                    policy_grad_norms.append(
+                        param.grad.data.norm()
+                    )
                 self.policy_optimizer.step()
 
                 ptu.soft_update_from_to(
@@ -240,6 +292,14 @@ class BetaLearning(TorchRLAlgorithm):
                     beta_v_loss
                 ))
                 self.eval_statistics.update(create_stats_ordered_dict(
+                    'Beta Q Gradient Norms',
+                    beta_q_grad_norms,
+                ))
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'Policy Gradient Norms',
+                    policy_grad_norms,
+                ))
+                self.eval_statistics.update(create_stats_ordered_dict(
                     'Beta Q Targets',
                     ptu.get_numpy(targets),
                 ))
@@ -261,12 +321,14 @@ class BetaLearning(TorchRLAlgorithm):
                 self.eval_statistics['Training Goal is Corner'] = (
                     goal_is_corner.mean()
                 )
+                self.eval_statistics.update(self.extra_eval_statistics)
+                self.extra_eval_statistics = OrderedDict()
 
     def detect_event(self, next_obs, goals):
         diff = self.env.convert_obs_to_goals(next_obs) - goals
         goal_reached = (
-            np.linalg.norm(diff, axis=1, keepdims=True)
-            <= self.goal_reached_epsilon
+                np.linalg.norm(diff, axis=1, keepdims=True)
+                <= self.goal_reached_epsilon
         )
         return goal_reached
 
@@ -319,17 +381,17 @@ class BetaLearning(TorchRLAlgorithm):
             goals=goal,
         )
         # TODO: do I add both???
-        self._current_path_builder.add_all(
-            observations=observation,
-            actions=action,
-            rewards=reward,
-            next_observations=next_observation,
-            terminals=terminal,
-            agent_infos=agent_info,
-            env_infos=env_info,
-            num_steps_left=self._rollout_num_steps_left,
-            goals=self._rollout_goal,
-        )
+        # self._current_path_builder.add_all(
+        #     observations=observation,
+        #     actions=action,
+        #     rewards=reward,
+        #     next_observations=next_observation,
+        #     terminals=terminal,
+        #     agent_infos=agent_info,
+        #     env_infos=env_info,
+        #     num_steps_left=self._rollout_num_steps_left,
+        #     goals=self._rollout_goal,
+        # )
         self._rollout_num_steps_left = self._rollout_num_steps_left - 1
         if self._rollout_num_steps_left < 0:
             self._rollout_num_steps_left = np.array([self.max_num_steps_left])
@@ -344,10 +406,10 @@ class BetaLearning(TorchRLAlgorithm):
 
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
-        self._rollout_goal = self.env.sample_goal_for_rollout()
-        self.training_env.set_goal(self._rollout_goal)
         self._rollout_num_steps_left = np.array([self.max_num_steps_left])
         if terminal:
+            self._rollout_goal = self.env.sample_goal_for_rollout()
+            self.training_env.set_goal(self._rollout_goal)
             return self.training_env.reset()
         else:
             return previous_rollout_last_ob
@@ -416,6 +478,3 @@ class BetaLearning(TorchRLAlgorithm):
         ))
         plt.draw()
         plt.pause(0.01)
-
-
-
