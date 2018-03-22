@@ -179,6 +179,10 @@ class Point2dWall(Serializable, Env):
             if best_action is not None:
                 self.drawer.draw_segment(self._position, self._position +
                                          best_action, Color('red'))
+            policy_action = debug_info.get('learned_action', None)
+            if policy_action is not None:
+                self.drawer.draw_segment(self._position, self._position +
+                                         policy_action, Color('green'))
 
         # draw the walls
         for wall in self.WALLS:

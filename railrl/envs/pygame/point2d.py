@@ -123,7 +123,7 @@ class Point2DEnv(Serializable, Env):
         self._position[0] = pos[0]
         self._position[1] = pos[1]
 
-    def render(self, mode='human', close=False):
+    def render(self, close=False, debug_info=None):
         if close:
             self.drawer = None
             return
@@ -147,6 +147,34 @@ class Point2DEnv(Serializable, Env):
             self.BALL_RADIUS,
             Color('blue'),
         )
+
+        if debug_info is not None:
+            debug_subgoals = debug_info.get('subgoal_seq', None)
+            if debug_subgoals is not None:
+                plasma_cm = plt.get_cmap('plasma')
+                num_goals = len(debug_subgoals)
+                for i, subgoal in enumerate(debug_subgoals):
+                    color = plasma_cm(float(i) / num_goals)
+                    # RGBA, but RGB need to be ints
+                    color = Color(
+                        int(color[0] * 255),
+                        int(color[1] * 255),
+                        int(color[2] * 255),
+                        int(color[3] * 255),
+                    )
+                    self.drawer.draw_solid_circle(
+                        subgoal,
+                        self.BALL_RADIUS/2,
+                        color,
+                        )
+            best_action = debug_info.get('oracle_qmax_action', None)
+            if best_action is not None:
+                self.drawer.draw_segment(self._position, self._position +
+                                         best_action, Color('red'))
+            policy_action = debug_info.get('learned_action', None)
+            if policy_action is not None:
+                self.drawer.draw_segment(self._position, self._position +
+                                         policy_action, Color('green'))
 
         self.drawer.render()
         self.drawer.tick(self.render_dt_msec)
