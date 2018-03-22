@@ -6,8 +6,9 @@ import joblib
 import numpy as np
 
 from railrl.core import logger
-from railrl.envs.multitask.point2d import CustomBeta
-from railrl.events.controllers import BetaLbfgsController
+from railrl.envs.multitask.point2d import CustomBeta, MultitaskPoint2DEnv
+from railrl.envs.multitask.point2d_wall import MultitaskPoint2dWall
+from railrl.events.controllers import BetaQLbfgsController, BetaVLbfgsController
 from railrl.events.networks import ArgmaxBetaQPolicy
 
 
@@ -26,6 +27,8 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, tick=False):
         env.render()
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
+        if tick:
+            import ipdb; ipdb.set_trace()
         if animated:
             env.render(debug_info=agent_info)
         next_o, r, d, env_info = env.step(a)
@@ -39,8 +42,6 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, tick=False):
         if d:
             break
         o = next_o
-        if tick:
-            import ipdb; ipdb.set_trace()
 
     actions = np.array(actions)
     if len(actions.shape) == 1:
@@ -78,15 +79,11 @@ if __name__ == "__main__":
     parser.add_argument('--nrolls', type=int, default=1,
                         help='Number of rollout per eval')
     parser.add_argument('--verbose', action='store_true')
-    parser.add_argument('--lm', type=float, default=1,
-                        help='Lagrange Multiplier (before division by reward scale)')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--pause', action='store_true')
     parser.add_argument('--tick', action='store_true')
-    parser.add_argument('--justsim', action='store_true')
-    parser.add_argument('--npath', type=int, default=100)
-    parser.add_argument('--tau', type=int, default=0)
-    parser.add_argument('--opt', type=str, default='lbfgs')
+    parser.add_argument('--useq', action='store_true',
+                        help="Use beta q for planning")
     args = parser.parse_args()
     if args.pause:
         import ipdb; ipdb.set_trace()
@@ -97,36 +94,29 @@ if __name__ == "__main__":
 
     data = joblib.load(args.file)
     env = data['env']
-    beta = data['beta_q']
+    env = MultitaskPoint2dWall()
+    beta_q = data['beta_q']
     beta_v = data['beta_v']
     learned_policy = data['policy']
-    argmax_policy = ArgmaxBetaQPolicy(beta)
+    argmax_policy = ArgmaxBetaQPolicy(beta_q)
     beta_custom = CustomBeta(env)
-    lagrange_multiplier = args.lm / reward_scale
     planning_horizon = args.ph
     goal_slice = env.ob_to_goal_slice
     multitask_goal_slice = slice(None)
-    optimizer = args.opt
-    print("Optimizer choice: ", optimizer)
-    print("lagrange multiplier: ", lagrange_multiplier)
     print("goal slice: ", goal_slice)
     print("multitask goal slice: ", multitask_goal_slice)
-    policy = BetaLbfgsController(
-        beta,
-        # beta_custom,
-        beta_v,
-        env,
+    shared_kwargs = dict(
         goal_slice=goal_slice,
         max_cost=128,
+        goal_reaching_policy=learned_policy,
         max_num_steps_to_reach_goal=0,
-        learned_policy=learned_policy,
         oracle_argmax_policy=argmax_policy,
-        use_oracle_argmax_policy=True,
-        # use_oracle_argmax_policy=False,
+        # use_oracle_argmax_policy=True,
+        use_oracle_argmax_policy=False,
         multitask_goal_slice=multitask_goal_slice,
         planning_horizon=planning_horizon,
-        # use_max_cost=False,
-        use_max_cost=True,
+        use_max_cost=False,
+        # use_max_cost=True,
 
         # replan_every_time_step=True,
         replan_every_time_step=False,
@@ -134,11 +124,21 @@ if __name__ == "__main__":
         # only_use_terminal_env_loss=False,
         only_use_terminal_env_loss=True,
 
-        use_learned_policy=True,
         solver_kwargs={
-            'factr': 1e9,
+            'factr': 1e3,
         },
     )
+    policy = BetaVLbfgsController(
+        beta_v,
+        env,
+        **shared_kwargs
+    )
+    if args.useq:
+        policy = BetaQLbfgsController(
+            beta_q,
+            env,
+            **shared_kwargs
+        )
     paths = []
     while True:
         env.set_goal(env.sample_goal_for_rollout())

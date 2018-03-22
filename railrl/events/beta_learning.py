@@ -26,14 +26,17 @@ class BetaLearning(TorchRLAlgorithm):
             beta_v,
             policy,
 
-            use_off_policy_data=True,
-            custom_beta=None,
+            train_with='both',
             goal_reached_epsilon=1e-3,
             learning_rate=1e-3,
             prioritized_replay=False,
 
+            always_reset_env=True,
             finite_horizon=False,
             max_num_steps_left=0,
+
+            flip_training_period=100,
+            train_simultaneously=True,
 
             policy_and_target_update_period=2,
             target_policy_noise=0.2,
@@ -42,6 +45,8 @@ class BetaLearning(TorchRLAlgorithm):
             per_beta_schedule=None,
             **kwargs
     ):
+        self.train_simultaneously = train_simultaneously
+        assert train_with in ['both', 'off_policy', 'on_policy']
         super().__init__(env, exploration_policy, **kwargs)
         self.eval_sampler = MultigoalSimplePathSampler(
             env=self.env,
@@ -59,12 +64,13 @@ class BetaLearning(TorchRLAlgorithm):
         self.beta_q2 = beta_q2
         self.target_beta_q = self.beta_q.copy()
         self.target_beta_q2 = self.beta_q2.copy()
-        self.use_off_policy_data = use_off_policy_data
-        self.custom_beta = custom_beta
+        self.train_with = train_with
         self.policy = policy
         self.target_policy = policy
         self.prioritized_replay = prioritized_replay
+        self.flip_training_period = flip_training_period
 
+        self.always_reset_env = always_reset_env
         self.finite_horizon = finite_horizon
         self.max_num_steps_left = max_num_steps_left
         assert max_num_steps_left >= 0
@@ -104,6 +110,17 @@ class BetaLearning(TorchRLAlgorithm):
         self.train_batches = []
 
         self.extra_eval_statistics = OrderedDict()
+        for key_not_always_updated in [
+            'Policy Gradient Norms',
+            'Beta Q Gradient Norms',
+            'dQ/da',
+        ]:
+            self.eval_statistics.update(create_stats_ordered_dict(
+                key_not_always_updated,
+                np.zeros(2),
+            ))
+
+        self.training_policy = False
 
     def _can_train(self):
         # Add n_rollouts_total check so that the call to
@@ -115,12 +132,12 @@ class BetaLearning(TorchRLAlgorithm):
 
     def create_save_gradient_norm_hook(self, key):
         def save_gradient_norm(gradient):
-            if key not in self.extra_eval_statistics:
-                self.extra_eval_statistics[key] = gradient.data.norm()
+            if self.need_to_update_eval_statistics:
                 self.extra_eval_statistics.update(
                     create_stats_ordered_dict(
                         key,
-                        ptu.get_numpy(gradient.data.norm(p=2, dim=1))
+                        ptu.get_numpy(gradient.data.norm(p=2, dim=1)),
+                        always_show_all_stats=True,
                     )
                 )
 
@@ -130,10 +147,12 @@ class BetaLearning(TorchRLAlgorithm):
         beta = self.per_beta_schedule.get_value(
             self._n_train_steps_total,
         )
-        batches = [
-            self.replay_buffer.most_recent_path_batch(beta=beta)
-        ]
-        if self.use_off_policy_data:
+        batches = []
+        if self.train_with in ['on_policy', 'both']:
+            batches.append(
+                self.replay_buffer.most_recent_path_batch(beta=beta)
+            )
+        if self.train_with in ['off_policy', 'both']:
             batches.append(
                 self.replay_buffer.random_batch(
                     self.batch_size,
@@ -168,88 +187,80 @@ class BetaLearning(TorchRLAlgorithm):
             else:
                 next_num_steps_left = num_steps_left
 
-            next_actions = self.target_policy(
+            # next_actions = self.target_policy(
+            #     observations=next_obs,
+            #     goals=goals,
+            #     num_steps_left=next_num_steps_left,
+            # )
+            # noise = torch.normal(
+            #     torch.zeros_like(next_actions),
+            #     self.target_policy_noise,
+            # )
+            # noise = torch.clamp(
+            #     noise,
+            #     -self.target_policy_noise_clip,
+            #     self.target_policy_noise_clip
+            # )
+            # noisy_next_actions = next_actions + noise
+            # next_beta_1 = self.target_beta_q(
+            #     observations=next_obs,
+            #     actions=noisy_next_actions,
+            #     goals=goals,
+            #     num_steps_left=next_num_steps_left,
+            # )
+            # next_beta_2 = self.target_beta_q2(
+            #     observations=next_obs,
+            #     actions=noisy_next_actions,
+            #     goals=goals,
+            #     num_steps_left=next_num_steps_left,
+            # )
+            # next_beta = torch.min(next_beta_1, next_beta_2)
+            # noisy_next_actions = self.policy(
+            #     observations=next_obs,
+            #     goals=goals,
+            #     num_steps_left=next_num_steps_left,
+            # )
+            next_actions = self.policy(
                 observations=next_obs,
                 goals=goals,
                 num_steps_left=next_num_steps_left,
             )
-            noise = torch.normal(
-                torch.zeros_like(next_actions),
-                self.target_policy_noise,
-            )
-            noise = torch.clamp(
-                noise,
-                -self.target_policy_noise_clip,
-                self.target_policy_noise_clip
-            )
-            noisy_next_actions = next_actions + noise
-            next_beta_1 = self.target_beta_q(
+            next_beta = self.beta_q(
                 observations=next_obs,
-                actions=noisy_next_actions,
+                actions=next_actions,
                 goals=goals,
                 num_steps_left=next_num_steps_left,
             )
-            next_beta_2 = self.target_beta_q2(
-                observations=next_obs,
-                actions=noisy_next_actions,
-                goals=goals,
-                num_steps_left=next_num_steps_left,
-            )
-            next_beta = torch.min(next_beta_1, next_beta_2)
-            if self.finite_horizon:
-                targets = (
-                        terminals * events + (1 - terminals) * next_beta
-                ).detach()
-            else:
-                targets = (
-                        terminals * events + (
-                        1 - terminals) * self.discount * next_beta
-                ).detach()
-
+            if not self.finite_horizon:
+                next_beta = next_beta * self.discount
+            targets = (
+                terminals * events + (1 - terminals) * next_beta
+            ).detach()
             predictions = self.beta_q(obs, actions, goals, num_steps_left)
             if self.prioritized_replay:
                 weights = ptu.from_numpy(np_batch['is_weights']).float()
                 self.q_criterion.weight = weights
                 priorities = ptu.get_numpy(torch.abs(predictions - targets))
                 self.replay_buffer.update_priorities(indices, priorities)
+
             beta_q_loss = self.q_criterion(predictions, targets)
 
-            predictions2 = self.beta_q2(obs, actions, goals, num_steps_left)
-            beta_q2_loss = self.q_criterion(predictions2, targets)
-
-            self.beta_q_optimizer.zero_grad()
-            beta_q_loss.backward()
-            beta_q_grad_norms = []
-            for param in self.beta_q.parameters():
-                beta_q_grad_norms.append(
-                    param.grad.data.norm()
-                )
-
-            self.beta_q_optimizer.step()
-
-            self.beta_q2_optimizer.zero_grad()
-            beta_q2_loss.backward()
-            self.beta_q2_optimizer.step()
+            # predictions2 = self.beta_q2(obs, actions, goals, num_steps_left)
+            # beta_q2_loss = self.q_criterion(predictions2, targets)
+            # self.beta_q2_optimizer.zero_grad()
+            # beta_q2_loss.backward()
 
             policy_actions = self.policy(obs, goals, num_steps_left)
 
             policy_actions.register_hook(self.create_save_gradient_norm_hook(
-                'dQ/da'))
-            if self.custom_beta is None:
-                beta_q_output = self.beta_q(
-                    observations=obs,
-                    actions=policy_actions,
-                    goals=goals,
-                    num_steps_left=num_steps_left,
-                )
-            else:
-                beta_q_output = self.custom_beta(
-                    observations=obs,
-                    actions=policy_actions,
-                    goals=goals,
-                    num_steps_left=num_steps_left,
-                )
-
+                'dQ/da'
+            ))
+            beta_q_output = self.beta_q(
+                observations=obs,
+                actions=policy_actions,
+                goals=goals,
+                num_steps_left=num_steps_left,
+            )
             beta_v_loss = self.v_criterion(
                 self.beta_v(obs, goals, num_steps_left),
                 beta_q_output.detach()
@@ -257,11 +268,9 @@ class BetaLearning(TorchRLAlgorithm):
             self.beta_v_optimizer.zero_grad()
             beta_v_loss.backward()
             self.beta_v_optimizer.step()
+
             policy_loss = - beta_q_output.mean()
-            if (self._n_train_steps_total %
-                    self.policy_and_target_update_period == 0
-                    or self.eval_statistics is None
-            ):
+            if self.training_policy or self.train_simultaneously:
                 self.policy_optimizer.zero_grad()
                 policy_loss.backward()
                 policy_grad_norms = []
@@ -269,19 +278,38 @@ class BetaLearning(TorchRLAlgorithm):
                     policy_grad_norms.append(
                         param.grad.data.norm()
                     )
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'Policy Gradient Norms',
+                    policy_grad_norms,
+                ))
                 self.policy_optimizer.step()
-
-                ptu.soft_update_from_to(
-                    self.policy, self.target_policy, self.soft_target_tau
-                )
-                ptu.soft_update_from_to(
-                    self.beta_q, self.target_beta_q, self.soft_target_tau
-                )
-                ptu.soft_update_from_to(
-                    self.beta_q2, self.target_beta_q2, self.soft_target_tau
-                )
-            if self.eval_statistics is None:
-                self.eval_statistics = OrderedDict()
+            if not self.training_policy or self.train_simultaneously:
+                self.beta_q_optimizer.zero_grad()
+                beta_q_loss.backward()
+                beta_q_grad_norms = []
+                for param in self.beta_q.parameters():
+                    beta_q_grad_norms.append(
+                        param.grad.data.norm()
+                    )
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'Beta Q Gradient Norms',
+                    beta_q_grad_norms,
+                ))
+                self.beta_q_optimizer.step()
+                # self.beta_q2_optimizer.step()
+            if self._n_train_steps_total % self.flip_training_period == 0:
+                self.training_policy = not self.training_policy
+            # ptu.soft_update_from_to(
+            #     self.policy, self.target_policy, self.soft_target_tau
+            # )
+            # ptu.soft_update_from_to(
+            #     self.beta_q, self.target_beta_q, self.soft_target_tau
+            # )
+            # ptu.soft_update_from_to(
+            #     self.beta_q2, self.target_beta_q2, self.soft_target_tau
+            # )
+            if self.need_to_update_eval_statistics:
+                self.need_to_update_eval_statistics = False
                 self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                     policy_loss
                 ))
@@ -292,14 +320,6 @@ class BetaLearning(TorchRLAlgorithm):
                     beta_v_loss
                 ))
                 self.eval_statistics.update(create_stats_ordered_dict(
-                    'Beta Q Gradient Norms',
-                    beta_q_grad_norms,
-                ))
-                self.eval_statistics.update(create_stats_ordered_dict(
-                    'Policy Gradient Norms',
-                    policy_grad_norms,
-                ))
-                self.eval_statistics.update(create_stats_ordered_dict(
                     'Beta Q Targets',
                     ptu.get_numpy(targets),
                 ))
@@ -307,15 +327,21 @@ class BetaLearning(TorchRLAlgorithm):
                     'Beta Q Predictions',
                     ptu.get_numpy(predictions),
                 ))
-                self.eval_statistics.update(create_stats_ordered_dict(
-                    'Beta Q1 - Q2',
-                    ptu.get_numpy(next_beta_1 - next_beta_2),
-                ))
+                # self.eval_statistics.update(create_stats_ordered_dict(
+                #     'Beta Q1 - Q2',
+                #     ptu.get_numpy(next_beta_1 - next_beta_2),
+                # ))
                 real_goal = np.array([0., 4.])
                 is_real_goal = (np_batch['goals'] == real_goal).all(axis=1)
                 goal_is_corner = (np.abs(np_batch['goals']) == 4).all(axis=1)
                 self.eval_statistics['Event Prob'] = np_batch['events'].mean()
-                self.eval_statistics['Training Goal is Real Goal Prob'] = (
+                self.eval_statistics['Goal is Current Obs Prob'] = (
+                    self.detect_event(
+                        np_batch['observations'],
+                        np_batch['goals'],
+                    ).mean()
+                )
+                self.eval_statistics['Training Goal is (0, 4) Prob'] = (
                     is_real_goal.mean()
                 )
                 self.eval_statistics['Training Goal is Corner'] = (
@@ -407,7 +433,7 @@ class BetaLearning(TorchRLAlgorithm):
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
         self._rollout_num_steps_left = np.array([self.max_num_steps_left])
-        if terminal:
+        if terminal or self.always_reset_env:
             self._rollout_goal = self.env.sample_goal_for_rollout()
             self.training_env.set_goal(self._rollout_goal)
             return self.training_env.reset()
@@ -447,15 +473,15 @@ class BetaLearning(TorchRLAlgorithm):
             self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2)
 
         subgoal_seq = agent_info['subgoal_seq']
-        best_action_seq = agent_info['best_action_seq']
+        planned_action_seq = agent_info['planned_action_seq']
         real_obs_seq = env.true_states(
-            obs, best_action_seq
+            obs, planned_action_seq
         )
         self.ax1.clear()
         env.plot_trajectory(
             self.ax1,
             np.array(subgoal_seq),
-            np.array(best_action_seq),
+            np.array(planned_action_seq),
             goal=env._target_position,
             extra_action=agent_info['oracle_qmax_action'],
         )

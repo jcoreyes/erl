@@ -86,4 +86,31 @@ if __name__ == "__main__":
                             resolution=resolution)
     plot_heatmap(heatmap)
 
+    goal = (-4, -4)
+    plt.figure()
+    plt.title("goal {}".format(goal))
+    heatmap = make_heat_map(create_beta_pos(goal), rng, rng,
+                            resolution=resolution)
+    plot_heatmap(heatmap)
+
+    goal = (4, -4)
+    plt.figure()
+    plt.title("goal {}".format(goal))
+    heatmap = make_heat_map(create_beta_pos(goal), rng, rng,
+                            resolution=resolution)
+    plot_heatmap(heatmap)
+
+    goal = (4, 4)
+    plt.figure()
+    plt.title("goal {}".format(goal))
+    heatmap = make_heat_map(create_beta_pos(goal), rng, rng,
+                            resolution=resolution)
+    plot_heatmap(heatmap)
+    goal = (-4, 4)
+    plt.figure()
+    plt.title("goal {}".format(goal))
+    heatmap = make_heat_map(create_beta_pos(goal), rng, rng,
+                            resolution=resolution)
+    plot_heatmap(heatmap)
+
     plt.show()

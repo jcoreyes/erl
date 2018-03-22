@@ -8,7 +8,8 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer, \
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv, CustomBeta
 from railrl.envs.multitask.point2d_wall import MultitaskPoint2dWall
 from railrl.events.beta_learning import BetaLearning
-from railrl.events.controllers import BetaLbfgsController, BetaMultigoalLbfgs
+from railrl.events.controllers import BetaQLbfgsController, BetaQMultigoalLbfgs, \
+    BetaVMultigoalLbfgs
 from railrl.events.networks import BetaQ, TanhFlattenMlpPolicy, BetaV
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -56,13 +57,11 @@ def experiment(variant):
 
     goal_slice = env.ob_to_goal_slice
     multitask_goal_slice = slice(None)
-    controller = BetaMultigoalLbfgs(
-        beta_q,
-        # custom_beta,
+    controller = BetaVMultigoalLbfgs(
         beta_v,
         env,
         goal_slice=goal_slice,
-        learned_policy=policy,
+        goal_reaching_policy=policy,
         multitask_goal_slice=multitask_goal_slice,
         **variant['controller_kwargs']
     )
@@ -104,37 +103,36 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = "dev-beta-learning"
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = "beta-learning-wall-sweep-epsilon-off-policy-data-no-optimal" \
-    #              "-q-no-wrong-goal-added-during-rollout"
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = "beta-learning-wall-fixed-goal-control-with-betav"
 
     variant = dict(
         load_file=args.file,
-        env_class=MultitaskPoint2DEnv,
-        # env_class=MultitaskPoint2dWall,
+        # env_class=MultitaskPoint2DEnv,
+        env_class=MultitaskPoint2dWall,
         algo_kwargs=dict(
-            num_epochs=30,
+            num_epochs=100,
             num_steps_per_epoch=100,
-            num_steps_per_eval=50,
+            num_steps_per_eval=200,
             num_updates_per_env_step=10,
             max_path_length=25,
             batch_size=128,
             discount=0.,
             prioritized_replay=False,
-            render=True,
-            render_during_eval=True,
+            # render=True,
+            # render_during_eval=True,
             # save_replay_buffer=True,
 
             policy_and_target_update_period=1,
 
             finite_horizon=True,
-            max_num_steps_left=1,
+            max_num_steps_left=0,
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1E5),
-            num_goals_to_sample=2,
-            max_time_to_next_goal=2,
+            num_goals_to_sample=1,
+            max_time_to_next_goal=1,
             fraction_goals_are_rollout_goals=1,
             # resampling_strategy='truncated_geometric',
             # truncated_geom_factor=0.5,
@@ -142,12 +140,11 @@ if __name__ == "__main__":
         controller_kwargs=dict(
             max_cost=128,
             planning_horizon=5,
-            use_max_cost=False,
+            use_max_cost=True,
             replan_every_time_step=False,
             only_use_terminal_env_loss=True,
-            use_learned_policy=True,
             solver_kwargs={
-                'factr': 1e9,
+                'factr': 1e6,
             },
         ),
         es_kwargs=dict(
@@ -158,8 +155,12 @@ if __name__ == "__main__":
         version='Dev',
     )
     search_space = {
-        'es_kwargs.epsilon': [0.5],
-        'algo_kwargs.use_off_policy_data': [True],
+        # 'es_kwargs.epsilon': [0.2, 0.5],
+        'algo_kwargs.train_with': ['on_policy', 'off_policy', 'both'],
+        'algo_kwargs.always_reset_env': [True, False],
+        # 'algo_kwargs.train_simultaneously': [False],
+        'controller_kwargs.use_max_cost': [True, False],
+        'controller_kwargs.solver_kwargs.factr': [1e9],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

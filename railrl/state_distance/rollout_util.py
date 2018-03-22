@@ -54,15 +54,15 @@ def debug(env, obs, agent_info):
         _, (ax1, ax2) = plt.subplots(1, 2)
 
     subgoal_seq = agent_info['subgoal_seq']
-    best_action_seq = agent_info['best_action_seq']
+    planned_action_seq = agent_info['planned_action_seq']
     real_obs_seq = env.true_states(
-        obs, best_action_seq
+        obs, planned_action_seq
     )
     ax1.clear()
     env.plot_trajectory(
         ax1,
         np.array(subgoal_seq),
-        np.array(best_action_seq),
+        np.array(planned_action_seq),
         goal=env._target_position,
     )
     ax1.set_title("imagined")
@@ -70,7 +70,7 @@ def debug(env, obs, agent_info):
     env.plot_trajectory(
         ax2,
         np.array(real_obs_seq),
-        np.array(best_action_seq),
+        np.array(planned_action_seq),
         goal=env._target_position,
     )
     ax2.set_title("real")
