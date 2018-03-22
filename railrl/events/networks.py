@@ -1,4 +1,6 @@
 import torch
+
+from railrl.policies.base import Policy
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 import numpy as np
 
@@ -114,3 +116,30 @@ class TanhFlattenMlpPolicy(TanhMlpPolicy):
             tau_np[None],
         )
         return actions[0, :], {}
+
+
+class ArgmaxBetaQPolicy(Policy):
+    """
+    For debugging, do a grid search to take the argmax.
+    """
+    def __init__(self, beta_q):
+        self.beta_q = beta_q
+        x_values = np.linspace(-1, 1, num=10)
+        y_values = np.linspace(-1, 1, num=10)
+        x_values_all, y_values_all = np.meshgrid(x_values, y_values)
+        x_values_flat = x_values_all.flatten()
+        y_values_flat = y_values_all.flatten()
+        self.all_actions = np.vstack((x_values_flat, y_values_flat)).T
+
+    def get_action(self, observation, goal, num_steps_left):
+        obs = observation[None].repeat(100, 0)
+        goals = goal[None].repeat(100, 0)
+        num_steps_left = num_steps_left * np.ones((100, 1))
+        beta_values = self.beta_q.eval_np(
+            observations=obs,
+            goals=goals,
+            actions=self.all_actions,
+            num_steps_left=num_steps_left,
+        )
+        max_i = np.argmax(beta_values)
+        return self.all_actions[max_i], {}

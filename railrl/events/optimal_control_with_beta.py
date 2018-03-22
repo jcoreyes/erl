@@ -3,39 +3,12 @@ import json
 from pathlib import Path
 
 import joblib
-import matplotlib.pyplot as plt
 import numpy as np
 
 from railrl.core import logger
+from railrl.envs.multitask.point2d import CustomBeta
 from railrl.events.controllers import BetaLbfgsController
-
-fig, (ax1, ax2) = plt.subplots(1, 2)
-
-
-def debug(env, obs, agent_info):
-    subgoal_seq = agent_info['subgoal_seq']
-    best_action_seq = agent_info['best_action_seq']
-    real_obs_seq = env.true_states(
-        obs, best_action_seq
-    )
-    ax1.clear()
-    env.plot_trajectory(
-        ax1,
-        np.array(subgoal_seq),
-        np.array(best_action_seq),
-        goal=env._target_position,
-    )
-    ax1.set_title("imagined")
-    ax2.clear()
-    env.plot_trajectory(
-        ax2,
-        np.array(real_obs_seq),
-        np.array(best_action_seq),
-        goal=env._target_position,
-    )
-    ax2.set_title("real")
-    plt.draw()
-    plt.pause(0.001)
+from railrl.events.networks import ArgmaxBetaQPolicy
 
 
 def rollout(env, agent, max_path_length=np.inf, animated=False, tick=False):
@@ -53,7 +26,8 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, tick=False):
         env.render()
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
-        debug(env, o, agent_info)
+        if animated:
+            env.render(debug_info=agent_info)
         next_o, r, d, env_info = env.step(a)
         observations.append(o)
         rewards.append(r)
@@ -65,8 +39,6 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, tick=False):
         if d:
             break
         o = next_o
-        if animated:
-            env.render()
         if tick:
             import ipdb; ipdb.set_trace()
 
@@ -127,6 +99,9 @@ if __name__ == "__main__":
     env = data['env']
     beta = data['beta_q']
     beta_v = data['beta_v']
+    learned_policy = data['policy']
+    argmax_policy = ArgmaxBetaQPolicy(beta)
+    beta_custom = CustomBeta(env)
     lagrange_multiplier = args.lm / reward_scale
     planning_horizon = args.ph
     goal_slice = env.ob_to_goal_slice
@@ -138,17 +113,27 @@ if __name__ == "__main__":
     print("multitask goal slice: ", multitask_goal_slice)
     policy = BetaLbfgsController(
         beta,
+        # beta_custom,
         beta_v,
         env,
         goal_slice=goal_slice,
         max_cost=128,
-        use_max_cost=True,
         max_num_steps_to_reach_goal=0,
-        learned_policy=data['policy'],
+        learned_policy=learned_policy,
+        oracle_argmax_policy=argmax_policy,
+        use_oracle_argmax_policy=True,
+        # use_oracle_argmax_policy=False,
         multitask_goal_slice=multitask_goal_slice,
         planning_horizon=planning_horizon,
-        replan_every_time_step=True,
-        only_use_terminal_env_loss=False,
+        # use_max_cost=False,
+        use_max_cost=True,
+
+        # replan_every_time_step=True,
+        replan_every_time_step=False,
+
+        # only_use_terminal_env_loss=False,
+        only_use_terminal_env_loss=True,
+
         use_learned_policy=True,
         solver_kwargs={
             'factr': 1e9,

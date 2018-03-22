@@ -112,9 +112,8 @@ def multitask_rollout(
     env.set_goal(goal)
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o, goal, tau, **get_action_kwargs)
-        # TODO: remove this after debugging
-        if len(agent_info) > 0:
-            debug(env, o, agent_info)
+        if animated:
+            env.render(debug_info=agent_info)
         next_o, r, d, env_info = env.step(a)
         next_observations.append(next_o)
         observations.append(o)
@@ -135,8 +134,6 @@ def multitask_rollout(
         if d:
             break
         o = next_o
-        if animated:
-            env.render()
 
     actions = np.array(actions)
     if len(actions.shape) == 1:

@@ -38,6 +38,7 @@ def fmin_adam_torch(
 
 
 class BetaLbfgsController(UniversalPolicy):
+    # TODO: switch to using beta_v rather than beta_q
     """
     Solve
 
@@ -58,6 +59,8 @@ class BetaLbfgsController(UniversalPolicy):
             multitask_goal_slice,
             max_cost,
             learned_policy=None,
+            use_oracle_argmax_policy=False,
+            oracle_argmax_policy=None,
             use_max_cost=True,
             planning_horizon=1,
             max_num_steps_to_reach_goal=1,
@@ -82,12 +85,11 @@ class BetaLbfgsController(UniversalPolicy):
         self.warm_start = warm_start
         self.solver_kwargs = solver_kwargs
         self.only_use_terminal_env_loss = only_use_terminal_env_loss
+        self.use_oracle_argmax_policy = use_oracle_argmax_policy
         self.replan_every_time_step = replan_every_time_step
         self.t_in_plan = 0
         self.learned_policy = learned_policy
-        self.min_lm = 0.1
-        self.max_lm = 1000
-        self.error_threshold = 0.5
+        self.oracle_argmax_policy = oracle_argmax_policy
         self.num_steps_left = ptu.np_to_var(
             max_num_steps_to_reach_goal *
             np.ones((self.planning_horizon, 1))
@@ -182,7 +184,7 @@ class BetaLbfgsController(UniversalPolicy):
 
     def _feasibility_probabilities(self, x, current_ob):
         obs, actions, next_obs = self.batchify(x, current_ob)
-        # TODO: computing cumulative product of probabilities
+        # TODO: use dynamics num_steps_left
         return self.beta_q(obs, actions, next_obs, self.num_steps_left)
 
     def cost_function(self, x, current_ob, verbose=False):
@@ -300,14 +302,15 @@ class BetaLbfgsController(UniversalPolicy):
             self.last_solution = full_solution
             self.t_in_plan = 0
 
-
         action = self.best_action_seq[self.t_in_plan]
         new_goal = self.subgoal_seq[self.t_in_plan+1]
         self._current_goal = new_goal
-        # self.cost_function(full_solution, current_ob, verbose=True)
         oracle_qmax_action = self.get_oracle_qmax_action(current_ob,
                                                          new_goal)
-        action = oracle_qmax_action
+        if self.use_oracle_argmax_policy:
+            action = oracle_qmax_action
+
+        # self.cost_function(full_solution, current_ob, verbose=True)
         # adam_action = self.choose_action_to_reach_adam(current_ob, new_goal)
         # lbfgs_action_again = self.choose_action_to_reach_lbfgs_again(
         #     current_ob, new_goal
@@ -329,12 +332,12 @@ class BetaLbfgsController(UniversalPolicy):
             best_action_seq=self.best_action_seq[self.t_in_plan:],
             subgoal_seq=self.subgoal_seq[self.t_in_plan:],
             oracle_qmax_action=oracle_qmax_action,
+            learned_action=self.learned_actions[0],
             lbfgs_action_seq=self.lbfgs_actions,
             learned_action_seq=self.learned_actions,
             full_action_seq=self.best_action_seq,
             full_obs_seq=self.subgoal_seq,
         )
-        agent_info['best_action_seq'][0][:] = action[:]
 
         self.t_in_plan += 1
         return action, agent_info
@@ -387,17 +390,20 @@ class BetaLbfgsController(UniversalPolicy):
         return best_action
 
     def get_oracle_qmax_action(self, current_ob, goal):
-        obs = current_ob[None].repeat(100, 0)
-        goals = goal[None].repeat(100, 0)
-        num_steps_left = np.zeros((100, 1))
-        beta_values = self.beta_q.eval_np(
-            observations=obs,
-            goals=goals,
-            actions=self.all_actions,
-            num_steps_left=num_steps_left,
-        )
-        max_i = np.argmax(beta_values)
-        return self.all_actions[max_i]
+        if self.oracle_argmax_policy is None:
+            obs = current_ob[None].repeat(100, 0)
+            goals = goal[None].repeat(100, 0)
+            num_steps_left = np.zeros((100, 1))
+            beta_values = self.beta_q.eval_np(
+                observations=obs,
+                goals=goals,
+                actions=self.all_actions,
+                num_steps_left=num_steps_left,
+            )
+            max_i = np.argmax(beta_values)
+            return self.all_actions[max_i]
+        else:
+            return self.oracle_argmax_policy.get_action(current_ob, goal, 0)[0]
 
     def replan(self, current_ob, goal):
         if self.last_solution is None or not self.warm_start:
