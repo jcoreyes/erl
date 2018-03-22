@@ -526,8 +526,8 @@ class BetaVLbfgsController(UniversalPolicy):
         self.use_max_cost = use_max_cost
 
         self.t = 0
-        self._current_goal = None
-        self._num_steps_to_reach_goal = max_num_steps_to_reach_goal
+        self.current_goal = None
+        self.num_steps_to_reach_goal = max_num_steps_to_reach_goal
         self.max_num_steps_to_reach_goal = max_num_steps_to_reach_goal
 
         self.upper_tri = ptu.Variable(torch.triu(
@@ -550,21 +550,6 @@ class BetaVLbfgsController(UniversalPolicy):
         self.lower_bounds = np.tile(self.lower_bounds, self.planning_horizon)
         self.upper_bounds = np.tile(self.upper_bounds, self.planning_horizon)
         self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
-
-        x_values = np.linspace(-1, 1, num=10)
-        y_values = np.linspace(-1, 1, num=10)
-        x_values_all, y_values_all = np.meshgrid(x_values, y_values)
-        x_values_flat = x_values_all.flatten()
-        y_values_flat = y_values_all.flatten()
-        self.all_actions = np.vstack((x_values_flat, y_values_flat)).T
-
-    @property
-    def current_goal(self):
-        return self._current_goal
-
-    @property
-    def num_steps_to_reach_goal(self):
-        return self._num_steps_to_reach_goal
 
     def batchify(self, x, current_ob):
         """
@@ -605,7 +590,7 @@ class BetaVLbfgsController(UniversalPolicy):
         # TODO: use dynamics num_steps_left
         return self.beta_v(obs, next_obs, self.num_steps_left)
 
-    def cost_function(self, x, current_ob, verbose=False):
+    def cost_function(self, x, current_ob):
         x = ptu.np_to_var(x, requires_grad=True)
         current_ob = ptu.np_to_var(current_ob)
         env_costs = self._env_cost_function(x, current_ob)
@@ -613,35 +598,16 @@ class BetaVLbfgsController(UniversalPolicy):
         if self.use_max_cost:
             not_reached_cost = self.max_cost
         else:
-            not_reached_cost = ((
-                                        current_ob[self.goal_slice] - self.desired_features_torch
-                                )**2).sum()
-        if verbose:
-            print("---")
-            print("env_costs", env_costs)
-            print("not reached cost", not_reached_cost)
-            print("probabilities", probabilities)
+            not_reached_cost = (
+                (current_ob[self.goal_slice] - self.desired_features_torch)**2
+            ).sum()
         if self.only_use_terminal_env_loss:
             final_prob = torch.prod(probabilities)
             loss = env_costs * (final_prob+1) + (1-final_prob) * not_reached_cost
-            # if verbose:
-            #     print("final prob", final_prob)
         else:
-            """
-            argmin_s c(s) p(s) + C_max (1-p(s))
-             = argmin_s (c(s) - C_max) p(s)
-             = argmin_s -log(C_max - c(s)) - log p(s)
-
-            However, doing the cum-probs thing is better
-            (i.e. it's a tighter lower bound)
-            """
-            # loss = -torch.log(
-            #     self.planning_horizon * not_reached_cost - env_costs
-            # ).sum() - traj_log_prob
             cum_probs = self._compute_cum_prob(probabilities)
+            # Note: broadcasting happens on not_reached_cost
             loss = env_costs * cum_probs + (1-cum_probs) * not_reached_cost
-            # if verbose:
-            #     print("cum_probs", cum_probs)
             loss = loss.sum()
         loss_np = ptu.get_numpy(loss)[0].astype(np.float64)
         loss.backward()
@@ -649,32 +615,6 @@ class BetaVLbfgsController(UniversalPolicy):
         return loss_np, gradient_np
 
     def _compute_cum_prob(self, probabilities):
-        """
-        Convert
-        [
-            a
-            b
-            c
-        ]
-        into
-        [
-            a 0 0
-            a b 0
-            a b c
-        ]
-        and then into
-        [
-            a 1 1
-            a b 1
-            a b c
-        ]
-        then take the product across dim 1 to get
-        [
-            a
-            a * b
-            a * b * c
-        ]
-        """
         return (
                 self.upper_tri + self.lower_and_diag_tri *
                 probabilities.view(1, self.planning_horizon)
@@ -702,18 +642,17 @@ class BetaVLbfgsController(UniversalPolicy):
             self.subgoal_seq = np.array(
                 [current_ob] + [ptu.get_numpy(o) for o in next_obs]
             )
-            self.learned_actions = self.goal_reaching_policy.eval_np(
+            self.planned_action_seq = self.goal_reaching_policy.eval_np(
                 self.subgoal_seq[:-1],
                 self.subgoal_seq[1:],
                 np.zeros((self.planning_horizon, 1))
             )
-            self.planned_action_seq = self.learned_actions
             self.last_solution = full_solution
             self.t_in_plan = 0
 
         action = self.planned_action_seq[self.t_in_plan]
         new_goal = self.subgoal_seq[self.t_in_plan+1]
-        self._current_goal = new_goal
+        self.current_goal = new_goal
         oracle_qmax_action = self.get_oracle_qmax_action(current_ob,
                                                          new_goal)
         if self.use_oracle_argmax_policy:
@@ -723,8 +662,6 @@ class BetaVLbfgsController(UniversalPolicy):
             planned_action_seq=self.planned_action_seq[self.t_in_plan:],
             subgoal_seq=self.subgoal_seq[self.t_in_plan:],
             oracle_qmax_action=oracle_qmax_action,
-            learned_action=self.learned_actions[self.t_in_plan],
-            learned_action_seq=self.learned_actions,
             full_action_seq=self.planned_action_seq,
             full_obs_seq=self.subgoal_seq,
         )
