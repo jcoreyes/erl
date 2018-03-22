@@ -125,6 +125,11 @@ class Point2dWall(Serializable, Env):
                 name_to_log,
                 stat,
             ))
+        distances = get_stat_in_paths(paths, 'env_infos', 'distance_to_target')
+        statistics.update(create_stats_ordered_dict(
+            "Final Distance to Target",
+            [ds[-1] for ds in distances],
+        ))
         statistics.update(create_stats_ordered_dict(
             "Path Lengths",
             get_path_lengths(paths),

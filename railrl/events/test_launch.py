@@ -105,14 +105,14 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = "beta-learning-wall-fixed-goal-control-with-betav"
+    exp_prefix = "beta-learning-wall-fixed-log-fd-sweep-goal-ep"
 
     variant = dict(
         load_file=args.file,
         # env_class=MultitaskPoint2DEnv,
         env_class=MultitaskPoint2dWall,
         algo_kwargs=dict(
-            num_epochs=100,
+            num_epochs=200,
             num_steps_per_epoch=100,
             num_steps_per_eval=200,
             num_updates_per_env_step=10,
@@ -158,15 +158,22 @@ if __name__ == "__main__":
         # 'es_kwargs.epsilon': [0.2, 0.5],
         'algo_kwargs.train_with': ['on_policy', 'off_policy', 'both'],
         'algo_kwargs.always_reset_env': [True, False],
+        'algo_kwargs.goal_reached_epsilon': [1e-3, 0.1],
         # 'algo_kwargs.train_simultaneously': [False],
         'controller_kwargs.use_max_cost': [True, False],
-        'controller_kwargs.solver_kwargs.factr': [1e9],
+        # 'controller_kwargs.replan_every_time_step': [True, False],
+        # 'controller_kwargs.only_use_terminal_env_loss': [True, False],
+        'controller_kwargs.solver_kwargs.factr': [1e6],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for i in range(n_seeds):
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            if (variant['controller_kwargs']['replan_every_time_step'] and
+                variant['controller_kwargs']['only_use_terminal_env_loss']
+                ):
+                continue
             run_experiment(
                 experiment,
                 mode=mode,

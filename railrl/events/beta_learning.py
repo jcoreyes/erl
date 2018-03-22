@@ -4,7 +4,6 @@ import railrl.torch.pytorch_util as ptu
 from railrl.data_management.path_builder import PathBuilder
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.misc.visualization_util import make_heat_map, plot_heatmap
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 from railrl.torch.core import np_to_pytorch_batch
 
@@ -12,8 +11,6 @@ from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 import numpy as np
 from torch.optim import Adam
 from torch import nn
-
-import matplotlib.pyplot as plt
 
 
 class BetaLearning(TorchRLAlgorithm):
@@ -102,13 +99,6 @@ class BetaLearning(TorchRLAlgorithm):
         # For the multitask env
         self._rollout_goal = None
 
-        # For debugging
-        self.fig = None
-        self.ax1 = None
-        self.ax2 = None
-        self.legend_axis = None
-        self.train_batches = []
-
         self.extra_eval_statistics = OrderedDict()
         for key_not_always_updated in [
             'Policy Gradient Norms',
@@ -121,6 +111,9 @@ class BetaLearning(TorchRLAlgorithm):
             ))
 
         self.training_policy = False
+
+        # For debugging
+        self.train_batches = []
 
     def _can_train(self):
         # Add n_rollouts_total check so that the call to
@@ -173,7 +166,7 @@ class BetaLearning(TorchRLAlgorithm):
             np_batch['terminals'] = terminals
             batch = np_to_pytorch_batch(np_batch)
 
-            self.train_batches.append(batch)
+            # self.train_batches.append(batch)
 
             terminals = batch['terminals']
             obs = batch['observations']
@@ -440,17 +433,17 @@ class BetaLearning(TorchRLAlgorithm):
         else:
             return previous_rollout_last_ob
 
-    def get_extra_data_to_save(self, epoch):
-        """
-        Save things that shouldn't be saved every snapshot but rather
-        overwritten every time.
-        :param epoch:
-        :return:
-        """
-        data_to_save = super().get_extra_data_to_save(epoch)
-        data_to_save['train_batches'] = self.train_batches
-        self.train_batches = []
-        return data_to_save
+    # def get_extra_data_to_save(self, epoch):
+        # """
+        # Save things that shouldn't be saved every snapshot but rather
+        # overwritten every time.
+        # :param epoch:
+        # :return:
+        # """
+        # data_to_save = super().get_extra_data_to_save(epoch)
+        # data_to_save['train_batches'] = self.train_batches
+        # self.train_batches = []
+        # return data_to_save
 
     def _get_action_and_info(self, observation):
         """
@@ -464,43 +457,4 @@ class BetaLearning(TorchRLAlgorithm):
             self._rollout_goal,
             self._rollout_num_steps_left,
         )
-        # if len(agent_info) > 0 and self._n_env_steps_total % 100 == 0:
-        #     self.debug(self.env, observation, agent_info)
         return action, agent_info
-
-    def debug(self, env, obs, agent_info):
-        if self.fig is None:
-            self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2)
-
-        subgoal_seq = agent_info['subgoal_seq']
-        planned_action_seq = agent_info['planned_action_seq']
-        real_obs_seq = env.true_states(
-            obs, planned_action_seq
-        )
-        self.ax1.clear()
-        env.plot_trajectory(
-            self.ax1,
-            np.array(subgoal_seq),
-            np.array(planned_action_seq),
-            goal=env._target_position,
-            extra_action=agent_info['oracle_qmax_action'],
-        )
-        self.ax1.set_title("imagined")
-
-        next_goal = agent_info['subgoal_seq'][1]
-
-        heatmap = make_heat_map(
-            self.beta_q.create_eval_function(obs, next_goal, 0),
-            [-1, 1], [-1, 1], resolution=10,
-        )
-        self.ax2.clear()
-        if self.legend_axis is not None:
-            self.legend_axis.clear()
-        im, self.legend_axis = plot_heatmap(
-            heatmap, fig=self.fig, ax=self.ax2, legend_axis=self.legend_axis)
-
-        self.ax2.set_title("Q values for state = {}, goal = {}".format(
-            obs, next_goal,
-        ))
-        plt.draw()
-        plt.pause(0.01)
