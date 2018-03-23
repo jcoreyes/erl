@@ -120,7 +120,6 @@ class DDPG(TorchRLAlgorithm):
             self.policy.parameters(),
             lr=self.policy_learning_rate,
         )
-        self.eval_statistics = None
 
     def _start_epoch(self, epoch):
         super()._start_epoch(epoch)

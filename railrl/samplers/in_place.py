@@ -17,6 +17,7 @@ class InPlacePathSampler(object):
         self.policy = policy
         self.max_path_length = max_path_length
         self.max_samples = max_samples
+        self.render = render
         assert max_samples >= max_path_length, "Need max_samples >= max_path_length"
 
     def start_worker(self):

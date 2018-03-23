@@ -72,7 +72,6 @@ class TD3(TorchRLAlgorithm):
             self.policy.parameters(),
             lr=policy_learning_rate,
         )
-        self.eval_statistics = None
 
     def _do_training(self):
         batch = self.get_batch()

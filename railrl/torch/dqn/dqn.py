@@ -66,8 +66,6 @@ class DQN(TorchRLAlgorithm):
         )
         self.qf_criterion = qf_criterion or nn.MSELoss()
 
-        self.eval_statistics = None
-
     def _do_training(self):
         batch = self.get_batch()
         rewards = batch['rewards']

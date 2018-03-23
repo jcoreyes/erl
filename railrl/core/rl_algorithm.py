@@ -397,7 +397,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics.update(self.eval_statistics)
 
         logger.log("Collecting samples for evaluation")
-        test_paths = self.eval_sampler.obtain_samples()
+        test_paths = self.get_eval_paths()
 
         statistics.update(eval_util.get_generic_path_information(
             test_paths, stat_prefix="Test",
@@ -414,6 +414,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
         self.need_to_update_eval_statistics = True
+
+    def get_eval_paths(self):
+        return self.eval_sampler.obtain_samples()
 
     def offline_evaluate(self, epoch):
         for key, value in self.eval_statistics.items():
