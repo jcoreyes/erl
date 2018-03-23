@@ -61,11 +61,9 @@ class PDController(object):
             else:
                 print("warning t_delta smaller than zero!")
 
-    def _update_forces(self, cur_pos, cur_vel):
+    def _compute_pd_forces(self, current_joint_angles, current_joint_velocities):
         """
-        Calculates the current angular difference between the start position
-        and the current joint positions applying the joint torque spring forces
-        as defined on the dynamic reconfigure server.
+        Computes the required to torque to be applied using the sawyer's current joint angles and joint velocities
         """
 
         self.adjust_springs()
@@ -81,9 +79,9 @@ class PDController(object):
         for idx, joint in enumerate(self._limb_joint_names):
             # spring portion
             cmd[joint] = self._springs[joint] * (self._des_angles[joint] -
-                                                 cur_pos[idx])
+                                                 current_joint_angles[idx])
             # damping portion
-            cmd[joint] -= self._damping[joint] * cur_vel[idx]
+            cmd[joint] -= self._damping[joint] * current_joint_velocities[idx]
 
         cmd = np.array([
             cmd[joint] for joint in self._limb_joint_names

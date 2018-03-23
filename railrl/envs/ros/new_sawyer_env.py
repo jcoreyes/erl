@@ -60,7 +60,6 @@ JOINT_VALUE_LOW = {
     'torque': JOINT_TORQUE_LOW,
 }
 
-#not sure what the min/max angle and pos are supposed to be
 END_EFFECTOR_POS_LOW = [
     0.3404830862298487,
     -1.2633121086809487,
@@ -114,6 +113,7 @@ box_highs = np.array([ 0.84045825,  0.38408276, 1.8880568 ])
 box_lows = np.array([-0.4063314307903516, -0.4371988870414967, 0.19114132196594727])
 box_highs = np.array([0.5444314339226455, 0.5495988452507109, 0.8264100134638303])
 
+#TODO: figure out where this is being used and why it is _l instead _j
 joint_names = [
     '_l2',
     '_l3',
@@ -211,23 +211,6 @@ class SawyerEnv(Env, Serializable):
         self.temperature = temperature
 
         self.PDController = PDController()
-
-        # #create a dictionary whose values are functions that set the appropriate values
-        # action_mode_dict = {
-        #     'angle': self.arm.set_joint_positions,
-        #     'velocity': self.arm.set_joint_velocities,
-        #     'torque': self.arm.set_joint_torques,
-        # }
-        #
-        # #create a dictionary whose values are functions that return the appropriate values
-        # observation_mode_dict = {
-        #     'angle': self._joint_angles,
-        #     'velocity': self.arm.joint_velocities,
-        #     'torque': self.arm.joint_efforts,
-        # }
-        #
-        # self._set_joint_values = action_mode_dict[action_mode]
-        # self._get_joint_values = observation_mode_dict
 
         self._action_space = Box(
             JOINT_VALUE_LOW[action_mode],
@@ -436,22 +419,6 @@ class SawyerEnv(Env, Serializable):
     def _get_gravity_compensation_torques(self):
         gravity_torques, actual_torques, subtracted_torques = self.gravity_torques_client()
         return gravity_torques, actual_torques, subtracted_torques
-
-    def bbox_client(self):
-        rospy.wait_for_service('bbox')
-        try:
-            bbox = rospy.ServiceProxy('bbox', BBox)
-            resp1 = bbox()
-            return np.array(resp1.bbox)
-        except rospy.ServiceException as e:
-            print(e)
-
-    def _get_bboxes(self):
-        bboxes = self.bbox_client()
-        top_left = np.array(bboxes[0])
-        bottom_right = np.array(bboxes[1])
-        bboxes = np.hstack((top_left, bottom_right))
-        return bboxes
 
     def _wrap_angles(self, angles):
         return angles % (2*np.pi)
@@ -701,8 +668,6 @@ class SawyerEnv(Env, Serializable):
 
     def previous_angles_reset_check(self):
         close_to_desired_reset_pos = self.is_in_correct_position()
-        #velocities_dict = self._get_joint_values['velocity']()
-        #velocities = np.abs(np.array([velocities_dict[joint] for joint in self.arm_joint_names]))
         _, velocities, _, _ = self.request_observation()
         velocities = np.abs(np.array(velocities))
         VELOCITY_THRESHOLD = .002 * np.ones(7)
@@ -736,7 +701,7 @@ class SawyerEnv(Env, Serializable):
         if self.end_effector_experiment_position:
             self.desired = np.random.uniform(box_lows, box_highs, size=(1, 3))[0]
         else:
-            self.desired = np.random.rand(1, 7)[0] * 2 - 1
+            self.desired = np.random.uniform(box_lows, box_highs, size=(1, 7))[0]
 
     def get_pose_jacobian(self, poses, jacobians):
         pose_jacobian_dict = {}
@@ -1011,7 +976,3 @@ class SawyerEnv(Env, Serializable):
 
     def set_param_values(self, params):
         pass
-
-    def turn_off_robot(self):
-        pass
-
