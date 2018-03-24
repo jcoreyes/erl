@@ -35,20 +35,20 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'cartpole-finite-sweep-H'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'cartpole-finite-sweep-H'
 
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=50,
-            num_steps_per_epoch=1000,
+            num_epochs=100,
+            num_steps_per_epoch=100,
             num_steps_per_eval=1000,
             batch_size=128,
-            max_path_length=50,
+            max_path_length=20,
             discount=1,
-            random_action_prob=0.2,
+            random_action_prob=0.05,
             save_environment=False,  # Can't serialize CartPole for some reason
         ),
     )
