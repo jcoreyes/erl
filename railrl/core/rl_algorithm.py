@@ -192,7 +192,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     observation,
                 )
                 if self.render:
-                    self.training_env.render(debug_info=agent_info)
+                    self.training_env.render()
                 next_ob, raw_reward, terminal, env_info = (
                     self.training_env.step(action)
                 )
