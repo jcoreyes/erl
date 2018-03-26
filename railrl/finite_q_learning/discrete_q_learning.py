@@ -30,8 +30,6 @@ class FiniteDiscreteQLearning(TorchRLAlgorithm):
 
         for _ in range(self.max_path_length):
             new_qf = qf.copy(copy_parameters=False)
-            # import ipdb; ipdb.set_trace()
-            # new_qf = qf.copy()
             self.qfs.append(new_qf)
             self.qf_optimizers.append(
                 Adam(new_qf.parameters(), lr=learning_rate)
@@ -76,7 +74,6 @@ class FiniteDiscreteQLearning(TorchRLAlgorithm):
             Save some statistics for eval
             """
             if self.need_to_update_eval_statistics:
-                self.need_to_update_eval_statistics = False
                 self.eval_statistics['QF {} Loss'.format(t)] = np.mean(
                     ptu.get_numpy(qf_loss)
                 )
@@ -84,6 +81,8 @@ class FiniteDiscreteQLearning(TorchRLAlgorithm):
                     'Q {} Predictions'.format(t),
                     ptu.get_numpy(q_pred),
                 ))
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
 
     def get_eval_paths(self):
         paths = []
