@@ -3,6 +3,8 @@ Try out this finite-horizon q learning.
 """
 
 import gym
+from gym.envs.mujoco.inverted_double_pendulum import InvertedDoublePendulumEnv
+from gym.envs.mujoco.inverted_pendulum import InvertedPendulumEnv
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
@@ -19,9 +21,8 @@ import railrl.misc.hyperparameter as hyp
 def experiment(variant):
     # env = gym.make('CartPole-v0')
     # env = DiscreteReacherEnv()
-    env = ReacherEnv()
-    env = DiscretizeEnv(env, 5)
-    # env = variant['env_class'](**variant['env_kwargs'])
+    env = variant['env_class'](**variant['env_kwargs'])
+    env = DiscretizeEnv(env, variant['num_bins'])
 
     qf = Mlp(
         hidden_sizes=[32, 32],
@@ -43,9 +44,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'dqn-vs-finite-dqn'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'dqn-vs-finite-dqn-pendulums'
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -59,18 +60,18 @@ if __name__ == "__main__":
             random_action_prob=0.05,
             # save_environment=False,  # Can't serialize CartPole for some reason
         ),
-        env_class=DiscreteReacherEnv,
+        env_class=InvertedPendulumEnv,
         env_kwargs=dict(
-            num_bins=5,
-            frame_skip=5,
         ),
         algorithm="Finite-DQN",
+        num_bins=5,
     )
 
     search_space = {
         # 'algo_kwargs.discount': [0.99, 1],
         # 'algo_kwargs.random_action_prob': [0.05, 0.2],
         # 'env_kwargs.frame_skip': [2, 5],
+        'env_class': [InvertedPendulumEnv, InvertedDoublePendulumEnv],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
