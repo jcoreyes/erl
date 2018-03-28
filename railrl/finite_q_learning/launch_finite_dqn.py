@@ -3,8 +3,7 @@ Try out this finite-horizon q learning.
 """
 
 import gym
-from gym.envs.mujoco.inverted_double_pendulum import InvertedDoublePendulumEnv
-from gym.envs.mujoco.inverted_pendulum import InvertedPendulumEnv
+from gym.envs.mujoco import HopperEnv
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
@@ -19,15 +18,14 @@ import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    # env = gym.make('CartPole-v0')
-    # env = DiscreteReacherEnv()
-    env = variant['env_class'](**variant['env_kwargs'])
-    env = DiscretizeEnv(env, variant['num_bins'])
+    env = DiscreteReacherEnv()
+    # env = variant['env_class'](**variant['env_kwargs'])
+    # env = DiscretizeEnv(env, variant['num_bins'])
 
     qf = Mlp(
-        hidden_sizes=[32, 32],
         input_size=int(np.prod(env.observation_space.shape)),
         output_size=env.action_space.n,
+        **variant['qf_kwargs']
     )
     algorithm = FiniteDiscreteQLearning(
         env,
@@ -46,12 +44,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'dqn-vs-finite-dqn-pendulums'
+    exp_prefix = 'finite-dqn-with-loop-reacher'
 
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=100,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
@@ -60,18 +58,18 @@ if __name__ == "__main__":
             random_action_prob=0.05,
             # save_environment=False,  # Can't serialize CartPole for some reason
         ),
-        env_class=InvertedPendulumEnv,
-        env_kwargs=dict(
-        ),
-        algorithm="Finite-DQN",
+        # env_kwargs=dict(
+        # ),
+        algorithm="Finite-DQN-looped-take-2",
         num_bins=5,
     )
 
     search_space = {
-        # 'algo_kwargs.discount': [0.99, 1],
+        # 'algo_kwargs.discount': [0.99],
         # 'algo_kwargs.random_action_prob': [0.05, 0.2],
-        # 'env_kwargs.frame_skip': [2, 5],
-        'env_class': [InvertedPendulumEnv, InvertedDoublePendulumEnv],
+        'qf_kwargs.hidden_sizes': [[32, 32]],
+        # 'env_class': [HopperEnv],
+        # 'num_bins': [5, 4, 3]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

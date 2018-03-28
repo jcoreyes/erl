@@ -13,8 +13,7 @@ from railrl.launchers.launcher_util import setup_logger, run_experiment
 from railrl.torch.dqn.double_dqn import DoubleDQN
 from railrl.torch.dqn.dqn import DQN
 from railrl.torch.networks import Mlp
-from gym.envs.mujoco.inverted_double_pendulum import InvertedDoublePendulumEnv
-from gym.envs.mujoco.inverted_pendulum import InvertedPendulumEnv
+from gym.envs.mujoco import HopperEnv
 from railrl.envs.wrappers import DiscretizeEnv
 
 import railrl.misc.hyperparameter as hyp
@@ -29,16 +28,15 @@ def experiment(variant):
     env = DiscretizeEnv(env, variant['num_bins'])
 
     qf = Mlp(
-        hidden_sizes=[32, 32],
         input_size=int(np.prod(env.observation_space.shape)),
         output_size=env.action_space.n,
+        **variant['qf_kwargs']
     )
     qf_criterion = nn.MSELoss()
     # Use this to switch to DoubleDQN
     # algorithm = DoubleDQN(
-    algorithm = DQN(
+    algorithm = variant['algo_class'](
         env,
-        # training_env=training_env,
         qf=qf,
         qf_criterion=qf_criterion,
         **variant['algo_params']
@@ -52,7 +50,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=100,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
@@ -64,11 +62,7 @@ if __name__ == "__main__":
             use_hard_updates=True,
             # save_environment=False,  # Can't serialize CartPole for some reason
         ),
-        # env_class=DiscreteSwimmerEnv,
-        env_class=InvertedPendulumEnv,
         env_kwargs=dict(
-            # num_bins=5,
-            # frame_skip=2,
         ),
         # algorithm="Double-DQN",
         algorithm="DQN",
@@ -79,17 +73,23 @@ if __name__ == "__main__":
     search_space = {
         # 'algo_kwargs.discount': [0.99, 1],
         # 'algo_kwargs.random_action_prob': [0.05, 0.2],
-        'env_class': [InvertedPendulumEnv, InvertedDoublePendulumEnv],
-        # 'env_kwargs.frame_skip': [2, 5],
+        'algo_class': [DQN, DoubleDQN],
+        'qf_kwargs.hidden_sizes': [[32, 32], [300, 300]],
+        'env_class': [HopperEnv],
+        'num_bins': [5, 4, 3]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['algo_class'] == DQN:
+            variant['algorithm'] = "DQN"
+        else:
+            variant['algorithm'] = "Double DQN"
         for _ in range(3):
             run_experiment(
                 experiment,
-                exp_prefix='dqn-vs-finite-dqn-pendulums',
+                exp_prefix='dqn-vs-finite-dqn-hopper',
                 mode='ec2',
                 # exp_prefix='dev',
                 # mode='local',
