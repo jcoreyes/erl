@@ -4,7 +4,7 @@ from collections import OrderedDict
 import numpy as np
 import rospy
 from numpy import linalg
-from experiments.murtaza.ros.Sawyer.new_joint_space_impedance import PDController
+from experiments.murtaza.ros.Sawyer.joint_space_impedance_v2 import PDController
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core.serializable import Serializable
 from rllab.envs.base import Env
