@@ -54,7 +54,7 @@ if __name__ == "__main__":
         algo_params=dict(
             num_epochs=150,
             num_steps_per_epoch=1000,
-            num_steps_per_eval=200,
+            num_steps_per_eval=300,
             max_path_length=100,
             discount=0.99,
             soft_target_tau=0,
@@ -77,20 +77,24 @@ if __name__ == "__main__":
     # )
     search_space = {
         'algo_params.reward_scale': [
-            10,
+            3,
+            # 10,
             # 100,
             # 1000,
             # 10000,
         ],
         'algo_params.num_updates_per_env_step': [
-            10,
+            8,
+            # 10,
             # 15,
             # 20,
             # 25,
         ],
         'algo_params.batch_size': [
-            # 64,
-            512,
+            64,
+            # 128,
+            # 256,
+            # 512,
             # 1024,
         ]
 
@@ -98,7 +102,7 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    n_seeds=3
+    n_seeds=5
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
             seed = random.randint(0, 10000)
@@ -107,7 +111,8 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix='2d_visreward_SAC',
+                exp_prefix='test',
+                # exp_prefix='test',
                 mode='local',
                 use_gpu=use_gpu,
             )
