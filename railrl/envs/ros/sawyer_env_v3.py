@@ -105,6 +105,15 @@ experiments=[
     'end_effector_position_orientation|varying_ee'
 ]
 
+def safe(raw_function):
+    def safe_function(*args, **kwargs):
+        try:
+            return raw_function(*args, **kwargs)
+        except rospy.ServiceException as e:
+            print("Service call failed: %s" % e)
+
+    return safe_function
+
 class SawyerEnv(Env, Serializable):
     def __init__(
             self,
@@ -331,33 +340,6 @@ class SawyerEnv(Env, Serializable):
             x, y, z, _, _, _, _ = endpoint_pose
             return np.array([x, y, z])
 
-    def _Lorentz_reward(self, differences_pos, differences_angle, action):
-        l2_dist = sum(np.array([2.5, 2.5, 0]) * (differences_pos) ** 2)
-        pos_cost = 0.1 * np.log(self.loss_param['c'] * l2_dist + self.loss_param['delta'])
-
-        # euler_angle = self.compute_euler(differences_angle)
-        # euler_alpha = np.abs(euler_angle[0])
-        # euler_beta = np.abs(euler_angle[1])
-        # angle_cost = ((np.pi - euler_alpha) ** 2 + euler_beta ** 2)
-        angle_cost = np.linalg.norm(differences_angle)
-        reward = - pos_cost - angle_cost
-        return reward
-
-    def _Lorentz_reward_batch(self, differences_pos, differences_angle, action):
-        matx = np.zeros_like(differences_pos) + np.array([2.5, 2.5, 0])
-        l2_dist = np.sum(np.square(differences_pos)* matx, axis=1)
-        pos_cost = 0.1 * np.log(self.loss_param['c'] * l2_dist + self.loss_param['delta'])
-        # euler_angle = self.compute_euler(differences_angle)
-        # euler_alpha = np.abs(euler_angle[0])
-        # euler_beta = np.abs(euler_angle[1])
-        # angle_cost = ((np.pi - euler_alpha) ** 2 + euler_beta ** 2)
-        angle_cost = np.linalg.norm(differences_angle, axis=1)
-        reward = - pos_cost - angle_cost
-        return reward
-    # def compute_euler(self, differences_angle):
-    #     # change to use sine to compute the loss
-    #     return tf.transformations.euler_from_quaternion(differences_angle)
-
     def _MSE_reward(self, differences):
         reward = -np.mean(differences**2)
         return reward
@@ -372,13 +354,6 @@ class SawyerEnv(Env, Serializable):
 
     def _Norm_reward(self, differences):
         return np.linalg.norm(differences)
-
-    def _Huber_reward_batch(self, differences):
-        a = np.abs(np.mean(differences, axis=1))
-        reward1 = -1 / 2 * np.square(a) * self.reward_magnitude
-        reward2 = -1 * self.huber_delta * (a - 1 / 2 * self.huber_delta) * self.reward_magnitude
-        reward = np.where(a<=self.huber_delta, reward1, reward2)
-        return reward
 
     def compute_angle_difference(self, angles1, angles2):
         self._wrap_angles(angles1)
@@ -424,6 +399,7 @@ class SawyerEnv(Env, Serializable):
         return reward
 
     def safety_box_check(self):
+        # TODO: tune this check
         self.update_pose_and_jacobian_dict()
         self.check_joints_in_box(self.pose_jacobian_dict)
         terminate_episode = False
@@ -447,6 +423,7 @@ class SawyerEnv(Env, Serializable):
         self.pose_jacobian_dict = self._get_robot_pose_jacobian_client('right')
 
     def unexpected_torque_check(self):
+        #TODO: redesign this check
         #we care about the torque that was observed to make sure it hasn't gone too high
         new_torques = self.get_observed_torques_minus_gravity()
         if not self.in_reset:
@@ -464,8 +441,7 @@ class SawyerEnv(Env, Serializable):
 
 
     def unexpected_velocity_check(self):
-        #velocities_dict = self._get_joint_values['velocity']()
-        #velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
+        #TODO: tune this check
         _, velocities, _, _ = self.request_observation()
         velocities = np.array(velocities)
         ERROR_THRESHOLD = 5 * np.ones(7)
@@ -485,6 +461,7 @@ class SawyerEnv(Env, Serializable):
         return np.array(poses)
 
     def high_torque_check(self, commanded_torques):
+        # TODO: tune this check
         new_torques = np.abs(commanded_torques)
         current_angles = self._joint_angles()
         position_deltas = np.abs(current_angles - self.previous_angles)
@@ -542,6 +519,7 @@ class SawyerEnv(Env, Serializable):
                 self.unexpected_velocity_check()
 
     def previous_angles_reset_check(self):
+        # TODO: tune this check so that reset cuts off early but at the right time
         close_to_desired_reset_pos = self.is_in_correct_position()
         _, velocities, _, _ = self.request_observation()
         velocities = np.abs(np.array(velocities))
