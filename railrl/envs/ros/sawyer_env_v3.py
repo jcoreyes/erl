@@ -158,7 +158,7 @@ class SawyerEnv(Env, Serializable):
             JOINT_VALUE_LOW[action_mode],
             JOINT_VALUE_HIGH[action_mode]
         )
-        
+
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
             self.fixed_angle = True
@@ -417,9 +417,6 @@ class SawyerEnv(Env, Serializable):
         if np.linalg.det(ee_jac) == 0:
             self._act(self._randomize_desired_angles())
 
-    def update_pose_and_jacobian_dict(self):
-        self.pose_jacobian_dict = self._get_robot_pose_jacobian_client('right')
-
     def unexpected_torque_check(self):
         #TODO: redesign this check
         #we care about the torque that was observed to make sure it hasn't gone too high
@@ -437,7 +434,6 @@ class SawyerEnv(Env, Serializable):
                 raise EnvironmentError('unexpected torques during reset: ', new_torques)
         return False
 
-
     def unexpected_velocity_check(self):
         #TODO: tune this check
         _, velocities, _, _ = self.request_observation()
@@ -451,12 +447,6 @@ class SawyerEnv(Env, Serializable):
             else:
                 raise EnvironmentError('unexpected velocities during reset: ', velocities)
         return False
-
-    def get_positions_from_pose_jacobian_dict(self):
-        poses = []
-        for joint in self.pose_jacobian_dict.keys():
-            poses.append(self.pose_jacobian_dict[joint][0])
-        return np.array(poses)
 
     def high_torque_check(self, commanded_torques):
         # TODO: tune this check
@@ -554,7 +544,21 @@ class SawyerEnv(Env, Serializable):
         else:
             self.desired = np.random.uniform(box_lows, box_highs, size=(1, 7))[0]
 
-    def get_pose_jacobian(self, poses, jacobians):
+    def update_pose_and_jacobian_dict(self):
+        self.pose_jacobian_dict = self._get_robot_pose_jacobian_client('right')
+
+    def _get_robot_pose_jacobian_client(self, name):
+        rospy.wait_for_service('get_robot_pose_jacobian')
+        try:
+            get_robot_pose_jacobian = rospy.ServiceProxy('get_robot_pose_jacobian', getRobotPoseAndJacobian,
+                                                         persistent=True)
+            resp = get_robot_pose_jacobian(name)
+            pose_jac_dict = self.get_pose_jacobian_dict(resp.poses, resp.jacobians)
+            return pose_jac_dict
+        except rospy.ServiceException as e:
+            print(e)
+
+    def get_pose_jacobian_dict(self, poses, jacobians):
         pose_jacobian_dict = {}
         counter = 0
         pose_counter = 0
@@ -574,16 +578,11 @@ class SawyerEnv(Env, Serializable):
             counter += 1
         return pose_jacobian_dict
 
-    def _get_robot_pose_jacobian_client(self, name):
-        rospy.wait_for_service('get_robot_pose_jacobian')
-        try:
-            get_robot_pose_jacobian = rospy.ServiceProxy('get_robot_pose_jacobian', getRobotPoseAndJacobian,
-                                                         persistent=True)
-            resp = get_robot_pose_jacobian(name)
-            pose_jac_dict = self.get_pose_jacobian(resp.poses, resp.jacobians)
-            return pose_jac_dict
-        except rospy.ServiceException as e:
-            print(e)
+    def get_positions_from_pose_jacobian_dict(self):
+        poses = []
+        for joint in self.pose_jacobian_dict.keys():
+            poses.append(self.pose_jacobian_dict[joint][0])
+        return np.array(poses)
 
     def check_joints_in_box(self, joint_dict):
         keys_to_remove = []
@@ -594,10 +593,10 @@ class SawyerEnv(Env, Serializable):
             del joint_dict[key]
         return joint_dict
 
-    def is_in_box(self, endpoint_pose):
+    def is_in_box(self, pose):
         within_box = [curr_pose > lower_pose and curr_pose < higher_pose
                       for curr_pose, lower_pose, higher_pose
-                      in zip(endpoint_pose, box_lows, box_highs)]
+                      in zip(pose, box_lows, box_highs)]
         return all(within_box)
 
     def get_adjustment_forces_per_joint_dict(self, joint_dict):
