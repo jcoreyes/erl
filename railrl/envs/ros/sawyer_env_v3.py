@@ -7,14 +7,13 @@ from numpy import linalg
 from experiments.murtaza.ros.Sawyer.joint_space_impedance_v2 import PDController
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core.serializable import Serializable
-from rllab.envs.base import Env
 from railrl.core import logger
 from rllab.spaces.box import Box
 
 from sawyer_control.srv import observation
 from sawyer_control.msg import actions
 from sawyer_control.srv import getRobotPoseAndJacobian
-
+from gym import Env
 NUM_JOINTS = 7
 
 """
@@ -477,7 +476,7 @@ class SawyerEnv(Env, Serializable):
             differences = np.sqrt(cos_diffs ** 2 + sin_diffs ** 2)
         return differences
 
-    def step(self, action, task='reaching'):
+    def _step(self, action, task='reaching'):
         self.nan_check(action)
         actual_commanded_action = self._act(action)
         observation = self._get_observation()
@@ -639,7 +638,7 @@ class SawyerEnv(Env, Serializable):
         no_velocity = (velocities < VELOCITY_THRESHOLD).all()
         return close_to_desired_reset_pos and no_velocity
 
-    def reset(self):
+    def _reset(self):
         """
         Resets the state of the environment, returning an initial observation.
         Outputs
@@ -772,9 +771,6 @@ class SawyerEnv(Env, Serializable):
     @property
     def observation_space(self):
         return self._observation_space
-
-    def render(self):
-        pass
 
     def log_diagnostics(self, paths):
         statistics = OrderedDict()
@@ -940,4 +936,13 @@ class SawyerEnv(Env, Serializable):
         return None
 
     def set_param_values(self, params):
+        pass
+
+    def _close(self):
+        pass
+
+    def _seed(self):
+        pass
+
+    def _render(self):
         pass
