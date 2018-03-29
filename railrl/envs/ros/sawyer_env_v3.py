@@ -13,7 +13,6 @@ from sawyer_control.srv import observation
 from sawyer_control.msg import actions
 from sawyer_control.srv import getRobotPoseAndJacobian
 from rllab.envs.base import Env
-NUM_JOINTS = 7
 
 """
 These are just ball-parks. For more specific specs, either measure them
@@ -365,23 +364,6 @@ class SawyerEnv(Env, Serializable):
         ERROR_THRESHOLD = .1*np.ones(7)
         is_within_threshold = (errors < ERROR_THRESHOLD).all()
         return is_within_threshold
-
-    def get_observed_torques_minus_gravity(self):
-        gravity_torques, actual_effort, subtracted_torques = self._get_gravity_compensation_torques()
-        return subtracted_torques
-
-    def gravity_torques_client(self):
-        rospy.wait_for_service('gravity_torques')
-        try:
-            gravity_torques = rospy.ServiceProxy('gravity_torques', GravityTorques)
-            resp1 = gravity_torques()
-            return np.array(resp1.gravity_torques), np.array(resp1.actual_torques), np.array(resp1.subtracted_torques)
-        except rospy.ServiceException as e:
-            print(e)
-
-    def _get_gravity_compensation_torques(self):
-        gravity_torques, actual_torques, subtracted_torques = self.gravity_torques_client()
-        return gravity_torques, actual_torques, subtracted_torques
 
     def _wrap_angles(self, angles):
         return angles % (2*np.pi)
