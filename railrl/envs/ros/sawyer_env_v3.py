@@ -283,12 +283,12 @@ class SawyerEnv(Env, Serializable):
     def _act(self, action):
         if self.safety_box:
             self.update_pose_and_jacobian_dict()
-            self.check_joints_in_box(self.pose_jacobian_dict)
-            if len(self.pose_jacobian_dict) > 0:
-                forces_dict = self.get_adjustment_forces_per_joint_dict(self.pose_jacobian_dict)
+            truncated_dict = self.check_joints_in_box()
+            if len(truncated_dict) > 0:
+                forces_dict = self.get_adjustment_forces_per_joint_dict(truncated_dict)
                 torques = np.zeros(7)
                 for joint in forces_dict:
-                    torques = torques + np.dot(self.pose_jacobian_dict[joint][1].T, forces_dict[joint]).T
+                    torques = torques + np.dot(truncated_dict[joint][1].T, forces_dict[joint]).T
                 action = action + torques
         if self.in_reset:
             np.clip(action, -4, 4, out=action)
@@ -394,11 +394,11 @@ class SawyerEnv(Env, Serializable):
     def safety_box_check(self):
         # TODO: tune this check
         self.update_pose_and_jacobian_dict()
-        self.check_joints_in_box(self.pose_jacobian_dict)
+        truncated_dict = self.check_joints_in_box()
         terminate_episode = False
-        if len(self.pose_jacobian_dict) > 0:
-            for joint in self.pose_jacobian_dict.keys():
-                dist = self.compute_distances_outside_box(self.pose_jacobian_dict[joint][0])
+        if len(truncated_dict) > 0:
+            for joint in truncated_dict.keys():
+                dist = self.compute_distances_outside_box(truncated_dict[joint][0])
                 if dist > .19:
                     if not self.in_reset:
                         print('safety box failure during train/eval: ', joint, dist)
@@ -579,7 +579,8 @@ class SawyerEnv(Env, Serializable):
             poses.append(self.pose_jacobian_dict[joint][0])
         return np.array(poses)
 
-    def check_joints_in_box(self, joint_dict):
+    def check_joints_in_box(self):
+        joint_dict = self.pose_jacobian_dict.copy()
         keys_to_remove = []
         for joint in joint_dict.keys():
             if self.is_in_box(joint_dict[joint][0]):
