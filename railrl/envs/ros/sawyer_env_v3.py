@@ -120,7 +120,6 @@ class SawyerEnv(Env, Serializable):
             safe_reset_length=150,
             reward_magnitude=1,
             use_safety_checks=True,
-            use_angle_wrapping=False,
             wrap_reward_angle_computation=True,
     ):
 
@@ -136,7 +135,6 @@ class SawyerEnv(Env, Serializable):
         self.arm_name = 'right'
 
         self.use_safety_checks = use_safety_checks
-        self.use_angle_wrapping = use_angle_wrapping
         self.wrap_reward_angle_computation = wrap_reward_angle_computation
         self.reward_magnitude = reward_magnitude
 
@@ -215,8 +213,6 @@ class SawyerEnv(Env, Serializable):
                     angles['right_j5'],
                     angles['right_j6']
                 ])
-                if self.use_angle_wrapping:
-                    angles = self._wrap_angles(angles)
                 self.desired = angles
             else:
                 self._randomize_desired_angles()
@@ -325,8 +321,6 @@ class SawyerEnv(Env, Serializable):
     def _joint_angles(self):
         angles, _, _, _ = self.request_observation()
         angles = np.array(angles)
-        if self.use_angle_wrapping:
-            angles = self._wrap_angles(angles)
         return angles
 
     def _end_effector_pose(self):
@@ -387,11 +381,10 @@ class SawyerEnv(Env, Serializable):
         return reward
 
     def compute_angle_difference(self, angles1, angles2):
-        if self.use_angle_wrapping or self.wrap_reward_angle_computation:
-            self._wrap_angles(angles1)
-            self._wrap_angles(angles2)
-            deltas = np.abs(angles1 - angles2)
-            differences = np.minimum(2 * np.pi - deltas, deltas)
+        self._wrap_angles(angles1)
+        self._wrap_angles(angles2)
+        deltas = np.abs(angles1 - angles2)
+        differences = np.minimum(2 * np.pi - deltas, deltas)
         return differences
 
     def step(self, action, task='reaching'):
