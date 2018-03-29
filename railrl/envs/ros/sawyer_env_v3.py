@@ -120,7 +120,6 @@ class SawyerEnv(Env, Serializable):
             experiment,
             update_hz=20,
             action_mode='torque',
-            remove_action=False,
             safety_box=True,
             reward='huber',
             huber_delta=10,
@@ -140,7 +139,6 @@ class SawyerEnv(Env, Serializable):
         self.wrap_reward_angle_computation = wrap_reward_angle_computation
         self.reward_magnitude = reward_magnitude
         self.safety_box = safety_box
-        self.remove_action = remove_action
         self.safe_reset_length = safe_reset_length
         self.huber_delta = huber_delta
         self.safety_force_magnitude = safety_force_magnitude
@@ -291,10 +289,7 @@ class SawyerEnv(Env, Serializable):
                 torques = np.zeros(7)
                 for joint in forces_dict:
                     torques = torques + np.dot(self.pose_jacobian_dict[joint][1].T, forces_dict[joint]).T
-                if self.remove_action:
-                    action = torques
-                else:
-                    action = action + torques
+                action = action + torques
         if self.in_reset:
             np.clip(action, -4, 4, out=action)
         if not self.in_reset:
