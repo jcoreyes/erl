@@ -119,7 +119,7 @@ class SawyerEnv(Env, Serializable):
             temperature=1.05,
             safe_reset_length=150,
             reward_magnitude=1,
-            use_safety_checks=False,
+            use_safety_checks=True,
             use_angle_wrapping=False,
             wrap_reward_angle_computation=True,
     ):
