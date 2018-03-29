@@ -12,15 +12,15 @@ from railrl.envs.mujoco.discrete_swimmer import DiscreteSwimmerEnv
 from railrl.envs.mujoco.reacher_env import ReacherEnv
 from railrl.envs.wrappers import DiscretizeEnv
 from railrl.finite_q_learning.discrete_q_learning import FiniteDiscreteQLearning
-from railrl.launchers.launcher_util import setup_logger, run_experiment
+from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.networks import Mlp
 import railrl.misc.hyperparameter as hyp
+from railrl.envs.mujoco.hopper_env import HopperEnv
 
 
 def experiment(variant):
-    env = DiscreteReacherEnv()
-    # env = variant['env_class'](**variant['env_kwargs'])
-    # env = DiscretizeEnv(env, variant['num_bins'])
+    env = variant['env_class'](**variant['env_kwargs'])
+    env = DiscretizeEnv(env, variant['num_bins'])
 
     qf = Mlp(
         input_size=int(np.prod(env.observation_space.shape)),
@@ -42,9 +42,10 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'finite-dqn-with-loop-reacher'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'fhql-vs-ddqn-hopper-H100'
+    # exp_prefix = 'fhql-reacher-H100'
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -53,14 +54,13 @@ if __name__ == "__main__":
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
-            max_path_length=20,
+            max_path_length=100,
             discount=1.,
             random_action_prob=0.05,
-            # save_environment=False,  # Can't serialize CartPole for some reason
         ),
-        # env_kwargs=dict(
-        # ),
-        algorithm="Finite-DQN-looped-take-2",
+        env_kwargs=dict(
+        ),
+        algorithm="Finite-DQN",
         num_bins=5,
     )
 
@@ -69,6 +69,7 @@ if __name__ == "__main__":
         # 'algo_kwargs.random_action_prob': [0.05, 0.2],
         'qf_kwargs.hidden_sizes': [[32, 32]],
         # 'env_class': [HopperEnv],
+        'env_class': [HopperEnv],
         # 'num_bins': [5, 4, 3]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
