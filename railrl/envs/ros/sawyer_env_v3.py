@@ -121,7 +121,6 @@ class SawyerEnv(Env, Serializable):
             reward_magnitude=1,
             use_safety_checks=False,
             use_angle_wrapping=False,
-            use_angle_parameterization=False,
             wrap_reward_angle_computation=True,
     ):
 
@@ -138,7 +137,6 @@ class SawyerEnv(Env, Serializable):
 
         self.use_safety_checks = use_safety_checks
         self.use_angle_wrapping = use_angle_wrapping
-        self.use_angle_parameterization = use_angle_parameterization
         self.wrap_reward_angle_computation = wrap_reward_angle_computation
         self.reward_magnitude = reward_magnitude
 
@@ -182,42 +180,21 @@ class SawyerEnv(Env, Serializable):
         #set up lows and highs for observation space based on which experiment we are running
         #additionally set up the desired angle as well
         if self.joint_angle_experiment:
-            if self.use_angle_parameterization:
-                lows = np.hstack((
-                    np.cos(JOINT_VALUE_LOW['position']),
-                    np.sin(JOINT_VALUE_LOW['position']),
-                    JOINT_VALUE_LOW['velocity'],
-                    JOINT_VALUE_LOW['torque'],
-                    END_EFFECTOR_VALUE_LOW['position'],
-                    np.cos(JOINT_VALUE_LOW['position']),
-                    np.sin(JOINT_VALUE_LOW['position']),
-                ))
+            lows = np.hstack((
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
+                JOINT_VALUE_LOW['torque'],
+                END_EFFECTOR_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['position'],
+            ))
 
-                highs = np.hstack((
-                    np.cos(JOINT_VALUE_HIGH['position']),
-                    np.sin(JOINT_VALUE_HIGH['position']),
-                    JOINT_VALUE_HIGH['velocity'],
-                    JOINT_VALUE_HIGH['torque'],
-                    END_EFFECTOR_VALUE_HIGH['position'],
-                    np.cos(JOINT_VALUE_HIGH['position']),
-                    np.sin(JOINT_VALUE_HIGH['position']),
-                ))
-            else:
-                lows = np.hstack((
-                    JOINT_VALUE_LOW['position'],
-                    JOINT_VALUE_LOW['velocity'],
-                    JOINT_VALUE_LOW['torque'],
-                    END_EFFECTOR_VALUE_LOW['position'],
-                    JOINT_VALUE_LOW['position'],
-                ))
-
-                highs = np.hstack((
-                    JOINT_VALUE_HIGH['position'],
-                    JOINT_VALUE_HIGH['velocity'],
-                    JOINT_VALUE_HIGH['torque'],
-                    END_EFFECTOR_VALUE_HIGH['position'],
-                    JOINT_VALUE_HIGH['position'],
-                ))
+            highs = np.hstack((
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
+                JOINT_VALUE_HIGH['torque'],
+                END_EFFECTOR_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['position'],
+            ))
 
             if self.fixed_angle:
                 angles = {
@@ -240,47 +217,26 @@ class SawyerEnv(Env, Serializable):
                 ])
                 if self.use_angle_wrapping:
                     angles = self._wrap_angles(angles)
-                if self.use_angle_parameterization:
-                    angles = self.parameterize_angles(angles)
                 self.desired = angles
             else:
                 self._randomize_desired_angles()
 
         elif self.end_effector_experiment_position:
-            if self.use_angle_parameterization:
-                lows = np.hstack((
-                    np.cos(JOINT_VALUE_LOW['position']),
-                    np.sin(JOINT_VALUE_LOW['position']),
-                    JOINT_VALUE_LOW['velocity'],
-                    JOINT_VALUE_LOW['torque'],
-                    END_EFFECTOR_VALUE_LOW['position'],
-                    END_EFFECTOR_VALUE_LOW['position'],
-                ))
+            lows = np.hstack((
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
+                JOINT_VALUE_LOW['torque'],
+                END_EFFECTOR_VALUE_LOW['position'],
+                END_EFFECTOR_VALUE_LOW['position'],
+            ))
 
-                highs = np.hstack((
-                    np.cos(JOINT_VALUE_HIGH['position']),
-                    np.sin(JOINT_VALUE_HIGH['position']),
-                    JOINT_VALUE_HIGH['velocity'],
-                    JOINT_VALUE_HIGH['torque'],
-                    END_EFFECTOR_VALUE_LOW['position'],
-                    END_EFFECTOR_VALUE_LOW['position'],
-                ))
-            else:
-                lows = np.hstack((
-                    JOINT_VALUE_LOW['position'],
-                    JOINT_VALUE_LOW['velocity'],
-                    JOINT_VALUE_LOW['torque'],
-                    END_EFFECTOR_VALUE_LOW['position'],
-                    END_EFFECTOR_VALUE_LOW['position'],
-                ))
-
-                highs = np.hstack((
-                    JOINT_VALUE_HIGH['position'],
-                    JOINT_VALUE_HIGH['velocity'],
-                    JOINT_VALUE_HIGH['torque'],
-                    END_EFFECTOR_VALUE_HIGH['position'],
-                    END_EFFECTOR_VALUE_HIGH['position'],
-                ))
+            highs = np.hstack((
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
+                JOINT_VALUE_HIGH['torque'],
+                END_EFFECTOR_VALUE_HIGH['position'],
+                END_EFFECTOR_VALUE_HIGH['position'],
+            ))
 
             if self.fixed_end_effector:
                 self.desired = np.array([0.68998028, -0.2285752, 0.3477])
@@ -356,8 +312,6 @@ class SawyerEnv(Env, Serializable):
             5.73669922e-01,
             3.31514160e+00
         ])
-        if self.use_angle_parameterization:
-            desired_neutral = np.hstack((np.cos(desired_neutral), np.sin(desired_neutral)))
         desired_neutral = (desired_neutral)
         actual_neutral = (self._joint_angles())
         errors = self.compute_angle_difference(desired_neutral, actual_neutral)
@@ -373,14 +327,6 @@ class SawyerEnv(Env, Serializable):
         angles = np.array(angles)
         if self.use_angle_wrapping:
             angles = self._wrap_angles(angles)
-        if self.use_angle_parameterization:
-            angles = self.parameterize_angles(angles)
-        return angles
-
-    def parameterize_angles(self, angles):
-        cosines = np.cos(angles)
-        sines = np.sin(angles)
-        angles = np.hstack((cosines, sines))
         return angles
 
     def _end_effector_pose(self):
@@ -446,15 +392,6 @@ class SawyerEnv(Env, Serializable):
             self._wrap_angles(angles2)
             deltas = np.abs(angles1 - angles2)
             differences = np.minimum(2 * np.pi - deltas, deltas)
-        elif self.use_angle_parameterization:
-            #angles1 and 2 are already parameterized
-            cosines1 = angles1[:7]
-            cosines2 = angles2[:7]
-            sines1 = angles1[7:]
-            sines2 = angles2[7:]
-            cos_diffs = cosines1-cosines2
-            sin_diffs = sines1-sines2
-            differences = np.sqrt(cos_diffs ** 2 + sin_diffs ** 2)
         return differences
 
     def step(self, action, task='reaching'):
@@ -770,25 +707,12 @@ class SawyerEnv(Env, Serializable):
             final_desired_positions = []
             for obsSet in obsSets:
                 for observation in obsSet:
-                    if self.use_angle_parameterization:
-                        pos = np.array(observation[28:31])
-                        des = np.array(observation[31:34])
-                        distances.append(np.linalg.norm(pos-des))
-                        positions.append(pos)
-                        desired_positions.append(des)
-                    else:
-                        pos = np.array(observation[21:24])
-                        des = np.array(observation[24:27])
-                        distances.append(np.linalg.norm(pos - des))
-                        positions.append(pos)
-                        desired_positions.append(des)
-
+                    pos = np.array(observation[21:24])
+                    des = np.array(observation[24:27])
+                    distances.append(np.linalg.norm(pos - des))
+                    positions.append(pos)
+                    desired_positions.append(des)
                     for observation in obsSet[len(obsSet)-10:len(obsSet)]:
-                        if self.use_angle_parameterization:
-                            pos = np.array(observation[28:31])
-                            des = np.array(observation[31:34])
-                            last_n_distances.append(np.linalg.norm(pos - des))
-                        else:
                             pos = np.array(observation[21:24])
                             des = np.array(observation[24:27])
                             last_n_distances.append(np.linalg.norm(pos - des))
@@ -856,14 +780,9 @@ class SawyerEnv(Env, Serializable):
             positions = []
             for obsSet in obsSets:
                 for observation in obsSet:
-                    if self.use_angle_parameterization:
-                        angles.append(observation[:14])
-                        desired_angles.append(observation[31:45])
-                        positions.append(observation[28:31])
-                    else:
-                        angles.append(observation[:7])
-                        desired_angles.append(observation[24:31])
-                        positions.append(observation[21:24])
+                    angles.append(observation[:7])
+                    desired_angles.append(observation[24:31])
+                    positions.append(observation[21:24])
 
             angles = np.array(angles)
             desired_angles = np.array(desired_angles)
