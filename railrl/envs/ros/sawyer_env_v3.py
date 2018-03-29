@@ -122,7 +122,7 @@ class SawyerEnv(Env, Serializable):
             action_mode='torque',
             remove_action=False,
             safety_box=True,
-            loss='huber',
+            reward='huber',
             huber_delta=10,
             safety_force_magnitude=2,
             temperature=1.05,
@@ -135,18 +135,30 @@ class SawyerEnv(Env, Serializable):
         Serializable.quick_init(self, locals())
         self.init_rospy(update_hz)
 
+        self.arm_name = 'right'
+        self.use_safety_checks = use_safety_checks
+        self.wrap_reward_angle_computation = wrap_reward_angle_computation
+        self.reward_magnitude = reward_magnitude
+        self.safety_box = safety_box
+        self.remove_action = remove_action
+        self.safe_reset_length = safe_reset_length
+        self.huber_delta = huber_delta
+        self.safety_force_magnitude = safety_force_magnitude
+        self.temperature = temperature
+        self.PDController = PDController()
+
         #defaults:
         self.joint_angle_experiment = False
         self.fixed_angle = False
         self.end_effector_experiment_position = False
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
-        self.arm_name = 'right'
 
-        self.use_safety_checks = use_safety_checks
-        self.wrap_reward_angle_computation = wrap_reward_angle_computation
-        self.reward_magnitude = reward_magnitude
-
+        self._action_space = Box(
+            JOINT_VALUE_LOW[action_mode],
+            JOINT_VALUE_HIGH[action_mode]
+        )
+        
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
             self.fixed_angle = True
@@ -163,26 +175,12 @@ class SawyerEnv(Env, Serializable):
         elif experiment == experiments[5]:
             self.end_effector_experiment_total = True
 
-        self.safety_box = safety_box
-        self.remove_action = remove_action
-
-        self.safe_reset_length=safe_reset_length
-
-        if loss == 'MSE':
+        if reward == 'MSE':
             self.reward_function = self._MSE_reward
-        elif loss == 'huber':
+        elif reward == 'huber':
             self.reward_function = self._Huber_reward
-
-        self.huber_delta = huber_delta
-        self.safety_force_magnitude = safety_force_magnitude
-        self.temperature = temperature
-
-        self.PDController = PDController()
-
-        self._action_space = Box(
-            JOINT_VALUE_LOW[action_mode],
-            JOINT_VALUE_HIGH[action_mode]
-        )
+        else:
+            self.reward_function = self._Norm_reward
 
         #set up lows and highs for observation space based on which experiment we are running
         #additionally set up the desired angle as well
@@ -307,7 +305,7 @@ class SawyerEnv(Env, Serializable):
         self.rate.sleep()
         return action
 
-    def is_in_correct_position(self):
+    def _reset_within_threshold(self):
         desired_neutral = np.array([
             6.28115601e+00,
             5.10141089e+00,
@@ -520,7 +518,7 @@ class SawyerEnv(Env, Serializable):
 
     def previous_angles_reset_check(self):
         # TODO: tune this check so that reset cuts off early but at the right time
-        close_to_desired_reset_pos = self.is_in_correct_position()
+        close_to_desired_reset_pos = self._reset_within_threshold()
         _, velocities, _, _ = self.request_observation()
         velocities = np.abs(np.array(velocities))
         VELOCITY_THRESHOLD = .002 * np.ones(7)
