@@ -22,10 +22,10 @@ import railrl.misc.hyperparameter as hyp
 def experiment(variant):
     # env = gym.make('CartPole-v0')
     # training_env = gym.make('CartPole-v0')
-    # env = DiscreteReacherEnv(num_bins=5, frame_skip=5)
+    env = DiscreteReacherEnv(**variant['env_kwargs'])
     # env = DiscreteSwimmerEnv()
-    env = variant['env_class'](**variant['env_kwargs'])
-    env = DiscretizeEnv(env, variant['num_bins'])
+    # env = variant['env_class'](**variant['env_kwargs'])
+    # env = DiscretizeEnv(env, variant['num_bins'])
 
     qf = Mlp(
         input_size=int(np.prod(env.observation_space.shape)),
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=1000,
+            num_epochs=200,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
@@ -64,9 +64,8 @@ if __name__ == "__main__":
         ),
         env_kwargs=dict(
         ),
-        # algorithm="Double-DQN",
-        algorithm="DQN",
-        num_bins=5,
+        algorithm="TBD",
+        # num_bins=5,
     )
     # setup_logger('name-of-experiment', variant=variant)
     # experiment(variant)
@@ -74,9 +73,12 @@ if __name__ == "__main__":
         # 'algo_kwargs.discount': [0.99, 1],
         # 'algo_kwargs.random_action_prob': [0.05, 0.2],
         'algo_class': [DQN, DoubleDQN],
-        'qf_kwargs.hidden_sizes': [[32, 32], [300, 300]],
-        'env_class': [HopperEnv],
-        'num_bins': [5, 4, 3]
+        # [32, 32] + DiscreteReacherEnv = 3057 params
+        # [220, 220] + DiscreteReacherEnv = 62089 params
+        'qf_kwargs.hidden_sizes': [[32, 32], [220, 220]],
+        'algo_kwargs.num_updates_per_env_step': [1, 10, 20],
+        'env_kwargs.frame_skip': [5, 2],
+        'num_bins': [5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -89,7 +91,7 @@ if __name__ == "__main__":
         for _ in range(3):
             run_experiment(
                 experiment,
-                exp_prefix='dqn-vs-finite-dqn-hopper',
+                exp_prefix='ddqn-make-fair-comparison',
                 mode='ec2',
                 # exp_prefix='dev',
                 # mode='local',
