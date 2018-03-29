@@ -45,8 +45,9 @@ JOINT_ANGLES_LOW = np.array([
 JOINT_VEL_HIGH = 2*np.ones(7)
 JOINT_VEL_LOW = -2*np.ones(7)
 
-JOINT_TORQUE_HIGH = 1*np.ones(7)
-JOINT_TORQUE_LOW = -1*np.ones(7)
+MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
+JOINT_TORQUE_HIGH = MAX_TORQUES
+JOINT_TORQUE_LOW = -1*MAX_TORQUES
 
 JOINT_VALUE_HIGH = {
     'position': JOINT_ANGLES_HIGH,
@@ -84,30 +85,6 @@ END_EFFECTOR_VALUE_HIGH = {
     'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
-TORQUE_MAX = 3.5
-TORQUE_MAX_TRAIN = 5
-MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
-
-# box_lows = np.array([
-#     0.1228008448954529,
-#     -0.31815782,
-#     0.2284391863426093,
-# ])
-#
-# box_highs = np.array([
-#     0.7175958839273338,
-#     0.3064466563902636,
-#     1.3,
-# ])
-
-# box_lows = np.array([-0.04304189, -0.30462352, 0.16761519])
-#
-# box_highs = np.array([ 0.84045825,  0.30408276, 0.8880568 ])
-
-box_lows = np.array([-0.04304189, -0.43462352, 0.27961519])
-
-box_highs = np.array([ 0.84045825,  0.38408276, 1.8880568 ])
-
 # Testing bounding box for Sawyer on pedestal
 box_lows = np.array([-0.4063314307903516, -0.4371988870414967, 0.19114132196594727])
 box_highs = np.array([0.5444314339226455, 0.5495988452507109, 0.8264100134638303])
@@ -131,20 +108,9 @@ experiments=[
     'end_effector_position_orientation|varying_ee'
 ]
 
-def safe(raw_function):
-    def safe_function(*args, **kwargs):
-        try:
-            return raw_function(*args, **kwargs)
-        except rospy.ServiceException as e:
-            print("Service call failed: %s" % e)
-
-    return safe_function
-
-
 class SawyerEnv(Env, Serializable):
     def __init__(
             self,
-            arm_name,
             experiment,
             update_hz=20,
             action_mode='torque',
@@ -171,7 +137,7 @@ class SawyerEnv(Env, Serializable):
         self.end_effector_experiment_position = False
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
-
+        self.arm_name = 'right'
 
         self.use_safety_checks = use_safety_checks
         self.use_angle_wrapping = use_angle_wrapping
@@ -197,7 +163,7 @@ class SawyerEnv(Env, Serializable):
 
         self.safety_box = safety_box
         self.remove_action = remove_action
-        self.arm_name = arm_name
+
         self.safe_reset_length=safe_reset_length
 
         if loss == 'MSE':
