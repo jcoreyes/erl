@@ -1,19 +1,7 @@
-import math
-import time
 from collections import OrderedDict
 import numpy as np
-import rospy
-from numpy import linalg
-from experiments.murtaza.ros.Sawyer.pd_controller import PDController
 from railrl.envs.ros.sawyer_env_base import SawyerEnv
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.core.serializable import Serializable
-from railrl.core import logger
 from rllab.spaces.box import Box
-from sawyer_control.srv import observation
-from sawyer_control.msg import actions
-from sawyer_control.srv import getRobotPoseAndJacobian
-from rllab.envs.base import Env
 
 JOINT_ANGLES_HIGH = np.array([
     1.70167993,
@@ -81,9 +69,10 @@ class SawyerJointSpaceReachingEnv(SawyerEnv):
     def __init__(self,
                  experiment,
                  randomize_goal_on_reset=False,
-                 *kwargs
+                 **kwargs
                  ):
         self.randomize_goal_on_reset = randomize_goal_on_reset
+        super().__init__(self, experiment, **kwargs)
 
     def reward(self, action):
         current = self._joint_angles()
@@ -91,10 +80,72 @@ class SawyerJointSpaceReachingEnv(SawyerEnv):
         reward = self.reward_function(differences)
         return reward
 
-    def log_diagnostics(self, paths):
-        raise NotImplementedError
+    def log_diagnostics(self, paths, logger=None):
+        if logger==None:
+            super().log_diagnostics(paths, logger=logger)
+        else:
+            statistics = OrderedDict()
+            stat_prefix = 'Test'
+            angle_differences, distances_outside_box = self._extract_experiment_info(paths)
+            statistics.update(self._statistics_from_observations(
+                angle_differences,
+                stat_prefix,
+                'Difference from Desired Joint Angle'
+            ))
+
+            if self.safety_box:
+                statistics.update(self._statistics_from_observations(
+                    distances_outside_box,
+                    stat_prefix,
+                    'End Effector Distance Outside Box'
+                ))
+            for key, value in statistics.items():
+                logger.record_tabular(key, value)
+
+    def _extract_experiment_info(self, paths):
+        obsSets = [path["observations"] for path in paths]
+        angles = []
+        desired_angles = []
+        positions = []
+        for obsSet in obsSets:
+            for observation in obsSet:
+                angles.append(observation[:7])
+                desired_angles.append(observation[24:31])
+                positions.append(observation[21:24])
+
+        angles = np.array(angles)
+        desired_angles = np.array(desired_angles)
+
+        differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs)
+                                for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
+        angle_differences = np.mean(differences, axis=1)
+        distances_outside_box = np.array([self._compute_joint_distance_outside_box(pose) for pose in positions])
+        return [angle_differences, distances_outside_box]
+
     def _set_observation_space(self):
-        raise NotImplementedError
+        lows = np.hstack((
+            JOINT_VALUE_LOW['position'],
+            JOINT_VALUE_LOW['velocity'],
+            JOINT_VALUE_LOW['torque'],
+            END_EFFECTOR_VALUE_LOW['position'],
+            END_EFFECTOR_VALUE_LOW['angle'],
+            JOINT_VALUE_LOW['position'],
+        ))
+
+        highs = np.hstack((
+            JOINT_VALUE_HIGH['position'],
+            JOINT_VALUE_HIGH['velocity'],
+            JOINT_VALUE_HIGH['torque'],
+            END_EFFECTOR_VALUE_HIGH['position'],
+            END_EFFECTOR_VALUE_HIGH['angle'],
+            JOINT_VALUE_HIGH['position'],
+        ))
+
+        if self.randomize_goal_on_reset:
+            self._randomize_desired_angles()
+        else:
+            self.desired = np.ones(7)
+        self._observation_space = Box(lows, highs)
 
     def reset(self):
         """

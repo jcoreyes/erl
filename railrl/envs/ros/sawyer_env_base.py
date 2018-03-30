@@ -449,8 +449,11 @@ class SawyerEnv(Env, Serializable):
                 z = np.abs(curr_z - box_lows[2])
         return np.linalg.norm([x, y, z])
 
-    def log_diagnostics(self, paths):
-        raise NotImplementedError
+    def log_diagnostics(self, paths, logger=None):
+        if logger==None:
+            pass
+        else:
+            raise NotImplementedError
 
 
     def _statistics_from_observations(self, observation, stat_prefix, log_title):
