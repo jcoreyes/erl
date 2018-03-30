@@ -3,21 +3,14 @@ import time
 from collections import OrderedDict
 import numpy as np
 import rospy
-from numpy import linalg
-from experiments.murtaza.ros.Sawyer.joint_space_impedance_v2 import PDController
+from experiments.murtaza.ros.Sawyer.pd_controller import PDController
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core.serializable import Serializable
-from railrl.core import logger
 from rllab.spaces.box import Box
 from sawyer_control.srv import observation
 from sawyer_control.msg import actions
 from sawyer_control.srv import getRobotPoseAndJacobian
 from rllab.envs.base import Env
-
-"""
-These are just ball-parks. For more specific specs, either measure them
-and/or see http://sdk.rethinkrobotics.com/wiki/Hardware_Specifications.
-"""
 
 JOINT_ANGLES_HIGH = np.array([
     1.70167993,
@@ -55,31 +48,6 @@ JOINT_VALUE_LOW = {
     'position': JOINT_ANGLES_LOW,
     'velocity': JOINT_VEL_LOW,
     'torque': JOINT_TORQUE_LOW,
-}
-
-END_EFFECTOR_POS_LOW = [
-    0.3404830862298487,
-    -1.2633121086809487,
-    -0.5698485041484043
-]
-
-END_EFFECTOR_POS_HIGH = [
-    1.1163239572333106,
-    0.003933425621414761,
-    0.795699462010194
-]
-
-END_EFFECTOR_ANGLE_LOW = -1*np.ones(4)
-END_EFFECTOR_ANGLE_HIGH = np.ones(4)
-
-END_EFFECTOR_VALUE_LOW = {
-    'position': END_EFFECTOR_POS_LOW,
-    'angle': END_EFFECTOR_ANGLE_LOW,
-}
-
-END_EFFECTOR_VALUE_HIGH = {
-    'position': END_EFFECTOR_POS_HIGH,
-    'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
 # Testing bounding box for Sawyer on pedestal
@@ -147,7 +115,6 @@ class SawyerEnv(Env, Serializable):
             self.reward_function = self._Norm_reward
 
         self._set_observation_space()
-
         self.get_latest_pose_jacobian_dict()
         self.in_reset = True
         self.amplify = np.ones(1) #by default, no amplifications
@@ -191,7 +158,8 @@ class SawyerEnv(Env, Serializable):
         return angles
 
     def _end_effector_pose(self):
-        raise NotImplementedError
+        _, _, _, endpoint_pose = self.request_observation()
+        return np.array(endpoint_pose)
 
     def _MSE_reward(self, differences):
         reward = -np.mean(differences**2)
