@@ -96,15 +96,6 @@ joint_names = [
     '_hand'
 ]
 
-experiments=[
-    'joint_angle|fixed_angle',
-    'joint_angle|varying_angle',
-    'end_effector_position|fixed_ee',
-    'end_effector_position|varying_ee',
-    'end_effector_position_orientation|fixed_ee',
-    'end_effector_position_orientation|varying_ee'
-]
-
 def safe(raw_function):
     def safe_function(*args, **kwargs):
         try:
@@ -143,33 +134,10 @@ class SawyerEnv(Env, Serializable):
         self.temperature = temperature
         self.PDController = PDController()
 
-        #defaults:
-        self.joint_angle_experiment = False
-        self.fixed_angle = False
-        self.end_effector_experiment_position = False
-        self.end_effector_experiment_total = False
-        self.fixed_end_effector = False
-
         self._action_space = Box(
             JOINT_VALUE_LOW[action_mode],
             JOINT_VALUE_HIGH[action_mode]
         )
-
-        if experiment == experiments[0]:
-            self.joint_angle_experiment=True
-            self.fixed_angle = True
-        elif experiment == experiments[1]:
-            self.joint_angle_experiment=True
-        elif experiment == experiments[2]:
-            self.end_effector_experiment_position=True
-            self.fixed_end_effector = True
-        elif experiment == experiments[3]:
-            self.end_effector_experiment_position=True
-        elif experiment == experiments[4]:
-            self.end_effector_experiment_total=True
-            self.fixed_end_effector = True
-        elif experiment == experiments[5]:
-            self.end_effector_experiment_total = True
 
         if reward == 'MSE':
             self.reward_function = self._MSE_reward
@@ -178,104 +146,11 @@ class SawyerEnv(Env, Serializable):
         else:
             self.reward_function = self._Norm_reward
 
-        #set up lows and highs for observation space based on which experiment we are running
-        #additionally set up the desired angle as well
-        if self.joint_angle_experiment:
-            lows = np.hstack((
-                JOINT_VALUE_LOW['position'],
-                JOINT_VALUE_LOW['velocity'],
-                JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                JOINT_VALUE_LOW['position'],
-            ))
+        self._set_observation_space()
 
-            highs = np.hstack((
-                JOINT_VALUE_HIGH['position'],
-                JOINT_VALUE_HIGH['velocity'],
-                JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                JOINT_VALUE_HIGH['position'],
-            ))
-
-            if self.fixed_angle:
-                angles = {
-                    'right_j6': 3.23098828125,
-                    'right_j5': -2.976708984375,
-                    'right_j4': -0.100001953125,
-                    'right_j3': 1.59925,
-                    'right_j2': -1.6326630859375,
-                    'right_j1': -0.3456298828125,
-                    'right_j0': 0.0382529296875
-                }
-                angles = np.array([
-                    angles['right_j0'],
-                    angles['right_j1'],
-                    angles['right_j2'],
-                    angles['right_j3'],
-                    angles['right_j4'],
-                    angles['right_j5'],
-                    angles['right_j6']
-                ])
-                self.desired = angles
-            else:
-                self._randomize_desired_angles()
-
-        elif self.end_effector_experiment_position:
-            lows = np.hstack((
-                JOINT_VALUE_LOW['position'],
-                JOINT_VALUE_LOW['velocity'],
-                JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['position'],
-            ))
-
-            highs = np.hstack((
-                JOINT_VALUE_HIGH['position'],
-                JOINT_VALUE_HIGH['velocity'],
-                JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-            ))
-
-            if self.fixed_end_effector:
-                self.desired = np.array([0.68998028, -0.2285752, 0.3477])
-
-            else:
-                self._randomize_desired_end_effector_pose()
-
-        elif self.end_effector_experiment_total:
-            lows = np.hstack((
-                JOINT_VALUE_LOW['position'],
-                JOINT_VALUE_LOW['velocity'],
-                JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['angle'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['angle'],
-            ))
-
-            highs = np.hstack((
-                JOINT_VALUE_HIGH['position'],
-                JOINT_VALUE_HIGH['velocity'],
-                JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                END_EFFECTOR_VALUE_HIGH['angle'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                END_EFFECTOR_VALUE_HIGH['angle'],
-            ))
-
-            if self.fixed_end_effector:
-                self.desired = np.array(
-                    [0.598038329445, -0.110192662364, 0.273337957845, 0.999390065723, 0.0329420607071, 0.00603632837369,
-                     -0.00989342758435])
-            else:
-                self._randomize_desired_end_effector_pose()
-
-        self._observation_space = Box(lows, highs)
         self.get_latest_pose_jacobian_dict()
         self.in_reset = True
-        self.amplify=5*np.ones(7)
-        self.loss_param = {'delta':0.001, 'c':0.0025}
+        self.amplify = np.ones(1) #by default, no amplifications
 
     @safe
     def _act(self, action):
@@ -299,15 +174,7 @@ class SawyerEnv(Env, Serializable):
         return action
 
     def _reset_within_threshold(self):
-        desired_neutral = np.array([
-            6.28115601e+00,
-            5.10141089e+00,
-            6.28014234e+00,
-            2.17755176e+00,
-            9.48242187e-04,
-            5.73669922e-01,
-            3.31514160e+00
-        ])
+        desired_neutral = self.PDController._des_angles
         desired_neutral = (desired_neutral)
         actual_neutral = (self._joint_angles())
         errors = self.compute_angle_difference(desired_neutral, actual_neutral)
@@ -324,12 +191,7 @@ class SawyerEnv(Env, Serializable):
         return angles
 
     def _end_effector_pose(self):
-        _, _, _, endpoint_pose = self.request_observation()
-        if self.end_effector_experiment_total:
-            return np.array(endpoint_pose)
-        else:
-            x, y, z, _, _, _, _ = endpoint_pose
-            return np.array([x, y, z])
+        raise NotImplementedError
 
     def _MSE_reward(self, differences):
         reward = -np.mean(differences**2)
@@ -353,11 +215,11 @@ class SawyerEnv(Env, Serializable):
         differences = np.minimum(2 * np.pi - deltas, deltas)
         return differences
 
-    def step(self, action, task='reaching'):
+    def step(self, action):
         self.nan_check(action)
         actual_commanded_action = self._act(action)
         observation = self._get_observation()
-        reward = self.rewards(action, task)
+        reward = self.reward(action)
 
         if self.use_safety_checks:
             out_of_box = self.safety_box_check()
@@ -370,24 +232,8 @@ class SawyerEnv(Env, Serializable):
         info = {}
         return observation, reward, done, info
 
-    def rewards(self, action, task='reaching'):
-        if task == 'lego':
-            current = self._end_effector_pose()
-            pos_diff = self.desired[:3] - current[:3]
-            angle_diff = self.compute_angle_difference(self.desired[3:7], current[3:7])
-            reward = self._Lorentz_reward(pos_diff, angle_diff, action)
-        else:
-            if self.joint_angle_experiment:
-                current = self._joint_angles()
-                differences = self.compute_angle_difference(current, self.desired)
-                reward = self.reward_function(differences)
-
-            elif self.end_effector_experiment_position or self.end_effector_experiment_total:
-                current = self._end_effector_pose()
-                # reward = -1*np.linalg.norm(self.desired-current) * self.reward_magnitude
-                differences = self.desired-current
-                reward = self.reward_function(differences)
-        return reward
+    def reward(self, action):
+        raise NotImplementedError
 
     def safety_box_check(self):
         # TODO: tune this check
@@ -517,12 +363,6 @@ class SawyerEnv(Env, Serializable):
         """
         self.in_reset = True
         self.previous_angles = self._joint_angles()
-
-        if not self.fixed_angle and self.joint_angle_experiment:
-            self._randomize_desired_angles()
-        elif not self.fixed_end_effector and not self.end_effector_experiment_position and not self.end_effector_experiment_total:
-            self._randomize_desired_end_effector_pose()
-
         self._safe_move_to_neutral()
         self.previous_angles = self._joint_angles()
         self.in_reset = False
@@ -532,10 +372,7 @@ class SawyerEnv(Env, Serializable):
         self.desired = np.random.rand(1, 7)[0] * 2 - 1
 
     def _randomize_desired_end_effector_pose(self):
-        if self.end_effector_experiment_position:
-            self.desired = np.random.uniform(box_lows, box_highs, size=(1, 3))[0]
-        else:
-            self.desired = np.random.uniform(box_lows, box_highs, size=(1, 7))[0]
+        raise NotImplementedError
 
     def get_latest_pose_jacobian_dict(self):
         self.pose_jacobian_dict = self._get_robot_pose_jacobian_client('right')
@@ -645,107 +482,7 @@ class SawyerEnv(Env, Serializable):
         return np.linalg.norm([x, y, z])
 
     def log_diagnostics(self, paths):
-        statistics = OrderedDict()
-        stat_prefix = 'Test'
-        if self.end_effector_experiment_total or self.end_effector_experiment_position:
-            obsSets = [path["observations"] for path in paths]
-            positions = []
-            desired_positions = []
-            distances = []
-            if self.end_effector_experiment_total:
-                orientations = []
-                desired_orientations = []
-            last_n_distances = []
-            final_counter = 0
-            final_positions = []
-            final_desired_positions = []
-            for obsSet in obsSets:
-                for observation in obsSet:
-                    pos = np.array(observation[21:24])
-                    des = np.array(observation[24:27])
-                    distances.append(np.linalg.norm(pos - des))
-                    positions.append(pos)
-                    desired_positions.append(des)
-                    for observation in obsSet[len(obsSet)-10:len(obsSet)]:
-                            pos = np.array(observation[21:24])
-                            des = np.array(observation[24:27])
-                            last_n_distances.append(np.linalg.norm(pos - des))
-
-                    if self.end_effector_experiment_total:
-                        orientations.append(observation[24:28])
-                        desired_orientations.append(observation[28:32])
-
-                if self.end_effector_experiment_position:
-                    final_counter += len(obsSet)
-                    final_positions.append(obsSet[-1][21:24])
-                    final_desired_positions.append(obsSet[-1][24:27])
-
-            statistics.update(self._statistics_from_observations(
-                distances,
-                stat_prefix,
-                'Distance from Desired End Effector Position'
-            ))
-
-            statistics.update(self._statistics_from_observations(
-                last_n_distances,
-                stat_prefix,
-                'Last N Step Distance from Desired End Effector Position'
-            ))
-
-            if self.end_effector_experiment_total:
-                orientations_distance = linalg.norm(orientations-desired_orientations, axis=1)
-                statistics.update(self._statistics_from_observations(
-                    orientations_distance,
-                    stat_prefix,
-                    'Distance from Desired End Effector Orientation'
-                ))
-
-            final_positions = np.array(final_positions)
-            final_desired_positions = np.array(final_desired_positions)
-            final_position_distances = linalg.norm(final_positions - final_desired_positions, axis=1)
-            statistics.update(self._statistics_from_observations(
-                final_position_distances,
-                stat_prefix,
-                'Final Distance from Desired End Effector Position'
-            ))
-
-        if self.joint_angle_experiment:
-            angle_differences, distances_outside_box = self._joint_angle_exp_info(paths)
-            statistics.update(self._statistics_from_observations(
-                angle_differences,
-                stat_prefix,
-                'Difference from Desired Joint Angle'
-            ))
-
-            if self.safety_box:
-                statistics.update(self._statistics_from_observations(
-                    distances_outside_box,
-                    stat_prefix,
-                    'End Effector Distance Outside Box'
-                ))
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-    def _joint_angle_exp_info(self, paths):
-        obsSets = [path["observations"] for path in paths]
-        if self.joint_angle_experiment:
-            angles = []
-            desired_angles = []
-            positions = []
-            for obsSet in obsSets:
-                for observation in obsSet:
-                    angles.append(observation[:7])
-                    desired_angles.append(observation[24:31])
-                    positions.append(observation[21:24])
-
-            angles = np.array(angles)
-            desired_angles = np.array(desired_angles)
-
-            differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs)
-                                    for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
-            angle_differences = np.mean(differences, axis=1)
-            distances_outside_box = np.array([self._compute_joint_distance_outside_box(pose) for pose in positions])
-            return [angle_differences, distances_outside_box]
+        raise NotImplementedError
 
 
     def _statistics_from_observations(self, observation, stat_prefix, log_title):
@@ -754,7 +491,6 @@ class SawyerEnv(Env, Serializable):
             '{} {}'.format(stat_prefix, log_title),
             observation,
         ))
-
         return statistics
 
 
@@ -794,3 +530,6 @@ class SawyerEnv(Env, Serializable):
 
     def terminate(self):
         self.reset()
+
+    def _set_observation_space(self):
+        raise NotImplementedError
