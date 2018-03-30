@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=200,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
@@ -92,10 +92,10 @@ if __name__ == "__main__":
         for _ in range(3):
             run_experiment(
                 experiment,
-                # exp_prefix='fhql-vs-ddqn-hopper-H100',
-                # mode='ec2',
-                exp_prefix='dev',
-                mode='local',
+                exp_prefix='fhql-vs-ddqn-hopper-H100',
+                mode='ec2',
+                # exp_prefix='dev',
+                # mode='local',
                 variant=variant,
                 exp_id=exp_id,
             )

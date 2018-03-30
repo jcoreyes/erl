@@ -42,15 +42,15 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'fhql-vs-ddqn-hopper-H100'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'fhql-vs-ddqn-hopper-H100'
     # exp_prefix = 'fhql-reacher-H100'
 
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1000,
+            num_epochs=200,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
