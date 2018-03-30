@@ -274,7 +274,7 @@ class SawyerEnv(Env, Serializable):
                 self._randomize_desired_end_effector_pose()
 
         self._observation_space = Box(lows, highs)
-        self.update_pose_and_jacobian_dict()
+        self.get_latest_pose_jacobian_dict()
         self.in_reset = True
         self.amplify=5*np.ones(7)
         self.loss_param = {'delta':0.001, 'c':0.0025}
@@ -282,10 +282,10 @@ class SawyerEnv(Env, Serializable):
     @safe
     def _act(self, action):
         if self.safety_box:
-            self.update_pose_and_jacobian_dict()
+            self.get_latest_pose_jacobian_dict()
             truncated_dict = self.check_joints_in_box()
             if len(truncated_dict) > 0:
-                forces_dict = self.get_adjustment_forces_per_joint_dict(truncated_dict)
+                forces_dict = self._get_adjustment_forces_per_joint_dict(truncated_dict)
                 torques = np.zeros(7)
                 for joint in forces_dict:
                     torques = torques + np.dot(truncated_dict[joint][1].T, forces_dict[joint]).T
@@ -393,12 +393,12 @@ class SawyerEnv(Env, Serializable):
 
     def safety_box_check(self):
         # TODO: tune this check
-        self.update_pose_and_jacobian_dict()
+        self.get_latest_pose_jacobian_dict()
         truncated_dict = self.check_joints_in_box()
         terminate_episode = False
         if len(truncated_dict) > 0:
             for joint in truncated_dict.keys():
-                dist = self.compute_distances_outside_box(truncated_dict[joint][0])
+                dist = self._compute_joint_distance_outside_box(truncated_dict[joint][0])
                 if dist > .19:
                     if not self.in_reset:
                         print('safety box failure during train/eval: ', joint, dist)
@@ -486,10 +486,10 @@ class SawyerEnv(Env, Serializable):
         ))
         return temp
 
-    def safe_move_to_neutral(self):
+    def _safe_move_to_neutral(self):
         for i in range(self.safe_reset_length):
             cur_pos, cur_vel, _, _ = self.request_observation()
-            torques = self.PDController._update_forces(cur_pos, cur_vel)
+            torques = self.PDController._compute_pd_forces(cur_pos, cur_vel)
             actual_commanded_actions = self._act(torques)
             curr_time = time.time()
             self.init_delay = curr_time
@@ -525,7 +525,7 @@ class SawyerEnv(Env, Serializable):
         elif not self.fixed_end_effector and not self.end_effector_experiment_position and not self.end_effector_experiment_total:
             self._randomize_desired_end_effector_pose()
 
-        self.safe_move_to_neutral()
+        self._safe_move_to_neutral()
         self.previous_angles = self._joint_angles()
         self.in_reset = False
         return self._get_observation()
@@ -539,7 +539,7 @@ class SawyerEnv(Env, Serializable):
         else:
             self.desired = np.random.uniform(box_lows, box_highs, size=(1, 7))[0]
 
-    def update_pose_and_jacobian_dict(self):
+    def get_latest_pose_jacobian_dict(self):
         self.pose_jacobian_dict = self._get_robot_pose_jacobian_client('right')
 
     def _get_robot_pose_jacobian_client(self, name):
@@ -573,7 +573,7 @@ class SawyerEnv(Env, Serializable):
             counter += 1
         return pose_jacobian_dict
 
-    def get_positions_from_pose_jacobian_dict(self):
+    def _get_positions_from_pose_jacobian_dict(self):
         poses = []
         for joint in self.pose_jacobian_dict.keys():
             poses.append(self.pose_jacobian_dict[joint][0])
@@ -583,31 +583,31 @@ class SawyerEnv(Env, Serializable):
         joint_dict = self.pose_jacobian_dict.copy()
         keys_to_remove = []
         for joint in joint_dict.keys():
-            if self.is_in_box(joint_dict[joint][0]):
+            if self._pose_in_box(joint_dict[joint][0]):
                 keys_to_remove.append(joint)
         for key in keys_to_remove:
             del joint_dict[key]
         return joint_dict
 
-    def is_in_box(self, pose):
+    def _pose_in_box(self, pose):
         within_box = [curr_pose > lower_pose and curr_pose < higher_pose
                       for curr_pose, lower_pose, higher_pose
                       in zip(pose, box_lows, box_highs)]
         return all(within_box)
 
-    def get_adjustment_forces_per_joint_dict(self, joint_dict):
+    def _get_adjustment_forces_per_joint_dict(self, joint_dict):
         forces_dict = {}
         for joint in joint_dict:
-            force = self.get_adjustment_force(joint_dict[joint][0])
+            force = self._get_adjustment_force_from_pose(joint_dict[joint][0])
             forces_dict[joint] = force
         return forces_dict
 
-    def get_adjustment_force(self, endpoint_pose):
+    def _get_adjustment_force_from_pose(self, pose):
         x, y, z = 0, 0, 0
 
-        curr_x = endpoint_pose[0]
-        curr_y = endpoint_pose[1]
-        curr_z = endpoint_pose[2]
+        curr_x = pose[0]
+        curr_y = pose[1]
+        curr_z = pose[2]
         if curr_x > box_highs[0]:
             x = -1 * np.exp(np.abs(curr_x - box_highs[0]) * self.temperature) * self.safety_force_magnitude
         elif curr_x < box_lows[0]:
@@ -624,11 +624,11 @@ class SawyerEnv(Env, Serializable):
             z = np.exp(np.abs(curr_z - box_highs[2]) * self.temperature) * self.safety_force_magnitude
         return np.array([x, y, z])
 
-    def compute_distances_outside_box(self, pose):
+    def _compute_joint_distance_outside_box(self, pose):
         curr_x = pose[0]
         curr_y = pose[1]
         curr_z = pose[2]
-        if(self.is_in_box(pose)):
+        if(self._pose_in_box(pose)):
             x, y, z = 0, 0, 0
         else:
             x, y, z = 0, 0, 0
@@ -645,14 +645,6 @@ class SawyerEnv(Env, Serializable):
             elif curr_z < box_lows[2]:
                 z = np.abs(curr_z - box_lows[2])
         return np.linalg.norm([x, y, z])
-
-    @property
-    def action_space(self):
-        return self._action_space
-
-    @property
-    def observation_space(self):
-        return self._observation_space
 
     def log_diagnostics(self, paths):
         statistics = OrderedDict()
@@ -754,7 +746,7 @@ class SawyerEnv(Env, Serializable):
             differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs)
                                     for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
             angle_differences = np.mean(differences, axis=1)
-            distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
+            distances_outside_box = np.array([self._compute_joint_distance_outside_box(pose) for pose in positions])
             return [angle_differences, distances_outside_box]
 
 
@@ -766,6 +758,15 @@ class SawyerEnv(Env, Serializable):
         ))
 
         return statistics
+
+
+    @property
+    def action_space(self):
+        return self._action_space
+
+    @property
+    def observation_space(self):
+        return self._observation_space
 
     def init_rospy(self, update_hz):
         rospy.init_node('sawyer_env', anonymous=True)
