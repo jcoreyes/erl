@@ -22,10 +22,10 @@ import railrl.misc.hyperparameter as hyp
 def experiment(variant):
     # env = gym.make('CartPole-v0')
     # training_env = gym.make('CartPole-v0')
-    # env = DiscreteReacherEnv(**variant['env_kwargs'])
+    env = DiscreteReacherEnv(**variant['env_kwargs'])
     # env = DiscreteSwimmerEnv()
-    env = variant['env_class'](**variant['env_kwargs'])
-    env = DiscretizeEnv(env, variant['num_bins'])
+    # env = variant['env_class'](**variant['env_kwargs'])
+    # env = DiscretizeEnv(env, variant['num_bins'])
 
     qf = Mlp(
         input_size=int(np.prod(env.observation_space.shape)),
@@ -39,7 +39,7 @@ def experiment(variant):
         env,
         qf=qf,
         qf_criterion=qf_criterion,
-        **variant['algo_params']
+        **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
         algorithm.cuda()
@@ -49,8 +49,8 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        algo_params=dict(
-            num_epochs=200,
+        algo_kwargs=dict(
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
@@ -76,10 +76,11 @@ if __name__ == "__main__":
         # [32, 32] + DiscreteReacherEnv = 3057 params
         # [220, 220] + DiscreteReacherEnv = 62089 params
         'qf_kwargs.hidden_sizes': [[32, 32], [220, 220]],
-        'algo_kwargs.num_updates_per_env_step': [1, 20],
-        'env_class': [HopperEnv],
-        'num_bins': [3, 5],
-        'max_path_length': [100, 1000],
+        'algo_kwargs.num_updates_per_env_step': [10, 20],
+        # 'env_class': [ReacherEnv],
+        # 'num_bins': [3, 5],
+        'env_kwargs.num_bins': [5],
+        'env_kwargs.frame_skip': [2, 5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -92,10 +93,10 @@ if __name__ == "__main__":
         for _ in range(3):
             run_experiment(
                 experiment,
-                # exp_prefix='fhql-vs-ddqn-hopper-H100',
-                # mode='ec2',
-                exp_prefix='dev',
-                mode='local',
+                exp_prefix='fair-comparsion-ddqn-reacher-again',
+                mode='ec2',
+                # exp_prefix='dev',
+                # mode='local',
                 variant=variant,
                 exp_id=exp_id,
             )

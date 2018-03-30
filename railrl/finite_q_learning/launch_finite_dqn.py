@@ -21,6 +21,7 @@ from railrl.envs.mujoco.hopper_env import HopperEnv
 def experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
     env = DiscretizeEnv(env, variant['num_bins'])
+    # env = DiscreteReacherEnv(**variant['env_kwargs'])
 
     qf = Mlp(
         input_size=int(np.prod(env.observation_space.shape)),
@@ -42,10 +43,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'fhql-vs-ddqn-hopper-H100'
-    # exp_prefix = 'fhql-reacher-H100'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'fhql-vs-ddqn-hooper-H100-longer'
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -68,9 +68,10 @@ if __name__ == "__main__":
         # 'algo_kwargs.discount': [0.99],
         # 'algo_kwargs.random_action_prob': [0.05, 0.2],
         'qf_kwargs.hidden_sizes': [[32, 32]],
-        # 'env_class': [HopperEnv],
+        # 'env_kwargs.frame_skip': [2, 5],
+        # 'env_kwargs.num_bins': [5],
         'env_class': [HopperEnv],
-        # 'num_bins': [5, 4, 3]
+        'num_bins': [3, 5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
