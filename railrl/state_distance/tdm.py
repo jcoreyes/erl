@@ -103,8 +103,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             'all_valid',
         ]
         assert reward_type in ['distance', 'indicator', 'env']
-        assert norm_order == 2, "Did you stop doing collocation?"
-        assert square_distance, "Did you stop doing collocation?"
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 

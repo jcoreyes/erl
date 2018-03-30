@@ -1,8 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState, \
-    Reacher7DofFullGoal
+from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -15,7 +14,7 @@ from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):
-    env = NormalizedBoxEnv(Reacher7DofFullGoal())
+    env = NormalizedBoxEnv(Reacher7DofGoalStateEverything())
     max_tau = variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau']
     tdm_normalizer = TdmNormalizer(
         env,
@@ -25,7 +24,6 @@ def experiment(variant):
     qf = TdmQf(
         env=env,
         vectorized=True,
-        norm_order=1,
         tdm_normalizer=tdm_normalizer,
         **variant['qf_kwargs']
     )
@@ -68,9 +66,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-tdm-example-7dof-reacher"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-example-7dof-reacher-3"
+    exp_prefix = "tdm-example-7dof-reacher-goal-state-everything"
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -81,12 +79,12 @@ if __name__ == "__main__":
                 num_steps_per_eval=1000,
                 max_path_length=100,
                 num_updates_per_env_step=25,
-                batch_size=128,
+                batch_size=64,
                 discount=1,
-                reward_scale=100,
+                reward_scale=1,
             ),
             tdm_kwargs=dict(
-                max_tau=10,
+                max_tau=15,
                 num_pretrain_paths=0,
             ),
             ddpg_kwargs=dict(
@@ -96,10 +94,11 @@ if __name__ == "__main__":
             ),
         ),
         her_replay_buffer_kwargs=dict(
-            max_size=int(2E4),
+            max_size=int(2E5),
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
+	    structure='norm_difference',
         ),
         policy_kwargs=dict(
             hidden_sizes=[300, 300],
