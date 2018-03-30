@@ -336,12 +336,6 @@ class SawyerEnv(Env, Serializable):
         self.in_reset = False
         return self._get_observation()
 
-    def _randomize_desired_angles(self):
-        self.desired = np.random.rand(1, 7)[0] * 2 - 1
-
-    def _randomize_desired_end_effector_pose(self):
-        raise NotImplementedError
-
     def get_latest_pose_jacobian_dict(self):
         self.pose_jacobian_dict = self._get_robot_pose_jacobian_client('right')
 
