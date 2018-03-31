@@ -67,9 +67,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-tdm-example-7dof-reacher"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "tdm-example-7dof-reacher-goal-state-everything-log-correctly"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "tdm-example-7dof-reacher-goal-state-everything-log-correctly"
 
     # noinspection PyTypeChecker
     variant = dict(

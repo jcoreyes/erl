@@ -73,8 +73,9 @@ if __name__ == "__main__":
                 animated=not args.hide,
                 cycle_tau=args.cycle or not args.ndc,
                 decrement_tau=args.dt or not args.ndc,
-                get_action_kwargs={'deterministic': True},
+                # get_action_kwargs={'deterministic': True},
             )
+            print("last state", path['next_observations'][-1])
             paths.append(path)
         env.log_diagnostics(paths)
         for key, value in get_generic_path_information(paths).items():

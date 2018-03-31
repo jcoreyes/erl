@@ -65,8 +65,9 @@ class Reacher7DofMultitaskEnv(
         ])
 
     def _step(self, a):
+        # I checked that "goal" gives the same as self._desired_xyz
         distance = np.linalg.norm(
-            self.get_body_com("tips_arm") - self._desired_xyz
+            self.get_body_com("tips_arm") - self.get_body_com("goal")
         )
         reward = - distance
         self.do_simulation(a, self.frame_skip)
