@@ -16,11 +16,12 @@ from railrl.torch.modules import HuberLoss
 def experiment(variant):
     env = NormalizedBoxEnv(Reacher7DofGoalStateEverything())
     max_tau = variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau']
-    tdm_normalizer = TdmNormalizer(
-        env,
-        vectorized=True,
-        max_tau=max_tau,
-    )
+    # tdm_normalizer = TdmNormalizer(
+        # env,
+        # vectorized=True,
+        # max_tau=max_tau,
+    # )
+    tdm_normalizer = None
     qf = TdmQf(
         env=env,
         vectorized=True,
@@ -68,7 +69,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-example-7dof-reacher-goal-state-everything"
+    exp_prefix = "tdm-example-7dof-reacher-goal-state-everything-log-correctly"
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -78,7 +79,7 @@ if __name__ == "__main__":
                 num_steps_per_epoch=100,
                 num_steps_per_eval=1000,
                 max_path_length=100,
-                num_updates_per_env_step=25,
+                num_updates_per_env_step=5,
                 batch_size=64,
                 discount=1,
                 reward_scale=1,
@@ -98,7 +99,7 @@ if __name__ == "__main__":
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
-	    structure='norm_difference',
+            structure='norm_difference',
         ),
         policy_kwargs=dict(
             hidden_sizes=[300, 300],
