@@ -1,7 +1,10 @@
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
+from railrl.envs.multitask.reacher_7dof import (
+    Reacher7DofGoalStateEverything,
+    Reacher7DofFullGoal,
+)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -14,12 +17,13 @@ from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):
-    env = NormalizedBoxEnv(Reacher7DofGoalStateEverything())
-    max_tau = variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau']
+    # env = NormalizedBoxEnv(Reacher7DofGoalStateEverything())
+    # env = Reacher7DofGoalStateEverything()
+    env = NormalizedBoxEnv(Reacher7DofFullGoal())
     # tdm_normalizer = TdmNormalizer(
         # env,
         # vectorized=True,
-        # max_tau=max_tau,
+        # max_tau=variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau'],
     # )
     tdm_normalizer = None
     qf = TdmQf(
@@ -69,7 +73,7 @@ if __name__ == "__main__":
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "tdm-example-7dof-reacher-goal-state-everything-log-correctly"
+    # exp_prefix = "tdm-example-7dof-reacher-full-state-norm"
 
     # noinspection PyTypeChecker
     variant = dict(
