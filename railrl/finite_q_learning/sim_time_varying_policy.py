@@ -23,8 +23,9 @@ def finite_horizon_rollout(env, qfs, max_path_length, max_T):
     env_infos = []
     o = env.reset()
     path_length = 0
+    step = 0
     while path_length < max_path_length:
-        a = get_best_action(qfs, o, path_length)
+        a = get_best_action(qfs, o, step)
         next_o, r, d, env_info = env.step(a)
         env.render()
         if args.tick:
@@ -36,6 +37,7 @@ def finite_horizon_rollout(env, qfs, max_path_length, max_T):
         agent_infos.append({})
         env_infos.append(env_info)
         path_length += 1
+        step = (step + 1) % max_T
         if d:
             break
         o = next_o
