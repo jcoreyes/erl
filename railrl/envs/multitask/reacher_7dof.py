@@ -18,8 +18,8 @@ class Reacher7DofMultitaskEnv(
     MultitaskEnv, mujoco_env.MujocoEnv, Serializable
 ):
     def __init__(self, distance_metric_order=None, goal_dim_weights=None):
-        self._desired_xyz = np.zeros(3)
         Serializable.quick_init(self, locals())
+        self._desired_xyz = np.zeros(3)
         MultitaskEnv.__init__(
             self,
             distance_metric_order=distance_metric_order,

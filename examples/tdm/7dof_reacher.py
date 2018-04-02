@@ -17,8 +17,8 @@ from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):
-    # env = NormalizedBoxEnv(Reacher7DofGoalStateEverything())
-    # env = Reacher7DofGoalStateEverything()
+    env = NormalizedBoxEnv(Reacher7DofGoalStateEverything())
+    env = Reacher7DofGoalStateEverything()
     env = NormalizedBoxEnv(Reacher7DofFullGoal())
     # tdm_normalizer = TdmNormalizer(
         # env,
@@ -71,9 +71,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-tdm-example-7dof-reacher"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "tdm-example-7dof-reacher-full-state-norm"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "tdm-example-7dof-reacher-quick-init-first"
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -83,7 +83,7 @@ if __name__ == "__main__":
                 num_steps_per_epoch=100,
                 num_steps_per_eval=1000,
                 max_path_length=100,
-                num_updates_per_env_step=5,
+                num_updates_per_env_step=25,
                 batch_size=64,
                 discount=1,
                 reward_scale=1,
