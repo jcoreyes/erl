@@ -67,12 +67,11 @@ END_EFFECTOR_VALUE_HIGH = {
 }
 class SawyerJointSpaceReachingEnv(SawyerEnv):
     def __init__(self,
-                 experiment,
                  randomize_goal_on_reset=False,
                  **kwargs
                  ):
         self.randomize_goal_on_reset = randomize_goal_on_reset
-        super().__init__(self, experiment, **kwargs)
+        super().__init__(**kwargs)
 
     def reward(self, action):
         current = self._joint_angles()

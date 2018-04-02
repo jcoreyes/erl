@@ -76,7 +76,6 @@ def safe(raw_function):
 class SawyerEnv(Env, Serializable):
     def __init__(
             self,
-            experiment,
             update_hz=20,
             action_mode='torque',
             safety_box=True,
@@ -88,8 +87,8 @@ class SawyerEnv(Env, Serializable):
             reward_magnitude=1,
             use_safety_checks=True,
     ):
-
-        Serializable.quick_init(self, locals())
+        # import ipdb; ipdb.set_trace()
+        # Serializable.quick_init(self, locals())
         self.init_rospy(update_hz)
 
         self.arm_name = 'right'
@@ -377,6 +376,7 @@ class SawyerEnv(Env, Serializable):
         return np.array(poses)
 
     def check_joints_in_box(self):
+        import ipdb; ipdb.set_trace()
         joint_dict = self.pose_jacobian_dict.copy()
         keys_to_remove = []
         for joint in joint_dict.keys():
