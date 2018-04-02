@@ -54,7 +54,7 @@ if __name__ == "__main__":
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
-            max_path_length=100,
+            max_path_length=1000,
             discount=0.99,
             epsilon=0.05,
             tau=0.001,
