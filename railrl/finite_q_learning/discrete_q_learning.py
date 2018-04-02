@@ -1,6 +1,4 @@
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.policies.base import Policy
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from torch.optim import Adam
 from torch import nn as nn
@@ -17,18 +15,22 @@ class FiniteDiscreteQLearning(TorchRLAlgorithm):
             qf,
             random_action_prob=0.2,
             learning_rate=1e-3,
+            max_horizon=None,
             **kwargs
     ):
         super().__init__(env, exploration_policy=None, **kwargs)
-        if self.max_path_length > 50:
-            print("Are you sure you want to make {} q networks??".format(
-                self.max_path_length
-            ))
+        if max_horizon is None:
+            max_horizon = self.max_path_length
+        self.max_horizon = max_horizon
         self.random_action_prob = random_action_prob
         self.qfs = []
         self.qf_optimizers = []
+        if self.max_horizon > 50:
+            print("Are you sure you want to make {} q networks??".format(
+                self.max_horizon
+            ))
 
-        for _ in range(self.max_path_length):
+        for _ in range(self.max_horizon):
             new_qf = qf.copy(copy_parameters=False)
             self.qfs.append(new_qf)
             self.qf_optimizers.append(
@@ -48,8 +50,8 @@ class FiniteDiscreteQLearning(TorchRLAlgorithm):
         """
         Compute loss
         """
-        for t in range(self.max_path_length):
-            if t == self.max_path_length - 1:
+        for t in range(self.max_horizon):
+            if t == self.max_horizon - 1:
                 q_target = rewards
             else:
                 target_q_values = self.qfs[t+1](next_obs).detach().max(
@@ -103,8 +105,9 @@ class FiniteDiscreteQLearning(TorchRLAlgorithm):
         o = self.env.reset()
         next_o = None
         path_length = 0
+        step = 0
         while path_length < self.max_path_length:
-            a = self._get_best_action(o, path_length)
+            a = self._get_best_action(o, step)
             next_o, r, d, env_info = self.env.step(a)
             observations.append(o)
             rewards.append(r)
@@ -113,6 +116,7 @@ class FiniteDiscreteQLearning(TorchRLAlgorithm):
             agent_infos.append({})
             env_infos.append(env_info)
             path_length += 1
+            step = (step + 1) % self.max_horizon
             if d:
                 break
             o = next_o
@@ -164,8 +168,8 @@ class FiniteDiscreteQLearning(TorchRLAlgorithm):
 
     def _handle_step(self, *args, **kwargs):
         super()._handle_step(*args, **kwargs)
-        assert self._rollout_t < self.max_path_length
-        self._rollout_t += 1
+        assert 0 <= self._rollout_t < self.max_horizon
+        self._rollout_t = (self._rollout_t + 1) % self.max_horizon
 
     def get_epoch_snapshot(self, epoch):
         data_to_save = super().get_epoch_snapshot(epoch)
