@@ -167,12 +167,11 @@ class SawyerJointSpaceReachingEnv(SawyerEnv):
 
 class SawyerXYZReachingEnv(SawyerEnv):
     def __init__(self,
-                 experiment,
                  randomize_goal_on_reset=False,
                  **kwargs
                  ):
         self.randomize_goal_on_reset = randomize_goal_on_reset
-        super().__init__(self, experiment, **kwargs)
+        super().__init__(self, **kwargs)
 
     def reward(self, action):
         #TODO: IMPLEMENT

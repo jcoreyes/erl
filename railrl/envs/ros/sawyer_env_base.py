@@ -12,6 +12,8 @@ from sawyer_control.msg import actions
 from sawyer_control.srv import getRobotPoseAndJacobian
 from rllab.envs.base import Env
 
+import pdb
+
 JOINT_ANGLES_HIGH = np.array([
     1.70167993,
     1.04700017,
@@ -50,9 +52,13 @@ JOINT_VALUE_LOW = {
     'torque': JOINT_TORQUE_LOW,
 }
 
-# Testing bounding box for Sawyer on pedestal
-box_lows = np.array([-0.4063314307903516, -0.4371988870414967, 0.19114132196594727])
-box_highs = np.array([0.5444314339226455, 0.5495988452507109, 0.8264100134638303])
+# Testing bounding box for Sawyer on pedestal (too small for reset to work in all cases)
+#box_lows = np.array([-0.4063314307903516, -0.4371988870414967, 0.19114132196594727])
+#box_highs = np.array([0.5444314339226455, 0.5495988452507109, 0.8264100134638303])
+
+# Larger test box
+box_lows = np.array([-0.5888, -.6704, .04259])
+box_highs = np.array([.7506, 0.87129, .9755])
 
 #TODO: figure out where this is being used and why it is _l instead _j
 joint_names = [
@@ -141,7 +147,8 @@ class SawyerEnv(Env, Serializable):
 
     def _reset_within_threshold(self):
         desired_neutral = self.PDController._des_angles
-        desired_neutral = (desired_neutral)
+        # note PDController.des_angles is a map between joint name to angle while joint_angles is a list of angles
+        desired_neutral = np.array(list(desired_neutral.values()))
         actual_neutral = (self._joint_angles())
         errors = self.compute_angle_difference(desired_neutral, actual_neutral)
         ERROR_THRESHOLD = .1*np.ones(7)
@@ -376,7 +383,6 @@ class SawyerEnv(Env, Serializable):
         return np.array(poses)
 
     def check_joints_in_box(self):
-        import ipdb; ipdb.set_trace()
         joint_dict = self.pose_jacobian_dict.copy()
         keys_to_remove = []
         for joint in joint_dict.keys():
