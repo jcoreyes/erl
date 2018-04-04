@@ -26,10 +26,12 @@ class EnvReplayBuffer(SimpleReplayBuffer):
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, **kwargs):
         if isinstance(self._action_space, Discrete):
-            one_hot_action = np.zeros(self._action_dim)
-            one_hot_action[action] = 1
+            new_action = np.zeros(self._action_dim)
+            new_action[action] = 1
+        else:
+            new_action = action
         return super().add_sample(
-            observation, one_hot_action, reward, terminal,
+            observation, new_action, reward, terminal,
             next_observation, **kwargs
         )
 

@@ -11,7 +11,7 @@ from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
 from railrl.envs.mujoco.discrete_swimmer import DiscreteSwimmerEnv
 from railrl.envs.mujoco.reacher_env import ReacherEnv
 from railrl.envs.wrappers import DiscretizeEnv
-from railrl.finite_q_learning.discrete_q_learning import FiniteDiscreteQLearning
+from railrl.finite_q_learning.finite_horizon_dqn import FiniteHorizonDQN
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.networks import Mlp
 import railrl.misc.hyperparameter as hyp
@@ -28,7 +28,7 @@ def experiment(variant):
         output_size=env.action_space.n,
         **variant['qf_kwargs']
     )
-    algorithm = FiniteDiscreteQLearning(
+    algorithm = FiniteHorizonDQN(
         env,
         qf,
         **variant['algo_kwargs']

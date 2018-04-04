@@ -8,7 +8,7 @@ import torch
 import random
 
 
-class FiniteDiscreteQLearning(TorchRLAlgorithm):
+class FiniteHorizonDQN(TorchRLAlgorithm):
     def __init__(
             self,
             env,
