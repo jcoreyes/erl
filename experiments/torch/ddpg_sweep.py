@@ -4,7 +4,7 @@ from gym.envs.mujoco import (
     AntEnv,
     HopperEnv,
     Walker2dEnv,
-)
+    InvertedPendulumEnv, InvertedDoublePendulumEnv)
 
 from railrl.envs.pygame.point2d import Point2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
@@ -19,7 +19,7 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 
 def experiment(variant):
-    env = NormalizedBoxEnv(variant['env_class']())
+    env = variant['env_class'](**variant['env_kwargs'])
     es = GaussianStrategy(
         action_space=env.action_space,
         **variant['es_kwargs']
@@ -53,16 +53,23 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'dev'
+
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'fh-ddpg-vs-ddpg-pendulums-h20'
+
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=200,
-            num_steps_per_epoch=5000,
-            num_steps_per_eval=10000,
-            max_path_length=1000,
-            min_num_steps_before_training=10000,
-            batch_size=100,
-            discount=0.99,
+            num_epochs=100,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
+            batch_size=128,
+            max_path_length=20,
+            discount=.99,
 
             use_soft_update=True,
             tau=1e-2,
@@ -78,36 +85,31 @@ if __name__ == "__main__":
         policy_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
+        env_kwargs=dict(
+        ),
         es_kwargs=dict(
             max_sigma=0.1,
             min_sigma=0.1,  # Constant sigma
         ),
         algorithm="DDPG",
         version="DDPG",
-        normalize=True,
-        env_class=HalfCheetahEnv,
     )
     search_space = {
         'env_class': [
-            # HalfCheetahEnv,
-            AntEnv,
-            HopperEnv,
-            Walker2dEnv,
+            InvertedPendulumEnv,
+            InvertedDoublePendulumEnv,
         ],
-        'algo_kwargs.reward_scale': [1],
         'algo_kwargs.num_updates_per_env_step': [1, 5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(2):
+        for _ in range(n_seeds):
             run_experiment(
                 experiment,
-                # exp_prefix="dev-ddpg-sweep",
-                exp_prefix="ddpg-sweep-wait-10k-2",
-                mode='ec2',
-                exp_id=exp_id,
+                exp_prefix=exp_prefix,
+                mode=mode,
                 variant=variant,
-                use_gpu=False,
+                exp_id=exp_id,
             )
