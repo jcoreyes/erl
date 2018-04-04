@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'fhql-vs-ddqn-hooper-H1000'
+    exp_prefix = 'fhql-vs-ddqn-hooper-H1000-1000-networks-2'
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -55,7 +55,7 @@ if __name__ == "__main__":
             num_steps_per_eval=1000,
             batch_size=128,
             max_path_length=1000,
-            max_horizon=100,
+            max_horizon=1000,
             discount=1.,
             random_action_prob=0.05,
         ),
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     search_space = {
         # 'algo_kwargs.discount': [0.99],
         # 'algo_kwargs.random_action_prob': [0.05, 0.2],
-        'qf_kwargs.hidden_sizes': [[32, 32], [64, 64]],
+        'qf_kwargs.hidden_sizes': [[32, 32]],
         # 'env_kwargs.frame_skip': [2, 5],
         # 'env_kwargs.num_bins': [5],
         'env_class': [HopperEnv],
