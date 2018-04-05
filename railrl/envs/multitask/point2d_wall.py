@@ -13,6 +13,11 @@ class MultitaskPoint2dWall(Point2dWall, MultitaskEnv, Serializable):
         self.ob_to_goal_slice = slice(0, 2)
 
     def set_goal(self, goal):
+        goal = np.clip(
+            goal,
+            a_min=-self.OUTER_WALL_MAX_DIST,
+            a_max=self.OUTER_WALL_MAX_DIST,
+        )
         super().set_goal(goal)
         self._target_position = goal
 
@@ -27,11 +32,13 @@ class MultitaskPoint2dWall(Point2dWall, MultitaskEnv, Serializable):
     def sample_goals(self, batch_size):
         goal = np.array([[0, self.OUTER_WALL_MAX_DIST]])
         return goal.repeat(batch_size, 1)
-        # return np.random.uniform(
+        # goals = np.random.uniform(
         #     -self.OUTER_WALL_MAX_DIST,
         #     self.OUTER_WALL_MAX_DIST,
         #     (batch_size, 2)
         # )
+        # goals[:, 1] = max(goals[:, 1], -goals[:, 1])
+        # return goals
 
     def convert_obs_to_goals(self, obs):
         return obs
