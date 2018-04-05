@@ -52,7 +52,6 @@ if __name__ == "__main__":
             num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            use_soft_update=True,
             tau=1e-2,
             batch_size=128,
             max_path_length=1000,

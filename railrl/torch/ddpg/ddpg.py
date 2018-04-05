@@ -35,7 +35,7 @@ class DDPG(TorchRLAlgorithm):
             qf_weight_decay=0,
             target_hard_update_period=1000,
             tau=1e-2,
-            use_soft_update=False,
+            use_soft_update=True,
             qf_criterion=None,
             residual_gradient_weight=0,
             epoch_discount_schedule=None,
@@ -254,7 +254,7 @@ class DDPG(TorchRLAlgorithm):
             ptu.soft_update_from_to(self.policy, self.target_policy, self.tau)
             ptu.soft_update_from_to(self.qf, self.target_qf, self.tau)
         else:
-            if self._n_env_steps_total % self.target_hard_update_period == 0:
+            if self._n_train_steps_total % self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.qf, self.target_qf)
                 ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
