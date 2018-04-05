@@ -18,14 +18,11 @@ from railrl.torch.modules import HuberLoss
 
 def experiment(variant):
     env = NormalizedBoxEnv(Reacher7DofGoalStateEverything())
-    env = Reacher7DofGoalStateEverything()
-    env = NormalizedBoxEnv(Reacher7DofFullGoal())
-    # tdm_normalizer = TdmNormalizer(
-        # env,
-        # vectorized=True,
-        # max_tau=variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau'],
-    # )
-    tdm_normalizer = None
+    tdm_normalizer = TdmNormalizer(
+        env,
+        vectorized=True,
+        max_tau=variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau'],
+    )
     qf = TdmQf(
         env=env,
         vectorized=True,
@@ -80,7 +77,7 @@ if __name__ == "__main__":
         ddpg_tdm_kwargs=dict(
             base_kwargs=dict(
                 num_epochs=100,
-                num_steps_per_epoch=100,
+                num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=100,
                 num_updates_per_env_step=10,
@@ -94,7 +91,6 @@ if __name__ == "__main__":
             ),
             ddpg_kwargs=dict(
                 tau=0.001,
-                use_soft_update=True,
                 qf_learning_rate=1e-3,
                 policy_learning_rate=1e-4,
             ),

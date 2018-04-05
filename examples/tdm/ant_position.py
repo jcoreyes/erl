@@ -24,7 +24,6 @@ def experiment(variant):
     qf = TdmQf(
         env=env,
         vectorized=True,
-        norm_order=1,
         tdm_normalizer=tdm_normalizer,
         **variant['qf_kwargs']
     )
@@ -67,7 +66,7 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-tdm-example-ant-pos"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
     exp_prefix = "tdm-example-ant-pos"
 
@@ -75,7 +74,7 @@ if __name__ == "__main__":
     variant = dict(
         ddpg_tdm_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=500,
+                num_epochs=1000,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=50,
@@ -99,6 +98,7 @@ if __name__ == "__main__":
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
+            structure='norm_difference',
         ),
         policy_kwargs=dict(
             hidden_sizes=[300, 300],
