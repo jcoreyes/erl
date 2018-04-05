@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-example-7dof-reacher-quick-init-first"
+    exp_prefix = "tdm-example-7dof-reacher"
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -83,7 +83,7 @@ if __name__ == "__main__":
                 num_steps_per_epoch=100,
                 num_steps_per_eval=1000,
                 max_path_length=100,
-                num_updates_per_env_step=25,
+                num_updates_per_env_step=10,
                 batch_size=64,
                 discount=1,
                 reward_scale=1,
@@ -94,6 +94,7 @@ if __name__ == "__main__":
             ),
             ddpg_kwargs=dict(
                 tau=0.001,
+                use_soft_update=True,
                 qf_learning_rate=1e-3,
                 policy_learning_rate=1e-4,
             ),
