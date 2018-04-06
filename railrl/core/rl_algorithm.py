@@ -380,6 +380,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def _try_to_offline_eval(self, epoch):
         start_time = time.time()
+        logger.save_extra_data(self.get_extra_data_to_save(epoch))
         self.offline_evaluate(epoch)
         params = self.get_epoch_snapshot(epoch)
         logger.save_itr_params(epoch, params)
