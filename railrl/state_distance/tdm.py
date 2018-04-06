@@ -335,7 +335,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
 
-    def _start_new_rollout(self):
+    def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
         self._current_path_goal = self._sample_goal_for_rollout()
         self.training_env.set_goal(self._current_path_goal)
