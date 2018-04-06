@@ -103,8 +103,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             'all_valid',
         ]
         assert reward_type in ['distance', 'indicator', 'env']
-        assert norm_order == 2, "Did you stop doing collocation?"
-        assert square_distance, "Did you stop doing collocation?"
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 
@@ -337,7 +335,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
 
-    def _start_new_rollout(self):
+    def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
         self._current_path_goal = self._sample_goal_for_rollout()
         self.training_env.set_goal(self._current_path_goal)
