@@ -15,8 +15,8 @@ class Reacher7DofMultitaskEnv(
     MultitaskEnv, mujoco_env.MujocoEnv, Serializable
 ):
     def __init__(self, distance_metric_order=None, goal_dim_weights=None):
-        self._desired_xyz = np.zeros(3)
         Serializable.quick_init(self, locals())
+        self._desired_xyz = np.zeros(3)
         MultitaskEnv.__init__(
             self,
             distance_metric_order=distance_metric_order,
@@ -63,7 +63,7 @@ class Reacher7DofMultitaskEnv(
 
     def step(self, a):
         distance = np.linalg.norm(
-            self.get_body_com("tips_arm") - self._desired_xyz
+            self.get_body_com("tips_arm") - self.get_body_com("goal")
         )
         reward = - distance
         self.do_simulation(a, self.frame_skip)
@@ -349,3 +349,63 @@ class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
         )
         diff = next_joint_angles - desired_joint_angles
         return (diff**2).sum(1, keepdims=True)
+
+class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
+    """
+    The goal state is the full state: joint angles, velocities, and XYZ.
+    """
+    @property
+    def goal_dim(self):
+        return 17
+
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._set_goal_xyz(goal[14:17])
+
+    def modify_goal_for_rollout(self, goal):
+        goal[7:14] = 0  # set desired velocity to zero
+        return goal
+
+    def sample_states(self, batch_size):
+        return np.hstack((
+            # From the xml
+            self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.52, high=1.39, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.4, high=1.7, size=(batch_size, 1)),
+            self.np_random.uniform(low=-2.32, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.094, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            # velocities
+            self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
+            # XYZ EE. Won't be consiste with angles, but oh well
+            self.np_random.uniform(low=-0.75, high=0.75, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.25, high=0.25, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.2, high=0.6, size=(batch_size, 1)),
+        ))
+
+    def sample_goal_for_rollout(self):
+        angles = np.random.uniform(
+            np.array([-2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5]),
+            np.array([1.71, 1.39, 1.7, 0,   1.5, 0,   1.5, ]),
+        )
+
+        saved_qpos = self.init_qpos.copy()
+        saved_qvel = self.init_qvel.copy()
+        qpos_tmp = saved_qpos.copy()
+        qpos_tmp[:7] = angles
+        self.set_state(qpos_tmp, saved_qvel)
+        ee_pos = self.get_body_com("tips_arm")
+        self.set_state(saved_qpos, saved_qvel)
+        velocities = np.zeros(7)
+        return np.hstack((
+            angles,
+            velocities,
+            ee_pos,
+        ))
+
+    def sample_goals(self, batch_size):
+        return self.sample_states(batch_size)
+
+    def convert_obs_to_goals(self, obs):
+        return obs

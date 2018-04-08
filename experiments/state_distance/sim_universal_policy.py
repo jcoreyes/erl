@@ -39,8 +39,8 @@ if __name__ == "__main__":
             max_tau = variant['sac_tdm_kwargs']['tdm_kwargs']['max_tau']
             print("Max tau read from variant: {}".format(max_tau))
         except KeyError:
-            print("Defaulting max tau to 10.")
-            max_tau = 10
+            print("Defaulting max tau to 0.")
+            max_tau = 0
     else:
         max_tau = args.mtau
 
@@ -73,8 +73,9 @@ if __name__ == "__main__":
                 animated=not args.hide,
                 cycle_tau=args.cycle or not args.ndc,
                 decrement_tau=args.dt or not args.ndc,
-                get_action_kwargs={'deterministic': True},
+                # get_action_kwargs={'deterministic': True},
             )
+            print("last state", path['next_observations'][-1])
             paths.append(path)
         env.log_diagnostics(paths)
         for key, value in get_generic_path_information(paths).items():

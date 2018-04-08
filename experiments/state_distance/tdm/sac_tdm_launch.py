@@ -1,8 +1,11 @@
+from torch.nn.functional import tanh
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
+from railrl.envs.multitask.point2d_wall import MultitaskPoint2dWall
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofFullGoal)
@@ -19,6 +22,7 @@ from railrl.state_distance.tdm_sac import TdmSac
 
 def experiment(variant):
     vectorized = variant['sac_tdm_kwargs']['tdm_kwargs']['vectorized']
+    # env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
     env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
     max_tau = variant['sac_tdm_kwargs']['tdm_kwargs']['max_tau']
     tdm_normalizer = TdmNormalizer(
@@ -67,12 +71,12 @@ if __name__ == "__main__":
     exp_prefix = "dev-sac-tdm-launch"
 
     n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "reacher7dof-sac-tdm-sweep"
+    # mode = "ec2"
+    exp_prefix = "sac-tdm-point2d"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 500
+    num_steps_per_epoch = 100
+    num_steps_per_eval = 100
     max_path_length = 50
 
     # noinspection PyTypeChecker
@@ -87,11 +91,12 @@ if __name__ == "__main__":
                 batch_size=128,
                 discount=1,
                 save_replay_buffer=False,
+                render=True,
             ),
             tdm_kwargs=dict(
-                sample_rollout_goals_from='environment',
+                sample_rollout_goals_from='fixed',
                 sample_train_goals_from='her',
-                vectorized=False,
+                vectorized=True,
                 norm_order=2,
                 cycle_taus_for_rollout=True,
                 max_tau=10,
@@ -110,14 +115,17 @@ if __name__ == "__main__":
             num_goals_to_sample=4,
         ),
         qf_kwargs=dict(
-            hidden_sizes=[300, 300],
-            norm_order=2,
+            hidden_sizes=[32, 32],
+            structure='squared_difference',
+            # structure='norm_difference',
+            # structure='none',
+            learn_offset=True,
         ),
         vf_kwargs=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[32, 32],
         ),
         policy_kwargs=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[32, 32],
         ),
         tdm_normalizer_kwargs=dict(
             normalize_tau=False,
@@ -131,43 +139,40 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            Reacher7DofFullGoal,
+            # Reacher7DofFullGoal,
             # MultitaskPoint2DEnv,
+            MultitaskPoint2dWall,
             # MultitaskPoint2dUWall,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
             # CylinderXYPusher2DEnv,
         ],
+        # 'env_kwargs': [
+        #     dict(max_distance=6),
+        # ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
-            1,
-            10,
+            # 1,
+            # 10,
             100,
-            1000,
+            # 1000,
             # 10000,
         ],
         'qf_kwargs.hidden_activation': [
             ptu.softplus,
-        ],
-        'qf_kwargs.learn_offset': [
-            True,
-            False,
-        ],
-        'qf_params.predict_delta': [
-            True,
-            # False,
+            # tanh
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,
             True,
         ],
-        'sac_tdm_kwargs.give_terminal_reward': [
-            False,
-            # True,
-        ],
+        # 'sac_tdm_kwargs.give_terminal_reward': [
+        #     False,
+        #     True,
+        # ],
         'sac_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
-            True,
-            # False,
+            # True,
+            False,
         ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
@@ -176,7 +181,8 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             0,
-            10,
+            # 10,
+            # 25,
             # max_path_length-1,
             # 1,
             # 10,
@@ -186,6 +192,7 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
+            # 5,
             # 10,
             # 25,
         ],
@@ -197,6 +204,11 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if (
+            not variant['sac_tdm_kwargs']['tdm_kwargs']['terminate_when_goal_reached']
+            and variant['sac_tdm_kwargs']['give_terminal_reward']
+        ):
+            continue
         for i in range(n_seeds):
             run_experiment(
                 experiment,

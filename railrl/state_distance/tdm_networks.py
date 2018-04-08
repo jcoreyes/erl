@@ -81,7 +81,6 @@ class TdmQf(FlattenMlp):
             self,
             env,
             vectorized,
-            norm_order,
             structure='norm_difference',
             tdm_normalizer: TdmNormalizer=None,
             learn_offset=False,
@@ -92,10 +91,10 @@ class TdmQf(FlattenMlp):
         :param env:
         :param hidden_sizes:
         :param vectorized: Boolean. Vectorized or not?
-        :param norm_order: int, 1 or 2. What L norm to use.
         :param structure: String defining output structure of network:
             - 'norm_difference': Q = -||g - f(inputs)||
             - 'squared_difference': Q = -(g - f(inputs))^2
+            - 'squared_difference_offset': Q = -(goal - f(inputs))^2 + f2(s, goal, tau)
             - 'none': Q = f(inputs)
 
         :param kwargs:
@@ -118,14 +117,13 @@ class TdmQf(FlattenMlp):
         )
         self.env = env
         self.vectorized = vectorized
-        self.norm_order = norm_order
         self.structure = structure
         self.tdm_normalizer = tdm_normalizer
         self.learn_offset = learn_offset
         if learn_offset:
             self.offset_network = FlattenMlp(
                 input_size=(
-                    self.observation_dim + self.goal_dim + 1
+                    self.observation_dim + self.action_dim + self.goal_dim + 1
                 ),
                 output_size=self.goal_dim if vectorized else 1,
                 **flatten_mlp_kwargs
@@ -137,6 +135,7 @@ class TdmQf(FlattenMlp):
             actions,
             goals,
             num_steps_left,
+            return_predictions=False
     ):
         if self.tdm_normalizer is not None:
             observations, actions, goals, num_steps_left = (
@@ -148,6 +147,8 @@ class TdmQf(FlattenMlp):
         predictions = super().forward(
             observations, actions, goals, num_steps_left
         )
+        if return_predictions:
+            return predictions
 
         if self.structure == 'norm_difference':
             output = - torch.abs(goals - predictions)
@@ -161,7 +162,9 @@ class TdmQf(FlattenMlp):
             output = torch.sum(output, dim=1, keepdim=True)
 
         if self.learn_offset:
-            offset = self.offset_network(observations, goals, num_steps_left)
+            offset = self.offset_network(
+                observations, actions, goals, num_steps_left
+            )
             output = output + offset
 
         if self.tdm_normalizer is not None:
@@ -227,9 +230,15 @@ class TdmVf(FlattenMlp):
             self,
             env,
             vectorized,
+            structure='none',
             tdm_normalizer: TdmNormalizer=None,
             **kwargs
     ):
+        assert structure in [
+            'norm_difference',
+            'squared_difference',
+            'none',
+        ]
         self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.goal_dim = env.goal_dim
@@ -240,6 +249,7 @@ class TdmVf(FlattenMlp):
         )
         self.env = env
         self.vectorized = vectorized
+        self.structure = structure
         self.tdm_normalizer = tdm_normalizer
 
     def forward(
@@ -254,12 +264,26 @@ class TdmVf(FlattenMlp):
                     observations, None, goals, num_steps_left
                 )
             )
-
-        return super().forward(
-            observations,
-            goals,
-            num_steps_left,
+        predictions = super().forward(
+            observations, goals, num_steps_left
         )
+
+        if self.structure == 'norm_difference':
+            output = - torch.abs(goals - predictions)
+        elif self.structure == 'squared_difference':
+            output = - (goals - predictions)**2
+        elif self.structure == 'none':
+            output = predictions
+        else:
+            raise TypeError("Invalid structure: {}".format(self.structure))
+        if not self.vectorized:
+            output = torch.sum(output, dim=1, keepdim=True)
+
+        if self.tdm_normalizer is not None:
+            output = self.tdm_normalizer.distance_normalizer.denormalize_scale(
+                output
+            )
+        return output
 
 
 class StochasticTdmPolicy(TanhGaussianPolicy, UniversalPolicy):

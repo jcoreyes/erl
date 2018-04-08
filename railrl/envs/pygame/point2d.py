@@ -11,6 +11,8 @@ from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths, \
     get_stat_in_paths
 import railrl.misc.visualization_util as vu
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 
 class Point2DEnv(Serializable, Env):
@@ -44,14 +46,15 @@ class Point2DEnv(Serializable, Env):
 
     def _step(self, velocities):
         velocities = np.clip(velocities, a_min=-1, a_max=1)
-        distance_to_target = np.linalg.norm(
-            self._target_position - self._position
-        )
-        self._position += velocities
+        # Avoid += to avoid aliasing bugs
+        self._position = self._position + velocities
         self._position = np.clip(
             self._position,
             a_min=-self.BOUNDARY_DIST,
             a_max=self.BOUNDARY_DIST,
+        )
+        distance_to_target = np.linalg.norm(
+            self._target_position - self._position
         )
         observation = self._get_observation()
         on_platform = self.is_on_platform()
@@ -116,7 +119,11 @@ class Point2DEnv(Serializable, Env):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-    def render(self, mode='human', close=False):
+    def set_position(self, pos):
+        self._position[0] = pos[0]
+        self._position[1] = pos[1]
+
+    def render(self, close=False, debug_info=None):
         if close:
             self.drawer = None
             return
@@ -141,8 +148,135 @@ class Point2DEnv(Serializable, Env):
             Color('blue'),
         )
 
+        if debug_info is not None:
+            debug_subgoals = debug_info.get('subgoal_seq', None)
+            if debug_subgoals is not None:
+                plasma_cm = plt.get_cmap('plasma')
+                num_goals = len(debug_subgoals)
+                for i, subgoal in enumerate(debug_subgoals):
+                    color = plasma_cm(float(i) / num_goals)
+                    # RGBA, but RGB need to be ints
+                    color = Color(
+                        int(color[0] * 255),
+                        int(color[1] * 255),
+                        int(color[2] * 255),
+                        int(color[3] * 255),
+                    )
+                    self.drawer.draw_solid_circle(
+                        subgoal,
+                        self.BALL_RADIUS/2,
+                        color,
+                        )
+            best_action = debug_info.get('oracle_qmax_action', None)
+            if best_action is not None:
+                self.drawer.draw_segment(self._position, self._position +
+                                         best_action, Color('red'))
+            policy_action = debug_info.get('learned_action', None)
+            if policy_action is not None:
+                self.drawer.draw_segment(self._position, self._position +
+                                         policy_action, Color('green'))
+
         self.drawer.render()
         self.drawer.tick(self.render_dt_msec)
+
+    @staticmethod
+    def true_model(state, action):
+        velocities = np.clip(action, a_min=-1, a_max=1)
+        position = state
+        new_position = position + velocities
+        return np.clip(
+            new_position,
+            a_min=-Point2DEnv.BOUNDARY_DIST,
+            a_max=Point2DEnv.BOUNDARY_DIST,
+        )
+
+
+    @staticmethod
+    def true_states(state, actions):
+        real_states = [state]
+        for action in actions:
+            next_state = Point2DEnv.true_model(state, action)
+            real_states.append(next_state)
+            state = next_state
+        return real_states
+
+
+    @staticmethod
+    def plot_trajectory(ax, states, actions, goal=None):
+        assert len(states) == len(actions) + 1
+        x = states[:, 0]
+        y = -states[:, 1]
+        num_states = len(states)
+        plasma_cm = plt.get_cmap('plasma')
+        for i, state in enumerate(states):
+            color = plasma_cm(float(i) / num_states)
+            ax.plot(state[0], -state[1],
+                    marker='o', color=color, markersize=10,
+            )
+
+        actions_x = actions[:, 0]
+        actions_y = -actions[:, 1]
+
+        ax.quiver(x[:-1], y[:-1], x[1:] - x[:-1], y[1:] - y[:-1],
+                  scale_units='xy', angles='xy', scale=1, width=0.005)
+        ax.quiver(x[:-1], y[:-1], actions_x, actions_y, scale_units='xy',
+                  angles='xy', scale=1, color='r',
+                  width=0.0035, )
+        ax.plot(
+            [
+                -Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                Point2DEnv.BOUNDARY_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                Point2DEnv.BOUNDARY_DIST,
+            ],
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            [
+                -Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+
+        if goal is not None:
+            ax.plot(goal[0], -goal[1], marker='*', color='g', markersize=15)
+        ax.set_ylim(
+            -Point2DEnv.BOUNDARY_DIST-1,
+            Point2DEnv.BOUNDARY_DIST+1,
+        )
+        ax.set_xlim(
+            -Point2DEnv.BOUNDARY_DIST-1,
+            Point2DEnv.BOUNDARY_DIST+1,
+        )
 
 
 def plot_observations_and_actions(observations, actions):

@@ -44,9 +44,10 @@ class DoubleDQN(DQN):
         """
         Save some statistics for eval
         """
-        self.eval_statistics = OrderedDict()
-        self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
-        self.eval_statistics.update(create_stats_ordered_dict(
-            'Y Predictions',
-            ptu.get_numpy(y_pred),
-        ))
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
+            self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Y Predictions',
+                ptu.get_numpy(y_pred),
+            ))

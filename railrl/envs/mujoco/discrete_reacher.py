@@ -1,21 +1,31 @@
+from collections import OrderedDict
+
 import numpy as np
-from gym import utils, spaces
+from railrl.core import logger as default_logger
+from gym import spaces
 from gym.envs.mujoco import mujoco_env
 import itertools
 
-class DiscreteReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    def __init__(self, num_bins=7):
-        utils.EzPickle.__init__(self)
-        mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
+from railrl.core.serializable import Serializable
+from railrl.misc.eval_util import get_stat_in_paths, create_stats_ordered_dict
+
+
+class DiscreteReacherEnv(mujoco_env.MujocoEnv, Serializable):
+    def __init__(self, num_bins=7, frame_skip=2):
+        self.quick_init(locals())
+        mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', frame_skip=frame_skip)
         bounds = self.model.actuator_ctrlrange.copy()
         low = bounds[:, 0]
         high = bounds[:, 1]
-        joint_ranges = [np.linspace(low[i], high[i], num_bins) for i in range(7)]
-        self.idx_to_continuous_action = list(itertools.product(joint_ranges))
+        joint_ranges = [np.linspace(low[i], high[i], num_bins) for i in
+                        range(len(low))]
+        self.idx_to_continuous_action = [
+            np.array(x) for x in itertools.product(*joint_ranges)
+        ]
+
         self.action_space = spaces.Discrete(len(self.idx_to_continuous_action))
 
     def _step(self, a):
-        import ipdb; ipdb.set_trace()
         if not self.action_space or not self.action_space.contains(a):
             continuous_action = a
         else:
@@ -27,7 +37,11 @@ class DiscreteReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.do_simulation(continuous_action, self.frame_skip)
         ob = self._get_obs()
         done = False
-        return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
+        return ob, reward, done, dict(
+            reward_dist=reward_dist,
+            reward_ctrl=reward_ctrl,
+            distance_to_target=np.linalg.norm(vec),
+        )
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = 0
@@ -53,3 +67,22 @@ class DiscreteReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             self.model.data.qvel.flat[:2],
             self.get_body_com("fingertip") - self.get_body_com("target")
         ])
+
+    def log_diagnostics(self, paths, logger=default_logger):
+        statistics = OrderedDict()
+        for name_in_env_infos, name_to_log in [
+            ('distance_to_target', 'Distance to Target'),
+            ('reward_ctrl', 'Action Reward'),
+        ]:
+            stat = get_stat_in_paths(paths, 'env_infos', name_in_env_infos)
+            statistics.update(create_stats_ordered_dict(
+                name_to_log,
+                stat,
+            ))
+        distances = get_stat_in_paths(paths, 'env_infos', 'distance_to_target')
+        statistics.update(create_stats_ordered_dict(
+            "Final Distance to Target",
+            [ds[-1] for ds in distances],
+        ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)

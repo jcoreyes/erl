@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from gym.spaces import Box
 
 from railrl.core.serializable import Serializable
 from railrl.envs.multitask.multitask_env import MultitaskEnv
@@ -15,6 +16,11 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
         Serializable.quick_init(self, locals())
         Point2DEnv.__init__(self, **kwargs)
         MultitaskEnv.__init__(self)
+        self.ob_to_goal_slice = slice(0, 2)
+        self.observation_space = Box(
+            -self.BOUNDARY_DIST * np.ones(2),
+            self.BOUNDARY_DIST * np.ones(2),
+        )
 
     def set_goal(self, goal):
         super().set_goal(goal)
@@ -43,7 +49,14 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
         )
 
     def convert_obs_to_goals(self, obs):
-        return obs[:, :2]
+        return obs
+
+    def _get_observation(self):
+        return self._position
+
+    def log_diagnostics(self, paths, **kwargs):
+        Point2DEnv.log_diagnostics(self, paths, **kwargs)
+        MultitaskEnv.log_diagnostics(self, paths, **kwargs)
 
 
 class PerfectPoint2DQF(PyTorchModule):
@@ -65,3 +78,15 @@ class PerfectPoint2DQF(PyTorchModule):
             self.boundary_dist,
         )
         return - torch.norm(next_state - goal_state, p=2, dim=1)
+
+
+class CustomBeta(PyTorchModule):
+    def __init__(self, env):
+        super().__init__()
+        self.quick_init(locals())
+        self.env = env
+
+    def forward(self, observations, actions, goals, num_steps_left):
+        squared_distance = ((observations + actions - goals)**2).sum(dim=1,
+                                                             keepdim=True)
+        return torch.exp(-squared_distance)

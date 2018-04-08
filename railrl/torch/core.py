@@ -30,8 +30,19 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
             torch_dict[key] = ptu.from_numpy(tensor)
         self.load_state_dict(torch_dict)
 
-    def copy(self):
+    def copy(self, copy_parameters=True):
+        if not copy_parameters:
+            # Basically the same code as clone, but do not set param values.
+            assert isinstance(self, Serializable)
+            d = Serializable.__getstate__(self)
+            d["__kwargs"] = dict(d["__kwargs"])
+            out = type(self).__new__(type(self))
+            Serializable.__setstate__(out, d)
+            return out
+
         copy = Serializable.clone(self)
+        # Not actually necessary since the parameters should already be
+        # copied, but just to be safe...
         ptu.copy_model_params_from_to(self, copy)
         return copy
 

@@ -257,31 +257,39 @@ class OuterProductFF(PyTorchModule):
 
     def __init__(
             self,
-            input_dim,
-            output_dim,
-            hidden1_size,
-            hidden2_size,
+            hidden_sizes,
+            output_size,
+            input_size,
             init_w=3e-3,
+            hidden_activation=F.relu,
             output_activation=identity,
             hidden_init=ptu.fanin_init,
+            b_init_value=0.,
     ):
         self.save_init_params(locals())
         super().__init__()
 
-        self.sop1 = SelfOuterProductLinear(input_dim, hidden1_size)
-        self.sop2 = SelfOuterProductLinear(hidden1_size, hidden2_size)
-        self.last_fc = nn.Linear(hidden2_size, output_dim)
+        self.sops = []
+        in_size = input_size
+        for i, next_size in enumerate(hidden_sizes):
+            sop = SelfOuterProductLinear(in_size, next_size)
+            in_size = next_size
+            hidden_init(sop.fc.weight)
+            sop.fc.bias.data.fill_(b_init_value)
+            self.__setattr__("sop{}".format(i), sop)
+            self.sops.append(sop)
         self.output_activation = output_activation
-
-        hidden_init(self.sop1.fc.weight)
-        self.sop1.fc.bias.data.fill_(0)
-        hidden_init(self.sop2.fc.weight)
-        self.sop2.fc.bias.data.fill_(0)
+        self.last_fc = nn.Linear(in_size, output_size)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.fill_(b_init_value)
 
-    def forward(self, *inputs):
-        h = torch.cat(inputs, dim=1)
-        h = F.relu(self.sop1(h))
-        h = F.relu(self.sop2(h))
-        return self.output_activation(self.last_fc(h))
+    def forward(self, input, return_preactivations=False):
+        h = input
+        for i, sop in enumerate(self.sops):
+            h = self.hidden_activation(sop(h))
+        preactivation = self.last_fc(h)
+        output = self.output_activation(preactivation)
+        if return_preactivations:
+            return output, preactivation
+        else:
+            return output

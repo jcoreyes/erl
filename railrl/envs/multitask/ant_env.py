@@ -10,7 +10,7 @@ from railrl.core import logger as default_logger
 
 
 class GoalXYPosAnt(AntEnv, MultitaskEnv, Serializable):
-    def __init__(self, min_distance=0, max_distance=2, use_low_gear_ratio=True):
+    def __init__(self, min_distance=0, max_distance=6, use_low_gear_ratio=True):
         Serializable.quick_init(self, locals())
         self.max_distance = max_distance
         self.min_distance = min_distance
