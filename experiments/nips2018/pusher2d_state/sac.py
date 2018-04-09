@@ -64,6 +64,7 @@ if __name__ == "__main__":
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
+        algorithm='SAC',
     )
 
     n_seeds = 1
@@ -72,11 +73,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'pusher-2d-state-baselines-h100'
+    exp_prefix = 'pusher-2d-state-baselines-h100-sac'
 
     search_space = {
-        'algo_kwargs.max_path_length': [1000, 999],
+        'algo_kwargs.max_path_length': [100],
         'normalize': [False, True],
+        'env_kwargs.randomize_goals': [False, True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
