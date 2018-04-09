@@ -14,6 +14,62 @@ from railrl.torch.core import PyTorchModule
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 
+from functools import reduce
+import pdb
+
+class CNN(PyTorchModule):
+    def __init__(self,
+                input_size,
+                in_channel,
+                output_size,
+                kernel_sizes,
+                n_channels,
+                strides,
+                pool_sizes,
+                paddings,
+        ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        # assume square input. input_size is width or height
+        self.input_size = input_size
+        self.in_channel = in_channel
+
+        self.layers = []
+        output_dim = input_size
+        for out_channel, kernel_size, stride, pool, padding in \
+            zip(n_channels, kernel_sizes, strides, pool_sizes, paddings):
+            conv_layer = nn.Sequential(
+                            nn.Conv2d(
+                                in_channels=in_channel,
+                                out_channels=out_channel,
+                                kernel_size=kernel_size,
+                                stride=stride,
+                                padding=padding,
+                            ),
+                            nn.ReLU(),
+                            nn.MaxPool2d(pool),
+                        )
+            in_channel = out_channel
+            self.layers.append(conv_layer)
+
+            # am very skeptical of this for strides/pools/paddings that aren't one
+            output_dim = output_dim - kernel_size + 1
+            output_dim /= stride
+            output_dim += 2*padding
+            output_dim /= pool
+
+        self.out = nn.Linear(int(output_dim**2) * out_channel, output_size)
+
+    def forward(self, input):
+        # need to reshape from batch of flattened images into (channsls, w, h)
+        h = input.view(input.shape[0], self.in_channel, self.input_size, self.input_size)
+        for layer in self.layers:
+            h = layer(h)
+        h = h.view(h.size(0), -1)
+        output = self.out(h)
+        return output
+
 
 class Mlp(PyTorchModule):
     def __init__(

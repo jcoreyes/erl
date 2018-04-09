@@ -5,8 +5,12 @@ import itertools
 from gym import Env
 from gym.spaces import Box
 from gym.spaces import Discrete
+import matplotlib.pyplot as plt
+import pdb
+from scipy.misc import imresize
 
 from railrl.core.serializable import Serializable
+from gym.spaces import Discrete
 
 
 class ProxyEnv(Serializable, Env):
@@ -42,6 +46,37 @@ class ProxyEnv(Serializable, Env):
             self.wrapped_env.terminate()
 
 
+class ImageEnv(ProxyEnv, Env):
+    def __init__(self, wrapped_env, imsize=32):
+        self.quick_init(locals())
+        super().__init__(wrapped_env)
+        self.imsize = imsize
+        # change this later
+        self.observation_space = Discrete(3*self.imsize*self.imsize)
+        #self.i = 0
+
+    def step(self, action):
+        _, reward, done, info = super().step(action)
+        observation = self._image_observation()
+        return observation, reward, done, info
+
+    def reset(self):
+        super().reset()
+        return self._image_observation()
+
+    def _image_observation(self):
+        image_obs = self.render(mode='rgb_array')
+        downsampled_obs = imresize(image_obs, (self.imsize, self.imsize))
+        #fname = 'images/' + str(self.i) + '.png'
+        #plt.imsave(fname=fname, arr=downsampled_obs)
+        #self.i += 1
+
+        # convert from PIL image format to torch tensor format
+        downsampled_obs = downsampled_obs.transpose((2, 0, 1))
+        return downsampled_obs.flatten()
+
+
+
 class DiscretizeEnv(ProxyEnv, Env):
     def __init__(self, wrapped_env, num_bins):
         self.quick_init(locals())
@@ -60,6 +95,7 @@ class DiscretizeEnv(ProxyEnv, Env):
     def step(self, action):
         continuous_action = self.idx_to_continuous_action[action]
         return super().step(continuous_action)
+
 
 
 class NormalizedBoxEnv(ProxyEnv, Serializable):
