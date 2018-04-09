@@ -77,6 +77,7 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
                 np.array([1, 0]),
                 2
             )
+        self._target_hand_position = self._target_cylinder_position
         qpos[-4:-2] = self._target_cylinder_position
         qpos[-2:] = self._target_hand_position
         qvel = self.init_qvel.copy().squeeze()
