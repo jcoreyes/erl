@@ -13,7 +13,6 @@ import datetime
 import dateutil.tz
 import joblib
 import numpy as np
-import tensorflow as tf
 
 import railrl.pythonplusplus as ppp
 from railrl.core import logger as default_logger
@@ -633,7 +632,11 @@ def set_seed(seed):
     seed = int(seed)
     random.seed(seed)
     np.random.seed(seed)
-    tf.set_random_seed(seed)
+    try:
+        import tensorflow as tf
+        tf.set_random_seed(seed)
+    except ImportError as e:
+        print("Could not import tensorflow. Skipping tf.set_random_seed")
 
 
 def reset_execution_environment(logger=default_logger):
@@ -641,7 +644,11 @@ def reset_execution_environment(logger=default_logger):
     Call this between calls to separate experiments.
     :return:
     """
-    tf.reset_default_graph()
+    try:
+        import tensorflow as tf
+        tf.reset_default_graph()
+    except ImportError as e:
+        print("Could not import tensorflow. Skipping tf.reset_default_graph")
     import importlib
     importlib.reload(logger)
 

@@ -79,7 +79,6 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.target_vf = vf.copy()
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
-        self.eval_statistics = None
 
         self.policy_optimizer = optimizer_class(
             self.policy.parameters(),
