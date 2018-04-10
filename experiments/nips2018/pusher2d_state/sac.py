@@ -12,7 +12,7 @@ from railrl.torch.sac.sac import SoftActorCritic
 
 def experiment(variant):
     if variant['multitask']:
-        env = CylinderXYPusher2DEnv()
+        env = CylinderXYPusher2DEnv(**variant['env_kwargs'])
         env = MultitaskToFlatEnv(env)
     else:
         env = Pusher2DEnv(**variant['env_kwargs'])
@@ -60,6 +60,7 @@ if __name__ == "__main__":
         ),
         env_kwargs=dict(
             randomize_goals=True,
+            use_hand_to_obj_reward=False,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -71,6 +72,8 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
         algorithm='SAC',
+        multitask=True,
+        normalize=True,
     )
 
     n_seeds = 1
@@ -79,12 +82,10 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'pusher-2d-state-baselines-h100-multitask'
+    exp_prefix = 'pusher-2d-state-baselines-h100-multitask-less-shaped'
 
     search_space = {
-        'normalize': [True],
-        'multitask': [True],
-        'env_kwargs.randomize_goals': [False, True],
+        'algo_kwargs.reward_scale': [1, 10, 100],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

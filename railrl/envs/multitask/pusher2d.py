@@ -9,9 +9,9 @@ from railrl.envs.multitask.multitask_env import MultitaskEnv
 
 
 class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
-    def __init__(self, goal=(0, -1)):
+    def __init__(self, **kwargs):
         self.init_serialization(locals())
-        super().__init__(goal=goal)
+        super().__init__(**kwargs)
         MultitaskEnv.__init__(self)
 
     def sample_actions(self, batch_size):
@@ -402,9 +402,9 @@ class FixedHandXYPusher2DEnv(HandXYPusher2DEnv):
 
 
 class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
-    def __init__(self, goal=(0, -1)):
+    def __init__(self, **kwargs):
         self.init_serialization(locals())
-        super().__init__(goal=goal)
+        super().__init__(**kwargs)
         self.goal_space = Box(
             low=np.array([-1, -1]),
             high=np.array([0, 0]),

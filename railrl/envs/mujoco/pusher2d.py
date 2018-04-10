@@ -11,13 +11,15 @@ from railrl.core import logger as default_logger
 class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
     FILE = '3link_gripper_push_2d.xml'
 
-    def __init__(self, goal=(-1, 0), randomize_goals=False):
+    def __init__(self, goal=(-1, 0), randomize_goals=False,
+                 use_hand_to_obj_reward=True):
         self.init_serialization(locals())
         if not isinstance(goal, np.ndarray):
             goal = np.array(goal)
         self._target_cylinder_position = goal
         self._target_hand_position = goal
         self.randomize_goals = randomize_goals
+        self.use_hand_to_obj_reward = use_hand_to_obj_reward
         super().__init__(
             '3link_gripper_push_2d.xml',
             frame_skip=5,
@@ -34,7 +36,9 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         hand_to_hand_goal_distance = np.linalg.norm(
             self.model.data.site_xpos[0][:2] - self.get_body_com("hand_goal")[:2]
         )
-        reward = - hand_to_object_distance - object_to_goal_distance
+        reward = - object_to_goal_distance
+        if self.use_hand_to_obj_reward:
+            reward = reward - hand_to_object_distance
 
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
