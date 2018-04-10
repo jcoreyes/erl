@@ -29,7 +29,7 @@ ENV LANG C.UTF-8
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
 
 # ========== Special Deps ==========
-RUN apt-get -y install git make cmake unzip
+RUN apt-get update --fix-missing && apt-get -y install git make cmake unzip
 RUN pip install awscli
 # ALE requires zlib
 RUN apt-get -y install zlib1g-dev
@@ -47,19 +47,34 @@ RUN pip install Pillow
 # ========== OpenAI Gym ==========
 RUN apt-get -y install libgtk2.0-0
 RUN pip install gym
-#RUN apt-get -y install ffmpeg
-RUN apt-get -y install libav-tools
 RUN alias ffmpeg="avconv"
+# See https://github.com/openai/gym/issues/218
+RUN apt-get -y install \
+    xvfb \
+    libav-tools \
+    xorg-dev \
+    libsdl2-dev \
+    swig
+
+# ========== mujoco-py ==========
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install \
+    libosmesa6-dev
+
+RUN /usr/bin/curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sci-artifacts/manual-builds/patchelf_0.9_amd64.elf \
+    && chmod +x /usr/local/bin/patchelf
 
 # ========== Add codebase stub ==========
 RUN mkdir /root/code
 ADD railrl-env.yml /root/code/environment.yml
 RUN conda env create -f /root/code/environment.yml
 
+# Again, for mujoco-py so that the cynthonizing happens already.
+RUN python -c 'import mujoco_py'
+
 # This doesn't seem to work always. Not sure why.
 # I'll just add railrl-rl env to the path manually and leave this here in case
 # someone wants to fix this later
-#RUN echo "source activate railrl-env" >> /root/.bashrc
+RUN echo "source activate railrl-env" >> /root/.bashrc
 ENV BASH_ENV /root/.bashrc
 WORKDIR /root/code
 
@@ -67,3 +82,4 @@ WORKDIR /root/code
 ENV THEANO_FLAGS mode=FAST_RUN,device=gpu,floatX=float32
 
 ENV PATH /opt/conda/envs/railrl-env/bin:$PATH
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/.mujoco/mjpro150/bin
