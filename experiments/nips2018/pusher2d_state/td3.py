@@ -1,3 +1,5 @@
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -14,7 +16,11 @@ import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    env = Pusher2DEnv(**variant['env_kwargs'])
+    if variant['multitask']:
+        env = CylinderXYPusher2DEnv()
+        env = MultitaskToFlatEnv(env)
+    else:
+        env = Pusher2DEnv(**variant['env_kwargs'])
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
@@ -84,6 +90,8 @@ if __name__ == "__main__":
         env_kwargs=dict(
             randomize_goals=True,
         ),
+        algorithm='TD3',
+        multitask=True,
     )
 
     n_seeds = 1
@@ -92,14 +100,14 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'pusher-2d-state-baselines-h100'
+    exp_prefix = 'pusher-2d-state-baselines-h100-multitask'
 
     search_space = {
         'exploration_type': [
-            'epsilon',
             'ou',
         ],
         'normalize': [False, True],
+        'env_kwargs.randomize_goals': [False, True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

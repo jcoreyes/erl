@@ -1,6 +1,8 @@
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.networks import FlattenMlp
@@ -9,7 +11,11 @@ from railrl.torch.sac.sac import SoftActorCritic
 
 
 def experiment(variant):
-    env = Pusher2DEnv(**variant['env_kwargs'])
+    if variant['multitask']:
+        env = CylinderXYPusher2DEnv()
+        env = MultitaskToFlatEnv(env)
+    else:
+        env = Pusher2DEnv(**variant['env_kwargs'])
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     obs_dim = env.observation_space.low.size
@@ -49,7 +55,7 @@ if __name__ == "__main__":
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
-            max_path_length=999,
+            max_path_length=100,
             discount=0.99,
         ),
         env_kwargs=dict(
@@ -73,11 +79,11 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'pusher-2d-state-baselines-h100-sac'
+    exp_prefix = 'pusher-2d-state-baselines-h100-multitask'
 
     search_space = {
-        'algo_kwargs.max_path_length': [100],
-        'normalize': [False, True],
+        'normalize': [True],
+        'multitask': [True],
         'env_kwargs.randomize_goals': [False, True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
