@@ -1,4 +1,4 @@
-name: railrl-env-tmp4
+name: railrl-env
 channels:
 - kne  # for pybox2d
 - pytorch
