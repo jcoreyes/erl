@@ -63,9 +63,6 @@ RUN mkdir /root/code
 ADD railrl-env.yml /root/code/environment.yml
 RUN conda env create -f /root/code/environment.yml
 
-# Again, for mujoco-py so that the cynthonizing happens already.
-RUN python -c 'import mujoco_py'
-
 RUN echo "source activate railrl-env" >> /root/.bashrc
 ENV BASH_ENV /root/.bashrc
 WORKDIR /root/code
