@@ -15,8 +15,9 @@ dependencies:
 - pybox2d=2.3.1post2=py35_0
 - python=3.5.2
 - python-dateutil=2.6.1=py35_0
-- pytorch=0.3.0
+- pytorch-cpu=0.3.0
 - scipy=1.0.1
+- patchelf
 - pip:
   - cloudpickle==0.5.2
   - cached-property==1.3.1
@@ -24,7 +25,6 @@ dependencies:
   - gym[all]==0.10.5
   - gitpython==2.1.7
   - gtimer==1.0.0b5
-  #- git+git://github.com/pytorch/pytorch.git@v0.3.0
   - pygame==1.9.2
   # For doodad:
   - awscli==1.11.179

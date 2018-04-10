@@ -55,9 +55,6 @@ RUN apt-get update --fix-missing && apt-get -y install \
 RUN DEBIAN_FRONTEND=noninteractive apt-get -y install \
     libosmesa6-dev
 
-RUN /usr/bin/curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sci-artifacts/manual-builds/patchelf_0.9_amd64.elf \
-    && chmod +x /usr/local/bin/patchelf
-
 # ========== Add codebase stub ==========
 RUN mkdir /root/code
 ADD railrl-env.yml /root/code/environment.yml
@@ -71,4 +68,13 @@ WORKDIR /root/code
 ENV THEANO_FLAGS mode=FAST_RUN,device=gpu,floatX=float32
 
 ENV PATH /opt/conda/envs/railrl-env/bin:$PATH
+
+# More mujoco stuff
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/.mujoco/mjpro150/bin
+COPY .mujoco /root/.mujoco
+RUN /usr/bin/curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sci-artifacts/manual-builds/patchelf_0.9_amd64.elf \
+    && chmod +x /usr/local/bin/patchelf
+
+
+# Trigger the cython code generation
+RUN python -c "import mujoco_py"
