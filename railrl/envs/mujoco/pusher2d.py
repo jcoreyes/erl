@@ -74,7 +74,7 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         if self.randomize_goals:
             self._target_cylinder_position = np.random.uniform(
                 np.array([-1, -1]),
-                np.array([1, 0]),
+                np.array([0, 0]),
                 2
             )
         self._target_hand_position = self._target_cylinder_position

@@ -2,6 +2,7 @@ import abc
 
 import numpy as np
 import torch
+from gym.spaces import Box
 
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
@@ -401,10 +402,18 @@ class FixedHandXYPusher2DEnv(HandXYPusher2DEnv):
 
 
 class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
+    def __init__(self, goal=(0, -1)):
+        self.init_serialization(locals())
+        super().__init__(goal=goal)
+        self.goal_space = Box(
+            low=np.array([-1, -1]),
+            high=np.array([0, 0]),
+        )
+
     def sample_goals(self, batch_size):
         return np.random.uniform(
             np.array([-1, -1]),
-            np.array([0, 1]),
+            np.array([0, 0]),
             (batch_size, self.goal_dim)
         )
 
@@ -418,6 +427,7 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
     def set_goal(self, goal):
         super().set_goal(goal)
         self._target_cylinder_position = goal
+        self._target_hand_position = goal
 
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
