@@ -55,9 +55,9 @@ class CNN(PyTorchModule):
 
             # am very skeptical of this for strides/pools/paddings that aren't one
             output_dim = output_dim - kernel_size + 1
-            output_dim /= stride
+            output_dim //= stride
             output_dim += 2*padding
-            output_dim /= pool
+            output_dim //= pool
 
         self.out = nn.Linear(int(output_dim**2) * out_channel, output_size)
 
