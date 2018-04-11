@@ -63,6 +63,7 @@ def run_experiment(
         instance_type=None,
         spot_price=None,
         logger=default_logger,
+        verbose=False,
 ):
     """
     Usage:
@@ -292,6 +293,7 @@ def run_experiment(
         },
         use_cloudpickle=True,
         target_mount=target_mount,
+        verbose=verbose,
     )
 
 

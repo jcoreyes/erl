@@ -73,14 +73,18 @@ RUN pip install ray==0.2.2
 RUN pip install path.py==10.3.1
 
 RUN pip install http://download.pytorch.org/whl/cu80/torch-0.3.0.post4-cp35-cp35m-linux_x86_64.whl
+RUN pip install joblib==0.9.4
 
 # If you're curious what the DEBIAN_FRONTEND is all about:
 # https://askubuntu.com/questions/506158/unable-to-initialize-frontend-dialog-when-using-ssh
-RUN apt-get purge nvidia*
-RUN add-apt-repository --yes ppa:graphics-drivers && apt-get update
+#RUN apt-get purge nvidia*
+#RUN add-apt-repository --yes ppa:graphics-drivers && apt-get update
 # For some reason this works despite an error showing up...
 RUN DEBIAN_FRONTEND=noninteractive apt-get -qy install nvidia-384; exit 0
 ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/usr/lib/nvidia-384
 
 RUN mkdir /root/code
 WORKDIR /root/code
+
+# trigger the mujoco_py cythonization
+RUN python -c 'import mujoco_py'
