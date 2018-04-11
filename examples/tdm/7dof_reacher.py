@@ -72,7 +72,6 @@ if __name__ == "__main__":
     mode = "ec2"
     exp_prefix = "tdm-example-7dof-reacher-nupo-25-x-axis-100steps-2"
 
-    # noinspection PyTypeChecker
     variant = dict(
         ddpg_tdm_kwargs=dict(
             base_kwargs=dict(

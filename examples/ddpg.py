@@ -2,6 +2,7 @@
 Example of running PyTorch implementation of DDPG on HalfCheetah.
 """
 import gym
+import gym.envs.mujoco.half_cheetah
 
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -15,7 +16,8 @@ import railrl.torch.pytorch_util as ptu
 
 
 def experiment(variant):
-    env = NormalizedBoxEnv(gym.make('HalfCheetah-v1'))
+    env = gym.make('HalfCheetah-v2')
+    env = NormalizedBoxEnv(env)
     es = OUStrategy(action_space=env.action_space)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
