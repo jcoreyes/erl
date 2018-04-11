@@ -72,7 +72,6 @@ if __name__ == "__main__":
     mode = "ec2"
     exp_prefix = "tdm-example-cheetah"
 
-    # noinspection PyTypeChecker
     variant = dict(
         ddpg_tdm_kwargs=dict(
             base_kwargs=dict(
