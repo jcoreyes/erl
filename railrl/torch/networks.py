@@ -60,6 +60,15 @@ class CNN(PyTorchModule):
             output_dim //= pool
 
         self.out = nn.Linear(int(output_dim**2) * out_channel, output_size)
+        self.apply(CNN.init_weights)
+
+    @staticmethod
+    def init_weights(m):
+        if type(m) == nn.Linear:
+            m.weight.data.uniform_(-1e-3, 1e-3)
+            m.bias.data.fill_(0)
+        if type(m) == nn.Conv2d:
+            m.weight.data.normal_(0.0, 0.02)
 
     def forward(self, input):
         # need to reshape from batch of flattened images into (channsls, w, h)
