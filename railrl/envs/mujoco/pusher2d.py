@@ -95,7 +95,7 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
         return np.concatenate([
             self.sim.data.qpos.flat[:3],
             self.sim.data.qvel.flat[:3],
-            self.sim.data.site_xpos[0][:2],
+            self.get_body_com("distal_4")[:2],
             self.get_body_com("object")[:2],
         ])
 
