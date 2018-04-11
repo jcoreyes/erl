@@ -7,7 +7,6 @@ from railrl.core import logger
 import mujoco_py
 
 from railrl.core.serializable import Serializable
-# from railrl.envs.mujoco.mujoco_env import MujocoEnv
 from railrl.envs.env_utils import get_asset_xml
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
@@ -83,7 +82,7 @@ class SawyerEnv(MujocoEnv, Serializable):
     #needs to return the observation, reward, done, and info
     def step(self, a):
         # self.data.ctrl[:] = a
-        self.viewer.cam.trackbodyid = 20
+        # self.viewer.cam.trackbodyid = 20
         self.do_simulation(a, self.frame_skip)
         obs = JOINT_VALUE_HIGH['torque']
         reward = 0
@@ -184,12 +183,12 @@ class SawyerXYZEnv(SawyerEnv, MultitaskEnv):
         SawyerEnv.__init__(self)
 
 
-        self._action_space = Box(
+        self.action_space = Box(
             np.array([-1, -1, -1]),
             np.array([1, 1, 1]),
         )
 
-        self._observation_space = Box(
+        self.observation_space = Box(
             np.array([-0.2, 0.5, 0]),
             np.array([0.2, 0.7, 0.5]),
         )

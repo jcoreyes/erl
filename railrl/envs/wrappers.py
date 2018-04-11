@@ -1,12 +1,8 @@
 import numpy as np
 import gym.spaces
-from cached_property import cached_property
 import itertools
 from gym import Env
 from gym.spaces import Box
-from gym.spaces import Discrete
-import matplotlib.pyplot as plt
-import pdb
 from scipy.misc import imresize
 
 from railrl.core.serializable import Serializable
@@ -65,15 +61,16 @@ class ImageEnv(ProxyEnv, Env):
         return self._image_observation()
 
     def _image_observation(self):
-        image_obs = self.render(mode='rgb_array')
-        downsampled_obs = imresize(image_obs, (self.imsize, self.imsize))
+        # image_obs = self.render(mode='rgb_array')
+        # downsampled_obs = imresize(image_obs, (self.imsize, self.imsize))
         #fname = 'images/' + str(self.i) + '.png'
         #plt.imsave(fname=fname, arr=downsampled_obs)
         #self.i += 1
 
         # convert from PIL image format to torch tensor format
-        downsampled_obs = downsampled_obs.transpose((2, 0, 1))
-        return downsampled_obs.flatten()
+        # downsampled_obs = downsampled_obs.transpose((2, 0, 1))
+        # return downsampled_obs.flatten()
+        return self.wrapped_env.sim.render(self.imsize, self.imsize)
 
 
 
