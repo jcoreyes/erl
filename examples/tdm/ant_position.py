@@ -70,7 +70,6 @@ if __name__ == "__main__":
     mode = "ec2"
     exp_prefix = "tdm-example-ant-pos"
 
-    # noinspection PyTypeChecker
     variant = dict(
         ddpg_tdm_kwargs=dict(
             base_kwargs=dict(
@@ -82,6 +81,7 @@ if __name__ == "__main__":
                 batch_size=128,
                 discount=1,
                 reward_scale=10,
+                render=True,
             ),
             tdm_kwargs=dict(
                 max_tau=49,

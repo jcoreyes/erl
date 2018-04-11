@@ -9,9 +9,9 @@ from railrl.envs.multitask.multitask_env import MultitaskEnv
 
 
 class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
-    def __init__(self, **kwargs):
-        self.init_serialization(locals())
-        super().__init__(**kwargs)
+    def __init__(self, goal=(0, -1)):
+        self.quick_init(locals())
+        super().__init__(goal=goal)
         MultitaskEnv.__init__(self)
 
     def sample_actions(self, batch_size):
@@ -429,11 +429,25 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         self._target_cylinder_position = goal
         self._target_hand_position = goal
 
-        qpos = self.model.data.qpos.flat.copy()
-        qvel = self.model.data.qvel.flat.copy()
+        qpos = self.sim.data.qpos.flat.copy()
+        qvel = self.sim.data.qvel.flat.copy()
         qpos[-4:-2] = self._target_cylinder_position
         qpos[-2:] = 0
         self.set_state(qpos, qvel)
+
+    def compute_her_reward_np(
+            self,
+            observation,
+            action,
+            next_observation,
+            goal,
+    ):
+        hand_pos = next_observation[6:8]
+        cylinder_pos = next_observation[8:10]
+        target_pos = goal
+        hand_to_puck_dist = np.linalg.norm(hand_pos - cylinder_pos)
+        puck_to_goal_dist = np.linalg.norm(cylinder_pos - target_pos)
+        return - hand_to_puck_dist - puck_to_goal_dist
 
     def compute_her_reward_pytorch(
             self,

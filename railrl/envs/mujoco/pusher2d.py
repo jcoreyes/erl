@@ -3,17 +3,19 @@ from collections import OrderedDict
 
 import numpy as np
 
-from railrl.envs.mujoco.mujoco_env import MujocoEnv
+from gym.envs.mujoco import MujocoEnv
+
+from railrl.core.serializable import Serializable
+from railrl.envs.env_utils import get_asset_xml
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger as default_logger
 
 
-class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
+class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
     FILE = '3link_gripper_push_2d.xml'
 
-    def __init__(self, goal=(-1, 0), randomize_goals=False,
-                 use_hand_to_obj_reward=True):
-        self.init_serialization(locals())
+    def __init__(self, goal=(-1, 0), randomize_goals=False):
+        self.quick_init(locals())
         if not isinstance(goal, np.ndarray):
             goal = np.array(goal)
         self._target_cylinder_position = goal
@@ -21,20 +23,21 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         self.randomize_goals = randomize_goals
         self.use_hand_to_obj_reward = use_hand_to_obj_reward
         super().__init__(
-            '3link_gripper_push_2d.xml',
+            get_asset_xml('3link_gripper_push_2d.xml'),
             frame_skip=5,
-            automatically_set_obs_and_action_space=True,
         )
 
-    def _step(self, a):
+    def step(self, a):
         hand_to_object_distance = np.linalg.norm(
-            self.model.data.site_xpos[0][:2] - self.get_body_com("object")[:2]
+            self.get_body_com("distal_4")[:2]
+            - self.get_body_com("object")[:2]
         )
         object_to_goal_distance = np.linalg.norm(
             self.get_body_com("goal") - self.get_body_com("object")
         )
         hand_to_hand_goal_distance = np.linalg.norm(
-            self.model.data.site_xpos[0][:2] - self.get_body_com("hand_goal")[:2]
+            self.get_body_com("distal_4")[:2]
+            - self.get_body_com("hand_goal")[:2]
         )
         reward = - object_to_goal_distance
         if self.use_hand_to_obj_reward:
@@ -93,9 +96,9 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
 
     def _get_obs(self):
         return np.concatenate([
-            self.model.data.qpos.flat[:3],
-            self.model.data.qvel.flat[:3],
-            self.model.data.site_xpos[0][:2],
+            self.sim.data.qpos.flat[:3],
+            self.sim.data.qvel.flat[:3],
+            self.get_body_com("distal_4")[:2],
             self.get_body_com("object")[:2],
         ])
 
