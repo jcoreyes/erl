@@ -27,6 +27,7 @@ class CNN(PyTorchModule):
                 strides,
                 pool_sizes,
                 paddings,
+                hidden_sizes=[],
         ):
         self.save_init_params(locals())
         super().__init__()
@@ -35,8 +36,9 @@ class CNN(PyTorchModule):
         self.input_size = input_size
         self.in_channel = in_channel
 
-        self.layers = []
+        self.conv_layers = []
         output_dim = input_size
+
         for out_channel, kernel_size, stride, pool, padding in \
             zip(n_channels, kernel_sizes, strides, pool_sizes, paddings):
             conv_layer = nn.Sequential(
@@ -51,7 +53,7 @@ class CNN(PyTorchModule):
                             nn.MaxPool2d(pool),
                         )
             in_channel = out_channel
-            self.layers.append(conv_layer)
+            self.conv_layers.append(conv_layer)
 
             # am very skeptical of this for strides/pools/paddings that aren't one
             output_dim = output_dim - kernel_size + 1
@@ -59,7 +61,19 @@ class CNN(PyTorchModule):
             output_dim += 2*padding
             output_dim //= pool
 
-        self.out = nn.Linear(int(output_dim**2) * out_channel, output_size)
+        self.fc_layers = []
+        fc_in_size = int(output_dim**2) * out_channel
+
+        for hidden_size in hidden_sizes:
+            self.fc_layers.append(
+                nn.Sequential(
+                    nn.Linear(fc_in_size, hidden_size),
+                    nn.ReLU(),
+                )
+            )
+            fc_in_size = hidden_size
+
+        self.out = nn.Linear(fc_in_size, output_size)
         self.apply(CNN.init_weights)
 
     @staticmethod
@@ -73,9 +87,12 @@ class CNN(PyTorchModule):
     def forward(self, input):
         # need to reshape from batch of flattened images into (channsls, w, h)
         h = input.view(input.shape[0], self.in_channel, self.input_size, self.input_size)
-        for layer in self.layers:
+        for layer in self.conv_layers:
             h = layer(h)
         h = h.view(h.size(0), -1)
+
+        for layer in self.fc_layers:
+            h = layer(h)
         output = self.out(h)
         return output
 
