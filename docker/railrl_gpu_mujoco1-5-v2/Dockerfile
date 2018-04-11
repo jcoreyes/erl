@@ -24,12 +24,12 @@ RUN apt-get update -q \
     && rm -rf /var/lib/apt/lists/*
 
 RUN DEBIAN_FRONTEND=noninteractive add-apt-repository --yes ppa:deadsnakes/ppa && apt-get update
-RUN DEBIAN_FRONTEND=noninteractive apt-get install --yes python3.6-dev python3.6 python3-pip
-RUN virtualenv --python=python3.6 env
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --yes python3.5-dev python3.5 python3-pip
+RUN virtualenv --python=python3.5 env
 
 RUN rm /usr/bin/python
-RUN ln -s /env/bin/python3.6 /usr/bin/python
-RUN ln -s /env/bin/pip3.6 /usr/bin/pip
+RUN ln -s /env/bin/python3.5 /usr/bin/python
+RUN ln -s /env/bin/pip3.5 /usr/bin/pip
 RUN ln -s /env/bin/pytest /usr/bin/pytest
 
 RUN curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sci-artifacts/manual-builds/patchelf_0.9_amd64.elf \
@@ -72,30 +72,15 @@ RUN pip install dominate==2.3.1
 RUN pip install ray==0.2.2
 RUN pip install path.py==10.3.1
 
-RUN pip install http://download.pytorch.org/whl/cu90/torch-0.3.0.post4-cp36-cp36m-linux_x86_64.whl
+RUN pip install http://download.pytorch.org/whl/cu80/torch-0.3.0.post4-cp35-cp35m-linux_x86_64.whl
 
-# Delay moving in the entire code until the very end.
-#ENTRYPOINT ["/mujoco_py/vendor/Xdummy-entrypoint"]
-#CMD ["pytest"]
-#COPY . /mujoco_py
-#RUN python setup.py install
 # If you're curious what the DEBIAN_FRONTEND is all about:
 # https://askubuntu.com/questions/506158/unable-to-initialize-frontend-dialog-when-using-ssh
-#RUN apt-get purge nvidia*
-#RUN add-apt-repository --yes ppa:graphics-drivers && apt-get update
-# For some reasno this works despite an error showing up...
+RUN apt-get purge nvidia*
+RUN add-apt-repository --yes ppa:graphics-drivers && apt-get update
+# For some reason this works despite an error showing up...
 RUN DEBIAN_FRONTEND=noninteractive apt-get -qy install nvidia-384; exit 0
 ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/usr/lib/nvidia-384
 
-#WORKDIR /root
-#RUN git clone https://github.com/openai/mujoco-py.git
-#WORKDIR /root/mujoco-py
-#RUN git clone https://github.com/openai/mujoco-py.git
-
 RUN mkdir /root/code
 WORKDIR /root/code
-
-# Forgot to install these. If you're going to rebuild this docker from scratch,
-# I recommend moving these to where all the other pip installs were, but I
-# was too impatient to do that now.
-RUN pip install joblib==0.9.4
