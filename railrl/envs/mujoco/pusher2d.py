@@ -21,6 +21,7 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
         self._target_cylinder_position = goal
         self._target_hand_position = goal
         self.randomize_goals = randomize_goals
+        self.use_hand_to_obj_reward = use_hand_to_obj_reward
         super().__init__(
             get_asset_xml('3link_gripper_push_2d.xml'),
             frame_skip=5,
@@ -38,7 +39,9 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
             self.get_body_com("distal_4")[:2]
             - self.get_body_com("hand_goal")[:2]
         )
-        reward = - hand_to_object_distance - object_to_goal_distance
+        reward = - object_to_goal_distance
+        if self.use_hand_to_obj_reward:
+            reward = reward - hand_to_object_distance
 
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
@@ -78,7 +81,7 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
         if self.randomize_goals:
             self._target_cylinder_position = np.random.uniform(
                 np.array([-1, -1]),
-                np.array([1, 0]),
+                np.array([0, 0]),
                 2
             )
         self._target_hand_position = self._target_cylinder_position
@@ -95,7 +98,7 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
         return np.concatenate([
             self.sim.data.qpos.flat[:3],
             self.sim.data.qvel.flat[:3],
-            self.sim.data.site_xpos[0][:2],
+            self.get_body_com("distal_4")[:2],
             self.get_body_com("object")[:2],
         ])
 
