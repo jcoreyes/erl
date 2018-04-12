@@ -1,3 +1,4 @@
+import mujoco_py
 import numpy as np
 import gym.spaces
 import itertools
@@ -42,7 +43,7 @@ class ProxyEnv(Serializable, Env):
             self.wrapped_env.terminate()
 
 
-class ImageEnv(ProxyEnv, Env):
+class ImageMujocoEnv(ProxyEnv, Env):
     def __init__(self, wrapped_env, imsize=32):
         self.quick_init(locals())
         super().__init__(wrapped_env)
@@ -70,6 +71,10 @@ class ImageEnv(ProxyEnv, Env):
         # convert from PIL image format to torch tensor format
         # downsampled_obs = downsampled_obs.transpose((2, 0, 1))
         # return downsampled_obs.flatten()
+        if self.wrapped_env.viewer is None:
+            import ipdb; ipdb.set_trace()
+            self.wrapped_env.viewer = mujoco_py.MjViewer(self.wrapped_env.sim)
+            self.wrapped_env.viewer_setup()
         return self.wrapped_env.sim.render(self.imsize, self.imsize)
 
 

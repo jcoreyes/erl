@@ -4,156 +4,40 @@ from gym.envs.mujoco import MujocoEnv
 from gym.spaces import Box
 
 from railrl.core import logger
-import mujoco_py
 
 from railrl.core.serializable import Serializable
 from railrl.envs.env_utils import get_asset_full_path
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 
-JOINT_ANGLES_HIGH = np.array([
-    1.70167993,
-    1.04700017,
-    3.0541791,
-    2.61797006,
-    3.05900002,
-    2.09400001,
-    3.05899961,
-])
 
-JOINT_ANGLES_LOW = np.array([
-    -1.70167995,
-    -2.14700025,
-    -3.0541801,
-    -0.04995198,
-    -3.05900015,
-    -1.5708003,
-    -3.05899989
-])
+class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
+    """Implements a 3D-position controlled Sawyer environment"""
 
-JOINT_VEL_HIGH = 2*np.ones(7)
-JOINT_VEL_LOW = -2*np.ones(7)
-
-JOINT_TORQUE_HIGH = 10*np.ones(7)
-JOINT_TORQUE_LOW = -10*np.ones(7)
-
-JOINT_VALUE_HIGH = {
-    'position': JOINT_ANGLES_HIGH,
-    'velocity': JOINT_VEL_HIGH,
-    'torque': JOINT_TORQUE_HIGH,
-}
-JOINT_VALUE_LOW = {
-    'position': JOINT_ANGLES_LOW,
-    'velocity': JOINT_VEL_LOW,
-    'torque': JOINT_TORQUE_LOW,
-}
-
-class SawyerEnv(MujocoEnv, Serializable):
-    def __init__(
-            self,
-            action_mode='torque',
-            delta=10,
-        ):
+    def __init__(self, reward_info=None):
         self.quick_init(locals())
-        self.viewer = None
+        self.reward_info = reward_info
+        MultitaskEnv.__init__(self, distance_metric_order=2)
+        MujocoEnv.__init__(self, self.model_name, frame_skip=10)
+
 
         self.action_space = Box(
-            JOINT_VALUE_LOW[action_mode],
-            JOINT_VALUE_HIGH[action_mode]
+            np.array([-1, -1, -1, -1]),
+            np.array([1, 1, 1, 1]),
         )
 
         self.observation_space = Box(
-            np.hstack((JOINT_VALUE_LOW['position'], JOINT_VALUE_LOW['velocity'], JOINT_VALUE_LOW['position'])),
-            np.hstack((JOINT_VALUE_HIGH['position'], JOINT_VALUE_HIGH['velocity'], JOINT_VALUE_HIGH['position']))
+            np.array([-0.2, 0.5, 0]),
+            np.array([0.2, 0.7, 0.5]),
         )
-
-        super().__init__(self.model_name, frame_skip=10)
-        self.delta = delta
-
-        # self.model.eq_data = np.array([[0., 0., 0., 1., 0., 0., 0.]])
-
-        self.desired = np.zeros(7)
-        self.reset()
 
     @property
     def model_name(self):
         return get_asset_full_path('sawyer_gripper_mocap.xml')
 
-    #needs to return the observation, reward, done, and info
-    def step(self, a):
-        # self.data.ctrl[:] = a
-        # self.viewer.cam.trackbodyid = 20
-        self.do_simulation(a, self.frame_skip)
-        obs = JOINT_VALUE_HIGH['torque']
-        reward = 0
-        done = False
-        info = {}
-        return obs, reward, done, info
-
-    def reset(self):
-        angles = self.data.qpos.copy()
-        velocities = self.data.qvel.copy()
-
-        # import ipdb; ipdb.set_trace()
-        angles[:] = [0.57242702304722737, -0.81917120114392261, 1.0209690144401942, 1.0277836100084827, -0.62290997014344518, 1.6426888531833115, 3.1387809209984603, 0.0052920636104349323, -0.13972798601989481, 0.5022168160162902, 0.020992940518284438, 0.99998456929726953, 2.2910279298625033e-06, 8.1234733355258378e-06, 0.0055552764211284642, -0.1230211958752539, 0.69090634842186527, -19.449133777272831, 1.0, 0.0, 0.0, 0.0]
-
-        self.set_state(angles.flatten(), velocities.flatten())
-
-        return self._get_obs()
-
-    def _get_end_effector_pose(self):
-        return self.get_body_com('right_hand')
-
-    def _get_joint_angles(self):
-        for angle in np.concatenate([self.data.qpos]).ravel()[:7]:
-            if np.abs(self.wrapper(angle)) > np.pi:
-                raise RuntimeError("Angles invalid")
-        return np.array([
-            self.wrapper(angle)
-            for angle in np.concatenate([self.model.data.qpos]).ravel()[:7]
-        ])
-
-    def _get_obs(self):
-        return JOINT_VALUE_HIGH['torque']
-
-    def viewer_setup(self):
-        gofast = False
-        self.viewer = mujoco_py.MjViewer(
-            visible=True,
-            init_width=480,
-            init_height=480,
-            go_fast=gofast,
-        )
-        self.viewer.start()
-        self.viewer.set_model(self.model)
-
-    def get_rendered_img(self):
-        """Returns numpy array image of the last rendered scene.
-        This code was borrowed from a pull request.
-        """
-        data = self._get_viewer().get_image()
-        rawByteImg = data[0]
-        width = data[1]
-        height = data[2]
-        tmp = np.fromstring(rawByteImg, dtype=np.uint8)
-        img = np.reshape(tmp, [height, width, 3])
-        img = np.flipud(img)
-        return img
-
-    def wrapper(self, angle):
-        while angle > np.pi:
-            angle -= np.pi
-        while angle < -np.pi:
-            angle += np.pi
-        return angle
-
-    def _statistics_from_paths(self, paths, stat_prefix):
-        pass
-
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = 0
         self.viewer.cam.distance = 1.0
-        rotation_angle = 270
 
         # robot view
         # rotation_angle = 90
@@ -165,6 +49,11 @@ class SawyerEnv(MujocoEnv, Serializable):
         rotation_angle = 270
         cam_pos = np.array([0, 1.0, 0.5, cam_dist, -45, rotation_angle])
 
+        # top down view
+        # cam_dist = 0.2
+        # rotation_angle = 0
+        # cam_pos = np.array([0, 0, 1.5, cam_dist, -90, rotation_angle])
+
         for i in range(3):
             self.viewer.cam.lookat[i] = cam_pos[i]
         self.viewer.cam.distance = cam_pos[3]
@@ -172,32 +61,16 @@ class SawyerEnv(MujocoEnv, Serializable):
         self.viewer.cam.azimuth = cam_pos[5]
         self.viewer.cam.trackbodyid = -1
 
-
-class SawyerXYZEnv(SawyerEnv, MultitaskEnv):
-    """Implements a 3D-position controlled Sawyer environment"""
-
-    def __init__(self, reward_info=None):
-        Serializable.quick_init(self, locals())
-        self.reward_info = reward_info
-        MultitaskEnv.__init__(self, distance_metric_order=2)
-        SawyerEnv.__init__(self)
-
-
-        self.action_space = Box(
-            np.array([-1, -1, -1]),
-            np.array([1, 1, 1]),
-        )
-
-        self.observation_space = Box(
-            np.array([-0.2, 0.5, 0]),
-            np.array([0.2, 0.7, 0.5]),
-        )
-
     def step(self, a):
-        self.mocap_set_action(a[:3] / 100, True)
+        a = np.clip(a, -1, 1)
+        # a input is between -1 and 1. Scale it to be between 0 and 1
+        a = (a + 1) / 2
+        a[:] = 0
+        # self.mocap_set_action(a[:3] / 100, True)
+        self.mocap_set_action(a[:3], relative=True)
         self.set_goal_xyz(self.multitask_goal)
         u = np.zeros((8))
-        u[7] = a[3]
+        # u[7] = a[3] * 10
         # print("action", u[7])
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
@@ -269,21 +142,26 @@ class SawyerXYZEnv(SawyerEnv, MultitaskEnv):
         )
 
     def mocap_set_action(self, action, relative=True):
-        u = np.zeros((1, 3))
-        u[0, :] = action
-        pos_delta = u[:, :3]
+        pos_delta = action[None]
 
+        print('mocap xyz', self.data.mocap_pos)
         if relative:
-            self.reset_mocap2body_xpos()
+            # self.reset_mocap2body_xpos()
+            # self.data.set_mocap_pos('mocap', pos_delta)
             self.data.set_mocap_pos('mocap', self.data.mocap_pos + pos_delta)
+            # self.data.set_mocap_quat('mocap', self.data.body_xquat[self.endeff_id])
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
+            # self.data.set_mocap_quat('mocap', np.array([0, 0, 0, 0]))
         else:
             raise NotImplementedError()
             # self.data.set_mocap_pos(pos_delta)
             # self.data.set_mocap_quat(quat_delta)
 
     def reset(self):
-        super().reset()
+        angles = self.data.qpos.copy()
+        velocities = self.data.qvel.copy()
+        angles[:] = [0.57242702304722737, -0.81917120114392261, 1.0209690144401942, 1.0277836100084827, -0.62290997014344518, 1.6426888531833115, 3.1387809209984603, 0.0052920636104349323, -0.13972798601989481, 0.5022168160162902, 0.020992940518284438, 0.99998456929726953, 2.2910279298625033e-06, 8.1234733355258378e-06, 0.0055552764211284642, -0.1230211958752539, 0.69090634842186527, -19.449133777272831, 1.0, 0.0, 0.0, 0.0]
+        self.set_state(angles.flatten(), velocities.flatten())
         self.multitask_goal = self.sample_goal_xyz()
         self.set_goal_xyz(self.multitask_goal)
         self.set_block_xyz(self.sample_block_xyz())
