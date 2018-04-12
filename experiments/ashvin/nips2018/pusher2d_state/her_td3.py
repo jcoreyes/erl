@@ -6,6 +6,7 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.launchers.launcher_util import setup_logger, run_experiment
+from railrl.launchers.arglauncher import run_variants
 from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 import railrl.misc.hyperparameter as hyp
@@ -95,11 +96,12 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
-            run_experiment(
-                experiment,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                variant=variant,
-            )
+    # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+    #     for _ in range(n_seeds):
+    #         run_experiment(
+    #             experiment,
+    #             exp_prefix=exp_prefix,
+    #             mode=mode,
+    #             variant=variant,
+    #         )
+    run_variants(experiment, sweeper.iterate_hyperparameters())
