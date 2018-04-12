@@ -90,10 +90,11 @@ class HerTd3(TD3):
         terminals = []
         agent_infos = []
         env_infos = []
+        next_observations = []
         o = self.env.reset()
-        next_o = None
         path_length = 0
         goal = self.env.sample_goal_for_rollout()
+        self.env.set_goal(goal)
         while path_length < self.max_path_length:
             new_obs = np.hstack((o, goal))
             a, agent_info = self.policy.get_action(new_obs)
@@ -102,6 +103,7 @@ class HerTd3(TD3):
             rewards.append(r)
             terminals.append(d)
             actions.append(a)
+            next_observations.append(next_o)
             agent_infos.append(agent_info)
             env_infos.append(env_info)
             path_length += 1
@@ -113,15 +115,7 @@ class HerTd3(TD3):
         if len(actions.shape) == 1:
             actions = np.expand_dims(actions, 1)
         observations = np.array(observations)
-        if len(observations.shape) == 1:
-            observations = np.expand_dims(observations, 1)
-            next_o = np.array([next_o])
-        next_observations = np.vstack(
-            (
-                observations[1:, :],
-                np.expand_dims(next_o, 0)
-            )
-        )
+        next_observations = np.array(next_observations)
         return dict(
             observations=observations,
             actions=actions,
