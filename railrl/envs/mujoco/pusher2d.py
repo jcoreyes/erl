@@ -14,7 +14,9 @@ from railrl.core import logger as default_logger
 class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
     FILE = '3link_gripper_push_2d.xml'
 
-    def __init__(self, goal=(-1, 0), randomize_goals=False):
+    def __init__(self, goal=(-1, 0), randomize_goals=False,
+                 use_hand_to_obj_reward=True,
+                 use_sparse_rewards=False):
         self.quick_init(locals())
         if not isinstance(goal, np.ndarray):
             goal = np.array(goal)
@@ -22,34 +24,38 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
         self._target_hand_position = goal
         self.randomize_goals = randomize_goals
         self.use_hand_to_obj_reward = use_hand_to_obj_reward
+        self.use_sparse_rewards = use_sparse_rewards
         super().__init__(
             get_asset_xml('3link_gripper_push_2d.xml'),
             frame_skip=5,
         )
 
     def step(self, a):
+        self.do_simulation(a, self.frame_skip)
+        ob = self._get_obs()
         hand_to_object_distance = np.linalg.norm(
-            self.get_body_com("distal_4")[:2]
-            - self.get_body_com("object")[:2]
+            self.get_body_com("distal_4")[:2] - self.get_body_com("object")[:2]
         )
         object_to_goal_distance = np.linalg.norm(
-            self.get_body_com("goal") - self.get_body_com("object")
+            self.get_body_com("goal")[:2] - self.get_body_com("object")[:2]
         )
         hand_to_hand_goal_distance = np.linalg.norm(
             self.get_body_com("distal_4")[:2]
             - self.get_body_com("hand_goal")[:2]
         )
-        reward = - object_to_goal_distance
-        if self.use_hand_to_obj_reward:
-            reward = reward - hand_to_object_distance
-
-        self.do_simulation(a, self.frame_skip)
-        ob = self._get_obs()
+        success = float(object_to_goal_distance < 0.1)
+        if self.use_sparse_rewards:
+            reward = success
+        else:
+            reward = - object_to_goal_distance
+            if self.use_hand_to_obj_reward:
+                reward = reward - hand_to_object_distance
         done = False
         return ob, reward, done, dict(
             hand_to_hand_goal_distance=hand_to_hand_goal_distance,
             hand_to_object_distance=hand_to_object_distance,
             object_to_goal_distance=object_to_goal_distance,
+            success=success,
         )
 
     def viewer_setup(self):
@@ -108,20 +114,19 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
             ('hand_to_object_distance', 'Distance hand to object'),
             ('object_to_goal_distance', 'Distance object to goal'),
             ('hand_to_hand_goal_distance', 'Distance hand to hand goal'),
+            ('success', 'Success (within 0.1)'),
         ]:
             stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
             statistics.update(create_stats_ordered_dict(
                 stat_name_to_print,
                 stats,
                 always_show_all_stats=True,
-                exclude_max_min=True,
             ))
             final_stats = [s[-1] for s in stats]
             statistics.update(create_stats_ordered_dict(
                 "Final " + stat_name_to_print,
                 final_stats,
                 always_show_all_stats=True,
-                exclude_max_min=True,
             ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
