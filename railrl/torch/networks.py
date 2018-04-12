@@ -6,6 +6,7 @@ Algorithm-specific networks should go else-where.
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
+from torch.autograd import Variable
 
 from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
@@ -36,7 +37,8 @@ class CNN(PyTorchModule):
         self.input_size = input_size
         self.in_channel = in_channel
 
-        self.conv_layers = []
+        self.conv_layers = nn.ModuleList()
+        self.fc_layers = nn.ModuleList()
         output_dim = input_size
 
         for out_channel, kernel_size, stride, pool, padding in \
@@ -55,14 +57,11 @@ class CNN(PyTorchModule):
             in_channel = out_channel
             self.conv_layers.append(conv_layer)
 
-            # am very skeptical of this for strides/pools/paddings that aren't one
-            output_dim = output_dim - kernel_size + 1
-            output_dim //= stride
-            output_dim += 2*padding
-            output_dim //= pool
-
-        self.fc_layers = []
-        fc_in_size = int(output_dim**2) * out_channel
+        # find output dimension of conv_layers by trial
+        test_mat = Variable(torch.zeros(1, self.in_channel, self.input_size, self.input_size))
+        for conv_layer in self.conv_layers:
+            test_mat = conv_layer(test_mat)
+        fc_in_size = reduce(lambda x, y: x * y, test_mat.shape)
 
         for hidden_size in hidden_sizes:
             self.fc_layers.append(
@@ -87,12 +86,13 @@ class CNN(PyTorchModule):
     def forward(self, input):
         # need to reshape from batch of flattened images into (channsls, w, h)
         h = input.view(input.shape[0], self.in_channel, self.input_size, self.input_size)
-        for layer in self.conv_layers:
-            h = layer(h)
-        h = h.view(h.size(0), -1)
+        for conv_layer in self.conv_layers:
+            h = conv_layer(h)
 
+        h = h.view(h.size(0), -1)
         for layer in self.fc_layers:
             h = layer(h)
+
         output = self.out(h)
         return output
 
