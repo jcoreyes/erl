@@ -10,11 +10,10 @@ import railrl.torch.pytorch_util as ptu
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 
 def experiment(variant):
-    env = NormalizedBoxEnv(SawyerXYZReachingEnv())
+    env = SawyerXYZReachingEnv()
     es = OUStrategy(action_space=env.action_space)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    import ipdb; ipdb.set_trace()
     qf = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
@@ -44,22 +43,22 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
-            num_epochs=100,
+            num_epochs=60,
             num_steps_per_epoch=500,
-            num_steps_per_eval=500,
+            num_steps_per_eval=100,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
-            max_path_length=1000,
+            max_path_length=100,
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             render=False,
         ),
         env_params=dict(
-            desired = [0.79582924, -0.17266372, 0.09573399],
-            safety_box=True,
+            desired=[0.79582924, -0.17266372, 0.09573399],
             action_mode='position',
+            reward_magnitude=10,
         )
     )
     n_seeds = 1
