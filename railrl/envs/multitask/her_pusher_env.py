@@ -4,7 +4,7 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
-from railrl.envs.env_utils import get_asset_xml
+from railrl.envs.env_utils import get_asset_full_path
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger as default_logger
 
@@ -56,7 +56,7 @@ class Pusher2DEnv(
         utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(
             self,
-            get_asset_xml('3link_gripper_push_2d.xml'),  # path to xml
+            get_asset_full_path('3link_gripper_push_2d.xml'),  # path to xml
             5,  # frameskip
         )
         self.obs_to_goal = obs_to_goal

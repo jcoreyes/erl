@@ -7,7 +7,7 @@ from railrl.core import logger
 import mujoco_py
 
 from railrl.core.serializable import Serializable
-from railrl.envs.env_utils import get_asset_xml
+from railrl.envs.env_utils import get_asset_full_path
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 
@@ -77,7 +77,7 @@ class SawyerEnv(MujocoEnv, Serializable):
 
     @property
     def model_name(self):
-        return get_asset_xml('sawyer_gripper_mocap.xml')
+        return get_asset_full_path('sawyer_gripper_mocap.xml')
 
     #needs to return the observation, reward, done, and info
     def step(self, a):
