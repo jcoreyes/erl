@@ -79,7 +79,7 @@ if __name__ == "__main__":
         algorithm='HER-TD3',
         version='normal',
     )
-    n_seeds = 1
+    n_seeds = 3
     mode = 'local'
     exp_prefix = 'dev'
 
@@ -92,6 +92,7 @@ if __name__ == "__main__":
         'env_kwargs.use_sparse_rewards': [True],
         'replay_buffer_kwargs.num_goals_to_sample': [0, 4, 8],
         'algo_kwargs.num_updates_per_env_step': [1, 5, 10],
+        'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

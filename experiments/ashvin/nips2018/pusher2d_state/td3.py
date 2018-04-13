@@ -13,6 +13,7 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 import railrl.torch.pytorch_util as ptu
 from railrl.torch.td3.td3 import TD3
 import railrl.misc.hyperparameter as hyp
+from railrl.launchers.arglauncher import run_variants
 
 
 def experiment(variant):
@@ -109,15 +110,9 @@ if __name__ == "__main__":
             'ou',
         ],
         'algo_kwargs.reward_scale': [1, 10, 100],
+        'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
-            run_experiment(
-                experiment,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                variant=variant,
-            )
+    run_variants(experiment, sweeper.iterate_hyperparameters())

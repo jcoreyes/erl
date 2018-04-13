@@ -143,7 +143,7 @@ def process_variant_cmd(variant):
         variant["exp_prefix"] = sys.argv[0][n:-3]
 
     if "instance_type" not in variant:
-        variant["instance_type"] = "c4.8xlarge"
+        variant["instance_type"] = "c4.xlarge"
     if "use_gpu" not in variant:
         variant["use_gpu"] = None
 
