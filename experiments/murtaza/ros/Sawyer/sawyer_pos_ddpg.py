@@ -54,9 +54,10 @@ if __name__ == "__main__":
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             render=False,
+            num_updates_per_env_step=1,
         ),
         env_params=dict(
-            desired=[0.79582924, -0.17266372, 0.09573399],
+            desired=[0.76309276, -0.18051769, 0.01596521],
             action_mode='position',
             reward_magnitude=10,
         )
