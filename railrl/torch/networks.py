@@ -26,7 +26,7 @@ import torch.nn.functional as F
 class CNN(PyTorchModule):
     def __init__(self,
                 input_size,
-                in_channel,
+                input_channels,
                 output_size,
                 kernel_sizes,
                 n_channels,
@@ -45,75 +45,79 @@ class CNN(PyTorchModule):
 
         # assume square input. input_size is width or height
         self.input_size = input_size
-        self.in_channel = in_channel
+        self.input_channels = input_channels
         self.activation = activation
         self.hidden_activation = hidden_activation
         self.use_layer_norm = use_layer_norm
 
         self.conv_layers = nn.ModuleList()
-        self.norm_layers = nn.ModuleList()
+        self.conv_norm_layers = nn.ModuleList()
         self.fc_layers = nn.ModuleList()
         self.fc_norm_layers = nn.ModuleList()
-        output_dim = input_size
 
-        for out_channel, kernel_size, stride, pool, padding in \
+        for out_channels, kernel_size, stride, pool, padding in \
             zip(n_channels, kernel_sizes, strides, pool_sizes, paddings):
-            conv = nn.Conv2d(in_channel, out_channel, kernel_size, stride=stride, padding=padding)
+
+            conv = nn.Conv2d(input_channels,
+                             out_channels,
+                             kernel_size,
+                             stride=stride,
+                             padding=padding)
             torch.nn.init.xavier_uniform(conv.weight)
 
             conv_layer = nn.Sequential(
                             conv,
                             nn.MaxPool2d(pool, pool),
-                            self.hidden_activation,
             )
             self.conv_layers.append(conv_layer)
+            input_channels = out_channels
 
-            in_channel = out_channel
-
-        # find output dimension of conv_layers by trial and add normalization layers
-        test_mat = Variable(torch.zeros(1, self.in_channel, self.input_size, self.input_size))
+        # find output dimension of conv_layers by trial and add normalization conv layers
+        test_mat = Variable(torch.zeros(1, self.input_channels, self.input_size, self.input_size))
         for conv_layer in self.conv_layers:
             test_mat = conv_layer(test_mat)
-            self.norm_layers.append(
-                LayerNorm(test_mat.shape)
-            )
+            self.conv_norm_layers.append(LayerNorm(test_mat.shape))
 
         fc_input_size = reduce(lambda x, y: x * y, test_mat.shape)
         fc_input_size += added_fc_input_size
 
         for hidden_size in hidden_sizes:
             fc_layer = nn.Linear(fc_input_size, hidden_size)
-            torch.nn.init.xavier_uniform(fc_layer.weight)
             norm_layer = LayerNorm(hidden_size)
+            torch.nn.init.xavier_uniform(fc_layer.weight)
 
             self.fc_layers.append(fc_layer)
             self.fc_norm_layers.append(norm_layer)
             fc_input_size = hidden_size
 
         self.out = nn.Linear(fc_input_size, output_size)
-
         self.out.weight.data.uniform_(-init_w, init_w)
         self.out.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, input):
         # need to reshape from batch of flattened images into (channsls, w, h)
-        h = input.view(input.shape[0], self.in_channel, self.input_size, self.input_size)
+        h = input.view(input.shape[0],
+                       self.input_channels,
+                       self.input_size,
+                       self.input_size)
 
-        #for conv_layer in self.conv_layers:
-        for conv_layer, norm_layer in zip(self.conv_layers, self.norm_layers):
-            h = conv_layer(h)
-            if self.use_layer_norm:
-                h = norm_layer(h)
-
+        h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
+        # flatten channels for fc layers
         h = h.view(h.size(0), -1)
-        for fc_layer, norm_layer in zip(self.fc_layers, self.fc_norm_layers):
-            h = fc_layer(h)
-            if self.use_layer_norm:
-                h = norm_layer(h)
-            h = self.hidden_activation(h)
+        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
 
         output = self.activation(self.out(h))
         return output
+
+    def apply_forward(self, input, hidden_layers, norm_layers):
+        h = input
+        for layer, norm_layer in zip(hidden_layers, norm_layers):
+            h = layer(h)
+            if self.use_layer_norm:
+                h = norm_layer(h)
+            h = self.hidden_activation(h)
+        return h
+
 
 class MergedCNN(CNN):
 
@@ -127,20 +131,16 @@ class MergedCNN(CNN):
 
     def forward(self, conv_input, fc_input):
         # need to reshape from batch of flattened images into (channsls, w, h)
-        h = conv_input.view(conv_input.shape[0], self.in_channel, self.input_size, self.input_size)
+        h = conv_input.view(conv_input.shape[0],
+                            self.input_channels,
+                            self.input_size,
+                            self.input_size)
 
-        #for conv_layer in self.conv_layers:
-        for conv_layer, norm_layer in zip(self.conv_layers, self.norm_layers):
-            h = conv_layer(h)
-            if self.use_layer_norm:
-                h = norm_layer(h)
-
+        h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
+        # flatten channels for fc layers
         h = h.view(h.size(0), -1)
         h = torch.cat((h, fc_input), dim=1)
-        for fc_layer, norm_layer in zip(self.fc_layers, self.fc_norm_layers):
-            h = fc_layer(h)
-            if self.use_layer_norm:
-                h = norm_layer(h)
+        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
 
         output = self.activation(self.out(h))
         return output
