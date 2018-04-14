@@ -28,7 +28,7 @@ def experiment(variant):
     training_env = DiscretizeEnv(training_env, variant['bins'])
     qf = Mlp(
         hidden_sizes=[32, 32],
-        input_size=2,#int(np.prod(env.observation_space.shape[0:2])),
+        input_size=int(np.prod(env.observation_space.shape)),
         output_size=env.action_space.n,
     )
     qf_criterion = variant['qf_criterion_class']()

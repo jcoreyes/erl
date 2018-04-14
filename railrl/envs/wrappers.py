@@ -5,17 +5,13 @@ import itertools
 from gym import Env
 from gym.spaces import Box
 from gym.spaces import Discrete
-import pdb
-from scipy.misc import imresize
-import scipy.misc
-
-from railrl.core.serializable import Serializable
-from gym.spaces import Box
 
 from collections import deque
-
+from railrl.core.serializable import Serializable
+from torchvision.transforms import ToTensor, ToPILImage
 import mujoco_py
-
+import torch
+import pdb
 
 class ProxyEnv(Serializable, Env):
     def __init__(self, wrapped_env):
@@ -51,29 +47,43 @@ class ProxyEnv(Serializable, Env):
 
 
 class ImageEnv(ProxyEnv, Env):
-    def __init__(self, wrapped_env, imsize=32, keep_prev=1):
+    def __init__(self,
+                 wrapped_env,
+                 imsize=32,
+                 keep_prev=0,
+                 init_viewer=None):
         self.quick_init(locals())
         super().__init__(wrapped_env)
 
         self.imsize = imsize
         self.image_length = 3 * self.imsize * self.imsize
-        # This is torch format rather than image
+        # This is torch format rather than PIL image
         self.image_shape = (3, self.imsize, self.imsize)
         # Flattened past image queue
         self.history_length = keep_prev + 1
         self.history = deque(maxlen=self.history_length)
+        # init camera
+        if init_viewer is not None:
+            sim = self._wrapped_env.env.sim
+            viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=-1)
+            init_viewer(viewer)
+            sim.add_render_context(viewer)
+        # util conversions
+        self.pil_to_torch = ToTensor()
+        self.torch_to_pil = ToPILImage()
 
         self.observation_space = Box(low=0.0,
                                      high=1.0,
                                      shape=(self.image_length * self.history_length,))
-        self.init_viewer()
+
 
     def step(self, action):
+        # image observation get returned as a flattened 1D array
         _, reward, done, info = super().step(action)
 
         observation = self._image_observation()
         self.history.append(observation)
-        full_obs = self._join_with_past_obs(observation)
+        full_obs = self._get_history()
 
         return full_obs.flatten(), reward, done, info
 
@@ -83,20 +93,18 @@ class ImageEnv(ProxyEnv, Env):
 
         observation = self._image_observation()
         self.history.append(observation)
-        full_obs = self._join_with_past_obs(observation)
-
+        full_obs = self._get_history()
+        self.retrieve_images()
         return full_obs.flatten()
 
     def _image_observation(self):
-        image_obs = self._wrapped_env.sim.render(width=self.imsize, height=self.imsize)
-        #fname = 'images/' + str(self.i) + '.png'
-        #scipy.misc.imsave(fname, downsampled_obs)
-        #self.i += 1
-        # convert from PIL image format to torch tensor format
-        image_obs = image_obs.transpose((2, 1, 0))
-        return image_obs / 255.0
+        # returns the image as a torch format np array
+        image_obs = self._wrapped_env.env.sim.render(width=self.imsize, height=self.imsize)
+        # convert np.array from PIL image format to torch tensor format
+        image_obs = self.pil_to_torch(image_obs).numpy()
+        return image_obs
 
-    def _join_with_past_obs(self, current_observation):
+    def _get_history(self):
         observations = list(self.history)
 
         obs_count = len(observations)
@@ -106,16 +114,13 @@ class ImageEnv(ProxyEnv, Env):
         # join along channels. Resulting image with have 3*history_length channels
         return np.concatenate(observations, axis=0)
 
-    def init_viewer(self):
-        # manual for right now. Fix this later
-        sim = self._wrapped_env.sim
-        viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=-1)
-        viewer.cam.trackbodyid = 0
-        viewer.cam.lookat[2] = .3
-        viewer.cam.distance=1
-        viewer.cam.elevation = 0
-        sim.add_render_context(viewer)
-
+    def retrieve_images(self):
+        # returns images in unflattened PIL format
+        images = []
+        for image_obs in self.history:
+            pil_image = self.torch_to_pil(torch.Tensor(image_obs))
+            images.append(pil_image)
+        return images
 
 class DiscretizeEnv(ProxyEnv, Env):
     def __init__(self, wrapped_env, num_bins):
