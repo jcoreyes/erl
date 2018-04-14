@@ -5,12 +5,16 @@ import itertools
 from gym import Env
 from gym.spaces import Box
 from gym.spaces import Discrete
-import matplotlib.pyplot as plt
 import pdb
 from scipy.misc import imresize
+import scipy.misc
 
 from railrl.core.serializable import Serializable
-from gym.spaces import Discrete
+from gym.spaces import Box
+
+from collections import deque
+
+import mujoco_py
 
 
 class ProxyEnv(Serializable, Env):
@@ -47,34 +51,70 @@ class ProxyEnv(Serializable, Env):
 
 
 class ImageEnv(ProxyEnv, Env):
-    def __init__(self, wrapped_env, imsize=32):
+    def __init__(self, wrapped_env, imsize=32, keep_prev=1):
         self.quick_init(locals())
         super().__init__(wrapped_env)
+
         self.imsize = imsize
-        # change this later
-        self.observation_space = Discrete(3*self.imsize*self.imsize)
-        #self.i = 0
+        self.image_length = 3 * self.imsize * self.imsize
+        # This is torch format rather than image
+        self.image_shape = (3, self.imsize, self.imsize)
+        # Flattened past image queue
+        self.history_length = keep_prev + 1
+        self.history = deque(maxlen=self.history_length)
+
+        self.observation_space = Box(low=0.0,
+                                     high=1.0,
+                                     shape=(self.image_length * self.history_length,))
+        self.init_viewer()
 
     def step(self, action):
         _, reward, done, info = super().step(action)
+
         observation = self._image_observation()
-        return observation, reward, done, info
+        self.history.append(observation)
+        full_obs = self._join_with_past_obs(observation)
+
+        return full_obs.flatten(), reward, done, info
 
     def reset(self):
         super().reset()
-        return self._image_observation()
+        self.history = deque(maxlen=self.history_length)
+
+        observation = self._image_observation()
+        self.history.append(observation)
+        full_obs = self._join_with_past_obs(observation)
+
+        return full_obs.flatten()
 
     def _image_observation(self):
-        image_obs = self.render(mode='rgb_array')
-        downsampled_obs = imresize(image_obs, (self.imsize, self.imsize))
+        image_obs = self._wrapped_env.sim.render(width=self.imsize, height=self.imsize)
         #fname = 'images/' + str(self.i) + '.png'
-        #plt.imsave(fname=fname, arr=downsampled_obs)
+        #scipy.misc.imsave(fname, downsampled_obs)
         #self.i += 1
-
         # convert from PIL image format to torch tensor format
-        downsampled_obs = downsampled_obs.transpose((2, 0, 1))
-        return downsampled_obs.flatten()
+        image_obs = image_obs.transpose((2, 1, 0))
+        return image_obs / 255.0
 
+    def _join_with_past_obs(self, current_observation):
+        observations = list(self.history)
+
+        obs_count = len(observations)
+        for _ in range(self.history_length - obs_count):
+            dummy = np.zeros(self.image_shape)
+            observations.append(dummy)
+        # join along channels. Resulting image with have 3*history_length channels
+        return np.concatenate(observations, axis=0)
+
+    def init_viewer(self):
+        # manual for right now. Fix this later
+        sim = self._wrapped_env.sim
+        viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=-1)
+        viewer.cam.trackbodyid = 0
+        viewer.cam.lookat[2] = .3
+        viewer.cam.distance=1
+        viewer.cam.elevation = 0
+        sim.add_render_context(viewer)
 
 
 class DiscretizeEnv(ProxyEnv, Env):
@@ -94,7 +134,12 @@ class DiscretizeEnv(ProxyEnv, Env):
 
     def step(self, action):
         continuous_action = self.idx_to_continuous_action[action]
-        return super().step(continuous_action)
+        obs, rew, done, info = super().step(continuous_action)
+        return obs, rew, done, info
+
+    def reset(self):
+        obs = super().reset()
+        return obs
 
 
 
