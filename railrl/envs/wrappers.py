@@ -11,7 +11,6 @@ from railrl.core.serializable import Serializable
 from torchvision.transforms import ToTensor, ToPILImage
 import mujoco_py
 import torch
-import pdb
 
 class ProxyEnv(Serializable, Env):
     def __init__(self, wrapped_env):
@@ -94,7 +93,6 @@ class ImageEnv(ProxyEnv, Env):
         observation = self._image_observation()
         self.history.append(observation)
         full_obs = self._get_history()
-        self.retrieve_images()
         return full_obs.flatten()
 
     def _image_observation(self):
@@ -122,6 +120,7 @@ class ImageEnv(ProxyEnv, Env):
             images.append(pil_image)
         return images
 
+
 class DiscretizeEnv(ProxyEnv, Env):
     def __init__(self, wrapped_env, num_bins):
         self.quick_init(locals())
@@ -139,13 +138,7 @@ class DiscretizeEnv(ProxyEnv, Env):
 
     def step(self, action):
         continuous_action = self.idx_to_continuous_action[action]
-        obs, rew, done, info = super().step(continuous_action)
-        return obs, rew, done, info
-
-    def reset(self):
-        obs = super().reset()
-        return obs
-
+        return super().step(continuous_action)
 
 
 class NormalizedBoxEnv(ProxyEnv, Serializable):

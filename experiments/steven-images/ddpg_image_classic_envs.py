@@ -39,14 +39,16 @@ def experiment(variant):
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
 
-    qf = MergedCNN(input_size=imsize,
+    qf = MergedCNN(input_width=imsize,
+                   input_height=imsize,
                    output_size=1,
                    input_channels=3 * history,
                    added_fc_input_size=action_dim,
                    **variant['cnn_params'])
 
 
-    policy = CNNPolicy(input_size=imsize,
+    policy = CNNPolicy(input_width=imsize,
+                       input_height=imsize,
                        output_size=action_dim,
                        input_channels=3 * history,
                        **variant['cnn_params'],
@@ -74,12 +76,15 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
+        imsize=32,
+        history=3,
+        init_viewer=viewers.reacher_v2_init_viewer,
         algo_params=dict(
             num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=500,
             batch_size=64,
-            max_path_length=100,
+            max_path_length=200,
             discount=.99,
 
             use_soft_update=True,
@@ -90,12 +95,9 @@ if __name__ == "__main__":
             save_replay_buffer=False,
             replay_buffer_size=int(1E4),
         ),
-        history=3,
-        imsize=16,
-        init_viewer=viewers.inverted_pendulum_v2_init_viewer,
         cnn_params=dict(
             kernel_sizes=[3, 3],
-            n_channels=[16, 16],
+            n_channels=[32, 32],
             strides=[2, 2],
             pool_sizes=[1, 1],
             hidden_sizes=[64, 64],
@@ -103,30 +105,28 @@ if __name__ == "__main__":
             use_layer_norm=False,
         ),
 
-        env_id='InvertedPendulum-v2',
+        env_id='Reacher-v2',
         algo_class=DDPG,
         qf_criterion_class=HuberLoss,
     )
     search_space = {
+        'imsize': [
+            16,
+            32,
+        ],
         'env_id': [
-            # 'Acrobot-v1',
-            #'CartPole-v0',
-            'InvertedPendulum-v2',
-            #'InvertedPendulum-v1',
-            # 'CartPole-v1',
-            # 'MountainCar-v0',
+            'Reacher-v2',
         ],
         'algo_class': [
             DDPG,
         ],
         # 'algo_params.use_hard_updates': [True, False],
         'qf_criterion_class': [
-            #nn.MSELoss,
             HuberLoss,
         ],
     }
-    #setup_logger('dqn-images-experiment', variant=variant)
-    #experiment(variant)
+#    setup_logger('dqn-images-experiment', variant=variant)
+#    experiment(variant)
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -137,7 +137,7 @@ if __name__ == "__main__":
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="DDPG-images--paper-init",
+                exp_prefix="DDPG-images-reacher-sweep",
                 mode='ec2',
                 # use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",

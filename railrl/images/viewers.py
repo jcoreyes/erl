@@ -4,6 +4,12 @@ def inverted_pendulum_v2_init_viewer(viewer):
     viewer.cam.distance=1
     viewer.cam.elevation = 0
 
+def reacher_v2_init_viewer(viewer):
+    viewer.cam.distance= .7
+    viewer.cam.elevation = -90
+    viewer.cam.azimuth = 90
+
+
 def pusher_2d_init_viewer(viewer):
     viewer.cam.trackbodyid = 0
     viewer.cam.distance = 4.0
