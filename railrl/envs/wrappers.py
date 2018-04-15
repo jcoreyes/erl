@@ -85,10 +85,6 @@ class ImageEnv(ProxyEnv, Env):
         observation = self._image_observation()
         self.history.append(observation)
         full_obs = self._get_history()
-#        from scipy.misc import imsave
-#        imsave('images/' + str(self.i) + '.png', observation.transpose((1, 2, 0)))
-#        self.i += 1
-#        import pdb; pdb.set_trace()
         return full_obs.flatten(), reward, done, info
 
     def reset(self):
@@ -96,6 +92,11 @@ class ImageEnv(ProxyEnv, Env):
         self.history = deque(maxlen=self.history_length)
 
         observation = self._image_observation()
+        #from scipy.misc import imsave
+        #imsave('images/' + str(self.i) + '.png', observation.transpose((1, 2, 0)))
+        #self.i += 1
+#        import pdb; pdb.set_trace()
+
         self.history.append(observation)
         full_obs = self._get_history()
         return full_obs.flatten()

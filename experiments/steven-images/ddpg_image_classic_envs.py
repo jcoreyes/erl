@@ -64,7 +64,7 @@ def experiment(variant):
         env,
         qf=qf,
         policy=policy,
-        qf_weight_decay=.01,
+#        qf_weight_decay=.01,
         exploration_policy=exploration_policy,
         **variant['algo_params']
     )
@@ -77,15 +77,15 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=16,
+        imsize=48,
         history=3,
-        init_viewer=viewers.inverted_pendulum_v2_init_viewer,
+        init_viewer=viewers.reacher_v2_init_viewer,
         algo_params=dict(
             num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=500,
             batch_size=64,
-            max_path_length=100,
+            max_path_length=10,
             discount=.99,
 
             use_soft_update=True,
@@ -106,13 +106,13 @@ if __name__ == "__main__":
             use_layer_norm=False,
         ),
 
-        env_id='InvertedPendulum-v2',
+        env_id='Reacher-v2',
         algo_class=DDPG,
         qf_criterion_class=HuberLoss,
     )
     search_space = {
         'imsize': [
-            16,
+            32,
         ],
         'env_id': [
             'InvertedPendulum-v2',
