@@ -22,7 +22,7 @@ from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 
 
 def experiment(variant):
-    env = gym.make(variant['env_id'])#Pusher2DEnv()
+    env = Pusher2DEnv()
     env = NormalizedBoxEnv(env)
     es = GaussianStrategy(
         action_space=env.action_space,
@@ -103,13 +103,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for i in range(2):
+#        for i in range(2):
             run_experiment(
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="DDPG-reacher",
-                mode='ec2',
+                exp_prefix="DDPG-pusher2D",
+                mode='local',
                 # use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',

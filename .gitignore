@@ -4,6 +4,8 @@ logs/
 *.pyc
 *.swp
 *.swo
+*.DS_Store
+*.mypy_cache/
 tmp*.py
 *.idea
 railrl/bin/

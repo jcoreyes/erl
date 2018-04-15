@@ -64,6 +64,7 @@ def experiment(variant):
         env,
         qf=qf,
         policy=policy,
+        qf_weight_decay=.01,
         exploration_policy=exploration_policy,
         **variant['algo_params']
     )
@@ -76,15 +77,15 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=32,
+        imsize=16,
         history=3,
-        init_viewer=viewers.reacher_v2_init_viewer,
+        init_viewer=viewers.inverted_pendulum_v2_init_viewer,
         algo_params=dict(
             num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=500,
             batch_size=64,
-            max_path_length=200,
+            max_path_length=100,
             discount=.99,
 
             use_soft_update=True,
@@ -97,25 +98,24 @@ if __name__ == "__main__":
         ),
         cnn_params=dict(
             kernel_sizes=[3, 3],
-            n_channels=[32, 32],
+            n_channels=[16, 16],
             strides=[2, 2],
             pool_sizes=[1, 1],
-            hidden_sizes=[64, 64],
+            hidden_sizes=[128, 64],
             paddings=[0, 0],
             use_layer_norm=False,
         ),
 
-        env_id='Reacher-v2',
+        env_id='InvertedPendulum-v2',
         algo_class=DDPG,
         qf_criterion_class=HuberLoss,
     )
     search_space = {
         'imsize': [
             16,
-            32,
         ],
         'env_id': [
-            'Reacher-v2',
+            'InvertedPendulum-v2',
         ],
         'algo_class': [
             DDPG,
@@ -125,8 +125,8 @@ if __name__ == "__main__":
             HuberLoss,
         ],
     }
-#    setup_logger('dqn-images-experiment', variant=variant)
-#    experiment(variant)
+    setup_logger('dqn-images-experiment', variant=variant)
+    experiment(variant)
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -137,10 +137,9 @@ if __name__ == "__main__":
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="DDPG-images-reacher-sweep",
+                exp_prefix="DDPG-images-inverted-pendulum",
                 mode='ec2',
-                # use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',
-                # use_gpu=True,
+                #use_gpu=True,
             )

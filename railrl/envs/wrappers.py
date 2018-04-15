@@ -8,7 +8,7 @@ from gym.spaces import Discrete
 
 from collections import deque
 from railrl.core.serializable import Serializable
-from torchvision.transforms import ToTensor, ToPILImage
+#from torchvision.transforms import ToTensor, ToPILImage
 import mujoco_py
 import torch
 
@@ -68,12 +68,14 @@ class ImageEnv(ProxyEnv, Env):
             init_viewer(viewer)
             sim.add_render_context(viewer)
         # util conversions
-        self.pil_to_torch = ToTensor()
-        self.torch_to_pil = ToPILImage()
+        #self.pil_to_torch = ToTensor()
+        #self.torch_to_pil = ToPILImage()
 
         self.observation_space = Box(low=0.0,
                                      high=1.0,
                                      shape=(self.image_length * self.history_length,))
+
+        self.i = 0
 
 
     def step(self, action):
@@ -83,7 +85,10 @@ class ImageEnv(ProxyEnv, Env):
         observation = self._image_observation()
         self.history.append(observation)
         full_obs = self._get_history()
-
+#        from scipy.misc import imsave
+#        imsave('images/' + str(self.i) + '.png', observation.transpose((1, 2, 0)))
+#        self.i += 1
+#        import pdb; pdb.set_trace()
         return full_obs.flatten(), reward, done, info
 
     def reset(self):
@@ -99,7 +104,8 @@ class ImageEnv(ProxyEnv, Env):
         # returns the image as a torch format np array
         image_obs = self._wrapped_env.env.sim.render(width=self.imsize, height=self.imsize)
         # convert np.array from PIL image format to torch tensor format
-        image_obs = self.pil_to_torch(image_obs).numpy()
+        #image_obs = self.pil_to_torch(image_obs).numpy()
+        image_obs = image_obs.transpose((2, 0, 1)) / 255.0
         return image_obs
 
     def _get_history(self):
