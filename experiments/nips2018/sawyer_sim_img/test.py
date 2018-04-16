@@ -13,7 +13,7 @@ while True:
     last_reward_t = 0
     returns = 0
     for t in range(100):
-        action = env.action_space.sample()
+        action = env.action_space.sample() * 0
         obs, reward, done, info = env.step(action)
         # env.render()
         print(obs)

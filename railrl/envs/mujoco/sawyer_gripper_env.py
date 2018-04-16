@@ -67,7 +67,7 @@ class SawyerEnv(MujocoEnv, Serializable):
             np.hstack((JOINT_VALUE_HIGH['position'], JOINT_VALUE_HIGH['velocity'], JOINT_VALUE_HIGH['position']))
         )
 
-        super().__init__(self.model_name, frame_skip=10)
+        super().__init__(self.model_name, frame_skip=1)
         self.delta = delta
 
         # self.model.eq_data = np.array([[0., 0., 0., 1., 0., 0., 0.]])
@@ -181,7 +181,7 @@ class SawyerXYZEnv(SawyerEnv, MultitaskEnv):
         self.reward_info = reward_info
         MultitaskEnv.__init__(self, distance_metric_order=2)
         SawyerEnv.__init__(self)
-
+        self.reset_mocap_welds()
 
         self.action_space = Box(
             np.array([-1, -1, -1]),
@@ -257,8 +257,21 @@ class SawyerXYZEnv(SawyerEnv, MultitaskEnv):
         qvel[15:18] = [0, 0, 0]
         self.set_state(qpos, qvel)
 
+    def reset_mocap_welds(self):
+        """Resets the mocap welds that we use for actuation."""
+        sim = self.sim
+        if sim.model.nmocap > 0 and sim.model.eq_data is not None:
+            for i in range(sim.model.eq_data.shape[0]):
+                if sim.model.eq_type[i] == mujoco_py.const.EQ_WELD:
+                    sim.model.eq_data[i, :] = np.array(
+                        [0., 0., 0., 1., 0., 0., 0.])
+        sim.forward()
+
     def reset_mocap2body_xpos(self):
         # move mocap to weld joint
+        # print("end eff at", np.array([self.data.body_xpos[self.endeff_id]]))
+        # for d in self.data.body_xpos[self.endeff_id]:
+        #     print(float(d))
         self.data.set_mocap_pos(
             'mocap',
             np.array([self.data.body_xpos[self.endeff_id]]),
@@ -278,8 +291,9 @@ class SawyerXYZEnv(SawyerEnv, MultitaskEnv):
             self.data.set_mocap_pos('mocap', self.data.mocap_pos + pos_delta)
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
         else:
-            raise NotImplementedError()
-            # self.data.set_mocap_pos(pos_delta)
+            # raise NotImplementedError()
+            print(pos_delta)
+            self.data.set_mocap_pos('mocap', pos_delta)
             # self.data.set_mocap_quat(quat_delta)
 
     def reset(self):
