@@ -11,6 +11,7 @@ class PygameViewer(object):
             screen_height=480,
             x_bounds=(0, 640),
             y_bounds=(0, 480),
+            render_onscreen=True,
     ):
         """
         All xy-coordinates are scaled linear to map from
@@ -19,26 +20,31 @@ class PygameViewer(object):
 
         Width and heights are also scaled. For radius, the min of the x-scale
         and y-scale is taken.
-        
-        :param screen_width: 
-        :param screen_height: 
-        :param x_bounds: 
-        :param y_bounds: 
+
+        :param screen_width:
+        :param screen_height:
+        :param x_bounds:
+        :param y_bounds:
         """
         self.width = screen_width
         self.height = screen_width
         self.x_scaler = LinearMapper(x_bounds, (0, screen_width - 1))
         self.y_scaler = LinearMapper(y_bounds, (0, screen_height - 1))
-        self.screen = pygame.display.set_mode((screen_width, screen_height))
         self.terminated = False
         self.clock = pygame.time.Clock()
+        self.render_onscreen = render_onscreen
+        if self.render_onscreen:
+            self.screen = pygame.display.set_mode((screen_width, screen_height))
+        else:
+            self.screen = pygame.Surface((screen_width, screen_height))
 
     def render(self):
-        pygame.display.update()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                self.terminated = True
+        if self.render_onscreen:
+            pygame.display.update()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    self.terminated = True
 
     def fill(self, color):
         self.screen.fill(color)
@@ -78,6 +84,10 @@ class PygameViewer(object):
 
     def scale_min(self, value):
         return min(self.scale_y(value), self.scale_y(value))
+
+    def get_image(self):
+        # s = pygame.display.get_surface()
+        return pygame.surfarray.array3d(self.screen)
 
 
 class LinearMapper(object):

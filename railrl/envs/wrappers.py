@@ -15,6 +15,7 @@ class ProxyEnv(Serializable, Env):
         self._wrapped_env = wrapped_env
         self.action_space = self._wrapped_env.action_space
         self.observation_space = self._wrapped_env.observation_space
+        # self.goal_space = self._wrapped_env.goal_space
 
     @property
     def wrapped_env(self):
@@ -40,6 +41,10 @@ class ProxyEnv(Serializable, Env):
     def terminate(self):
         if hasattr(self.wrapped_env, "terminate"):
             self.wrapped_env.terminate()
+
+    # shouldn't this be here? It was working before but broken now
+    def __getattr__(self, attrname):
+        return getattr(self._wrapped_env, attrname)
 
 
 class ImageEnv(ProxyEnv, Env):

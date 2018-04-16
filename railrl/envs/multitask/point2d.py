@@ -6,21 +6,35 @@ from railrl.core.serializable import Serializable
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.envs.pygame.point2d import Point2DEnv
 from railrl.torch.core import PyTorchModule
+from torch.autograd import Variable
 
+import joblib
+import railrl.torch.pytorch_util as ptu
 
 class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
     def __init__(
             self,
+            use_sparse_rewards=False,
             **kwargs
     ):
         Serializable.quick_init(self, locals())
         Point2DEnv.__init__(self, **kwargs)
         MultitaskEnv.__init__(self)
+        self.use_sparse_rewards = use_sparse_rewards
         self.ob_to_goal_slice = slice(0, 2)
         self.observation_space = Box(
             -self.BOUNDARY_DIST * np.ones(2),
             self.BOUNDARY_DIST * np.ones(2),
+            dtype=np.float32,
         )
+        self.goal_space = Box(
+            -self.BOUNDARY_DIST * np.ones(2),
+            self.BOUNDARY_DIST * np.ones(2),
+            dtype=np.float32,
+        )
+
+    def step(self, u):
+        return self._step(u)
 
     def set_goal(self, goal):
         super().set_goal(goal)
@@ -36,6 +50,19 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
                 size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
             )
         return self._get_observation()
+
+    def compute_her_reward_np(
+            self,
+            observation,
+            action,
+            next_observation,
+            goal,
+    ):
+        dist = np.linalg.norm(next_observation - goal)
+        if self.use_sparse_rewards:
+            return -float(dist > 0.1)
+        else:
+            return dist
 
     @property
     def goal_dim(self) -> int:
@@ -58,6 +85,35 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
         Point2DEnv.log_diagnostics(self, paths, **kwargs)
         MultitaskEnv.log_diagnostics(self, paths, **kwargs)
 
+class MultitaskImagePoint2DEnv(MultitaskPoint2DEnv, MultitaskEnv):
+    def _get_observation(self):
+        return self.get_image()
+
+    def reset(self):
+        goal = self.sample_goals(1)
+        self.set_goal(goal[0, :])
+        return super().reset()
+
+class MultitaskVAEPoint2DEnv(MultitaskImagePoint2DEnv, MultitaskEnv):
+    def __init__(
+            self,
+            render_size=84,
+            **kwargs
+    ):
+        Serializable.quick_init(self, locals())
+        self.vae = joblib.load("/Users/ashvin/data/s3doodad/ashvin/vae/test-conv/run4/id0/params.pkl")
+        super().__init__(render_size=render_size, **kwargs)
+
+    def _get_observation(self):
+        img = Variable(ptu.from_numpy(self.get_image()))
+        # import pdb; pdb.set_trace()
+        e = self.vae.encode(img)[0]
+        return ptu.get_numpy(e).flatten()
+
+    def reset(self):
+        goal = self.sample_goals(1)
+        self.set_goal(goal[0, :])
+        return super().reset()
 
 class PerfectPoint2DQF(PyTorchModule):
     """

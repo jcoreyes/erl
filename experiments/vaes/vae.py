@@ -110,7 +110,9 @@ def train(data_gen):
     losses = []
     kls = []
     log_probs = []
-    for _ in range(N_BATCHES):
+    for i in range(N_BATCHES):
+        if i % 100 == 0:
+            print("batch", i)
         batch = data_gen(BS)
         batch = np_to_var(batch)
 

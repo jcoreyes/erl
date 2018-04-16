@@ -10,9 +10,8 @@ from railrl.core.serializable import Serializable
 from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths, \
     get_stat_in_paths
-import railrl.misc.visualization_util as vu
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+# import matplotlib.pyplot as plt
+# import matplotlib.cm as cm
 
 
 class Point2DEnv(Serializable, Env):
@@ -27,6 +26,9 @@ class Point2DEnv(Serializable, Env):
             self,
             render_dt_msec=30,
             action_l2norm_penalty=0,
+            render_onscreen=True,
+            render_size=500,
+            ball_radius=0.25,
     ):
         Serializable.quick_init(self, locals())
         self.MAX_TARGET_DISTANCE = self.BOUNDARY_DIST - self.TARGET_RADIUS
@@ -35,14 +37,18 @@ class Point2DEnv(Serializable, Env):
         self._target_position = None
         self._position = None
 
-        self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
+        self.action_space = Box(np.array([-1, -1]), np.array([1, 1]), dtype=np.float32)
         self.observation_space = Box(
             -self.BOUNDARY_DIST * np.ones(4),
             self.BOUNDARY_DIST * np.ones(4),
+            dtype=np.float32
         )
 
         self.drawer = None
         self.render_dt_msec = render_dt_msec
+        self.render_onscreen = render_onscreen
+        self.render_size = render_size
+        self.BALL_RADIUS = ball_radius
 
     def _step(self, velocities):
         velocities = np.clip(velocities, a_min=-1, a_max=1)
@@ -130,10 +136,11 @@ class Point2DEnv(Serializable, Env):
 
         if self.drawer is None or self.drawer.terminated:
             self.drawer = PygameViewer(
-                500,
-                500,
+                self.render_size,
+                self.render_size,
                 x_bounds=(-self.BOUNDARY_DIST, self.BOUNDARY_DIST),
                 y_bounds=(-self.BOUNDARY_DIST, self.BOUNDARY_DIST),
+                render_onscreen=self.render_onscreen,
             )
 
         self.drawer.fill(Color('white'))
@@ -178,6 +185,15 @@ class Point2DEnv(Serializable, Env):
 
         self.drawer.render()
         self.drawer.tick(self.render_dt_msec)
+
+    def get_image(self):
+        self.render()
+        img = self.drawer.get_image()
+        img = img / 255.0
+        r, g, b = img[:, :, 0], img[:, :, 1], img[:, :, 2]
+        # img = (-r - g + b).flatten() # GREEN ignored for visualization
+        img = (-r + b).flatten().copy()
+        return img
 
     @staticmethod
     def true_model(state, action):
@@ -281,6 +297,7 @@ class Point2DEnv(Serializable, Env):
 
 def plot_observations_and_actions(observations, actions):
     import matplotlib.pyplot as plt
+    import railrl.misc.visualization_util as vu
 
     x_pos = observations[:, 0]
     y_pos = observations[:, 1]
