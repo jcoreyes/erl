@@ -42,7 +42,7 @@ def experiment(variant):
     qf = MergedCNN(input_width=imsize,
                    input_height=imsize,
                    output_size=1,
-                   input_channels=3 * history,
+                   input_channels= history,
                    added_fc_input_size=action_dim,
                    **variant['cnn_params'])
 
@@ -50,7 +50,7 @@ def experiment(variant):
     policy = CNNPolicy(input_width=imsize,
                        input_height=imsize,
                        output_size=action_dim,
-                       input_channels=3 * history,
+                       input_channels=history,
                        **variant['cnn_params'],
                        output_activation=torch.tanh,
     )
@@ -77,15 +77,16 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=48,
+        imsize=16,
         history=3,
-        init_viewer=viewers.reacher_v2_init_viewer,
+        env_id='InvertedPendulum-v2',
+        init_viewer=viewers.inverted_pendulum_v2_init_viewer,
         algo_params=dict(
-            num_epochs=1000,
+            num_epochs=200,
             num_steps_per_epoch=1000,
             num_steps_per_eval=500,
             batch_size=64,
-            max_path_length=10,
+            max_path_length=200,
             discount=.99,
 
             use_soft_update=True,
@@ -106,7 +107,6 @@ if __name__ == "__main__":
             use_layer_norm=False,
         ),
 
-        env_id='Reacher-v2',
         algo_class=DDPG,
         qf_criterion_class=HuberLoss,
     )
@@ -137,8 +137,8 @@ if __name__ == "__main__":
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="DDPG-images-inverted-pendulum",
-                mode='ec2',
+                exp_prefix="DDPG-imagestest",
+                mode='local',
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',
                 #use_gpu=True,

@@ -5,6 +5,7 @@ import itertools
 from gym import Env
 from gym.spaces import Box
 from gym.spaces import Discrete
+from PIL import Image
 
 from collections import deque
 from railrl.core.serializable import Serializable
@@ -55,9 +56,9 @@ class ImageEnv(ProxyEnv, Env):
         super().__init__(wrapped_env)
 
         self.imsize = imsize
-        self.image_length = 3 * self.imsize * self.imsize
+        self.image_length = self.imsize * self.imsize
         # This is torch format rather than PIL image
-        self.image_shape = (3, self.imsize, self.imsize)
+        self.image_shape = (self.imsize, self.imsize)
         # Flattened past image queue
         self.history_length = keep_prev + 1
         self.history = deque(maxlen=self.history_length)
@@ -92,9 +93,10 @@ class ImageEnv(ProxyEnv, Env):
         self.history = deque(maxlen=self.history_length)
 
         observation = self._image_observation()
-        #from scipy.misc import imsave
-        #imsave('images/' + str(self.i) + '.png', observation.transpose((1, 2, 0)))
-        #self.i += 1
+#        from scipy.misc import imsave
+#        imsave('images/' + str(self.i) + '.png', observation.transpose((1, 2, 0)))
+#        Image.fromarray(image_obs).convert('P').save('testing.png')
+#        self.i += 1
 #        import pdb; pdb.set_trace()
 
         self.history.append(observation)
@@ -104,9 +106,12 @@ class ImageEnv(ProxyEnv, Env):
     def _image_observation(self):
         # returns the image as a torch format np array
         image_obs = self._wrapped_env.env.sim.render(width=self.imsize, height=self.imsize)
+#        import pdb; pdb.set_trace()
         # convert np.array from PIL image format to torch tensor format
         #image_obs = self.pil_to_torch(image_obs).numpy()
-        image_obs = image_obs.transpose((2, 0, 1)) / 255.0
+        image_obs = np.array(Image.fromarray(image_obs).convert('P'))
+        #image_obs = image_obs.transpose((2, 0, 1)) / 255.0
+        image_obs = image_obs / 255.0
         return image_obs
 
     def _get_history(self):
@@ -117,7 +122,8 @@ class ImageEnv(ProxyEnv, Env):
             dummy = np.zeros(self.image_shape)
             observations.append(dummy)
         # join along channels. Resulting image with have 3*history_length channels
-        return np.concatenate(observations, axis=0)
+        #return np.concatenate(observations, axis=0)
+        return np.c_[observations]
 
     def retrieve_images(self):
         # returns images in unflattened PIL format
