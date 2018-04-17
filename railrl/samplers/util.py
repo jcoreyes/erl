@@ -1,5 +1,5 @@
 import numpy as np
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+
 
 def rollout(env, agent, max_path_length=np.inf, animated=False):
     """

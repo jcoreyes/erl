@@ -42,10 +42,6 @@ class ProxyEnv(Serializable, Env):
         if hasattr(self.wrapped_env, "terminate"):
             self.wrapped_env.terminate()
 
-    # shouldn't this be here? It was working before but broken now
-    def __getattr__(self, attrname):
-        return getattr(self._wrapped_env, attrname)
-
 
 class ImageEnv(ProxyEnv, Env):
     def __init__(self, wrapped_env, imsize=32):
