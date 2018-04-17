@@ -2,6 +2,7 @@ from collections import OrderedDict
 import numpy as np
 from gym.envs.mujoco import MujocoEnv
 from gym.spaces import Box
+import mujoco_py
 
 from railrl.core import logger
 
@@ -30,6 +31,8 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             np.array([-0.2, 0.5, 0]),
             np.array([0.2, 0.7, 0.5]),
         )
+        self.reset()
+        self.reset_mocap_welds()
 
     @property
     def model_name(self):
@@ -63,15 +66,10 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     def step(self, a):
         a = np.clip(a, -1, 1)
-        # a input is between -1 and 1. Scale it to be between 0 and 1
-        a = (a + 1) / 2
-        a[:] = 0
-        # self.mocap_set_action(a[:3] / 100, True)
-        self.mocap_set_action(a[:3], relative=True)
+        self.mocap_set_action(a[:3] / 100, relative=True)
         self.set_goal_xyz(self.multitask_goal)
         u = np.zeros((8))
-        # u[7] = a[3] * 10
-        # print("action", u[7])
+        u[7] = a[3]
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
         reward = self.compute_reward(obs, u, obs, self.multitask_goal)
@@ -157,19 +155,12 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def mocap_set_action(self, action, relative=True):
         pos_delta = action[None]
 
-        print('mocap xyz', self.data.mocap_pos)
         if relative:
-            # self.reset_mocap2body_xpos()
-            # self.data.set_mocap_pos('mocap', pos_delta)
+            self.reset_mocap2body_xpos()
             self.data.set_mocap_pos('mocap', self.data.mocap_pos + pos_delta)
-            # self.data.set_mocap_quat('mocap', self.data.body_xquat[self.endeff_id])
-            self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
-            # self.data.set_mocap_quat('mocap', np.array([0, 0, 0, 0]))
         else:
-            # raise NotImplementedError()
-            print(pos_delta)
             self.data.set_mocap_pos('mocap', pos_delta)
-            # self.data.set_mocap_quat(quat_delta)
+        self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
 
     def reset(self):
         angles = self.data.qpos.copy()
@@ -187,6 +178,8 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         elif self.reward_info["type"] == "sparse":
             t = self.reward_info["threshold"]
             r = float(np.linalg.norm(ob - goal) < t) - 1
+        else:
+            raise NotImplementedError("Invalid/no reward type.")
         return r
 
     def multitask_reward(self, ob, action, next_ob, goal, info={}):
@@ -313,7 +306,7 @@ class SawyerBlockEnv(SawyerXYZEnv):
         return pos
 
 if __name__ == "__main__":
-    e = SawyerXYZEnv("MSE")
+    e = SawyerXYZEnv(reward_info=dict(type="euclidean"))
     for j in range(50):
         e.reset()
         for i in range(8):
