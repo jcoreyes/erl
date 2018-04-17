@@ -14,7 +14,7 @@ from railrl.torch.dqn.dqn import DQN
 from railrl.torch.networks import Mlp, CNN
 from torch import nn as nn
 from railrl.torch.modules import HuberLoss
-from railrl.envs.wrappers import DiscretizeEnv, ImageEnv
+from railrl.envs.wrappers import DiscretizeEnv, ImageMujocoEnv
 from railrl.torch.ddpg.ddpg import DDPG
 from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
 
@@ -23,8 +23,8 @@ from railrl.launchers.launcher_util import setup_logger
 def experiment(variant):
     env = DiscretizeEnv(gym.make(variant['env_id']), variant['bins'])
     training_env = DiscretizeEnv(gym.make(variant['env_id']), variant['bins'])
-    env = ImageEnv(env)
-    training_env = ImageEnv(env)
+    env = ImageMujocoEnv(env)
+    training_env = ImageMujocoEnv(env)
 
     qf = CNN(
         output_size=env.action_space.n,

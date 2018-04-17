@@ -6,7 +6,7 @@ from gym.spaces import Box
 
 from railrl.core import logger as default_logger
 from railrl.core.serializable import Serializable
-from railrl.envs.env_utils import get_asset_xml
+from railrl.envs.env_utils import get_asset_full_path
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 
@@ -24,7 +24,7 @@ class Reacher7DofMultitaskEnv(
         )
         mujoco_env.MujocoEnv.__init__(
             self,
-            get_asset_xml('reacher_7dof.xml'),
+            get_asset_full_path('reacher_7dof.xml'),
             5,
         )
         self.observation_space = Box(

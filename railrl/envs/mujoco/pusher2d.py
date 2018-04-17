@@ -6,7 +6,7 @@ import numpy as np
 from gym.envs.mujoco import MujocoEnv
 
 from railrl.core.serializable import Serializable
-from railrl.envs.env_utils import get_asset_xml
+from railrl.envs.env_utils import get_asset_full_path
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger as default_logger
 
@@ -26,7 +26,7 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
         self.use_hand_to_obj_reward = use_hand_to_obj_reward
         self.use_sparse_rewards = use_sparse_rewards
         super().__init__(
-            get_asset_xml('3link_gripper_push_2d.xml'),
+            get_asset_full_path('3link_gripper_push_2d.xml'),
             frame_skip=5,
         )
 
