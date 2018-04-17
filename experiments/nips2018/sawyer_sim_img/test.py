@@ -12,20 +12,19 @@ class Viewer(cymj.MjRenderContextWindow):
     def __init__(self, sim):
         super().__init__(sim)
 
-import ipdb; ipdb.set_trace()
 print("starting rollout")
 while True:
     obs = env.reset()
     last_reward_t = 0
     returns = 0
-    for t in range(100):
+    for t in range(1000):
         action = env.action_space.sample()
         obs, reward, done, info = env.step(action)
-        # env.render()
+        raw_img = env.image_observation()
         img = np.concatenate((
-            obs[::-1, :, 2:3],
-            obs[::-1, :, 1:2],
-            obs[::-1, :, 0:1],
+            raw_img[::-1, :, 2:3],
+            raw_img[::-1, :, 1:2],
+            raw_img[::-1, :, 0:1],
         ), axis=2)
         cv2.imshow('obs', img)
         cv2.waitKey(1)

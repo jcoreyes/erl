@@ -48,7 +48,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         # cam_pos = np.array([0, 0.5, 0.2, cam_dist, -45, rotation_angle])
 
         # 3rd person view
-        cam_dist = 0.2
+        cam_dist = 0.3
         rotation_angle = 270
         cam_pos = np.array([0, 1.0, 0.5, cam_dist, -45, rotation_angle])
 

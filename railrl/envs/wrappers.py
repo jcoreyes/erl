@@ -54,27 +54,23 @@ class ImageMujocoEnv(ProxyEnv, Env):
 
     def step(self, action):
         _, reward, done, info = super().step(action)
-        observation = self._image_observation()
+        img = self.image_observation()
+        observation = img.flatten()
         return observation, reward, done, info
 
     def reset(self):
         super().reset()
-        return self._image_observation()
+        img = self.image_observation()
+        return img.flatten()
 
-    def _image_observation(self):
-        # image_obs = self.render(mode='rgb_array')
-        # downsampled_obs = imresize(image_obs, (self.imsize, self.imsize))
-        #fname = 'images/' + str(self.i) + '.png'
-        #plt.imsave(fname=fname, arr=downsampled_obs)
-        #self.i += 1
-
-        # convert from PIL image format to torch tensor format
-        # downsampled_obs = downsampled_obs.transpose((2, 0, 1))
-        # return downsampled_obs.flatten()
+    def image_observation(self):
         if self.wrapped_env.viewer is None:
-            import ipdb; ipdb.set_trace()
-            self.wrapped_env.viewer = mujoco_py.MjViewer(self.wrapped_env.sim)
+            sim = self._wrapped_env.sim
+            self.wrapped_env.viewer = mujoco_py.MjRenderContextOffscreen(
+                sim, device_id=-1
+            )
             self.wrapped_env.viewer_setup()
+            sim.add_render_context(self.wrapped_env.viewer)
         return self.wrapped_env.sim.render(self.imsize, self.imsize)
 
 
