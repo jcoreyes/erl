@@ -6,6 +6,7 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.launchers.launcher_util import setup_logger, run_experiment
+from railrl.launchers.arglauncher import run_variants
 from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 import railrl.misc.hyperparameter as hyp
@@ -78,7 +79,7 @@ if __name__ == "__main__":
         algorithm='HER-TD3',
         version='normal',
     )
-    n_seeds = 1
+    n_seeds = 3
     mode = 'local'
     exp_prefix = 'dev'
 
@@ -91,15 +92,17 @@ if __name__ == "__main__":
         'env_kwargs.use_sparse_rewards': [True],
         'replay_buffer_kwargs.num_goals_to_sample': [0, 4, 8],
         'algo_kwargs.num_updates_per_env_step': [1, 5, 10],
+        'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
-            run_experiment(
-                experiment,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                variant=variant,
-            )
+    # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+    #     for _ in range(n_seeds):
+    #         run_experiment(
+    #             experiment,
+    #             exp_prefix=exp_prefix,
+    #             mode=mode,
+    #             variant=variant,
+    #         )
+    run_variants(experiment, sweeper.iterate_hyperparameters())

@@ -130,8 +130,21 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         qvel[15:18] = [0, 0, 0]
         self.set_state(qpos, qvel)
 
+    def reset_mocap_welds(self):
+        """Resets the mocap welds that we use for actuation."""
+        sim = self.sim
+        if sim.model.nmocap > 0 and sim.model.eq_data is not None:
+            for i in range(sim.model.eq_data.shape[0]):
+                if sim.model.eq_type[i] == mujoco_py.const.EQ_WELD:
+                    sim.model.eq_data[i, :] = np.array(
+                        [0., 0., 0., 1., 0., 0., 0.])
+        sim.forward()
+
     def reset_mocap2body_xpos(self):
         # move mocap to weld joint
+        # print("end eff at", np.array([self.data.body_xpos[self.endeff_id]]))
+        # for d in self.data.body_xpos[self.endeff_id]:
+        #     print(float(d))
         self.data.set_mocap_pos(
             'mocap',
             np.array([self.data.body_xpos[self.endeff_id]]),
@@ -153,8 +166,9 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
             # self.data.set_mocap_quat('mocap', np.array([0, 0, 0, 0]))
         else:
-            raise NotImplementedError()
-            # self.data.set_mocap_pos(pos_delta)
+            # raise NotImplementedError()
+            print(pos_delta)
+            self.data.set_mocap_pos('mocap', pos_delta)
             # self.data.set_mocap_quat(quat_delta)
 
     def reset(self):
@@ -310,4 +324,5 @@ if __name__ == "__main__":
             print(i)
             for k in range(200):
                 e.step(desired)
+
                 e.render()

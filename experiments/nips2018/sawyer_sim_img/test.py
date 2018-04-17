@@ -18,7 +18,7 @@ while True:
     obs = env.reset()
     last_reward_t = 0
     returns = 0
-    for t in range(10000):
+    for t in range(100):
         action = env.action_space.sample()
         obs, reward, done, info = env.step(action)
         # env.render()
