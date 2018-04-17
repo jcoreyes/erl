@@ -15,7 +15,6 @@ class ProxyEnv(Serializable, Env):
         self._wrapped_env = wrapped_env
         self.action_space = self._wrapped_env.action_space
         self.observation_space = self._wrapped_env.observation_space
-        # self.goal_space = self._wrapped_env.goal_space
 
     @property
     def wrapped_env(self):

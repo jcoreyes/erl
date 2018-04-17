@@ -539,6 +539,7 @@ class SimpleHerReplayBuffer(EnvReplayBuffer):
             goals=self._goals[indices],
         )
 
+
 def flatten_n(xs):
     xs = np.asarray(xs)
     return xs.reshape((xs.shape[0], -1))
