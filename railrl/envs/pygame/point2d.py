@@ -69,6 +69,7 @@ class Point2DEnv(Serializable, Env):
         distance_reward = -distance_to_target
         action_reward = -np.linalg.norm(velocities) * self.action_l2norm_penalty
         reward += distance_reward + action_reward
+        reward = self._reward()
         done = on_platform
         info = {
             'radius': self.TARGET_RADIUS,
@@ -80,6 +81,16 @@ class Point2DEnv(Serializable, Env):
             'action_reward': action_reward,
         }
         return observation, reward, done, info
+
+    def _reward(self):
+        on_platform = self.is_on_platform()
+        distance_to_target = np.linalg.norm(
+            self._target_position - self._position
+        )
+        reward = float(on_platform)
+        distance_reward = -distance_to_target
+        reward += distance_reward
+        return reward
 
     def is_on_platform(self):
         dist = np.linalg.norm(self._position - self._target_position)

@@ -28,7 +28,6 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
     terminals = []
     agent_infos = []
     env_infos = []
-    env = MultitaskToFlatEnv(env)
     o = env.reset()
     agent.reset()
     next_o = None

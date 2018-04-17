@@ -101,7 +101,8 @@ class MultitaskVAEPoint2DEnv(MultitaskImagePoint2DEnv, MultitaskEnv):
             **kwargs
     ):
         Serializable.quick_init(self, locals())
-        self.vae = joblib.load("/Users/ashvin/data/s3doodad/ashvin/vae/test-conv/run4/id0/params.pkl")
+        self.vae = joblib.load("/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv/run0/id0/params.pkl")
+        # self.vae.cuda()
         super().__init__(render_size=render_size, **kwargs)
 
     def _get_observation(self):
@@ -114,6 +115,16 @@ class MultitaskVAEPoint2DEnv(MultitaskImagePoint2DEnv, MultitaskEnv):
         goal = self.sample_goals(1)
         self.set_goal(goal[0, :])
         return super().reset()
+
+class MultitaskFullVAEPoint2DEnv(MultitaskVAEPoint2DEnv, MultitaskEnv):
+    def sample_goals(self, batch_size):
+        return np.random.randn(batch_size, 2)
+
+    def _reward(self):
+        distance_to_target = np.linalg.norm(
+            self._get_observation() - self._target_position
+        )
+        return -distance_to_target
 
 class PerfectPoint2DQF(PyTorchModule):
     """

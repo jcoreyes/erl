@@ -1,5 +1,5 @@
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.point2d import MultitaskVAEPoint2DEnv
+from railrl.envs.multitask.point2d import MultitaskFullVAEPoint2DEnv
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -18,7 +18,7 @@ from railrl.launchers.arglauncher import run_variants
 
 def experiment(variant):
     if variant['multitask']:
-        env = MultitaskVAEPoint2DEnv(**variant['env_kwargs'])
+        env = MultitaskFullVAEPoint2DEnv(**variant['env_kwargs'])
         env = MultitaskToFlatEnv(env)
     # else:
         # env = Pusher2DEnv(**variant['env_kwargs'])

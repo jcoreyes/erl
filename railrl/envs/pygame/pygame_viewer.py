@@ -89,6 +89,13 @@ class PygameViewer(object):
         # s = pygame.display.get_surface()
         return pygame.surfarray.array3d(self.screen)
 
+    def reinit_screen(self, render_onscreen):
+        self.render_onscreen = render_onscreen
+        if self.render_onscreen:
+            self.screen = pygame.display.set_mode((self.width, self.height))
+        else:
+            self.screen = pygame.Surface((self.width, self.height))
+
 
 class LinearMapper(object):
     """
