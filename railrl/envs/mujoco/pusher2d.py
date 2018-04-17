@@ -38,7 +38,7 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
             self.get_body_com("distal_4")[:2]
             - self.get_body_com("hand_goal")[:2]
         )
-        reward = - hand_to_object_distance - object_to_goal_distance
+        reward = -hand_to_hand_goal_distance #- hand_to_object_distance - object_to_goal_distance
 
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
@@ -71,16 +71,17 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
         # Object position
         obj_pos = np.random.uniform(
             #         x      y
-            np.array([0.3, -0.8]),
-            np.array([0.8, -0.3]),
+            np.array([300, 300]),
+            np.array([300, 300]),
         )
         qpos[-6:-4] = obj_pos
         if self.randomize_goals:
             self._target_cylinder_position = np.random.uniform(
                 np.array([-1, -1]),
-                np.array([1, 0]),
+                np.array([1, 1]),
                 2
             )
+
         self._target_hand_position = self._target_cylinder_position
         qpos[-4:-2] = self._target_cylinder_position
         qpos[-2:] = self._target_hand_position
@@ -88,12 +89,12 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
         qvel[:] = 0
 
         self.set_state(qpos, qvel)
-
+#        import pdb; pdb.set_trace()
         return self._get_obs()
 
     def _get_obs(self):
         return np.concatenate([
-            self.sim.data.qpos.flat[:3],
+            self.sim.data.qpos.flat[:6],
             self.sim.data.qvel.flat[:3],
             self.sim.data.site_xpos[0][:2],
             self.get_body_com("object")[:2],
@@ -126,5 +127,5 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
 
 class RandomGoalPusher2DEnv(Pusher2DEnv):
     def __init__(self, goal=(-1, 0)):
-        self.init_serialization(locals())
+        self.quick_init(locals())
         super().__init__(goal, randomize_goals=True)
