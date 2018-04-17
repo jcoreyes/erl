@@ -35,6 +35,11 @@ class CNN(PyTorchModule):
                 hidden_activation=nn.ReLU(),
                 output_activation=identity
         ):
+        assert len(kernel_sizes) == \
+               len(n_channels) == \
+               len(strides) == \
+               len(pool_sizes) == \
+               len(paddings)
         self.save_init_params(locals())
         super().__init__()
 
@@ -74,6 +79,7 @@ class CNN(PyTorchModule):
             self.conv_norm_layers.append(LayerNorm(test_mat.shape))
 
         fc_input_size = int(np.prod(test_mat.shape))
+        # used only for injecting input directly into fc layers
         fc_input_size += added_fc_input_size
 
         for hidden_size in hidden_sizes:

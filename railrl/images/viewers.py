@@ -11,6 +11,11 @@ def reacher_v2_init_viewer(viewer):
     viewer.cam.elevation = 90
     viewer.cam.azimuth = 90
 
+def inverted_double_pendulum_init_viewer(viewer):
+    viewer.cam.elevation=1.22
+    viewer.cam.distance=1.8
+    viewer.cam.lookat[2] = .6
+    viewer.cam.trackbodyid = 0
 
 def pusher_2d_init_viewer(viewer):
     viewer.cam.trackbodyid = 0

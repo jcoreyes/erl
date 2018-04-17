@@ -124,7 +124,7 @@ if __name__ == "__main__":
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="dqn-images-InvertedPendulum",
+                exp_prefix="dqn-images-InvertedPendulum-16x16-9-bins",
                 mode='ec2',
               #  use_gpu=True,
             )
