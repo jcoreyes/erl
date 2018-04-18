@@ -81,14 +81,13 @@ class CNN(PyTorchModule):
             self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
 
         fc_input_size = int(np.prod(test_mat.shape))
+        # used only for injecting input directly into fc layers
+        fc_input_size += added_fc_input_size
 
         for idx, hidden_size in enumerate(hidden_sizes):
-            if idx == 1:
-                # used only for injecting input directly into fc layers
-                fc_input_size += added_fc_input_size
             fc_layer = nn.Linear(fc_input_size, hidden_size)
 
-            norm_layer = LayerNorm(hidden_size)
+            norm_layer = nn.BatchNorm1d(hidden_size)
             nn.init.xavier_uniform(fc_layer.weight)
 
             self.fc_layers.append(fc_layer)
@@ -148,9 +147,8 @@ class MergedCNN(CNN):
         h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
         # flatten channels for fc layers
         h = h.view(h.size(0), -1)
-        h = self.apply_forward(h, nn.ModuleList(list(self.fc_layers)[:1]), nn.ModuleList(list(self.fc_norm_layers)[:1]))
         h = torch.cat((h, fc_input), dim=1)
-        h = self.apply_forward(h, nn.ModuleList(list(self.fc_layers)[1:]), nn.ModuleList(list(self.fc_norm_layers)[1:]))
+        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
 
         output = self.output_activation(self.last_fc(h))
         return output
