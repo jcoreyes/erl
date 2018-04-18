@@ -64,20 +64,13 @@ class ImageEnv(ProxyEnv, Env):
         self.history = deque(maxlen=self.history_length)
         # init camera
         if init_viewer is not None:
-            sim = self._wrapped_env.env.sim
+            sim = self._wrapped_env.sim
             viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=-1)
             init_viewer(viewer)
             sim.add_render_context(viewer)
-        # util conversions
-        #self.pil_to_torch = ToTensor()
-        #self.torch_to_pil = ToPILImage()
-
         self.observation_space = Box(low=0.0,
                                      high=1.0,
                                      shape=(self.image_length * self.history_length,))
-
-        self.i = 0
-
 
     def step(self, action):
         # image observation get returned as a flattened 1D array
@@ -91,26 +84,15 @@ class ImageEnv(ProxyEnv, Env):
     def reset(self):
         super().reset()
         self.history = deque(maxlen=self.history_length)
-
         observation = self._image_observation()
-#        from scipy.misc import imsave
-#        imsave('images/' + str(self.i) + '.png', observation.transpose((1, 2, 0)))
-#        Image.fromarray(image_obs).convert('P').save('testing.png')
-#        self.i += 1
-#        import pdb; pdb.set_trace()
-
         self.history.append(observation)
         full_obs = self._get_history()
         return full_obs.flatten()
 
     def _image_observation(self):
         # returns the image as a torch format np array
-        image_obs = self._wrapped_env.env.sim.render(width=self.imsize, height=self.imsize)
-#        import pdb; pdb.set_trace()
-        # convert np.array from PIL image format to torch tensor format
-        #image_obs = self.pil_to_torch(image_obs).numpy()
-        image_obs = np.array(Image.fromarray(image_obs).convert('P'))
-        #image_obs = image_obs.transpose((2, 0, 1)) / 255.0
+        image_obs = self._wrapped_env.sim.render(width=self.imsize, height=self.imsize)
+        image_obs = np.array(Image.fromarray(image_obs).convert('L'))
         image_obs = image_obs / 255.0
         return image_obs
 

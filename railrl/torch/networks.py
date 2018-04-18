@@ -43,9 +43,11 @@ class CNN(PyTorchModule):
         self.save_init_params(locals())
         super().__init__()
 
+        self.hidden_sizes = hidden_sizes
         self.input_width = input_width
         self.input_height = input_height
         self.input_channels = input_channels
+        self.output_size = output_size
         self.output_activation = output_activation
         self.hidden_activation = hidden_activation
         self.use_layer_norm = use_layer_norm
@@ -93,9 +95,9 @@ class CNN(PyTorchModule):
             self.fc_norm_layers.append(norm_layer)
             fc_input_size = hidden_size
 
-        self.out = nn.Linear(fc_input_size, output_size)
-        self.out.weight.data.uniform_(-init_w, init_w)
-        self.out.bias.data.uniform_(-init_w, init_w)
+        self.last_fc = nn.Linear(fc_input_size, output_size)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, input):
         # need to reshape from batch of flattened images into (channsls, w, h)
@@ -109,7 +111,7 @@ class CNN(PyTorchModule):
         h = h.view(h.size(0), -1)
         h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
 
-        output = self.output_activation(self.out(h))
+        output = self.output_activation(self.last_fc(h))
         return output
 
     def apply_forward(self, input, hidden_layers, norm_layers):
@@ -150,7 +152,7 @@ class MergedCNN(CNN):
         h = torch.cat((h, fc_input), dim=1)
         h = self.apply_forward(h, nn.ModuleList(list(self.fc_layers)[1:]), nn.ModuleList(list(self.fc_norm_layers)[1:]))
 
-        output = self.output_activation(self.out(h))
+        output = self.output_activation(self.last_fc(h))
         return output
 
 
