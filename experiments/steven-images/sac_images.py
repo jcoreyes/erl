@@ -24,8 +24,7 @@ from railrl.exploration_strategies.base import \
 from railrl.torch.sac.sac import SoftActorCritic
 from railrl.launchers.launcher_util import setup_logger
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
-from railrl.envs.mujoco.reacherv2_edit import ReacherEnv
-from railrl.envs.mujoco.idp import InvertedDoublePendulumEnv 
+from railrl.envs.mujoco.idp import InvertedDoublePendulumEnv
 import railrl.images.viewers as viewers
 import torch
 
@@ -33,7 +32,7 @@ def experiment(variant):
     imsize = variant['imsize']
     history = variant['history']
 
-    env = gym.make(variant['env_id']).env
+    env = Pusher2DEnv()#gym.make(variant['env_id']).env
     env = NormalizedBoxEnv(ImageEnv(env,
                                     imsize=imsize,
                                     keep_prev=history - 1,
@@ -82,56 +81,48 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=16,
-        history=3,
-        env_id='InvertedPendulum-v2',
-        init_viewer=viewers.inverted_pendulum_v2_init_viewer,
+        imsize=64,
+        history=4,
+        #env_id='InvertedDoublePendulum-v2',
+        init_viewer=viewers.pusher_2d_init_viewer,
         algo_params=dict(
-            num_epochs=1000,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=500,
-            batch_size=128,
-            max_path_length=150,
+            num_epochs=2000,
+            num_steps_per_epoch=500,
+            num_steps_per_eval=250,
+            batch_size=256,
+            max_path_length=100,
             discount=.99,
 
-            soft_target_tau=1e-3,
-            qf_lr=3e-4,
-            vf_lr=3e-4,
-            policy_lr=3e-4,
+            soft_target_tau=1e-2,
+            qf_lr=1e-3,
+            vf_lr=1e-3,
+            policy_lr=1e-3,
 
-            save_replay_buffer=False,
-            replay_buffer_size=int(1E4),
+            replay_buffer_size=int(2E5),
         ),
         cnn_params=dict(
-            kernel_sizes=[3, 3],
-            n_channels=[16, 16],
-            strides=[2, 2],
-            pool_sizes=[1, 1],
+            kernel_sizes=[5, 5, 3],
+            n_channels=[32, 32, 32],
+            strides=[3, 3, 2],
+            pool_sizes=[1, 1, 1],
             hidden_sizes=[400, 300],
-            paddings=[0, 0],
+            paddings=[0, 0, 0],
             use_layer_norm=True,
         ),
 
-        algo_class=DDPG,
         qf_criterion_class=HuberLoss,
     )
     search_space = {
-        'imsize': [
-            32,
-        ],
         'env_id': [
-            'Reacher-v2',
-        ],
-        'algo_class': [
-            DDPG,
+            'InvertedDoublePendulum-v2',
         ],
         # 'algo_params.use_hard_updates': [True, False],
         'qf_criterion_class': [
             HuberLoss,
         ],
     }
-    setup_logger('sac-images-inverted-pendulum', variant=variant)
-    experiment(variant)
+#    setup_logger('sac-images-inverted-pendulum', variant=variant)
+#    experiment(variant)
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -142,9 +133,9 @@ if __name__ == "__main__":
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="DDPG-images-reacher-OU-grayscale-shaped",
-                mode='ec2',
+                exp_prefix="sac-images-pusher",
+                mode='local',
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',
-                #use_gpu=True,
+                use_gpu=True,
             )
