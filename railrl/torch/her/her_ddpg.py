@@ -1,10 +1,10 @@
 
 from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer
+from railrl.torch.ddpg.ddpg import DDPG
 from railrl.torch.her.her import HER
-from railrl.torch.td3.td3 import TD3
 
 
-class HerTd3(HER, TD3):
+class HerDdpg(HER, DDPG):
     def __init__(
             self,
             *args,

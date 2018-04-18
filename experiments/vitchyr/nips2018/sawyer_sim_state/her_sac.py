@@ -1,43 +1,46 @@
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.mujoco.pusher2d import Pusher2DEnv
+from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
+from railrl.torch.her.her_sac import HerSac
 from railrl.torch.networks import FlattenMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.sac import SoftActorCritic
 
 
 def experiment(variant):
     env = SawyerXYZEnv(**variant['env_kwargs'])
-    env = MultitaskToFlatEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
+    goal_dim = env.goal_dim
     qf = FlattenMlp(
-        input_size=obs_dim + action_dim,
+        input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
     vf = FlattenMlp(
-        input_size=obs_dim,
+        input_size=obs_dim + goal_dim,
         output_size=1,
         **variant['vf_kwargs']
     )
     policy = TanhGaussianPolicy(
-        obs_dim=obs_dim,
+        obs_dim=obs_dim + goal_dim,
         action_dim=action_dim,
         **variant['policy_kwargs']
     )
-    algorithm = SoftActorCritic(
+    replay_buffer = SimpleHerReplayBuffer(
+        env=env,
+        **variant['replay_buffer_kwargs']
+    )
+    algorithm = HerSac(
         env=env,
         policy=policy,
         qf=qf,
         vf=vf,
+        replay_buffer=replay_buffer,
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
@@ -46,10 +49,9 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1000,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
@@ -57,6 +59,10 @@ if __name__ == "__main__":
             discount=0.99,
         ),
         env_kwargs=dict(
+        ),
+        replay_buffer_kwargs=dict(
+            max_size=int(1E6),
+            num_goals_to_sample=0,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -67,21 +73,21 @@ if __name__ == "__main__":
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
-        algorithm='SAC',
-        version='normal',
-        multitask=True,
         normalize=True,
+        algorithm='HER-SAC',
+        version='normal',
     )
-
     n_seeds = 1
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
+    n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-baselines-h100-2'
+    exp_prefix = 'sawyer-sim-xyz-state'
 
     search_space = {
+        'replay_buffer_kwargs.num_goals_to_sample': [0, 4, 8],
+        'algo_kwargs.num_updates_per_env_step': [1, 5],
         'algo_kwargs.reward_scale': [1, 10, 100],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

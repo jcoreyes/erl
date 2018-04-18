@@ -42,6 +42,11 @@ class ProxyEnv(Serializable, Env):
         if hasattr(self.wrapped_env, "terminate"):
             self.wrapped_env.terminate()
 
+    def __getattr__(self, attrname):
+        if attrname == '_serializable_initialized':
+            return None
+        return getattr(self._wrapped_env, attrname)
+
 
 class ImageMujocoEnv(ProxyEnv, Env):
     def __init__(self, wrapped_env, imsize=32):

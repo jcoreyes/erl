@@ -1,54 +1,40 @@
+import railrl.misc.hyperparameter as hyp
+import railrl.torch.pytorch_util as ptu
+from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
+from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-import railrl.torch.pytorch_util as ptu
-from railrl.torch.td3.td3 import TD3
-import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
     env = SawyerXYZEnv(**variant['env_kwargs'])
-    env = MultitaskToFlatEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
-    exploration_type = variant['exploration_type']
-    if exploration_type == 'ou':
-        es = OUStrategy(action_space=env.action_space)
-    elif exploration_type == 'gaussian':
-        es = GaussianStrategy(
-            action_space=env.action_space,
-            max_sigma=0.1,
-            min_sigma=0.1,  # Constant sigma
-        )
-    elif exploration_type == 'epsilon':
-        es = EpsilonGreedy(
-            action_space=env.action_space,
-            prob_random_action=0.1,
-        )
-    else:
-        raise Exception("Invalid type: " + exploration_type)
+    es = EpsilonGreedy(
+        action_space=env.action_space,
+        prob_random_action=0.1,
+    )
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
+    goal_dim = env.goal_dim
     qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
+        input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         hidden_sizes=[400, 300],
     )
     qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
+        input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         hidden_sizes=[400, 300],
     )
     policy = TanhMlpPolicy(
-        input_size=obs_dim,
+        input_size=obs_dim + goal_dim,
         output_size=action_dim,
         hidden_sizes=[400, 300],
     )
@@ -56,12 +42,17 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    algorithm = TD3(
+    replay_buffer = SimpleHerReplayBuffer(
+        env=env,
+        **variant['replay_buffer_kwargs']
+    )
+    algorithm = HerTd3(
         env,
         qf1=qf1,
         qf2=qf2,
         policy=policy,
         exploration_policy=exploration_policy,
+        replay_buffer=replay_buffer,
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
@@ -70,34 +61,33 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1000,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            tau=1e-2,
-            batch_size=128,
             max_path_length=100,
+            num_updates_per_env_step=1,
+            batch_size=100,
             discount=0.99,
-            # qf_learning_rate=1e-3,
-            # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
         ),
-        algorithm='TD3',
-        version='normal',
-        multitask=True,
+        replay_buffer_kwargs=dict(
+            max_size=int(1E6),
+            num_goals_to_sample=0,
+        ),
         normalize=True,
+        algorithm='HER-TD3',
+        version='normal',
     )
-
     n_seeds = 1
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer-sim-xyz-state'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer-sim-xyz-state'
 
     search_space = {
         'replay_buffer_kwargs.num_goals_to_sample': [0, 4, 8],
