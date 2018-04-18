@@ -21,7 +21,8 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 
 from railrl.launchers.launcher_util import setup_logger
-from railrl.envs.mujoco.pusher2d import Pusher2DEnv
+#from railrl.envs.mujoco.pusher2d import Pusher2DEnv
+from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
 from railrl.envs.mujoco.reacherv2_edit import ReacherEnv
 from railrl.envs.mujoco.idp import InvertedDoublePendulumEnv 
 import railrl.images.viewers as viewers
@@ -31,7 +32,8 @@ def experiment(variant):
     imsize = variant['imsize']
     history = variant['history']
 
-    env = InvertedDoublePendulumEnv()#gym.make(variant['env_id'])
+    #env = InvertedDoublePendulumEnv()#gym.make(variant['env_id'])
+    env = SawyerXYZEnv()
     env = NormalizedBoxEnv(ImageEnv(env,
                                     imsize=imsize,
                                     keep_prev=history - 1,
@@ -81,10 +83,10 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=16,
+        imsize=64,
         history=3,
         env_id='DoubleInvertedPendulum-v2',
-        init_viewer=viewers.inverted_double_pendulum_init_viewer,
+        init_viewer=viewers.sawyer_init_viewer,
         algo_params=dict(
             num_epochs=1000,
             num_steps_per_epoch=1000,
@@ -115,15 +117,6 @@ if __name__ == "__main__":
         qf_criterion_class=HuberLoss,
     )
     search_space = {
-        'imsize': [
-            32,
-        ],
-        'env_id': [
-            'Reacher-v2',
-        ],
-        'algo_class': [
-            DDPG,
-        ],
         # 'algo_params.use_hard_updates': [True, False],
         'qf_criterion_class': [
             HuberLoss,
