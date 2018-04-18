@@ -1,3 +1,5 @@
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.point2d import MultitaskVAEPoint2DEnv
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -11,10 +13,15 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 import railrl.torch.pytorch_util as ptu
 from railrl.torch.td3.td3 import TD3
 import railrl.misc.hyperparameter as hyp
+from railrl.launchers.arglauncher import run_variants
 
 
 def experiment(variant):
-    env = Pusher2DEnv(**variant['env_kwargs'])
+    if variant['multitask']:
+        env = MultitaskVAEPoint2DEnv(**variant['env_kwargs'])
+        env = MultitaskToFlatEnv(env)
+    # else:
+        # env = Pusher2DEnv(**variant['env_kwargs'])
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
@@ -82,8 +89,11 @@ if __name__ == "__main__":
             # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
-            randomize_goals=True,
+            render_onscreen=False,
         ),
+        algorithm='TD3',
+        multitask=True,
+        normalize=True,
     )
 
     n_seeds = 1
@@ -92,23 +102,16 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'pusher-2d-state-baselines-h100'
+    exp_prefix = 'pusher-2d-state-baselines-h100-multitask-less-shaped'
 
     search_space = {
         'exploration_type': [
-            'epsilon',
             'ou',
         ],
-        'normalize': [False, True],
+        'algo_kwargs.reward_scale': [1, 10, 100],
+        'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
-            run_experiment(
-                experiment,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                variant=variant,
-            )
+    run_variants(experiment, sweeper.iterate_hyperparameters())

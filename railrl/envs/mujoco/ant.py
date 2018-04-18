@@ -7,7 +7,7 @@ import numpy as np
 from gym.envs.mujoco import MujocoEnv
 
 from railrl.core.serializable import Serializable
-from railrl.envs.env_utils import get_asset_xml
+from railrl.envs.env_utils import get_asset_full_path
 
 
 class AntEnv(MujocoEnv, Serializable):
@@ -18,7 +18,7 @@ class AntEnv(MujocoEnv, Serializable):
         else:
             xml_path = 'normal_gear_ratio_ant.xml'
         super().__init__(
-            get_asset_xml(xml_path),
+            get_asset_full_path(xml_path),
             frame_skip=5,
         )
 

@@ -1,6 +1,6 @@
+import mujoco_py
 import numpy as np
 import gym.spaces
-from cached_property import cached_property
 import itertools
 from gym import Env
 from gym.spaces import Box
@@ -44,6 +44,11 @@ class ProxyEnv(Serializable, Env):
     def terminate(self):
         if hasattr(self.wrapped_env, "terminate"):
             self.wrapped_env.terminate()
+
+    def __getattr__(self, attrname):
+        if attrname == '_serializable_initialized':
+            return None
+        return getattr(self._wrapped_env, attrname)
 
 
 class ImageEnv(ProxyEnv, Env):
@@ -114,7 +119,6 @@ class ImageEnv(ProxyEnv, Env):
             pil_image = self.torch_to_pil(torch.Tensor(image_obs))
             images.append(pil_image)
         return images
-
 
 class DiscretizeEnv(ProxyEnv, Env):
     def __init__(self, wrapped_env, num_bins):

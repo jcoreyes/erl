@@ -18,3 +18,6 @@ examples/tmp.yml
 railrl/launchers/config.py
 experiments/murtaza/colinestuff/mesh/
 experiments/murtaza/colinestuff/textures/
+experiments/ashvin/nips2018
+*/*/mjkey.txt
+*/*/.mujoco
