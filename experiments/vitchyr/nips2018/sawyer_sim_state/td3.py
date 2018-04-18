@@ -1,3 +1,5 @@
+from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
@@ -13,7 +15,8 @@ import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    env = Sawtye(**variant['env_kwargs'])
+    env = SawyerXYZEnv(**variant['env_kwargs'])
+    env = MultitaskToFlatEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
@@ -81,10 +84,9 @@ if __name__ == "__main__":
             # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
-            randomize_goals=True,
-            use_hand_to_obj_reward=False,
         ),
         algorithm='TD3',
+        version='normal',
         multitask=True,
         normalize=True,
     )
@@ -95,7 +97,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'pusher-2d-state-baselines-h100-multitask-less-shaped'
+    exp_prefix = 'sawyer-baselines-h100'
 
     search_space = {
         'exploration_type': [
