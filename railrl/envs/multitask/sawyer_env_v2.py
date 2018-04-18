@@ -1,4 +1,6 @@
+from railrl.envs.multitask.multitask_env import MultitaskEnv
 from sawyer_control.sawyer_reaching import SawyerJointSpaceReachingEnv
+from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 import numpy as np
 
 JOINT_ANGLES_HIGH = np.array([
@@ -21,7 +23,7 @@ JOINT_ANGLES_LOW = np.array([
     -3.05899989
 ])
 
-class MultiTaskSawyerJointSpaceReachingEnv(SawyerJointSpaceReachingEnv):
+class MultiTaskSawyerJointSpaceReachingEnv(MultitaskEnv, SawyerJointSpaceReachingEnv):
     @property
     def goal_dim(self):
         return 7
@@ -30,4 +32,19 @@ class MultiTaskSawyerJointSpaceReachingEnv(SawyerJointSpaceReachingEnv):
         return np.random.uniform(JOINT_ANGLES_LOW, JOINT_ANGLES_HIGH, size=(batch_size, 7))[0]
 
     def convert_obs_to_goals(self, obs):
-        return obs[:7] #DOUBLE CHECK, BUT I THINK THIS IS CORRECT!
+        return obs[:7]
+
+class MultiTaskSawyerXYZReachingEnv(MultitaskEnv, SawyerXYZReachingEnv):
+    def set_goal(self, goal):
+        self.multitask_goal = goal
+        self.desired = goal
+
+    @property
+    def goal_dim(self):
+        return 3
+
+    def sample_goals(self, batch_size):
+        return np.random.uniform(self.safety_box_lows, self.safety_box_highs, size=(batch_size, 3))[0]
+
+    def convert_obs_to_goals(self, obs):
+        return obs[21:24]

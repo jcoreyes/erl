@@ -401,7 +401,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._exploration_paths, stat_prefix="Exploration",
             ))
         if hasattr(self.env, "log_diagnostics"):
-            self.env.log_diagnostics(test_paths)
+            self.env.log_diagnostics(test_paths, logger=logger)
 
         average_returns = eval_util.get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
