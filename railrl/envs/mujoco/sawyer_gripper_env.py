@@ -15,11 +15,11 @@ from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     """Implements a 3D-position controlled Sawyer environment"""
 
-    def __init__(self, reward_info=None):
+    def __init__(self, reward_info=None, frame_skip=30):
         self.quick_init(locals())
         self.reward_info = reward_info
         MultitaskEnv.__init__(self, distance_metric_order=2)
-        MujocoEnv.__init__(self, self.model_name, frame_skip=10)
+        MujocoEnv.__init__(self, self.model_name, frame_skip=frame_skip)
 
 
         self.action_space = Box(
@@ -109,6 +109,9 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         )
         return pos
 
+    def sample_goal_for_rollout(self):
+        return self.sample_goal_xyz()
+
     def sample_goal_xyz(self):
         pos = np.random.uniform(
             np.array([-0.2, 0.5, 0.0]),
@@ -119,16 +122,14 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_block_xyz(self, pos):
         qpos = self.data.qpos.flat.copy()
         qvel = self.data.qvel.flat.copy()
-        # pdb.set_trace()
-        qpos[8:11] = pos # TODO: don't hardcode this
-        # qpos[14] = np.random.uniform(0.0, np.pi) # randomize the orientation
+        qpos[8:11] = pos.copy()
         qvel[8:11] = [0, 0, 0]
         self.set_state(qpos, qvel)
 
     def set_goal_xyz(self, pos):
         qpos = self.data.qpos.flat.copy()
         qvel = self.data.qvel.flat.copy()
-        qpos[15:18] = pos
+        qpos[15:18] = pos.copy()
         qvel[15:18] = [0, 0, 0]
         self.set_state(qpos, qvel)
 
@@ -176,7 +177,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         self.set_block_xyz(self.sample_block_xyz())
         return self._get_obs()
 
-    def compute_reward(self, ob, action, next_ob, goal, info={}):
+    def compute_reward(self, ob, action, next_ob, goal):
         if not self.reward_info or self.reward_info["type"] == "euclidean":
             r = -np.linalg.norm(ob - goal)
         elif self.reward_info["type"] == "sparse":
@@ -186,7 +187,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             raise NotImplementedError("Invalid/no reward type.")
         return r
 
-    def compute_her_reward_np(self, ob, action, next_ob, goal, info={}):
+    def compute_her_reward_np(self, ob, action, next_ob, goal):
         if not self.reward_info or self.reward_info["type"] == "euclidean":
             r = -np.linalg.norm(next_ob - goal)
         elif self.reward_info["type"] == "sparse":
@@ -211,7 +212,6 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         return self.model.body_names.index('goal')
 
     def convert_obs_to_goals(self, obs):
-        """Not implemented, since this is task specific"""
         return obs
 
     def sample_goals(self, batch_size):
@@ -243,29 +243,29 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-class SawyerBlockEnv(SawyerXYZEnv):
-    """Block pushing env if goals_on_table, otherwise pick-and-place"""
-    def __init__(self, goals_on_table=False, randomize_goals=True, randomize_goal_orientation=False):
-        Serializable.quick_init(self, locals())
-        self.viewer = None
-        self.goals_on_table = goals_on_table
+
+class SawyerPickAndPlaceEnv(SawyerXYZEnv):
+    def __init__(
+            self,
+            randomize_goals=True,
+    ):
+        self.quick_init(locals())
         self.randomize_goals = randomize_goals
-        self.randomize_goal_orientation = randomize_goal_orientation
 
         super().__init__()
 
-        self._action_space = Box(
+        self.action_space = Box(
             np.array([-1, -1, -1, -1]),
             np.array([1, 1, 1, 1]),
         )
-        # self._action_space = Box(
-        #     np.array([-0.01, -0.01, -0.01, -1]),
-        #     np.array([0.01, 0.01, 0.01, 1]),
-        # )
 
-        self._observation_space = Box(
+        self.observation_space = Box(
             np.array([-0.2, 0.5, 0, -0.2, 0.5, 0]),
             np.array([0.2, 0.7, 0.5, 0.2, 0.7, 0.5]),
+        )
+        self.goal_space = Box(
+            np.array([-0.2, 0.5, 0]),
+            np.array([0.2, 0.7, 0.5]),
         )
 
     def sample_block_xyz(self):
@@ -278,21 +278,27 @@ class SawyerBlockEnv(SawyerXYZEnv):
     def set_block_xyz(self, pos):
         qpos = self.data.qpos.flat.copy()
         qvel = self.data.qvel.flat.copy()
-        # pdb.set_trace()
-        qpos[8:11] = pos # TODO: don't hardcode this
-        if self.randomize_goal_orientation:
-            qpos[14] = np.random.uniform(0.0, np.pi)
+        qpos[8:11] = pos.copy()
         qvel[8:11] = [0, 0, 0]
         self.set_state(qpos, qvel)
 
-    def compute_reward(self, ob, action, next_ob, goal, info={}):
+    def compute_reward(self, ob, action, next_ob, goal):
         hand = self.get_endeff_pos()
         block = self.get_block_pos()
         block_goal = self.multitask_goal
 
         hand_to_block = np.linalg.norm(hand - block)
         block_to_goal = np.linalg.norm(block - block_goal)
-        return -hand_to_block - block_to_goal
+        return - hand_to_block - block_to_goal
+
+    def compute_her_reward_np(self, ob, action, next_ob, goal):
+        hand = next_ob[-6:-3]
+        block = next_ob[-3:]
+        block_goal = goal
+
+        hand_to_block = np.linalg.norm(hand - block)
+        block_to_goal = np.linalg.norm(block - block_goal)
+        return - hand_to_block - block_to_goal
 
     def _get_obs(self):
         e = self.get_endeff_pos()
@@ -303,11 +309,62 @@ class SawyerBlockEnv(SawyerXYZEnv):
         if self.randomize_goals:
             pos = np.random.uniform(
                 np.array([-0.2, 0.5, 0.02]),
+                np.array([0.2, 0.7, 0.5]),
+            )
+        else:
+            pos = np.array([0.0, 0.6, 0.02])
+        return pos
+
+    def convert_obs_to_goals(self, obs):
+        return obs[:, -3:]
+
+
+class SawyerPushEnv(SawyerPickAndPlaceEnv):
+    """
+    Take out the gripper action and fix the goal Z position to the table.
+    """
+    def __init__(
+            self,
+            randomize_goals=True,
+    ):
+        self.quick_init(locals())
+        super().__init__(randomize_goals=randomize_goals)
+
+        self.action_space = Box(
+            np.array([-1, -1, -1]),
+            np.array([1, 1, 1]),
+        )
+
+    def step(self, a):
+        a = np.clip(a, -1, 1)
+        self.mocap_set_action(a[:3] / 100, relative=True)
+        self.set_goal_xyz(self.multitask_goal)
+        u = np.zeros((8))
+        self.do_simulation(u, self.frame_skip)
+        obs = self._get_obs()
+        reward = self.compute_reward(obs, u, obs, self.multitask_goal)
+        done = False
+
+        distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
+        block_distance = np.linalg.norm(self.get_goal_pos() - self.get_block_pos())
+        touch_distance = np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
+        info = dict(
+            distance=distance,
+            block_distance=block_distance,
+            touch_distance=touch_distance,
+        )
+        return obs, reward, done, info
+
+    def sample_goal_xyz(self):
+        if self.randomize_goals:
+            pos = np.random.uniform(
+                np.array([-0.2, 0.5, 0.02]),
                 np.array([0.2, 0.7, 0.02]),
             )
         else:
-            pos = np.array([-0.0, 0.6, 0.02])
+            pos = np.array([0.0, 0.6, 0.02])
         return pos
+
 
 if __name__ == "__main__":
     e = SawyerXYZEnv(reward_info=dict(type="euclidean"))
