@@ -43,7 +43,8 @@
     <worldbody>
         <!-- <light directional="true" cutoff="40" exponent="10" diffuse=".4 .4 .4" specular=".7 .7 .7" pos="0 0 1.5" dir="0 0 -1"/> -->
 
-        <geom name="tableTop" type="plane" pos="0 0.6 0" size="0.4 0.2 0.5" rgba=".6 .6 .5 1" contype="7" conaffinity="7" />
+        <geom name="tableTop" type="plane" pos="0 0.6 0" size="0.4 0.2 0.5"
+              rgba=".6 .6 .5 1" contype="15" conaffinity="15" />
 
         <body name="base" pos="0 0 0">
             <site name="basesite" pos="0 0 0" size="0.01" />
@@ -207,14 +208,17 @@
                    <!--axis="0 0 1"-->
             <!--/>-->
             <inertial pos="0 0 0" mass=".1" diaginertia="100000 100000 100000"/>
-            <geom name="blockbox" type="box" pos="0 0 0" size="0.02 0.02 0.02" rgba=".1 .1 .9 1" contype="2" conaffinity="4"/>
+            <geom name="blockbox" type="box" pos="0 0 0"
+                  size="0.02 0.02 0.02" rgba=".1 .1 .9 1" contype="2" conaffinity="4"
+            />
             <site name="block" pos="0 0 0" size="0.01" />
         </body>
 
         <body name="goal" pos="0 0 0">
             <!--<inertial mass="0"/>-->
             <joint name="goaljoint" type="free" limited='false' damping="0" armature="0" />
-            <geom name="goalbox" type="sphere" pos="0 0 0" size="0.02" rgba=".9 .1 .1 1" contype="0" conaffinity="0"/>
+            <geom name="goalbox" type="sphere" pos="0 0 0" size="0.02"
+                  rgba=".9 .1 .1 1" contype="0" conaffinity="8"/>
             <site name="goal" pos="0 0 0" size="0.01" />
         </body>
 

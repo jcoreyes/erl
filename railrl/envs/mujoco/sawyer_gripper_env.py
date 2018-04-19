@@ -170,7 +170,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def reset(self):
         angles = self.data.qpos.copy()
         velocities = self.data.qvel.copy()
-        angles[:] = [0.57242702304722737, -0.81917120114392261, 1.0209690144401942, 1.0277836100084827, -0.62290997014344518, 1.6426888531833115, 3.1387809209984603, 0.0052920636104349323, -0.13972798601989481, 0.5022168160162902, 0.020992940518284438, 0.99998456929726953, 2.2910279298625033e-06, 8.1234733355258378e-06, 0.0055552764211284642, -0.1230211958752539, 0.69090634842186527, -19.449133777272831, 1.0, 0.0, 0.0, 0.0]
+        angles[:] = self.init_angles
         self.set_state(angles.flatten(), velocities.flatten())
         self.multitask_goal = self.sample_goal_xyz()
         self.set_goal_xyz(self.multitask_goal)
@@ -194,6 +194,17 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             t = self.reward_info["threshold"]
             r = float(np.linalg.norm(next_ob - goal) < t) - 1
         return r
+
+    @property
+    def init_angles(self):
+        return [0.57242702304722737, -0.81917120114392261,
+                1.0209690144401942, 1.0277836100084827, -0.62290997014344518,
+                1.6426888531833115, 3.1387809209984603,
+                0.0052920636104349323, -0.13972798601989481,
+                0.5022168160162902, 0.020992940518284438,
+                0.99998456929726953, 2.2910279298625033e-06,
+                8.1234733355258378e-06, 0.0055552764211284642,
+                -0.1230211958752539, 0.69090634842186527, -19.449133777272831, 1.0, 0.0, np.pi/4, 0.0]
 
     @property
     def goal_dim(self):
@@ -248,11 +259,14 @@ class SawyerPickAndPlaceEnv(SawyerXYZEnv):
     def __init__(
             self,
             randomize_goals=True,
+            only_reward_block_to_goal=False,
+            **kwargs
     ):
         self.quick_init(locals())
+        self.only_reward_block_to_goal = only_reward_block_to_goal
         self.randomize_goals = randomize_goals
 
-        super().__init__()
+        super().__init__(**kwargs)
 
         self.action_space = Box(
             np.array([-1, -1, -1, -1]),
@@ -289,7 +303,10 @@ class SawyerPickAndPlaceEnv(SawyerXYZEnv):
 
         hand_to_block = np.linalg.norm(hand - block)
         block_to_goal = np.linalg.norm(block - block_goal)
-        return - hand_to_block - block_to_goal
+        if self.only_reward_block_to_goal:
+            return - block_to_goal
+        else:
+            return - hand_to_block - block_to_goal
 
     def compute_her_reward_np(self, ob, action, next_ob, goal):
         hand = next_ob[-6:-3]
@@ -298,7 +315,10 @@ class SawyerPickAndPlaceEnv(SawyerXYZEnv):
 
         hand_to_block = np.linalg.norm(hand - block)
         block_to_goal = np.linalg.norm(block - block_goal)
-        return - hand_to_block - block_to_goal
+        if self.only_reward_block_to_goal:
+            return - block_to_goal
+        else:
+            return - hand_to_block - block_to_goal
 
     def _get_obs(self):
         e = self.get_endeff_pos()
@@ -322,13 +342,11 @@ class SawyerPickAndPlaceEnv(SawyerXYZEnv):
 class SawyerPushEnv(SawyerPickAndPlaceEnv):
     """
     Take out the gripper action and fix the goal Z position to the table.
+    Also start the block between the gripper and the goal
     """
-    def __init__(
-            self,
-            randomize_goals=True,
-    ):
+    def __init__(self, **kwargs):
         self.quick_init(locals())
-        super().__init__(randomize_goals=randomize_goals)
+        super().__init__(**kwargs)
 
         self.action_space = Box(
             np.array([-1, -1, -1]),
@@ -358,13 +376,68 @@ class SawyerPushEnv(SawyerPickAndPlaceEnv):
     def sample_goal_xyz(self):
         if self.randomize_goals:
             pos = np.random.uniform(
-                np.array([-0.2, 0.5, 0.02]),
-                np.array([0.2, 0.7, 0.02]),
+                np.array([-0.3, 0.5, 0.02]),
+                np.array([-0.3, 0.7, 0.02]),
             )
         else:
             pos = np.array([0.0, 0.6, 0.02])
         return pos
 
+    def sample_block_xyz(self):
+        pos = np.random.uniform(
+            np.array([0.0, 0.55, 0.02]),
+            np.array([0.2, 0.7, 0.02]),
+        )
+        return pos
+
+
+class SawyerPushXYEnv(SawyerPushEnv):
+    """
+    Only move along XY-axis.
+    """
+    def __init__(self, **kwargs):
+        self.quick_init(locals())
+        super().__init__(**kwargs)
+
+        self.action_space = Box(
+            np.array([-1, -1]),
+            np.array([1, 1]),
+        )
+
+    @property
+    def init_angles(self):
+        return [6.49751287e-01, -6.13245189e-01, 3.68179034e-01,
+                1.55969534e+00, -4.67787323e-01, 7.11615700e-01,
+                2.97853855e+00, 3.12823177e-02, 1.82764768e-01,
+                6.01241700e-01, 2.09921520e-02, 9.99984569e-01,
+                1.29839525e-06,  4.60381956e-06,  5.55527642e-03,
+                -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
+                1, 0, 0, 0]
+
+
+    def step(self, a):
+        a = np.clip(a, -1, 1) / 100
+        # mocap_delta_z = 0.02 - self.data.mocap_pos[0, 2]
+        mocap_delta_z = 0
+        new_mocap_action = np.hstack((a[:2], np.array([mocap_delta_z])))
+        self.mocap_set_action(new_mocap_action, relative=True)
+        self.set_goal_xyz(self.multitask_goal)
+        u = np.zeros((8))
+        u[7] = 1
+        self.do_simulation(u, self.frame_skip)
+        obs = self._get_obs()
+        reward = self.compute_reward(obs, u, obs, self.multitask_goal)
+        done = False
+
+        distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
+        block_distance = np.linalg.norm(self.get_goal_pos() - self.get_block_pos())
+        touch_distance = np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
+        info = dict(
+            distance=distance,
+            block_distance=block_distance,
+            touch_distance=touch_distance,
+        )
+        return obs, reward, done, info
 
 if __name__ == "__main__":
     e = SawyerXYZEnv(reward_info=dict(type="euclidean"))
