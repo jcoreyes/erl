@@ -31,6 +31,10 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             np.array([-0.2, 0.5, 0]),
             np.array([0.2, 0.7, 0.5]),
         )
+        self.goal_space = Box(
+            np.array([-0.2, 0.5, 0]),
+            np.array([0.2, 0.7, 0.5]),
+        )
         self.reset()
         self.reset_mocap_welds()
 
@@ -182,7 +186,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             raise NotImplementedError("Invalid/no reward type.")
         return r
 
-    def multitask_reward(self, ob, action, next_ob, goal, info={}):
+    def compute_her_reward_np(self, ob, action, next_ob, goal, info={}):
         if not self.reward_info or self.reward_info["type"] == "euclidean":
             r = -np.linalg.norm(next_ob - goal)
         elif self.reward_info["type"] == "sparse":
