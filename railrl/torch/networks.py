@@ -51,6 +51,8 @@ class CNN(PyTorchModule):
         self.output_activation = output_activation
         self.hidden_activation = hidden_activation
         self.use_layer_norm = use_layer_norm
+        self.added_fc_input_size = added_fc_input_size
+        self.conv_input_length = self.input_width * self.input_height * self.input_channels
 
         self.conv_layers = nn.ModuleList()
         self.conv_norm_layers = nn.ModuleList()
@@ -99,8 +101,17 @@ class CNN(PyTorchModule):
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, input):
+        fc_input = (self.added_fc_input_size != 0)
+
+        conv_input = input.narrow(start=0,
+                                  length=self.conv_input_length,
+                                  dimension=1).contiguous()
+        if fc_input:
+            extra_fc_input = input.narrow(start=self.conv_input_length,
+                                        length=self.added_fc_input_size,
+                                        dimension=1)
         # need to reshape from batch of flattened images into (channsls, w, h)
-        h = input.view(input.shape[0],
+        h = conv_input.view(conv_input.shape[0],
                        self.input_channels,
                        self.input_height,
                        self.input_width)
@@ -108,6 +119,8 @@ class CNN(PyTorchModule):
         h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
         # flatten channels for fc layers
         h = h.view(h.size(0), -1)
+        if fc_input:
+            h = torch.cat((h, extra_fc_input), dim=1)
         h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
 
         output = self.output_activation(self.last_fc(h))
@@ -138,19 +151,8 @@ class MergedCNN(CNN):
 
 
     def forward(self, conv_input, fc_input):
-        # need to reshape from batch of flattened images into (channsls, w, h)
-        h = conv_input.view(conv_input.shape[0],
-                            self.input_channels,
-                            self.input_height,
-                            self.input_width)
-
-        h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
-        # flatten channels for fc layers
-        h = h.view(h.size(0), -1)
-        h = torch.cat((h, fc_input), dim=1)
-        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
-
-        output = self.output_activation(self.last_fc(h))
+        h = torch.cat((conv_input, fc_input), dim=1)
+        output = super().forward(h)
         return output
 
 

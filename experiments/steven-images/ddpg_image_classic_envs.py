@@ -21,10 +21,10 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 
 from railrl.launchers.launcher_util import setup_logger
-#from railrl.envs.mujoco.pusher2d import Pusher2DEnv
+from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
 from railrl.envs.mujoco.reacherv2_edit import ReacherEnv
-from railrl.envs.mujoco.idp import InvertedDoublePendulumEnv 
+from railrl.envs.mujoco.idp import InvertedDoublePendulumEnv
 import railrl.images.viewers as viewers
 import torch
 
@@ -33,10 +33,12 @@ def experiment(variant):
     history = variant['history']
 
     #env = InvertedDoublePendulumEnv()#gym.make(variant['env_id'])
-    env = SawyerXYZEnv()
+    env = Pusher2DEnv()
+    partial_obs_size = env.obs_dim
     env = NormalizedBoxEnv(ImageEnv(env,
                                     imsize=imsize,
-                                    keep_prev=history - 1,
+                                    keep_prev=history-1,
+                                    partial_state=True,
                                     init_viewer=variant['init_viewer']))
 #    es = GaussianStrategy(
 #        action_space=env.action_space,
@@ -49,12 +51,13 @@ def experiment(variant):
                    input_height=imsize,
                    output_size=1,
                    input_channels= history,
-                   added_fc_input_size=action_dim,
+                   added_fc_input_size=action_dim + partial_obs_size,
                    **variant['cnn_params'])
 
 
     policy = CNNPolicy(input_width=imsize,
                        input_height=imsize,
+                       added_fc_input_size=partial_obs_size,
                        output_size=action_dim,
                        input_channels=history,
                        **variant['cnn_params'],
@@ -83,7 +86,7 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=64,
+        imsize=32,
         history=3,
         env_id='DoubleInvertedPendulum-v2',
         init_viewer=viewers.sawyer_init_viewer,
@@ -97,8 +100,8 @@ if __name__ == "__main__":
 
             use_soft_update=True,
             tau=1e-3,
-            qf_learning_rate=1e-3,
-            policy_learning_rate=1e-4,
+            qf_learning_rate=1e-2,
+            policy_learning_rate=1e-3,
 
             save_replay_buffer=False,
             replay_buffer_size=int(1E4),

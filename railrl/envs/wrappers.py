@@ -56,12 +56,15 @@ class ImageEnv(ProxyEnv, Env):
                  wrapped_env,
                  imsize=32,
                  keep_prev=0,
-                 init_viewer=None):
+                 init_viewer=None,
+                 partial_state=False,
+    ):
         self.quick_init(locals())
         super().__init__(wrapped_env)
 
         self.imsize = imsize
         self.image_length = self.imsize * self.imsize
+        self.partial_state = partial_state
         # This is torch format rather than PIL image
         self.image_shape = (self.imsize, self.imsize)
         # Flattened past image queue
@@ -73,31 +76,50 @@ class ImageEnv(ProxyEnv, Env):
             viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=-1)
             init_viewer(viewer)
             sim.add_render_context(viewer)
+
+        added_space = 0
+        if self.partial_state:
+            added_space += self.wrapped_env.obs_dim
         self.observation_space = Box(low=0.0,
                                      high=1.0,
-                                     shape=(self.image_length * self.history_length,))
+                                     shape=(self.image_length * self.history_length +
+                                            added_space,))
+        self.i = 0
 
     def step(self, action):
         # image observation get returned as a flattened 1D array
-        _, reward, done, info = super().step(action)
+        true_state, reward, done, info = super().step(action)
 
         observation = self._image_observation()
         self.history.append(observation)
         full_obs = self._get_history()
-        return full_obs.flatten(), reward, done, info
+        return self._full_obs(true_state), reward, done, info
 
     def reset(self):
-        super().reset()
+        true_state = super().reset()
         self.history = deque(maxlen=self.history_length)
         observation = self._image_observation()
         self.history.append(observation)
+        return self._full_obs(true_state)
+
+    def _full_obs(self, true_state):
         full_obs = self._get_history()
-        return full_obs.flatten()
+        flattened = full_obs.flatten()
+        if self.partial_state:
+            flattened = np.concatenate([
+                                flattened,
+                                true_state
+            ])
+        return flattened
+
 
     def _image_observation(self):
         # returns the image as a torch format np array
         image_obs = self._wrapped_env.sim.render(width=self.imsize, height=self.imsize)
-        image_obs = np.array(Image.fromarray(image_obs).convert('L'))
+        image_obs = Image.fromarray(image_obs).convert('L')
+        image_obs.save('images/' + str(self.i) + '.png')
+        self.i += 1
+        image_obs = np.array(image_obs)
         image_obs = image_obs / 255.0
         return image_obs
 
