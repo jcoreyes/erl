@@ -98,16 +98,28 @@ class MultitaskVAEPoint2DEnv(MultitaskImagePoint2DEnv, MultitaskEnv):
     def __init__(
             self,
             render_size=84,
+            ball_radius=1,
+            representation_size=2,
             **kwargs
     ):
         Serializable.quick_init(self, locals())
-        self.vae = joblib.load("/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv/run0/id0/params.pkl")
-        # self.vae.cuda()
-        super().__init__(render_size=render_size, **kwargs)
+        self.vae = joblib.load("/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep/run1/id4/params.pkl")
+        if ptu.gpu_enabled():
+            self.vae.cuda()
+        super().__init__(render_size=render_size, ball_radius=ball_radius, **kwargs)
+
+        self.representation_size = representation_size
+        self.observation_space = Box(
+            -self.BOUNDARY_DIST * np.ones(representation_size),
+            self.BOUNDARY_DIST * np.ones(representation_size),
+            dtype=np.float32,
+        )
 
     def _get_observation(self):
         img = Variable(ptu.from_numpy(self.get_image()))
         # import pdb; pdb.set_trace()
+        if ptu.gpu_enabled():
+            self.vae.cuda()
         e = self.vae.encode(img)[0]
         return ptu.get_numpy(e).flatten()
 
@@ -118,7 +130,7 @@ class MultitaskVAEPoint2DEnv(MultitaskImagePoint2DEnv, MultitaskEnv):
 
 class MultitaskFullVAEPoint2DEnv(MultitaskVAEPoint2DEnv, MultitaskEnv):
     def sample_goals(self, batch_size):
-        return np.random.randn(batch_size, 2)
+        return np.random.randn(batch_size, self.representation_size)
 
     def _reward(self):
         distance_to_target = np.linalg.norm(

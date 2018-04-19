@@ -24,7 +24,7 @@ class Point2DEnv(Serializable, Env):
 
     def __init__(
             self,
-            render_dt_msec=30,
+            render_dt_msec=0,
             action_l2norm_penalty=0,
             render_onscreen=True,
             render_size=500,

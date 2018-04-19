@@ -10,8 +10,14 @@ from railrl.torch.vae.point2d_data import get_data
 
 # import argparse
 from railrl.launchers.arglauncher import run_variants
+import railrl.torch.pytorch_util as ptu
 
 def experiment(variant):
+    if variant["use_gpu"]:
+        gpu_id = variant["gpu_id"]
+        ptu.set_gpu_mode(True)
+        ptu.set_device(gpu_id)
+
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     train_data, test_data = get_data(10000)
@@ -24,8 +30,8 @@ def experiment(variant):
 if __name__ == "__main__":
     variants = []
 
-    for representation_size in [2]:
-        for beta in [5.0]:
+    for representation_size in [2, 4, 8, 16]:
+        for beta in [0.5, 5.0, 50]:
             variant = dict(
                 beta=beta,
                 representation_size=representation_size,

@@ -44,12 +44,14 @@ class ProxyEnv(Serializable, Env):
 
 
 class ImageMujocoEnv(ProxyEnv, Env):
-    def __init__(self, wrapped_env, imsize=32):
+    def __init__(self, wrapped_env, imsize=32, camera_name=None, transpose=False):
         self.quick_init(locals())
         super().__init__(wrapped_env)
         self.imsize = imsize
         # change this later
         self.observation_space = Discrete(3*self.imsize*self.imsize)
+        self.camera_name = camera_name
+        self.transpose = transpose
         #self.i = 0
 
     def step(self, action):
@@ -71,7 +73,10 @@ class ImageMujocoEnv(ProxyEnv, Env):
             )
             self.wrapped_env.viewer_setup()
             sim.add_render_context(self.wrapped_env.viewer)
-        return self.wrapped_env.sim.render(self.imsize, self.imsize)
+        img = self.wrapped_env.sim.render(self.imsize, self.imsize, camera_name=self.camera_name)
+        if self.transpose:
+            img = img.transpose()
+        return img
 
 
 

@@ -28,37 +28,16 @@ import numpy as np
 
 e = MultitaskImagePoint2DEnv(render_size=84, render_onscreen=False, ball_radius=1)
 
-def get_data(N = 10000):
-    train_dataset = np.load("/tmp/train_dataset.npy")
-    test_dataset = np.load("/tmp/test_dataset.npy")
-    print("loaded data from saved files")
-    return train_dataset, test_dataset
-
-    # if not cached
-    train_dataset = np.zeros((N, 84*84))
-    for i in range(N):
-        train_dataset[i, :] = e.reset()
-    print("done making training data")
-
-    test_dataset = np.zeros((N, 84*84))
-    for i in range(N):
-        test_dataset[i, :] = e.reset()
-    print("done making test data")
-
-    np.save("/tmp/train_dataset.npy", train_dataset)
-    np.save("/tmp/test_dataset.npy", test_dataset)
-
-    return train_dataset, test_dataset
-
 class ConvVAE(nn.Module):
     def __init__(
             self,
+            train_dataset, test_dataset,
             representation_size,
             init_w=1e-3,
             input_channels=1,
             hidden_init=ptu.fanin_init,
             output_activation=identity,
-            batch_size=128, log_interval=0, use_cuda=False, beta=0.5
+            batch_size=128, log_interval=0, use_cuda=False, beta=0.5,
     ):
         super().__init__()
         self.log_interval = log_interval
@@ -94,11 +73,12 @@ class ConvVAE(nn.Module):
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
         self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=3)
 
-        torch.nn.ConvTranspose2d
+        if self.use_cuda:
+            self.cuda()
 
         self.init_weights(init_w)
         self.optimizer = optim.Adam(self.parameters(), lr=1e-3)
-        self.train_dataset, self.test_data = get_data()
+        self.train_dataset, self.test_data = train_dataset, test_dataset
 
     def init_weights(self, init_w):
         self.hidden_init(self.conv1.weight)
@@ -210,7 +190,7 @@ class ConvVAE(nn.Module):
             kle = self.kl_divergence(recon_batch, data, mu, logvar)
             loss = bce + kle
 
-            z_data = ptu.get_numpy(mu)
+            z_data = ptu.get_numpy(mu.cpu())
             for i in range(len(z_data)):
                 zs.append(z_data[i, :])
             losses.append(loss.data[0])
@@ -219,8 +199,8 @@ class ConvVAE(nn.Module):
 
             if batch_idx == 0:
                 n = min(data.size(0), 8)
-                comparison = torch.cat([data[:n].view(-1, 1, 84, 84),
-                                      recon_batch.view(self.batch_size, 1, 84, 84)[:n]])
+                comparison = torch.cat([data[:n].view(-1, self.input_channels, 84, 84),
+                                      recon_batch.view(self.batch_size, self.input_channels, 84, 84)[:n]])
                 save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
                 save_image(comparison.data.cpu(), save_dir, nrow=n)
 
@@ -239,7 +219,7 @@ class ConvVAE(nn.Module):
             sample = sample.cuda()
         sample = self.decode(sample).cpu()
         save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
-        save_image(sample.data.view(64, 1, 84, 84), save_dir)
+        save_image(sample.data.view(64, self.input_channels, 84, 84), save_dir)
 
     def plot_scattered(self, z, epoch):
         import matplotlib.pyplot as plt
