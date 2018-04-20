@@ -7,7 +7,7 @@ import numpy as np
 
 from railrl.torch.dqn.double_dqn import DoubleDQN
 
-import railrl.images.viewers as viewers
+import railrl.images.camera as camera
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
@@ -15,7 +15,7 @@ from railrl.torch.dqn.dqn import DQN
 from railrl.torch.networks import Mlp, CNN
 from torch import nn as nn
 from railrl.torch.modules import HuberLoss
-from railrl.envs.wrappers import DiscretizeEnv, ImageEnv, NormalizedBoxEnv
+from railrl.envs.wrappers import DiscretizeEnv, ImageMujocoEnv, NormalizedBoxEnv
 from railrl.torch.ddpg.ddpg import DDPG
 from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
@@ -27,20 +27,20 @@ def experiment(variant):
     imsize = variant['imsize']
     history = variant['history']
 
-    env = gym.make(variant['env_id'])
-    training_env = gym.make(variant['env_id'])
+    env = gym.make(variant['env_id']).env
+    training_env = gym.make(variant['env_id']).env
 
     env=NormalizedBoxEnv(env)
     training_env=NormalizedBoxEnv(training_env)
 
-    env = ImageEnv(env,
+    env = ImageMujocoEnv(env,
                    imsize=imsize,
                    keep_prev=history - 1,
-                   init_viewer=variant['init_viewer'])
-    training_env = ImageEnv(training_env,
+                   init_camera=variant['init_camera'])
+    training_env = ImageMujocoEnv(training_env,
                             imsize=imsize,
                             keep_prev=history - 1,
-                            init_viewer=variant['init_viewer'])
+                            init_camera=variant['init_camera'])
 
     env = DiscretizeEnv(env, variant['bins'])
     training_env = DiscretizeEnv(training_env, variant['bins'])
@@ -49,7 +49,7 @@ def experiment(variant):
         output_size=env.action_space.n,
         input_width=imsize,
         input_height=imsize,
-        input_channels=3 * history,
+        input_channels=history,
         **variant['cnn_params']
     )
 
@@ -90,10 +90,9 @@ if __name__ == "__main__":
             pool_sizes=[1, 1],
             paddings=[0, 0],
             hidden_sizes=[64, 64],
-            use_layer_norm=False,
         ),
         imsize=16,
-        init_viewer=viewers.inverted_pendulum_v2_init_viewer,
+        init_camera=camera.inverted_pendulum_v2_init_camera,
         history=3,
         algo_class=DoubleDQN,#DDPG,#DoubleDQN,
         qf_criterion_class=HuberLoss,
@@ -125,6 +124,6 @@ if __name__ == "__main__":
                 variant=variant,
                 exp_id=exp_id,
                 exp_prefix="dqn-images-InvertedPendulum-16x16-9-bins",
-                mode='ec2',
+                mode='local',
               #  use_gpu=True,
             )

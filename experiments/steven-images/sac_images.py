@@ -10,7 +10,7 @@ from railrl.torch.dqn.dqn import DQN
 from railrl.torch.networks import Mlp, CNN, CNNPolicy, MergedCNN
 from torch import nn as nn
 from railrl.torch.modules import HuberLoss
-from railrl.envs.wrappers import ImageEnv
+from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.torch.ddpg.ddpg import DDPG
 from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -24,8 +24,7 @@ from railrl.exploration_strategies.base import \
 from railrl.torch.sac.sac import SoftActorCritic
 from railrl.launchers.launcher_util import setup_logger
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
-from railrl.envs.mujoco.idp import InvertedDoublePendulumEnv
-import railrl.images.viewers as viewers
+import railrl.images.camera as camera
 import torch
 
 def experiment(variant):
@@ -33,10 +32,10 @@ def experiment(variant):
     history = variant['history']
 
     env = Pusher2DEnv()#gym.make(variant['env_id']).env
-    env = NormalizedBoxEnv(ImageEnv(env,
+    env = NormalizedBoxEnv(ImageMujocoEnv(env,
                                     imsize=imsize,
                                     keep_prev=history - 1,
-                                    init_viewer=variant['init_viewer']))
+                                    init_camera=variant['init_camera']))
 #    es = GaussianStrategy(
 #        action_space=env.action_space,
 #    )
@@ -84,7 +83,7 @@ if __name__ == "__main__":
         imsize=64,
         history=4,
         #env_id='InvertedDoublePendulum-v2',
-        init_viewer=viewers.pusher_2d_init_viewer,
+        init_camera=camera.pusher_2d_init_camera,
         algo_params=dict(
             num_epochs=2000,
             num_steps_per_epoch=500,
@@ -107,7 +106,7 @@ if __name__ == "__main__":
             pool_sizes=[1, 1, 1],
             hidden_sizes=[400, 300],
             paddings=[0, 0, 0],
-            use_layer_norm=True,
+            use_batch_norm=True,
         ),
 
         qf_criterion_class=HuberLoss,
@@ -137,5 +136,5 @@ if __name__ == "__main__":
                 mode='local',
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',
-                use_gpu=True,
+#                use_gpu=True,
             )

@@ -83,7 +83,7 @@ if __name__ == "__main__":
                 variant=variant,
                 exp_id=exp_id,
                 exp_prefix="double-vs-dqn-huber-sweep-cartpole",
-                mode='local_docker',
+                mode='ec2',
                 # use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',

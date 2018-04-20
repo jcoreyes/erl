@@ -10,7 +10,7 @@ from railrl.torch.dqn.dqn import DQN
 from railrl.torch.networks import Mlp, CNN, CNNPolicy, MergedCNN
 from torch import nn as nn
 from railrl.torch.modules import HuberLoss
-from railrl.envs.wrappers import ImageWithObsEnv
+from railrl.envs.wrappers import ImageMujocoWithObsEnv
 from railrl.torch.ddpg.ddpg import DDPG
 from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -23,7 +23,6 @@ from railrl.exploration_strategies.base import \
 from railrl.launchers.launcher_util import setup_logger
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
-from railrl.envs.mujoco.reacherv2_edit import ReacherEnv
 from railrl.envs.mujoco.idp import InvertedDoublePendulumEnv
 import railrl.images.camera as camera
 import torch
@@ -35,7 +34,7 @@ def experiment(variant):
     #env = InvertedDoublePendulumEnv()#gym.make(variant['env_id'])
     env = Pusher2DEnv()
     partial_obs_size = env.obs_dim
-    env = NormalizedBoxEnv(ImageWithObsEnv(env,
+    env = NormalizedBoxEnv(ImageMujocoWithObsEnv(env,
                                     imsize=imsize,
                                     keep_prev=history-1,
                                     init_camera=variant['init_camera']))

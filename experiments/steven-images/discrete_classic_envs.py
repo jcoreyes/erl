@@ -14,7 +14,7 @@ from railrl.torch.dqn.dqn import DQN
 from railrl.torch.networks import Mlp, CNN
 from torch import nn as nn
 from railrl.torch.modules import HuberLoss
-from railrl.envs.wrappers import DiscretizeEnv, ImageEnv, NormalizedBoxEnv
+from railrl.envs.wrappers import DiscretizeEnv, ImageMujocoEnv, NormalizedBoxEnv
 from railrl.torch.ddpg.ddpg import DDPG
 from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv

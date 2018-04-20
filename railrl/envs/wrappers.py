@@ -51,7 +51,7 @@ class ProxyEnv(Serializable, Env):
         return getattr(self._wrapped_env, attrname)
 
 
-class ImageEnv(ProxyEnv, Env):
+class ImageMujocoEnv(ProxyEnv, Env):
     def __init__(self,
                  wrapped_env,
                  imsize=32,
@@ -132,7 +132,7 @@ class ImageEnv(ProxyEnv, Env):
         return images
 
 
-class ImageWithObsEnv(ImageEnv):
+class ImageMujocoWithObsEnv(ImageEnv):
     def __init__(self, env, **kwargs):
         self.quick_init(locals())
         super().__init__(env, **kwargs)
@@ -164,6 +164,7 @@ class DiscretizeEnv(ProxyEnv, Env):
     def step(self, action):
         continuous_action = self.idx_to_continuous_action[action]
         return super().step(continuous_action)
+
 
 
 class NormalizedBoxEnv(ProxyEnv, Serializable):
