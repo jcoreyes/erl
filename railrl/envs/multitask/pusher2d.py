@@ -328,6 +328,14 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
     """
     Only care about the hand position! This is really just for debugging.
     """
+    def __init__(self, **kwargs):
+        self.quick_init(locals())
+        super().__init__(**kwargs)
+        self.goal_space = Box(
+            low=np.array([-1, -1]),
+            high=np.array([0, 0]),
+        )
+
     def sample_goals(self, batch_size):
         return np.random.uniform(
             np.array([-1, -1]),
@@ -347,8 +355,8 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
         self._target_hand_position = goal
         self._target_cylinder_position = np.random.uniform(-1, 1, 2)
 
-        qpos = self.model.data.qpos.flat.copy()
-        qvel = self.model.data.qvel.flat.copy()
+        qpos = self.sim.data.qpos.flat.copy()
+        qvel = self.sim.data.qvel.flat.copy()
         qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
 

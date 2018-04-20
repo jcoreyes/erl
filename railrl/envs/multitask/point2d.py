@@ -15,11 +15,13 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
     def __init__(
             self,
             use_sparse_rewards=False,
+            ignore_multitask_goal=False, # for latent space stuff
             **kwargs
     ):
         Serializable.quick_init(self, locals())
         Point2DEnv.__init__(self, **kwargs)
         MultitaskEnv.__init__(self)
+        self.ignore_multitask_goal = ignore_multitask_goal
         self.use_sparse_rewards = use_sparse_rewards
         self.ob_to_goal_slice = slice(0, 2)
         self.observation_space = Box(
@@ -41,14 +43,15 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
         self._target_position = goal
 
     def reset(self):
-        self._target_position = self.multitask_goal
+        if self.ignore_multitask_goal:
+            self._target_position = np.random.uniform(
+                size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
+            )
+        else:
+            self._target_position = self.multitask_goal
         self._position = np.random.uniform(
             size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
         )
-        while self.is_on_platform():
-            self._position = np.random.uniform(
-                size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
-            )
         return self._get_observation()
 
     def compute_her_reward_np(
@@ -62,7 +65,7 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
         if self.use_sparse_rewards:
             return -float(dist > 0.1)
         else:
-            return dist
+            return -dist
 
     @property
     def goal_dim(self) -> int:
@@ -89,10 +92,10 @@ class MultitaskImagePoint2DEnv(MultitaskPoint2DEnv, MultitaskEnv):
     def _get_observation(self):
         return self.get_image()
 
-    def reset(self):
-        goal = self.sample_goals(1)
-        self.set_goal(goal[0, :])
-        return super().reset()
+    # def reset(self):
+    #     goal = self.sample_goals(1)
+    #     self.set_goal(goal[0, :])
+    #     return super().reset()
 
 class MultitaskVAEPoint2DEnv(MultitaskImagePoint2DEnv, MultitaskEnv):
     def __init__(
@@ -103,7 +106,7 @@ class MultitaskVAEPoint2DEnv(MultitaskImagePoint2DEnv, MultitaskEnv):
             **kwargs
     ):
         Serializable.quick_init(self, locals())
-        self.vae = joblib.load("/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep/run1/id4/params.pkl")
+        self.vae = joblib.load("/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv/run2/id0/params.pkl")
         if ptu.gpu_enabled():
             self.vae.cuda()
         super().__init__(render_size=render_size, ball_radius=ball_radius, **kwargs)
