@@ -56,35 +56,28 @@ class ImageEnv(ProxyEnv, Env):
                  wrapped_env,
                  imsize=32,
                  keep_prev=0,
-                 init_viewer=None,
-                 partial_state=False,
+                 init_camera=None,
     ):
         self.quick_init(locals())
         super().__init__(wrapped_env)
 
         self.imsize = imsize
         self.image_length = self.imsize * self.imsize
-        self.partial_state = partial_state
         # This is torch format rather than PIL image
         self.image_shape = (self.imsize, self.imsize)
         # Flattened past image queue
         self.history_length = keep_prev + 1
         self.history = deque(maxlen=self.history_length)
         # init camera
-        if init_viewer is not None:
+        if init_camera is not None:
             sim = self._wrapped_env.sim
             viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=-1)
-            init_viewer(viewer)
+            init_camera(viewer.cam)
             sim.add_render_context(viewer)
 
-        added_space = 0
-        if self.partial_state:
-            added_space += self.wrapped_env.obs_dim
         self.observation_space = Box(low=0.0,
                                      high=1.0,
-                                     shape=(self.image_length * self.history_length +
-                                            added_space,))
-        self.i = 0
+                                     shape=(self.image_length * self.history_length,))
 
     def step(self, action):
         # image observation get returned as a flattened 1D array
@@ -92,33 +85,31 @@ class ImageEnv(ProxyEnv, Env):
 
         observation = self._image_observation()
         self.history.append(observation)
-        full_obs = self._get_history()
-        return self._full_obs(true_state), reward, done, info
+        history = self._get_history().flatten()
+        full_obs = self._add_extra_info(history, true_state)
+        return full_obs, reward, done, info
 
     def reset(self):
         true_state = super().reset()
         self.history = deque(maxlen=self.history_length)
+
         observation = self._image_observation()
         self.history.append(observation)
-        return self._full_obs(true_state)
+        history = self._get_history().flatten()
+        full_obs = self._add_extra_info(history, true_state)
+        return full_obs
 
-    def _full_obs(self, true_state):
-        full_obs = self._get_history()
-        flattened = full_obs.flatten()
-        if self.partial_state:
-            flattened = np.concatenate([
-                                flattened,
-                                true_state
-            ])
-        return flattened
-
+    def _add_extra_info(self, history_flat, true_state):
+        # adds extra information from true_state into to the image observation.
+        # Used in ImageWithObsEnv.
+        return history_flat
 
     def _image_observation(self):
         # returns the image as a torch format np array
         image_obs = self._wrapped_env.sim.render(width=self.imsize, height=self.imsize)
         image_obs = Image.fromarray(image_obs).convert('L')
-        image_obs.save('images/' + str(self.i) + '.png')
-        self.i += 1
+        #image_obs.save('images/' + str(self.i) + '.png')
+        #self.i += 1
         image_obs = np.array(image_obs)
         image_obs = image_obs / 255.0
         return image_obs
@@ -130,8 +121,6 @@ class ImageEnv(ProxyEnv, Env):
         for _ in range(self.history_length - obs_count):
             dummy = np.zeros(self.image_shape)
             observations.append(dummy)
-        # join along channels. Resulting image with have 3*history_length channels
-        #return np.concatenate(observations, axis=0)
         return np.c_[observations]
 
     def retrieve_images(self):
@@ -141,6 +130,21 @@ class ImageEnv(ProxyEnv, Env):
             pil_image = self.torch_to_pil(torch.Tensor(image_obs))
             images.append(pil_image)
         return images
+
+
+class ImageWithObsEnv(ImageEnv):
+    def __init__(self, env, **kwargs):
+        self.quick_init(locals())
+        super().__init__(env, **kwargs)
+        self.observation_space = Box(low=0.0,
+                                     high=1.0,
+                                     shape=(self.image_length * self.history_length +
+                                            self.wrapped_env.obs_dim,))
+
+    def _add_extra_info(self, history_flat, true_state):
+        return np.concatenate([history_flat,
+                               true_state])
+
 
 class DiscretizeEnv(ProxyEnv, Env):
     def __init__(self, wrapped_env, num_bins):

@@ -10,7 +10,7 @@ from railrl.torch.dqn.dqn import DQN
 from railrl.torch.networks import Mlp, CNN, CNNPolicy, MergedCNN
 from torch import nn as nn
 from railrl.torch.modules import HuberLoss
-from railrl.envs.wrappers import ImageEnv
+from railrl.envs.wrappers import ImageWithObsEnv
 from railrl.torch.ddpg.ddpg import DDPG
 from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -25,7 +25,7 @@ from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
 from railrl.envs.mujoco.reacherv2_edit import ReacherEnv
 from railrl.envs.mujoco.idp import InvertedDoublePendulumEnv
-import railrl.images.viewers as viewers
+import railrl.images.camera as camera
 import torch
 
 def experiment(variant):
@@ -35,11 +35,10 @@ def experiment(variant):
     #env = InvertedDoublePendulumEnv()#gym.make(variant['env_id'])
     env = Pusher2DEnv()
     partial_obs_size = env.obs_dim
-    env = NormalizedBoxEnv(ImageEnv(env,
+    env = NormalizedBoxEnv(ImageWithObsEnv(env,
                                     imsize=imsize,
                                     keep_prev=history-1,
-                                    partial_state=True,
-                                    init_viewer=variant['init_viewer']))
+                                    init_camera=variant['init_camera']))
 #    es = GaussianStrategy(
 #        action_space=env.action_space,
 #    )
@@ -86,34 +85,34 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=32,
-        history=3,
+        imsize=16,
+        history=1,
         env_id='DoubleInvertedPendulum-v2',
-        init_viewer=viewers.sawyer_init_viewer,
+        init_camera=camera.pusher_2d_init_camera,
         algo_params=dict(
             num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=500,
             batch_size=64,
-            max_path_length=150,
+            max_path_length=100,
             discount=.99,
 
             use_soft_update=True,
             tau=1e-3,
-            qf_learning_rate=1e-2,
-            policy_learning_rate=1e-3,
+            qf_learning_rate=1e-3,
+            policy_learning_rate=1e-4,
 
             save_replay_buffer=False,
-            replay_buffer_size=int(1E4),
+            replay_buffer_size=int(2E4),
         ),
         cnn_params=dict(
-            kernel_sizes=[3, 3, 3],
-            n_channels=[16, 16, 16],
-            strides=[2, 2, 1],
-            pool_sizes=[1, 1, 1],
+            kernel_sizes=[3, 3],
+            n_channels=[16, 16],
+            strides=[2, 2],
+            pool_sizes=[1, 1],
             hidden_sizes=[400, 300],
-            paddings=[0, 0, 0],
-            use_layer_norm=True,
+            paddings=[0, 0],
+            use_batch_norm=False,
         ),
 
         algo_class=DDPG,
@@ -125,8 +124,8 @@ if __name__ == "__main__":
             HuberLoss,
         ],
     }
-    setup_logger('dqn-images-experiment', variant=variant)
-    experiment(variant)
+#    setup_logger('dqn-images-experiment', variant=variant)
+#    experiment(variant)
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -137,8 +136,8 @@ if __name__ == "__main__":
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="DDPG-images-reacher-OU-grayscale-shaped",
-                mode='ec2',
+                exp_prefix="DDPG-images-pusher",
+                mode='local',
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',
                 #use_gpu=True,

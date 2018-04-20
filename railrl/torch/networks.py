@@ -30,7 +30,7 @@ class CNN(PyTorchModule):
                 paddings,
                 hidden_sizes=[],
                 added_fc_input_size=0,
-                use_layer_norm=False,
+                use_batch_norm=False,
                 init_w=1e-4,
                 hidden_activation=nn.ReLU(),
                 output_activation=identity
@@ -50,7 +50,7 @@ class CNN(PyTorchModule):
         self.output_size = output_size
         self.output_activation = output_activation
         self.hidden_activation = hidden_activation
-        self.use_layer_norm = use_layer_norm
+        self.use_batch_norm = use_batch_norm
         self.added_fc_input_size = added_fc_input_size
         self.conv_input_length = self.input_width * self.input_height * self.input_channels
 
@@ -130,7 +130,7 @@ class CNN(PyTorchModule):
         h = input
         for layer, norm_layer in zip(hidden_layers, norm_layers):
             h = layer(h)
-            if self.use_layer_norm:
+            if self.use_batch_norm:
                 h = norm_layer(h)
             h = self.hidden_activation(h)
         return h
