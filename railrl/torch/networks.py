@@ -14,8 +14,13 @@ from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
+import railrl.images.camera as camera
+from railrl.envs.mujoco.pusher2d import RandomGoalPusher2DEnv
+from railrl.envs.wrappers import ImageMujocoEnv
+import pdb
 
 import numpy as np
+from PIL import Image
 
 class CNN(PyTorchModule):
     def __init__(self,
@@ -31,7 +36,7 @@ class CNN(PyTorchModule):
                 hidden_sizes=[],
                 added_fc_input_size=0,
                 use_batch_norm=False,
-                init_w=1e-4,
+                init_w=3e-4,
                 hidden_activation=nn.ReLU(),
                 output_activation=identity
         ):
@@ -463,3 +468,143 @@ class OuterProductFF(PyTorchModule):
             return output, preactivation
         else:
             return output
+
+class FeatPointMlp(PyTorchModule):
+    def __init__(
+            self,
+            downsample_size,
+            input_channels,
+            num_feat_points,
+            temperature=1.0,
+            init_w=1e-3,
+            input_size=32,
+            hidden_init=ptu.fanin_init,
+            output_activation=identity,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.downsample_size = downsample_size
+        self.temperature = temperature
+        self.num_feat_points = num_feat_points
+        self.hidden_init = hidden_init
+        self.output_activation = output_activation
+        self.input_channels = input_channels
+        self.input_size = input_size
+
+        self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=2)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(16, self.num_feat_points, kernel_size=5, stride=2)
+
+        test_mat = Variable(torch.zeros(1, self.input_channels, self.input_size, self.input_size))
+        test_mat = self.conv1(test_mat)
+        test_mat = self.conv2(test_mat)
+        self.out_size = int(np.prod(test_mat.shape))
+        self.fc1 = nn.Linear(2 * self.num_feat_points, 400)
+        self.fc2 = nn.Linear(400, 300)
+        self.last_fc = nn.Linear(300, self.input_channels * self.downsample_size* self.downsample_size)
+
+        self.init_weights(init_w)
+
+    def init_weights(self, init_w):
+        self.hidden_init(self.conv1.weight)
+        self.conv1.bias.data.fill_(0)
+        self.hidden_init(self.conv2.weight)
+        self.conv2.bias.data.fill_(0)
+
+    def forward(self, input):
+        h = input.view(-1, self.input_channels, self.input_size, self.input_size)
+        h = self.encoder(h)
+        #h = x.view(-1, 2, self.num_feat_points).transpose(1, 2).contiguous().view(-1, self.num_feat_points * 2) * 10 - 5
+        image = self.decoder(h)
+        return image
+
+    def encoder(self, input):
+        x = F.relu(self.bn1(self.conv1(input)))
+        x = self.conv2(x)
+        d = int((self.out_size // self.num_feat_points)**(1/2))
+        x = x.view(-1, self.num_feat_points, d*d)
+        x = F.softmax(x / self.temperature, 2)
+        x = x.view(-1, self.num_feat_points, d, d)
+
+        maps_x = torch.sum(x, 2)
+        maps_y = torch.sum(x, 3)
+
+        weights = ptu.np_to_var(np.arange(d) / d)
+
+        fp_x = torch.sum(maps_x * weights, 2)
+        fp_y = torch.sum(maps_y * weights, 2)
+
+        x = torch.cat([fp_x, fp_y], 1)
+        return x
+
+    def decoder(self, input):
+        h = input
+        h = F.relu(self.fc1(h))
+        h = F.relu(self.fc2(h))
+        h = self.last_fc(h)
+        h = h.view(-1, self.input_channels * self.downsample_size * self.downsample_size)
+        return h
+
+    def get_action(self, obs_np):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs):
+        return self.eval_np(obs)
+
+
+def sample_data(rollouts=10, length=100):
+    observations, downsampled = [], []
+    for _ in range(64):
+        obs = env.reset()
+        observations.append(obs)
+        downsampled_obs = np.array(Image.fromarray(255*obs.reshape(imsize, imsize)).resize((downsample_size, downsample_size)))
+        downsampled.append(downsampled_obs.flatten())
+        for _ in range(4):
+            action = env.action_space.sample()
+            obs, _, _, _ = env.step(action* 5)
+            observations.append(obs)
+            image = Image.fromarray(np.uint8(255*obs.reshape(imsize, imsize)), mode='L').resize((downsample_size, downsample_size))
+            downsampled_obs = np.array(image)
+            downsampled.append(downsampled_obs.flatten())
+
+    observation = Variable(torch.Tensor(np.c_[observations]))
+    downsampled = Variable(torch.Tensor(np.c_[downsampled]))
+    return observation, downsampled
+
+def convert_flat(obs):
+        image = Image.fromarray(np.uint8(255*obs.reshape(imsize, imsize)), mode='L')#.resize((downsample_size, downsample_size))
+        return image
+
+def save_and_compare(observation, downsampled):
+    for i in range(0, 100):
+        Image.fromarray(np.uint8(np.array(reconstructed.data).reshape(-1, 32, 32)[i])).save('images/' + str(i) + 'r.png')
+        Image.fromarray(np.uint8(np.array(downsampled.data).reshape(-1, 32, 32)[i])).save('images/' + str(i) + '.png')
+
+if __name__ == "__main__":
+    import torch.optim as optim
+    imsize=64
+    downsample_size=32
+    net = FeatPointMlp(
+        input_size=imsize,
+        downsample_size=downsample_size,
+        input_channels=1,
+        num_feat_points=10
+    )
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(net.parameters(), lr=1e-3)
+
+    env = RandomGoalPusher2DEnv()
+    env = ImageMujocoEnv(env, imsize, init_camera=camera.pusher_2d_init_camera)
+    for i in range(0, 1000):
+        observation, downsampled = sample_data(rollouts=10, length=100)
+        reconstructed = net.forward(observation)
+        optimizer.zero_grad()
+        loss = criterion(reconstructed, downsampled)
+        loss.backward()
+        optimizer.step()
+        print('loss:', loss.data)
+        if i % 50 == 0:
+            pdb.set_trace()
+
