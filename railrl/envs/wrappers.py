@@ -4,11 +4,14 @@ import gym.spaces
 import itertools
 from gym import Env
 from gym.spaces import Box
-from scipy.misc import imresize
-
-from railrl.core.serializable import Serializable
 from gym.spaces import Discrete
+from PIL import Image
 
+from collections import deque
+from railrl.core.serializable import Serializable
+#from torchvision.transforms import ToTensor, ToPILImage
+import mujoco_py
+import torch
 
 class ProxyEnv(Serializable, Env):
     def __init__(self, wrapped_env):
@@ -49,40 +52,102 @@ class ProxyEnv(Serializable, Env):
 
 
 class ImageMujocoEnv(ProxyEnv, Env):
-    def __init__(self, wrapped_env, imsize=32, camera_name=None, transpose=False):
+    def __init__(self,
+                 wrapped_env,
+                 imsize=32,
+                 keep_prev=0,
+                 init_camera=None,
+                 camera_name=None,
+                 transpose=False,
+    ):
         self.quick_init(locals())
         super().__init__(wrapped_env)
+
         self.imsize = imsize
-        # change this later
-        self.observation_space = Discrete(3*self.imsize*self.imsize)
+        self.image_length = self.imsize * self.imsize
+        # This is torch format rather than PIL image
+        self.image_shape = (self.imsize, self.imsize)
+        # Flattened past image queue
+        self.history_length = keep_prev + 1
+        self.history = deque(maxlen=self.history_length)
+        # init camera
+        if init_camera is not None:
+            sim = self._wrapped_env.sim
+            viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=-1)
+            init_camera(viewer.cam)
+            sim.add_render_context(viewer)
         self.camera_name = camera_name
         self.transpose = transpose
-        #self.i = 0
+
+        self.observation_space = Box(low=0.0,
+                                     high=1.0,
+                                     shape=(self.image_length * self.history_length,))
 
     def step(self, action):
-        _, reward, done, info = super().step(action)
-        img = self.image_observation()
-        observation = img.flatten()
-        return observation, reward, done, info
+        # image observation get returned as a flattened 1D array
+        true_state, reward, done, info = super().step(action)
+
+        observation = self._image_observation()
+        self.history.append(observation)
+        history = self._get_history().flatten()
+        full_obs = self._add_extra_info(history, true_state)
+        return full_obs, reward, done, info
 
     def reset(self):
-        super().reset()
-        img = self.image_observation()
-        return img.flatten()
+        true_state = super().reset()
+        self.history = deque(maxlen=self.history_length)
 
-    def image_observation(self):
-        if self.wrapped_env.viewer is None:
-            sim = self._wrapped_env.sim
-            self.wrapped_env.viewer = mujoco_py.MjRenderContextOffscreen(
-                sim, device_id=-1
-            )
-            self.wrapped_env.viewer_setup()
-            sim.add_render_context(self.wrapped_env.viewer)
-        img = self.wrapped_env.sim.render(self.imsize, self.imsize, camera_name=self.camera_name)
-        if self.transpose:
-            img = img.transpose()
-        return img
+        observation = self._image_observation()
+        self.history.append(observation)
+        history = self._get_history().flatten()
+        full_obs = self._add_extra_info(history, true_state)
+        return full_obs
 
+    def _add_extra_info(self, history_flat, true_state):
+        # adds extra information from true_state into to the image observation.
+        # Used in ImageWithObsEnv.
+        return history_flat
+
+    def _image_observation(self):
+        # returns the image as a torch format np array
+        image_obs = self._wrapped_env.sim.render(width=self.imsize, height=self.imsize)
+        image_obs = Image.fromarray(image_obs).convert('L')
+        #image_obs.save('images/' + str(self.i) + '.png')
+        #self.i += 1
+        image_obs = np.array(image_obs)
+        image_obs = image_obs / 255.0
+        return image_obs
+
+    def _get_history(self):
+        observations = list(self.history)
+
+        obs_count = len(observations)
+        for _ in range(self.history_length - obs_count):
+            dummy = np.zeros(self.image_shape)
+            observations.append(dummy)
+        return np.c_[observations]
+
+    def retrieve_images(self):
+        # returns images in unflattened PIL format
+        images = []
+        for image_obs in self.history:
+            pil_image = self.torch_to_pil(torch.Tensor(image_obs))
+            images.append(pil_image)
+        return images
+
+
+class ImageMujocoWithObsEnv(ImageMujocoEnv):
+    def __init__(self, env, **kwargs):
+        self.quick_init(locals())
+        super().__init__(env, **kwargs)
+        self.observation_space = Box(low=0.0,
+                                     high=1.0,
+                                     shape=(self.image_length * self.history_length +
+                                            self.wrapped_env.obs_dim,))
+
+    def _add_extra_info(self, history_flat, true_state):
+        return np.concatenate([history_flat,
+                               true_state])
 
 
 class DiscretizeEnv(ProxyEnv, Env):
