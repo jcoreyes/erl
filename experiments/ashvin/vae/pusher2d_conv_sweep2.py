@@ -3,7 +3,7 @@
 # import mnist_data
 # import os
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-from railrl.torch.vae.point2d_data import get_data
+from railrl.torch.vae.pusher2d_data import get_data
 # import plot_utils
 # import glob
 # import ss.path
@@ -21,7 +21,7 @@ def experiment(variant):
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     train_data, test_data = get_data(10000)
-    m = ConvVAE(representation_size)
+    m = ConvVAE(representation_size, input_channels=3)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta, use_cuda=True)
     for epoch in range(10):
         t.train_epoch(epoch)
