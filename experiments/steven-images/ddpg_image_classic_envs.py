@@ -23,7 +23,6 @@ from railrl.exploration_strategies.base import \
 from railrl.launchers.launcher_util import setup_logger
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
-from railrl.envs.mujoco.idp import InvertedDoublePendulumEnv
 import railrl.images.camera as camera
 import torch
 

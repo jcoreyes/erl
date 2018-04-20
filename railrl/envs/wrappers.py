@@ -132,7 +132,7 @@ class ImageMujocoEnv(ProxyEnv, Env):
         return images
 
 
-class ImageMujocoWithObsEnv(ImageEnv):
+class ImageMujocoWithObsEnv(ImageMujocoEnv):
     def __init__(self, env, **kwargs):
         self.quick_init(locals())
         super().__init__(env, **kwargs)
