@@ -24,7 +24,7 @@ class Point2DEnv(Serializable, Env):
 
     def __init__(
             self,
-            render_dt_msec=30,
+            render_dt_msec=0,
             action_l2norm_penalty=0,
             render_onscreen=True,
             render_size=500,
@@ -65,10 +65,8 @@ class Point2DEnv(Serializable, Env):
         observation = self._get_observation()
         on_platform = self.is_on_platform()
 
-        reward = float(on_platform)
         distance_reward = -distance_to_target
         action_reward = -np.linalg.norm(velocities) * self.action_l2norm_penalty
-        reward += distance_reward + action_reward
         reward = self._reward()
         done = on_platform
         info = {
@@ -83,13 +81,11 @@ class Point2DEnv(Serializable, Env):
         return observation, reward, done, info
 
     def _reward(self):
-        on_platform = self.is_on_platform()
         distance_to_target = np.linalg.norm(
             self._target_position - self._position
         )
-        reward = float(on_platform)
         distance_reward = -distance_to_target
-        reward += distance_reward
+        reward = distance_reward
         return reward
 
     def is_on_platform(self):

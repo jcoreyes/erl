@@ -57,6 +57,8 @@ class ImageMujocoEnv(ProxyEnv, Env):
                  imsize=32,
                  keep_prev=0,
                  init_camera=None,
+                 camera_name=None,
+                 transpose=False,
     ):
         self.quick_init(locals())
         super().__init__(wrapped_env)
@@ -74,6 +76,8 @@ class ImageMujocoEnv(ProxyEnv, Env):
             viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=-1)
             init_camera(viewer.cam)
             sim.add_render_context(viewer)
+        self.camera_name = camera_name
+        self.transpose = transpose
 
         self.observation_space = Box(low=0.0,
                                      high=1.0,

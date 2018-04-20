@@ -28,27 +28,131 @@ import numpy as np
 
 e = MultitaskImagePoint2DEnv(render_size=84, render_onscreen=False, ball_radius=1)
 
-def get_data(N = 10000):
-    train_dataset = np.load("/tmp/train_dataset.npy")
-    test_dataset = np.load("/tmp/test_dataset.npy")
-    print("loaded data from saved files")
-    return train_dataset, test_dataset
+class ConvVAETrainer():
+    def __init__(
+            self,
+            train_dataset, test_dataset,
+            model,
+            batch_size=128, log_interval=0, use_cuda=False, beta=0.5,
+    ):
+        self.log_interval = log_interval
+        self.use_cuda = use_cuda
+        self.batch_size = batch_size
+        self.beta = beta
 
-    # if not cached
-    train_dataset = np.zeros((N, 84*84))
-    for i in range(N):
-        train_dataset[i, :] = e.reset()
-    print("done making training data")
+        self.model = model
+        self.representation_size = model.representation_size
+        self.input_channels = model.input_channels
 
-    test_dataset = np.zeros((N, 84*84))
-    for i in range(N):
-        test_dataset[i, :] = e.reset()
-    print("done making test data")
+        if self.use_cuda:
+            model.cuda()
 
-    np.save("/tmp/train_dataset.npy", train_dataset)
-    np.save("/tmp/test_dataset.npy", test_dataset)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
+        self.train_dataset, self.test_data = train_dataset, test_dataset
 
-    return train_dataset, test_dataset
+    def get_batch(self, train=True):
+        dataset = self.train_dataset if train else self.test_dataset
+        ind = np.random.randint(0, len(dataset), self.batch_size)
+        return ptu.from_numpy(dataset[ind, :])
+
+    def logprob(self, recon_x, x, mu, logvar):
+        return F.binary_cross_entropy(recon_x, x.view(-1, 84*84), size_average=False)
+
+    def kl_divergence(self, recon_x, x, mu, logvar):
+        return -self.beta * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+
+    def train_epoch(self, epoch):
+        self.model.train()
+        losses = []
+        bces = []
+        kles = []
+        for batch_idx in range(100):
+            data = self.get_batch()
+            data = Variable(data)
+            if self.use_cuda:
+                data = data.cuda()
+            self.optimizer.zero_grad()
+            recon_batch, mu, logvar = self.model(data)
+            bce = self.logprob(recon_batch, data, mu, logvar)
+            kle = self.kl_divergence(recon_batch, data, mu, logvar)
+            loss = bce + kle
+            loss.backward()
+
+            losses.append(loss.data[0])
+            bces.append(bce.data[0])
+            kles.append(kle.data[0])
+
+            self.optimizer.step()
+            if self.log_interval and batch_idx % self.log_interval == 0:
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epoch, batch_idx * len(data), len(self.train_loader.dataset),
+                    100. * batch_idx / len(self.train_loader),
+                    loss.data[0] / len(data)))
+
+        logger.record_tabular("train/epoch", epoch)
+        logger.record_tabular("train/BCE", np.mean(bces) / self.batch_size)
+        logger.record_tabular("train/KL", np.mean(kles) / self.batch_size)
+        logger.record_tabular("train/loss", np.mean(losses) / self.batch_size)
+
+
+    def test_epoch(self, epoch):
+        self.model.eval()
+        losses = []
+        bces = []
+        kles = []
+        zs = []
+        for batch_idx in range(10):
+            data = self.get_batch()
+            if self.use_cuda:
+                data = data.cuda()
+            data = Variable(data, volatile=True)
+            recon_batch, mu, logvar = self.model(data)
+            bce = self.logprob(recon_batch, data, mu, logvar)
+            kle = self.kl_divergence(recon_batch, data, mu, logvar)
+            loss = bce + kle
+
+            z_data = ptu.get_numpy(mu.cpu())
+            for i in range(len(z_data)):
+                zs.append(z_data[i, :])
+            losses.append(loss.data[0])
+            bces.append(bce.data[0])
+            kles.append(kle.data[0])
+
+            if batch_idx == 0:
+                n = min(data.size(0), 8)
+                comparison = torch.cat([data[:n].view(-1, self.input_channels, 84, 84),
+                                      recon_batch.view(self.batch_size, self.input_channels, 84, 84)[:n]])
+                save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
+                save_image(comparison.data.cpu(), save_dir, nrow=n)
+
+        self.plot_scattered(np.array(zs), epoch)
+
+        logger.record_tabular("test/BCE", np.mean(bces) / self.batch_size)
+        logger.record_tabular("test/KL", np.mean(kles) / self.batch_size)
+        logger.record_tabular("test/loss", np.mean(losses) / self.batch_size)
+        logger.dump_tabular()
+
+        logger.save_itr_params(epoch, self.model)
+
+    def dump_samples(self, epoch):
+        sample = Variable(torch.randn(64, self.representation_size))
+        if self.use_cuda:
+            sample = sample.cuda()
+        sample = self.model.decode(sample).cpu()
+        save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
+        save_image(sample.data.view(64, self.input_channels, 84, 84), save_dir)
+
+    def plot_scattered(self, z, epoch):
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(8, 8))
+        plt.scatter(z[:, 0], z[:, 1], marker='o', edgecolor='none')
+        axes = plt.gca()
+        axes.set_xlim([-6, 6])
+        axes.set_ylim([-6, 6])
+        plt.grid(True)
+        save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
+        plt.savefig(save_file)
+
 
 class ConvVAE(nn.Module):
     def __init__(
@@ -58,14 +162,8 @@ class ConvVAE(nn.Module):
             input_channels=1,
             hidden_init=ptu.fanin_init,
             output_activation=identity,
-            batch_size=128, log_interval=0, use_cuda=False, beta=0.5
     ):
         super().__init__()
-        self.log_interval = log_interval
-        self.use_cuda = use_cuda
-        self.batch_size = batch_size
-        self.beta = beta
-
         self.representation_size = representation_size
         self.hidden_init = hidden_init
         self.output_activation = output_activation
@@ -94,11 +192,7 @@ class ConvVAE(nn.Module):
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
         self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=3)
 
-        torch.nn.ConvTranspose2d
-
         self.init_weights(init_w)
-        self.optimizer = optim.Adam(self.parameters(), lr=1e-3)
-        self.train_dataset, self.test_data = get_data()
 
     def init_weights(self, init_w):
         self.hidden_init(self.conv1.weight)
@@ -128,17 +222,6 @@ class ConvVAE(nn.Module):
         logvar = self.output_activation(self.fc2(h))
         return mu, logvar
 
-    def get_batch(self, train=True):
-        dataset = self.train_dataset if train else self.test_dataset
-        ind = np.random.randint(0, len(dataset), self.batch_size)
-        return ptu.from_numpy(dataset[ind, :])
-
-    def logprob(self, recon_x, x, mu, logvar):
-        return F.binary_cross_entropy(recon_x, x.view(-1, 84*84), size_average=False)
-
-    def kl_divergence(self, recon_x, x, mu, logvar):
-        return -self.beta * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-
     def reparameterize(self, mu, logvar):
         if self.training:
             std = logvar.mul(0.5).exp_()
@@ -159,98 +242,6 @@ class ConvVAE(nn.Module):
         mu, logvar = self.encode(x.view(-1, 84*84))
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
-
-    def train_epoch(self, epoch):
-        self.train()
-        losses = []
-        bces = []
-        kles = []
-        for batch_idx in range(100):
-            data = self.get_batch()
-            data = Variable(data)
-            if self.use_cuda:
-                data = data.cuda()
-            self.optimizer.zero_grad()
-            recon_batch, mu, logvar = self(data)
-            bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = self.kl_divergence(recon_batch, data, mu, logvar)
-            loss = bce + kle
-            loss.backward()
-
-            losses.append(loss.data[0])
-            bces.append(bce.data[0])
-            kles.append(kle.data[0])
-
-            self.optimizer.step()
-            if self.log_interval and batch_idx % self.log_interval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, batch_idx * len(data), len(self.train_loader.dataset),
-                    100. * batch_idx / len(self.train_loader),
-                    loss.data[0] / len(data)))
-
-        logger.record_tabular("train/epoch", epoch)
-        logger.record_tabular("train/BCE", np.mean(bces) / self.batch_size)
-        logger.record_tabular("train/KL", np.mean(kles) / self.batch_size)
-        logger.record_tabular("train/loss", np.mean(losses) / self.batch_size)
-
-
-    def test_epoch(self, epoch):
-        self.eval()
-        losses = []
-        bces = []
-        kles = []
-        zs = []
-        for batch_idx in range(10):
-            data = self.get_batch()
-            if self.use_cuda:
-                data = data.cuda()
-            data = Variable(data, volatile=True)
-            recon_batch, mu, logvar = self(data)
-            bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = self.kl_divergence(recon_batch, data, mu, logvar)
-            loss = bce + kle
-
-            z_data = ptu.get_numpy(mu)
-            for i in range(len(z_data)):
-                zs.append(z_data[i, :])
-            losses.append(loss.data[0])
-            bces.append(bce.data[0])
-            kles.append(kle.data[0])
-
-            if batch_idx == 0:
-                n = min(data.size(0), 8)
-                comparison = torch.cat([data[:n].view(-1, 1, 84, 84),
-                                      recon_batch.view(self.batch_size, 1, 84, 84)[:n]])
-                save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
-                save_image(comparison.data.cpu(), save_dir, nrow=n)
-
-        self.plot_scattered(np.array(zs), epoch)
-
-        logger.record_tabular("test/BCE", np.mean(bces) / self.batch_size)
-        logger.record_tabular("test/KL", np.mean(kles) / self.batch_size)
-        logger.record_tabular("test/loss", np.mean(losses) / self.batch_size)
-        logger.dump_tabular()
-
-        logger.save_itr_params(epoch, self)
-
-    def dump_samples(self, epoch):
-        sample = Variable(torch.randn(64, self.representation_size))
-        if self.use_cuda:
-            sample = sample.cuda()
-        sample = self.decode(sample).cpu()
-        save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
-        save_image(sample.data.view(64, 1, 84, 84), save_dir)
-
-    def plot_scattered(self, z, epoch):
-        import matplotlib.pyplot as plt
-        plt.figure(figsize=(8, 8))
-        plt.scatter(z[:, 0], z[:, 1], marker='o', edgecolor='none')
-        axes = plt.gca()
-        axes.set_xlim([-6, 6])
-        axes.set_ylim([-6, 6])
-        plt.grid(True)
-        save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
-        plt.savefig(save_file)
 
 if __name__ == "__main__":
     m = ConvVAE(2)
