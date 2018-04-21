@@ -106,8 +106,8 @@ class ModelTrainer(TorchRLAlgorithm):
             self.optimizer.step()
             losses.append(ptu.get_numpy(loss))
 
-        if self.eval_statistics is None:
-            self.eval_statistics = OrderedDict()
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Model Loss',
                 losses,

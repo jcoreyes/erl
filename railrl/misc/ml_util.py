@@ -21,29 +21,29 @@ class ConstantSchedule(ScalarSchedule):
         return self._value
 
 
-class RampUpSchedule(ScalarSchedule):
+class LinearSchedule(ScalarSchedule):
     """
-    Ramp up linearly and then stop at a max value.
+    Linearly interpolate and then stop at a final value.
     """
     def __init__(
             self,
-            min_value,
-            max_value,
+            init_value,
+            final_value,
             ramp_duration,
     ):
-        self._min_value = min_value
-        self._max_value = max_value
+        self._init_value = init_value
+        self._final_value = final_value
         self._ramp_duration = ramp_duration
 
     def get_value(self, t):
         return (
-            self._min_value
-            + (self._max_value - self._min_value)
+            self._init_value
+            + (self._final_value - self._init_value)
             * min(1.0, t * 1.0 / self._ramp_duration)
         )
 
 
-class IntRampUpSchedule(RampUpSchedule):
+class IntLinearSchedule(LinearSchedule):
     """
     Same as RampUpSchedule but round output to an int
     """

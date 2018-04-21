@@ -5,7 +5,7 @@ import random
 
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import RampUpSchedule
+from railrl.misc.ml_util import LinearSchedule
 from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.torch.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
@@ -66,7 +66,7 @@ if __name__ == "__main__":
             policy_learning_rate=1e-4,
         ),
         version="DDPG",
-        epoch_discount_schedule_class=RampUpSchedule,
+        epoch_discount_schedule_class=LinearSchedule,
         epoch_discount_schedule_params=dict(
             min_value=0.,
             max_value=0.99,

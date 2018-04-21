@@ -71,12 +71,12 @@ if __name__ == "__main__":
     exp_prefix = "dev-sac-tdm-launch"
 
     n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "sac-tdm-ant-goalxy-sweep"
+    # mode = "ec2"
+    exp_prefix = "sac-tdm-point2d"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
+    num_epochs = 100
+    num_steps_per_epoch = 100
+    num_steps_per_eval = 100
     max_path_length = 50
 
     # noinspection PyTypeChecker
@@ -91,6 +91,7 @@ if __name__ == "__main__":
                 batch_size=128,
                 discount=1,
                 save_replay_buffer=False,
+                render=True,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='fixed',
@@ -114,17 +115,17 @@ if __name__ == "__main__":
             num_goals_to_sample=4,
         ),
         qf_kwargs=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[32, 32],
             structure='squared_difference',
             # structure='norm_difference',
             # structure='none',
             learn_offset=True,
         ),
         vf_kwargs=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[32, 32],
         ),
         policy_kwargs=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[32, 32],
         ),
         tdm_normalizer_kwargs=dict(
             normalize_tau=False,
@@ -140,9 +141,9 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # Reacher7DofFullGoal,
             # MultitaskPoint2DEnv,
-            # MultitaskPoint2dWall,
+            MultitaskPoint2dWall,
             # MultitaskPoint2dUWall,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
             # CylinderXYPusher2DEnv,
@@ -151,11 +152,11 @@ if __name__ == "__main__":
         #     dict(max_distance=6),
         # ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
-            1,
-            10,
+            # 1,
+            # 10,
             100,
-            1000,
-            10000,
+            # 1000,
+            # 10000,
         ],
         'qf_kwargs.hidden_activation': [
             ptu.softplus,
@@ -179,9 +180,10 @@ if __name__ == "__main__":
             # 'replay_buffer',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
+            0,
             # 10,
-            25,
-            max_path_length-1,
+            # 25,
+            # max_path_length-1,
             # 1,
             # 10,
             # 99,
@@ -190,7 +192,7 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
-            5,
+            # 5,
             # 10,
             # 25,
         ],

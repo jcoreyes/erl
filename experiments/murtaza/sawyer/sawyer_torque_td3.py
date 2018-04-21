@@ -1,6 +1,7 @@
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
+from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
@@ -29,9 +30,13 @@ def experiment(variant):
         output_size=action_dim,
         hidden_sizes=[400, 300],
     )
-    es = GaussianStrategy(
+    # es = GaussianStrategy(
+    #     action_space=env.action_space,
+    #     **variant['es_kwargs']
+    # )
+    es = EpsilonGreedy(
         action_space=env.action_space,
-        **variant['es_kwargs']
+        prob_random_action=.2,
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,

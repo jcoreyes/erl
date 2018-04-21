@@ -9,11 +9,13 @@ class GaussianStrategy(RawExplorationStrategy, Serializable):
 
     Based on the rllab implementation.
     """
-    def __init__(self, action_space, max_sigma=1.0, min_sigma=0.1,
+    def __init__(self, action_space, max_sigma=1.0, min_sigma=None,
                  decay_period=1000000):
         assert len(action_space.shape) == 1
         Serializable.quick_init(self, locals())
         self._max_sigma = max_sigma
+        if min_sigma is None:
+            min_sigma = max_sigma
         self._min_sigma = min_sigma
         self._decay_period = decay_period
         self._action_space = action_space

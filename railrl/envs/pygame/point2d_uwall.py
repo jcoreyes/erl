@@ -37,22 +37,22 @@ class Point2dUWall(Serializable, Env):
         VerticalWall(
             BALL_RADIUS,
             INNER_WALL_MAX_DIST,
+            -INNER_WALL_MAX_DIST,
             INNER_WALL_MAX_DIST,
-            -INNER_WALL_MAX_DIST
         ),
         # Left wall
         VerticalWall(
             BALL_RADIUS,
             -INNER_WALL_MAX_DIST,
+            -INNER_WALL_MAX_DIST,
             INNER_WALL_MAX_DIST,
-            -INNER_WALL_MAX_DIST
         ),
         # Bottom wall
         HorizontalWall(
             BALL_RADIUS,
             INNER_WALL_MAX_DIST,
+            -INNER_WALL_MAX_DIST,
             INNER_WALL_MAX_DIST,
-            -INNER_WALL_MAX_DIST
         )
     ]
 
@@ -84,10 +84,9 @@ class Point2dUWall(Serializable, Env):
         velocities = np.clip(velocities, a_min=-1, a_max=1)
         new_position = self._position + velocities
         for wall in self.WALLS:
-            if wall.collides_with(self._position, new_position):
-                new_position = wall.handle_collision(
-                    self._position, new_position
-                )
+            new_position = wall.handle_collision(
+                self._position, new_position
+            )
         self._position = new_position
         self._position = np.clip(
             self._position,
@@ -191,10 +190,9 @@ class Point2dUWall(Serializable, Env):
         position = state
         new_position = position + velocities
         for wall in Point2dUWall.WALLS:
-            if wall.collides_with(position, new_position):
-                new_position = wall.handle_collision(
-                    position, new_position
-                )
+            new_position = wall.handle_collision(
+                position, new_position
+            )
         return np.clip(
             new_position,
             a_min=-Point2dUWall.OUTER_WALL_MAX_DIST,

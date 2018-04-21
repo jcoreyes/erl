@@ -2,15 +2,16 @@ import abc
 
 import numpy as np
 import torch
+from gym.spaces import Box
 
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 
 
 class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
-    def __init__(self, goal=(0, -1)):
-        self.init_serialization(locals())
-        super().__init__(goal=goal)
+    def __init__(self, **kwargs):
+        self.quick_init(locals())
+        super().__init__(**kwargs)
         MultitaskEnv.__init__(self)
 
     def sample_actions(self, batch_size):
@@ -327,6 +328,14 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
     """
     Only care about the hand position! This is really just for debugging.
     """
+    def __init__(self, **kwargs):
+        self.quick_init(locals())
+        super().__init__(**kwargs)
+        self.goal_space = Box(
+            low=np.array([-1, -1]),
+            high=np.array([0, 0]),
+        )
+
     def sample_goals(self, batch_size):
         return np.random.uniform(
             np.array([-1, -1]),
@@ -346,8 +355,8 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
         self._target_hand_position = goal
         self._target_cylinder_position = np.random.uniform(-1, 1, 2)
 
-        qpos = self.model.data.qpos.flat.copy()
-        qvel = self.model.data.qvel.flat.copy()
+        qpos = self.sim.data.qpos.flat.copy()
+        qvel = self.sim.data.qvel.flat.copy()
         qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
 
@@ -401,10 +410,18 @@ class FixedHandXYPusher2DEnv(HandXYPusher2DEnv):
 
 
 class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
+    def __init__(self, **kwargs):
+        self.quick_init(locals())
+        super().__init__(**kwargs)
+        self.goal_space = Box(
+            low=np.array([-1, -1]),
+            high=np.array([0, 0]),
+        )
+
     def sample_goals(self, batch_size):
         return np.random.uniform(
             np.array([-1, -1]),
-            np.array([0, 1]),
+            np.array([0, 0]),
             (batch_size, self.goal_dim)
         )
 
@@ -418,12 +435,33 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
     def set_goal(self, goal):
         super().set_goal(goal)
         self._target_cylinder_position = goal
+        self._target_hand_position = goal
 
-        qpos = self.model.data.qpos.flat.copy()
-        qvel = self.model.data.qvel.flat.copy()
+        qpos = self.sim.data.qpos.flat.copy()
+        qvel = self.sim.data.qvel.flat.copy()
         qpos[-4:-2] = self._target_cylinder_position
-        qpos[-2:] = 0
+        qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
+
+    def compute_her_reward_np(
+            self,
+            observation,
+            action,
+            next_observation,
+            goal,
+    ):
+        hand_pos = next_observation[6:8]
+        cylinder_pos = next_observation[8:10]
+        target_pos = goal
+        hand_to_puck_dist = np.linalg.norm(hand_pos - cylinder_pos)
+        puck_to_goal_dist = np.linalg.norm(cylinder_pos - target_pos)
+        if self.use_sparse_rewards:
+                return float(puck_to_goal_dist < 0.1)
+        else:
+            if self.use_hand_to_obj_reward:
+                return - hand_to_puck_dist - puck_to_goal_dist
+            else:
+                return - puck_to_goal_dist
 
     def compute_her_reward_pytorch(
             self,

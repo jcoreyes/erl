@@ -268,12 +268,12 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         wrapped_low = self.observation_space.low
         low = np.hstack((
             wrapped_low,
-            min(wrapped_low) * np.ones(self._wrapped_env.goal_dim)
+            self._wrapped_env.goal_space.low,
         ))
         wrapped_high = self.observation_space.low
         high = np.hstack((
             wrapped_high,
-            max(wrapped_high) * np.ones(self._wrapped_env.goal_dim)
+            self._wrapped_env.goal_space.high,
         ))
         self.observation_space = Box(low, high)
 

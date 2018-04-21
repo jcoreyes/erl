@@ -10,9 +10,8 @@ from railrl.core.serializable import Serializable
 from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths, \
     get_stat_in_paths
-import railrl.misc.visualization_util as vu
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+# import matplotlib.pyplot as plt
+# import matplotlib.cm as cm
 
 
 class Point2DEnv(Serializable, Env):
@@ -25,8 +24,11 @@ class Point2DEnv(Serializable, Env):
 
     def __init__(
             self,
-            render_dt_msec=30,
+            render_dt_msec=0,
             action_l2norm_penalty=0,
+            render_onscreen=True,
+            render_size=500,
+            ball_radius=0.25,
     ):
         Serializable.quick_init(self, locals())
         self.MAX_TARGET_DISTANCE = self.BOUNDARY_DIST - self.TARGET_RADIUS
@@ -35,14 +37,18 @@ class Point2DEnv(Serializable, Env):
         self._target_position = None
         self._position = None
 
-        self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
+        self.action_space = Box(np.array([-1, -1]), np.array([1, 1]), dtype=np.float32)
         self.observation_space = Box(
             -self.BOUNDARY_DIST * np.ones(4),
             self.BOUNDARY_DIST * np.ones(4),
+            dtype=np.float32
         )
 
         self.drawer = None
         self.render_dt_msec = render_dt_msec
+        self.render_onscreen = render_onscreen
+        self.render_size = render_size
+        self.BALL_RADIUS = ball_radius
 
     def _step(self, velocities):
         velocities = np.clip(velocities, a_min=-1, a_max=1)
@@ -59,10 +65,9 @@ class Point2DEnv(Serializable, Env):
         observation = self._get_observation()
         on_platform = self.is_on_platform()
 
-        reward = float(on_platform)
         distance_reward = -distance_to_target
         action_reward = -np.linalg.norm(velocities) * self.action_l2norm_penalty
-        reward += distance_reward + action_reward
+        reward = self._reward()
         done = on_platform
         info = {
             'radius': self.TARGET_RADIUS,
@@ -74,6 +79,14 @@ class Point2DEnv(Serializable, Env):
             'action_reward': action_reward,
         }
         return observation, reward, done, info
+
+    def _reward(self):
+        distance_to_target = np.linalg.norm(
+            self._target_position - self._position
+        )
+        distance_reward = -distance_to_target
+        reward = distance_reward
+        return reward
 
     def is_on_platform(self):
         dist = np.linalg.norm(self._position - self._target_position)
@@ -123,17 +136,18 @@ class Point2DEnv(Serializable, Env):
         self._position[0] = pos[0]
         self._position[1] = pos[1]
 
-    def render(self, mode='human', close=False):
+    def render(self, close=False, debug_info=None):
         if close:
             self.drawer = None
             return
 
         if self.drawer is None or self.drawer.terminated:
             self.drawer = PygameViewer(
-                500,
-                500,
+                self.render_size,
+                self.render_size,
                 x_bounds=(-self.BOUNDARY_DIST, self.BOUNDARY_DIST),
                 y_bounds=(-self.BOUNDARY_DIST, self.BOUNDARY_DIST),
+                render_onscreen=self.render_onscreen,
             )
 
         self.drawer.fill(Color('white'))
@@ -148,8 +162,45 @@ class Point2DEnv(Serializable, Env):
             Color('blue'),
         )
 
+        if debug_info is not None:
+            debug_subgoals = debug_info.get('subgoal_seq', None)
+            if debug_subgoals is not None:
+                plasma_cm = plt.get_cmap('plasma')
+                num_goals = len(debug_subgoals)
+                for i, subgoal in enumerate(debug_subgoals):
+                    color = plasma_cm(float(i) / num_goals)
+                    # RGBA, but RGB need to be ints
+                    color = Color(
+                        int(color[0] * 255),
+                        int(color[1] * 255),
+                        int(color[2] * 255),
+                        int(color[3] * 255),
+                    )
+                    self.drawer.draw_solid_circle(
+                        subgoal,
+                        self.BALL_RADIUS/2,
+                        color,
+                        )
+            best_action = debug_info.get('oracle_qmax_action', None)
+            if best_action is not None:
+                self.drawer.draw_segment(self._position, self._position +
+                                         best_action, Color('red'))
+            policy_action = debug_info.get('learned_action', None)
+            if policy_action is not None:
+                self.drawer.draw_segment(self._position, self._position +
+                                         policy_action, Color('green'))
+
         self.drawer.render()
         self.drawer.tick(self.render_dt_msec)
+
+    def get_image(self):
+        self.render()
+        img = self.drawer.get_image()
+        img = img / 255.0
+        r, g, b = img[:, :, 0], img[:, :, 1], img[:, :, 2]
+        # img = (-r - g + b).flatten() # GREEN ignored for visualization
+        img = (-r + b).flatten().copy()
+        return img
 
     @staticmethod
     def true_model(state, action):
@@ -253,6 +304,7 @@ class Point2DEnv(Serializable, Env):
 
 def plot_observations_and_actions(observations, actions):
     import matplotlib.pyplot as plt
+    import railrl.misc.visualization_util as vu
 
     x_pos = observations[:, 0]
     y_pos = observations[:, 1]

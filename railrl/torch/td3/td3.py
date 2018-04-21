@@ -22,6 +22,7 @@ class TD3(TorchRLAlgorithm):
             qf2,
             policy,
             exploration_policy,
+            eval_policy=None,
 
             target_policy_noise=0.2,
             target_policy_noise_clip=0.5,
@@ -39,7 +40,7 @@ class TD3(TorchRLAlgorithm):
         super().__init__(
             env,
             exploration_policy,
-            eval_policy=policy,
+            eval_policy=eval_policy or policy,
             **kwargs
         )
         if qf_criterion is None:
@@ -71,7 +72,6 @@ class TD3(TorchRLAlgorithm):
             self.policy.parameters(),
             lr=policy_learning_rate,
         )
-        self.eval_statistics = None
 
     def _do_training(self):
         batch = self.get_batch()
@@ -136,17 +136,13 @@ class TD3(TorchRLAlgorithm):
             ptu.soft_update_from_to(self.qf1, self.target_qf1, self.tau)
             ptu.soft_update_from_to(self.qf2, self.target_qf2, self.tau)
 
-        if self.eval_statistics is None:
-            """
-            Eval should set this to None.
-            This way, these statistics are only computed for one batch.
-            """
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
             if policy_loss is None:
                 policy_actions = self.policy(obs)
                 q_output = self.qf1(obs, policy_actions)
                 policy_loss = - q_output.mean()
 
-            self.eval_statistics = OrderedDict()
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(

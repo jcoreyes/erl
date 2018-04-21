@@ -94,6 +94,7 @@ class TdmQf(FlattenMlp):
         :param structure: String defining output structure of network:
             - 'norm_difference': Q = -||g - f(inputs)||
             - 'squared_difference': Q = -(g - f(inputs))^2
+            - 'squared_difference_offset': Q = -(goal - f(inputs))^2 + f2(s, goal, tau)
             - 'none': Q = f(inputs)
 
         :param kwargs:
@@ -229,9 +230,15 @@ class TdmVf(FlattenMlp):
             self,
             env,
             vectorized,
+            structure='none',
             tdm_normalizer: TdmNormalizer=None,
             **kwargs
     ):
+        assert structure in [
+            'norm_difference',
+            'squared_difference',
+            'none',
+        ]
         self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.goal_dim = env.goal_dim
@@ -242,6 +249,7 @@ class TdmVf(FlattenMlp):
         )
         self.env = env
         self.vectorized = vectorized
+        self.structure = structure
         self.tdm_normalizer = tdm_normalizer
 
     def forward(
@@ -256,12 +264,26 @@ class TdmVf(FlattenMlp):
                     observations, None, goals, num_steps_left
                 )
             )
-
-        return super().forward(
-            observations,
-            goals,
-            num_steps_left,
+        predictions = super().forward(
+            observations, goals, num_steps_left
         )
+
+        if self.structure == 'norm_difference':
+            output = - torch.abs(goals - predictions)
+        elif self.structure == 'squared_difference':
+            output = - (goals - predictions)**2
+        elif self.structure == 'none':
+            output = predictions
+        else:
+            raise TypeError("Invalid structure: {}".format(self.structure))
+        if not self.vectorized:
+            output = torch.sum(output, dim=1, keepdim=True)
+
+        if self.tdm_normalizer is not None:
+            output = self.tdm_normalizer.distance_normalizer.denormalize_scale(
+                output
+            )
+        return output
 
 
 class StochasticTdmPolicy(TanhGaussianPolicy, UniversalPolicy):
