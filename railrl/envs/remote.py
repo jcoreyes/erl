@@ -111,7 +111,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         self._rollout_promise = None
     def rollout(self, policy, use_exploration_strategy):
         if self._rollout_promise is None:
-            policy_params = policy.get_param_values()
+            policy_params = policy.get_param_values_np()
             self._rollout_promise = self._ray_env.rollout.remote(
                 policy_params,
                 use_exploration_strategy,
