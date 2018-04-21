@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+    <node pkg="robot_info" type="baxter_server.py" name="jacobian"/>
+    <node pkg="gravity_torques" type="server.py" name="gravity_torques" />
+</launch>
