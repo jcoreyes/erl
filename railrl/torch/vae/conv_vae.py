@@ -125,6 +125,9 @@ class ConvVAETrainer():
                 save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
                 save_image(comparison.data.cpu(), save_dir, nrow=n)
 
+        zs = np.array(zs)
+        self.model.dist_mu = zs.mean(axis=0)
+        self.model.dist_std = zs.std(axis=0)
         self.plot_scattered(np.array(zs), epoch)
 
         logger.record_tabular("test/BCE", np.mean(bces) / self.batch_size)
@@ -132,7 +135,9 @@ class ConvVAETrainer():
         logger.record_tabular("test/loss", np.mean(losses) / self.batch_size)
         logger.dump_tabular()
 
-        logger.save_itr_params(epoch, self.model)
+        logdir = logger.get_snapshot_dir()
+        filename = osp.join(logdir, 'params.pkl')
+        torch.save(self.model, filename)
 
     def dump_samples(self, epoch):
         sample = Variable(torch.randn(64, self.representation_size))
@@ -146,13 +151,16 @@ class ConvVAETrainer():
         import matplotlib.pyplot as plt
         plt.figure(figsize=(8, 8))
         plt.scatter(z[:, 0], z[:, 1], marker='o', edgecolor='none')
+        if self.model.dist_mu is not None:
+            x1, y1 = self.model.dist_mu[:2]
+            x2, y2 = self.model.dist_mu[:2] + self.model.dist_std[:2]
+        plt.plot([x1, x2], [y1, y2], color='k', linestyle='-', linewidth=2)
         axes = plt.gca()
         axes.set_xlim([-6, 6])
         axes.set_ylim([-6, 6])
         plt.grid(True)
         save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
         plt.savefig(save_file)
-
 
 class ConvVAE(nn.Module):
     def __init__(
@@ -168,6 +176,9 @@ class ConvVAE(nn.Module):
         self.hidden_init = hidden_init
         self.output_activation = output_activation
         self.input_channels = input_channels
+
+        self.dist_mu = None
+        self.dist_std = None
 
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
