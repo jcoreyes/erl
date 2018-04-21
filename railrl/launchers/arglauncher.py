@@ -118,6 +118,9 @@ def process_variant_cmd(variant):
     if "--snapshot" in sys.argv:
         variant["snapshot_mode"] = 'gap_and_last'
         variant["snapshot_gap"] = 20
+    elif "--nosnapshot" in sys.argv:
+        variant["snapshot_mode"] = 'none'
+        variant["snapshot_gap"] = 1
     else:
         variant["snapshot_mode"] = 'last'
         variant["snapshot_gap"] = 1
