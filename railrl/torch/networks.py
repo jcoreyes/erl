@@ -492,19 +492,23 @@ class FeatPointMlp(PyTorchModule):
         self.input_channels = input_channels
         self.input_size = input_size
 
+#        self.bn1 = nn.BatchNorm2d(1)
         self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=2)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.conv2 = nn.Conv2d(16, self.num_feat_points, kernel_size=5, stride=2)
+#        self.bn1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(16, 16, kernel_size=5, stride=2)
+        self.conv3 = nn.Conv2d(16, self.num_feat_points, kernel_size=5, stride=2)
 
         test_mat = Variable(torch.zeros(1, self.input_channels, self.input_size, self.input_size))
         test_mat = self.conv1(test_mat)
         test_mat = self.conv2(test_mat)
+        test_mat = self.conv3(test_mat)
         self.out_size = int(np.prod(test_mat.shape))
         self.fc1 = nn.Linear(2 * self.num_feat_points, 400)
         self.fc2 = nn.Linear(400, 300)
         self.last_fc = nn.Linear(300, self.input_channels * self.downsample_size* self.downsample_size)
 
         self.init_weights(init_w)
+        self.i = 0
 
     def init_weights(self, init_w):
         self.hidden_init(self.conv1.weight)
@@ -512,16 +516,17 @@ class FeatPointMlp(PyTorchModule):
         self.hidden_init(self.conv2.weight)
         self.conv2.bias.data.fill_(0)
 
+
     def forward(self, input):
         h = input.view(-1, self.input_channels, self.input_size, self.input_size)
         h = self.encoder(h)
-        #h = x.view(-1, 2, self.num_feat_points).transpose(1, 2).contiguous().view(-1, self.num_feat_points * 2) * 10 - 5
         image = self.decoder(h)
         return image
 
     def encoder(self, input):
-        x = F.relu(self.bn1(self.conv1(input)))
-        x = self.conv2(x)
+        x = F.relu(self.conv1(input))
+        x = F.relu(self.conv2(x))
+        x = self.conv3(x)
         d = int((self.out_size // self.num_feat_points)**(1/2))
         x = x.view(-1, self.num_feat_points, d*d)
         x = F.softmax(x / self.temperature, 2)
@@ -530,13 +535,14 @@ class FeatPointMlp(PyTorchModule):
         maps_x = torch.sum(x, 2)
         maps_y = torch.sum(x, 3)
 
-        weights = ptu.np_to_var(np.arange(d) / d)
+        weights = ptu.np_to_var(np.arange(d) / (d + 1))
 
         fp_x = torch.sum(maps_x * weights, 2)
         fp_y = torch.sum(maps_y * weights, 2)
 
         x = torch.cat([fp_x, fp_y], 1)
-        return x
+        h = x.view(-1, 2, self.num_feat_points).transpose(1, 2).contiguous().view(-1, self.num_feat_points * 2) * 100
+        return h
 
     def decoder(self, input):
         h = input
@@ -556,12 +562,12 @@ class FeatPointMlp(PyTorchModule):
 
 def sample_data(rollouts=10, length=100):
     observations, downsampled = [], []
-    for _ in range(64):
+    for _ in range(32):
         obs = env.reset()
         observations.append(obs)
         downsampled_obs = np.array(Image.fromarray(255*obs.reshape(imsize, imsize)).resize((downsample_size, downsample_size)))
         downsampled.append(downsampled_obs.flatten())
-        for _ in range(4):
+        for _ in range(2):
             action = env.action_space.sample()
             obs, _, _, _ = env.step(action* 5)
             observations.append(obs)
@@ -577,8 +583,12 @@ def convert_flat(obs):
         image = Image.fromarray(np.uint8(255*obs.reshape(imsize, imsize)), mode='L')#.resize((downsample_size, downsample_size))
         return image
 
+def save_features(features, size):
+    for i in range(0, 80):
+        Image.fromarray(np.uint8(255 * np.array(features.data).reshape(-1, size, size)[i])).save('images/' + str(i) + '.png')
+
 def save_and_compare(observation, downsampled):
-    for i in range(0, 100):
+    for i in range(0, 80):
         Image.fromarray(np.uint8(np.array(reconstructed.data).reshape(-1, 32, 32)[i])).save('images/' + str(i) + 'r.png')
         Image.fromarray(np.uint8(np.array(downsampled.data).reshape(-1, 32, 32)[i])).save('images/' + str(i) + '.png')
 
@@ -590,13 +600,14 @@ if __name__ == "__main__":
         input_size=imsize,
         downsample_size=downsample_size,
         input_channels=1,
-        num_feat_points=10
+        num_feat_points=8
     )
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(net.parameters(), lr=1e-3)
+    optimizer = optim.Adam(net.parameters(), lr=1e-2)
 
     env = RandomGoalPusher2DEnv()
     env = ImageMujocoEnv(env, imsize, init_camera=camera.pusher_2d_init_camera)
+    losses = []
     for i in range(0, 1000):
         observation, downsampled = sample_data(rollouts=10, length=100)
         reconstructed = net.forward(observation)
@@ -604,7 +615,9 @@ if __name__ == "__main__":
         loss = criterion(reconstructed, downsampled)
         loss.backward()
         optimizer.step()
-        print('loss:', loss.data)
+        loss = np.array(loss.data[0])
+        print('loss:', loss)
         if i % 50 == 0:
-            pdb.set_trace()
-
+            pass
+            #pdb.set_trace()
+    pdb.set_trace()
