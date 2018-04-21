@@ -52,7 +52,7 @@ JOINT_VALUE_LOW = {
     'torque': JOINT_TORQUE_LOW,
 }
 
-# Testing bounding box for Sawyer on pedestal (too small for reset to work in all cases)
+# Testing bounding box for sawyer on pedestal (too small for reset to work in all cases)
 #box_lows = np.array([-0.4063314307903516, -0.4371988870414967, 0.19114132196594727])
 #box_highs = np.array([0.5444314339226455, 0.5495988452507109, 0.8264100134638303])
 

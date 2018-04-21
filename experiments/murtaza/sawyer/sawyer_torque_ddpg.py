@@ -1,7 +1,6 @@
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
@@ -10,22 +9,9 @@ import railrl.torch.pytorch_util as ptu
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 import railrl.misc.hyperparameter as hyp
 
-
-class FakePolicy:
-    def __init__(self, desired):
-        self.desired = desired
-
-    def get_action(self, obs):
-        return self.desired - obs[21:24], {}
-
-    def reset(self):
-        pass
-
 def experiment(variant):
     env_params = variant['env_params']
     env = SawyerXYZReachingEnv(**env_params)
-    # es = EpsilonGreedy(action_space=env.action_space, prob_random_action=.2)
-    es = OUStrategy(action_space=env.action_space)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     qf = FlattenMlp(
@@ -38,7 +24,10 @@ def experiment(variant):
         output_size=action_dim,
         hidden_sizes=[400, 300],
     )
-    fake_policy = FakePolicy(env.desired)
+    es = OUStrategy(
+        action_space=env.action_space,
+        **variant['es_kwargs']
+    )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
@@ -48,7 +37,6 @@ def experiment(variant):
         qf=qf,
         policy=policy,
         exploration_policy=exploration_policy,
-        # eval_policy=fake_policy,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -59,42 +47,42 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
-            num_epochs=10,
-            num_steps_per_epoch=50,
-            num_steps_per_eval=50,
+            num_epochs=50,
+            num_steps_per_epoch=500,
+            num_steps_per_eval=1000,
             use_soft_update=True,
-            tau=1e-2,
-            batch_size=128,
-            max_path_length=10,
-            discount=0.9,
-            qf_learning_rate=1e-3,
-            policy_learning_rate=1e-4,
-            render=False,
-            num_updates_per_env_step=1,
-            #collection_mode='online-parallel'
+            batch_size=64,
+            max_path_length=100,
+            num_updates_per_env_step=4,
+        ),
+        es_kwargs=dict(
+            theta=0.1,
+            max_sigma=0.25,
+            min_sigma=0.25,
         ),
         env_params=dict(
-            desired=[0.97711039, 0.56662792, 0.67901027],
-            action_mode='position',
-            reward_magnitude=1,
+            action_mode='torque',
+            reward='norm',
         )
     )
     search_space = {
         'algo_params.reward_scale': [
-            # 1,
-            # 10,
+            1,
+            10,
             100,
-            # 1000,
         ],
         'algo_params.num_updates_per_env_step': [
-            1,
-            # 5,
-            # 10,
-            # 15,
+            5,
+            10,
+            15,
         ],
         'env_params.randomize_goal_on_reset': [
-            # True,
             False,
+        ],
+        'algo_params.batch_size': [
+            64,
+            128,
+            256,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -102,7 +90,7 @@ if __name__ == "__main__":
     )
 
     for variant in sweeper.iterate_hyperparameters():
-        n_seeds = 1
+        n_seeds = 3
         exp_prefix = 'test'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
