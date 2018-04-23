@@ -33,9 +33,17 @@ def simulate_policy(args):
     if isinstance(env, RemoteRolloutEnv):
         env = env._wrapped_env
     print("Policy loaded")
+    import pdb; pdb.set_trace()
     if args.gpu:
         set_gpu_mode(True)
         policy.cuda()
+        if hasattr(env, "vae"):
+            env.vae.cuda()
+    else:
+        set_gpu_mode(False)
+        policy.cpu()
+        if hasattr(env, "vae"):
+            env.vae.cpu()
     if args.pause:
         import ipdb; ipdb.set_trace()
     if isinstance(policy, PyTorchModule):
