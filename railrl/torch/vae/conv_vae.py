@@ -35,11 +35,13 @@ class ConvVAETrainer():
             train_dataset, test_dataset,
             model,
             batch_size=128, log_interval=0, use_cuda=False, beta=0.5,
+            do_scatterplot=False,
     ):
         self.log_interval = log_interval
         self.use_cuda = use_cuda
         self.batch_size = batch_size
         self.beta = beta
+        self.do_scatterplot = do_scatterplot
 
         self.model = model
         self.representation_size = model.representation_size
@@ -129,7 +131,8 @@ class ConvVAETrainer():
         zs = np.array(zs)
         self.model.dist_mu = zs.mean(axis=0)
         self.model.dist_std = zs.std(axis=0)
-        self.plot_scattered(np.array(zs), epoch)
+        if self.do_scatterplot:
+            self.plot_scattered(np.array(zs), epoch)
 
         logger.record_tabular("test/BCE", np.mean(bces) / self.batch_size)
         logger.record_tabular("test/KL", np.mean(kles) / self.batch_size)
@@ -174,7 +177,7 @@ class ConvVAE(nn.Module):
             hidden_init=ptu.fanin_init,
             output_activation=identity,
     ):
-        self.save_init_params(locals())
+        # self.save_init_params(locals())
         super().__init__()
         self.representation_size = representation_size
         self.hidden_init = hidden_init
