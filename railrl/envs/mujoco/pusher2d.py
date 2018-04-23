@@ -16,7 +16,8 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
 
     def __init__(self, goal=(-1, 0), randomize_goals=False,
                  use_hand_to_obj_reward=True,
-                 use_sparse_rewards=False, **kwargs):
+                 use_sparse_rewards=False,
+                 use_big_red_puck=False, **kwargs):
         self.quick_init(locals())
         if not isinstance(goal, np.ndarray):
             goal = np.array(goal)
@@ -25,8 +26,11 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
         self.randomize_goals = randomize_goals
         self.use_hand_to_obj_reward = use_hand_to_obj_reward
         self.use_sparse_rewards = use_sparse_rewards
+        self.use_big_red_puck = use_big_red_puck
+
+        filename = "3link_gripper_push_2d_bigredpuck.xml" if use_big_red_puck else "3link_gripper_push_2d.xml"
         super().__init__(
-            get_asset_full_path('3link_gripper_push_2d.xml'),
+            get_asset_full_path(filename),
             frame_skip=5,
         )
 

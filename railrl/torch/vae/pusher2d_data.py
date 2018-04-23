@@ -13,7 +13,7 @@ def get_data(N = 10000, test_p = 0.9, use_cached=True, render=False):
     else:
         # if not cached
         now = time.time()
-        e = FullPusher2DEnv()
+        e = FullPusher2DEnv(use_big_red_puck=True)
         e = ImageMujocoEnv(e, 84, camera_name="topview", transpose=True, normalize=True)
         dataset = np.zeros((N, 3*84*84))
         for i in range(N):
@@ -34,4 +34,4 @@ def get_data(N = 10000, test_p = 0.9, use_cached=True, render=False):
     return train_dataset, test_dataset
 
 if __name__ == "__main__":
-    get_data(10000, use_cached=False)
+    get_data(100, use_cached=False, render=True)
