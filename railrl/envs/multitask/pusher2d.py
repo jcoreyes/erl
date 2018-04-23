@@ -12,7 +12,7 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     def __init__(self, **kwargs):
         self.quick_init(locals())
         super().__init__(**kwargs)
-        MultitaskEnv.__init__(self)
+        MultitaskEnv.__init__(self, **kwargs)
 
     def sample_actions(self, batch_size):
         return np.random.uniform(
@@ -352,7 +352,14 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
 
     def set_goal(self, goal):
         super().set_goal(goal)
-        self._target_hand_position = goal
+        if self.ignore_multitask_goal:
+            self._target_hand_position = np.random.uniform(
+                np.array([-1, -1]),
+                np.array([0, 1]),
+                (self.goal_dim,)
+            )
+        else:
+            self._target_hand_position = goal
         self._target_cylinder_position = np.random.uniform(-1, 1, 2)
 
         qpos = self.sim.data.qpos.flat.copy()
@@ -434,8 +441,16 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
 
     def set_goal(self, goal):
         super().set_goal(goal)
-        self._target_cylinder_position = goal
-        self._target_hand_position = goal
+        if self.ignore_multitask_goal:
+            self._target_hand_position = np.random.uniform(
+                np.array([-1, -1]),
+                np.array([0, 1]),
+                (self.goal_dim,)
+            )
+            self._target_cylinder_position = self._target_hand_position
+        else:
+            self._target_hand_position = goal
+            self._target_cylinder_position = goal
 
         qpos = self.sim.data.qpos.flat.copy()
         qvel = self.sim.data.qvel.flat.copy()
@@ -489,3 +504,168 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         )
         costs = costs + (puck_to_goal_dist - 2) * hand_is_close_to_puck
         return - costs
+
+
+class FullPusher2DEnv(MultitaskPusher2DEnv):
+    """Randomize joints fully
+    qpos:
+    3 arm joints
+    2 puck joints
+    2 hand xy goal
+    2 puck xy goal
+    """
+    def __init__(self, include_puck=True, arm_range=0.1, **kwargs):
+        self.quick_init(locals())
+        self.include_puck = include_puck
+        self.arm_range = arm_range
+        super().__init__(**kwargs)
+        self.goal_space = Box(
+            low=np.array([-1, -1]),
+            high=np.array([0, 0]),
+        )
+
+    def sample_goals(self, batch_size):
+        return np.random.uniform(
+            np.array([-1, -1]),
+            np.array([0, 0]),
+            (batch_size, self.goal_dim)
+        )
+
+    @property
+    def goal_dim(self):
+        return 2
+
+    def convert_obs_to_goals(self, obs):
+        return obs[:, -2:]
+
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        if self.ignore_multitask_goal:
+            self._target_hand_position = np.random.uniform(
+                np.array([-1, -1]),
+                np.array([0, 1]),
+                (self.goal_dim,)
+            )
+            self._target_cylinder_position = self._target_hand_position
+        else:
+            self._target_hand_position = goal
+            self._target_cylinder_position = goal
+
+        qpos = self.sim.data.qpos.flat.copy()
+        qvel = self.sim.data.qvel.flat.copy()
+        qpos[-4:-2] = self._target_cylinder_position
+        qpos[-2:] = self._target_hand_position
+        # import pdb; pdb.set_trace()
+        self.set_state(qpos, qvel)
+
+    def reset_model(self):
+        # fully random
+        # low = np.array([-2.5, -2.32, -2.32, -1, -1, 5, 5, 5, 5])
+        # high = np.array([2.5, 2.32, 2.32, 1, 1, 6, 6, 6, 6])
+
+        r = self.arm_range
+        if self.include_puck:
+            low = np.array([-r, -r, -r, -1, -1, 6, 6, 6, 6])
+            high = np.array([r, r, r, 1, 0, 6, 6, 6, 6])
+        else:
+            low = np.array([-r, -r, -r, 6, 6, 6, 6, 6, 6])
+            high = np.array([r, r, r, 6, 6, 6, 6, 6, 6])
+        qpos = (
+            np.random.uniform(low=low, high=high, size=self.model.nq)
+        )
+
+        # self.qpos_target = qpos
+        # qpos[-3:] = self.init_qpos.squeeze()[-3:]
+        # # Object position
+        # obj_pos = np.random.uniform(
+        #     #         x      y
+        #     np.array([0.3, -0.8]),
+        #     np.array([0.8, -0.3]),
+        # )
+        # qpos[-6:-4] = obj_pos
+        # if self.randomize_goals:
+        #     self._target_cylinder_position = np.random.uniform(
+        #         np.array([-1, -1]),
+        #         np.array([0, 0]),
+        #         2
+        #     )
+        # self._target_hand_position = self._target_cylinder_position
+        # qpos[-4:-2] = self._target_cylinder_position
+        # qpos[-2:] = self._target_hand_position
+        qvel = qpos * 0
+        # qvel[:] = 0
+
+        self.set_state(qpos, qvel)
+
+        return self._get_obs()
+
+    def compute_her_reward_np(
+            self,
+            observation,
+            action,
+            next_observation,
+            goal,
+    ):
+        hand_pos = next_observation[6:8]
+        cylinder_pos = next_observation[8:10]
+        target_pos = goal
+        hand_to_puck_dist = np.linalg.norm(hand_pos - cylinder_pos)
+        puck_to_goal_dist = np.linalg.norm(cylinder_pos - target_pos)
+        if self.use_sparse_rewards:
+                return float(puck_to_goal_dist < 0.1)
+        else:
+            if self.use_hand_to_obj_reward:
+                return - hand_to_puck_dist - puck_to_goal_dist
+            else:
+                return - puck_to_goal_dist
+
+    def compute_her_reward_pytorch(
+            self,
+            observations,
+            actions,
+            next_observations,
+            goal_states,
+    ):
+        hand_pos = observations[:, 6:8]
+        cylinder_pos = observations[:, 8:10]
+        target_pos = goal_states
+        hand_to_puck_dist = torch.norm(
+            hand_pos - cylinder_pos,
+            dim=1,
+            p=2,
+            keepdim=True,
+        )
+        costs = hand_to_puck_dist
+        hand_is_close_to_puck = (hand_to_puck_dist <= 0.1).float()
+        puck_to_goal_dist = torch.norm(
+            cylinder_pos - target_pos,
+            dim=1,
+            p=2,
+            keepdim=True,
+        )
+        costs = costs + (puck_to_goal_dist - 2) * hand_is_close_to_puck
+        return - costs
+
+    # def log_diagnostics(self, paths, **kwargs):
+    #     super().log_diagnostics(paths, **kwargs)
+    #     statistics = OrderedDict()
+    #     for stat_name_in_paths, stat_name_to_print in [
+    #         ('hand_to_object_distance', 'Distance hand to object'),
+    #         ('object_to_goal_distance', 'Distance object to goal'),
+    #         ('hand_to_hand_goal_distance', 'Distance hand to hand goal'),
+    #         ('success', 'Success (within 0.1)'),
+    #     ]:
+    #         stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
+    #         statistics.update(create_stats_ordered_dict(
+    #             stat_name_to_print,
+    #             stats,
+    #             always_show_all_stats=True,
+    #         ))
+    #         final_stats = [s[-1] for s in stats]
+    #         statistics.update(create_stats_ordered_dict(
+    #             "Final " + stat_name_to_print,
+    #             final_stats,
+    #             always_show_all_stats=True,
+    #         ))
+    #     for key, value in statistics.items():
+    #         logger.record_tabular(key, value)

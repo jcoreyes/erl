@@ -16,7 +16,7 @@ class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
 
     def __init__(self, goal=(-1, 0), randomize_goals=False,
                  use_hand_to_obj_reward=True,
-                 use_sparse_rewards=False):
+                 use_sparse_rewards=False, **kwargs):
         self.quick_init(locals())
         if not isinstance(goal, np.ndarray):
             goal = np.array(goal)

@@ -25,6 +25,7 @@ import numpy as np
 
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 import numpy as np
+from railrl.torch.core import PyTorchModule
 
 e = MultitaskImagePoint2DEnv(render_size=84, render_onscreen=False, ball_radius=1)
 
@@ -135,6 +136,7 @@ class ConvVAETrainer():
         logger.record_tabular("test/loss", np.mean(losses) / self.batch_size)
         logger.dump_tabular()
 
+        # logger.save_itr_params(epoch, self.model) # slow...
         logdir = logger.get_snapshot_dir()
         filename = osp.join(logdir, 'params.pkl')
         torch.save(self.model, filename)
@@ -163,6 +165,7 @@ class ConvVAETrainer():
         plt.savefig(save_file)
 
 class ConvVAE(nn.Module):
+# class ConvVAE(PyTorchModule):
     def __init__(
             self,
             representation_size,
@@ -171,6 +174,7 @@ class ConvVAE(nn.Module):
             hidden_init=ptu.fanin_init,
             output_activation=identity,
     ):
+        self.save_init_params(locals())
         super().__init__()
         self.representation_size = representation_size
         self.hidden_init = hidden_init

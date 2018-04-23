@@ -17,25 +17,23 @@ from railrl.launchers.arglauncher import run_variants
 
 from railrl.envs.vae_wrappers import VAEWrappedEnv
 import torch
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.wrappers import ImageMujocoEnv
 
 def experiment(variant):
     rdim = variant["rdim"]
     vae_paths = {
-        2: "/home/ashvin/data/s3doodad/ashvin/vae/pusher2d-conv-sweep2/run1/id0/params.pkl",
-        4: "/home/ashvin/data/s3doodad/ashvin/vae/pusher2d-conv-sweep2/run1/id1/params.pkl",
-        8: "/home/ashvin/data/s3doodad/ashvin/vae/pusher2d-conv-sweep2/run1/id2/params.pkl",
-        16: "/home/ashvin/data/s3doodad/ashvin/vae/pusher2d-conv-sweep2/run1/id3/params.pkl"
+        2: "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id0/params.pkl",
+        4: "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id1/params.pkl",
+        8: "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id2/params.pkl",
+        16: "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id3/params.pkl"
     }
     vae_path = vae_paths[rdim]
     vae = torch.load(vae_path)
     print("loaded", vae_path)
 
     if variant['multitask']:
-        env = CylinderXYPusher2DEnv(**variant["env_kwargs"])
-        env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True)
-        env = VAEWrappedEnv(env, vae, use_vae_obs=True, use_vae_reward=True, use_vae_goals=True)
+        env = MultitaskImagePoint2DEnv(**variant['env_kwargs'])
+        env = VAEWrappedEnv(env, vae, use_vae_obs=True, use_vae_reward=True, use_vae_goals=True,
+            render_goals=True, render_rollouts=True)
         env = MultitaskToFlatEnv(env)
     # else:
         # env = Pusher2DEnv(**variant['env_kwargs'])
@@ -112,7 +110,10 @@ if __name__ == "__main__":
             # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
+            render_onscreen=False,
+            render_size=84,
             ignore_multitask_goal=True,
+            ball_radius=1,
         ),
         algorithm='TD3',
         multitask=True,
@@ -133,10 +134,10 @@ if __name__ == "__main__":
             'ou',
         ],
         'algo_kwargs.reward_scale': [0.1],
-        'rdim': [4, 8, 16],
+        'rdim': [2, 4, 8, 16],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)
+    run_variants(experiment, sweeper.iterate_hyperparameters())

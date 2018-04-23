@@ -122,8 +122,10 @@ def process_variant_cmd(variant):
         variant["snapshot_mode"] = 'none'
         variant["snapshot_gap"] = 1
     else:
-        variant["snapshot_mode"] = 'last'
-        variant["snapshot_gap"] = 1
+        # variant["snapshot_mode"] = 'last'
+        # variant["snapshot_gap"] = 1
+        variant["snapshot_mode"] = 'gap'
+        variant["snapshot_gap"] = 20
 
     if "--gpu_id" in sys.argv:
         i = sys.argv.index("--gpu_id")

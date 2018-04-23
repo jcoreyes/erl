@@ -6,14 +6,14 @@ import time
 import cv2
 
 def get_data(N = 10000, test_p = 0.9, use_cached=True):
-    filename = "/tmp/pusher2d_" + str(N) + ".npy"
+    filename = "/tmp/reacher2d_" + str(N) + ".npy"
     if use_cached and osp.isfile(filename):
         dataset = np.load(filename).astype(np.float32)
         print("loaded data from saved file", filename)
     else:
         # if not cached
         now = time.time()
-        e = FullPusher2DEnv()
+        e = FullPusher2DEnv(include_puck=False)
         e = ImageMujocoEnv(e, 84, camera_name="topview", transpose=True, normalize=True)
         dataset = np.zeros((N, 3*84*84))
         for i in range(N):

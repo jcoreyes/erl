@@ -17,25 +17,26 @@ from railrl.launchers.arglauncher import run_variants
 
 from railrl.envs.vae_wrappers import VAEWrappedEnv
 import torch
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from railrl.envs.multitask.pusher2d import FullPusher2DEnv
 from railrl.envs.wrappers import ImageMujocoEnv
 
 def experiment(variant):
     rdim = variant["rdim"]
     vae_paths = {
-        2: "/home/ashvin/data/s3doodad/ashvin/vae/pusher2d-conv-sweep2/run1/id0/params.pkl",
-        4: "/home/ashvin/data/s3doodad/ashvin/vae/pusher2d-conv-sweep2/run1/id1/params.pkl",
-        8: "/home/ashvin/data/s3doodad/ashvin/vae/pusher2d-conv-sweep2/run1/id2/params.pkl",
-        16: "/home/ashvin/data/s3doodad/ashvin/vae/pusher2d-conv-sweep2/run1/id3/params.pkl"
+        2: "/home/ashvin/data/s3doodad/ashvin/vae/new-reacher2d-random/run0/id0/params.pkl",
+        4: "/home/ashvin/data/s3doodad/ashvin/vae/new-reacher2d-random/run0/id1/params.pkl",
+        8: "/home/ashvin/data/s3doodad/ashvin/vae/new-reacher2d-random/run0/id2/params.pkl",
+        16: "/home/ashvin/data/s3doodad/ashvin/vae/new-reacher2d-random/run0/id3/params.pkl"
     }
     vae_path = vae_paths[rdim]
     vae = torch.load(vae_path)
     print("loaded", vae_path)
 
     if variant['multitask']:
-        env = CylinderXYPusher2DEnv(**variant["env_kwargs"])
-        env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True)
-        env = VAEWrappedEnv(env, vae, use_vae_obs=True, use_vae_reward=True, use_vae_goals=True)
+        env = FullPusher2DEnv(**variant["env_kwargs"])
+        env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True, normalize=True)
+        env = VAEWrappedEnv(env, vae, use_vae_obs=True, use_vae_reward=True, use_vae_goals=True,
+            render_goals=True, render_rollouts=True)
         env = MultitaskToFlatEnv(env)
     # else:
         # env = Pusher2DEnv(**variant['env_kwargs'])
@@ -113,6 +114,8 @@ if __name__ == "__main__":
         ),
         env_kwargs=dict(
             ignore_multitask_goal=True,
+            include_puck=False,
+            arm_range=2,
         ),
         algorithm='TD3',
         multitask=True,

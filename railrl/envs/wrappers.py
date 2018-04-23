@@ -59,6 +59,8 @@ class ImageMujocoEnv(ProxyEnv, Env):
                  init_camera=None,
                  camera_name=None,
                  transpose=False,
+                 grayscale=False,
+                 normalize=False,
     ):
         self.quick_init(locals())
         super().__init__(wrapped_env)
@@ -76,8 +78,10 @@ class ImageMujocoEnv(ProxyEnv, Env):
             viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=-1)
             init_camera(viewer.cam)
             sim.add_render_context(viewer)
-        self.camera_name = camera_name
+        self.camera_name = camera_name # None means default camera
         self.transpose = transpose
+        self.grayscale = grayscale
+        self.normalize = normalize
 
         self.observation_space = Box(low=0.0,
                                      high=1.0,
@@ -110,12 +114,14 @@ class ImageMujocoEnv(ProxyEnv, Env):
 
     def _image_observation(self):
         # returns the image as a torch format np array
-        image_obs = self._wrapped_env.sim.render(width=self.imsize, height=self.imsize)
-        image_obs = Image.fromarray(image_obs).convert('L')
-        #image_obs.save('images/' + str(self.i) + '.png')
-        #self.i += 1
-        image_obs = np.array(image_obs)
-        image_obs = image_obs / 255.0
+        image_obs = self._wrapped_env.sim.render(width=self.imsize, height=self.imsize, camera_name=self.camera_name)
+        if self.grayscale:
+            image_obs = Image.fromarray(image_obs).convert('L')
+            image_obs = np.array(image_obs)
+        if self.normalize:
+            image_obs = image_obs / 255.0
+        if self.transpose:
+            image_obs = image_obs.transpose()
         return image_obs
 
     def _get_history(self):
