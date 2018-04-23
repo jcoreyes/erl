@@ -3,6 +3,7 @@ from gym.spaces import Discrete
 from railrl.data_management.simple_replay_buffer import SimpleReplayBuffer
 from railrl.envs.env_utils import get_dim
 import numpy as np
+from PIL import Image
 
 class EnvReplayBuffer(SimpleReplayBuffer):
     def __init__(
@@ -34,6 +35,62 @@ class EnvReplayBuffer(SimpleReplayBuffer):
             observation, new_action, reward, terminal,
             next_observation, **kwargs
         )
+
+class AEEnvReplayBuffer(EnvReplayBuffer):
+    def __init__(
+            self,
+            max_replay_buffer_size,
+            env,
+            imsize,
+            downsampled_size,
+    ):
+        super().__init__(max_replay_buffer_size, env)
+        self._downsampled = np.zeros((max_replay_buffer_size, downsampled_size * downsampled_size))
+        self.imsize = imsize
+        self.downsampled_size = downsampled_size
+
+
+    def add_sample(self, observation, action, reward, terminal,
+                   next_observation, **kwargs):
+        super().add_sample(observation, action, reward, terminal, next_observation, **kwargs)
+        image_obs = Image.fromarray(255*observation.reshape(self.imsize, self.imsize))
+        downsampled_obs = image_obs.resize((self.downsampled_size, self.downsampled_size))
+        downsampled_obs = np.array(downsampled_obs).flatten()
+        self._downsampled[self._top] = downsampled_obs
+
+    def get_training_data(self):
+        batch= dict(
+            observations=self._observations[0:self._top],
+            actions=self._actions[0:self._top],
+            rewards=self._rewards[0:self._top],
+            terminals=self._terminals[0:self._top],
+            next_observations=self._next_obs[0:self._top],
+            downsampled = self._downsampled[0:self._top],
+        )
+        return batch
+
+    def random_batch(self, batch_size):
+        indices = np.random.randint(0, self._size, batch_size)
+        return dict(
+            observations=self._observations[indices],
+            actions=self._actions[indices],
+            rewards=self._rewards[indices],
+            terminals=self._terminals[indices],
+            next_observations=self._next_obs[indices],
+            downsampled=self._downsampled[indices],
+        )
+
+
+    def empty_buffer(self):
+        self._observations = np.zeros(self._observations.shape)
+        self._next_obs = np.zeros(self._next_obs.shape)
+        self._actions = np.zeros(self._actions.shape)
+        self._rewards = np.zeros(self._rewards.shape)
+        self._terminals = np.zeros(self._terminals.shape, dtype='uint8')
+        self._downsampled = np.zeros(self._returns.shape)
+        self._size = 0
+        self._top = 0
+        self._bottom = 0
 
 class VPGEnvReplayBuffer(EnvReplayBuffer):
     def __init__(

@@ -51,6 +51,29 @@ class ProxyEnv(Serializable, Env):
         return getattr(self._wrapped_env, attrname)
 
 
+class AEWrappedEnv(ProxyEnv, Env):
+    def __init__(self,
+                 wrapped_env,
+                 ae,
+                 output_dim
+    ):
+        self.quick_init(locals())
+        super().__init__(wrapped_env)
+        self.ae = ae
+        self.observation_space = Discrete(output_dim)
+
+    def step(self, action):
+        # image observation get returned as a flattened 1D array
+        observation, reward, done, info = self.wrapped_env.step(action)
+        latent_obs = self.ae.encoder(observation)
+        return latent_obs, reward, done, info
+
+    def reset(self):
+        observation = self.wrapped_env.reset()
+        latent_obs = self.ae.encoder(observation)
+        return latent_obs
+
+
 class ImageMujocoEnv(ProxyEnv, Env):
     def __init__(self,
                  wrapped_env,

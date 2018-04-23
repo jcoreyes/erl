@@ -319,6 +319,37 @@ class TanhMlpPolicy(MlpPolicy):
         super().__init__(*args, output_activation=torch.tanh, **kwargs)
 
 
+class AETanhPolicy(Mlp, Policy):
+    """
+    A helper class since most policies have a tanh output activation.
+    """
+    def __init__(
+            self,
+            ae,
+            *args,
+            obs_normalizer: TorchFixedNormalizer = None,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__(*args, **kwargs, output_activation=torch.tanh)
+        self.ae = ae
+        self.obs_normalizer = obs_normalizer
+
+    def forward(self, obs, **kwargs):
+        if self.obs_normalizer:
+            obs = self.obs_normalizer.normalize(obs)
+        return super().forward(obs, **kwargs)
+
+    def get_action(self, obs_np):
+        obs = Variable(torch.Tensor(obs_np))
+        obs = self.ae.encoder(obs)
+        obs_np = np.array(obs.data)
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs):
+        return self.eval_np(obs)
+
 class FeedForwardQFunction(PyTorchModule):
     def __init__(
             self,
@@ -518,13 +549,13 @@ class FeatPointMlp(PyTorchModule):
 
 
     def forward(self, input):
-        h = input.view(-1, self.input_channels, self.input_size, self.input_size)
-        h = self.encoder(h)
+        h = self.encoder(input)
         image = self.decoder(h)
         return image
 
     def encoder(self, input):
-        x = F.relu(self.conv1(input))
+        x = input.view(-1, self.input_channels, self.input_size, self.input_size)
+        x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = self.conv3(x)
         d = int((self.out_size // self.num_feat_points)**(1/2))
