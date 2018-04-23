@@ -18,7 +18,7 @@ from railrl.launchers.arglauncher import run_variants
 
 def experiment(variant):
     if variant['multitask']:
-        env = MultitaskFullVAEPoint2DEnv(**variant['env_kwargs']) # used point2d-conv/run2/id0
+        env = MultitaskFullVAEPoint2DEnv(**variant['env_kwargs']) # used point2d-conv-sweep/run1/id4
         env = MultitaskToFlatEnv(env)
     # else:
         # env = Pusher2DEnv(**variant['env_kwargs'])

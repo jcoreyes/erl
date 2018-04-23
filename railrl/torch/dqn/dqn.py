@@ -117,7 +117,6 @@ class DQN(TorchRLAlgorithm):
         raise NotImplementedError()
 
     def get_epoch_snapshot(self, epoch):
-        self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,

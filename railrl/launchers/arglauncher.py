@@ -91,9 +91,9 @@ def process_variant_cmd(variant):
         variant["sync"] = False
 
     if "--render" in sys.argv:
-        variant["algo_params"]["render"] = True
+        variant["algo_kwargs"]["render"] = True
     if "--norender" in sys.argv:
-        variant["algo_params"]["render"] = False
+        variant["algo_kwargs"]["render"] = False
 
     if "--ec2" in sys.argv:
         variant["mode"] = "ec2"
@@ -118,9 +118,14 @@ def process_variant_cmd(variant):
     if "--snapshot" in sys.argv:
         variant["snapshot_mode"] = 'gap_and_last'
         variant["snapshot_gap"] = 20
-    else:
-        variant["snapshot_mode"] = 'last'
+    elif "--nosnapshot" in sys.argv:
+        variant["snapshot_mode"] = 'none'
         variant["snapshot_gap"] = 1
+    else:
+        # variant["snapshot_mode"] = 'last'
+        # variant["snapshot_gap"] = 1
+        variant["snapshot_mode"] = 'gap'
+        variant["snapshot_gap"] = 20
 
     if "--gpu_id" in sys.argv:
         i = sys.argv.index("--gpu_id")

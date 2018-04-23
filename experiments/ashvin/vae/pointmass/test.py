@@ -1,5 +1,5 @@
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.point2d import MultitaskFullVAEPoint2DEnv
+from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -15,10 +15,21 @@ from railrl.torch.td3.td3 import TD3
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
 
+from railrl.envs.vae_wrappers import VAEWrappedEnv
+import joblib
 
 def experiment(variant):
+    vae_paths = {
+        2: "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv/run2/id0/params.pkl",
+        4: "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep/run1/id4/params.pkl"
+    }
+    vae_path = vae_paths[2]
+    vae = joblib.load(vae_path)
+    print("loaded", vae_path)
+
     if variant['multitask']:
-        env = MultitaskFullVAEPoint2DEnv(**variant['env_kwargs']) # used point2d-conv/run2/id0
+        env = MultitaskImagePoint2DEnv(**variant['env_kwargs'])
+        env = VAEWrappedEnv(env, vae)
         env = MultitaskToFlatEnv(env)
     # else:
         # env = Pusher2DEnv(**variant['env_kwargs'])
@@ -69,6 +80,7 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         **variant['algo_kwargs']
     )
+    print("use_gpu", variant["use_gpu"], bool(variant["use_gpu"]))
     if variant["use_gpu"]:
         gpu_id = variant["gpu_id"]
         ptu.set_gpu_mode(True)
@@ -77,11 +89,12 @@ def experiment(variant):
         env._wrapped_env.vae.cuda()
     algorithm.train()
 
+
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=100,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -93,6 +106,7 @@ if __name__ == "__main__":
         ),
         env_kwargs=dict(
             render_onscreen=False,
+            render_size=84,
         ),
         algorithm='TD3',
         multitask=True,
@@ -103,7 +117,7 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 1
+    n_seeds = 3
     mode = 'ec2'
     exp_prefix = 'pusher-2d-state-baselines-h100-multitask-less-shaped'
 
@@ -111,7 +125,7 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.reward_scale': [0.1, 1, 10, 100],
+        'algo_kwargs.reward_scale': [1, 10, 100],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

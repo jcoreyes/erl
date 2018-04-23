@@ -1,5 +1,5 @@
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.point2d import MultitaskFullVAEPoint2DEnv
+from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -15,10 +15,26 @@ from railrl.torch.td3.td3 import TD3
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
 
+from railrl.envs.vae_wrappers import VAEWrappedImageGoalEnv
+import torch
 
 def experiment(variant):
+    rdim = variant["rdim"]
+    vae_paths = {
+        2: "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id0/params.pkl",
+        4: "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id1/params.pkl",
+        8: "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id2/params.pkl",
+        16: "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id3/params.pkl"
+    }
+    vae_path = vae_paths[rdim]
+    vae = torch.load(vae_path)
+    print("loaded", vae_path)
+
     if variant['multitask']:
-        env = MultitaskFullVAEPoint2DEnv(**variant['env_kwargs']) # used point2d-conv/run2/id0
+        env = MultitaskImagePoint2DEnv(**variant['env_kwargs'])
+        env = VAEWrappedImageGoalEnv(env, vae, use_vae_obs=True,
+            use_vae_reward=True, use_vae_goals=True,
+            render_goals=True, render_rollouts=True)
         env = MultitaskToFlatEnv(env)
     # else:
         # env = Pusher2DEnv(**variant['env_kwargs'])
@@ -63,12 +79,14 @@ def experiment(variant):
     )
     algorithm = TD3(
         env,
+        training_env=env,
         qf1=qf1,
         qf2=qf2,
         policy=policy,
         exploration_policy=exploration_policy,
         **variant['algo_kwargs']
     )
+    print("use_gpu", variant["use_gpu"], bool(variant["use_gpu"]))
     if variant["use_gpu"]:
         gpu_id = variant["gpu_id"]
         ptu.set_gpu_mode(True)
@@ -76,6 +94,7 @@ def experiment(variant):
         algorithm.cuda()
         env._wrapped_env.vae.cuda()
     algorithm.train()
+
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
@@ -93,10 +112,14 @@ if __name__ == "__main__":
         ),
         env_kwargs=dict(
             render_onscreen=False,
+            render_size=84,
+            ignore_multitask_goal=True,
+            ball_radius=1,
         ),
         algorithm='TD3',
         multitask=True,
         normalize=False,
+        rdim=4,
     )
 
     n_seeds = 1
@@ -111,7 +134,8 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.reward_scale': [0.1, 1, 10, 100],
+        'algo_kwargs.reward_scale': [0.1],
+        'rdim': [2, 4, 8, 16],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
