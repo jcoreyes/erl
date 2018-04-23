@@ -3,7 +3,7 @@
 # import mnist_data
 # import os
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-from railrl.torch.vae.pusher2d_data import get_data
+from railrl.torch.vae.reacher2d_data import get_data
 # import plot_utils
 # import glob
 # import ss.path
@@ -38,4 +38,4 @@ if __name__ == "__main__":
                 representation_size=representation_size,
             )
             variants.append(variant)
-    run_variants(experiment, variants, run_id=1)
+    run_variants(experiment, variants, run_id=0)

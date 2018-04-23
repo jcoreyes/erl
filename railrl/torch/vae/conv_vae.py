@@ -25,6 +25,7 @@ import numpy as np
 
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 import numpy as np
+from railrl.torch.core import PyTorchModule
 
 e = MultitaskImagePoint2DEnv(render_size=84, render_onscreen=False, ball_radius=1)
 
@@ -34,11 +35,13 @@ class ConvVAETrainer():
             train_dataset, test_dataset,
             model,
             batch_size=128, log_interval=0, use_cuda=False, beta=0.5,
+            do_scatterplot=False,
     ):
         self.log_interval = log_interval
         self.use_cuda = use_cuda
         self.batch_size = batch_size
         self.beta = beta
+        self.do_scatterplot = do_scatterplot
 
         self.model = model
         self.representation_size = model.representation_size
@@ -125,14 +128,21 @@ class ConvVAETrainer():
                 save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
                 save_image(comparison.data.cpu(), save_dir, nrow=n)
 
-        self.plot_scattered(np.array(zs), epoch)
+        zs = np.array(zs)
+        self.model.dist_mu = zs.mean(axis=0)
+        self.model.dist_std = zs.std(axis=0)
+        if self.do_scatterplot:
+            self.plot_scattered(np.array(zs), epoch)
 
         logger.record_tabular("test/BCE", np.mean(bces) / self.batch_size)
         logger.record_tabular("test/KL", np.mean(kles) / self.batch_size)
         logger.record_tabular("test/loss", np.mean(losses) / self.batch_size)
         logger.dump_tabular()
 
-        logger.save_itr_params(epoch, self.model)
+        # logger.save_itr_params(epoch, self.model) # slow...
+        logdir = logger.get_snapshot_dir()
+        filename = osp.join(logdir, 'params.pkl')
+        torch.save(self.model, filename)
 
     def dump_samples(self, epoch):
         sample = Variable(torch.randn(64, self.representation_size))
@@ -146,6 +156,10 @@ class ConvVAETrainer():
         import matplotlib.pyplot as plt
         plt.figure(figsize=(8, 8))
         plt.scatter(z[:, 0], z[:, 1], marker='o', edgecolor='none')
+        if self.model.dist_mu is not None:
+            x1, y1 = self.model.dist_mu[:2]
+            x2, y2 = self.model.dist_mu[:2] + self.model.dist_std[:2]
+        plt.plot([x1, x2], [y1, y2], color='k', linestyle='-', linewidth=2)
         axes = plt.gca()
         axes.set_xlim([-6, 6])
         axes.set_ylim([-6, 6])
@@ -153,8 +167,8 @@ class ConvVAETrainer():
         save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
         plt.savefig(save_file)
 
-
 class ConvVAE(nn.Module):
+# class ConvVAE(PyTorchModule):
     def __init__(
             self,
             representation_size,
@@ -163,11 +177,15 @@ class ConvVAE(nn.Module):
             hidden_init=ptu.fanin_init,
             output_activation=identity,
     ):
+        # self.save_init_params(locals())
         super().__init__()
         self.representation_size = representation_size
         self.hidden_init = hidden_init
         self.output_activation = output_activation
         self.input_channels = input_channels
+
+        self.dist_mu = None
+        self.dist_std = None
 
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()

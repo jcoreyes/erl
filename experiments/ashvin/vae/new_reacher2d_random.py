@@ -3,7 +3,7 @@
 # import mnist_data
 # import os
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-from railrl.torch.vae.pusher2d_data import get_data
+from railrl.torch.vae.reacher2d_random_data import get_data
 # import plot_utils
 # import glob
 # import ss.path
