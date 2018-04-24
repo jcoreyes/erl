@@ -70,7 +70,7 @@ if __name__ == "__main__":
                 max_path_length=100,
                 num_updates_per_env_step=4,
                 batch_size=64,
-                discount=1,
+                discount=1
             ),
             tdm_kwargs=dict(
                 max_tau=10,

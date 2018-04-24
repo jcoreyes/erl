@@ -60,12 +60,12 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             num_epochs=50,
             num_steps_per_epoch=500,
-            num_steps_per_eval=1000,
+            num_steps_per_eval=500,
             batch_size=64,
             max_path_length=100,
-            num_updates_per_env_step=4,
             discount=0.99,
             replay_buffer_size=int(1E6),
+            normalize_env=False,
         ),
         es_kwargs=dict(
             max_sigma=0.25,
@@ -84,8 +84,6 @@ if __name__ == "__main__":
         ],
         'algo_params.num_updates_per_env_step': [
             5,
-            10,
-            15,
         ],
         'env_params.randomize_goal_on_reset': [
             False,
@@ -94,6 +92,10 @@ if __name__ == "__main__":
             64,
             128,
             256,
+        ],
+        'algo_kwargs.collection_mode': [
+            'online',
+            # 'online-parallel'
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -102,7 +104,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 3
-        exp_prefix = 'test'
+        exp_prefix = 'sawyer_td3_torque_xyz_reaching'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

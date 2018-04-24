@@ -191,11 +191,11 @@ class TD3(TorchRLAlgorithm):
             self.min_num_steps_before_training
         )
 
-    def _can_evaluate(self):
-        return (
-            len(self._exploration_paths) > 0
-            and self.eval_statistics is not None
-        )
+    # def _can_evaluate(self):
+    #     return (
+    #         len(self._exploration_paths) > 0
+    #         and self.eval_statistics is not None
+    #     )
 
     @property
     def networks(self):

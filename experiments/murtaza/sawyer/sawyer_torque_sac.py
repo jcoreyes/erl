@@ -53,7 +53,7 @@ if __name__ == "__main__":
             num_steps_per_eval=num_steps_per_eval,
             max_path_length=max_path_length,
             batch_size=128,
-            discount=1,
+            discount=0.99,
             soft_target_tau=0.01,
             policy_lr=3E-4,
             qf_lr=3E-4,
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         ),
         net_size=300,
         env_params=dict(
-            desired=[0.97711039, 0.56662792, 0.27901027],
+            desired=[ 0.64652479, -0.19783656 , 0.21378691],
             action_mode='torque',
             reward='norm',
         )
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     )
     n_seeds = 1
     for variant in sweeper.iterate_hyperparameters():
-        exp_prefix = 'sac_reaching_torque_control_norm_reward'
+        exp_prefix = 'sac_reaching_torque'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

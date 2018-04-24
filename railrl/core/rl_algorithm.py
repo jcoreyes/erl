@@ -38,6 +38,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             min_num_steps_before_training=None,
             replay_buffer_size=1000000,
             replay_buffer=None,
+            train_on_eval_paths=False,
 
             # I/O parameters
             render=False,
@@ -142,6 +143,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._old_table_keys = None
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
+        self.train_on_eval_paths = train_on_eval_paths
         self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
         self.sim_throttle = sim_throttle
         if self.collection_mode == 'online-parallel':
@@ -417,7 +419,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.need_to_update_eval_statistics = True
 
     def get_eval_paths(self):
-        return self.eval_sampler.obtain_samples()
+        paths = self.eval_sampler.obtain_samples()
+        if self.train_on_eval_paths:
+            for path in paths:
+                self._handle_path(path)
+        return paths
 
     def offline_evaluate(self, epoch):
         for key, value in self.eval_statistics.items():
