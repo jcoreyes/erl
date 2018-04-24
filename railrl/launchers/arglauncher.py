@@ -91,9 +91,9 @@ def process_variant_cmd(variant):
         variant["sync"] = False
 
     if "--render" in sys.argv:
-        variant["algo_kwargs"]["render"] = True
+        variant["render"] = True
     if "--norender" in sys.argv:
-        variant["algo_kwargs"]["render"] = False
+        variant["render"] = False
 
     if "--ec2" in sys.argv:
         variant["mode"] = "ec2"
