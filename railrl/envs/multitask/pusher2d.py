@@ -524,6 +524,9 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
             high=np.array([0, 0]),
         )
 
+    def get_qpos(self):
+        return self.sim.data.qpos.copy()
+
     def sample_goals(self, batch_size):
         return np.random.uniform(
             np.array([-1, -1]),

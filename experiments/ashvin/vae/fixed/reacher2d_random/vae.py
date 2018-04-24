@@ -8,10 +8,10 @@ from railrl.torch.vae.vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id0/params.pkl",
-        "4": "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id1/params.pkl",
-        "8": "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id2/params.pkl",
-        "16": "/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv-sweep2/run1/id3/params.pkl"
+        "2": "/home/ashvin/data/s3doodad/ashvin/vae/new-reacher2d-random/run0/id0/params.pkl",
+        "4": "/home/ashvin/data/s3doodad/ashvin/vae/new-reacher2d-random/run0/id1/params.pkl",
+        "8": "/home/ashvin/data/s3doodad/ashvin/vae/new-reacher2d-random/run0/id2/params.pkl",
+        "16": "/home/ashvin/data/s3doodad/ashvin/vae/new-reacher2d-random/run0/id3/params.pkl"
     }
 
     variant = dict(
@@ -27,19 +27,18 @@ if __name__ == "__main__":
             # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
-            render_onscreen=False,
-            render_size=84,
             ignore_multitask_goal=True,
-            ball_radius=1,
+            include_puck=False,
+            arm_range=2,
         ),
         algorithm='TD3',
         normalize=False,
         rdim=4,
         render=False,
-        env=MultitaskImagePoint2DEnv,
-        use_env_goals=True,
+        env=FullPusher2DEnv,
+        use_env_goals=False,
         vae_paths=vae_paths,
-        track_qpos_goal=2,
+        wrap_mujoco_env=True,
     )
 
     n_seeds = 3
@@ -55,4 +54,4 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)

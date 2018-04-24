@@ -33,6 +33,7 @@ def simulate_policy(args):
     if isinstance(env, RemoteRolloutEnv):
         env = env._wrapped_env
     print("Policy loaded")
+    env.enable_render()
     if args.gpu:
         set_gpu_mode(True)
         policy.cuda()

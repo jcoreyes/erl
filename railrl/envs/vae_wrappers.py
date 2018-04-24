@@ -106,6 +106,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.waitKey(1)
         return goal[0]
 
+    def enable_render(self):
+        self.render_goals=True
+        self.render_rollouts=True
+
 class VAEWrappedImageGoalEnv(ProxyEnv, Env):
     """This class wraps an image-based environment with a VAE.
     Assumes you get flattened (channels,84,84) observations from wrapped_env.
@@ -161,7 +165,7 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
             reward = -np.sum(err)
 
         if self.track_qpos_goal:
-            qpos = self.sim.data.qpos[:self.track_qpos_goal].copy()
+            qpos = self.get_qpos()
             qpos_d = abs(qpos - self.qpos_goal)
             for i in range(self.track_qpos_goal):
                 name = "qpos_d" + str(i)
@@ -192,7 +196,7 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
         """
         observation = self._wrapped_env.reset()
         if self.track_qpos_goal:
-            self.qpos_goal = self.sim.data.qpos[:self.track_qpos_goal].copy()
+            self.qpos_goal = self.get_qpos()
         if self.render_goals:
             cv2.imshow('goal', observation.reshape(self.input_channels, 84, 84).transpose())
             cv2.waitKey(1)
@@ -222,3 +226,7 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
             ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+    def enable_render(self):
+        self.render_goals=True
+        self.render_rollouts=True

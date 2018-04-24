@@ -15,6 +15,7 @@ from railrl.torch.td3.td3 import TD3
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
 
+from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.envs.vae_wrappers import VAEWrappedImageGoalEnv, VAEWrappedEnv
 import torch
 
@@ -23,15 +24,26 @@ def experiment(variant):
     use_env_goals = variant["use_env_goals"]
     vae_path = variant["vae_paths"][str(rdim)]
     render = variant["render"]
+    wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
 
     vae = torch.load(vae_path)
     print("loaded", vae_path)
 
     env = variant["env"](**variant['env_kwargs'])
-    wrapper = VAEWrappedImageGoalEnv if use_env_goals else VAEWrappedEnv
-    env = wrapper(env, vae, use_vae_obs=True,
-        use_vae_reward=True, use_vae_goals=True,
-        render_goals=render, render_rollouts=render)
+    if wrap_mujoco_env:
+        env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True, normalize=True)
+
+
+    if use_env_goals:
+        track_qpos_goal = variant.get("track_qpos_goal", 0)
+        env = VAEWrappedImageGoalEnv(env, vae, use_vae_obs=True,
+            use_vae_reward=True, use_vae_goals=True,
+            render_goals=render, render_rollouts=render, track_qpos_goal=track_qpos_goal)
+    else:
+        env = VAEWrappedEnv(env, vae, use_vae_obs=True,
+            use_vae_reward=True, use_vae_goals=True,
+            render_goals=render, render_rollouts=render)
+
     env = MultitaskToFlatEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
