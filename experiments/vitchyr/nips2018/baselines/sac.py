@@ -77,9 +77,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer-sim-push-xy-state-can-rotate-goal-span--0p2to0p2'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer-sim-push-xy-new-params-v1'
 
     search_space = {
         'env_kwargs.randomize_goals': [True],

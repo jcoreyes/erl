@@ -40,17 +40,17 @@ def experiment(variant):
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[64, 64],
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[64, 64],
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[64, 64],
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             num_epochs=1000,
-            num_steps_per_epoch=10000,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
             batch_size=128,
@@ -94,9 +94,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer-sim-push-xy-state-can-rotate-goal-span--0p2to0p2'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer-sim-push-xy-new-params-v1'
 
     search_space = {
         'env_kwargs.randomize_goals': [True],

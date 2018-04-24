@@ -67,7 +67,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=300,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -80,7 +80,7 @@ if __name__ == "__main__":
             only_reward_block_to_goal=True,
         ),
         algorithm='DDPG',
-        version='normal',
+        version='normal-longer',
         normalize=True,
     )
 
@@ -88,9 +88,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer-sim-push-xy-state-easier'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer-sim-push-xy-new-params-v1'
 
     search_space = {
         'env_kwargs.randomize_goals': [True],

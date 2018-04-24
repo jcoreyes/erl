@@ -23,15 +23,16 @@ while True:
     obs = env.reset()
     last_reward_t = 0
     returns = 0
-    for t in range(100):
+    for t in range(500):
         # action = env.action_space.sample()*10
         action, _ = policy.get_action(None)
         delta = (env.get_block_pos() - env.get_endeff_pos())[:2]
-        action[:2] = delta * 10
+        action[:2] = delta * 100
         # action[1] -= 0.05
-        action += np.random.normal(size=action.shape) * 0.2
+        # action += np.random.normal(size=action.shape) * 0.2
+        action = np.sign(action)
         error = np.linalg.norm(delta)
-        # print("delta", delta)
+        print("action", action)
         print("error", error)
         if error < 0.04:
             action[1] += 10
