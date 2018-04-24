@@ -376,8 +376,8 @@ class SawyerPushEnv(SawyerPickAndPlaceEnv):
     def sample_goal_xyz(self):
         if self.randomize_goals:
             pos = np.random.uniform(
-                np.array([-0.3, 0.5, 0.02]),
-                np.array([-0.3, 0.7, 0.02]),
+                np.array([0.2, 0.5, 0.02]),
+                np.array([-0.2, 0.7, 0.02]),
             )
         else:
             pos = np.array([0.0, 0.6, 0.02])

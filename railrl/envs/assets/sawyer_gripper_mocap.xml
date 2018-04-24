@@ -207,7 +207,7 @@
             <!--<joint name="blockjoint-z" type="slide" limited='false' pos="0 0 0"-->
                    <!--axis="0 0 1"-->
             <!--/>-->
-            <inertial pos="0 0 0" mass=".1" diaginertia="100000 100000 100000"/>
+            <inertial pos="0 0 0" mass=".1" diaginertia="100000 100000 .01"/>
             <geom name="blockbox" type="box" pos="0 0 0"
                   size="0.02 0.02 0.02" rgba=".1 .1 .9 1" contype="2" conaffinity="4"
             />
