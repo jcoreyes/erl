@@ -59,6 +59,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
             min_q_value=-np.inf,
             max_q_value=np.inf,
 
+            extra_fc_size=0,
             imsize=64,
             downsampled_size=32,
             ae_learning_rate=1e-3,
@@ -140,7 +141,9 @@ class FeatPointDDPG(TorchRLAlgorithm):
         self.imsize = imsize
         self.downsampled_size = downsampled_size
         self.history_length = history_length
+        self.extra_fc_size = extra_fc_size
         self.i = 0
+        self.input_length = self.imsize**2 * self.history_length + self.extra_fc_size
 
     def _start_epoch(self, epoch):
         super()._start_epoch(epoch)
@@ -170,10 +173,18 @@ class FeatPointDDPG(TorchRLAlgorithm):
     def get_latent_obs(self, batch):
         obs = batch['observations']
         next_obs = batch['next_observations']
+        image_obs, fc_obs = self.ae.split_obs(obs, self.history_length, self.input_length)
+        next_image_obs, next_fc_obs = self.ae.split_obs(next_obs, self.history_length, self.input_length)
 
-        latent_obs = self.ae.history_encoder(obs, self.history_length)
-        next_latent_obs = self.ae.history_encoder(next_obs, self.history_length)
+        latent_obs = self.ae.history_encoder(image_obs, self.history_length)
+        next_latent_obs = self.ae.history_encoder(next_image_obs, self.history_length)
+        if fc_obs is not None:
+            latent_obs = torch.cat((latent_obs, fc_obs), dim=1)
+            next_latent_obs = torch.cat((next_latent_obs, fc_obs), dim=1)
+
         return latent_obs, next_latent_obs
+
+
 
     def save_and_compare(self, original, reconstructed, downsampled):
         for i in range(0, 50):

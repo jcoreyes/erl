@@ -20,8 +20,9 @@ from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv, RandomGoalPusher2DEnv
-from railrl.envs.wrappers import ImageMujocoEnv
+from railrl.envs.wrappers import ImageMujocoEnv, ImageMujocoWithObsEnv
 #from railrl.images.camera import pusher_2d_init_camera
+from railrl.launchers.launcher_util import setup_logger
 
 import railrl.images.camera as camera
 from railrl.data_management.env_replay_buffer import AEEnvReplayBuffer
@@ -34,12 +35,14 @@ def experiment(variant):
     imsize = 64
     downsampled_size = 32
 
-    env = gym.make('InvertedPendulum-v2').env#RandomGoalPusher2DEnv()
-    env = ImageMujocoEnv(env,
-                        init_camera=camera.inverted_pendulum_v2_init_camera,
-                         imsize=64,
-                         keep_prev=history-1)
+    env = RandomGoalPusher2DEnv()
+    extra_fc_size = env.obs_dim
+    env = ImageMujocoWithObsEnv(env,
+                                imsize=imsize,
+                                keep_prev=history-1,
+                                init_camera=camera.inverted_pendulum_v2_init_camera)
     env = NormalizedBoxEnv(env)
+
     es = GaussianStrategy(
         action_space=env.action_space,
     )
@@ -52,7 +55,7 @@ def experiment(variant):
         num_feat_points=feat_points
     )
     replay_buffer = AEEnvReplayBuffer(
-        int(1e5),
+        int(1e4),
         env,
         imsize=imsize,
         history_length=history,
@@ -61,13 +64,14 @@ def experiment(variant):
 
 
     qf = FlattenMlp(
-        input_size= latent_obs_dim + action_dim,
+        input_size= latent_obs_dim + extra_fc_size + action_dim,
         output_size=1,
         hidden_sizes=[128, 128]
     )
     policy = AETanhPolicy(
-        input_size=latent_obs_dim,
+        input_size=latent_obs_dim + extra_fc_size,
         ae=ae,
+        input_length=imsize**2 * history + extra_fc_size,
         history_length=history,
         output_size=action_dim,
         hidden_sizes=[128, 128],
@@ -84,6 +88,7 @@ def experiment(variant):
         policy=policy,
         exploration_policy=exploration_policy,
         replay_buffer=replay_buffer,
+        extra_fc_size=extra_fc_size,
 
         ae=ae,
         history_length=history,
@@ -134,6 +139,9 @@ if __name__ == "__main__":
             HuberLoss,
         ],
     }
+    setup_logger('dqn-images-experiment', variant=variant)
+    experiment(variant)
+
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
@@ -143,7 +151,7 @@ if __name__ == "__main__":
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="DDPG-pusher2D",
+                exp_prefix="DDPG-inverted",
                 mode='local',
                 # use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",

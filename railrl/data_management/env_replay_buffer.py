@@ -48,12 +48,14 @@ class AEEnvReplayBuffer(EnvReplayBuffer):
         super().__init__(max_replay_buffer_size, env)
         self._downsampled = np.zeros((max_replay_buffer_size, history_length * downsampled_size * downsampled_size))
         self.imsize = imsize
+        self.history_length = history_length
         self.downsampled_size = downsampled_size
 
 
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, **kwargs):
-        history = observation.reshape(-1, self.imsize, self.imsize)
+        history = observation[:self.history_length*self.imsize**2]
+        history = history.reshape(-1, self.imsize, self.imsize)
         downsampled = []
         for image in history:
             image_obs = Image.fromarray(np.uint8(255*image), "L")

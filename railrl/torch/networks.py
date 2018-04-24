@@ -327,6 +327,7 @@ class AETanhPolicy(Mlp, Policy):
             self,
             ae,
             history_length,
+            input_length,
             *args,
             obs_normalizer: TorchFixedNormalizer = None,
             **kwargs
@@ -336,6 +337,7 @@ class AETanhPolicy(Mlp, Policy):
         self.ae = ae
         self.obs_normalizer = obs_normalizer
         self.history_length = history_length
+        self.input_length = input_length
 
     def forward(self, obs, **kwargs):
         if self.obs_normalizer:
@@ -345,8 +347,11 @@ class AETanhPolicy(Mlp, Policy):
     def get_action(self, obs_np):
         obs = obs_np
         obs = ptu.np_to_var(obs)
-        obs = self.ae.history_encoder(obs, self.history_length)
-        obs_np = ptu.get_numpy(obs)
+        image_obs, fc_obs = self.ae.split_obs(obs, self.history_length, self.input_length)
+        latent_obs = self.ae.history_encoder(image_obs, self.history_length)
+        if fc_obs is not None:
+            latent_obs = torch.cat((latent_obs, fc_obs), dim=1)
+        obs_np = ptu.get_numpy(latent_obs)
         actions = self.get_actions(obs_np[None])
         return actions[0, :], {}
 
@@ -594,11 +599,26 @@ class FeatPointMlp(PyTorchModule):
     def get_actions(self, obs):
         return self.eval_np(obs)
 
+    def split_obs(self, obs, history_length, input_length):
+        imlength = self.input_size**2 * history_length
+        obs = obs.view(-1, input_length)
+        image_obs = obs.narrow(start=0,
+                               length=imlength,
+                               dimension=1)
+        if obs.shape[1] - imlength == 0:
+            return image_obs, None
+
+        fc_obs = obs.narrow(start=imlength,
+                            length=obs.shape[1] - imlength,
+                            dimension=1)
+        return image_obs, fc_obs
+
+
     def history_encoder(self, input, history_length):
-        input = input.view(-1,
-                            self.input_channels,
-                            self.input_size,
-                            self.input_size)
+        input = input.contiguous().view(-1,
+                                        self.input_channels,
+                                        self.input_size,
+                                        self.input_size)
         latent = self.encoder(input)
 
         assert latent.shape[0] % history_length == 0
