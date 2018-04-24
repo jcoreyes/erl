@@ -59,12 +59,15 @@ class VAEWrappedEnv(ProxyEnv, Env):
             img = Variable(ptu.from_numpy(observation))
             if ptu.gpu_enabled():
                 self.vae.cuda()
-            e = self.vae.encode(img)[0]
-            observation = ptu.get_numpy(e).flatten()
+            mu, logvar = self.vae.encode(img)
+            observation = ptu.get_numpy(mu).flatten()
         if self.use_vae_reward:
             # replace reward with Euclidean distance in VAE latent space
             # currently assumes obs and goals are also from VAE
-            reward = -np.linalg.norm(self.multitask_goal - observation)
+            dist = self.multitask_goal - observation
+            var = np.exp(ptu.get_numpy(logvar).flatten())
+            err = dist * dist / 2 / var
+            reward = -np.sum(err)
         return observation, reward, done, info
 
     def reset(self):
@@ -147,12 +150,15 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
             img = Variable(ptu.from_numpy(observation))
             if ptu.gpu_enabled():
                 self.vae.cuda()
-            e = self.vae.encode(img)[0]
-            observation = ptu.get_numpy(e).flatten()
+            mu, logvar = self.vae.encode(img)
+            observation = ptu.get_numpy(mu).flatten()
         if self.use_vae_reward:
             # replace reward with Euclidean distance in VAE latent space
             # currently assumes obs and goals are also from VAE
-            reward = -np.linalg.norm(self.multitask_goal - observation)
+            dist = self.multitask_goal - observation
+            var = np.exp(ptu.get_numpy(logvar).flatten())
+            err = dist * dist / 2 / var
+            reward = -np.sum(err)
 
         if self.track_qpos_goal:
             qpos = self.sim.data.qpos[:self.track_qpos_goal].copy()
