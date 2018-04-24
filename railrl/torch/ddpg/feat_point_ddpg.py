@@ -34,6 +34,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
             policy,
             exploration_policy,
             ae,
+            history_length,
 
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
@@ -138,6 +139,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
         )
         self.imsize = imsize
         self.downsampled_size = downsampled_size
+        self.history_length = history_length
         self.i = 0
 
     def _start_epoch(self, epoch):
@@ -147,11 +149,19 @@ class FeatPointDDPG(TorchRLAlgorithm):
     def train_ae(self, batch):
         obs = batch['observations']
         downsampled = batch['downsampled']
+        # get the first image of history
+        downsampled = downsampled.narrow(start=0,
+                                         length=self.downsampled_size**2,
+                                         dimension=1)
+        obs = obs.narrow(start=0,
+                         length=self.imsize**2,
+                         dimension=1)
         reconstructed = self.ae.forward(obs)
         self.ae_optimizer.zero_grad()
         loss = self.ae_criterion(reconstructed, downsampled)
-        if self.i % 100 == 0:
-            self.save_and_compare(obs, reconstructed, downsampled)
+        if self.i % 1000 == 0:
+            pass
+#            self.save_and_compare(obs, reconstructed, downsampled)
         self.i += 1
         loss.backward()
         self.ae_optimizer.step()
@@ -161,8 +171,8 @@ class FeatPointDDPG(TorchRLAlgorithm):
         obs = batch['observations']
         next_obs = batch['next_observations']
 
-        latent_obs = self.ae.encoder(obs)
-        next_latent_obs = self.ae.encoder(next_obs)
+        latent_obs = self.ae.history_encoder(obs, self.history_length)
+        next_latent_obs = self.ae.history_encoder(next_obs, self.history_length)
         return latent_obs, next_latent_obs
 
     def save_and_compare(self, original, reconstructed, downsampled):

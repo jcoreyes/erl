@@ -42,20 +42,26 @@ class AEEnvReplayBuffer(EnvReplayBuffer):
             max_replay_buffer_size,
             env,
             imsize,
+            history_length,
             downsampled_size,
     ):
         super().__init__(max_replay_buffer_size, env)
-        self._downsampled = np.zeros((max_replay_buffer_size, downsampled_size * downsampled_size))
+        self._downsampled = np.zeros((max_replay_buffer_size, history_length * downsampled_size * downsampled_size))
         self.imsize = imsize
         self.downsampled_size = downsampled_size
 
 
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, **kwargs):
-        image_obs = Image.fromarray(np.uint8(255*observation.reshape(self.imsize, self.imsize)), "L")
-        downsampled_obs = image_obs.resize((self.downsampled_size, self.downsampled_size))
-        downsampled_obs = np.array(downsampled_obs).flatten() / 255.0
-        self._downsampled[self._top] = downsampled_obs
+        history = observation.reshape(-1, self.imsize, self.imsize)
+        downsampled = []
+        for image in history:
+            image_obs = Image.fromarray(np.uint8(255*image), "L")
+            downsampled_obs = image_obs.resize((self.downsampled_size, self.downsampled_size))
+            downsampled_obs = np.array(downsampled_obs).flatten() / 255.0
+            downsampled.append(downsampled_obs)
+        downsampled = np.concatenate(downsampled)
+        self._downsampled[self._top] = downsampled
         return super().add_sample(observation, action, reward, terminal, next_observation, **kwargs)
 
     def get_training_data(self):

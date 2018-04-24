@@ -326,6 +326,7 @@ class AETanhPolicy(Mlp, Policy):
     def __init__(
             self,
             ae,
+            history_length,
             *args,
             obs_normalizer: TorchFixedNormalizer = None,
             **kwargs
@@ -334,6 +335,7 @@ class AETanhPolicy(Mlp, Policy):
         super().__init__(*args, **kwargs, output_activation=torch.tanh)
         self.ae = ae
         self.obs_normalizer = obs_normalizer
+        self.history_length = history_length
 
     def forward(self, obs, **kwargs):
         if self.obs_normalizer:
@@ -343,7 +345,7 @@ class AETanhPolicy(Mlp, Policy):
     def get_action(self, obs_np):
         obs = obs_np
         obs = ptu.np_to_var(obs)
-        obs = self.ae.encoder(obs)
+        obs = self.ae.history_encoder(obs, self.history_length)
         obs_np = ptu.get_numpy(obs)
         actions = self.get_actions(obs_np[None])
         return actions[0, :], {}
@@ -555,7 +557,7 @@ class FeatPointMlp(PyTorchModule):
         return image
 
     def encoder(self, input):
-        x = input.view(-1, self.input_channels, self.input_size, self.input_size)
+        x = input.contiguous().view(-1, self.input_channels, self.input_size, self.input_size)
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = self.conv3(x)
@@ -574,7 +576,7 @@ class FeatPointMlp(PyTorchModule):
 
         x = torch.cat([fp_x, fp_y], 1)
         h = x.view(-1, 2, self.num_feat_points).transpose(1, 2).contiguous().view(-1, self.num_feat_points * 2)
-#        h = x.view(-1, self.num_feat_points * 2) 
+#        h = x.view(-1, self.num_feat_points * 2)
         return h
 
     def decoder(self, input):
@@ -591,6 +593,18 @@ class FeatPointMlp(PyTorchModule):
 
     def get_actions(self, obs):
         return self.eval_np(obs)
+
+    def history_encoder(self, input, history_length):
+        input = input.view(-1,
+                            self.input_channels,
+                            self.input_size,
+                            self.input_size)
+        latent = self.encoder(input)
+
+        assert latent.shape[0] % history_length == 0
+        n_samples = latent.shape[0] // history_length
+        latent = latent.view(n_samples, -1)
+        return latent
 
 
 def sample_data(rollouts=10, length=100):

@@ -23,13 +23,14 @@ from railrl.envs.mujoco.pusher2d import Pusher2DEnv, RandomGoalPusher2DEnv
 from railrl.envs.wrappers import ImageMujocoEnv
 #from railrl.images.camera import pusher_2d_init_camera
 
-import railrl.images.camera as camera 
+import railrl.images.camera as camera
 from railrl.data_management.env_replay_buffer import AEEnvReplayBuffer
 
 
 def experiment(variant):
     feat_points = 16
-    latent_obs_dim = feat_points * 2
+    history = 2
+    latent_obs_dim = feat_points * 2 * history
     imsize = 64
     downsampled_size = 32
 
@@ -37,7 +38,7 @@ def experiment(variant):
     env = ImageMujocoEnv(env,
                         init_camera=camera.inverted_pendulum_v2_init_camera,
                          imsize=64,
-                         keep_prev=0)
+                         keep_prev=history-1)
     env = NormalizedBoxEnv(env)
     es = GaussianStrategy(
         action_space=env.action_space,
@@ -54,6 +55,7 @@ def experiment(variant):
         int(1e5),
         env,
         imsize=imsize,
+        history_length=history,
         downsampled_size=downsampled_size
     )
 
@@ -66,6 +68,7 @@ def experiment(variant):
     policy = AETanhPolicy(
         input_size=latent_obs_dim,
         ae=ae,
+        history_length=history,
         output_size=action_dim,
         hidden_sizes=[128, 128],
     )
@@ -83,6 +86,7 @@ def experiment(variant):
         replay_buffer=replay_buffer,
 
         ae=ae,
+        history_length=history,
         imsize=imsize,
         downsampled_size=downsampled_size,
         **variant['algo_params']
@@ -144,5 +148,5 @@ if __name__ == "__main__":
                 # use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',
-                use_gpu=True,
+                # use_gpu=True,
             )
