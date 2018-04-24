@@ -80,7 +80,7 @@ if __name__ == "__main__":
             only_reward_block_to_goal=True,
         ),
         algorithm='DDPG',
-        version='normal-longer',
+        version='normal',
         normalize=True,
     )
 
@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-xy-new-params-v1'
+    exp_prefix = 'sawyer-sim-push-xy-new-params-v2'
 
     search_space = {
         'env_kwargs.randomize_goals': [True],
