@@ -3,6 +3,7 @@ from railrl.exploration_strategies.base import (
 )
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.td3.td3 import TD3
@@ -34,9 +35,12 @@ def experiment(variant):
     #     action_space=env.action_space,
     #     **variant['es_kwargs']
     # )
-    es = EpsilonGreedy(
+    # es = EpsilonGreedy(
+    #     action_space=env.action_space,
+    #     prob_random_action=.2,
+    # )
+    es = OUStrategy(
         action_space=env.action_space,
-        prob_random_action=.2,
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -95,7 +99,6 @@ if __name__ == "__main__":
         ],
         'algo_kwargs.collection_mode': [
             'online',
-            # 'online-parallel'
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -104,7 +107,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 3
-        exp_prefix = 'sawyer_td3_torque_xyz_reaching'
+        exp_prefix = 'test'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

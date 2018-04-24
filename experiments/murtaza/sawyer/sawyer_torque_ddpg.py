@@ -59,6 +59,7 @@ if __name__ == "__main__":
             render=False,
             normalize_env=False,
             train_on_eval_paths=True,
+            collection_mode='online-parallel'
         ),
         es_kwargs=dict(
             theta=0.1,
@@ -92,7 +93,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 1
-        exp_prefix = 'sawyer_ddpg_torque_xyz_reaching_train_on_eval'
+        exp_prefix = 'test'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

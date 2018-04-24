@@ -109,7 +109,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             rollout_function,
         )
         self._rollout_promise = None
-
+        self.counter = 0
     def rollout(self, policy, use_exploration_strategy):
         if self._rollout_promise is None:
             policy_params = policy.get_param_values_np()
@@ -121,7 +121,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
 
         # Check if remote path has been collected.
         paths, _ = ray.wait([self._rollout_promise], timeout=0)
-
+        self.counter += 1
+        # print(self.counter)
         if len(paths):
             policy_params = policy.get_param_values_np()
             self._rollout_promise = self._ray_env.rollout.remote(

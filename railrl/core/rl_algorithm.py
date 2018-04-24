@@ -282,20 +282,32 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         n_steps_current_epoch = 0
         epoch = start_epoch
         self._start_epoch(epoch)
+        n_eval_steps = 0
+        self._eval_paths = []
+        eval_end = False
         while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
+            in_eval = n_steps_current_epoch >= self.num_env_steps_per_epoch
             if self.sim_throttle:
                 if epoch == 0 or self._n_env_steps_total // (
                     self._n_train_steps_total + 1) < self.parallel_step_to_train_ratio:
                     path = self.training_env.rollout(
                         self.exploration_policy,
-                        use_exploration_strategy=True,
+                        use_exploration_strategy=not in_eval,
                     )
             else:
                 path = self.training_env.rollout(
                     self.exploration_policy,
-                    use_exploration_strategy=True,
+                    use_exploration_strategy=not in_eval,
                 )
             if path is not None:
+                if in_eval:
+                    path_length = len(path['observations'])
+                    self._eval_paths.append(path)
+                    n_eval_steps += path_length
+                    eval_end = n_eval_steps >= self.num_steps_per_eval + self.max_path_length
+                else:
+                    if len(path) > 0:
+                        self._exploration_paths.append(path)
                 path['rewards'] = path['rewards'] * self.reward_scale
                 path_length = len(path['observations'])
                 self._n_env_steps_total += path_length
@@ -303,18 +315,20 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._handle_path(path)
                 if len(path) > 0:
                     self._exploration_paths.append(path)
-            self._try_to_train()
             gt.stamp('sample')
             self._try_to_train()
             gt.stamp('train')
             # Check if epoch is over
-            if n_steps_current_epoch >= self.num_env_steps_per_epoch:
+            if eval_end:
                 self._try_to_eval(epoch)
                 gt.stamp('eval')
                 self._end_epoch()
                 epoch += 1
                 n_steps_current_epoch = 0
                 self._start_epoch(epoch)
+                eval_end = False
+                n_eval_steps = 0
+                self._eval_paths = []
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)
@@ -400,7 +414,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics.update(self.eval_statistics)
 
         logger.log("Collecting samples for evaluation")
-        test_paths = self.get_eval_paths()
+        if self.collection_mode == 'online-parallel':
+            test_paths = self._eval_paths
+        else:
+            test_paths = self.get_eval_paths()
 
         statistics.update(eval_util.get_generic_path_information(
             test_paths, stat_prefix="Test",
