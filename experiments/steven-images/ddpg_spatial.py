@@ -21,14 +21,21 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv, RandomGoalPusher2DEnv
 from railrl.envs.wrappers import ImageMujocoEnv
-from railrl.images.camera import pusher_2d_init_camera
+#from railrl.images.camera import pusher_2d_init_camera
+
+import railrl.images.camera as camera 
 from railrl.data_management.env_replay_buffer import AEEnvReplayBuffer
 
 
 def experiment(variant):
-    env = RandomGoalPusher2DEnv()
+    feat_points = 16
+    latent_obs_dim = feat_points * 2
+    imsize = 64
+    downsampled_size = 32
+
+    env = gym.make('InvertedPendulum-v2').env#RandomGoalPusher2DEnv()
     env = ImageMujocoEnv(env,
-                        init_camera=pusher_2d_init_camera,
+                        init_camera=camera.inverted_pendulum_v2_init_camera,
                          imsize=64,
                          keep_prev=0)
     env = NormalizedBoxEnv(env)
@@ -37,10 +44,6 @@ def experiment(variant):
     )
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    feat_points = 8
-    latent_obs_dim = feat_points * 2
-    imsize = 64
-    downsampled_size = 32
     ae = FeatPointMlp(
         input_size=imsize,
         downsample_size=downsampled_size,
@@ -141,5 +144,5 @@ if __name__ == "__main__":
                 # use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',
-                # use_gpu=True,
+                use_gpu=True,
             )

@@ -52,11 +52,11 @@ class AEEnvReplayBuffer(EnvReplayBuffer):
 
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, **kwargs):
-        super().add_sample(observation, action, reward, terminal, next_observation, **kwargs)
-        image_obs = Image.fromarray(255*observation.reshape(self.imsize, self.imsize))
+        image_obs = Image.fromarray(np.uint8(255*observation.reshape(self.imsize, self.imsize)), "L")
         downsampled_obs = image_obs.resize((self.downsampled_size, self.downsampled_size))
-        downsampled_obs = np.array(downsampled_obs).flatten()
+        downsampled_obs = np.array(downsampled_obs).flatten() / 255.0
         self._downsampled[self._top] = downsampled_obs
+        return super().add_sample(observation, action, reward, terminal, next_observation, **kwargs)
 
     def get_training_data(self):
         batch= dict(
@@ -65,7 +65,7 @@ class AEEnvReplayBuffer(EnvReplayBuffer):
             rewards=self._rewards[0:self._top],
             terminals=self._terminals[0:self._top],
             next_observations=self._next_obs[0:self._top],
-            downsampled = self._downsampled[0:self._top],
+            downsampled=self._downsampled[0:self._top],
         )
         return batch
 
@@ -91,6 +91,7 @@ class AEEnvReplayBuffer(EnvReplayBuffer):
         self._size = 0
         self._top = 0
         self._bottom = 0
+
 
 class VPGEnvReplayBuffer(EnvReplayBuffer):
     def __init__(

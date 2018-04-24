@@ -60,7 +60,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
 
             imsize=64,
             downsampled_size=32,
-            ae_learning_rate=1e-2,
+            ae_learning_rate=1e-3,
 
             **kwargs
     ):
@@ -138,6 +138,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
         )
         self.imsize = imsize
         self.downsampled_size = downsampled_size
+        self.i = 0
 
     def _start_epoch(self, epoch):
         super()._start_epoch(epoch)
@@ -149,6 +150,9 @@ class FeatPointDDPG(TorchRLAlgorithm):
         reconstructed = self.ae.forward(obs)
         self.ae_optimizer.zero_grad()
         loss = self.ae_criterion(reconstructed, downsampled)
+        if self.i % 100 == 0:
+            self.save_and_compare(obs, reconstructed, downsampled)
+        self.i += 1
         loss.backward()
         self.ae_optimizer.step()
         return loss
@@ -160,6 +164,13 @@ class FeatPointDDPG(TorchRLAlgorithm):
         latent_obs = self.ae.encoder(obs)
         next_latent_obs = self.ae.encoder(next_obs)
         return latent_obs, next_latent_obs
+
+    def save_and_compare(self, original, reconstructed, downsampled):
+        for i in range(0, 50):
+            Image.fromarray(np.uint8(255 * np.array(original.data).reshape(-1, 64, 64)[i])).save('images/' + str(i) + '.png')
+            Image.fromarray(np.uint8(255 * np.array(reconstructed.data).reshape(-1, 32, 32)[i])).save('images/' + str(i) + 'r.png')
+            Image.fromarray(np.uint8(255 * np.array(downsampled.data).reshape(-1, 32, 32)[i])).save('images/' + str(i) + 'd.png')
+
 
     def _do_training(self):
         batch = self.get_batch()
@@ -173,8 +184,8 @@ class FeatPointDDPG(TorchRLAlgorithm):
         """
         ae_loss = self.train_ae(batch)
         obs, next_obs = self.get_latent_obs(batch)
-        obs = Variable(torch.Tensor(np.array(obs.data)))
-        next_obs = Variable(torch.Tensor(np.array(next_obs.data)))
+        obs = obs.detach()
+        next_obs = next_obs.detach()
         """
         Policy operations.
         """
@@ -343,6 +354,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
             self.qf,
             self.target_policy,
             self.target_qf,
+            self.ae,
         ]
 
     def pretrain(self):

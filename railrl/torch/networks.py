@@ -341,9 +341,10 @@ class AETanhPolicy(Mlp, Policy):
         return super().forward(obs, **kwargs)
 
     def get_action(self, obs_np):
-        obs = Variable(torch.Tensor(obs_np))
+        obs = obs_np
+        obs = ptu.np_to_var(obs)
         obs = self.ae.encoder(obs)
-        obs_np = np.array(obs.data)
+        obs_np = ptu.get_numpy(obs)
         actions = self.get_actions(obs_np[None])
         return actions[0, :], {}
 
@@ -524,10 +525,10 @@ class FeatPointMlp(PyTorchModule):
         self.input_size = input_size
 
 #        self.bn1 = nn.BatchNorm2d(1)
-        self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=2)
+        self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=5, stride=2)
 #        self.bn1 = nn.BatchNorm2d(16)
-        self.conv2 = nn.Conv2d(16, 16, kernel_size=5, stride=2)
-        self.conv3 = nn.Conv2d(16, self.num_feat_points, kernel_size=5, stride=2)
+        self.conv2 = nn.Conv2d(32, 32, kernel_size=5, stride=1)
+        self.conv3 = nn.Conv2d(32, self.num_feat_points, kernel_size=3, stride=1)
 
         test_mat = Variable(torch.zeros(1, self.input_channels, self.input_size, self.input_size))
         test_mat = self.conv1(test_mat)
@@ -572,7 +573,8 @@ class FeatPointMlp(PyTorchModule):
         fp_y = torch.sum(maps_y * weights, 2)
 
         x = torch.cat([fp_x, fp_y], 1)
-        h = x.view(-1, 2, self.num_feat_points).transpose(1, 2).contiguous().view(-1, self.num_feat_points * 2) * 100
+        h = x.view(-1, 2, self.num_feat_points).transpose(1, 2).contiguous().view(-1, self.num_feat_points * 2)
+#        h = x.view(-1, self.num_feat_points * 2) 
         return h
 
     def decoder(self, input):
@@ -618,10 +620,6 @@ def save_features(features, size):
     for i in range(0, 80):
         Image.fromarray(np.uint8(255 * np.array(features.data).reshape(-1, size, size)[i])).save('images/' + str(i) + '.png')
 
-def save_and_compare(observation, downsampled):
-    for i in range(0, 80):
-        Image.fromarray(np.uint8(np.array(reconstructed.data).reshape(-1, 32, 32)[i])).save('images/' + str(i) + 'r.png')
-        Image.fromarray(np.uint8(np.array(downsampled.data).reshape(-1, 32, 32)[i])).save('images/' + str(i) + '.png')
 
 if __name__ == "__main__":
     import torch.optim as optim
