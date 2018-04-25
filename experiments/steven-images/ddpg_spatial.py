@@ -30,17 +30,23 @@ from railrl.data_management.env_replay_buffer import AEEnvReplayBuffer
 
 def experiment(variant):
     feat_points = 16
-    history = 2
+    history = 1
     latent_obs_dim = feat_points * 2 * history
     imsize = 64
     downsampled_size = 32
 
     env = RandomGoalPusher2DEnv()
     extra_fc_size = env.obs_dim
+#    extra_fc_size = 0
     env = ImageMujocoWithObsEnv(env,
                                 imsize=imsize,
                                 keep_prev=history-1,
-                                init_camera=camera.inverted_pendulum_v2_init_camera)
+                                init_camera=camera.pusher_2d_init_camera)
+    """env = ImageMujocoEnv(env,
+                        imsize=imsize,
+                        keep_prev=history-1,
+                        init_camera=camera.pusher_2d_init_camera)"""
+
     env = NormalizedBoxEnv(env)
 
     es = GaussianStrategy(
@@ -66,7 +72,7 @@ def experiment(variant):
     qf = FlattenMlp(
         input_size= latent_obs_dim + extra_fc_size + action_dim,
         output_size=1,
-        hidden_sizes=[128, 128]
+        hidden_sizes=[400, 300]
     )
     policy = AETanhPolicy(
         input_size=latent_obs_dim + extra_fc_size,
@@ -74,7 +80,7 @@ def experiment(variant):
         input_length=imsize**2 * history + extra_fc_size,
         history_length=history,
         output_size=action_dim,
-        hidden_sizes=[128, 128],
+        hidden_sizes=[400, 300],
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -107,10 +113,10 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=400,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=500,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=50,
             batch_size=64,
-            max_path_length=100,
+            max_path_length=10,
             discount=.99,
 
             use_soft_update=True,
@@ -139,8 +145,8 @@ if __name__ == "__main__":
             HuberLoss,
         ],
     }
-    setup_logger('dqn-images-experiment', variant=variant)
-    experiment(variant)
+#    setup_logger('dqn-images-experiment', variant=variant)
+#    experiment(variant)
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -151,10 +157,10 @@ if __name__ == "__main__":
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="DDPG-inverted",
+                exp_prefix="TESTING",
                 mode='local',
                 # use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',
-                # use_gpu=True,
+                use_gpu=True,
             )

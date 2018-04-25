@@ -348,7 +348,7 @@ class AETanhPolicy(Mlp, Policy):
         obs = obs_np
         obs = ptu.np_to_var(obs)
         image_obs, fc_obs = self.ae.split_obs(obs, self.history_length, self.input_length)
-        latent_obs = self.ae.history_encoder(image_obs, self.history_length)
+        latent_obs = self.ae.encoder(image_obs)
         if fc_obs is not None:
             latent_obs = torch.cat((latent_obs, fc_obs), dim=1)
         obs_np = ptu.get_numpy(latent_obs)
@@ -534,7 +534,7 @@ class FeatPointMlp(PyTorchModule):
 #        self.bn1 = nn.BatchNorm2d(1)
         self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=5, stride=2)
 #        self.bn1 = nn.BatchNorm2d(16)
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=5, stride=1)
+        self.conv2 = nn.Conv2d(32, 32, kernel_size=3, stride=1)
         self.conv3 = nn.Conv2d(32, self.num_feat_points, kernel_size=3, stride=1)
 
         test_mat = Variable(torch.zeros(1, self.input_channels, self.input_size, self.input_size))
@@ -542,9 +542,10 @@ class FeatPointMlp(PyTorchModule):
         test_mat = self.conv2(test_mat)
         test_mat = self.conv3(test_mat)
         self.out_size = int(np.prod(test_mat.shape))
-        self.fc1 = nn.Linear(2 * self.num_feat_points, 400)
-        self.fc2 = nn.Linear(400, 300)
-        self.last_fc = nn.Linear(300, self.input_channels * self.downsample_size* self.downsample_size)
+        self.fc1 = nn.Linear(2 * self.num_feat_points, 128)
+#        self.fc2 = nn.Linear(400, 300)
+        self.last_fc = nn.Linear(128, self.input_channels * self.downsample_size* self.downsample_size)
+#        self.debug = nn.Linear(2 * self.num_feat_points, 2)
 
         self.init_weights(init_w)
         self.i = 0
@@ -580,16 +581,17 @@ class FeatPointMlp(PyTorchModule):
         fp_y = torch.sum(maps_y * weights, 2)
 
         x = torch.cat([fp_x, fp_y], 1)
-        h = x.view(-1, 2, self.num_feat_points).transpose(1, 2).contiguous().view(-1, self.num_feat_points * 2)
-#        h = x.view(-1, self.num_feat_points * 2)
+#        h = x.view(-1, 2, self.num_feat_points).transpose(1, 2).contiguous().view(-1, self.num_feat_points * 2)
+        h = x.view(-1, self.num_feat_points * 2)
         return h
 
     def decoder(self, input):
         h = input
         h = F.relu(self.fc1(h))
-        h = F.relu(self.fc2(h))
+        #h = F.relu(self.fc2(h))
         h = self.last_fc(h)
-        h = h.view(-1, self.input_channels * self.downsample_size * self.downsample_size)
+        #h = h.view(-1, self.input_channels * self.downsample_size * self.downsample_size)
+        #h = self.debug(h)
         return h
 
     def get_action(self, obs_np):
