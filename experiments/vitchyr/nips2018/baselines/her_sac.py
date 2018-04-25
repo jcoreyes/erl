@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv
+from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv, SawyerXYZEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.her.her_sac import HerSac
@@ -58,10 +58,11 @@ if __name__ == "__main__":
             max_path_length=100,
             discount=0.99,
         ),
-        env_class=SawyerPushXYEnv,
+        # env_class=SawyerPushXYEnv,
+        env_class=SawyerXYZEnv,
         env_kwargs=dict(
-            frame_skip=50,
-            only_reward_block_to_goal=True,
+            # frame_skip=50,
+            # only_reward_block_to_goal=True,
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
@@ -86,11 +87,11 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-xy-center-start'
+    exp_prefix = 'sawyer-sim-reach-sanity-check'
 
     search_space = {
-        'env_kwargs.randomize_goals': [True, False],
-        'env_kwargs.only_reward_block_to_goal': [False, True],
+        # 'env_kwargs.randomize_goals': [True, False],
+        # 'env_kwargs.only_reward_block_to_goal': [False, True],
         'replay_buffer_kwargs.num_goals_to_sample': [4],
         'algo_kwargs.num_updates_per_env_step': [5],
         'algo_kwargs.reward_scale': [10, 100, 1000],
