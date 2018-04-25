@@ -32,8 +32,9 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             np.array([0.2, 0.7, 0.5]),
         )
         self.goal_space = Box(
-            np.array([-0.2, 0.5, 0]),
-            np.array([0.2, 0.7, 0.5]),
+            np.array([-0.3, 0.4, 0.0]),
+            np.array([0.3, 0.8, 0.0]),
+
         )
         self.reset()
         self.reset_mocap_welds()
@@ -111,8 +112,8 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     def sample_goal_xyz(self):
         pos = np.random.uniform(
-            np.array([-0.2, 0.5, 0.0]),
-            np.array([0.2, 0.7, 0.2]),
+            np.array([-0.3, 0.4, 0.0]),
+            np.array([0.3, 0.8, 0.0]),
         )
         return pos
 
