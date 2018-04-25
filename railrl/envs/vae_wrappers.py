@@ -17,8 +17,19 @@ from torch.autograd import Variable
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger as default_logger
 from collections import OrderedDict
+from railrl.misc.asset_loader import sync_down
 
 import cv2
+import torch
+
+def load_vae(vae_file):
+    if vae_file[0] == "/":
+        local_path = vae_file
+    else:
+        local_path = sync_down(vae_file)
+    vae = torch.load(local_path)
+    print("loaded", local_path)
+    return vae
 
 class VAEWrappedEnv(ProxyEnv, Env):
     """This class wraps an image-based environment with a VAE.
@@ -28,7 +39,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
         render_goals=False, render_rollouts=False):
         self.quick_init(locals())
         super().__init__(wrapped_env)
-        self.vae = vae
+        if type(vae) is str:
+            self.vae = load_vae(vae)
+        else:
+            self.vae = vae
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self.use_vae_goals = use_vae_goals
@@ -59,12 +73,15 @@ class VAEWrappedEnv(ProxyEnv, Env):
             img = Variable(ptu.from_numpy(observation))
             if ptu.gpu_enabled():
                 self.vae.cuda()
-            e = self.vae.encode(img)[0]
-            observation = ptu.get_numpy(e).flatten()
+            mu, logvar = self.vae.encode(img)
+            observation = ptu.get_numpy(mu).flatten()
         if self.use_vae_reward:
             # replace reward with Euclidean distance in VAE latent space
             # currently assumes obs and goals are also from VAE
-            reward = -np.linalg.norm(self.multitask_goal - observation)
+            dist = self.multitask_goal - observation
+            var = np.exp(ptu.get_numpy(logvar).flatten())
+            err = dist * dist / 2 / var
+            reward = -np.sum(err)
         return observation, reward, done, info
 
     def reset(self):
@@ -103,6 +120,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.waitKey(1)
         return goal[0]
 
+    def enable_render(self):
+        self.render_goals=True
+        self.render_rollouts=True
+
 class VAEWrappedImageGoalEnv(ProxyEnv, Env):
     """This class wraps an image-based environment with a VAE.
     Assumes you get flattened (channels,84,84) observations from wrapped_env.
@@ -115,7 +136,10 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
         render_goals=False, render_rollouts=False, track_qpos_goal=0):
         self.quick_init(locals())
         super().__init__(wrapped_env)
-        self.vae = vae
+        if type(vae) is str:
+            self.vae = load_vae(vae)
+        else:
+            self.vae = vae
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self.use_vae_goals = use_vae_goals
@@ -147,15 +171,18 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
             img = Variable(ptu.from_numpy(observation))
             if ptu.gpu_enabled():
                 self.vae.cuda()
-            e = self.vae.encode(img)[0]
-            observation = ptu.get_numpy(e).flatten()
+            mu, logvar = self.vae.encode(img)
+            observation = ptu.get_numpy(mu).flatten()
         if self.use_vae_reward:
             # replace reward with Euclidean distance in VAE latent space
             # currently assumes obs and goals are also from VAE
-            reward = -np.linalg.norm(self.multitask_goal - observation)
+            dist = self.multitask_goal - observation
+            var = np.exp(ptu.get_numpy(logvar).flatten())
+            err = dist * dist / 2 / var
+            reward = -np.sum(err)
 
         if self.track_qpos_goal:
-            qpos = self.sim.data.qpos[:self.track_qpos_goal].copy()
+            qpos = self.get_qpos()
             qpos_d = abs(qpos - self.qpos_goal)
             for i in range(self.track_qpos_goal):
                 name = "qpos_d" + str(i)
@@ -186,7 +213,7 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
         """
         observation = self._wrapped_env.reset()
         if self.track_qpos_goal:
-            self.qpos_goal = self.sim.data.qpos[:self.track_qpos_goal].copy()
+            self.qpos_goal = self.get_qpos()
         if self.render_goals:
             cv2.imshow('goal', observation.reshape(self.input_channels, 84, 84).transpose())
             cv2.waitKey(1)
@@ -216,3 +243,7 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
             ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+    def enable_render(self):
+        self.render_goals=True
+        self.render_rollouts=True
