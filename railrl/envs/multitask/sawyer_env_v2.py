@@ -1,3 +1,4 @@
+from railrl.core.serializable import Serializable
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from sawyer_control.sawyer_reaching import SawyerJointSpaceReachingEnv
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
@@ -24,18 +25,36 @@ JOINT_ANGLES_LOW = np.array([
 ])
 
 class MultiTaskSawyerJointSpaceReachingEnv(MultitaskEnv, SawyerJointSpaceReachingEnv):
+    def __init__(self, kwargs, distance_metric_order=2, goal_dim_weights=None):
+        Serializable.quick_init(self, locals())
+        MultitaskEnv.__init__(
+            self,
+            distance_metric_order=distance_metric_order,
+            goal_dim_weights=goal_dim_weights,
+        )
+        SawyerJointSpaceReachingEnv.__init__(self, **kwargs)
+    def set_goal(self, goal):
+        self.multitask_goal = goal
+        self.desired = goal
+
     @property
     def goal_dim(self):
         return 7
 
     def sample_goals(self, batch_size):
-        return np.random.uniform(JOINT_ANGLES_LOW, JOINT_ANGLES_HIGH, size=(batch_size, 7))[0]
+        return np.random.uniform(JOINT_ANGLES_LOW, JOINT_ANGLES_HIGH, size=(batch_size, 7))
 
     def convert_obs_to_goals(self, obs):
-        return obs[:7]
+        return obs[:, :7]
 
-class MultiTaskSawyerXYZReachingEnv(MultitaskEnv, SawyerXYZReachingEnv):
-    def __init__(self, kwargs):
+class MultiTaskSawyerXYZReachingEnv(MultitaskEnv, SawyerXYZReachingEnv,Serializable):
+    def __init__(self, kwargs, distance_metric_order=2, goal_dim_weights=None):
+        Serializable.quick_init(self, locals())
+        MultitaskEnv.__init__(
+            self,
+            distance_metric_order=distance_metric_order,
+            goal_dim_weights=goal_dim_weights,
+        )
         SawyerXYZReachingEnv.__init__(self, **kwargs)
 
     def set_goal(self, goal):
@@ -47,7 +66,8 @@ class MultiTaskSawyerXYZReachingEnv(MultitaskEnv, SawyerXYZReachingEnv):
         return 3
 
     def sample_goals(self, batch_size):
-        return self._get_random_ee_pose()[0]
+        rand = self._get_random_ee_pose(batch_size=batch_size)
+        return rand
 
     def convert_obs_to_goals(self, obs):
-        return obs[21:24]
+        return obs[:, 21:24]

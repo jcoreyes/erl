@@ -13,7 +13,6 @@ import railrl.torch.pytorch_util as ptu
 def experiment(variant):
     env_params = variant['env_params']
     env = MultiTaskSawyerXYZReachingEnv(env_params)
-    max_tau = variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau']
     qf = TdmQf(
         env=env,
         vectorized=False,
@@ -75,7 +74,7 @@ if __name__ == "__main__":
             ),
         ),
         her_replay_buffer_kwargs=dict(
-            max_size=int(2E4),
+            max_size=int(2E5),
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],

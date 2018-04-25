@@ -9,8 +9,6 @@ from railrl.torch.ddpg.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 import railrl.misc.hyperparameter as hyp
-import ray
-ray.init()
 def experiment(variant):
     env_params = variant['env_params']
     env = SawyerXYZReachingEnv(**env_params)
@@ -48,44 +46,46 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
-            num_epochs=50,
+            num_epochs=30,
             num_steps_per_epoch=500,
-            num_steps_per_eval=100,
+            num_steps_per_eval=300,
             use_soft_update=True,
             max_path_length=100,
             render=False,
             normalize_env=False,
             train_on_eval_paths=True,
-            collection_mode='online-parallel'
         ),
         es_kwargs=dict(
             theta=0.1,
-            max_sigma=0.25,
-            min_sigma=0.25,
+            max_sigma=.25,
+            min_sigma=.25,
         ),
         env_params=dict(
             action_mode='torque',
             reward='norm',
-            desired=[0.5, 0.33351666, 0.5],
         )
     )
     search_space = {
         'algo_params.reward_scale': [
             1,
-            1000,
+            10,
         ],
         'algo_params.num_updates_per_env_step': [
-            25,
+            5,
         ],
         'env_params.randomize_goal_on_reset': [
             False,
+            True,
         ],
         'algo_params.batch_size': [
-            512,
+            64,
+            256,
         ],
         'algo_params.normalize_env': [
-            True,
             False,
+        ],
+        'algo_params.collection_mode':[
+            'online'
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -93,8 +93,8 @@ if __name__ == "__main__":
     )
 
     for variant in sweeper.iterate_hyperparameters():
-        n_seeds = 1
-        exp_prefix = 'sawyer_torque_ddpg_xyz_reaching_parallel'
+        n_seeds = 2
+        exp_prefix = 'sawyer_torque_ddpg_xyz_reaching'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

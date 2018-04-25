@@ -195,6 +195,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 )
                 if self.render:
                     self.training_env.render()
+
                 next_ob, raw_reward, terminal, env_info = (
                     self.training_env.step(action)
                 )
@@ -311,9 +312,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._n_env_steps_total += path_length
                 n_steps_current_epoch += path_length
                 self._handle_path(path)
-                if not in_eval:
-                    if len(path) > 0:
-                        self._exploration_paths.append(path)
+                self._start_new_rollout()
             gt.stamp('sample')
             self._try_to_train()
             gt.stamp('train')
@@ -417,7 +416,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             test_paths = self._eval_paths
         else:
             test_paths = self.get_eval_paths()
-
         statistics.update(eval_util.get_generic_path_information(
             test_paths, stat_prefix="Test",
         ))
