@@ -138,7 +138,7 @@ def dump_video(env, policy, filename, ROWS=3, COLUMNS=6, do_timer=True, horizon=
             animated=False,
         ))
         if do_timer:
-            print("i", time.time() - start)
+            print(i, time.time() - start)
 
     frames = np.array(frames, dtype=np.uint8).reshape((N, horizon + 1, H, W, num_channels))
     f1 = []
