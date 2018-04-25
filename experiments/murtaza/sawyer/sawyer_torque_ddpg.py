@@ -9,7 +9,8 @@ from railrl.torch.ddpg.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 import railrl.misc.hyperparameter as hyp
-
+import ray
+ray.init()
 def experiment(variant):
     env_params = variant['env_params']
     env = SawyerXYZReachingEnv(**env_params)
@@ -29,10 +30,6 @@ def experiment(variant):
         action_space=env.action_space,
         **variant['es_kwargs']
     )
-    # es = EpsilonGreedy(
-    #     action_space=env.action_space,
-    #     prob_random_action=.2,
-    # )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
@@ -51,7 +48,7 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
-            num_epochs=25,
+            num_epochs=50,
             num_steps_per_epoch=500,
             num_steps_per_eval=100,
             use_soft_update=True,
@@ -69,22 +66,26 @@ if __name__ == "__main__":
         env_params=dict(
             action_mode='torque',
             reward='norm',
-            desired=[.4, 0, .35],
+            desired=[0.5, 0.33351666, 0.5],
         )
     )
     search_space = {
         'algo_params.reward_scale': [
             1,
-            10,
+            1000,
         ],
         'algo_params.num_updates_per_env_step': [
-            5,
+            25,
         ],
         'env_params.randomize_goal_on_reset': [
             False,
         ],
         'algo_params.batch_size': [
-            128,
+            512,
+        ],
+        'algo_params.normalize_env': [
+            True,
+            False,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -93,7 +94,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 1
-        exp_prefix = 'test'
+        exp_prefix = 'sawyer_torque_ddpg_xyz_reaching_parallel'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

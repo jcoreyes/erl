@@ -41,6 +41,7 @@ def experiment(variant):
     # )
     es = OUStrategy(
         action_space=env.action_space,
+        **variant['es_kwargs']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -62,9 +63,9 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=50,
+            num_epochs=25,
             num_steps_per_epoch=500,
-            num_steps_per_eval=500,
+            num_steps_per_eval=200,
             batch_size=64,
             max_path_length=100,
             discount=0.99,
@@ -81,22 +82,22 @@ if __name__ == "__main__":
         )
     )
     search_space = {
-        'algo_params.reward_scale': [
-            1,
-            10,
-            100,
-        ],
+        # 'algo_params.reward_scale': [
+        #     1,
+        #     10,
+        #     100,
+        # ],
         'algo_params.num_updates_per_env_step': [
             5,
         ],
         'env_params.randomize_goal_on_reset': [
             False,
         ],
-        'algo_params.batch_size': [
-            64,
-            128,
-            256,
-        ],
+        # 'algo_params.batch_size': [
+        #     64,
+        #     128,
+        #     256,
+        # ],
         'algo_kwargs.collection_mode': [
             'online',
         ]
@@ -107,7 +108,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 3
-        exp_prefix = 'test'
+        exp_prefix = 'sawyer_torque_td3_xyz_reaching'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

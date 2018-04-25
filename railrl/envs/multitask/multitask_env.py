@@ -38,7 +38,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     See `MultitaskEnvToSilentMultitaskEnv` for more detail.
     """
 
-    def __init__(self, distance_metric_order=1, goal_dim_weights=None):
+    def __init__(self, distance_metric_order=2, goal_dim_weights=None):
         self.multitask_goal = np.zeros(self.goal_dim)
         if goal_dim_weights is None:
             self.goal_dim_weights = np.ones(self.goal_dim)

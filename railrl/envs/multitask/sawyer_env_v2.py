@@ -35,6 +35,9 @@ class MultiTaskSawyerJointSpaceReachingEnv(MultitaskEnv, SawyerJointSpaceReachin
         return obs[:7]
 
 class MultiTaskSawyerXYZReachingEnv(MultitaskEnv, SawyerXYZReachingEnv):
+    def __init__(self, kwargs):
+        SawyerXYZReachingEnv.__init__(self, **kwargs)
+
     def set_goal(self, goal):
         self.multitask_goal = goal
         self.desired = goal
@@ -44,7 +47,7 @@ class MultiTaskSawyerXYZReachingEnv(MultitaskEnv, SawyerXYZReachingEnv):
         return 3
 
     def sample_goals(self, batch_size):
-        return np.random.uniform(self.safety_box_lows, self.safety_box_highs, size=(batch_size, 3))[0]
+        return self._get_random_ee_pose()[0]
 
     def convert_obs_to_goals(self, obs):
         return obs[21:24]

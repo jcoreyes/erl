@@ -12,23 +12,15 @@ import railrl.torch.pytorch_util as ptu
 
 def experiment(variant):
     env_params = variant['env_params']
-    env = MultiTaskSawyerXYZReachingEnv(**env_params)
+    env = MultiTaskSawyerXYZReachingEnv(env_params)
     max_tau = variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau']
-    tdm_normalizer = TdmNormalizer(
-        env,
-        vectorized=True,
-        max_tau=max_tau,
-    )
     qf = TdmQf(
         env=env,
-        vectorized=True,
-        norm_order=2,
-        tdm_normalizer=tdm_normalizer,
+        vectorized=False,
         **variant['qf_kwargs']
     )
     policy = TdmPolicy(
         env=env,
-        tdm_normalizer=tdm_normalizer,
         **variant['policy_kwargs']
     )
     es = OUStrategy(
@@ -46,7 +38,6 @@ def experiment(variant):
     qf_criterion = variant['qf_criterion_class']()
     ddpg_tdm_kwargs = variant['ddpg_tdm_kwargs']
     ddpg_tdm_kwargs['ddpg_kwargs']['qf_criterion'] = qf_criterion
-    ddpg_tdm_kwargs['tdm_kwargs']['tdm_normalizer'] = tdm_normalizer
     algorithm = TdmDdpg(
         env,
         qf=qf,
@@ -73,7 +64,7 @@ if __name__ == "__main__":
                 discount=1
             ),
             tdm_kwargs=dict(
-                max_tau=10,
+                max_tau=99,
                 num_pretrain_paths=0,
                 vectorized=False,
             ),
@@ -100,7 +91,6 @@ if __name__ == "__main__":
         qf_criterion_class=HuberLoss,
         env_params=dict(
             action_mode='torque',
-            reward_magnitude=10,
         )
     )
     n_seeds = 1

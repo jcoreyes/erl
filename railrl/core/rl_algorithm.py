@@ -147,7 +147,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
         self.sim_throttle = sim_throttle
         if self.collection_mode == 'online-parallel':
-            ray.init()
+#            ray.init()
             self.training_env = RemoteRolloutEnv(
                 env=env,
                 policy=eval_policy,
@@ -302,19 +302,18 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             if path is not None:
                 if in_eval:
                     path_length = len(path['observations'])
-                    self._eval_paths.append(path)
+                    self._eval_paths.append(dict(path))
                     n_eval_steps += path_length
                     eval_end = n_eval_steps >= self.num_steps_per_eval + self.max_path_length
-                else:
-                    if len(path) > 0:
-                        self._exploration_paths.append(path)
+
                 path['rewards'] = path['rewards'] * self.reward_scale
                 path_length = len(path['observations'])
                 self._n_env_steps_total += path_length
                 n_steps_current_epoch += path_length
                 self._handle_path(path)
-                if len(path) > 0:
-                    self._exploration_paths.append(path)
+                if not in_eval:
+                    if len(path) > 0:
+                        self._exploration_paths.append(path)
             gt.stamp('sample')
             self._try_to_train()
             gt.stamp('train')
