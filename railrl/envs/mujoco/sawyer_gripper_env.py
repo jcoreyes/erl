@@ -338,7 +338,6 @@ class SawyerPickAndPlaceEnv(SawyerXYZEnv):
     def convert_obs_to_goals(self, obs):
         return obs[:, -3:]
 
-
 class SawyerPushEnv(SawyerPickAndPlaceEnv):
     """
     Take out the gripper action and fix the goal Z position to the table.
@@ -453,6 +452,79 @@ class SawyerPushXYEnv(SawyerPushEnv):
             touch_distance=touch_distance,
         )
         return obs, reward, done, info
+
+class SawyerXYEnv(SawyerXYZEnv):
+    """
+    Only move along XY-axis.
+    """
+    def __init__(self, **kwargs):
+        self.quick_init(locals())
+        super().__init__(**kwargs)
+
+        self.action_space = Box(
+            np.array([-1, -1]),
+            np.array([1, 1]),
+        )
+
+    @property
+    def init_angles(self):
+        # return [6.49751287e-01, -6.13245189e-01, 3.68179034e-01,
+        #         1.55969534e+00, -4.67787323e-01, 7.11615700e-01,
+        #         2.97853855e+00, 3.12823177e-02, 1.82764768e-01,
+        #         6.01241700e-01, 2.09921520e-02, 9.99984569e-01,
+        #         1.29839525e-06,  4.60381956e-06,  5.55527642e-03,
+        #         -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
+        #         1, 0, 0, 0]
+        return [
+            1.02866769e+00, - 6.95207647e-01,   4.22932911e-01,
+            1.76670458e+00, - 5.69637604e-01,   6.24117280e-01,
+            3.53404635e+00,   2.99584816e-02, - 2.00417049e-02,
+            6.07093769e-01,   2.10679106e-02,   9.99910945e-01,
+            - 4.60349085e-05, - 1.78179392e-03, - 1.32259491e-02,
+            1.07586388e-02, 6.62018003e-01,   2.09936716e-02,
+            1.00000000e+00,   3.76632959e-14, 1.36837913e-11,
+            1.56567415e-23
+        ]
+
+    def reset(self):
+        super().reset()
+        random_action = np.random.normal(size=2)
+        self.set_block_xyz(np.array([100, 100, 100]))
+        for _ in range(20):
+            self.step(random_action)
+        return self._get_obs()
+
+
+    def step(self, a):
+        a = np.clip(a, -1, 1) / 100
+        # mocap_delta_z = 0.02 - self.data.mocap_pos[0, 2]
+        mocap_delta_z = 0
+        new_mocap_action = np.hstack((a[:2], np.array([mocap_delta_z])))
+        self.mocap_set_action(new_mocap_action, relative=True)
+        self.set_goal_xyz(self.multitask_goal)
+        u = np.zeros((8))
+        u[7] = 1
+        self.do_simulation(u, self.frame_skip)
+        obs = self._get_obs()
+        reward = self.compute_reward(obs, u, obs, self.multitask_goal)
+        done = False
+
+        distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
+        block_distance = np.linalg.norm(self.get_goal_pos() - self.get_block_pos())
+        touch_distance = np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
+        info = dict(
+            distance=distance,
+            block_distance=block_distance,
+            touch_distance=touch_distance,
+        )
+        return obs, reward, done, info
+
+    def sample_goal_xyz(self):
+        pos = np.random.uniform(
+            np.array([-0.2, 0.5, 0.02]),
+            np.array([0.2, 0.7, 0.02]),
+        )
+        return pos
 
 if __name__ == "__main__":
     e = SawyerXYZEnv(reward_info=dict(type="euclidean"))

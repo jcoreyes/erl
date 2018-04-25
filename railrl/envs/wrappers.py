@@ -94,7 +94,7 @@ class ImageMujocoEnv(ProxyEnv, Env):
         observation = self._image_observation()
         self.history.append(observation)
         history = self._get_history().flatten()
-        full_obs = self._add_extra_info(history, true_state)
+        full_obs = self._get_obs(history, true_state)
         return full_obs, reward, done, info
 
     def reset(self):
@@ -102,12 +102,22 @@ class ImageMujocoEnv(ProxyEnv, Env):
         self.history = deque(maxlen=self.history_length)
 
         observation = self._image_observation()
+        # TOOD: remove before merging into main branch
+        # import cv2
+        # raw_img = observation
+        # img = np.concatenate((
+        #     raw_img[::-1, :, 2:3],
+        #     raw_img[::-1, :, 1:2],
+        #     raw_img[::-1, :, 0:1],
+        # ), axis=2)
+        # cv2.imshow('obs', img)
+        # cv2.waitKey(1)
         self.history.append(observation)
         history = self._get_history().flatten()
-        full_obs = self._add_extra_info(history, true_state)
+        full_obs = self._get_obs(history, true_state)
         return full_obs
 
-    def _add_extra_info(self, history_flat, true_state):
+    def _get_obs(self, history_flat, true_state):
         # adds extra information from true_state into to the image observation.
         # Used in ImageWithObsEnv.
         return history_flat
@@ -151,7 +161,7 @@ class ImageMujocoWithObsEnv(ImageMujocoEnv):
                                      shape=(self.image_length * self.history_length +
                                             self.wrapped_env.obs_dim,))
 
-    def _add_extra_info(self, history_flat, true_state):
+    def _get_obs(self, history_flat, true_state):
         return np.concatenate([history_flat,
                                true_state])
 
