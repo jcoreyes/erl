@@ -26,8 +26,8 @@ def experiment(variant):
     render = variant["render"]
     wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
 
-    vae = torch.load(vae_path)
-    print("loaded", vae_path)
+    # vae = torch.load(vae_path)
+    # print("loaded", vae_path)
 
     env = variant["env"](**variant['env_kwargs'])
     if wrap_mujoco_env:
@@ -36,11 +36,11 @@ def experiment(variant):
 
     if use_env_goals:
         track_qpos_goal = variant.get("track_qpos_goal", 0)
-        env = VAEWrappedImageGoalEnv(env, vae, use_vae_obs=True,
+        env = VAEWrappedImageGoalEnv(env, vae_path, use_vae_obs=True,
             use_vae_reward=True, use_vae_goals=True,
             render_goals=render, render_rollouts=render, track_qpos_goal=track_qpos_goal)
     else:
-        env = VAEWrappedEnv(env, vae, use_vae_obs=True,
+        env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
             use_vae_reward=True, use_vae_goals=True,
             render_goals=render, render_rollouts=render)
 

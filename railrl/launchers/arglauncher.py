@@ -59,7 +59,7 @@ def run_variant(experiment, variant):
         exp_prefix=variant["exp_prefix"],
         exp_id=variant["exp_id"],
         instance_type=variant["instance_type"],
-        # use_gpu=variant["use_gpu"],
+        use_gpu=variant["use_gpu"],
         snapshot_mode=variant["snapshot_mode"],
         snapshot_gap=variant["snapshot_gap"],
         base_log_dir=variant["base_log_dir"],
@@ -133,7 +133,7 @@ def process_variant_cmd(variant):
         variant["use_gpu"] = True
     if "--gpu" in sys.argv:
         variant["use_gpu"] = True
-        variant["instance_type"] = None
+        variant["instance_type"] = "g2.2xlarge"
     if "use_gpu" in variant and variant["use_gpu"] and "gpu_id" not in variant:
         variant["gpu_id"] = 0
 
@@ -157,4 +157,8 @@ def process_variant_cmd(variant):
     if "--mac" in sys.argv:
         variant["base_log_dir"] = "/Users/ashvin/data/s3doodad/"
 
-    variant["spot_price"] = {'c4.large': 0.1, 'c4.xlarge': 0.2, 'c4.2xlarge': 0.4, 'm4.large': 0.1, 'm4.xlarge': 0.2, 'm4.2xlarge': 0.4, 'c4.8xlarge': 2.0, 'c4.4xlarge': 1.0}[variant["instance_type"]]
+    variant["spot_price"] = {
+        'c4.large': 0.1, 'c4.xlarge': 0.2, 'c4.2xlarge': 0.4,
+        'm4.large': 0.1, 'm4.xlarge': 0.2, 'm4.2xlarge': 0.4,
+        'c4.8xlarge': 2.0, 'c4.4xlarge': 1.0, 'g2.2xlarge': 0.5,
+    }[variant["instance_type"]]
