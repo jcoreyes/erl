@@ -54,6 +54,7 @@ if __name__ == "__main__":
             render=False,
             normalize_env=False,
             train_on_eval_paths=True,
+            num_updates_per_env_step=5,
         ),
         es_kwargs=dict(
             theta=0.1,
@@ -70,9 +71,6 @@ if __name__ == "__main__":
             1,
             10,
         ],
-        'algo_params.num_updates_per_env_step': [
-            5,
-        ],
         'env_params.randomize_goal_on_reset': [
             False,
             True,
@@ -80,9 +78,6 @@ if __name__ == "__main__":
         'algo_params.batch_size': [
             64,
             256,
-        ],
-        'algo_params.normalize_env': [
-            False,
         ],
         'algo_params.collection_mode':[
             'online'

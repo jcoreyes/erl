@@ -185,18 +185,6 @@ class TD3(TorchRLAlgorithm):
         )
         return snapshot
 
-    def _can_train(self):
-        return (
-            self.replay_buffer.num_steps_can_sample() >=
-            self.min_num_steps_before_training
-        )
-
-    # def _can_evaluate(self):
-    #     return (
-    #         len(self._exploration_paths) > 0
-    #         and self.eval_statistics is not None
-    #     )
-
     @property
     def networks(self):
         return [
