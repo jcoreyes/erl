@@ -333,7 +333,7 @@ def create_mounts(
             mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
             output=True,
             sync_interval=sync_interval,
-            include_types=('*.txt', '*.csv', '*.json', '*.gz', '*.tar', '*.log', '*.pkl', '*mp4')
+            include_types=('*.txt', '*.csv', '*.json', '*.gz', '*.tar', '*.log', '*.pkl', '*.mp4')
         )
     elif mode == 'local':
         output_mount = mount.MountLocal(
