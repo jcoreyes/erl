@@ -35,12 +35,14 @@ class ConvVAETrainer():
             train_dataset, test_dataset,
             model,
             batch_size=128, log_interval=0, use_cuda=False, beta=0.5,
+            imsize=84,
             do_scatterplot=False,
     ):
         self.log_interval = log_interval
         self.use_cuda = use_cuda
         self.batch_size = batch_size
         self.beta = beta
+        self.imsize = imsize
         self.do_scatterplot = do_scatterplot
 
         self.model = model
@@ -59,7 +61,11 @@ class ConvVAETrainer():
         return ptu.from_numpy(dataset[ind, :])
 
     def logprob(self, recon_x, x, mu, logvar):
-        return F.binary_cross_entropy(recon_x, x.view(-1, 84*84), size_average=False)
+        return F.binary_cross_entropy(
+            recon_x,
+            x.view(-1, self.imsize*self.imsize*self.input_channels),
+            size_average=False
+        )
 
     def kl_divergence(self, recon_x, x, mu, logvar):
         return -self.beta * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
@@ -123,8 +129,17 @@ class ConvVAETrainer():
 
             if batch_idx == 0:
                 n = min(data.size(0), 8)
-                comparison = torch.cat([data[:n].view(-1, self.input_channels, 84, 84),
-                                      recon_batch.view(self.batch_size, self.input_channels, 84, 84)[:n]])
+                comparison = torch.cat([
+                    data[:n].view(
+                        -1, self.input_channels, self.imsize, self.imsize
+                    ),
+                    recon_batch.view(
+                        self.batch_size,
+                        self.input_channels,
+                        self.imsize,
+                        self.imsize,
+                    )[:n]
+                ])
                 save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
                 save_image(comparison.data.cpu(), save_dir, nrow=n)
 
@@ -150,7 +165,10 @@ class ConvVAETrainer():
             sample = sample.cuda()
         sample = self.model.decode(sample).cpu()
         save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
-        save_image(sample.data.view(64, self.input_channels, 84, 84), save_dir)
+        save_image(
+            sample.data.view(64, self.input_channels, self.imsize, self.imsize),
+            save_dir
+        )
 
     def plot_scattered(self, z, epoch):
         import matplotlib.pyplot as plt
@@ -174,6 +192,7 @@ class ConvVAE(nn.Module):
             representation_size,
             init_w=1e-3,
             input_channels=1,
+            imsize=84,
             hidden_init=ptu.fanin_init,
             output_activation=identity,
     ):
@@ -183,6 +202,7 @@ class ConvVAE(nn.Module):
         self.hidden_init = hidden_init
         self.output_activation = output_activation
         self.input_channels = input_channels
+        self.imsize = imsize
 
         self.dist_mu = None
         self.dist_std = None
@@ -205,7 +225,7 @@ class ConvVAE(nn.Module):
 
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
 
-        self.fc4 = nn.Linear(self.conv_output_dim, 84*84)
+        self.fc4 = nn.Linear(self.conv_output_dim, imsize*imsize)
         self.conv4 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
         self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=3)
@@ -231,7 +251,7 @@ class ConvVAE(nn.Module):
 
     def encode(self, input):
         # batch_size = input.size(0)
-        x = input.view(-1, self.input_channels, 84, 84)
+        x = input.view(-1, self.input_channels, self.imsize, self.imsize)
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
@@ -253,11 +273,12 @@ class ConvVAE(nn.Module):
         h = h3.view(-1, 32, 2, 2)
         x = F.relu(self.conv4(h))
         x = F.relu(self.conv5(x))
-        x = self.conv6(x).view(-1, 84*84)
+        x = self.conv6(x).view(-1, self.imsize*self.imsize*self.input_channels)
         return self.sigmoid(x)
 
     def forward(self, x):
-        mu, logvar = self.encode(x.view(-1, 84*84))
+        mu, logvar = self.encode(x.view(-1,
+            self.imsize*self.imsize*self.input_channels))
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
 
