@@ -17,6 +17,7 @@ from torch.autograd import Variable
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger as default_logger
 from collections import OrderedDict
+
 from railrl.misc.asset_loader import sync_down
 
 import cv2
@@ -66,8 +67,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
     def step(self, action):
         observation, reward, done, info = self._wrapped_env.step(action)
+        self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
-            cv2.imshow('env', observation.reshape(self.input_channels, 84, 84).transpose())
+            cv2.imshow('env', self.cur_obs)
             cv2.waitKey(1)
         if self.use_vae_obs:
             img = Variable(ptu.from_numpy(observation))
@@ -86,8 +88,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
     def reset(self):
         observation = self._wrapped_env.reset()
+        self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
-            cv2.imshow('env', observation.reshape(self.input_channels, 84, 84).transpose())
+            cv2.imshow('env', self.cur_obs)
             cv2.waitKey(1)
         if self.use_vae_obs:
             img = Variable(ptu.from_numpy(observation))
@@ -113,10 +116,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
         :return:
         """
         goal = self.sample_goals(1)
+
+        # this could be optional, as its not necessary for training
+        observation = self.vae.decode(Variable(ptu.from_numpy(goal))).data.view(1, self.input_channels, 84, 84)
+        observation = ptu.get_numpy(observation)
+        self.goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
+
         if self.render_goals:
-            observation = self.vae.decode(Variable(ptu.from_numpy(goal))).data.view(1, self.input_channels, 84, 84)
-            observation = ptu.get_numpy(observation)
-            cv2.imshow('goal', observation.reshape(self.input_channels, 84, 84).transpose())
+            cv2.imshow('goal', self.goal_obs)
             cv2.waitKey(1)
         return goal[0]
 
@@ -164,8 +171,9 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
 
     def step(self, action):
         observation, reward, done, info = self._wrapped_env.step(action)
+        self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
-            cv2.imshow('env', observation.reshape(self.input_channels, 84, 84).transpose())
+            cv2.imshow('env', self.cur_obs)
             cv2.waitKey(1)
         if self.use_vae_obs:
             img = Variable(ptu.from_numpy(observation))
@@ -194,8 +202,9 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
 
     def reset(self):
         observation = self._wrapped_env.reset()
+        self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
-            cv2.imshow('env', observation.reshape(self.input_channels, 84, 84).transpose())
+            cv2.imshow('env', self.cur_obs)
             cv2.waitKey(1)
         if self.use_vae_obs:
             img = Variable(ptu.from_numpy(observation))
@@ -214,8 +223,9 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
         observation = self._wrapped_env.reset()
         if self.track_qpos_goal:
             self.qpos_goal = self.get_qpos()
+        self.goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
         if self.render_goals:
-            cv2.imshow('goal', observation.reshape(self.input_channels, 84, 84).transpose())
+            cv2.imshow('goal', self.goal_obs)
             cv2.waitKey(1)
         img = Variable(ptu.from_numpy(observation))
         if ptu.gpu_enabled():
