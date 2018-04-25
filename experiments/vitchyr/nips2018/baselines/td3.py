@@ -73,7 +73,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1000,
+            num_epochs=50,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-reach-sanity-check'
+    exp_prefix = 'sawyer-sim-reach-sanity-check-2'
 
     search_space = {
         # 'env_kwargs.randomize_goals': [True, False],

@@ -1,47 +1,36 @@
-import os.path as osp
-import numpy as np
-
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv, SawyerPushXYEnv, \
-    SawyerXYEnv
-from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 import time
 
-from railrl.envs.wrappers import ImageMujocoEnv, NormalizedBoxEnv
+import numpy as np
+import os.path as osp
+
+from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.images.camera import sawyer_init_camera
 import cv2
 
 
-def get_data(N = 10000, test_p = 0.9, use_cached=True):
+def get_data(N = 10000, test_p = 0.9, use_cached=True, imsize=84):
     filename = "/tmp/sawyer_" + str(N) + ".npy"
+    info = {}
     if use_cached and osp.isfile(filename):
         dataset = np.load(filename)
         print("loaded data from saved file", filename)
     else:
-        # if not cached
         now = time.time()
-        # env = SawyerXYZEnv()
-        env = SawyerPushXYEnv()
         env = SawyerXYEnv()
-        imsize = 32
-        env = NormalizedBoxEnv(ImageMujocoEnv(
-            env,
-            imsize=imsize,
-            keep_prev=0,
+        env = ImageMujocoEnv(
+            env, imsize,
+            transpose=True,
             init_camera=sawyer_init_camera,
-        ))
+            normalize=True,
+        )
+        info['env'] = env
 
         dataset = np.zeros((N, imsize*imsize*3))
-        K = imsize * imsize
         for i in range(N):
-            dataset[i, :] = env.reset()
-            # raw_img = dataset[i, :].reshape(imsize, imsize, 3, order='C')
-            # raw_img = env._image_observation()
-            # img = np.concatenate((
-            #     raw_img[::-1, :, 2:3],
-            #     raw_img[::-1, :, 1:2],
-            #     raw_img[::-1, :, 0:1],
-            # ), axis=2)
-            # cv2.imshow('obs', img)
+            img = env.reset()
+            dataset[i, :] = img
+            # cv2.imshow('img', img.reshape(3, 84, 84).transpose())
             # cv2.waitKey(1)
         print("done making training data", filename, time.time() - now)
         np.save(filename, dataset)
@@ -49,7 +38,7 @@ def get_data(N = 10000, test_p = 0.9, use_cached=True):
     n = int(N * test_p)
     train_dataset = dataset[:n, :]
     test_dataset = dataset[n:, :]
-    return train_dataset, test_dataset
+    return train_dataset, test_dataset, info
 
 if __name__ == "__main__":
-    get_data(10000)
+    get_data(200, use_cached=False)

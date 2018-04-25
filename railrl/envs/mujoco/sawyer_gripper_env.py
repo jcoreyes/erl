@@ -11,6 +11,7 @@ from railrl.envs.env_utils import get_asset_full_path
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 
+from gym.envs.robotics import FetchPushEnv
 
 class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     """Implements a 3D-position controlled Sawyer environment"""
@@ -18,6 +19,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def __init__(self, reward_info=None, frame_skip=30):
         self.quick_init(locals())
         self.reward_info = reward_info
+        self._goal_xyz = self.sample_goal_xyz()
         MultitaskEnv.__init__(self, distance_metric_order=2)
         MujocoEnv.__init__(self, self.model_name, frame_skip=frame_skip)
 
@@ -71,12 +73,11 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def step(self, a):
         a = np.clip(a, -1, 1)
         self.mocap_set_action(a[:3] / 100, relative=True)
-        self.set_goal_xyz(self.multitask_goal)
         u = np.zeros((8))
         u[7] = a[3]
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
-        reward = self.compute_reward(obs, u, obs, self.multitask_goal)
+        reward = self.compute_reward(obs, u, obs, self._goal_xyz)
         done = False
 
         distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
@@ -109,9 +110,6 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         )
         return pos
 
-    def sample_goal_for_rollout(self):
-        return self.sample_goal_xyz()
-
     def sample_goal_xyz(self):
         pos = np.random.uniform(
             np.array([-0.2, 0.5, 0.0]),
@@ -127,6 +125,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         self.set_state(qpos, qvel)
 
     def set_goal_xyz(self, pos):
+        self._goal_xyz = pos.copy()
         qpos = self.data.qpos.flat.copy()
         qvel = self.data.qvel.flat.copy()
         qpos[15:18] = pos.copy()
@@ -145,9 +144,6 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     def reset_mocap2body_xpos(self):
         # move mocap to weld joint
-        # print("end eff at", np.array([self.data.body_xpos[self.endeff_id]]))
-        # for d in self.data.body_xpos[self.endeff_id]:
-        #     print(float(d))
         self.data.set_mocap_pos(
             'mocap',
             np.array([self.data.body_xpos[self.endeff_id]]),
@@ -172,8 +168,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         velocities = self.data.qvel.copy()
         angles[:] = self.init_angles
         self.set_state(angles.flatten(), velocities.flatten())
-        self.multitask_goal = self.sample_goal_xyz()
-        self.set_goal_xyz(self.multitask_goal)
+        self.set_goal_xyz(self._goal_xyz)
         self.set_block_xyz(self.sample_block_xyz())
         return self._get_obs()
 
@@ -222,13 +217,6 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def goal_id(self):
         return self.model.body_names.index('goal')
 
-    def convert_obs_to_goals(self, obs):
-        return obs
-
-    def sample_goals(self, batch_size):
-        assert batch_size == 1
-        return [self.multitask_goal]
-
     def log_diagnostics(self, paths, logger=logger, prefix=""):
         super().log_diagnostics(paths)
 
@@ -244,16 +232,39 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
                 '%s %s' % (prefix, stat_name),
                 stat,
                 always_show_all_stats=True,
-            ))
+                ))
             statistics.update(create_stats_ordered_dict(
                 'Final %s %s' % (prefix, stat_name),
                 [s[-1] for s in stat],
                 always_show_all_stats=True,
-            ))
+                ))
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
+    """
+    Multitask functions
+    """
+    @property
+    def goal_dim(self) -> int:
+        return 3
+
+    def sample_goal_for_rollout(self):
+        return self.sample_goal_xyz()
+
+    def set_goal(self, goal):
+        MultitaskEnv.set_goal(self, goal)
+        self.set_goal_xyz(goal)
+
+    def convert_obs_to_goals(self, obs):
+        return obs
+
+    def sample_goals(self, batch_size):
+        return np.random.uniform(
+            np.array([-0.2, 0.5, 0.0]),
+            np.array([0.2, 0.7, 0.2]),
+            size=(batch_size, 3),
+        )
 
 class SawyerPickAndPlaceEnv(SawyerXYZEnv):
     def __init__(
@@ -299,7 +310,7 @@ class SawyerPickAndPlaceEnv(SawyerXYZEnv):
     def compute_reward(self, ob, action, next_ob, goal):
         hand = self.get_endeff_pos()
         block = self.get_block_pos()
-        block_goal = self.multitask_goal
+        block_goal = goal
 
         hand_to_block = np.linalg.norm(hand - block)
         block_to_goal = np.linalg.norm(block - block_goal)
@@ -355,11 +366,10 @@ class SawyerPushEnv(SawyerPickAndPlaceEnv):
     def step(self, a):
         a = np.clip(a, -1, 1)
         self.mocap_set_action(a[:3] / 100, relative=True)
-        self.set_goal_xyz(self.multitask_goal)
         u = np.zeros((8))
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
-        reward = self.compute_reward(obs, u, obs, self.multitask_goal)
+        reward = self.compute_reward(obs, u, obs, self._goal_xyz)
         done = False
 
         distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
@@ -435,12 +445,11 @@ class SawyerPushXYEnv(SawyerPushEnv):
         mocap_delta_z = 0
         new_mocap_action = np.hstack((a[:2], np.array([mocap_delta_z])))
         self.mocap_set_action(new_mocap_action, relative=True)
-        self.set_goal_xyz(self.multitask_goal)
         u = np.zeros((8))
         u[7] = 1
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
-        reward = self.compute_reward(obs, u, obs, self.multitask_goal)
+        reward = self.compute_reward(obs, u, obs, self._goal_xyz)
         done = False
 
         distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
@@ -487,6 +496,11 @@ class SawyerXYEnv(SawyerXYZEnv):
         ]
 
     def reset(self):
+        # angles = self.data.qpos.copy()
+        # velocities = self.data.qvel.copy()
+        # angles[:] = self.init_angles
+        # self.set_state(angles.flatten(), velocities.flatten())
+        # self.set_goal_xyz(self.sample_goal_xyz())
         super().reset()
         random_action = np.random.normal(size=2)
         self.set_block_xyz(np.array([100, 100, 100]))
@@ -494,19 +508,16 @@ class SawyerXYEnv(SawyerXYZEnv):
             self.step(random_action)
         return self._get_obs()
 
-
     def step(self, a):
         a = np.clip(a, -1, 1) / 100
-        # mocap_delta_z = 0.02 - self.data.mocap_pos[0, 2]
         mocap_delta_z = 0
         new_mocap_action = np.hstack((a[:2], np.array([mocap_delta_z])))
         self.mocap_set_action(new_mocap_action, relative=True)
-        self.set_goal_xyz(self.multitask_goal)
         u = np.zeros((8))
         u[7] = 1
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
-        reward = self.compute_reward(obs, u, obs, self.multitask_goal)
+        reward = self.compute_reward(obs, u, obs, self._goal_xyz)
         done = False
 
         distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
@@ -519,12 +530,16 @@ class SawyerXYEnv(SawyerXYZEnv):
         )
         return obs, reward, done, info
 
-    def sample_goal_xyz(self):
-        pos = np.random.uniform(
-            np.array([-0.2, 0.5, 0.02]),
-            np.array([0.2, 0.7, 0.02]),
-        )
-        return pos
+    # def sample_goal_xyz(self):
+    #     pos = np.random.uniform(
+    #         np.array([-0.2, 0.5, 0.02]),
+    #         np.array([0.2, 0.7, 0.02]),
+    #     )
+    #     return pos
+
+    # def set_goal(self, goal):
+    #     MultitaskEnv.set_goal(self, goal)
+    #     self.set_goal_xyz(np.hstack((goal, np.array([0.02]))))
 
 if __name__ == "__main__":
     e = SawyerXYZEnv(reward_info=dict(type="euclidean"))

@@ -1,5 +1,6 @@
 import sys, tty, termios
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv
+from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv, \
+    SawyerPushEnv, SawyerXYZEnv
 from railrl.envs.mujoco.sawyer_kitchen import KitchenCabinetEnv
 
 from railrl.exploration_strategies.base import \
@@ -10,7 +11,8 @@ import numpy as np
 
 print("making env")
 # env = SawyerPushXYEnv(randomize_goals=True, frame_skip=50)
-env = SawyerPushXYEnv(randomize_goals=False, frame_skip=50)
+env = SawyerPushEnv(randomize_goals=False, frame_skip=50)
+env = SawyerXYZEnv(frame_skip=50)
 # env = KitchenCabinetEnv()
 
 policy = ZeroPolicy(env.action_space.low.size)
@@ -41,8 +43,10 @@ char_to_action = {
     'c': np.array([0 , 0 , 0 , -1]),
 }
 
-# USE_CONTROLLER = True
-USE_CONTROLLER = False
+USE_CONTROLLER = True
+H = 100000
+# USE_CONTROLLER = False
+# H = 10
 
 
 while True:
@@ -51,14 +55,14 @@ while True:
     returns = 0
     action, _ = policy.get_action(None)
     # while True:
-    for _ in range(10):
+    for _ in range(H):
         # char = getch()
         # action = char_to_action.get(char, None)
         # if action is None:
         #     sys.exit()
         # event_happened = False
         if USE_CONTROLLER:
-            action = np.array([0,0,0,0])
+            # action = np.array([0,0,0,0])
             for event in pygame.event.get():
                 event_happened = True
                 if event.type == QUIT:

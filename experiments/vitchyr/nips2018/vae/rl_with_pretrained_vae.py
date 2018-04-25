@@ -18,28 +18,14 @@ from railrl.torch.td3.td3 import TD3
 
 
 def experiment(variant):
-    rdim = variant["rdim"]
+    from path import Path
+    import joblib
+    vae_dir = Path(variant['vae_dir'])
+    vae_path = str(vae_dir / 'params.pkl')
+    extra_data_path = str(vae_dir / 'extra_data.pkl')
+    env = joblib.load(extra_data_path)['env']
     use_env_goals = variant["use_env_goals"]
-    vae_path = variant["vae_paths"][str(rdim)]
     render = variant["render"]
-    wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
-
-    # vae = torch.load(vae_path)
-    # print("loaded", vae_path)
-
-    from railrl.envs.wrappers import ImageMujocoEnv, NormalizedBoxEnv
-    from railrl.images.camera import sawyer_init_camera
-
-    env = variant["env"](**variant['env_kwargs'])
-    env = NormalizedBoxEnv(ImageMujocoEnv(
-        env,
-        imsize=84,
-        keep_prev=0,
-        init_camera=sawyer_init_camera,
-    ))
-    if wrap_mujoco_env:
-        env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True, normalize=True)
-
 
     if use_env_goals:
         track_qpos_goal = variant.get("track_qpos_goal", 0)
@@ -101,8 +87,11 @@ def experiment(variant):
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
+        print("cuda")
         algorithm.cuda()
         env._wrapped_env.vae.cuda()
+    else:
+        env._wrapped_env.vae.cpu()
     algorithm.train()
 
 
@@ -140,7 +129,7 @@ if __name__ == "__main__":
         # env=MultitaskImagePoint2DEnv,
         env=SawyerXYEnv,
         use_env_goals=True,
-        vae_paths=vae_paths,
+        vae_dir="/home/vitchyr/git/railrl/data/local/04-25-dev-sawyer-reacher-vae-train-2/04-25-dev-sawyer-reacher-vae-train-2_2018_04_25_14_37_09_0000--s-26862/",
     )
 
     n_seeds = 1

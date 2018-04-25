@@ -10,6 +10,8 @@ from railrl.core.serializable import Serializable
 from gym.spaces import Discrete
 
 from gym import Env
+
+from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.envs.wrappers import ProxyEnv
 import railrl.torch.pytorch_util as ptu
 from torch.autograd import Variable
@@ -31,7 +33,7 @@ def load_vae(vae_file):
     print("loaded", local_path)
     return vae
 
-class VAEWrappedEnv(ProxyEnv, Env):
+class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
     """This class wraps an image-based environment with a VAE.
     Assumes you get flattened (channels,84,84) observations from wrapped_env.
     """
@@ -97,6 +99,16 @@ class VAEWrappedEnv(ProxyEnv, Env):
             observation = ptu.get_numpy(e).flatten()
         return observation
 
+    def enable_render(self):
+        self.render_goals=True
+        self.render_rollouts=True
+
+    """
+    Multitask functions
+    """
+    def set_goal(self, goal):
+        MultitaskEnv.set_goal(self, goal)
+
     def sample_goals(self, batch_size):
         if self.use_vae_goals:
             mu, sigma = self.vae.dist_mu, self.vae.dist_std
@@ -119,10 +131,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.imshow('goal', observation.reshape(self.input_channels, 84, 84).transpose())
             cv2.waitKey(1)
         return goal[0]
-
-    def enable_render(self):
-        self.render_goals=True
-        self.render_rollouts=True
 
 class VAEWrappedImageGoalEnv(ProxyEnv, Env):
     """This class wraps an image-based environment with a VAE.
@@ -205,24 +213,6 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
             observation = ptu.get_numpy(e).flatten()
         return observation
 
-    def sample_goal_for_rollout(self):
-        """
-        These goals are fed to a policy when the policy wants to actually
-        do rollouts.
-        :return:
-        """
-        observation = self._wrapped_env.reset()
-        if self.track_qpos_goal:
-            self.qpos_goal = self.get_qpos()
-        if self.render_goals:
-            cv2.imshow('goal', observation.reshape(self.input_channels, 84, 84).transpose())
-            cv2.waitKey(1)
-        img = Variable(ptu.from_numpy(observation))
-        if ptu.gpu_enabled():
-            self.vae.cuda()
-        e = self.vae.encode(img)[0]
-        return ptu.get_numpy(e).flatten()
-
     def log_diagnostics(self, paths, logger=default_logger, **kwargs):
         super().log_diagnostics(paths, logger=logger, **kwargs)
 
@@ -247,3 +237,27 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
     def enable_render(self):
         self.render_goals=True
         self.render_rollouts=True
+
+    """
+    Multitask functions
+    """
+    def set_goal(self, goal):
+        MultitaskEnv.set_goal(self, goal)
+
+    def sample_goal_for_rollout(self):
+        """
+        These goals are fed to a policy when the policy wants to actually
+        do rollouts.
+        :return:
+        """
+        observation = self._wrapped_env.reset()
+        if self.track_qpos_goal:
+            self.qpos_goal = self.get_qpos()
+        if self.render_goals:
+            cv2.imshow('goal', observation.reshape(self.input_channels, 84, 84).transpose())
+            cv2.waitKey(1)
+        img = Variable(ptu.from_numpy(observation))
+        if ptu.gpu_enabled():
+            self.vae.cuda()
+        e = self.vae.encode(img)[0]
+        return ptu.get_numpy(e).flatten()

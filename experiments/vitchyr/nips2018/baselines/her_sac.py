@@ -51,7 +51,7 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=300,
+            num_epochs=50,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
@@ -85,9 +85,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer-sim-reach-sanity-check'
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer-sim-reach-sanity-check-2'
 
     search_space = {
         # 'env_kwargs.randomize_goals': [True, False],
