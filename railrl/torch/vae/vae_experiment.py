@@ -17,7 +17,11 @@ from railrl.launchers.arglauncher import run_variants
 
 from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.envs.vae_wrappers import VAEWrappedImageGoalEnv, VAEWrappedEnv
+from railrl.torch.vae.sim_vae_policy import dump_video
 import torch
+
+from railrl.core import logger
+import os.path as osp
 
 def experiment(variant):
     rdim = variant["rdim"]
@@ -93,6 +97,7 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         **variant['algo_kwargs']
     )
+
     print("use_gpu", variant["use_gpu"], bool(variant["use_gpu"]))
     if variant["use_gpu"]:
         gpu_id = variant["gpu_id"]
@@ -100,7 +105,15 @@ def experiment(variant):
         ptu.set_device(gpu_id)
         algorithm.cuda()
         env._wrapped_env.vae.cuda()
+
+    logdir = logger.get_snapshot_dir()
+    filename = osp.join(logdir, 'video_0.mp4')
+    dump_video(env, policy, filename)
+
     algorithm.train()
+
+    filename = osp.join(logdir, 'video_final.mp4')
+    dump_video(env, policy, filename)
 
 
 if __name__ == "__main__":

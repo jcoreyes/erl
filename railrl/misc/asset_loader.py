@@ -3,7 +3,6 @@ from subprocess import Popen
 from multiprocessing import Process
 
 from railrl.launchers.config import LOCAL_LOG_DIR
-from doodad.ec2.autoconfig import AUTOCONFIG
 import os
 
 def sync_down(path, check_exists=True):
@@ -17,6 +16,7 @@ def sync_down(path, check_exists=True):
 
     is_docker = os.path.isfile("/.dockerenv")
     if is_docker:
+        from doodad.ec2.autoconfig import AUTOCONFIG
         os.environ["AWS_ACCESS_KEY_ID"] = AUTOCONFIG.aws_access_key()
         os.environ["AWS_SECRET_ACCESS_KEY"] = AUTOCONFIG.aws_access_secret()
         aws = "/env/bin/aws"
