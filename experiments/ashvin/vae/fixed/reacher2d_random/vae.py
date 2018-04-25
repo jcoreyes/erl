@@ -54,4 +54,4 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)

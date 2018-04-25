@@ -23,7 +23,10 @@ import cv2
 import torch
 
 def load_vae(vae_file):
-    local_path = sync_down(vae_file)
+    if vae_file[0] == "/":
+        local_path = vae_file
+    else:
+        local_path = sync_down(vae_file)
     vae = torch.load(local_path)
     print("loaded", local_path)
     return vae
