@@ -607,6 +607,12 @@ class FeatPointMlp(PyTorchModule):
         self.hidden_init(self.conv2.weight)
         self.conv2.bias.data.fill_(0)
 
+    def forward(self, input):
+        h = self.encoder(input)
+        out = self.decoder(h)
+        return out
+
+
     def encoder(self, input):
         x = input.contiguous().view(-1, self.input_channels, self.input_size, self.input_size)
         x = F.relu(self.conv1(x))

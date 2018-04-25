@@ -92,8 +92,9 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         return obs, reward, done, info
 
     def _get_obs(self):
-        p = self.get_endeff_pos()
-#        p = self.get_goal_pos()
+        #p = self.get_endeff_pos()
+        p = self.get_goal_pos()
+        p += np.random.normal(0, .1, size=p.shape)
         return p
 
     def get_block_pos(self):
