@@ -8,6 +8,7 @@ RUN apt-get update -q \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl \
     git \
+    libav-tools \
     libgl1-mesa-dev \
     libgl1-mesa-glx \
     libglew-dev \
@@ -89,4 +90,4 @@ WORKDIR /root/code
 # trigger the mujoco_py cythonization
 RUN python -c 'import mujoco_py'
 
-RUN pip install opencv-python torchvision
+RUN pip install opencv-python torchvision sk-video

@@ -99,21 +99,24 @@ def experiment(variant):
     )
 
     print("use_gpu", variant["use_gpu"], bool(variant["use_gpu"]))
-    if variant["use_gpu"]:
+    if variant["use_gpu"]: # change this to standardized format
         gpu_id = variant["gpu_id"]
         ptu.set_gpu_mode(True)
         ptu.set_device(gpu_id)
         algorithm.cuda()
         env._wrapped_env.vae.cuda()
 
-    logdir = logger.get_snapshot_dir()
-    filename = osp.join(logdir, 'video_0.mp4')
+    save_video = variant.get("save_video", True)
+    if save_video:
+        logdir = logger.get_snapshot_dir()
+        filename = osp.join(logdir, 'video_0.mp4')
     dump_video(env, policy, filename)
 
     algorithm.train()
 
-    filename = osp.join(logdir, 'video_final.mp4')
-    dump_video(env, policy, filename)
+    if save_video:
+        filename = osp.join(logdir, 'video_final.mp4')
+        dump_video(env, policy, filename)
 
 
 if __name__ == "__main__":
@@ -141,6 +144,7 @@ if __name__ == "__main__":
         normalize=False,
         rdim=4,
         render=False,
+        save_video=True,
     )
 
     n_seeds = 3
