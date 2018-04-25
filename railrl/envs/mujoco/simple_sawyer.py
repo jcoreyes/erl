@@ -87,11 +87,13 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             distance=distance,
             block_distance=block_distance,
             touch_distance=touch_distance,
+            testing=self.get_goal_pos()
         )
         return obs, reward, done, info
 
     def _get_obs(self):
         p = self.get_endeff_pos()
+#        p = self.get_goal_pos()
         return p
 
     def get_block_pos(self):

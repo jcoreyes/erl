@@ -62,7 +62,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
             extra_fc_size=0,
             imsize=64,
             downsampled_size=32,
-            ae_learning_rate=1e-3,
+            ae_learning_rate=1e-4,
 
             **kwargs
     ):
@@ -159,28 +159,33 @@ class FeatPointDDPG(TorchRLAlgorithm):
         obs = obs.narrow(start=0,
                          length=self.imsize**2,
                          dimension=1)
-        reconstructed = self.ae.forward(obs)
+
+        reconstructed = self.ae(obs)
         self.ae_optimizer.zero_grad()
         loss = self.ae_criterion(reconstructed, downsampled)
+#        loss = self.ae_criterion(reconstructed, goal)
         if self.i % 1000 == 0:
-            pass
-#            self.save_and_compare(obs, reconstructed, downsampled)
+            self.save_and_compare(obs, reconstructed, downsampled)
         self.i += 1
         loss.backward()
+        #if self.i < 25000:
         self.ae_optimizer.step()
+            #print("ENDING AE TRAINING")
         return loss
 
     def get_latent_obs(self, batch):
         obs = batch['observations']
         next_obs = batch['next_observations']
-        image_obs, fc_obs = self.ae.split_obs(obs, self.history_length, self.input_length)
-        next_image_obs, next_fc_obs = self.ae.split_obs(next_obs, self.history_length, self.input_length)
+        image_obs, fc_obs = self.env.split_obs(obs)
+        next_image_obs, next_fc_obs = self.env.split_obs(next_obs)
+
 
         latent_obs = self.ae.history_encoder(image_obs, self.history_length)
         next_latent_obs = self.ae.history_encoder(next_image_obs, self.history_length)
+
         if fc_obs is not None:
             latent_obs = torch.cat((latent_obs, fc_obs), dim=1)
-            next_latent_obs = torch.cat((next_latent_obs, fc_obs), dim=1)
+            next_latent_obs = torch.cat((next_latent_obs, next_fc_obs), dim=1)
 
         return latent_obs, next_latent_obs
 
@@ -188,9 +193,9 @@ class FeatPointDDPG(TorchRLAlgorithm):
 
     def save_and_compare(self, original, reconstructed, downsampled):
         for i in range(0, 50):
-            Image.fromarray(np.uint8(255 * np.array(original.data).reshape(-1, 64, 64)[i])).save('images/' + str(i) + '.png')
-            Image.fromarray(np.uint8(255 * np.array(reconstructed.data).reshape(-1, 32, 32)[i])).save('images/' + str(i) + 'r.png')
-            Image.fromarray(np.uint8(255 * np.array(downsampled.data).reshape(-1, 32, 32)[i])).save('images/' + str(i) + 'd.png')
+        #    Image.fromarray(np.uint8(255 * np.array(original.data).reshape(-1, 64, 64)[i])).save('images/' + str(i) + '.png')
+            Image.fromarray(np.uint8(255 * np.array(reconstructed.data).reshape(-1, self.downsampled_size, self.downsampled_size)[i])).save('images/' + str(i) + 'r.png')
+            Image.fromarray(np.uint8(255 * np.array(downsampled.data).reshape(-1, self.downsampled_size, self.downsampled_size)[i])).save('images/' + str(i) + 'd.png')
 
 
     def _do_training(self):
@@ -296,7 +301,6 @@ class FeatPointDDPG(TorchRLAlgorithm):
         if self.need_to_update_eval_statistics:
             self.need_to_update_eval_statistics = False
             self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
-            self.eval_statistics['Autoencoder Reconstruction Loss'] = np.mean(ptu.get_numpy(ae_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
@@ -323,6 +327,8 @@ class FeatPointDDPG(TorchRLAlgorithm):
                 'Policy Action',
                 ptu.get_numpy(policy_actions),
             ))
+            self.eval_statistics['Autoencoder Reconstruction Loss'] = np.mean(ptu.get_numpy(ae_loss))
+
 
     def _update_target_networks(self):
         if self.use_soft_update:

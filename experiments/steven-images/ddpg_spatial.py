@@ -23,6 +23,8 @@ from railrl.envs.mujoco.pusher2d import Pusher2DEnv, RandomGoalPusher2DEnv
 from railrl.envs.wrappers import ImageMujocoEnv, ImageMujocoWithObsEnv
 #from railrl.images.camera import pusher_2d_init_camera
 from railrl.launchers.launcher_util import setup_logger
+from railrl.envs.mujoco.simple_sawyer import SawyerXYZEnv
+#from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
 
 import railrl.images.camera as camera
 from railrl.data_management.env_replay_buffer import AEEnvReplayBuffer
@@ -30,22 +32,24 @@ from railrl.data_management.env_replay_buffer import AEEnvReplayBuffer
 
 def experiment(variant):
     feat_points = 16
-    history = 1
+    history = 3
     latent_obs_dim = feat_points * 2 * history
     imsize = 64
     downsampled_size = 32
 
-    env = RandomGoalPusher2DEnv()
+    env = SawyerXYZEnv()
+#    env = RandomGoalPusher2DEnv()
     extra_fc_size = env.obs_dim
 #    extra_fc_size = 0
     env = ImageMujocoWithObsEnv(env,
                                 imsize=imsize,
                                 keep_prev=history-1,
-                                init_camera=camera.pusher_2d_init_camera)
+                                #init_camera=camera.pusher_2d_init_camera)
+                                init_camera=camera.sawyer_init_camera)
     """env = ImageMujocoEnv(env,
                         imsize=imsize,
                         keep_prev=history-1,
-                        init_camera=camera.pusher_2d_init_camera)"""
+                        init_camera=camera.sawyer_init_camera)"""
 
     env = NormalizedBoxEnv(env)
 
@@ -77,6 +81,7 @@ def experiment(variant):
     policy = AETanhPolicy(
         input_size=latent_obs_dim + extra_fc_size,
         ae=ae,
+        env=env,
         input_length=imsize**2 * history + extra_fc_size,
         history_length=history,
         output_size=action_dim,
@@ -113,10 +118,10 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=400,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=50,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=500,
             batch_size=64,
-            max_path_length=10,
+            max_path_length=100,
             discount=.99,
 
             use_soft_update=True,
@@ -157,7 +162,7 @@ if __name__ == "__main__":
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="TESTING",
+                exp_prefix="sawyer-spatial",
                 mode='local',
                 # use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",

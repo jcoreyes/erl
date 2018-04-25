@@ -63,6 +63,7 @@ class AEEnvReplayBuffer(EnvReplayBuffer):
             downsampled_obs = np.array(downsampled_obs).flatten() / 255.0
             downsampled.append(downsampled_obs)
         downsampled = np.concatenate(downsampled)
+
         self._downsampled[self._top] = downsampled
         return super().add_sample(observation, action, reward, terminal, next_observation, **kwargs)
 

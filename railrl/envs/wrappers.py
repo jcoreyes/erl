@@ -154,6 +154,22 @@ class ImageMujocoEnv(ProxyEnv, Env):
             images.append(pil_image)
         return images
 
+    def split_obs(self, obs):
+        imlength = self.image_length * self.history_length
+        obs_length = self.observation_space.low.size
+        obs = obs.view(-1, obs_length)
+        image_obs = obs.narrow(start=0,
+                               length=imlength,
+                               dimension=1)
+        if obs_length == imlength:
+            return image_obs, None
+
+        fc_obs = obs.narrow(start=imlength,
+                            length=obs.shape[1] - imlength,
+                            dimension=1)
+        return image_obs, fc_obs
+
+
 
 class ImageMujocoWithObsEnv(ImageMujocoEnv):
     def __init__(self, env, **kwargs):

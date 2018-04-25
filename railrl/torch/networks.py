@@ -326,6 +326,7 @@ class AETanhPolicy(Mlp, Policy):
     def __init__(
             self,
             ae,
+            env,
             history_length,
             input_length,
             *args,
@@ -338,6 +339,7 @@ class AETanhPolicy(Mlp, Policy):
         self.obs_normalizer = obs_normalizer
         self.history_length = history_length
         self.input_length = input_length
+        self.env = env
 
     def forward(self, obs, **kwargs):
         if self.obs_normalizer:
@@ -347,11 +349,11 @@ class AETanhPolicy(Mlp, Policy):
     def get_action(self, obs_np):
         obs = obs_np
         obs = ptu.np_to_var(obs)
-        image_obs, fc_obs = self.ae.split_obs(obs, self.history_length, self.input_length)
-        latent_obs = self.ae.encoder(image_obs)
+        image_obs, fc_obs = self.env.split_obs(obs)
+        latent_obs = self.ae.history_encoder(image_obs, self.history_length)
         if fc_obs is not None:
             latent_obs = torch.cat((latent_obs, fc_obs), dim=1)
-        obs_np = ptu.get_numpy(latent_obs)
+        obs_np = ptu.get_numpy(latent_obs)[0] # jank [0] here. Not sure why needed...
         actions = self.get_actions(obs_np[None])
         return actions[0, :], {}
 
@@ -508,6 +510,55 @@ class OuterProductFF(PyTorchModule):
         else:
             return output
 
+class Autoencoder(PyTorchModule):
+    def __init__(
+            self,
+            input_length,
+            output_length,
+            latent_length
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+        self.input_length = input_length
+        self.output_length = output_length
+        self.latent_length = latent_length
+        #### Encoder ####
+        self.fc1 = nn.Linear(self.input_length, 400)
+        self.fc2 = nn.Linear(400, self.latent_length)
+        #### Decoder ####
+        self.fc3 = nn.Linear(self.latent_length, 400)
+        self.last_fc = nn.Linear(400, self.output_length)
+
+
+    def forward(self, input):
+        h = self.encoder(input)
+        out = self.decoder(h)
+        return out
+
+    def encoder(self, input):
+        x = input
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return x
+
+    def decoder(self, input):
+        x = input
+        x = F.relu(self.fc3(x))
+        x = self.last_fc(x)
+        return x
+
+
+    def history_encoder(self, input, history_length):
+        input = input.contiguous().view(-1, self.input_length)
+        latent = self.encoder(input)
+
+        assert latent.shape[0] % history_length == 0
+        n_samples = latent.shape[0] // history_length
+        latent = latent.view(n_samples, -1)
+        return latent
+
+
+
 class FeatPointMlp(PyTorchModule):
     def __init__(
             self,
@@ -545,7 +596,7 @@ class FeatPointMlp(PyTorchModule):
         self.fc1 = nn.Linear(2 * self.num_feat_points, 128)
 #        self.fc2 = nn.Linear(400, 300)
         self.last_fc = nn.Linear(128, self.input_channels * self.downsample_size* self.downsample_size)
-#        self.debug = nn.Linear(2 * self.num_feat_points, 2)
+        #self.debug = nn.Linear(2 * self.num_feat_points, 3)
 
         self.init_weights(init_w)
         self.i = 0
@@ -555,12 +606,6 @@ class FeatPointMlp(PyTorchModule):
         self.conv1.bias.data.fill_(0)
         self.hidden_init(self.conv2.weight)
         self.conv2.bias.data.fill_(0)
-
-
-    def forward(self, input):
-        h = self.encoder(input)
-        image = self.decoder(h)
-        return image
 
     def encoder(self, input):
         x = input.contiguous().view(-1, self.input_channels, self.input_size, self.input_size)
@@ -588,32 +633,11 @@ class FeatPointMlp(PyTorchModule):
     def decoder(self, input):
         h = input
         h = F.relu(self.fc1(h))
-        #h = F.relu(self.fc2(h))
+#        h = F.relu(self.fc2(h))
         h = self.last_fc(h)
-        #h = h.view(-1, self.input_channels * self.downsample_size * self.downsample_size)
-        #h = self.debug(h)
+#        h = self.debug(h)
         return h
 
-    def get_action(self, obs_np):
-        actions = self.get_actions(obs_np[None])
-        return actions[0, :], {}
-
-    def get_actions(self, obs):
-        return self.eval_np(obs)
-
-    def split_obs(self, obs, history_length, input_length):
-        imlength = self.input_size**2 * history_length
-        obs = obs.view(-1, input_length)
-        image_obs = obs.narrow(start=0,
-                               length=imlength,
-                               dimension=1)
-        if obs.shape[1] - imlength == 0:
-            return image_obs, None
-
-        fc_obs = obs.narrow(start=imlength,
-                            length=obs.shape[1] - imlength,
-                            dimension=1)
-        return image_obs, fc_obs
 
 
     def history_encoder(self, input, history_length):
@@ -629,60 +653,3 @@ class FeatPointMlp(PyTorchModule):
         return latent
 
 
-def sample_data(rollouts=10, length=100):
-    observations, downsampled = [], []
-    for _ in range(32):
-        obs = env.reset()
-        observations.append(obs)
-        downsampled_obs = np.array(Image.fromarray(255*obs.reshape(imsize, imsize)).resize((downsample_size, downsample_size)))
-        downsampled.append(downsampled_obs.flatten())
-        for _ in range(2):
-            action = env.action_space.sample()
-            obs, _, _, _ = env.step(action* 5)
-            observations.append(obs)
-            image = Image.fromarray(np.uint8(255*obs.reshape(imsize, imsize)), mode='L').resize((downsample_size, downsample_size))
-            downsampled_obs = np.array(image)
-            downsampled.append(downsampled_obs.flatten())
-
-    observation = Variable(torch.Tensor(np.c_[observations]))
-    downsampled = Variable(torch.Tensor(np.c_[downsampled]))
-    return observation, downsampled
-
-def convert_flat(obs):
-        image = Image.fromarray(np.uint8(255*obs.reshape(imsize, imsize)), mode='L')#.resize((downsample_size, downsample_size))
-        return image
-
-def save_features(features, size):
-    for i in range(0, 80):
-        Image.fromarray(np.uint8(255 * np.array(features.data).reshape(-1, size, size)[i])).save('images/' + str(i) + '.png')
-
-
-if __name__ == "__main__":
-    import torch.optim as optim
-    imsize=64
-    downsample_size=32
-    net = FeatPointMlp(
-        input_size=imsize,
-        downsample_size=downsample_size,
-        input_channels=1,
-        num_feat_points=8
-    )
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(net.parameters(), lr=1e-2)
-
-    env = RandomGoalPusher2DEnv()
-    env = ImageMujocoEnv(env, imsize, init_camera=camera.pusher_2d_init_camera)
-    losses = []
-    for i in range(0, 1000):
-        observation, downsampled = sample_data(rollouts=10, length=100)
-        reconstructed = net.forward(observation)
-        optimizer.zero_grad()
-        loss = criterion(reconstructed, downsampled)
-        loss.backward()
-        optimizer.step()
-        loss = np.array(loss.data[0])
-        print('loss:', loss)
-        if i % 50 == 0:
-            pass
-            #pdb.set_trace()
-    pdb.set_trace()
