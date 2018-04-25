@@ -28,7 +28,7 @@ def load_vae(vae_file):
         local_path = vae_file
     else:
         local_path = sync_down(vae_file)
-    vae = torch.load(local_path)
+    vae = torch.load(local_path, map_location=lambda storage, loc: storage)
     print("loaded", local_path)
     return vae
 

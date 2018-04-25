@@ -8,7 +8,6 @@ RUN apt-get update -q \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl \
     git \
-    libav-tools \
     libgl1-mesa-dev \
     libgl1-mesa-glx \
     libglew-dev \
@@ -80,6 +79,9 @@ RUN pip install joblib==0.9.4
 # https://askubuntu.com/questions/506158/unable-to-initialize-frontend-dialog-when-using-ssh
 #RUN apt-get purge nvidia*
 #RUN add-apt-repository --yes ppa:graphics-drivers && apt-get update
+
+RUN apt-get update && apt-get install -y libav-tools
+
 # For some reason this works despite an error showing up...
 RUN DEBIAN_FRONTEND=noninteractive apt-get -qy install nvidia-384; exit 0
 ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/usr/lib/nvidia-384
@@ -90,4 +92,6 @@ WORKDIR /root/code
 # trigger the mujoco_py cythonization
 RUN python -c 'import mujoco_py'
 
-RUN pip install opencv-python torchvision sk-video
+RUN pip install opencv-python==3.4.0.12
+RUN pip install torchvision==0.2.0
+RUN pip install sk-video==1.1.10

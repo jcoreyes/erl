@@ -17,7 +17,6 @@ from railrl.launchers.arglauncher import run_variants
 
 from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.envs.vae_wrappers import VAEWrappedImageGoalEnv, VAEWrappedEnv
-from railrl.torch.vae.sim_vae_policy import dump_video
 import torch
 
 from railrl.core import logger
@@ -108,9 +107,10 @@ def experiment(variant):
 
     save_video = variant.get("save_video", True)
     if save_video:
+        from railrl.torch.vae.sim_vae_policy import dump_video
         logdir = logger.get_snapshot_dir()
         filename = osp.join(logdir, 'video_0.mp4')
-    dump_video(env, policy, filename)
+        dump_video(env, policy, filename)
 
     algorithm.train()
 
