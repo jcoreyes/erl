@@ -17,8 +17,19 @@ from torch.autograd import Variable
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger as default_logger
 from collections import OrderedDict
+from railrl.misc.asset_loader import sync_down
 
 import cv2
+import torch
+
+def load_vae(vae_file):
+    if vae_file[0] == "/":
+        local_path = vae_file
+    else:
+        local_path = sync_down(vae_file)
+    vae = torch.load(local_path)
+    print("loaded", local_path)
+    return vae
 
 class VAEWrappedEnv(ProxyEnv, Env):
     """This class wraps an image-based environment with a VAE.
@@ -28,7 +39,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
         render_goals=False, render_rollouts=False):
         self.quick_init(locals())
         super().__init__(wrapped_env)
-        self.vae = vae
+        if type(vae) is str:
+            self.vae = load_vae(vae)
+        else:
+            self.vae = vae
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self.use_vae_goals = use_vae_goals
@@ -122,7 +136,10 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
         render_goals=False, render_rollouts=False, track_qpos_goal=0):
         self.quick_init(locals())
         super().__init__(wrapped_env)
-        self.vae = vae
+        if type(vae) is str:
+            self.vae = load_vae(vae)
+        else:
+            self.vae = vae
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self.use_vae_goals = use_vae_goals
