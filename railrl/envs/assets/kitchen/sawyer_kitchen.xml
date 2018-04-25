@@ -3,7 +3,7 @@
     <compiler angle="radian" meshdir="meshes/" />
     <!-- <option gravity="0 0 0" /> -->
     <!-- <option impratio="0.01" /> -->
-    <size njmax="500" nconmax="100" />
+    <size njmax="1000" nconmax="1000" />
     <asset>
         <mesh name="pedestal" file="pedestal.stl" />
         <mesh name="base" file="base.stl" />
@@ -97,7 +97,7 @@
 	        <geom type="box" pos="0 0.0 0.07" size="0.13 0.01 0.07"  contype="1" conaffinity="1"/>
 	        <geom type="box" pos="0 -0.1 0.07" size="0.13 0.01 0.07"  contype="1" conaffinity="1"/>
 	        <geom type="box" pos="0 -0.2 0.07" size="0.13 0.01 0.07"  contype="1" conaffinity="1"/>
-	        
+
 
 	    </body>
 
@@ -114,7 +114,7 @@
 	    </body>
 
 	    <body name="saucepan" pos="-0.6 0.6 0.">
-	        
+
 	        <!-- <geom type="cylinder" pos="0 0 0.01" size="0.08 0.01" rgba="0 0 0 1" contype="1" conaffinity="1"/> -->
 	       	<geom type="box" pos="0 0 0.01" size="0.1 0.1 0.01" rgba="1 0 0 1" contype="1" conaffinity="1"/>
 	       	<geom type="box" pos="-0.1 0 0.03" size="0.01 0.11 0.03" rgba="1 0 0 1" contype="1" conaffinity="1"/>
@@ -261,7 +261,7 @@
         </body>
 
         <body mocap="true" name="mocap" pos="0.2369680365278436 0.7377722688452103 0.30233579064225752">
-            <geom conaffinity="0" contype="0" pos="0 0 0" rgba="1.0 1.0 1.0 0.0" size="0.02 0.02 0.02" type="box"></geom>
+            <geom conaffinity="0" contype="0" pos="0 0 0" rgba="1.0 1.0 1.0 1.0" size="0.02 0.02 0.02" type="box"></geom>
         </body>
 
 <!--         <body name="block" pos="0 0.7 0">
@@ -335,7 +335,7 @@
         </body>
 
 
-<!-- 
+<!--
         <body name="obj2" pos="0 0.6 0">
             <geom density="0.001" mesh="object_mesh1" contype="1" conaffinity="1" type="mesh" rgba=".5 .5 .5 1"/>
             <joint name="obj2joint" type="free" limited='false' damping="0" armature="0" />
