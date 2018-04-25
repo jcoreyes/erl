@@ -10,7 +10,7 @@ from railrl.torch.sac.policies import TanhGaussianPolicy
 
 
 def experiment(variant):
-    env = SawyerPushXYEnv(**variant['env_kwargs'])
+    env = variant['env_class'](**variant['env_kwargs'])
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     obs_dim = env.observation_space.low.size
@@ -51,13 +51,14 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1000,
+            num_epochs=300,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
-            max_path_length=300,
+            max_path_length=100,
             discount=0.99,
         ),
+        env_class=SawyerPushXYEnv,
         env_kwargs=dict(
             frame_skip=50,
             only_reward_block_to_goal=True,
@@ -85,13 +86,14 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-xy-state'
+    exp_prefix = 'sawyer-sim-push-xy-center-start'
 
     search_space = {
-        'replay_buffer_kwargs.num_goals_to_sample': [0, 4],
-        'env_kwargs.randomize_goals': [False, True],
-        'algo_kwargs.num_updates_per_env_step': [1, 5],
-        'algo_kwargs.reward_scale': [1, 10, 100],
+        'env_kwargs.randomize_goals': [True, False],
+        'env_kwargs.only_reward_block_to_goal': [False, True],
+        'replay_buffer_kwargs.num_goals_to_sample': [4],
+        'algo_kwargs.num_updates_per_env_step': [5],
+        'algo_kwargs.reward_scale': [10, 100, 1000],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

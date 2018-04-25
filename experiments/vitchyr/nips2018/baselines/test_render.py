@@ -9,7 +9,8 @@ from railrl.policies.simple import ZeroPolicy
 import numpy as np
 
 print("making env")
-env = SawyerPushXYEnv(randomize_goals=True, frame_skip=50)
+# env = SawyerPushXYEnv(randomize_goals=True, frame_skip=50)
+env = SawyerPushXYEnv(randomize_goals=False, frame_skip=50)
 # env = KitchenCabinetEnv()
 
 policy = ZeroPolicy(env.action_space.low.size)
@@ -38,12 +39,10 @@ char_to_action = {
     'd': np.array([0 , -1, 0 , 0]),
     'z': np.array([0 , 0 , 0 , 1]),
     'c': np.array([0 , 0 , 0 , -1]),
-    'x': np.array([0 , 0 , 0 , 0]),
 }
 
-# print("waiting")
-# event = pygame.event.wait()
-# print("done")
+# USE_CONTROLLER = True
+USE_CONTROLLER = False
 
 
 while True:
@@ -51,31 +50,33 @@ while True:
     last_reward_t = 0
     returns = 0
     action, _ = policy.get_action(None)
-    while True:
+    # while True:
+    for _ in range(10):
         # char = getch()
         # action = char_to_action.get(char, None)
         # if action is None:
         #     sys.exit()
         # event_happened = False
-        action = np.array([0,0,0,0])
-        for event in pygame.event.get():
-            event_happened = True
-            if event.type == QUIT:
-                sys.exit()
-            if event.type == KEYDOWN:
-                char = event.dict['key']
-                new_action = char_to_action.get(chr(char), None)
-                if new_action is not None:
-                    action = new_action
-                else:
-                    action = np.array([0 , 0 , 0 , 0])
-                print("got char:", char)
-                print("action", action)
-        # pygame.event.pump()
-
-        # action = env.action_space.sample()*10
-        # delta = (env.get_block_pos() - env.get_endeff_pos())[:2]
-        # action[:2] = delta * 100
+        if USE_CONTROLLER:
+            action = np.array([0,0,0,0])
+            for event in pygame.event.get():
+                event_happened = True
+                if event.type == QUIT:
+                    sys.exit()
+                if event.type == KEYDOWN:
+                    char = event.dict['key']
+                    new_action = char_to_action.get(chr(char), None)
+                    if new_action is not None:
+                        action = new_action
+                    else:
+                        action = np.array([0 , 0 , 0 , 0])
+                    print("got char:", char)
+                    print("action", action)
+                    print("angles", env.data.qpos.copy())
+        else:
+            action = env.action_space.sample()*10
+            delta = (env.get_block_pos() - env.get_endeff_pos())[:2]
+            action[:2] = delta * 100
         # action[1] -= 0.05
         # action = np.sign(action)
         # action += np.random.normal(size=action.shape) * 0.2

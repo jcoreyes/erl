@@ -15,7 +15,7 @@ from railrl.torch.td3.td3 import TD3
 
 
 def experiment(variant):
-    env = SawyerPushXYEnv(**variant['env_kwargs'])
+    env = variant['env_class'](**variant['env_kwargs'])
     env = MultitaskToFlatEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
@@ -40,17 +40,17 @@ def experiment(variant):
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[64, 64],
+        hidden_sizes=[400, 300],
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[64, 64],
+        hidden_sizes=[400, 300],
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=[64, 64],
+        hidden_sizes=[400, 300],
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -78,9 +78,10 @@ if __name__ == "__main__":
             num_steps_per_eval=1000,
             tau=1e-2,
             batch_size=128,
-            max_path_length=300,
+            max_path_length=100,
             discount=0.99,
         ),
+        env_class=SawyerPushXYEnv,
         env_kwargs=dict(
             frame_skip=50,
             only_reward_block_to_goal=True,
@@ -96,10 +97,10 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-xy-new-params-v2'
+    exp_prefix = 'sawyer-sim-push-xy-center-start'
 
     search_space = {
-        'env_kwargs.randomize_goals': [True],
+        'env_kwargs.randomize_goals': [True, False],
         'env_kwargs.only_reward_block_to_goal': [False, True],
         'exploration_type': [
             'ou',

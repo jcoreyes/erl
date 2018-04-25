@@ -11,7 +11,7 @@ from railrl.torch.sac.sac import SoftActorCritic
 
 
 def experiment(variant):
-    env = SawyerPushXYEnv(**variant['env_kwargs'])
+    env = variant['env_class'](**variant['env_kwargs'])
     env = MultitaskToFlatEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
@@ -48,13 +48,14 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1000,
+            num_epochs=300,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
-            max_path_length=300,
+            max_path_length=100,
             discount=0.99,
         ),
+        env_class=SawyerPushXYEnv,
         env_kwargs=dict(
             frame_skip=50,
             only_reward_block_to_goal=True,
@@ -79,10 +80,10 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-xy-new-params-v2'
+    exp_prefix = 'sawyer-sim-push-xy-center-start'
 
     search_space = {
-        'env_kwargs.randomize_goals': [True],
+        'env_kwargs.randomize_goals': [True, False],
         'env_kwargs.only_reward_block_to_goal': [False, True],
         'algo_kwargs.reward_scale': [10, 100, 1000],
     }
