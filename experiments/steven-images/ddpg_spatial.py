@@ -23,8 +23,8 @@ from railrl.envs.mujoco.pusher2d import Pusher2DEnv, RandomGoalPusher2DEnv
 from railrl.envs.wrappers import ImageMujocoEnv, ImageMujocoWithObsEnv
 #from railrl.images.camera import pusher_2d_init_camera
 from railrl.launchers.launcher_util import setup_logger
-from railrl.envs.mujoco.simple_sawyer import SawyerXYZEnv
-#from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
+#from railrl.envs.mujoco.simple_sawyer import SawyerXYZEnv
+from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
 
 import railrl.images.camera as camera
 from railrl.data_management.env_replay_buffer import AEEnvReplayBuffer
@@ -33,8 +33,7 @@ from railrl.data_management.env_replay_buffer import AEEnvReplayBuffer
 def experiment(variant):
     feat_points = 16
     history = 1
-   # latent_obs_dim = feat_points * 2 * history
-    latent_obs_dim = 3
+    latent_obs_dim = feat_points * 2 * history
     imsize = 64
     downsampled_size = 32
 
@@ -122,7 +121,7 @@ if __name__ == "__main__":
             num_steps_per_epoch=1000,
             num_steps_per_eval=500,
             batch_size=64,
-            max_path_length=100,
+            max_path_length=200,
             discount=.99,
 
             use_soft_update=True,

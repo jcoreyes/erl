@@ -82,8 +82,8 @@ class ImageMujocoEnv(ProxyEnv, Env):
                  init_camera=None,
                  camera_name=None,
                  transpose=False,
-                 grayscale=False,
-                 normalize=False,
+                 grayscale=True,
+                 normalize=True,
     ):
         self.quick_init(locals())
         super().__init__(wrapped_env)
