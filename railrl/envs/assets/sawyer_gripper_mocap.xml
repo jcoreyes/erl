@@ -3,6 +3,7 @@
     <!-- <option gravity="0 0 0" /> -->
     <!-- <option impratio="0.01" /> -->
     <!-- <option collision="predefined" /> -->
+    <option integrator="RK4" timestep="0.002" iterations="50"/>
     <size njmax="500" nconmax="100" />
     <asset>
         <mesh name="pedestal" file="pedestal.stl" />
@@ -19,7 +20,7 @@
 
     <default>
         <joint limited="true" damping="1" stiffness="0" armature=".1" user="0"/>
-        <geom solref="0.008 1" solimp="0.95 0.95 0.01" margin="0.001" user="0"/>
+        <geom solref="0.008 1" solimp="0.99 0.99 0.01" margin="0.001" user="0"/>
         <motor ctrllimited="true" ctrlrange="-1 1"/>
         <position ctrllimited="true"/>
 
@@ -28,7 +29,7 @@
         </default>
 
         <default class='1'>
-            <geom friction="1 0.005 0.001" rgba=".7 .6 .55 1" contype="1" conaffinity="0"/>
+            <geom friction="1 0.005 0.001" rgba=".7 .6 .55 1" contype="4" conaffinity="2"/>
         </default>
 
         <default class='arm'>
@@ -43,7 +44,8 @@
     <worldbody>
         <!-- <light directional="true" cutoff="40" exponent="10" diffuse=".4 .4 .4" specular=".7 .7 .7" pos="0 0 1.5" dir="0 0 -1"/> -->
 
-        <geom name="tableTop" type="plane" pos="0 0.6 0" size="0.4 0.2 0.5" rgba=".6 .6 .5 1" contype="1" conaffinity="1" />
+        <geom name="tableTop" type="plane" pos="0 0.6 0" size="0.4 0.2 0.5"
+              rgba=".6 .6 .5 1" contype="15" conaffinity="15" />
 
         <body name="base" pos="0 0 0">
             <site name="basesite" pos="0 0 0" size="0.01" />
@@ -54,7 +56,10 @@
             </body>
             <body name="pedestal_feet" pos="0 0 0">
                 <inertial pos="-0.1225 0 -0.758" mass="167.09" diaginertia="8.16095 9.59375 15.0785" />
-                <geom size="0.385 0.35 0.155" pos="-0.1225 0 -0.758" type="box" rgba="0.2 0.2 0.2 1"/>
+                <geom size="0.385 0.35 0.155" pos="-0.1225 0 -0.758" type="box" rgba="0.2 0.2 0.2 1"
+                      contype="0"
+                      conaffinity="0"
+                />
             </body>
             <body name="torso" pos="0 0 0">
                 <inertial pos="0 0 0" mass="0.0001" diaginertia="1e-08 1e-08 1e-08" />
@@ -142,7 +147,10 @@
 
                                                     <body name="rightclaw" pos=".01 -.02 0" >
                                                         <geom name="rightclaw_it" class="1" type="box" pos="0 0 0" size="0.05 0.005 0.005" friction="0.001 0.005 0.0001" rgba="0.0 1.0 0.0 1.0"/>
-                                                        <joint name="rc_close" type="slide" pos="0 0 0" axis="0 1 0" range="0 0.03" user="008"/>
+                                                        <joint
+                                                                name="rc_close" type="slide" pos="0 0 0" axis="0 1 0" range="0 0.03" user="008"
+                                                                solimplimit="0.99 0.999 0.01" solreflimit="0.01 1"
+                                                        />
                                                     </body>
 
                                                     <body name="leftclaw" pos=".01 .02 0">
@@ -161,13 +169,20 @@
                                     </body>
                                     <body name="right_l4_2" pos="0 0 0">
                                         <inertial pos="1e-08 1e-08 1e-08" quat="0.820473 0.339851 -0.17592 0.424708" mass="1e-08" diaginertia="1e-08 1e-08 1e-08" />
-                                        <geom size="0.06" pos="0 0.01 0.26" rgba="0.2 0.2 0.2 0"/>
+                                        <geom size="0.06" pos="0 0.01 0.26"
+                                              rgba="0.2 0.2 0.2 0"
+                                              contype="0"
+                                              conaffinity="0"
+                                        />
                                     </body>
                                 </body>
                             </body>
                             <body name="right_l2_2" pos="0 0 0">
                                 <inertial pos="1e-08 1e-08 1e-08" quat="0.820473 0.339851 -0.17592 0.424708" mass="1e-08" diaginertia="1e-08 1e-08 1e-08" />
-                                <geom size="0.06" pos="0 0 0.26" rgba="0.2 0.2 0.2 0"/>
+                                <geom size="0.06" pos="0 0 0.26" rgba="0.2 0.2 0.2 0"
+                                      contype="0"
+                                      conaffinity="0"
+                                />
                             </body>
                         </body>
                         <body name="right_l1_2" pos="0 0 0">
@@ -185,16 +200,29 @@
             <geom conaffinity="0" contype="0" pos="0 0 0" rgba="0.5 0.5 0.5 0" size="0.1 0.02 0.02" type="box"></geom>
         </body>
 
-        <body name="block" pos="0 0.7 0.1">
+        <body name="block" pos="0 0 0.1">
             <joint name="blockjoint" type="free" limited='false' damping="0" armature="0" />
-            <!-- <inertial pos="0 0 0" mass="0.1" diaginertia="0.1 0.1 0.1"/> -->
-            <geom name="blockbox" type="box" pos="0 0 0" size="0.02 0.02 0.02" rgba=".1 .1 .9 1" contype="1" conaffinity="1"/>
+            <!--<joint name="blockjoint-x" type="slide" limited='false' pos="0 0 0"-->
+                   <!--axis="1 0 0"-->
+                   <!--/>-->
+            <!--<joint name="blockjoint-y" type="slide" limited='false' pos="0 0 0"-->
+                   <!--axis="0 1 0"-->
+            <!--/>-->
+            <!--<joint name="blockjoint-z" type="slide" limited='false' pos="0 0 0"-->
+                   <!--axis="0 0 1"-->
+            <!--/>-->
+            <inertial pos="0 0 0" mass=".1" diaginertia="10 10 .0001"/>
+            <geom name="blockbox" type="box" pos="0 0 0"
+                  size="0.02 0.02 0.02" rgba=".1 .1 .9 1" contype="2" conaffinity="4"
+            />
             <site name="block" pos="0 0 0" size="0.01" />
         </body>
 
         <body name="goal" pos="0 0 0">
+            <!--<inertial mass="0"/>-->
             <joint name="goaljoint" type="free" limited='false' damping="0" armature="0" />
-            <geom name="goalbox" type="sphere" pos="0 0 0" size="0.1" rgba=".9 .1 .1 1" contype="0" conaffinity="0"/>
+            <geom name="goalbox" type="sphere" pos="0 0 0" size="0.02"
+                  rgba=".9 .1 .1 1" contype="0" conaffinity="8"/>
             <site name="goal" pos="0 0 0" size="0.01" />
         </body>
 

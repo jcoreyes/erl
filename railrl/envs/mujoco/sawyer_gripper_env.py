@@ -11,15 +11,17 @@ from railrl.envs.env_utils import get_asset_full_path
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 
+from gym.envs.robotics import FetchPushEnv
 
 class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     """Implements a 3D-position controlled Sawyer environment"""
 
-    def __init__(self, reward_info=None):
+    def __init__(self, reward_info=None, frame_skip=30):
         self.quick_init(locals())
         self.reward_info = reward_info
+        self._goal_xyz = self.sample_goal_xyz()
         MultitaskEnv.__init__(self, distance_metric_order=2)
-        MujocoEnv.__init__(self, self.model_name, frame_skip=10)
+        MujocoEnv.__init__(self, self.model_name, frame_skip=frame_skip)
 
 
         self.action_space = Box(
@@ -71,12 +73,11 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def step(self, a):
         a = np.clip(a, -1, 1)
         self.mocap_set_action(a[:3] / 100, relative=True)
-        self.set_goal_xyz(self.multitask_goal)
         u = np.zeros((8))
         u[7] = a[3]
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
-        reward = self.compute_reward(obs, u, obs, self.multitask_goal)
+        reward = self.compute_reward(obs, u, obs, self._goal_xyz)
         done = False
 
         distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
@@ -119,16 +120,15 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_block_xyz(self, pos):
         qpos = self.data.qpos.flat.copy()
         qvel = self.data.qvel.flat.copy()
-        # pdb.set_trace()
-        qpos[8:11] = pos # TODO: don't hardcode this
-        # qpos[14] = np.random.uniform(0.0, np.pi) # randomize the orientation
+        qpos[8:11] = pos.copy()
         qvel[8:11] = [0, 0, 0]
         self.set_state(qpos, qvel)
 
     def set_goal_xyz(self, pos):
+        self._goal_xyz = pos.copy()
         qpos = self.data.qpos.flat.copy()
         qvel = self.data.qvel.flat.copy()
-        qpos[15:18] = pos
+        qpos[15:18] = pos.copy()
         qvel[15:18] = [0, 0, 0]
         self.set_state(qpos, qvel)
 
@@ -144,9 +144,6 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     def reset_mocap2body_xpos(self):
         # move mocap to weld joint
-        # print("end eff at", np.array([self.data.body_xpos[self.endeff_id]]))
-        # for d in self.data.body_xpos[self.endeff_id]:
-        #     print(float(d))
         self.data.set_mocap_pos(
             'mocap',
             np.array([self.data.body_xpos[self.endeff_id]]),
@@ -169,14 +166,13 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def reset(self):
         angles = self.data.qpos.copy()
         velocities = self.data.qvel.copy()
-        angles[:] = [0.57242702304722737, -0.81917120114392261, 1.0209690144401942, 1.0277836100084827, -0.62290997014344518, 1.6426888531833115, 3.1387809209984603, 0.0052920636104349323, -0.13972798601989481, 0.5022168160162902, 0.020992940518284438, 0.99998456929726953, 2.2910279298625033e-06, 8.1234733355258378e-06, 0.0055552764211284642, -0.1230211958752539, 0.69090634842186527, -19.449133777272831, 1.0, 0.0, 0.0, 0.0]
+        angles[:] = self.init_angles
         self.set_state(angles.flatten(), velocities.flatten())
-        self.multitask_goal = self.sample_goal_xyz()
-        self.set_goal_xyz(self.multitask_goal)
+        self.set_goal_xyz(self._goal_xyz)
         self.set_block_xyz(self.sample_block_xyz())
         return self._get_obs()
 
-    def compute_reward(self, ob, action, next_ob, goal, info={}):
+    def compute_reward(self, ob, action, next_ob, goal):
         if not self.reward_info or self.reward_info["type"] == "euclidean":
             r = -np.linalg.norm(ob - goal)
         elif self.reward_info["type"] == "sparse":
@@ -186,13 +182,24 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             raise NotImplementedError("Invalid/no reward type.")
         return r
 
-    def compute_her_reward_np(self, ob, action, next_ob, goal, info={}):
+    def compute_her_reward_np(self, ob, action, next_ob, goal):
         if not self.reward_info or self.reward_info["type"] == "euclidean":
             r = -np.linalg.norm(next_ob - goal)
         elif self.reward_info["type"] == "sparse":
             t = self.reward_info["threshold"]
             r = float(np.linalg.norm(next_ob - goal) < t) - 1
         return r
+
+    @property
+    def init_angles(self):
+        return [0.57242702304722737, -0.81917120114392261,
+                1.0209690144401942, 1.0277836100084827, -0.62290997014344518,
+                1.6426888531833115, 3.1387809209984603,
+                0.0052920636104349323, -0.13972798601989481,
+                0.5022168160162902, 0.020992940518284438,
+                0.99998456929726953, 2.2910279298625033e-06,
+                8.1234733355258378e-06, 0.0055552764211284642,
+                -0.1230211958752539, 0.69090634842186527, -19.449133777272831, 1.0, 0.0, np.pi/4, 0.0]
 
     @property
     def goal_dim(self):
@@ -210,14 +217,6 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def goal_id(self):
         return self.model.body_names.index('goal')
 
-    def convert_obs_to_goals(self, obs):
-        """Not implemented, since this is task specific"""
-        return obs
-
-    def sample_goals(self, batch_size):
-        assert batch_size == 1
-        return [self.multitask_goal]
-
     def log_diagnostics(self, paths, logger=logger, prefix=""):
         super().log_diagnostics(paths)
 
@@ -233,39 +232,65 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
                 '%s %s' % (prefix, stat_name),
                 stat,
                 always_show_all_stats=True,
-            ))
+                ))
             statistics.update(create_stats_ordered_dict(
                 'Final %s %s' % (prefix, stat_name),
                 [s[-1] for s in stat],
                 always_show_all_stats=True,
-            ))
+                ))
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-class SawyerBlockEnv(SawyerXYZEnv):
-    """Block pushing env if goals_on_table, otherwise pick-and-place"""
-    def __init__(self, goals_on_table=False, randomize_goals=True, randomize_goal_orientation=False):
-        Serializable.quick_init(self, locals())
-        self.viewer = None
-        self.goals_on_table = goals_on_table
+    """
+    Multitask functions
+    """
+    @property
+    def goal_dim(self) -> int:
+        return 3
+
+    def sample_goal_for_rollout(self):
+        return self.sample_goal_xyz()
+
+    def set_goal(self, goal):
+        MultitaskEnv.set_goal(self, goal)
+        self.set_goal_xyz(goal)
+
+    def convert_obs_to_goals(self, obs):
+        return obs
+
+    def sample_goals(self, batch_size):
+        return np.random.uniform(
+            np.array([-0.2, 0.5, 0.0]),
+            np.array([0.2, 0.7, 0.2]),
+            size=(batch_size, 3),
+        )
+
+class SawyerPickAndPlaceEnv(SawyerXYZEnv):
+    def __init__(
+            self,
+            randomize_goals=True,
+            only_reward_block_to_goal=False,
+            **kwargs
+    ):
+        self.quick_init(locals())
+        self.only_reward_block_to_goal = only_reward_block_to_goal
         self.randomize_goals = randomize_goals
-        self.randomize_goal_orientation = randomize_goal_orientation
 
-        super().__init__()
+        super().__init__(**kwargs)
 
-        self._action_space = Box(
+        self.action_space = Box(
             np.array([-1, -1, -1, -1]),
             np.array([1, 1, 1, 1]),
         )
-        # self._action_space = Box(
-        #     np.array([-0.01, -0.01, -0.01, -1]),
-        #     np.array([0.01, 0.01, 0.01, 1]),
-        # )
 
-        self._observation_space = Box(
+        self.observation_space = Box(
             np.array([-0.2, 0.5, 0, -0.2, 0.5, 0]),
             np.array([0.2, 0.7, 0.5, 0.2, 0.7, 0.5]),
+        )
+        self.goal_space = Box(
+            np.array([-0.2, 0.5, 0]),
+            np.array([0.2, 0.7, 0.5]),
         )
 
     def sample_block_xyz(self):
@@ -278,21 +303,33 @@ class SawyerBlockEnv(SawyerXYZEnv):
     def set_block_xyz(self, pos):
         qpos = self.data.qpos.flat.copy()
         qvel = self.data.qvel.flat.copy()
-        # pdb.set_trace()
-        qpos[8:11] = pos # TODO: don't hardcode this
-        if self.randomize_goal_orientation:
-            qpos[14] = np.random.uniform(0.0, np.pi)
+        qpos[8:11] = pos.copy()
         qvel[8:11] = [0, 0, 0]
         self.set_state(qpos, qvel)
 
-    def compute_reward(self, ob, action, next_ob, goal, info={}):
+    def compute_reward(self, ob, action, next_ob, goal):
         hand = self.get_endeff_pos()
         block = self.get_block_pos()
-        block_goal = self.multitask_goal
+        block_goal = goal
 
         hand_to_block = np.linalg.norm(hand - block)
         block_to_goal = np.linalg.norm(block - block_goal)
-        return -hand_to_block - block_to_goal
+        if self.only_reward_block_to_goal:
+            return - block_to_goal
+        else:
+            return - hand_to_block - block_to_goal
+
+    def compute_her_reward_np(self, ob, action, next_ob, goal):
+        hand = next_ob[-6:-3]
+        block = next_ob[-3:]
+        block_goal = goal
+
+        hand_to_block = np.linalg.norm(hand - block)
+        block_to_goal = np.linalg.norm(block - block_goal)
+        if self.only_reward_block_to_goal:
+            return - block_to_goal
+        else:
+            return - hand_to_block - block_to_goal
 
     def _get_obs(self):
         e = self.get_endeff_pos()
@@ -303,11 +340,206 @@ class SawyerBlockEnv(SawyerXYZEnv):
         if self.randomize_goals:
             pos = np.random.uniform(
                 np.array([-0.2, 0.5, 0.02]),
-                np.array([0.2, 0.7, 0.02]),
+                np.array([0.2, 0.7, 0.5]),
             )
         else:
-            pos = np.array([-0.0, 0.6, 0.02])
+            pos = np.array([0.0, 0.6, 0.02])
         return pos
+
+    def convert_obs_to_goals(self, obs):
+        return obs[:, -3:]
+
+class SawyerPushEnv(SawyerPickAndPlaceEnv):
+    """
+    Take out the gripper action and fix the goal Z position to the table.
+    Also start the block between the gripper and the goal
+    """
+    def __init__(self, **kwargs):
+        self.quick_init(locals())
+        super().__init__(**kwargs)
+
+        self.action_space = Box(
+            np.array([-1, -1, -1]),
+            np.array([1, 1, 1]),
+        )
+
+    def step(self, a):
+        a = np.clip(a, -1, 1)
+        self.mocap_set_action(a[:3] / 100, relative=True)
+        u = np.zeros((8))
+        self.do_simulation(u, self.frame_skip)
+        obs = self._get_obs()
+        reward = self.compute_reward(obs, u, obs, self._goal_xyz)
+        done = False
+
+        distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
+        block_distance = np.linalg.norm(self.get_goal_pos() - self.get_block_pos())
+        touch_distance = np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
+        info = dict(
+            distance=distance,
+            block_distance=block_distance,
+            touch_distance=touch_distance,
+        )
+        return obs, reward, done, info
+
+    def sample_goal_xyz(self):
+        if self.randomize_goals:
+            pos = np.random.uniform(
+                np.array([0.2, 0.5, 0.02]),
+                np.array([-0.2, 0.7, 0.02]),
+            )
+        else:
+            pos = np.array([0.2, 0.6, 0.02])
+        return pos
+
+    def sample_block_xyz(self):
+        pos = np.random.uniform(
+            np.array([-0.2, 0.5, 0.02]),
+            np.array([0.2, 0.7, 0.02]),
+        )
+        while np.linalg.norm(pos[:2]) < 0.1:
+            pos = np.random.uniform(
+                np.array([-0.2, 0.5, 0.02]),
+                np.array([0.2, 0.7, 0.02]),
+            )
+        return pos
+
+
+class SawyerPushXYEnv(SawyerPushEnv):
+    """
+    Only move along XY-axis.
+    """
+    def __init__(self, **kwargs):
+        self.quick_init(locals())
+        super().__init__(**kwargs)
+
+        self.action_space = Box(
+            np.array([-1, -1]),
+            np.array([1, 1]),
+        )
+
+    @property
+    def init_angles(self):
+        # return [6.49751287e-01, -6.13245189e-01, 3.68179034e-01,
+        #         1.55969534e+00, -4.67787323e-01, 7.11615700e-01,
+        #         2.97853855e+00, 3.12823177e-02, 1.82764768e-01,
+        #         6.01241700e-01, 2.09921520e-02, 9.99984569e-01,
+        #         1.29839525e-06,  4.60381956e-06,  5.55527642e-03,
+        #         -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
+        #         1, 0, 0, 0]
+        return [
+            1.02866769e+00, - 6.95207647e-01,   4.22932911e-01,
+             1.76670458e+00, - 5.69637604e-01,   6.24117280e-01,
+             3.53404635e+00,   2.99584816e-02, - 2.00417049e-02,
+             6.07093769e-01,   2.10679106e-02,   9.99910945e-01,
+             - 4.60349085e-05, - 1.78179392e-03, - 1.32259491e-02,
+             1.07586388e-02, 6.62018003e-01,   2.09936716e-02,
+             1.00000000e+00,   3.76632959e-14, 1.36837913e-11,
+             1.56567415e-23
+        ]
+
+
+    def step(self, a):
+        a = np.clip(a, -1, 1) / 100
+        # mocap_delta_z = 0.02 - self.data.mocap_pos[0, 2]
+        mocap_delta_z = 0
+        new_mocap_action = np.hstack((a[:2], np.array([mocap_delta_z])))
+        self.mocap_set_action(new_mocap_action, relative=True)
+        u = np.zeros((8))
+        u[7] = 1
+        self.do_simulation(u, self.frame_skip)
+        obs = self._get_obs()
+        reward = self.compute_reward(obs, u, obs, self._goal_xyz)
+        done = False
+
+        distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
+        block_distance = np.linalg.norm(self.get_goal_pos() - self.get_block_pos())
+        touch_distance = np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
+        info = dict(
+            distance=distance,
+            block_distance=block_distance,
+            touch_distance=touch_distance,
+        )
+        return obs, reward, done, info
+
+class SawyerXYEnv(SawyerXYZEnv):
+    """
+    Only move along XY-axis.
+    """
+    def __init__(self, **kwargs):
+        self.quick_init(locals())
+        super().__init__(**kwargs)
+
+        self.action_space = Box(
+            np.array([-1, -1]),
+            np.array([1, 1]),
+        )
+
+    @property
+    def init_angles(self):
+        # return [6.49751287e-01, -6.13245189e-01, 3.68179034e-01,
+        #         1.55969534e+00, -4.67787323e-01, 7.11615700e-01,
+        #         2.97853855e+00, 3.12823177e-02, 1.82764768e-01,
+        #         6.01241700e-01, 2.09921520e-02, 9.99984569e-01,
+        #         1.29839525e-06,  4.60381956e-06,  5.55527642e-03,
+        #         -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
+        #         1, 0, 0, 0]
+        return [
+            1.02866769e+00, - 6.95207647e-01,   4.22932911e-01,
+            1.76670458e+00, - 5.69637604e-01,   6.24117280e-01,
+            3.53404635e+00,   2.99584816e-02, - 2.00417049e-02,
+            6.07093769e-01,   2.10679106e-02,   9.99910945e-01,
+            - 4.60349085e-05, - 1.78179392e-03, - 1.32259491e-02,
+            1.07586388e-02, 6.62018003e-01,   2.09936716e-02,
+            1.00000000e+00,   3.76632959e-14, 1.36837913e-11,
+            1.56567415e-23
+        ]
+
+    def reset(self):
+        # angles = self.data.qpos.copy()
+        # velocities = self.data.qvel.copy()
+        # angles[:] = self.init_angles
+        # self.set_state(angles.flatten(), velocities.flatten())
+        # self.set_goal_xyz(self.sample_goal_xyz())
+        super().reset()
+        random_action = np.random.normal(size=2)
+        self.set_block_xyz(np.array([100, 100, 100]))
+        for _ in range(20):
+            self.step(random_action)
+        return self._get_obs()
+
+    def step(self, a):
+        a = np.clip(a, -1, 1) / 100
+        mocap_delta_z = 0
+        new_mocap_action = np.hstack((a[:2], np.array([mocap_delta_z])))
+        self.mocap_set_action(new_mocap_action, relative=True)
+        u = np.zeros((8))
+        u[7] = 1
+        self.do_simulation(u, self.frame_skip)
+        obs = self._get_obs()
+        reward = self.compute_reward(obs, u, obs, self._goal_xyz)
+        done = False
+
+        distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
+        block_distance = np.linalg.norm(self.get_goal_pos() - self.get_block_pos())
+        touch_distance = np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
+        info = dict(
+            distance=distance,
+            block_distance=block_distance,
+            touch_distance=touch_distance,
+        )
+        return obs, reward, done, info
+
+    # def sample_goal_xyz(self):
+    #     pos = np.random.uniform(
+    #         np.array([-0.2, 0.5, 0.02]),
+    #         np.array([0.2, 0.7, 0.02]),
+    #     )
+    #     return pos
+
+    # def set_goal(self, goal):
+    #     MultitaskEnv.set_goal(self, goal)
+    #     self.set_goal_xyz(np.hstack((goal, np.array([0.02]))))
 
 if __name__ == "__main__":
     e = SawyerXYZEnv(reward_info=dict(type="euclidean"))

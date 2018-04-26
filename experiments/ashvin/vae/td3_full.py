@@ -18,7 +18,7 @@ from railrl.launchers.arglauncher import run_variants
 
 def experiment(variant):
     if variant['multitask']:
-        env = MultitaskFullVAEPoint2DEnv(**variant['env_kwargs'])
+        env = MultitaskFullVAEPoint2DEnv(**variant['env_kwargs']) # used point2d-conv/run2/id0
         env = MultitaskToFlatEnv(env)
     # else:
         # env = Pusher2DEnv(**variant['env_kwargs'])
@@ -69,16 +69,19 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         **variant['algo_kwargs']
     )
-    if ptu.gpu_enabled():
+    if variant["use_gpu"]:
+        gpu_id = variant["gpu_id"]
+        ptu.set_gpu_mode(True)
+        ptu.set_device(gpu_id)
         algorithm.cuda()
+        env._wrapped_env.vae.cuda()
     algorithm.train()
-
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=500,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -93,14 +96,14 @@ if __name__ == "__main__":
         ),
         algorithm='TD3',
         multitask=True,
-        normalize=True,
+        normalize=False,
     )
 
     n_seeds = 1
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
+    n_seeds = 1
     mode = 'ec2'
     exp_prefix = 'pusher-2d-state-baselines-h100-multitask-less-shaped'
 
