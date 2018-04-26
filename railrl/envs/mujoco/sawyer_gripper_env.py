@@ -71,13 +71,14 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         self.viewer.cam.trackbodyid = -1
 
     def step(self, a):
+        #a = np.concatenate([self._get_obs(), [0]])
+        reward = -np.linalg.norm(a[0:3] - (self.get_goal_pos() - self.get_endeff_pos()))#self.compute_reward(self.get_endeff_pos(), u, obs, self.get_goal_pos())
         a = np.clip(a, -1, 1)
         self.mocap_set_action(a[:3] / 100, relative=True)
         u = np.zeros((8))
         u[7] = a[3]
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
-        reward = self.compute_reward(obs, u, obs, self._goal_xyz)
         done = False
 
         distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
@@ -88,10 +89,10 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             block_distance=block_distance,
             touch_distance=touch_distance,
         )
-        return obs, reward, done, info
+        return self._get_obs(), reward, done, info
 
     def _get_obs(self):
-        p = self.get_endeff_pos()
+        p = self.get_goal_pos() - self.get_endeff_pos()
         return p
 
     def get_block_pos(self):
@@ -168,7 +169,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         velocities = self.data.qvel.copy()
         angles[:] = self.init_angles
         self.set_state(angles.flatten(), velocities.flatten())
-        self.set_goal_xyz(self._goal_xyz)
+        self.set_goal_xyz(self.sample_goal_xyz())
         self.set_block_xyz(self.sample_block_xyz())
         return self._get_obs()
 
