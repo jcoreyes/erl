@@ -31,8 +31,8 @@ from railrl.data_management.env_replay_buffer import AEEnvReplayBuffer
 
 
 def experiment(variant):
-    feat_points = 16
-    history = 3
+    feat_points = 1
+    history = 1
     latent_obs_dim = feat_points * 2 * history
     imsize = 64
     downsampled_size = 32

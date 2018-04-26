@@ -77,7 +77,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         u[7] = a[3]
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
-        reward = self.compute_reward(obs, u, obs, self.multitask_goal)
+        reward = self.compute_reward(self.get_endeff_pos(), u, obs, self.get_goal_pos())
         done = False
 
         distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
@@ -93,8 +93,8 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     def _get_obs(self):
         #p = self.get_endeff_pos()
-        p = self.get_goal_pos()
-        p += np.random.normal(0, .1, size=p.shape)
+        p = self.get_endeff_pos()
+#        p += np.random.normal(0, .1, size=p.shape)
         return p
 
     def get_block_pos(self):

@@ -176,6 +176,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
     def get_latent_obs(self, batch):
         obs = batch['observations']
         next_obs = batch['next_observations']
+        goals = batch['goal']
         image_obs, fc_obs = self.env.split_obs(obs)
         next_image_obs, next_fc_obs = self.env.split_obs(next_obs)
 

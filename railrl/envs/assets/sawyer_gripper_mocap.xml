@@ -194,7 +194,7 @@
 
         <body name="goal" pos="0 0 0">
             <joint name="goaljoint" type="free" limited='false' damping="0" armature="0" />
-            <geom name="goalbox" type="sphere" pos="0 0 0" size="0.02" rgba=".9 .1 .1 1" contype="0" conaffinity="0"/>
+            <geom name="goalbox" type="sphere" pos="0 0 0" size="0.1" rgba=".9 .1 .1 1" contype="0" conaffinity="0"/>
             <site name="goal" pos="0 0 0" size="0.01" />
         </body>
 
