@@ -1,4 +1,7 @@
 import railrl.misc.hyperparameter as hyp
+from railrl.torch.vae.sim_vae_policy import dump_video
+from railrl.core import logger
+import os.path as osp
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
@@ -23,19 +26,37 @@ def experiment(variant):
     vae_dir = Path(variant['vae_dir'])
     vae_path = str(vae_dir / 'params.pkl')
     extra_data_path = str(vae_dir / 'extra_data.pkl')
-    env = joblib.load(extra_data_path)['env']
+    extra_data = joblib.load(extra_data_path)
+    if 'env' in extra_data:
+        env = extra_data['env']
+    else:
+        env = SawyerXYEnv()
+        from railrl.images.camera import sawyer_init_camera
+        env = ImageMujocoEnv(
+            env, 84,
+            transpose=True,
+            init_camera=sawyer_init_camera,
+            normalize=True,
+        )
     use_env_goals = variant["use_env_goals"]
     render = variant["render"]
 
     if use_env_goals:
-        track_qpos_goal = variant.get("track_qpos_goal", 0)
-        env = VAEWrappedImageGoalEnv(env, vae_path, use_vae_obs=True,
-                                     use_vae_reward=True, use_vae_goals=True,
-                                     render_goals=render, render_rollouts=render, track_qpos_goal=track_qpos_goal)
+        env = VAEWrappedImageGoalEnv(
+            env,
+            vae_path,
+            render_goals=render,
+            render_rollouts=render,
+            **variant['vae_wrapped_env_kwargs']
+        )
     else:
-        env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
-                            use_vae_reward=True, use_vae_goals=True,
-                            render_goals=render, render_rollouts=render)
+        env = VAEWrappedEnv(
+            env,
+            vae_path,
+            render_goals=render,
+            render_rollouts=render,
+            **variant['vae_wrapped_env_kwargs']
+        )
 
     env = MultitaskToFlatEnv(env)
     if variant['normalize']:
@@ -87,40 +108,51 @@ def experiment(variant):
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
-        print("cuda")
         algorithm.cuda()
         env._wrapped_env.vae.cuda()
     else:
         env._wrapped_env.vae.cpu()
+    logdir = logger.get_snapshot_dir()
+    filename = osp.join(logdir, 'video_0.mp4')
+    dump_video(env, policy, filename)
+
     algorithm.train()
+
+    logdir = logger.get_snapshot_dir()
+    filename = osp.join(logdir, 'video_final.mp4')
+    dump_video(env, policy, filename)
 
 
 if __name__ == "__main__":
-    # noinspection PyTypeChecker
-    vae_paths = {
-        # "2": "/home/vitchyr/git/railrl/data/local/04-24-dev/04-24-dev_2018_04_24_22_14_04_0000--s-99859/params.pkl",
-        # "4": "/home/vitchyr/git/railrl/data/local/04-24-dev/04-24-dev_2018_04_24_22_19_02_0000--s-9523/params.pkl",
-        # "16": "/home/vitchyr/git/railrl/data/local/04-24-dev/04-24-dev_2018_04_24_22_28_58_0000--s-52846/params.pkl"
-        "8": "/home/vitchyr/git/railrl/data/doodads3/04-25-sawyer-reach-xy-vae-train-2/04-25-sawyer-reach-xy-vae-train-2-id0-s9267/params.pkl",
+    vae_latent_size_to_dir = {
+        2: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_06_29_0000--s-93337/',
+        4: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_20_26_0000--s-96538/',
+        8: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_24_44_0000--s-200/',
+        16: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_29_12_0000--s-81838/',
     }
-
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=100,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_epochs=500,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=100,
+            # num_steps_per_epoch=100,
+            # num_steps_per_eval=100,
             tau=1e-2,
             batch_size=128,
             max_path_length=100,
             discount=0.99,
-            # qf_learning_rate=1e-3,
-            # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
             # render_onscreen=False,
             # render_size=84,
             # ignore_multitask_goal=True,
             # ball_radius=1,
+        ),
+        vae_wrapped_env_kwargs=dict(
+            track_qpos_goal=3,
+            use_vae_obs=True,
+            use_vae_reward=True,
+            use_vae_goals=True,
         ),
         algorithm='TD3',
         normalize=False,
@@ -129,34 +161,34 @@ if __name__ == "__main__":
         # env=MultitaskImagePoint2DEnv,
         env=SawyerXYEnv,
         use_env_goals=True,
-        vae_dir="/home/vitchyr/git/railrl/data/local/04-25-dev-sawyer-reacher-vae-train-2/04-25-dev-sawyer-reacher-vae-train-2_2018_04_25_14_37_09_0000--s-26862/",
     )
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev-point2d-with-pretrained-vae'
+    exp_prefix = 'dev-rl-with-pretrained-vae'
 
     # n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = 'sawyer-reacher-use-env-goal'
+    exp_prefix = 'sawyer-rl-with-pretrained-vae-local-4'
 
     search_space = {
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.reward_scale': [1e-6],
-        'rdim': [8],
-        'seedid': range(n_seeds),
+        'algo_kwargs.reward_scale': [1],
+        'vae_latent_size': [4, 8, 16, 2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        variant['vae_dir'] = vae_latent_size_to_dir[variant['vae_latent_size']]
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
+                use_gpu=True,
             )

@@ -477,13 +477,6 @@ class SawyerXYEnv(SawyerXYZEnv):
 
     @property
     def init_angles(self):
-        # return [6.49751287e-01, -6.13245189e-01, 3.68179034e-01,
-        #         1.55969534e+00, -4.67787323e-01, 7.11615700e-01,
-        #         2.97853855e+00, 3.12823177e-02, 1.82764768e-01,
-        #         6.01241700e-01, 2.09921520e-02, 9.99984569e-01,
-        #         1.29839525e-06,  4.60381956e-06,  5.55527642e-03,
-        #         -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
-        #         1, 0, 0, 0]
         return [
             1.02866769e+00, - 6.95207647e-01,   4.22932911e-01,
             1.76670458e+00, - 5.69637604e-01,   6.24117280e-01,
@@ -496,11 +489,6 @@ class SawyerXYEnv(SawyerXYZEnv):
         ]
 
     def reset(self):
-        # angles = self.data.qpos.copy()
-        # velocities = self.data.qvel.copy()
-        # angles[:] = self.init_angles
-        # self.set_state(angles.flatten(), velocities.flatten())
-        # self.set_goal_xyz(self.sample_goal_xyz())
         super().reset()
         random_action = np.random.normal(size=2)
         self.set_block_xyz(np.array([100, 100, 100]))
@@ -530,16 +518,9 @@ class SawyerXYEnv(SawyerXYZEnv):
         )
         return obs, reward, done, info
 
-    # def sample_goal_xyz(self):
-    #     pos = np.random.uniform(
-    #         np.array([-0.2, 0.5, 0.02]),
-    #         np.array([0.2, 0.7, 0.02]),
-    #     )
-    #     return pos
+    def get_qpos(self):
+        return self.get_endeff_pos()
 
-    # def set_goal(self, goal):
-    #     MultitaskEnv.set_goal(self, goal)
-    #     self.set_goal_xyz(np.hstack((goal, np.array([0.02]))))
 
 if __name__ == "__main__":
     e = SawyerXYZEnv(reward_info=dict(type="euclidean"))
