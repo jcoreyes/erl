@@ -32,25 +32,37 @@ e = MultitaskImagePoint2DEnv(render_size=84, render_onscreen=False, ball_radius=
 class ConvVAETrainer():
     def __init__(
             self,
-            train_dataset, test_dataset,
+            train_dataset,
+            test_dataset,
             model,
-            batch_size=128, log_interval=0, use_cuda=False, beta=0.5,
+            batch_size=128,
+            log_interval=0,
+            beta=0.5,
             imsize=84,
             do_scatterplot=False,
     ):
         self.log_interval = log_interval
-        self.use_cuda = use_cuda
         self.batch_size = batch_size
         self.beta = beta
         self.imsize = imsize
         self.do_scatterplot = do_scatterplot
 
+        """
+        I think it's a bit nicer if the caller makes this call, i.e.
+        ```
+        m = ConvVAE(representation_size)
+        if ptu.gpu_enabled():
+            m.cuda()
+        t = ConvVAETrainer(train_data, test_data, m)
+        ```
+        However, I'll leave this here for backwards-compatibility.
+        """
+        if ptu.gpu_enabled():
+            model.cuda()
+
         self.model = model
         self.representation_size = model.representation_size
         self.input_channels = model.input_channels
-
-        if self.use_cuda:
-            model.cuda()
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
         self.train_dataset, self.test_data = train_dataset, test_dataset
@@ -58,7 +70,7 @@ class ConvVAETrainer():
     def get_batch(self, train=True):
         dataset = self.train_dataset if train else self.test_dataset
         ind = np.random.randint(0, len(dataset), self.batch_size)
-        return ptu.from_numpy(dataset[ind, :])
+        return ptu.np_to_var(dataset[ind, :])
 
     def logprob(self, recon_x, x, mu, logvar):
         return F.binary_cross_entropy(
@@ -77,9 +89,6 @@ class ConvVAETrainer():
         kles = []
         for batch_idx in range(100):
             data = self.get_batch()
-            data = Variable(data)
-            if self.use_cuda:
-                data = data.cuda()
             self.optimizer.zero_grad()
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
@@ -112,9 +121,6 @@ class ConvVAETrainer():
         zs = []
         for batch_idx in range(10):
             data = self.get_batch()
-            if self.use_cuda:
-                data = data.cuda()
-            data = Variable(data, volatile=True)
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
             kle = self.kl_divergence(recon_batch, data, mu, logvar)
@@ -160,9 +166,7 @@ class ConvVAETrainer():
         torch.save(self.model, filename)
 
     def dump_samples(self, epoch):
-        sample = Variable(torch.randn(64, self.representation_size))
-        if self.use_cuda:
-            sample = sample.cuda()
+        sample = ptu.Variable(torch.randn(64, self.representation_size))
         sample = self.model.decode(sample).cpu()
         save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
         save_image(
@@ -263,7 +267,7 @@ class ConvVAE(nn.Module):
     def reparameterize(self, mu, logvar):
         if self.training:
             std = logvar.mul(0.5).exp_()
-            eps = Variable(std.data.new(std.size()).normal_())
+            eps = ptu.Variable(std.data.new(std.size()).normal_())
             return eps.mul(std).add_(mu)
         else:
             return mu
