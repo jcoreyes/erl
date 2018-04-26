@@ -296,6 +296,7 @@ class MlpPolicy(Mlp, Policy):
         self.save_init_params(locals())
         super().__init__(*args, **kwargs)
         self.obs_normalizer = obs_normalizer
+        self.i = 0
 
     def forward(self, obs, **kwargs):
         if self.obs_normalizer:
@@ -304,6 +305,7 @@ class MlpPolicy(Mlp, Policy):
 
     def get_action(self, obs_np):
         actions = self.get_actions(obs_np[None])
+        self.i += 1
         return actions[0, :], {}
 
     def get_actions(self, obs):
@@ -340,6 +342,7 @@ class AETanhPolicy(Mlp, Policy):
         self.history_length = history_length
         self.input_length = input_length
         self.env = env
+        self.i = 0
 
     def forward(self, obs, **kwargs):
         if self.obs_normalizer:
@@ -347,14 +350,20 @@ class AETanhPolicy(Mlp, Policy):
         return super().forward(obs, **kwargs)
 
     def get_action(self, obs_np):
+        self.i += 1
         obs = obs_np
         obs = ptu.np_to_var(obs)
         image_obs, fc_obs = self.env.split_obs(obs)
-        latent_obs = self.ae.history_encoder(image_obs, self.history_length)
+        #latent_obs = self.ae.history_encoder(image_obs, self.history_length)
+        latent_obs = self.ae(image_obs)
         if fc_obs is not None:
             latent_obs = torch.cat((latent_obs, fc_obs), dim=1)
         obs_np = ptu.get_numpy(latent_obs)[0] # jank [0] here. Not sure why needed...
+#        import pdb; pdb.set_trace()
+#        actions = np.array([np.concatenate((obs_np[6:9], [0]))])
         actions = self.get_actions(obs_np[None])
+        if self.i > 10000 and self.i % 1000 == 0:
+            pdb.set_trace()
         return actions[0, :], {}
 
     def get_actions(self, obs):
@@ -583,20 +592,20 @@ class FeatPointMlp(PyTorchModule):
         self.input_size = input_size
 
 #        self.bn1 = nn.BatchNorm2d(1)
-        self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=5, stride=2)
+        self.conv1 = nn.Conv2d(input_channels, 48, kernel_size=5, stride=2)
 #        self.bn1 = nn.BatchNorm2d(16)
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=3, stride=1)
-        self.conv3 = nn.Conv2d(32, self.num_feat_points, kernel_size=3, stride=1)
+        self.conv2 = nn.Conv2d(48, 48, kernel_size=5, stride=1)
+        self.conv3 = nn.Conv2d(48, self.num_feat_points, kernel_size=5, stride=1)
 
         test_mat = Variable(torch.zeros(1, self.input_channels, self.input_size, self.input_size))
         test_mat = self.conv1(test_mat)
         test_mat = self.conv2(test_mat)
         test_mat = self.conv3(test_mat)
         self.out_size = int(np.prod(test_mat.shape))
-        self.fc1 = nn.Linear(2 * self.num_feat_points, 128)
-#        self.fc2 = nn.Linear(400, 300)
-        self.last_fc = nn.Linear(128, self.input_channels * self.downsample_size* self.downsample_size)
-        #self.debug = nn.Linear(2 * self.num_feat_points, 3)
+        #self.fc1 = nn.Linear(2 * self.num_feat_points, 400)
+        #self.fc2 = nn.Linear(400, 300)
+        #self.last_fc = nn.Linear(300, self.input_channels * self.downsample_size* self.downsample_size)
+        self.debug = nn.Linear(2 * self.num_feat_points, 3)
 
         self.init_weights(init_w)
         self.i = 0
@@ -638,10 +647,10 @@ class FeatPointMlp(PyTorchModule):
 
     def decoder(self, input):
         h = input
-        h = F.relu(self.fc1(h))
-#        h = F.relu(self.fc2(h))
-        h = self.last_fc(h)
-#        h = self.debug(h)
+        #h = F.relu(self.fc1(h))
+        #h = F.relu(self.fc2(h))
+        #h = self.last_fc(h)
+        h = self.debug(h)
         return h
 
 

@@ -31,9 +31,10 @@ from railrl.data_management.env_replay_buffer import AEEnvReplayBuffer
 
 
 def experiment(variant):
-    feat_points = 1
+    feat_points = 16
     history = 1
-    latent_obs_dim = feat_points * 2 * history
+   # latent_obs_dim = feat_points * 2 * history
+    latent_obs_dim = 3
     imsize = 64
     downsampled_size = 32
 
@@ -51,7 +52,7 @@ def experiment(variant):
                         keep_prev=history-1,
                         init_camera=camera.sawyer_init_camera)"""
 
-    env = NormalizedBoxEnv(env)
+#    env = NormalizedBoxEnv(env)
 
     es = GaussianStrategy(
         action_space=env.action_space,
@@ -162,7 +163,7 @@ if __name__ == "__main__":
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="sawyer-spatial",
+                exp_prefix="sawyer-spatial-FREEZE",
                 mode='local',
                 # use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",

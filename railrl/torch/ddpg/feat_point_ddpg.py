@@ -62,7 +62,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
             extra_fc_size=0,
             imsize=64,
             downsampled_size=32,
-            ae_learning_rate=1e-4,
+            ae_learning_rate=1e-3,
 
             **kwargs
     ):
@@ -152,6 +152,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
     def train_ae(self, batch):
         obs = batch['observations']
         downsampled = batch['downsampled']
+        goal = batch['goal']
         # get the first image of history
         downsampled = downsampled.narrow(start=0,
                                          length=self.downsampled_size**2,
@@ -162,27 +163,31 @@ class FeatPointDDPG(TorchRLAlgorithm):
 
         reconstructed = self.ae(obs)
         self.ae_optimizer.zero_grad()
-        loss = self.ae_criterion(reconstructed, downsampled)
-#        loss = self.ae_criterion(reconstructed, goal)
+#        loss = self.ae_criterion(reconstructed, downsampled)
+        loss = self.ae_criterion(reconstructed, goal)
         if self.i % 1000 == 0:
-            self.save_and_compare(obs, reconstructed, downsampled)
+            pass
+   #         self.save_and_compare(obs, reconstructed, downsampled)
         self.i += 1
         loss.backward()
-        #if self.i < 25000:
-        self.ae_optimizer.step()
+        if self.i < 40000:
+            self.ae_optimizer.step()
             #print("ENDING AE TRAINING")
-        return loss
+        std =(reconstructed - goal).std()
+        std = ptu.get_numpy(std)[0]
+        max = (reconstructed - goal).abs().max()
+        max = ptu.get_numpy(max)[0]
+        return loss, std, max
 
     def get_latent_obs(self, batch):
         obs = batch['observations']
         next_obs = batch['next_observations']
-        goals = batch['goal']
         image_obs, fc_obs = self.env.split_obs(obs)
         next_image_obs, next_fc_obs = self.env.split_obs(next_obs)
-
-
-        latent_obs = self.ae.history_encoder(image_obs, self.history_length)
-        next_latent_obs = self.ae.history_encoder(next_image_obs, self.history_length)
+        latent_obs = self.ae(image_obs)
+        next_latent_obs = self.ae(next_image_obs)
+#        latent_obs = self.ae.history_encoder(image_obs, self.history_length)
+#        next_latent_obs = self.ae.history_encoder(next_image_obs, self.history_length)
 
         if fc_obs is not None:
             latent_obs = torch.cat((latent_obs, fc_obs), dim=1)
@@ -209,7 +214,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
         """
         autoencoder training
         """
-        ae_loss = self.train_ae(batch)
+        ae_loss, ae_std, ae_max = self.train_ae(batch)
         obs, next_obs = self.get_latent_obs(batch)
         obs = obs.detach()
         next_obs = next_obs.detach()
@@ -329,7 +334,8 @@ class FeatPointDDPG(TorchRLAlgorithm):
                 ptu.get_numpy(policy_actions),
             ))
             self.eval_statistics['Autoencoder Reconstruction Loss'] = np.mean(ptu.get_numpy(ae_loss))
-
+            self.eval_statistics['Autoencoder Reconstruction Max Loss'] = ae_max
+            self.eval_statistics['Autoencoder Reconstruction Std Loss'] = ae_std
 
     def _update_target_networks(self):
         if self.use_soft_update:

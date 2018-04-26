@@ -27,9 +27,13 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             np.array([1, 1, 1, 1]),
         )
 
-        self.observation_space = Box(
+        """self.observation_space = Box(
             np.array([-0.2, 0.5, 0]),
             np.array([0.2, 0.7, 0.5]),
+        )"""
+        self.observation_space = Box(
+            np.array([-0.2, 0.5, 0, 1, 1, 1]),
+            np.array([0.2, 0.7, 0.5, 1, 1, 1]),
         )
         self.goal_space = Box(
             np.array([-0.3, 0.4, 0.0]),
@@ -92,10 +96,10 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         return obs, reward, done, info
 
     def _get_obs(self):
-        #p = self.get_endeff_pos()
-        p = self.get_endeff_pos()
+        p = self.get_goal_pos() - self.get_endeff_pos()
+#        p = self.get_endeff_pos()
 #        p += np.random.normal(0, .1, size=p.shape)
-        return p
+        return np.concatenate([self.get_endeff_pos(), p])
 
     def get_block_pos(self):
         return self.data.body_xpos[self.block_id].copy()
