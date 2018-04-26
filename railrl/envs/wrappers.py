@@ -102,16 +102,6 @@ class ImageMujocoEnv(ProxyEnv, Env):
         self.history = deque(maxlen=self.history_length)
 
         observation = self._image_observation()
-        # TOOD: remove before merging into main branch
-        # import cv2
-        # raw_img = observation
-        # img = np.concatenate((
-        #     raw_img[::-1, :, 2:3],
-        #     raw_img[::-1, :, 1:2],
-        #     raw_img[::-1, :, 0:1],
-        # ), axis=2)
-        # cv2.imshow('obs', img)
-        # cv2.waitKey(1)
         self.history.append(observation)
         history = self._get_history().flatten()
         full_obs = self._get_obs(history, true_state)
