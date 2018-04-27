@@ -79,12 +79,8 @@ class NAF(TorchRLAlgorithm):
             if self._n_train_steps_total% self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
-        if self.eval_statistics is None:
-            """
-            Eval should set this to None.
-            This way, these statistics are only computed for one batch.
-            """
-            self.eval_statistics = OrderedDict()
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))

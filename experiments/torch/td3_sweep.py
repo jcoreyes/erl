@@ -3,6 +3,7 @@ from gym.envs.mujoco import (
     AntEnv,
     HopperEnv,
     Walker2dEnv,
+    # HumanoidEnv,
 )
 
 from railrl.envs.wrappers import NormalizedBoxEnv
@@ -14,6 +15,7 @@ import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.td3.td3 import TD3
+from rllab.envs.mujoco.humanoid_env import HumanoidEnv
 
 
 def experiment(variant):
@@ -64,11 +66,8 @@ if __name__ == "__main__":
             num_steps_per_epoch=5000,
             num_steps_per_eval=10000,
             max_path_length=1000,
-            # num_epochs=200,
-            # num_steps_per_epoch=500,
-            # num_steps_per_eval=1000,
-            # max_path_length=100,
-            batch_size=100,
+            min_num_steps_before_training=10000,
+            batch_size=128,
             discount=0.99,
 
             replay_buffer_size=int(1E6),
@@ -93,23 +92,19 @@ if __name__ == "__main__":
             AntEnv,
             HopperEnv,
             Walker2dEnv,
+            # HumanoidEnv,
         ],
-        'algo_kwargs.reward_scale': [0.1, 10, 100],
-        'algo_kwargs.num_updates_per_env_step': [1, 5],
+        'algo_kwargs.discount': [0.0, 0.5, 0.9, 0.95],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if variant['env_class'] == HalfCheetahEnv:
-            variant['algo_kwargs']['min_num_steps_before_training'] = 10000
-        else:
-            variant['algo_kwargs']['min_num_steps_before_training'] = 1000
-        for _ in range(1):
+        for _ in range(2):
             run_experiment(
                 experiment,
                 # exp_prefix="dev-td3-sweep",
-                exp_prefix="td3-reward-and-nupo-sweep-1",
+                exp_prefix="td3-discount-factor-sweep",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,

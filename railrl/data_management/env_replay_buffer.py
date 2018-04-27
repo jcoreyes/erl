@@ -1,3 +1,5 @@
+from gym.spaces import Discrete
+
 from railrl.data_management.simple_replay_buffer import SimpleReplayBuffer
 from railrl.envs.env_utils import get_dim
 import numpy as np
@@ -19,6 +21,18 @@ class EnvReplayBuffer(SimpleReplayBuffer):
             max_replay_buffer_size=max_replay_buffer_size,
             observation_dim=get_dim(self._ob_space),
             action_dim=get_dim(self._action_space),
+        )
+
+    def add_sample(self, observation, action, reward, terminal,
+                   next_observation, **kwargs):
+        if isinstance(self._action_space, Discrete):
+            new_action = np.zeros(self._action_dim)
+            new_action[action] = 1
+        else:
+            new_action = action
+        return super().add_sample(
+            observation, new_action, reward, terminal,
+            next_observation, **kwargs
         )
 
 class VPGEnvReplayBuffer(EnvReplayBuffer):

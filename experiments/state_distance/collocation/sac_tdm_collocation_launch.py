@@ -1,4 +1,5 @@
 import random
+import torch
 
 import numpy as np
 from torch.nn import functional as F
@@ -7,10 +8,14 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
+from railrl.envs.multitask.point2d_wall import MultitaskPoint2dWall
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofFullGoal, Reacher7DofXyzGoalState)
 from railrl.envs.wrappers import NormalizedBoxEnv
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.tdm_networks import TdmNormalizer, TdmQf, \
     TdmVf, StochasticTdmPolicy
@@ -18,7 +23,7 @@ from railrl.state_distance.experimental_tdm_networks import DebugQf
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.mpc.collocation.collocation_mpc_controller import (
     TdmLBfgsBCMC,
-    TdmToImplicitModel)
+    TdmToImplicitModel, LBfgsBCMC, TdmLBfgsBStateOnlyCMC)
 from railrl.torch.mpc.controller import MPCController, DebugQfToMPCController
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.state_distance.tdm_sac import TdmSac
@@ -29,7 +34,7 @@ def experiment(variant):
     vectorized = variant['sac_tdm_kwargs']['tdm_kwargs']['vectorized']
     env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
     max_tau = variant['sac_tdm_kwargs']['tdm_kwargs']['max_tau']
-    qf = DebugQf(
+    qf = TdmQf(
         env,
         vectorized=vectorized,
         **variant['qf_kwargs']
@@ -45,25 +50,6 @@ def experiment(variant):
         qf,
         tau=0,
     )
-    lbfgs_mpc_controller = TdmLBfgsBCMC(
-        implicit_model,
-        env,
-        goal_slice=slice(0, 7),
-        multitask_goal_slice=slice(0, 7),
-        lagrange_multipler=10,
-        planning_horizon=3,
-        solver_kwargs={
-            'factr': 1e9,
-        },
-    )
-    if variant['explore_with'] =='TdmLBfgsBCMC':
-        variant['sac_tdm_kwargs']['base_kwargs']['exploration_policy'] = (
-            lbfgs_mpc_controller
-        )
-    if variant['eval_with'] == 'TdmLBfgsBCMC':
-        variant['sac_tdm_kwargs']['base_kwargs']['eval_policy'] = (
-            lbfgs_mpc_controller
-        )
     vf = TdmVf(
         env=env,
         vectorized=vectorized,
@@ -79,6 +65,50 @@ def experiment(variant):
         env=env,
         **variant['her_replay_buffer_kwargs']
     )
+    goal_slice = env.ob_to_goal_slice
+    lbfgs_mpc_controller = TdmLBfgsBCMC(
+        implicit_model,
+        env,
+        goal_slice=goal_slice,
+        multitask_goal_slice=goal_slice,
+        **variant['mpc_controller_kwargs']
+    )
+    state_only_mpc_controller = TdmLBfgsBStateOnlyCMC(
+        vf,
+        policy,
+        env,
+        goal_slice=goal_slice,
+        multitask_goal_slice=goal_slice,
+        **variant['state_only_mpc_controller_kwargs']
+    )
+    es = GaussianStrategy(
+        action_space=env.action_space,
+        **variant['es_kwargs']
+    )
+    if variant['explore_with'] =='TdmLBfgsBCMC':
+        exploration_policy = PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=es,
+            policy=lbfgs_mpc_controller,
+        )
+        variant['sac_tdm_kwargs']['base_kwargs']['exploration_policy'] = (
+            exploration_policy
+        )
+    elif variant['explore_with'] =='TdmLBfgsBStateOnlyCMC':
+        exploration_policy = PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=es,
+            policy=state_only_mpc_controller,
+        )
+        variant['sac_tdm_kwargs']['base_kwargs']['exploration_policy'] = (
+            exploration_policy
+        )
+    if variant['eval_with'] == 'TdmLBfgsBCMC':
+        variant['sac_tdm_kwargs']['base_kwargs']['eval_policy'] = (
+            lbfgs_mpc_controller
+        )
+    elif variant['eval_with'] == 'TdmLBfgsBStateOnlyCMC':
+        variant['sac_tdm_kwargs']['base_kwargs']['eval_policy'] = (
+            state_only_mpc_controller
+        )
     algorithm = TdmSac(
         env=env,
         policy=policy,
@@ -99,12 +129,12 @@ if __name__ == "__main__":
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "reacher7dof-xyz-refactor"
+    exp_prefix = "real-sac-tdm-no-offset"
 
     num_epochs = 50
     num_steps_per_epoch = 100
     num_steps_per_eval = 100
-    max_path_length = 100
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -114,7 +144,7 @@ if __name__ == "__main__":
                 num_steps_per_epoch=num_steps_per_epoch,
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
-                num_updates_per_env_step=25,
+                num_updates_per_env_step=1,
                 batch_size=128,
                 discount=1,
                 save_replay_buffer=False,
@@ -122,11 +152,13 @@ if __name__ == "__main__":
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
-                vectorized=False,
+                vectorized=True,
                 norm_order=2,
                 cycle_taus_for_rollout=True,
-                max_tau=10,
+                max_tau=0,
                 square_distance=True,
+                reward_type='distance',
+                terminate_when_goal_reached=True,
             ),
             sac_kwargs=dict(
                 soft_target_tau=0.01,
@@ -134,7 +166,7 @@ if __name__ == "__main__":
                 qf_lr=3E-4,
                 vf_lr=3E-4,
             ),
-            give_terminal_reward=False,
+            give_terminal_reward=True,
         ),
         her_replay_buffer_kwargs=dict(
             max_size=int(1E6),
@@ -142,6 +174,9 @@ if __name__ == "__main__":
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
+            hidden_activation=torch.tanh,
+            learn_offset=False,
+            structure='squared_difference',
         ),
         vf_kwargs=dict(
             hidden_sizes=[300, 300],
@@ -153,6 +188,26 @@ if __name__ == "__main__":
             normalize_tau=False,
             log_tau=False,
         ),
+        mpc_controller_kwargs=dict(
+            lagrange_multipler=10,
+            planning_horizon=3,
+            replan_every_time_step=True,
+            solver_kwargs={
+                'factr': 1e12,
+            },
+        ),
+        state_only_mpc_controller_kwargs=dict(
+            lagrange_multipler=10,
+            planning_horizon=3,
+            replan_every_time_step=True,
+            only_use_terminal_env_loss=True,
+            solver_kwargs={
+                'factr': 1e9,
+            },
+        ),
+        es_kwargs=dict(
+            max_sigma=0.1,
+        ),
         env_kwargs=dict(),
         version="SAC-TDM",
         algorithm="SAC-TDM",
@@ -161,8 +216,9 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            Reacher7DofFullGoal,
+            # Reacher7DofFullGoal,
             # MultitaskPoint2DEnv,
+            MultitaskPoint2dWall,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -170,106 +226,23 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
             1,
-            # 10,
-            # 100,
-            # 1000,
-            # 10000,
-        ],
-        'qf_kwargs.hidden_activation': [
-            ptu.softplus,
-        ],
-        'qf_kwargs.predict_delta': [
-            True,
-            # False,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.vectorized': [
-            # False,
-            True,
-        ],
-        'sac_tdm_kwargs.give_terminal_reward': [
-            False,
-            # True,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
-            True,
-            # False,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
-            # 'fixed',
-            # 'environment',
-            'replay_buffer',
-        ],
-        'relabel': [
-            True,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.reward_type': [
-            'distance',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             0,
-            # 1,
-            # 10,
-            # 99,
-            # 49,
-            # 15,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            # 'all_valid',
-            'uniform',
-            # 'no_resampling',
-        ],
-        'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
-            # 10,
-            # 25,
-        ],
-        'sac_tdm_kwargs.base_kwargs.discount': [
-            1,
         ],
         'eval_with': [
-            # 'DebugQfToMPCController',
             'TdmLBfgsBCMC',
-            # 'TanhGaussianPolicy',
+            # 'TdmLBfgsBStateOnlyCMC',
         ],
         'explore_with': [
-            # 'DebugQfToMPCController',
-            # 'TdmLBfgsBCMC',
-            'TanhGaussianPolicy',
+            'TdmLBfgsBCMC',
+            # 'TdmLBfgsBStateOnlyCMC',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        dense = variant['sac_tdm_kwargs']['tdm_kwargs']['dense_rewards']
-        finite = variant['sac_tdm_kwargs']['tdm_kwargs']['finite_horizon']
-        discount = variant['sac_tdm_kwargs']['base_kwargs']['discount']
-        relabel = variant['relabel']
-        if not finite:
-            variant['sac_tdm_kwargs']['base_kwargs']['discount'] = min(
-                0.95, discount
-            )
-        if not dense and not finite:  # This setting makes no sense
-            continue
-        variant['multitask'] = (
-                variant['sac_tdm_kwargs']['tdm_kwargs'][
-                    'sample_rollout_goals_from'
-                ] != 'fixed'
-        )
-        if relabel:
-            variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'her'
-            variant['sac_tdm_kwargs']['tdm_kwargs'][
-                'tau_sample_strategy'] = 'uniform'
-        else:
-            variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'no_resampling'
-            variant['sac_tdm_kwargs']['tdm_kwargs'][
-                'tau_sample_strategy'] = 'no_resampling'
         for i in range(n_seeds):
             run_experiment(
                 experiment,
@@ -277,6 +250,6 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 variant=variant,
                 exp_id=exp_id,
-                snapshot_mode='gap',
-                snapshot_gap=5,
+                # snapshot_mode='gap',
+                # snapshot_gap=5,
             )

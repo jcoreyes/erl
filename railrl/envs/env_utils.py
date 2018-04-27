@@ -5,8 +5,8 @@ from gym.spaces import Box, Discrete, Tuple
 ENV_ASSET_DIR = os.path.join(os.path.dirname(__file__), 'assets')
 
 
-def get_asset_xml(xml_name):
-    return os.path.join(ENV_ASSET_DIR, xml_name)
+def get_asset_full_path(file_name):
+    return os.path.join(ENV_ASSET_DIR, file_name)
 
 
 def get_dim(space):

@@ -14,29 +14,9 @@ from railrl.torch.mpc.collocation.collocation_mpc_controller import (
     GradientCMC,
     StateGCMC,
     LBfgsBCMC,
-    BfgsBCMC,
-    LBfgsBStateOnlyCMC)
-
-
-class TdmToImplicitModel(PyTorchModule):
-    def __init__(self, env, qf, tau):
-        self.quick_init(locals())
-        super().__init__()
-        self.env = env
-        self.qf = qf
-        self.tau = tau
-
-    def forward(self, states, actions, next_states):
-        taus = ptu.np_to_var(
-            self.tau * np.ones((states.shape[0], 1))
-        )
-        goals = self.env.convert_obs_to_goals(next_states)
-        return self.qf(
-            observations=states,
-            actions=actions,
-            goals=goals,
-            num_steps_left=taus,
-        ).sum(1)
+    LBfgsBStateOnlyCMC,
+    TdmToImplicitModel,
+)
 
 
 class TdmPolicyToTimeInvariantGoalReachingPolicy(PyTorchModule):
@@ -118,7 +98,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, tick=False):
         env.render()
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
-        # debug(env, o, agent_info)
+        debug(env, o, agent_info)
         next_o, r, d, env_info = env.step(a)
         observations.append(o)
         rewards.append(r)
@@ -186,11 +166,17 @@ if __name__ == "__main__":
 
     variant_path = Path(args.file).parents[0] / 'variant.json'
     variant = json.load(variant_path.open())
-    reward_scale = variant['sac_tdm_kwargs']['base_kwargs']['reward_scale']
+    if 'sac_tdm_kwargs' in variant:
+        reward_scale = variant['sac_tdm_kwargs']['base_kwargs']['reward_scale']
+    else:
+        reward_scale = variant['td3_tdm_kwargs']['base_kwargs']['reward_scale']
 
     data = joblib.load(args.file)
     env = data['env']
     qf = data['qf']
+    vf = data['vf']
+    policy = data['policy']
+
     # ptu.set_gpu_mode(True)
     # qf.cuda()
 
@@ -218,7 +204,7 @@ if __name__ == "__main__":
             multitask_goal_slice=multitask_goal_slice,
             planning_horizon=planning_horizon,
             # use_implicit_model_gradient=True,
-            solver_params={
+            solver_kwargs={
                 'ftol': 1e-2,
                 'maxiter': 100,
             },
@@ -251,45 +237,32 @@ if __name__ == "__main__":
         policy = LBfgsBCMC(
             implicit_model,
             env,
+            tdm_policy=data['trained_policy'],
             goal_slice=goal_slice,
             multitask_goal_slice=multitask_goal_slice,
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
-            # finite_difference=True,
-            # only_use_terminal_env_loss=True,
-            # warm_start=True,
-            solver_params={
+            replan_every_time_step=True,
+            only_use_terminal_env_loss=True,
+            # only_use_terminal_env_loss=False,
+            solver_kwargs={
                 'factr': 1e12,
             },
         )
     elif optimizer == 'slbfgs':
-        universal_policy = TdmPolicyToTimeInvariantGoalReachingPolicy(
-            tdm_policy=data['policy'],
-            env=env,
-            num_steps_left=args.tau,
-        )
         policy = LBfgsBStateOnlyCMC(
-            implicit_model,
+            vf,
+            data['trained_policy'],
             env,
-            universal_policy,
             goal_slice=goal_slice,
             multitask_goal_slice=multitask_goal_slice,
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
-            # finite_difference=True,
-            solver_params={
-                'factr': 1e9,
+            replan_every_time_step=True,
+            only_use_terminal_env_loss=False,
+            solver_kwargs={
+                'factr': 1e10,
             },
-        )
-    elif optimizer == 'bfgs':
-        policy = BfgsBCMC(
-            implicit_model,
-            env,
-            goal_slice=goal_slice,
-            multitask_goal_slice=multitask_goal_slice,
-            lagrange_multipler=lagrange_multiplier,
-            planning_horizon=planning_horizon,
-            # solver_params={},
         )
     else:
         raise ValueError("Unknown optimizer type: {}".format(optimizer))

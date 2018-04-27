@@ -202,6 +202,10 @@ def gpu_enabled():
     return _use_gpu
 
 
+def set_device(gpu_id):
+    torch.cuda.set_device(gpu_id)
+
+
 # noinspection PyPep8Naming
 def FloatTensor(*args, **kwargs):
     if _use_gpu:

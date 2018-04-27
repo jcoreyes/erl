@@ -6,6 +6,7 @@ Algorithm-specific networks should go else-where.
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
+from torch.autograd import Variable
 
 from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
@@ -13,6 +14,175 @@ from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
+
+import numpy as np
+
+class CNN(PyTorchModule):
+    def __init__(self,
+                input_width,
+                input_height,
+                input_channels,
+                output_size,
+                kernel_sizes,
+                n_channels,
+                strides,
+                pool_sizes,
+                paddings,
+                hidden_sizes=[],
+                added_fc_input_size=0,
+                use_batch_norm=False,
+                init_w=1e-4,
+                hidden_activation=nn.ReLU(),
+                output_activation=identity
+        ):
+        assert len(kernel_sizes) == \
+               len(n_channels) == \
+               len(strides) == \
+               len(pool_sizes) == \
+               len(paddings)
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.hidden_sizes = hidden_sizes
+        self.input_width = input_width
+        self.input_height = input_height
+        self.input_channels = input_channels
+        self.output_size = output_size
+        self.output_activation = output_activation
+        self.hidden_activation = hidden_activation
+        self.use_batch_norm = use_batch_norm
+        self.added_fc_input_size = added_fc_input_size
+        self.conv_input_length = self.input_width * self.input_height * self.input_channels
+
+        self.conv_layers = nn.ModuleList()
+        self.conv_norm_layers = nn.ModuleList()
+        self.fc_layers = nn.ModuleList()
+        self.fc_norm_layers = nn.ModuleList()
+
+        for out_channels, kernel_size, stride, pool, padding in \
+            zip(n_channels, kernel_sizes, strides, pool_sizes, paddings):
+
+            conv = nn.Conv2d(input_channels,
+                             out_channels,
+                             kernel_size,
+                             stride=stride,
+                             padding=padding)
+            nn.init.xavier_uniform(conv.weight)
+
+            conv_layer = nn.Sequential(
+                            conv,
+                            nn.MaxPool2d(pool, pool),
+            )
+            self.conv_layers.append(conv_layer)
+            input_channels = out_channels
+
+        # find output dimension of conv_layers by trial and add normalization conv layers
+        test_mat = Variable(torch.zeros(1, self.input_channels, self.input_width, self.input_height))
+        for conv_layer in self.conv_layers:
+            test_mat = conv_layer(test_mat)
+            self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
+
+        fc_input_size = int(np.prod(test_mat.shape))
+        # used only for injecting input directly into fc layers
+        fc_input_size += added_fc_input_size
+
+        for idx, hidden_size in enumerate(hidden_sizes):
+            fc_layer = nn.Linear(fc_input_size, hidden_size)
+
+            norm_layer = nn.BatchNorm1d(hidden_size)
+            nn.init.xavier_uniform(fc_layer.weight)
+
+            self.fc_layers.append(fc_layer)
+            self.fc_norm_layers.append(norm_layer)
+            fc_input_size = hidden_size
+
+        self.last_fc = nn.Linear(fc_input_size, output_size)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
+
+    def forward(self, input):
+        fc_input = (self.added_fc_input_size != 0)
+
+        conv_input = input.narrow(start=0,
+                                  length=self.conv_input_length,
+                                  dimension=1).contiguous()
+        if fc_input:
+            extra_fc_input = input.narrow(start=self.conv_input_length,
+                                        length=self.added_fc_input_size,
+                                        dimension=1)
+        # need to reshape from batch of flattened images into (channsls, w, h)
+        h = conv_input.view(conv_input.shape[0],
+                       self.input_channels,
+                       self.input_height,
+                       self.input_width)
+
+        h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
+        # flatten channels for fc layers
+        h = h.view(h.size(0), -1)
+        if fc_input:
+            h = torch.cat((h, extra_fc_input), dim=1)
+        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
+
+        output = self.output_activation(self.last_fc(h))
+        return output
+
+    def apply_forward(self, input, hidden_layers, norm_layers):
+        h = input
+        for layer, norm_layer in zip(hidden_layers, norm_layers):
+            h = layer(h)
+            if self.use_batch_norm:
+                h = norm_layer(h)
+            h = self.hidden_activation(h)
+        return h
+
+
+class MergedCNN(CNN):
+    '''
+    CNN that supports input directly into fully connected layers
+    '''
+
+    def __init__(self,
+                added_fc_input_size,
+                **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__(added_fc_input_size=added_fc_input_size,
+                         **kwargs)
+
+
+    def forward(self, conv_input, fc_input):
+        h = torch.cat((conv_input, fc_input), dim=1)
+        output = super().forward(h)
+        return output
+
+
+class CNNPolicy(CNN, Policy):
+    """
+    A simpler interface for creating policies.
+    """
+
+    def __init__(
+            self,
+            *args,
+            obs_normalizer: TorchFixedNormalizer = None,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__(*args, **kwargs)
+        self.obs_normalizer = obs_normalizer
+
+    def forward(self, obs, **kwargs):
+        if self.obs_normalizer:
+            obs = self.obs_normalizer.normalize(obs)
+        return super().forward(obs, **kwargs)
+
+    def get_action(self, obs_np):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs):
+        return self.eval_np(obs)
+
 
 
 class Mlp(PyTorchModule):
@@ -257,31 +427,39 @@ class OuterProductFF(PyTorchModule):
 
     def __init__(
             self,
-            input_dim,
-            output_dim,
-            hidden1_size,
-            hidden2_size,
+            hidden_sizes,
+            output_size,
+            input_size,
             init_w=3e-3,
+            hidden_activation=F.relu,
             output_activation=identity,
             hidden_init=ptu.fanin_init,
+            b_init_value=0.,
     ):
         self.save_init_params(locals())
         super().__init__()
 
-        self.sop1 = SelfOuterProductLinear(input_dim, hidden1_size)
-        self.sop2 = SelfOuterProductLinear(hidden1_size, hidden2_size)
-        self.last_fc = nn.Linear(hidden2_size, output_dim)
+        self.sops = []
+        in_size = input_size
+        for i, next_size in enumerate(hidden_sizes):
+            sop = SelfOuterProductLinear(in_size, next_size)
+            in_size = next_size
+            hidden_init(sop.fc.weight)
+            sop.fc.bias.data.fill_(b_init_value)
+            self.__setattr__("sop{}".format(i), sop)
+            self.sops.append(sop)
         self.output_activation = output_activation
-
-        hidden_init(self.sop1.fc.weight)
-        self.sop1.fc.bias.data.fill_(0)
-        hidden_init(self.sop2.fc.weight)
-        self.sop2.fc.bias.data.fill_(0)
+        self.last_fc = nn.Linear(in_size, output_size)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.fill_(b_init_value)
 
-    def forward(self, *inputs):
-        h = torch.cat(inputs, dim=1)
-        h = F.relu(self.sop1(h))
-        h = F.relu(self.sop2(h))
-        return self.output_activation(self.last_fc(h))
+    def forward(self, input, return_preactivations=False):
+        h = input
+        for i, sop in enumerate(self.sops):
+            h = self.hidden_activation(sop(h))
+        preactivation = self.last_fc(h)
+        output = self.output_activation(preactivation)
+        if return_preactivations:
+            return output, preactivation
+        else:
+            return output

@@ -38,9 +38,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             min_num_steps_before_training=None,
             replay_buffer_size=1000000,
             replay_buffer=None,
+            train_on_eval_paths=False,
 
             # I/O parameters
             render=False,
+            render_during_eval=False,
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=True,
@@ -98,6 +100,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.replay_buffer_size = replay_buffer_size
         self.reward_scale = reward_scale
         self.render = render
+        self.render_during_eval = render_during_eval
         self.collection_mode = collection_mode
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
@@ -113,10 +116,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 policy=eval_policy,
                 max_samples=self.num_steps_per_eval + self.max_path_length,
                 max_path_length=self.max_path_length,
+                render=render_during_eval,
             )
         self.eval_policy = eval_policy
         self.eval_sampler = eval_sampler
-        self.eval_statistics = None
+        self.eval_statistics = OrderedDict()
+        self.need_to_update_eval_statistics = True
 
         self.action_space = env.action_space
         self.obs_space = env.observation_space
@@ -138,10 +143,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._old_table_keys = None
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
+        self.train_on_eval_paths = train_on_eval_paths
         self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
         self.sim_throttle = sim_throttle
         if self.collection_mode == 'online-parallel':
-            ray.init()
+#            ray.init()
             self.training_env = RemoteRolloutEnv(
                 env=env,
                 policy=eval_policy,
@@ -189,6 +195,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 )
                 if self.render:
                     self.training_env.render()
+
                 next_ob, raw_reward, terminal, env_info = (
                     self.training_env.step(action)
                 )
@@ -208,7 +215,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 if terminal or len(
                         self._current_path_builder) >= self.max_path_length:
                     self._handle_rollout_ending()
-                    observation = self._start_new_rollout()
+                    observation = self._start_new_rollout(
+                        terminal=terminal,
+                        previous_rollout_last_ob=next_ob,
+                    )
                 else:
                     observation = next_ob
 
@@ -273,39 +283,50 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         n_steps_current_epoch = 0
         epoch = start_epoch
         self._start_epoch(epoch)
+        n_eval_steps = 0
+        self._eval_paths = []
+        eval_end = False
         while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
+            in_eval = n_steps_current_epoch >= self.num_env_steps_per_epoch
             if self.sim_throttle:
                 if epoch == 0 or self._n_env_steps_total // (
                     self._n_train_steps_total + 1) < self.parallel_step_to_train_ratio:
                     path = self.training_env.rollout(
                         self.exploration_policy,
-                        use_exploration_strategy=True,
+                        use_exploration_strategy=not in_eval,
                     )
             else:
                 path = self.training_env.rollout(
                     self.exploration_policy,
-                    use_exploration_strategy=True,
+                    use_exploration_strategy=not in_eval,
                 )
             if path is not None:
+                if in_eval:
+                    path_length = len(path['observations'])
+                    self._eval_paths.append(dict(path))
+                    n_eval_steps += path_length
+                    eval_end = n_eval_steps >= self.num_steps_per_eval + self.max_path_length
+
                 path['rewards'] = path['rewards'] * self.reward_scale
                 path_length = len(path['observations'])
                 self._n_env_steps_total += path_length
                 n_steps_current_epoch += path_length
                 self._handle_path(path)
-                if len(path) > 0:
-                    self._exploration_paths.append(path)
-            self._try_to_train()
+                self._start_new_rollout()
             gt.stamp('sample')
             self._try_to_train()
             gt.stamp('train')
             # Check if epoch is over
-            if n_steps_current_epoch >= self.num_env_steps_per_epoch:
+            if eval_end:
                 self._try_to_eval(epoch)
                 gt.stamp('eval')
                 self._end_epoch()
                 epoch += 1
                 n_steps_current_epoch = 0
                 self._start_epoch(epoch)
+                eval_end = False
+                n_eval_steps = 0
+                self._eval_paths = []
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)
@@ -373,6 +394,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def _try_to_offline_eval(self, epoch):
         start_time = time.time()
+        logger.save_extra_data(self.get_extra_data_to_save(epoch))
         self.offline_evaluate(epoch)
         params = self.get_epoch_snapshot(epoch)
         logger.save_itr_params(epoch, params)
@@ -388,11 +410,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
     def evaluate(self, epoch):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
-        self.eval_statistics = None
 
         logger.log("Collecting samples for evaluation")
-        test_paths = self.eval_sampler.obtain_samples()
-
+        if self.collection_mode == 'online-parallel':
+            test_paths = self._eval_paths
+        else:
+            test_paths = self.get_eval_paths()
         statistics.update(eval_util.get_generic_path_information(
             test_paths, stat_prefix="Test",
         ))
@@ -407,11 +430,19 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics['AverageReturn'] = average_returns
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+        self.need_to_update_eval_statistics = True
+
+    def get_eval_paths(self):
+        paths = self.eval_sampler.obtain_samples()
+        if self.train_on_eval_paths:
+            for path in paths:
+                self._handle_path(path)
+        return paths
 
     def offline_evaluate(self, epoch):
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)
-        self.eval_statistics = None
+        self.need_to_update_eval_statistics = True
 
     def _can_evaluate(self):
         """
@@ -421,7 +452,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         """
         return (
             len(self._exploration_paths) > 0
-            and self.eval_statistics is not None
+            and not self.need_to_update_eval_statistics
         )
 
     def _can_train(self):
@@ -454,7 +485,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.log("Started Training: {0}".format(self._can_train()))
         logger.pop_prefix()
 
-    def _start_new_rollout(self):
+    def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
         return self.training_env.reset()
 
@@ -538,8 +569,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._current_path_builder = PathBuilder()
 
     def get_epoch_snapshot(self, epoch):
-        if self.render:
-            self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,
@@ -556,8 +585,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :param epoch:
         :return:
         """
-        if self.render:
-            self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
         )

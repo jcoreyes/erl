@@ -1,10 +1,10 @@
+from railrl.envs.wrappers import ProxyEnv
 import abc
 from collections import OrderedDict
 
 import numpy as np
 from gym.spaces import Box
 
-from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core.serializable import Serializable
 from railrl.core import logger as default_logger
@@ -38,7 +38,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     See `MultitaskEnvToSilentMultitaskEnv` for more detail.
     """
 
-    def __init__(self, distance_metric_order=1, goal_dim_weights=None):
+    def __init__(self, distance_metric_order=2, goal_dim_weights=None):
         self.multitask_goal = np.zeros(self.goal_dim)
         if goal_dim_weights is None:
             self.goal_dim_weights = np.ones(self.goal_dim)
@@ -268,12 +268,12 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         wrapped_low = self.observation_space.low
         low = np.hstack((
             wrapped_low,
-            min(wrapped_low) * np.ones(self._wrapped_env.goal_dim)
+            self._wrapped_env.goal_space.low,
         ))
         wrapped_high = self.observation_space.low
         high = np.hstack((
             wrapped_high,
-            max(wrapped_high) * np.ones(self._wrapped_env.goal_dim)
+            self._wrapped_env.goal_space.high,
         ))
         self.observation_space = Box(low, high)
 

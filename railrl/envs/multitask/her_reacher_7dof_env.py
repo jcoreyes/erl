@@ -4,7 +4,7 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
-from railrl.envs.env_utils import get_asset_xml
+from railrl.envs.env_utils import get_asset_full_path
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger as default_logger
 
@@ -46,7 +46,7 @@ class Reacher7Dof(
         utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(
             self,
-            get_asset_xml('reacher_7dof.xml'),  # path to xml
+            get_asset_full_path('reacher_7dof.xml'),  # path to xml
             5,  # frameskip
         )
         self._desired_xyz = np.zeros(3)

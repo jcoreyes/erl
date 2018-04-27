@@ -6,7 +6,8 @@ import argparse
 import joblib
 import uuid
 from railrl.core import logger
-
+import ray
+ray.init()
 
 filename = str(uuid.uuid4())
 
@@ -49,7 +50,7 @@ def simulate_policy(args):
             animated=not args.hide,
         ))
         if hasattr(env, "log_diagnostics"):
-            env.log_diagnostics(paths)
+            env.log_diagnostics(paths, logger)
         logger.dump_tabular()
 
 
@@ -58,7 +59,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str,
                         help='path to the snapshot file')
-    parser.add_argument('--H', type=int, default=300,
+    parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
     parser.add_argument('--speedup', type=float, default=10,
                         help='Speedup')
