@@ -13,16 +13,18 @@ from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 
 from gym.envs.robotics import FetchPushEnv
 
+
 class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     """Implements a 3D-position controlled Sawyer environment"""
 
-    def __init__(self, reward_info=None, frame_skip=30):
+    def __init__(self, reward_info=None, frame_skip=30,
+                 pos_action_scale=1. / 100):
         self.quick_init(locals())
         self.reward_info = reward_info
         self._goal_xyz = self.sample_goal_xyz()
+        self._pos_action_scale = pos_action_scale
         MultitaskEnv.__init__(self, distance_metric_order=2)
         MujocoEnv.__init__(self, self.model_name, frame_skip=frame_skip)
-
 
         self.action_space = Box(
             np.array([-1, -1, -1, -1]),
@@ -72,7 +74,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     def step(self, a):
         a = np.clip(a, -1, 1)
-        self.mocap_set_action(a[:3] / 100, relative=True)
+        self.mocap_set_action(a[:3] * self._pos_action_scale, relative=True)
         u = np.zeros((8))
         u[7] = a[3]
         self.do_simulation(u, self.frame_skip)
@@ -81,8 +83,10 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         done = False
 
         distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
-        block_distance = np.linalg.norm(self.get_goal_pos() - self.get_block_pos())
-        touch_distance = np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
+        block_distance = np.linalg.norm(
+            self.get_goal_pos() - self.get_block_pos())
+        touch_distance = np.linalg.norm(
+            self.get_endeff_pos() - self.get_block_pos())
         info = dict(
             distance=distance,
             block_distance=block_distance,
@@ -199,7 +203,8 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
                 0.5022168160162902, 0.020992940518284438,
                 0.99998456929726953, 2.2910279298625033e-06,
                 8.1234733355258378e-06, 0.0055552764211284642,
-                -0.1230211958752539, 0.69090634842186527, -19.449133777272831, 1.0, 0.0, np.pi/4, 0.0]
+                -0.1230211958752539, 0.69090634842186527, -19.449133777272831,
+                1.0, 0.0, np.pi / 4, 0.0]
 
     @property
     def goal_dim(self):
@@ -232,12 +237,12 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
                 '%s %s' % (prefix, stat_name),
                 stat,
                 always_show_all_stats=True,
-                ))
+            ))
             statistics.update(create_stats_ordered_dict(
                 'Final %s %s' % (prefix, stat_name),
                 [s[-1] for s in stat],
                 always_show_all_stats=True,
-                ))
+            ))
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
@@ -245,6 +250,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     """
     Multitask functions
     """
+
     @property
     def goal_dim(self) -> int:
         return 3
@@ -265,6 +271,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             np.array([0.2, 0.7, 0.2]),
             size=(batch_size, 3),
         )
+
 
 class SawyerPickAndPlaceEnv(SawyerXYZEnv):
     def __init__(
@@ -349,11 +356,13 @@ class SawyerPickAndPlaceEnv(SawyerXYZEnv):
     def convert_obs_to_goals(self, obs):
         return obs[:, -3:]
 
+
 class SawyerPushEnv(SawyerPickAndPlaceEnv):
     """
     Take out the gripper action and fix the goal Z position to the table.
     Also start the block between the gripper and the goal
     """
+
     def __init__(self, **kwargs):
         self.quick_init(locals())
         super().__init__(**kwargs)
@@ -365,7 +374,7 @@ class SawyerPushEnv(SawyerPickAndPlaceEnv):
 
     def step(self, a):
         a = np.clip(a, -1, 1)
-        self.mocap_set_action(a[:3] / 100, relative=True)
+        self.mocap_set_action(a[:3] * self._pos_action_scale, relative=True)
         u = np.zeros((8))
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
@@ -373,8 +382,10 @@ class SawyerPushEnv(SawyerPickAndPlaceEnv):
         done = False
 
         distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
-        block_distance = np.linalg.norm(self.get_goal_pos() - self.get_block_pos())
-        touch_distance = np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
+        block_distance = np.linalg.norm(
+            self.get_goal_pos() - self.get_block_pos())
+        touch_distance = np.linalg.norm(
+            self.get_endeff_pos() - self.get_block_pos())
         info = dict(
             distance=distance,
             block_distance=block_distance,
@@ -385,8 +396,8 @@ class SawyerPushEnv(SawyerPickAndPlaceEnv):
     def sample_goal_xyz(self):
         if self.randomize_goals:
             pos = np.random.uniform(
-                np.array([0.2, 0.5, 0.02]),
-                np.array([-0.2, 0.7, 0.02]),
+                np.array([0.1, 0.5, 0.02]),
+                np.array([-0.1, 0.7, 0.02]),
             )
         else:
             pos = np.array([0.2, 0.6, 0.02])
@@ -394,13 +405,13 @@ class SawyerPushEnv(SawyerPickAndPlaceEnv):
 
     def sample_block_xyz(self):
         pos = np.random.uniform(
-            np.array([-0.2, 0.5, 0.02]),
-            np.array([0.2, 0.7, 0.02]),
+            np.array([-0.1, 0.5, 0.02]),
+            np.array([0.1, 0.7, 0.02]),
         )
         while np.linalg.norm(pos[:2]) < 0.1:
             pos = np.random.uniform(
-                np.array([-0.2, 0.5, 0.02]),
-                np.array([0.2, 0.7, 0.02]),
+                np.array([-0.1, 0.5, 0.02]),
+                np.array([0.1, 0.7, 0.02]),
             )
         return pos
 
@@ -409,6 +420,7 @@ class SawyerPushXYEnv(SawyerPushEnv):
     """
     Only move along XY-axis.
     """
+
     def __init__(self, **kwargs):
         self.quick_init(locals())
         super().__init__(**kwargs)
@@ -428,22 +440,24 @@ class SawyerPushXYEnv(SawyerPushEnv):
         #         -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
         #         1, 0, 0, 0]
         return [
-            1.02866769e+00, - 6.95207647e-01,   4.22932911e-01,
-             1.76670458e+00, - 5.69637604e-01,   6.24117280e-01,
-             3.53404635e+00,   2.99584816e-02, - 2.00417049e-02,
-             6.07093769e-01,   2.10679106e-02,   9.99910945e-01,
-             - 4.60349085e-05, - 1.78179392e-03, - 1.32259491e-02,
-             1.07586388e-02, 6.62018003e-01,   2.09936716e-02,
-             1.00000000e+00,   3.76632959e-14, 1.36837913e-11,
-             1.56567415e-23
+            1.02866769e+00, - 6.95207647e-01, 4.22932911e-01,
+            1.76670458e+00, - 5.69637604e-01, 6.24117280e-01,
+            3.53404635e+00, 2.99584816e-02, - 2.00417049e-02,
+            6.07093769e-01, 2.10679106e-02, 9.99910945e-01,
+            - 4.60349085e-05, - 1.78179392e-03, - 1.32259491e-02,
+            1.07586388e-02, 6.62018003e-01, 2.09936716e-02,
+            1.00000000e+00, 3.76632959e-14, 1.36837913e-11,
+            1.56567415e-23
         ]
 
-
     def step(self, a):
-        a = np.clip(a, -1, 1) / 100
+        a = np.clip(a, -1, 1)
         # mocap_delta_z = 0.02 - self.data.mocap_pos[0, 2]
         mocap_delta_z = 0
-        new_mocap_action = np.hstack((a[:2], np.array([mocap_delta_z])))
+        new_mocap_action = np.hstack((
+            a[:2] * self._pos_action_scale,
+            np.array([mocap_delta_z])
+        ))
         self.mocap_set_action(new_mocap_action, relative=True)
         u = np.zeros((8))
         u[7] = 1
@@ -453,8 +467,10 @@ class SawyerPushXYEnv(SawyerPushEnv):
         done = False
 
         distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
-        block_distance = np.linalg.norm(self.get_goal_pos() - self.get_block_pos())
-        touch_distance = np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
+        block_distance = np.linalg.norm(
+            self.get_goal_pos() - self.get_block_pos())
+        touch_distance = np.linalg.norm(
+            self.get_endeff_pos() - self.get_block_pos())
         info = dict(
             distance=distance,
             block_distance=block_distance,
@@ -462,10 +478,12 @@ class SawyerPushXYEnv(SawyerPushEnv):
         )
         return obs, reward, done, info
 
+
 class SawyerXYEnv(SawyerXYZEnv):
     """
     Only move along XY-axis.
     """
+
     def __init__(self, **kwargs):
         self.quick_init(locals())
         super().__init__(**kwargs)
@@ -478,13 +496,13 @@ class SawyerXYEnv(SawyerXYZEnv):
     @property
     def init_angles(self):
         return [
-            1.02866769e+00, - 6.95207647e-01,   4.22932911e-01,
-            1.76670458e+00, - 5.69637604e-01,   6.24117280e-01,
-            3.53404635e+00,   2.99584816e-02, - 2.00417049e-02,
-            6.07093769e-01,   2.10679106e-02,   9.99910945e-01,
+            1.02866769e+00, - 6.95207647e-01, 4.22932911e-01,
+            1.76670458e+00, - 5.69637604e-01, 6.24117280e-01,
+            3.53404635e+00, 2.99584816e-02, - 2.00417049e-02,
+            6.07093769e-01, 2.10679106e-02, 9.99910945e-01,
             - 4.60349085e-05, - 1.78179392e-03, - 1.32259491e-02,
-            1.07586388e-02, 6.62018003e-01,   2.09936716e-02,
-            1.00000000e+00,   3.76632959e-14, 1.36837913e-11,
+            1.07586388e-02, 6.62018003e-01, 2.09936716e-02,
+            1.00000000e+00, 3.76632959e-14, 1.36837913e-11,
             1.56567415e-23
         ]
 
@@ -509,8 +527,10 @@ class SawyerXYEnv(SawyerXYZEnv):
         done = False
 
         distance = np.linalg.norm(self.get_goal_pos() - self.get_endeff_pos())
-        block_distance = np.linalg.norm(self.get_goal_pos() - self.get_block_pos())
-        touch_distance = np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
+        block_distance = np.linalg.norm(
+            self.get_goal_pos() - self.get_block_pos())
+        touch_distance = np.linalg.norm(
+            self.get_endeff_pos() - self.get_block_pos())
         info = dict(
             distance=distance,
             block_distance=block_distance,
