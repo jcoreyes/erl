@@ -43,16 +43,16 @@ def experiment(variant):
 
 if __name__ == "__main__":
     num_epochs = 50
-    num_steps_per_epoch=50
-    num_steps_per_eval=50
-    max_path_length=10
+    num_steps_per_epoch=1000
+    num_steps_per_eval=1000
+    max_path_length=100
     variant = dict(
         algo_params=dict(
             num_epochs=num_epochs,
             num_steps_per_epoch=num_steps_per_epoch,
             num_steps_per_eval=num_steps_per_eval,
             max_path_length=max_path_length,
-            batch_size=64,
+            batch_size=128,
             discount=1,
             soft_target_tau=0.01,
             policy_lr=3E-4,
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         net_size=300,
         env_params=dict(
             desired=[0.97711039, 0.56662792, 0.27901027],
-            action_mode='position',
+            action_mode='torque',
             reward='norm',
         )
     )
@@ -70,17 +70,16 @@ if __name__ == "__main__":
         'algo_params.reward_scale': [
             1,
             10,
+            100,
         ],
         'algo_params.num_updates_per_env_step': [
+            # 1,
             5,
             10,
         ],
         'algo_params.soft_target_tau': [
             .01,
-        ],
-        'env_params.randomize_goal_on_reset':[
-            True,
-            # False,
+            .001,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -88,7 +87,7 @@ if __name__ == "__main__":
     )
     n_seeds = 1
     for variant in sweeper.iterate_hyperparameters():
-        exp_prefix = 'sawyer_pos_reaching'
+        exp_prefix = 'sac_reaching_torque_control_norm_reward'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

@@ -1,18 +1,18 @@
 import math
 import time
 from collections import OrderedDict
+
 import numpy as np
 import rospy
-from experiments.murtaza.ros.Sawyer.pd_controller import PDController
-from railrl.misc.eval_util import create_stats_ordered_dict
+
+from experiments.murtaza.ros.old_sawyer_code.pd_controller import PDController
 from railrl.core.serializable import Serializable
+from railrl.misc.eval_util import create_stats_ordered_dict
+from rllab.envs.base import Env
 from rllab.spaces.box import Box
-from sawyer_control.srv import observation
 from sawyer_control.msg import actions
 from sawyer_control.srv import getRobotPoseAndJacobian
-from rllab.envs.base import Env
-
-import pdb
+from sawyer_control.srv import observation
 
 JOINT_ANGLES_HIGH = np.array([
     1.70167993,
@@ -52,7 +52,7 @@ JOINT_VALUE_LOW = {
     'torque': JOINT_TORQUE_LOW,
 }
 
-# Testing bounding box for Sawyer on pedestal (too small for reset to work in all cases)
+# Testing bounding box for sawyer on pedestal (too small for reset to work in all cases)
 #box_lows = np.array([-0.4063314307903516, -0.4371988870414967, 0.19114132196594727])
 #box_highs = np.array([0.5444314339226455, 0.5495988452507109, 0.8264100134638303])
 

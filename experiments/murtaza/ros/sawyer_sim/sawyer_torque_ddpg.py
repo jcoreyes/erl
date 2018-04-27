@@ -7,10 +7,13 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.ddpg.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
+import railrl.misc.hyperparameter as hyp
+from sawyer_control.sawyer_reaching import SawyerJointSpaceReachingEnv
+
 
 def experiment(variant):
     env_params = variant['env_params']
-    env = SawyerXYZReachingEnv(**env_params)
+    env = SawyerJointSpaceReachingEnv(**env_params)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     qf = FlattenMlp(
@@ -60,19 +63,47 @@ if __name__ == "__main__":
             min_sigma=0.25,
         ),
         env_params=dict(
-            desired=[0.97711039, 0.56662792, 0.27901027],
             action_mode='torque',
             reward='norm',
             reward_magnitude=1,
         )
     )
+    search_space = {
+        'algo_params.reward_scale': [
+            1,
+            # 10,
+            # 100,
+            # 1000,
+        ],
+        'algo_params.num_updates_per_env_step': [
+            5,
+            # 10,
+            15,
+            # 20,
+            25,
+        ],
+        'batch_size':[
+            64,
+            # 128,
+            # 256,
+            512,
+        ],
+        'env_params.randomize_goal_on_reset': [
+            # True,
+            False,
+        ],
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
     n_seeds = 3
-    exp_prefix = 'ddpg_reaching_torque_control_norm_reward'
-    mode = 'here_no_doodad'
-    for i in range(n_seeds):
-        run_experiment(
-            experiment,
-            mode=mode,
-            exp_prefix=exp_prefix,
-            variant=variant,
-        )
+    for variant in sweeper.iterate_hyperparameters():
+        exp_prefix = 'joint_space_reaching_test'
+        mode = 'here_no_doodad'
+        for i in range(n_seeds):
+            run_experiment(
+                experiment,
+                mode=mode,
+                exp_prefix=exp_prefix,
+                variant=variant,
+            )
