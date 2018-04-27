@@ -518,25 +518,30 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         self.quick_init(locals())
         self.include_puck = include_puck
         self.arm_range = arm_range
-        super().__init__(**kwargs)
-        self.goal_space = Box(
-            low=np.array([-1, -1]),
-            high=np.array([0, 0]),
-        )
+        if include_puck:
+            self.goal_space = Box(
+                low=np.array([-arm_range, -arm_range, -arm_range, -1, -1]),
+                high=np.array([arm_range, arm_range, arm_range, 1, 0]),
+                dtype=np.float32,
+            )
+        else:
+            self.goal_space = Box(
+                low=np.array([-arm_range, -arm_range, -arm_range]),
+                high=np.array([arm_range, arm_range, arm_range]),
+                dtype=np.float32,
+            )
+        goal = self.goal_space.sample()
+        super().__init__(goal=goal, **kwargs)
 
     def get_qpos(self):
         return self.sim.data.qpos.copy()
 
     def sample_goals(self, batch_size):
-        return np.random.uniform(
-            np.array([-1, -1]),
-            np.array([0, 0]),
-            (batch_size, self.goal_dim)
-        )
+        return np.vstack([self.goal_space.sample() for i in range(batch_size)])
 
     @property
     def goal_dim(self):
-        return 2
+        return self.goal_space.low.shape[0]
 
     def convert_obs_to_goals(self, obs):
         return obs[:, -2:]
@@ -544,11 +549,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
     def set_goal(self, goal):
         super().set_goal(goal)
         if self.ignore_multitask_goal:
-            self._target_hand_position = np.random.uniform(
-                np.array([-1, -1]),
-                np.array([0, 1]),
-                (self.goal_dim,)
-            )
+            self._target_hand_position = self.goal_space.sample()
             self._target_cylinder_position = self._target_hand_position
         else:
             self._target_hand_position = goal
@@ -556,16 +557,39 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
 
         qpos = self.sim.data.qpos.flat.copy()
         qvel = self.sim.data.qvel.flat.copy()
-        qpos[-4:-2] = self._target_cylinder_position
-        qpos[-2:] = self._target_hand_position
-        # import pdb; pdb.set_trace()
+        qpos[:3] = goal
+        # qpos[-4:-2] = self._target_cylinder_position
+        # qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
+
+    def step(self, u):
+        ob, _, done, info = super().step(u)
+        ob = self.sim.data.qpos[:3].copy()
+        if self.include_puck:
+            qpos = self.sim.data.qpos[:5].copy()
+            reward = -np.linalg.norm(qpos - self._target_hand_position)
+        else:
+            qpos = self.sim.data.qpos[:3].copy()
+            reward = -np.linalg.norm(qpos - self._target_hand_position)
+        return ob, reward, done, info
+
+    def do_simulation(self, ctrl, n_frames):
+        self.sim.data.qvel[:3] = ctrl
+        for _ in range(n_frames):
+            self.sim.step()
+
+    def _get_obs(self):
+        return np.concatenate([
+            self.sim.data.qpos.flat[:self.goal_dim],
+            # self.sim.data.qvel.flat[:3],
+            # self.get_body_com("distal_4")[:2],
+            # self.get_body_com("object")[:2],
+        ])
 
     def reset_model(self):
         # fully random
         # low = np.array([-2.5, -2.32, -2.32, -1, -1, 5, 5, 5, 5])
         # high = np.array([2.5, 2.32, 2.32, 1, 1, 6, 6, 6, 6])
-
         r = self.arm_range
         if self.include_puck:
             low = np.array([-r, -r, -r, -1, -1, 6, 6, 6, 6])

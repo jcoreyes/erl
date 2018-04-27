@@ -23,29 +23,30 @@ from railrl.core import logger
 import os.path as osp
 
 def experiment(variant):
-    rdim = variant["rdim"]
-    use_env_goals = variant["use_env_goals"]
-    vae_path = variant["vae_paths"][str(rdim)]
-    render = variant["render"]
-    wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
-
-    # vae = torch.load(vae_path)
-    # print("loaded", vae_path)
-
     env = variant["env"](**variant['env_kwargs'])
-    if wrap_mujoco_env:
-        env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True, normalize=True)
+
+    do_state_based_exp = variant.get("do_state_based_exp", False)
+
+    if not do_state_based_exp:
+        rdim = variant["rdim"]
+        use_env_goals = variant["use_env_goals"]
+        vae_path = variant["vae_paths"][str(rdim)]
+        render = variant["render"]
+        wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
+
+        if wrap_mujoco_env:
+            env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True, normalize=True)
 
 
-    if use_env_goals:
-        track_qpos_goal = variant.get("track_qpos_goal", 0)
-        env = VAEWrappedImageGoalEnv(env, vae_path, use_vae_obs=True,
-            use_vae_reward=True, use_vae_goals=True,
-            render_goals=render, render_rollouts=render, track_qpos_goal=track_qpos_goal)
-    else:
-        env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
-            use_vae_reward=True, use_vae_goals=True,
-            render_goals=render, render_rollouts=render)
+        if use_env_goals:
+            track_qpos_goal = variant.get("track_qpos_goal", 0)
+            env = VAEWrappedImageGoalEnv(env, vae_path, use_vae_obs=True,
+                use_vae_reward=True, use_vae_goals=True,
+                render_goals=render, render_rollouts=render, track_qpos_goal=track_qpos_goal)
+        else:
+            env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
+                use_vae_reward=True, use_vae_goals=True,
+                render_goals=render, render_rollouts=render)
 
     env = MultitaskToFlatEnv(env)
     if variant['normalize']:
@@ -94,6 +95,7 @@ def experiment(variant):
         qf2=qf2,
         policy=policy,
         exploration_policy=exploration_policy,
+        render=do_state_based_exp and variant.get("render", False),
         **variant['algo_kwargs']
     )
 
@@ -103,10 +105,11 @@ def experiment(variant):
         ptu.set_gpu_mode(True)
         ptu.set_device(gpu_id)
         algorithm.cuda()
-        env._wrapped_env.vae.cuda()
+        if not do_state_based_exp:
+            env._wrapped_env.vae.cuda()
 
     save_video = variant.get("save_video", True)
-    if save_video:
+    if not do_state_based_exp and save_video:
         from railrl.torch.vae.sim_vae_policy import dump_video
         logdir = logger.get_snapshot_dir()
         filename = osp.join(logdir, 'video_0.mp4')
@@ -114,7 +117,7 @@ def experiment(variant):
 
     algorithm.train()
 
-    if save_video:
+    if not do_state_based_exp and save_video:
         filename = osp.join(logdir, 'video_final.mp4')
         dump_video(env, policy, filename)
 
