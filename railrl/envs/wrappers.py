@@ -1,3 +1,4 @@
+import torch
 import mujoco_py
 import numpy as np
 import gym.spaces
@@ -11,7 +12,6 @@ from collections import deque
 from railrl.core.serializable import Serializable
 #from torchvision.transforms import ToTensor, ToPILImage
 import mujoco_py
-import torch
 
 class ProxyEnv(Serializable, Env):
     def __init__(self, wrapped_env):

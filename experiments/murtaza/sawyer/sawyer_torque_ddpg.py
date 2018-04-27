@@ -1,7 +1,6 @@
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
@@ -17,12 +16,12 @@ def experiment(variant):
     qf = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[100, 100],
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[100, 100],
     )
     es = OUStrategy(
         action_space=env.action_space,
@@ -46,15 +45,15 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
-            num_epochs=30,
+            num_epochs=50,
             num_steps_per_epoch=500,
-            num_steps_per_eval=300,
+            num_steps_per_eval=500,
             use_soft_update=True,
             max_path_length=100,
             render=False,
             normalize_env=False,
             train_on_eval_paths=True,
-            num_updates_per_env_step=5,
+            num_updates_per_env_step=1,
         ),
         es_kwargs=dict(
             theta=0.1,
@@ -63,21 +62,26 @@ if __name__ == "__main__":
         ),
         env_params=dict(
             action_mode='torque',
-            reward='norm',
+            reward='norm'
         )
     )
     search_space = {
+        'algo_params.num_updates_per_env_step': [
+            1,
+            #2,
+            3,
+            #4,
+        ],
         'algo_params.reward_scale': [
             1,
-            10,
+            100,
+            #1000,
         ],
         'env_params.randomize_goal_on_reset': [
             False,
-            True,
         ],
         'algo_params.batch_size': [
             64,
-            256,
         ],
         'algo_params.collection_mode':[
             'online'
@@ -88,7 +92,7 @@ if __name__ == "__main__":
     )
 
     for variant in sweeper.iterate_hyperparameters():
-        n_seeds = 2
+        n_seeds = 3
         exp_prefix = 'sawyer_torque_ddpg_xyz_reaching'
         mode = 'here_no_doodad'
         for i in range(n_seeds):

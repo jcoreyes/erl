@@ -60,13 +60,13 @@ if __name__ == "__main__":
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
-            # collection_mode='online-parallel',
             normalize_env=False,
             render=False,
+            collection_mode='online-parallel'
+
         ),
-        net_size=300,
+        net_size=100,
         env_params=dict(
-            desired=[0.5, 0.33351666, 0.5],
             action_mode='torque',
             reward='norm',
         )
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     )
     n_seeds = 1
     for variant in sweeper.iterate_hyperparameters():
-        exp_prefix = 'test'
+        exp_prefix = 'sac_reaching_smaller_architecture_parallel'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

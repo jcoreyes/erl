@@ -10,7 +10,8 @@ from railrl.torch.td3.td3 import TD3
 import railrl.torch.pytorch_util as ptu
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 import railrl.misc.hyperparameter as hyp
-
+import ray
+ray.init()
 def experiment(variant):
     env_params = variant['env_params']
     env = SawyerXYZReachingEnv(**env_params)
@@ -63,12 +64,13 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=25,
+            num_epochs=100,
             num_steps_per_epoch=500,
-            num_steps_per_eval=200,
+            num_steps_per_eval=500,
             batch_size=64,
             max_path_length=100,
             discount=0.99,
+            train_on_eval_paths=True,
             replay_buffer_size=int(1E6),
             normalize_env=False,
         ),
@@ -88,7 +90,7 @@ if __name__ == "__main__":
         #     100,
         # ],
         'algo_params.num_updates_per_env_step': [
-            5,
+            1,
         ],
         'env_params.randomize_goal_on_reset': [
             False,
@@ -99,7 +101,7 @@ if __name__ == "__main__":
         #     256,
         # ],
         'algo_kwargs.collection_mode': [
-            'online',
+            'online-parallel',
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -108,7 +110,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 3
-        exp_prefix = 'sawyer_torque_td3_xyz_reaching'
+        exp_prefix = 'sawyer_torque_td3_xyz_reaching_parallel'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

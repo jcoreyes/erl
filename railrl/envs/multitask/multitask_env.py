@@ -1,10 +1,10 @@
+from railrl.envs.wrappers import ProxyEnv
 import abc
 from collections import OrderedDict
 
 import numpy as np
 from gym.spaces import Box
 
-from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core.serializable import Serializable
 from railrl.core import logger as default_logger
