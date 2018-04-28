@@ -6,7 +6,7 @@ from railrl.exploration_strategies.base import (
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.tdm_ddpg import TdmDdpg
-from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy
+from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy, TdmNormalizer
 from railrl.torch.modules import HuberLoss
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
@@ -14,14 +14,22 @@ import copy
 def experiment(variant):
     env_params = variant['env_params']
     env = MultiTaskSawyerXYZReachingEnv(env_params)
+    tdm_normalizer = TdmNormalizer(
+        env,
+        vectorized=True,
+        max_tau=variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau'],
+    )
     qf = TdmQf(
         env=env,
         vectorized=True,
-        **variant['qf_kwargs']
+        hidden_sizes=[variant['hidden_sizes'], variant['hidden_sizes']],
+        structure='norm_difference',
+        tdm_normalizer=tdm_normalizer,
     )
     policy = TdmPolicy(
         env=env,
-        **variant['policy_kwargs']
+        hidden_sizes=[variant['hidden_sizes'], variant['hidden_sizes']],
+        tdm_normalizer=tdm_normalizer,
     )
     es = OUStrategy(
         action_space=env.action_space,
@@ -56,15 +64,16 @@ if __name__ == "__main__":
         ddpg_tdm_kwargs=dict(
             base_kwargs=dict(
                 num_epochs=50,
-                num_steps_per_epoch=500,
-                num_steps_per_eval=500,
+                num_steps_per_epoch=1000,
+                num_steps_per_eval=1000,
                 max_path_length=100,
                 batch_size=64,
-                discount=1
+                discount=1,
             ),
             tdm_kwargs=dict(
                 num_pretrain_paths=0,
                 vectorized=True,
+                max_tau=15,
             ),
             ddpg_kwargs=dict(
                 tau=0.001,
@@ -75,41 +84,29 @@ if __name__ == "__main__":
         her_replay_buffer_kwargs=dict(
             max_size=int(2E5),
         ),
-        qf_kwargs=dict(
-            hidden_sizes=[300, 300],
-        ),
-        policy_kwargs=dict(
-            hidden_sizes=[300, 300],
-        ),
         es_kwargs=dict(
             theta=0.1,
-            max_sigma=0.25,
-            min_sigma=0.25,
+            max_sigma=0.1,
+            min_sigma=0.1,
         ),
         qf_criterion_class=HuberLoss,
         env_params=dict(
             action_mode='torque',
-        )
+        ),
+        hidden_sizes=100,
     )
     search_space = {
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            4,
-            2,
+            5,
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            1,
             10,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             'replay_buffer',
-            'environment',
         ],
-        'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            99,
-        ],
-        'env_params.reward': [
-            'huber',
-            'norm',
+        'hidden_sizes': [
+            100,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -118,7 +115,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 1
-        exp_prefix = 'sawyer_torque_tdmddpg_xyz_reaching_sweep'
+        exp_prefix = 'sawyer_torque_tdm_ddpg_xyz_reaching_nupo_5'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

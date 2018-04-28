@@ -7,7 +7,6 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.ddpg.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
-import railrl.misc.hyperparameter as hyp
 def experiment(variant):
     env_params = variant['env_params']
     env = SawyerXYZReachingEnv(**env_params)
@@ -46,14 +45,16 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=50,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_steps_per_epoch=500,
+            num_steps_per_eval=500,
             use_soft_update=True,
             max_path_length=100,
             render=False,
             normalize_env=False,
             train_on_eval_paths=True,
             num_updates_per_env_step=1,
+            collection_mode='online',
+            reward_scale=1,
         ),
         es_kwargs=dict(
             theta=0.1,
@@ -62,40 +63,17 @@ if __name__ == "__main__":
         ),
         env_params=dict(
             action_mode='torque',
-            reward='norm'
+            reward='norm',
+            randomize_goal_on_reset=False,
         )
     )
-    search_space = {
-        'algo_params.num_updates_per_env_step': [
-            1,
-            3,
-        ],
-        'algo_params.reward_scale': [
-            1,
-            100,
-        ],
-        'env_params.randomize_goal_on_reset': [
-            False,
-        ],
-        'algo_params.batch_size': [
-            64,
-        ],
-        'algo_params.collection_mode':[
-            'online'
-        ]
-    }
-    sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
-    )
-
-    for variant in sweeper.iterate_hyperparameters():
-        n_seeds = 3
-        exp_prefix = 'sawyer_torque_ddpg_xyz_reaching'
-        mode = 'here_no_doodad'
-        for i in range(n_seeds):
-            run_experiment(
-                experiment,
-                mode=mode,
-                exp_prefix=exp_prefix,
-                variant=variant,
-            )
+    n_seeds = 1
+    exp_prefix = 'sawyer_torque_ddpg_xyz_reaching_baseline'
+    mode = 'here_no_doodad'
+    for i in range(n_seeds):
+        run_experiment(
+            experiment,
+            mode=mode,
+            exp_prefix=exp_prefix,
+            variant=variant,
+        )
