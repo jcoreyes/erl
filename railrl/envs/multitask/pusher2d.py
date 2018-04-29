@@ -7,6 +7,9 @@ from gym.spaces import Box
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 
+from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
+from railrl.core import logger as default_logger
+from collections import OrderedDict
 
 class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     def __init__(self, **kwargs):
@@ -514,10 +517,13 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
     2 hand xy goal
     2 puck xy goal
     """
-    def __init__(self, include_puck=True, arm_range=0.1, **kwargs):
+    def __init__(self, include_puck=True, arm_range=0.1, reward_params={"type": "euclidean"}, **kwargs):
         self.quick_init(locals())
         self.include_puck = include_puck
         self.arm_range = arm_range
+        self.reward_params = reward_params
+        self.reward_type = self.reward_params["type"]
+        self.epsilon = self.reward_params.get("epsilon", 1)
         if include_puck:
             self.goal_space = Box(
                 low=np.array([-arm_range, -arm_range, -arm_range, -1, -1]),
@@ -530,8 +536,20 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
                 high=np.array([arm_range, arm_range, arm_range]),
                 dtype=np.float32,
             )
-        goal = self.goal_space.sample()
-        super().__init__(goal=goal, **kwargs)
+        self.current_goal = self.goal_space.sample()
+        super().__init__(goal=self.current_goal, **kwargs)
+        if include_puck:
+            self.observation_space = Box(
+                low=-5 * np.ones((5)),
+                high=5 * np.ones((5)),
+                dtype=np.float32,
+            )
+        else:
+            self.observation_space = Box(
+                low=-5 * np.ones((3)),
+                high=5 * np.ones((3)),
+                dtype=np.float32,
+            )
 
     def get_qpos(self):
         return self.sim.data.qpos.copy()
@@ -548,29 +566,39 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
 
     def set_goal(self, goal):
         super().set_goal(goal)
+        self.current_goal = goal
         if self.ignore_multitask_goal:
             self._target_hand_position = self.goal_space.sample()
             self._target_cylinder_position = self._target_hand_position
         else:
-            self._target_hand_position = goal
-            self._target_cylinder_position = goal
+            if self.include_puck:
+                self._target_hand_position = goal[:3]
+                self._target_cylinder_position = goal[3:5]
+            else:
+                self._target_hand_position = goal
+                self._target_cylinder_position = goal
 
         qpos = self.sim.data.qpos.flat.copy()
         qvel = self.sim.data.qvel.flat.copy()
-        qpos[:3] = goal
+        qpos[:3] = self._target_hand_position
         # qpos[-4:-2] = self._target_cylinder_position
         # qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
 
     def step(self, u):
         ob, _, done, info = super().step(u)
-        ob = self.sim.data.qpos[:3].copy()
         if self.include_puck:
             qpos = self.sim.data.qpos[:5].copy()
-            reward = -np.linalg.norm(qpos - self._target_hand_position)
+            dist = np.linalg.norm(qpos - self.current_goal)
         else:
             qpos = self.sim.data.qpos[:3].copy()
-            reward = -np.linalg.norm(qpos - self._target_hand_position)
+            dist = np.linalg.norm(qpos - self._target_hand_position)
+        info["dist"] = dist
+        info["success"] = dist < self.epsilon
+        if self.reward_type == "sparse":
+            reward = 0 if dist < self.epsilon else -1
+        else:
+            reward = -dist
         return ob, reward, done, info
 
     def do_simulation(self, ctrl, n_frames):
@@ -600,31 +628,14 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         qpos = (
             np.random.uniform(low=low, high=high, size=self.model.nq)
         )
-
-        # self.qpos_target = qpos
-        # qpos[-3:] = self.init_qpos.squeeze()[-3:]
-        # # Object position
-        # obj_pos = np.random.uniform(
-        #     #         x      y
-        #     np.array([0.3, -0.8]),
-        #     np.array([0.8, -0.3]),
-        # )
-        # qpos[-6:-4] = obj_pos
-        # if self.randomize_goals:
-        #     self._target_cylinder_position = np.random.uniform(
-        #         np.array([-1, -1]),
-        #         np.array([0, 0]),
-        #         2
-        #     )
-        # self._target_hand_position = self._target_cylinder_position
-        # qpos[-4:-2] = self._target_cylinder_position
-        # qpos[-2:] = self._target_hand_position
         qvel = qpos * 0
-        # qvel[:] = 0
 
         self.set_state(qpos, qvel)
 
         return self._get_obs()
+
+    def convert_obs_to_goals(self, obs):
+        return obs
 
     def compute_her_reward_np(
             self,
@@ -633,66 +644,31 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
             next_observation,
             goal,
     ):
-        hand_pos = next_observation[6:8]
-        cylinder_pos = next_observation[8:10]
-        target_pos = goal
-        hand_to_puck_dist = np.linalg.norm(hand_pos - cylinder_pos)
-        puck_to_goal_dist = np.linalg.norm(cylinder_pos - target_pos)
-        if self.use_sparse_rewards:
-                return float(puck_to_goal_dist < 0.1)
+        dist = np.linalg.norm(next_observation - goal)
+        if self.reward_type == "sparse":
+            reward = 0 if dist < self.epsilon else -1
         else:
-            if self.use_hand_to_obj_reward:
-                return - hand_to_puck_dist - puck_to_goal_dist
-            else:
-                return - puck_to_goal_dist
+            reward = -dist
+        return reward
 
-    def compute_her_reward_pytorch(
-            self,
-            observations,
-            actions,
-            next_observations,
-            goal_states,
-    ):
-        hand_pos = observations[:, 6:8]
-        cylinder_pos = observations[:, 8:10]
-        target_pos = goal_states
-        hand_to_puck_dist = torch.norm(
-            hand_pos - cylinder_pos,
-            dim=1,
-            p=2,
-            keepdim=True,
-        )
-        costs = hand_to_puck_dist
-        hand_is_close_to_puck = (hand_to_puck_dist <= 0.1).float()
-        puck_to_goal_dist = torch.norm(
-            cylinder_pos - target_pos,
-            dim=1,
-            p=2,
-            keepdim=True,
-        )
-        costs = costs + (puck_to_goal_dist - 2) * hand_is_close_to_puck
-        return - costs
+    def log_diagnostics(self, paths, logger=default_logger, **kwargs):
+        super().log_diagnostics(paths, logger=logger, **kwargs)
 
-    # def log_diagnostics(self, paths, **kwargs):
-    #     super().log_diagnostics(paths, **kwargs)
-    #     statistics = OrderedDict()
-    #     for stat_name_in_paths, stat_name_to_print in [
-    #         ('hand_to_object_distance', 'Distance hand to object'),
-    #         ('object_to_goal_distance', 'Distance object to goal'),
-    #         ('hand_to_hand_goal_distance', 'Distance hand to hand goal'),
-    #         ('success', 'Success (within 0.1)'),
-    #     ]:
-    #         stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
-    #         statistics.update(create_stats_ordered_dict(
-    #             stat_name_to_print,
-    #             stats,
-    #             always_show_all_stats=True,
-    #         ))
-    #         final_stats = [s[-1] for s in stats]
-    #         statistics.update(create_stats_ordered_dict(
-    #             "Final " + stat_name_to_print,
-    #             final_stats,
-    #             always_show_all_stats=True,
-    #         ))
-    #     for key, value in statistics.items():
-    #         logger.record_tabular(key, value)
+        statistics = OrderedDict()
+
+        for stat_name_in_paths in ["dist", "success"]:
+            stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
+            statistics.update(create_stats_ordered_dict(
+                stat_name_in_paths,
+                stats,
+                always_show_all_stats=True,
+            ))
+            final_stats = [s[-1] for s in stats]
+            statistics.update(create_stats_ordered_dict(
+                "Final " + stat_name_in_paths,
+                final_stats,
+                always_show_all_stats=True,
+            ))
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)

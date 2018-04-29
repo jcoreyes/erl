@@ -285,8 +285,11 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
 
     def reset(self):
         self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
-        # for i in range(100): # shitty solution for multitask viewing
+
+        # shitty solution for multitask viewing
+        # for i in range(100):
         #     self.render()
+
         ob = super().reset()
         new_ob = self._add_goal_to_observation(ob)
         return new_ob
@@ -333,6 +336,11 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
     """
     def reset(self):
         self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
+
+        # shitty solution for multitask viewing
+        # for i in range(100):
+        #     self.render()
+
         return super().reset()
 
     def cost_fn(self, states, actions, next_states):

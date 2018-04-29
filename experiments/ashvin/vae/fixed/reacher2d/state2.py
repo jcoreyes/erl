@@ -27,9 +27,9 @@ if __name__ == "__main__":
             # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
-            ignore_multitask_goal=True,
+            ignore_multitask_goal=False,
             include_puck=False,
-            arm_range=0.5,
+            arm_range=1.0,
         ),
         algorithm='TD3',
         normalize=False,
@@ -40,21 +40,21 @@ if __name__ == "__main__":
         vae_paths=vae_paths,
         wrap_mujoco_env=True,
         track_qpos_goal=5,
-        do_state_based_exp=False,
+        do_state_based_exp=True,
     )
 
-    n_seeds = 3
+    n_seeds = 5
 
     search_space = {
         'exploration_type': [
-            'gaussian'
+            'gaussian', 'epsilon', 'ou',
         ],
         'algo_kwargs.reward_scale': [0.01, 0.1, 1, 10],
         'algo_kwargs.discount': [0.99],
-        'rdim': [2, 4, 8, 16],
+        # 'rdim': [2, 4, 8, 16],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)

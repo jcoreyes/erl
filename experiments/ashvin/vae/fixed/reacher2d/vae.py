@@ -29,7 +29,7 @@ if __name__ == "__main__":
         env_kwargs=dict(
             ignore_multitask_goal=True,
             include_puck=False,
-            arm_range=0.1,
+            arm_range=0.5,
         ),
         algorithm='TD3',
         normalize=False,
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         do_state_based_exp=False,
     )
 
-    n_seeds = 5
+    n_seeds = 3
 
     search_space = {
         'exploration_type': [
@@ -51,10 +51,10 @@ if __name__ == "__main__":
         ],
         'algo_kwargs.reward_scale': [0.01, 0.1, 1, 10],
         'algo_kwargs.discount': [0.99],
-        # 'rdim': [2, 4, 8, 16],
+        'rdim': [2, 4, 8, 16],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)

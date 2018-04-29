@@ -3,7 +3,7 @@ from railrl.envs.multitask.pusher2d import FullPusher2DEnv
 
 from railrl.launchers.arglauncher import run_variants
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.vae_experiment import experiment
+from railrl.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
@@ -30,6 +30,14 @@ if __name__ == "__main__":
             ignore_multitask_goal=False,
             include_puck=True,
             arm_range=0.1,
+            reward_params=dict(
+                type="sparse",
+                epsilon=0.1,
+            ),
+        ),
+        replay_kwargs=dict(
+            fraction_goals_are_rollout_goals=0.2,
+            fraction_goals_are_env_goals=0.5,
         ),
         algorithm='TD3',
         normalize=False,
@@ -41,17 +49,23 @@ if __name__ == "__main__":
         wrap_mujoco_env=True,
         track_qpos_goal=5,
         do_state_based_exp=True,
+        exploration_noise=0.1,
     )
 
-    n_seeds = 4
+    n_seeds = 3
 
     search_space = {
         'exploration_type': [
-            'gaussian', 'epsilon', 'ou',
+            'epsilon',
         ],
-        'env_kwargs.arm_range': [0.1, 0.5],
-        'algo_kwargs.reward_scale': [0.01, 0.1, 1, 10],
+        'env_kwargs.arm_range': [1.0],
+        'env_kwargs.reward_params.epsilon': [0.2],
+        'algo_kwargs.reward_scale': [1],
+        'algo_kwargs.num_updates_per_env_step': [1, 4, 16, 64],
         'algo_kwargs.discount': [0.99],
+        'exploration_noise': [0.2],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         # 'rdim': [2, 4, 8, 16],
         'seedid': range(n_seeds),
     }

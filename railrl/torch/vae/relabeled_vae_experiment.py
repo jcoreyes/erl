@@ -1,4 +1,4 @@
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
@@ -50,26 +50,27 @@ def experiment(variant):
                 use_vae_reward=True, use_vae_goals=True,
                 render_goals=render, render_rollouts=render)
 
-    env = MultitaskToFlatEnv(env)
+    env = MultitaskEnvToSilentMultitaskEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
+    exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
         es = OUStrategy(action_space=env.action_space)
     elif exploration_type == 'gaussian':
         es = GaussianStrategy(
             action_space=env.action_space,
-            max_sigma=0.1,
-            min_sigma=0.1,  # Constant sigma
+            max_sigma=exploration_noise,
+            min_sigma=exploration_noise,  # Constant sigma
         )
     elif exploration_type == 'epsilon':
         es = EpsilonGreedy(
             action_space=env.action_space,
-            prob_random_action=0.1,
+            prob_random_action=exploration_noise,
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
-    obs_dim = env.observation_space.low.size
+    obs_dim = env.observation_space.low.size + env.goal_space.low.size
     action_dim = env.action_space.low.size
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
@@ -90,7 +91,13 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    algorithm = TD3(
+    replay_buffer = RelabelingReplayBuffer(
+        max_size=100000,
+        env=env,
+        **variant['replay_kwargs']
+    )
+    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+    algorithm = RelabeledTd3(
         env,
         training_env=env,
         qf1=qf1,
