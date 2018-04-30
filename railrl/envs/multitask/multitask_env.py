@@ -38,13 +38,14 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     See `MultitaskEnvToSilentMultitaskEnv` for more detail.
     """
 
-    def __init__(self, distance_metric_order=2, goal_dim_weights=None):
+    def __init__(self, distance_metric_order=1, goal_dim_weights=None, ignore_multitask_goal=False, **kwargs):
         self.multitask_goal = np.zeros(self.goal_dim)
         if goal_dim_weights is None:
             self.goal_dim_weights = np.ones(self.goal_dim)
         else:
             self.goal_dim_weights = np.array(goal_dim_weights)
         self.distance_metric_order = distance_metric_order
+        self.ignore_multitask_goal = ignore_multitask_goal
 
     @property
     @abc.abstractmethod

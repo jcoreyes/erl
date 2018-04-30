@@ -47,6 +47,7 @@ if __name__ == "__main__":
     env = data['env']
     num_samples = 1000
     resolution = 10
+    max_tau=15
     if 'policy' in data:
         policy = data['policy']
     else:
@@ -75,10 +76,9 @@ if __name__ == "__main__":
                 decrement_tau=args.dt or not args.ndc,
                 # get_action_kwargs={'deterministic': True},
             )
-            print("last state", path['next_observations'][-1])
+            print("last state", path['next_observations'][-1][21:24])
             paths.append(path)
         env.log_diagnostics(paths)
-        import ipdb; ipdb.set_trace()
         for key, value in get_generic_path_information(paths).items():
             logger.record_tabular(key, value)
         logger.dump_tabular()

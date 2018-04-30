@@ -17,20 +17,21 @@ def experiment(variant):
     env = SawyerXYZReachingEnv(**env_params)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
+    hidden_size = variant['hidden_size']
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[hidden_size, hidden_size],
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[hidden_size, hidden_size],
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[hidden_size, hidden_size],
     )
     # es = GaussianStrategy(
     #     action_space=env.action_space,
@@ -64,9 +65,9 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=100,
-            num_steps_per_epoch=500,
-            num_steps_per_eval=500,
+            num_epochs=50,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             batch_size=64,
             max_path_length=100,
             discount=0.99,
@@ -81,36 +82,40 @@ if __name__ == "__main__":
         env_params=dict(
             action_mode='torque',
             reward='norm',
-        )
+        ),
+	hidden_size=100,
     )
     search_space = {
-        # 'algo_params.reward_scale': [
-        #     1,
-        #     10,
-        #     100,
-        # ],
-        'algo_params.num_updates_per_env_step': [
+        'algo_kwargs.num_updates_per_env_step': [
             1,
+	    4,
+	    5,
         ],
         'env_params.randomize_goal_on_reset': [
-            False,
+            True,
         ],
-        # 'algo_params.batch_size': [
-        #     64,
-        #     128,
-        #     256,
-        # ],
-        'algo_kwargs.collection_mode': [
-            'online-parallel',
-        ]
+	'algo_kwargs.batch_size':[
+	    64,
+#	    256,
+	    512,
+	],
+	'hidden_size':[
+	    #50,
+	    100,
+	    200,
+	],
+	'algo_kwargs.reward_scale':[
+#	    10,
+	    1,
+	],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
     for variant in sweeper.iterate_hyperparameters():
-        n_seeds = 3
-        exp_prefix = 'sawyer_torque_td3_xyz_reaching_parallel'
+        n_seeds = 1
+        exp_prefix = 'sawyer_torque_td3_xyz_reaching_varying_ee'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(
