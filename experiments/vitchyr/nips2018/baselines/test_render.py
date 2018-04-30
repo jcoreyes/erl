@@ -2,9 +2,11 @@ import sys, tty, termios
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv, \
     SawyerPushEnv, SawyerXYZEnv
 from railrl.envs.mujoco.sawyer_kitchen import KitchenCabinetEnv
+from railrl.envs.wrappers import ImageMujocoEnv
 
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.policies.simple import ZeroPolicy
 import numpy as np
@@ -12,13 +14,24 @@ import numpy as np
 print("making env")
 # env = SawyerPushXYEnv(randomize_goals=True, frame_skip=50)
 env = SawyerPushEnv(randomize_goals=False, frame_skip=50)
-env = SawyerXYZEnv(frame_skip=50)
+env = SawyerXYZEnv(frame_skip=50, pos_action_scale=2./100)
+env = SawyerPushXYEnv(frame_skip=50, pos_action_scale=2./100)
 # env = KitchenCabinetEnv()
+from railrl.images.camera import sawyer_init_camera
+env = ImageMujocoEnv(
+        env,
+        init_camera=sawyer_init_camera,
+    )
+env.enable_render()
 
 policy = ZeroPolicy(env.action_space.low.size)
 es = OUStrategy(
     env.action_space,
     theta=1
+)
+es = EpsilonGreedy(
+    action_space=env.action_space,
+    prob_random_action=0.1,
 )
 policy = exploration_policy = PolicyWrappedWithExplorationStrategy(
     exploration_strategy=es,
@@ -43,10 +56,11 @@ char_to_action = {
     'c': np.array([0 , 0 , 0 , -1]),
 }
 
-USE_CONTROLLER = True
-H = 100000
-# USE_CONTROLLER = False
-# H = 10
+# ACTION_FROM = 'controller'
+ACTION_FROM = 'pd'
+# ACTION_FROM = 'random'
+# H = 100000
+H = 50
 
 
 while True:
@@ -61,8 +75,8 @@ while True:
         # if action is None:
         #     sys.exit()
         # event_happened = False
-        if USE_CONTROLLER:
-            # action = np.array([0,0,0,0])
+        if ACTION_FROM == 'controller':
+            action = np.array([0,0,0,0])
             for event in pygame.event.get():
                 event_happened = True
                 if event.type == QUIT:
@@ -77,8 +91,9 @@ while True:
                     print("got char:", char)
                     print("action", action)
                     print("angles", env.data.qpos.copy())
+        elif ACTION_FROM == 'random':
+            action = env.action_space.sample()
         else:
-            action = env.action_space.sample()*10
             delta = (env.get_block_pos() - env.get_endeff_pos())[:2]
             action[:2] = delta * 100
         # action[1] -= 0.05
@@ -91,7 +106,7 @@ while True:
         #     action[1] += 10
         obs, reward, done, info = env.step(action)
 
-        env.render()
+        # env.render()
         # print("action", action)
         if done:
             break

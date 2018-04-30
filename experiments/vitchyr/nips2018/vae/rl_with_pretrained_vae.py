@@ -23,10 +23,14 @@ from railrl.torch.td3.td3 import TD3
 def experiment(variant):
     from path import Path
     import joblib
+    import os.path
     vae_dir = Path(variant['vae_dir'])
     vae_path = str(vae_dir / 'params.pkl')
     extra_data_path = str(vae_dir / 'extra_data.pkl')
-    extra_data = joblib.load(extra_data_path)
+    if os.path.isfile(extra_data_path):
+        extra_data = joblib.load(extra_data_path)
+    else:
+        extra_data  = {}
     if 'env' in extra_data:
         env = extra_data['env']
     else:
@@ -125,18 +129,22 @@ def experiment(variant):
 
 if __name__ == "__main__":
     vae_latent_size_to_dir = {
-        2: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_06_29_0000--s-93337/',
-        4: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_20_26_0000--s-96538/',
-        8: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_24_44_0000--s-200/',
-        16: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_29_12_0000--s-81838/',
+        # 2: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_06_29_0000--s-93337/',
+        # 4: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_20_26_0000--s-96538/',
+        # 8: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_24_44_0000--s-200/',
+        # 16: '/home/vitchyr/git/railrl/data/local/04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_29_12_0000--s-81838/',
+        2: '04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_06_29_0000--s-93337/',
+        4: '04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_20_26_0000--s-96538/',
+        8: '04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_24_44_0000--s-200/',
+        16: '04-25-sawyer-vae-local-working/04-25-sawyer-vae-local-working_2018_04_25_18_29_12_0000--s-81838/',
     }
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=500,
+            num_epochs=100,
+            # num_steps_per_epoch=1000,
+            # num_steps_per_eval=1000,
             num_steps_per_epoch=100,
             num_steps_per_eval=100,
-            # num_steps_per_epoch=100,
-            # num_steps_per_eval=100,
             tau=1e-2,
             batch_size=128,
             max_path_length=100,
@@ -149,10 +157,9 @@ if __name__ == "__main__":
             # ball_radius=1,
         ),
         vae_wrapped_env_kwargs=dict(
-            track_qpos_goal=3,
+            # track_qpos_goal=3,
             use_vae_obs=True,
             use_vae_reward=True,
-            use_vae_goals=True,
         ),
         algorithm='TD3',
         normalize=False,
@@ -166,17 +173,20 @@ if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
     exp_prefix = 'dev-rl-with-pretrained-vae'
+    # mode = 'local_docker'
+    # exp_prefix = 'dev-rl-with-pretrained-vae-ld'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    exp_prefix = 'sawyer-rl-with-pretrained-vae-local-4'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer-rl-with-pretrained-vae-ec2-use-env-goals-cpu'
 
     search_space = {
         'exploration_type': [
             'ou',
         ],
         'algo_kwargs.reward_scale': [1],
-        'vae_latent_size': [4, 8, 16, 2],
+        'vae_latent_size': [2, 4, 8, 16],
+        'use_env_goals': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -190,5 +200,5 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                use_gpu=True,
+                # use_gpu=True,
             )

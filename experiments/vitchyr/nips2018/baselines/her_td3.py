@@ -80,17 +80,16 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
-            # num_epochs=300,
-            # num_steps_per_epoch=10000,
-            # num_steps_per_eval=10000,
-            num_epochs=50,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
+            num_epochs=300,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=10000,
+            # num_epochs=50,
+            # num_steps_per_epoch=100,
+            # num_steps_per_eval=100,
             max_path_length=100,
             num_updates_per_env_step=1,
             batch_size=100,
             discount=0.99,
-            render=True,
         ),
         env_class=SawyerPushXYEnv,
         # env_class=SawyerXYZEnv,
@@ -114,7 +113,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-relabel-from-env-longer-frameskip-and-pos-scale'
+    exp_prefix = 'sawyer-push-longer-frameskip-and-pos-scale-2'
 
     search_space = {
         # 'env_kwargs.randomize_goals': [True, False],
@@ -125,8 +124,12 @@ if __name__ == "__main__":
             1,
             # 5,
         ],
+        'algo_kwargs.max_path_length': [
+            100,
+            50,
+        ],
         'exploration_type': [
-            # 'epsilon',
+            'epsilon',
             'ou',
             'gaussian',
         ],
