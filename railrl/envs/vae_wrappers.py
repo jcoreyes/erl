@@ -139,6 +139,15 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
             cv2.waitKey(1)
         return goal[0]
 
+    def convert_obs_to_goals(self, obs):
+        return ptu.get_numpy(
+            self.vae.encode(ptu.np_to_var(obs))
+        )
+
+    @property
+    def goal_dim(self):
+        return self.representation_size
+
 class VAEWrappedImageGoalEnv(ProxyEnv, Env):
     """This class wraps an image-based environment with a VAE.
     Assumes you get flattened (channels,84,84) observations from wrapped_env.
@@ -147,7 +156,7 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
     VAE prior.
     """
     def __init__(self, wrapped_env, vae,
-        use_vae_obs=True, use_vae_reward=True, use_vae_goals=True,
+        use_vae_obs=True, use_vae_reward=True,
         render_goals=False, render_rollouts=False, track_qpos_goal=0):
         self.quick_init(locals())
         super().__init__(wrapped_env)
@@ -157,7 +166,6 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
             self.vae = vae
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
-        self.use_vae_goals = use_vae_goals
         self.use_vae_reward = use_vae_reward
         self.use_vae_obs = use_vae_obs
         self.render_goals = render_goals
