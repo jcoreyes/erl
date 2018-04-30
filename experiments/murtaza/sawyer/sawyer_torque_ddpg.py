@@ -1,6 +1,7 @@
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
+from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
@@ -24,9 +25,13 @@ def experiment(variant):
         output_size=action_dim,
         hidden_sizes=[400, 300],
     )
-    es = OUStrategy(
+    # es = OUStrategy(
+    #     action_space=env.action_space,
+    #     **variant['es_kwargs']
+    # )
+    es = EpsilonGreedy(
         action_space=env.action_space,
-        **variant['es_kwargs']
+        prob_random_action=.2,
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -42,18 +47,23 @@ def experiment(variant):
     if ptu.gpu_enabled():
         algorithm.cuda()
     algorithm.train()
-
+    import numpy as np
+    import ipdb; ipdb.set_trace()
+    np.save('actions', env.actions)
 
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=50,
             num_steps_per_epoch=500,
-            num_steps_per_eval=1000,
+            num_steps_per_eval=500,
             use_soft_update=True,
             batch_size=64,
             max_path_length=100,
             num_updates_per_env_step=4,
+            render=False,
+            normalize_env=False,
+            # collection_mode='online-parallel'
         ),
         es_kwargs=dict(
             theta=0.1,
@@ -73,8 +83,6 @@ if __name__ == "__main__":
         ],
         'algo_params.num_updates_per_env_step': [
             5,
-            10,
-            15,
         ],
         'env_params.randomize_goal_on_reset': [
             False,
@@ -91,7 +99,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 3
-        exp_prefix = 'test'
+        exp_prefix = 'sawyer_ddpg_torque_xyz_reaching'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

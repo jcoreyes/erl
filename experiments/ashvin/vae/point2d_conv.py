@@ -2,8 +2,8 @@
 # import numpy as np
 # import mnist_data
 # import os
-from railrl.torch.vae.conv_vae import ConvVAE
-from railrl.torch.vae.point2d_data import get_data
+from railrl.torch.vae.vae2.conv_vae import ConvVAE
+from railrl.torch.vae.vae2.point2d_data import get_data
 # import plot_utils
 # import glob
 # import ss.path

@@ -9,6 +9,7 @@ from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.state_distance.tdm_networks import TdmNormalizer, TdmQf, TdmPolicy
 from railrl.torch.modules import HuberLoss
 import railrl.torch.pytorch_util as ptu
+import railrl.misc.hyperparameter as hyp
 
 def experiment(variant):
     env_params = variant['env_params']
@@ -99,17 +100,38 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         env_params=dict(
-            action_mode='position',
+			desired=[0.59, 0.1, 0.4],
+            action_mode='pos',
             reward_magnitude=10,
         )
     )
-    n_seeds = 1
-    exp_prefix = 'test'
-    mode = 'here_no_doodad'
-    for i in range(n_seeds):
-        run_experiment(
-            experiment,
-            mode=mode,
-            exp_prefix=exp_prefix,
-            variant=variant,
-        )
+    search_space = {
+
+        'algo_params.max_path_length': [
+			5,
+			10,
+			15,
+		],
+		'algo_params.num_updates_per_env_step': [
+			5,
+			10,
+			15,
+		],
+		'env_params.randomize_goal_on_reset': [
+			True,
+		],
+	}
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for variant in sweeper.iterate_hyperparameters():
+        n_seeds = 1
+        exp_prefix = 'sawyer_tdm_ddpg_pos'
+        mode = 'here_no_doodad'
+        for i in range(n_seeds):
+            run_experiment(
+                experiment,
+                mode=mode,
+                exp_prefix=exp_prefix,
+                variant=variant,
+            )

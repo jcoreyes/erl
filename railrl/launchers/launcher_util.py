@@ -167,6 +167,7 @@ def run_experiment(
         script_name=main.__file__,
         logger=logger,
     )
+    base_log_dir = "/home/shikharbahl/Documents/railrl-private/data/local/"
     if mode == 'here_no_doodad':
         run_experiment_kwargs['base_log_dir'] = base_log_dir
         return run_experiment_here(

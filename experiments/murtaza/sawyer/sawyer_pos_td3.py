@@ -18,17 +18,17 @@ def experiment(variant):
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[100, 100],
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[100, 100],
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[100, 100],
     )
     # es = GaussianStrategy(
     #     action_space=env.action_space,
@@ -36,7 +36,7 @@ def experiment(variant):
     # )
     es = EpsilonGreedy(
         action_space=env.action_space,
-        prob_random_action=1,
+        prob_random_action=0.2,
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -59,11 +59,11 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             num_epochs=50,
-            num_steps_per_epoch=500,
-            num_steps_per_eval=1000,
+            num_steps_per_epoch=50,
+            num_steps_per_eval=50,
             batch_size=64,
-            max_path_length=100,
-            discount=0.99,
+            max_path_length=10,
+            discount=0.9,
             replay_buffer_size=int(1E6),
             normalize_env=False,
         ),
@@ -72,26 +72,26 @@ if __name__ == "__main__":
             min_sigma=0.25,
         ),
         env_params=dict(
-            action_mode='torque',
-            reward='norm',
+            desired=[0.59, 0.1, 0.4],
+            action_mode='position',
+            reward='norm'
+
         )
     )
     search_space = {
-        'algo_params.reward_scale': [
-            1,
+
+        'algo_params.max_path_length': [
+            5,
             10,
-            100,
+            15,
         ],
         'algo_params.num_updates_per_env_step': [
             5,
+            10,
+            15,
         ],
         'env_params.randomize_goal_on_reset': [
-            False,
-        ],
-        'algo_params.batch_size': [
-            64,
-            128,
-            256,
+            True,
         ],
         'algo_kwargs.collection_mode': [
             'online',
@@ -103,8 +103,8 @@ if __name__ == "__main__":
     )
 
     for variant in sweeper.iterate_hyperparameters():
-        n_seeds = 3
-        exp_prefix = 'sawyer_td3_torque_xyz_reaching'
+        n_seeds = 1
+        exp_prefix = 'sawyer_td3_pos'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(
