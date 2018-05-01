@@ -36,34 +36,40 @@ def experiment(variant):
         vae_path = variant["vae_paths"][str(rdim)]
         render = variant["render"]
         wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
+        reward_params = variant.get("reward_params", dict())
 
         if wrap_mujoco_env:
             env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True, normalize=True)
 
         use_vae_goals = not use_env_goals
         track_qpos_goal = variant.get("track_qpos_goal", 0)
-        vae_wrapped_env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
+        env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
             use_vae_reward=True, use_vae_goals=use_vae_goals,
             decode_goals=True,
-            render_goals=render, render_rollouts=render, render_decoded=render,
+            render_goals=render, render_rollouts=render,
+            render_decoded=render,
+            reward_params=reward_params,
             track_qpos_goal=track_qpos_goal)
 
-    env = MultitaskToFlatEnv(vae_wrapped_env)
+        vae_wrapped_env = env
+
+    env = MultitaskToFlatEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
+    exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
         es = OUStrategy(action_space=env.action_space)
     elif exploration_type == 'gaussian':
         es = GaussianStrategy(
             action_space=env.action_space,
-            max_sigma=0.1,
-            min_sigma=0.1,  # Constant sigma
+            max_sigma=exploration_noise,
+            min_sigma=exploration_noise,  # Constant sigma
         )
     elif exploration_type == 'epsilon':
         es = EpsilonGreedy(
             action_space=env.action_space,
-            prob_random_action=0.1,
+            prob_random_action=exploration_noise,
         )
     else:
         raise Exception("Invalid type: " + exploration_type)

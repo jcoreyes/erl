@@ -151,6 +151,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 reward = -mdist
             elif self.reward_type == "sparse":
                 reward = 0 if mdist < self.epsilon else -1
+            info["vae_mdist"] = mdist
+            info["vae_success"] = 1 if mdist < self.epsilon else 0
 
         if self.track_qpos_goal:
             if not self.use_vae_goals:
@@ -245,8 +247,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
         super().log_diagnostics(paths, logger=logger, **kwargs)
 
         statistics = OrderedDict()
-        for i in range(self.track_qpos_goal):
-            stat_name_in_paths = "qpos_d" + str(i)
+        names = ["qpos_d" + str(i) for i in range(self.track_qpos_goal)] + ["vae_mdist", "vae_success"]
+        for stat_name_in_paths in names:
             stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
             statistics.update(create_stats_ordered_dict(
                 stat_name_in_paths,
