@@ -83,7 +83,7 @@ if __name__ == "__main__":
         env_class=SawyerPushXYEnv,
         env_kwargs=dict(
             frame_skip=50,
-            only_reward_block_to_goal=True,
+            only_reward_block_to_goal=False,
         ),
         replay_buffer_class=RelabelingReplayBuffer,
         replay_buffer_kwargs=dict(

@@ -85,7 +85,7 @@ if __name__ == "__main__":
         # env_class=SawyerXYZEnv,
         env_kwargs=dict(
             frame_skip=50,
-            only_reward_block_to_goal=True,
+            only_reward_block_to_goal=False,
         ),
         algorithm='TD3',
         version='normal',
