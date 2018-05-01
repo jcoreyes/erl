@@ -34,7 +34,7 @@ def load_vae(vae_file):
     print("loaded", local_path)
     return vae
 
-class VAEWrappedEnv(ProxyEnv, Env):
+class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
     """This class wraps an image-based environment with a VAE.
     Assumes you get flattened (channels,84,84) observations from wrapped_env.
     """
@@ -126,7 +126,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
     @property
     def goal_dim(self):
-        return self.goal_space.low.shape[0]
+        return self.representation_size
 
     def step(self, action):
         observation, reward, done, info = self._wrapped_env.step(action)

@@ -6,13 +6,16 @@ from railrl.torch.vae.sawyer2d_reach_data import get_data
 
 def experiment(variant):
     from railrl.core import logger
+    import railrl.torch.pytorch_util as ptu
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     train_data, test_data, info = get_data(**variant['get_data_kwargs'])
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
     m = ConvVAE(representation_size, input_channels=3)
-    t = ConvVAETrainer(train_data, test_data, m, beta=beta, use_cuda=True)
+    if ptu.gpu_enabled():
+        m.cuda()
+    t = ConvVAETrainer(train_data, test_data, m, beta=beta)
     for epoch in range(variant['num_epochs']):
         t.train_epoch(epoch)
         t.test_epoch(epoch)
@@ -22,21 +25,19 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    # mode = 'local_docker'
-    exp_prefix = 'dev-sawyer-reacher-vae-train-2'
-    use_gpu=True
+    exp_prefix = 'dev-sawyer-reacher-vae-train-4'
+    use_gpu = True
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-reach-xy-vae-train'
-    use_gpu=False
+    exp_prefix = 'sawyer-vae-ec2-no-gpu'
+    use_gpu = False
 
     variant = dict(
         beta=5.0,
         num_epochs=100,
         get_data_kwargs=dict(
-            N=10000,
-            use_cached=False,
+            N=5000,
         ),
     )
 
