@@ -523,7 +523,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         self.arm_range = arm_range
         self.reward_params = reward_params
         self.reward_type = self.reward_params["type"]
-        self.epsilon = self.reward_params.get("epsilon", 1)
+        self.epsilon = self.reward_params.get("epsilon", 0.2 if include_puck else 0.1)
         if include_puck:
             self.goal_space = Box(
                 low=np.array([-arm_range, -arm_range, -arm_range, -1, -1]),

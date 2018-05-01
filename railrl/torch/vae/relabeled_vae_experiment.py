@@ -45,7 +45,7 @@ def experiment(variant):
         track_qpos_goal = variant.get("track_qpos_goal", 0)
         env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
             use_vae_reward=True, use_vae_goals=use_vae_goals,
-            decode_goals=True,
+            decode_goals=render,
             render_goals=render, render_rollouts=render,
             render_decoded=render,
             reward_params=reward_params,

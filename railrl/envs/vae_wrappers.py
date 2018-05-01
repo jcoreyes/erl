@@ -91,36 +91,24 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
 
     def mode(self, name):
         self.current_mode = name
-        if name == "debug":
-            self.decode_goals = True
-            self.render_goals = True
-            self.render_rollouts = True
-            self.render_decoded = True
-            self.use_vae_goals = False
-        elif name == "train":
+        if name == "train":
             self.use_vae_goals = True
-            self.decode_goals = False
-            self.render_goals = False
-            self.render_rollouts = False
-            self.render_decoded = False
         elif name == "train_env_goals":
             self.use_vae_goals = False
-            self.decode_goals = False
-            self.render_goals = False
-            self.render_rollouts = False
-            self.render_decoded = False
         elif name == "test":
             self.use_vae_goals = False
-            self.decode_goals = False
-            self.render_goals = False
-            self.render_rollouts = False
-            self.render_decoded = False
         elif name == "video_vae":
             self.use_vae_goals = True
             self.decode_goals = True
+            self.render_goals = False
+            self.render_rollouts = False
+            self.render_decoded = False
         elif name == "video_env":
             self.use_vae_goals = False
             self.decode_goals = False
+            self.render_goals = False
+            self.render_rollouts = False
+            self.render_decoded = False
         else:
             error
 
