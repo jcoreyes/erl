@@ -432,13 +432,14 @@ class SawyerPushXYEnv(SawyerPushEnv):
 
     @property
     def init_angles(self):
-        # return [6.49751287e-01, -6.13245189e-01, 3.68179034e-01,
-        #         1.55969534e+00, -4.67787323e-01, 7.11615700e-01,
-        #         2.97853855e+00, 3.12823177e-02, 1.82764768e-01,
-        #         6.01241700e-01, 2.09921520e-02, 9.99984569e-01,
-        #         1.29839525e-06,  4.60381956e-06,  5.55527642e-03,
-        #         -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
-        #         1, 0, 0, 0]
+        # To start on right side of Sawyer (from Sawyer's POV).
+        return [6.49751287e-01, -6.13245189e-01, 3.68179034e-01,
+                1.55969534e+00, -4.67787323e-01, 7.11615700e-01,
+                2.97853855e+00, 3.12823177e-02, 1.82764768e-01,
+                6.01241700e-01, 2.09921520e-02, 9.99984569e-01,
+                1.29839525e-06,  4.60381956e-06,  5.55527642e-03,
+                -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
+                1, 0, 0, 0]
         # To start in middle:
         # return [
             # 1.02866769e+00, - 6.95207647e-01, 4.22932911e-01,
@@ -450,17 +451,6 @@ class SawyerPushXYEnv(SawyerPushEnv):
             # 1.00000000e+00, 3.76632959e-14, 1.36837913e-11,
             # 1.56567415e-23
         # ]
-        # To start on right side of Sawyer (from Sawyer's POV).
-        return [
-            1.02866769e+00, - 6.95207647e-01,   4.22932911e-01,
-             1.76670458e+00, - 5.69637604e-01,   6.24117280e-01,
-             3.53404635e+00,   2.99584816e-02, - 2.00417049e-02,
-             6.07093769e-01,   2.10679106e-02,   9.99910945e-01,
-             - 4.60349085e-05, - 1.78179392e-03, - 1.32259491e-02,
-             1.07586388e-02, 6.62018003e-01,   2.09936716e-02,
-             1.00000000e+00,   3.76632959e-14, 1.36837913e-11,
-             1.56567415e-23
-        ]
 
     def step(self, a):
         a = np.clip(a, -1, 1)
@@ -493,8 +483,8 @@ class SawyerPushXYEnv(SawyerPushEnv):
     def sample_goal_xyz(self):
         if self.randomize_goals:
             pos = np.random.uniform(
-                np.array([0.2, 0.5, 0.02]),
-                np.array([0.2, 0.7, 0.02]),
+                np.array([-0.2, 0.5, 0.02]),
+                np.array([-0.2, 0.7, 0.02]),
             )
         else:
             pos = np.array([0.2, 0.6, 0.02])
@@ -502,8 +492,8 @@ class SawyerPushXYEnv(SawyerPushEnv):
 
     def sample_block_xyz(self):
         pos = np.random.uniform(
-            np.array([-0.1, 0.5, 0.02]),
-            np.array([-0.1, 0.7, 0.02]),
+            np.array([0, 0.5, 0.02]),
+            np.array([0.1, 0.7, 0.02]),
         )
         while np.linalg.norm(pos[:2]) < 0.1:
             pos = np.random.uniform(

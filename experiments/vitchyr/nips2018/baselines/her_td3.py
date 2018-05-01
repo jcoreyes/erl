@@ -81,8 +81,8 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             num_epochs=300,
-            num_steps_per_epoch=10000,
-            num_steps_per_eval=10000,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             # num_epochs=50,
             # num_steps_per_epoch=100,
             # num_steps_per_eval=100,
@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-easy-ish-check'
+    exp_prefix = 'sawyer-sim-push-easy-ish-check-fixed-env'
 
     search_space = {
         # 'env_kwargs.randomize_goals': [True, False],

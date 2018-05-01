@@ -29,6 +29,13 @@ def example(variant):
     logger.log("end")
     logger.log('Local date & time is: {}'.format(date.strftime(date_format)))
 
+    logger.log("start mujoco")
+    from gym.envs.mujoco import HalfCheetahEnv
+    e = HalfCheetahEnv()
+    img = e.sim.render(32, 32)
+    logger.log(str(sum(img)))
+    logger.log("end mujocoy")
+
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
@@ -41,7 +48,7 @@ if __name__ == "__main__":
     )
     run_experiment(
         example,
-        exp_prefix="ec2-gpu-default-test-2",
+        exp_prefix="ec2-gpu-test-mj-and-torch",
         mode='ec2',
         variant=variant,
         use_gpu=True,
