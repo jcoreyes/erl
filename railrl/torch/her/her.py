@@ -30,9 +30,11 @@ class HER(TorchRLAlgorithm):
     """
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
-        self._rollout_goal = self.env.sample_goal_for_rollout()
-        self.training_env.set_goal(self._rollout_goal)
-        return self.training_env.reset()
+        # self._rollout_goal = self.env.sample_goal_for_rollout()
+        # self.training_env.set_goal(self._rollout_goal)
+        o = self.training_env.reset()
+        self._rollout_goal = self.training_env.multitask_goal.copy()
+        return o
 
     def _handle_step(
             self,
