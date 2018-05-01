@@ -8,10 +8,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "ashvin/vae/new-pusher2d/run2/id0/params.pkl",
-        "4": "ashvin/vae/new-pusher2d/run2/id1/params.pkl",
-        "8": "ashvin/vae/new-pusher2d/run2/id2/params.pkl",
-        "16": "ashvin/vae/new-pusher2d/run2/id3/params.pkl"
+        "2": "ashvin/vae/new-reacher2d/run1/id0/params.pkl",
+        "4": "ashvin/vae/new-reacher2d/run1/id1/params.pkl",
+        "8": "ashvin/vae/new-reacher2d/run1/id2/params.pkl",
+        "16": "ashvin/vae/new-reacher2d/run1/id3/params.pkl"
     }
 
     variant = dict(
@@ -27,13 +27,9 @@ if __name__ == "__main__":
             # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
-            ignore_multitask_goal=False,
+            ignore_multitask_goal=True,
             include_puck=False,
             arm_range=0.1,
-            reward_params=dict(
-                type="sparse",
-                epsilon=0.1,
-            ),
         ),
         replay_kwargs=dict(
             fraction_goals_are_rollout_goals=0.2,
@@ -48,20 +44,26 @@ if __name__ == "__main__":
         vae_paths=vae_paths,
         wrap_mujoco_env=True,
         track_qpos_goal=5,
-        do_state_based_exp=True,
+        do_state_based_exp=False,
         exploration_noise=0.1,
+        reward_params=dict(
+            type="sparse",
+            epsilon=20.0,
+        ),
+        save_video=False,
     )
 
     n_seeds = 3
 
     search_space = {
         'exploration_type': [
-            'epsilon', 'gaussian',
+            'epsilon'
         ],
         'env_kwargs.arm_range': [1.0],
         'algo_kwargs.reward_scale': [1],
         'algo_kwargs.discount': [0.99],
-        'exploration_noise': [0.1, 0.2, 0.3],
+        'exploration_noise': [0.2],
+        'reward_params.epsilon': [20.0, 100.0, 5.0],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         # 'rdim': [2, 4, 8, 16],
@@ -70,4 +72,4 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=3)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)

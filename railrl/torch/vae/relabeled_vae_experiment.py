@@ -35,6 +35,7 @@ def experiment(variant):
         vae_path = variant["vae_paths"][str(rdim)]
         render = variant["render"]
         wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
+        reward_params = variant.get("reward_params", dict())
 
         if wrap_mujoco_env:
             env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True, normalize=True)
@@ -44,12 +45,17 @@ def experiment(variant):
             track_qpos_goal = variant.get("track_qpos_goal", 0)
             env = VAEWrappedImageGoalEnv(env, vae_path, use_vae_obs=True,
                 use_vae_reward=True, use_vae_goals=True,
-                render_goals=render, render_rollouts=render, track_qpos_goal=track_qpos_goal)
+                render_goals=render, render_rollouts=render,
+                track_qpos_goal=track_qpos_goal, reward_params=reward_params)
         else:
             env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
                 use_vae_reward=True, use_vae_goals=True,
-                render_goals=render, render_rollouts=render)
+                render_goals=render, render_rollouts=render,
+                reward_params=reward_params)
 
+        vae_wrapped_env = env
+
+    # import ipdb; ipdb.set_trace()
     env = MultitaskEnvToSilentMultitaskEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
@@ -120,15 +126,16 @@ def experiment(variant):
     save_video = variant.get("save_video", True)
     if not do_state_based_exp and save_video:
         from railrl.torch.vae.sim_vae_policy import dump_video
+        video_env = MultitaskToFlatEnv(vae_wrapped_env)
         logdir = logger.get_snapshot_dir()
         filename = osp.join(logdir, 'video_0.mp4')
-        dump_video(env, policy, filename)
+        dump_video(video_env, policy, filename)
 
     algorithm.train()
 
     if not do_state_based_exp and save_video:
         filename = osp.join(logdir, 'video_final.mp4')
-        dump_video(env, policy, filename)
+        dump_video(video_env, policy, filename)
 
 
 if __name__ == "__main__":

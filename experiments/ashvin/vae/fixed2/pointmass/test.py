@@ -8,10 +8,10 @@ from railrl.torch.vae.vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "ashvin/vae/new-reacher2d/run1/id0/params.pkl",
-        "4": "ashvin/vae/new-reacher2d/run1/id1/params.pkl",
-        "8": "ashvin/vae/new-reacher2d/run1/id2/params.pkl",
-        "16": "ashvin/vae/new-reacher2d/run1/id3/params.pkl"
+        "2": "ashvin/vae/new-point2d/run1/id0/params.pkl",
+        "4": "ashvin/vae/new-point2d/run1/id1/params.pkl",
+        "8": "ashvin/vae/new-point2d/run1/id2/params.pkl",
+        "16": "ashvin/vae/new-point2d/run1/id3/params.pkl"
     }
 
     variant = dict(
@@ -27,34 +27,34 @@ if __name__ == "__main__":
             # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
+            render_onscreen=False,
+            render_size=84,
             ignore_multitask_goal=True,
-            include_puck=False,
-            arm_range=1.0,
+            ball_radius=1,
         ),
         algorithm='TD3',
         normalize=False,
         rdim=4,
         render=False,
-        env=FullPusher2DEnv,
-        use_env_goals=True,
+        env=MultitaskImagePoint2DEnv,
+        use_env_goals=False,
         vae_paths=vae_paths,
-        wrap_mujoco_env=True,
-        track_qpos_goal=5,
-        do_state_based_exp=False,
+        track_qpos_goal=2,
     )
 
     n_seeds = 3
 
     search_space = {
         'exploration_type': [
-            'gaussian'
+            'ou',
         ],
-        'algo_kwargs.reward_scale': [0.01, 0.1, 1, 10],
-        'algo_kwargs.discount': [0.99],
+        'algo_kwargs.reward_scale': [1e-4],
+        'training_mode': ['train', 'train_env_goals', ],
+        'testing_mode': ['train', 'train_env_goals', ],
         'rdim': [2, 4, 8, 16],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=2)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=3)

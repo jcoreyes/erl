@@ -58,7 +58,7 @@ if __name__ == "__main__":
         'exploration_type': [
             'epsilon',
         ],
-        'env_kwargs.arm_range': [1.0],
+        'env_kwargs.arm_range': [0.5],
         'env_kwargs.reward_params.epsilon': [0.2],
         'algo_kwargs.reward_scale': [1],
         'algo_kwargs.num_updates_per_env_step': [1, 4, 16, 64],
@@ -72,4 +72,4 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=2)

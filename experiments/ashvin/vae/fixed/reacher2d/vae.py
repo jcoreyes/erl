@@ -29,7 +29,7 @@ if __name__ == "__main__":
         env_kwargs=dict(
             ignore_multitask_goal=True,
             include_puck=False,
-            arm_range=0.5,
+            arm_range=1.0,
         ),
         algorithm='TD3',
         normalize=False,
@@ -57,4 +57,4 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=2)

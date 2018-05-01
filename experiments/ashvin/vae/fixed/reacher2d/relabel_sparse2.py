@@ -58,7 +58,7 @@ if __name__ == "__main__":
         'exploration_type': [
             'epsilon', 'gaussian',
         ],
-        'env_kwargs.arm_range': [1.0],
+        'env_kwargs.arm_range': [.1],
         'algo_kwargs.reward_scale': [1],
         'algo_kwargs.discount': [0.99],
         'exploration_noise': [0.1, 0.2, 0.3],
