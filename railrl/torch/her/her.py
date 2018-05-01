@@ -109,10 +109,11 @@ class HER(TorchRLAlgorithm):
         agent_infos = []
         env_infos = []
         next_observations = []
-        o = self.env.reset()
         path_length = 0
-        goal = self.env.sample_goal_for_rollout()
-        self.env.set_goal(goal)
+        # goal = self.env.sample_goal_for_rollout()
+        # self.env.set_goal(goal)
+        o = self.env.reset()
+        goal = self.env.multitask_goal.copy()
         while path_length < self.max_path_length:
             a, agent_info = self.get_eval_action(o, goal)
             next_o, r, d, env_info = self.env.step(a)

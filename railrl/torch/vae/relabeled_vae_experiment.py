@@ -1,4 +1,4 @@
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
@@ -53,7 +53,7 @@ def experiment(variant):
 
         vae_wrapped_env = env
 
-    env = MultitaskToFlatEnv(env)
+    env = MultitaskEnvToSilentMultitaskEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
@@ -73,7 +73,7 @@ def experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
-    obs_dim = env.observation_space.low.size
+    obs_dim = env.observation_space.low.size + env.goal_space.low.size
     action_dim = env.action_space.low.size
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
@@ -106,12 +106,22 @@ def experiment(variant):
         testing_env.mode(testing_mode)
         training_env = pickle.loads(pickle.dumps(env))
         training_env.mode(training_mode)
-        video_vae_env = pickle.loads(pickle.dumps(env))
+        relabeling_env = pickle.loads(pickle.dumps(env))
+        relabeling_env.mode(training_mode)
+        video_vae_env = pickle.loads(pickle.dumps(vae_wrapped_env))
+        video_vae_env = MultitaskToFlatEnv(video_vae_env)
         video_vae_env.mode("video_vae")
-        video_goal_env = pickle.loads(pickle.dumps(env))
+        video_goal_env = pickle.loads(pickle.dumps(vae_wrapped_env))
+        video_goal_env = MultitaskToFlatEnv(video_goal_env)
         video_goal_env.mode("video_env")
 
-    algorithm = TD3(
+    replay_buffer = RelabelingReplayBuffer(
+        max_size=100000,
+        env=relabeling_env,
+        **variant['replay_kwargs']
+    )
+    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+    algorithm = RelabeledTd3(
         testing_env,
         training_env=training_env,
         qf1=qf1,
