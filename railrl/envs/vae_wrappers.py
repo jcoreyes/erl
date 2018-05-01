@@ -196,6 +196,12 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
 
+    def convert_obs_to_goals(self, obs):
+        return obs
+        # return ptu.get_numpy(
+            # self.vae.encode(ptu.np_to_var(obs))
+        # )
+
     def sample_goals(self, batch_size):
         goals = np.zeros((batch_size, self.representation_size))
         for i in range(batch_size):
