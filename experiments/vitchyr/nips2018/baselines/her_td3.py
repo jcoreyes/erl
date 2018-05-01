@@ -96,12 +96,13 @@ if __name__ == "__main__":
         # env_class=FetchPushEnv,
         env_kwargs=dict(
             frame_skip=50,
-            pos_action_scale=2./100,
+            only_reward_block_to_goal=True,
         ),
         replay_buffer_class=RelabelingReplayBuffer,
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_are_rollout_goals=0.2,
+            fraction_goals_are_rollout_goals=0.1,
+            fraction_goals_are_env_goals=0.5,
         ),
         normalize=True,
         algorithm='HER-TD3',
@@ -113,13 +114,13 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-push-longer-frameskip-and-pos-scale-2'
+    exp_prefix = 'sawyer-sim-push-easy-ish-check'
 
     search_space = {
         # 'env_kwargs.randomize_goals': [True, False],
         # 'env_kwargs.only_reward_block_to_goal': [False, True],
         # 'replay_buffer_kwargs.num_goals_to_sample': [4],
-        'replay_buffer_kwargs.fraction_goals_are_rollout_goals': [0.2],
+        # 'replay_buffer_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'algo_kwargs.num_updates_per_env_step': [
             1,
             # 5,

@@ -91,11 +91,13 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-xy-center-start'
+    exp_prefix = 'sawyer-sim-push-easy-ish-check'
 
     search_space = {
-        'env_kwargs.randomize_goals': [True, False],
-        'env_kwargs.only_reward_block_to_goal': [False, True],
+        'algo_kwargs.max_path_length': [
+            100,
+            50,
+        ],
         'exploration_type': [
             'ou',
             'epsilon',
