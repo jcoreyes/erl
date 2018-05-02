@@ -9,32 +9,39 @@ from railrl.torch.ddpg.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 import railrl.misc.hyperparameter as hyp
+import ray
+ray.init()
 
 def experiment(variant):
     env_params = variant['env_params']
     es_params = variant['es_params']
     env = SawyerXYZReachingEnv(**env_params)
-    # es = OUStrategy(action_space=env.action_space, **es_params)
-    es = EpsilonGreedy(
-        action_space=env.action_space,
-        prob_random_action=.2,
-    )
+    es = OUStrategy(action_space=env.action_space, **es_params)
+    hidden_sizes = variant['hidden_sizes']
+    # es = EpsilonGreedy(
+    #     action_space=env.action_space,
+    #     prob_random_action=.2,
+    # )
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     qf = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[hidden_sizes, hidden_sizes],
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[hidden_sizes, hidden_sizes],
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
     )
+    if variant['env_params']['relative_pos_control']:
+        variant['algo_params']['max_path_length'] = 3
+        variant['algo_params']['num_steps_per_epoch'] = 15
+        variant['algo_params']['num_steps_per_eval'] = 15
     algorithm = DDPG(
         env,
         qf=qf,
@@ -55,41 +62,49 @@ if __name__ == "__main__":
             num_steps_per_eval=50,
             use_soft_update=True,
             tau=1e-2,
-            batch_size=128,
+            batch_size=32,
             max_path_length=10,
             discount=0.9,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             render=False,
-            num_updates_per_env_step=1,
-            collection_mode='online-parallel',
             normalize_env=False,
             train_on_eval_paths=True,
         ),
         env_params=dict(
             action_mode='position',
             reward_magnitude=1,
-            desired=[0.5, 0.0, 0.15],
         ),
         es_params=dict(
             theta=.1,
             max_sigma=.25,
             min_sigma=.25
-        )
+        ),
+        hidden_sizes=100,
     )
     search_space = {
         'algo_params.reward_scale': [
-            # 1,
-            # 10,
-            100,
+            1,
         ],
         'algo_params.num_updates_per_env_step': [
-            # 5,
-            # 10,
-            15,
+            1,
+            5,
         ],
         'env_params.randomize_goal_on_reset': [
             False,
+            True,
+        ],
+        'algo_params.collection_mode':[
+            'online-parallel',
+            'online'
+        ],
+        'env_params.relative_pos_control':[
+            False,
+            True,
+        ],
+        'hidden_sizes':[
+            100,
+            200,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -98,7 +113,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 1
-        exp_prefix = 'sawyer_pos_ddpg_ik'
+        exp_prefix = 'sawyer_pos_ddpg_pos_sweep'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

@@ -64,7 +64,6 @@ if __name__ == "__main__":
     variant = dict(
         imsize=84,
         history=1,
-        env_id='DoubleInvertedPendulum-v2',
         algo_params=dict(
             num_epochs=1000,
             num_steps_per_epoch=1000,
