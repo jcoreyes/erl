@@ -30,9 +30,11 @@ class HER(TorchRLAlgorithm):
     """
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
-        self._rollout_goal = self.env.sample_goal_for_rollout()
-        self.training_env.set_goal(self._rollout_goal)
-        return self.training_env.reset()
+        # self._rollout_goal = self.env.sample_goal_for_rollout()
+        # self.training_env.set_goal(self._rollout_goal)
+        o = self.training_env.reset()
+        self._rollout_goal = self.training_env.multitask_goal.copy()
+        return o
 
     def _handle_step(
             self,
@@ -109,10 +111,11 @@ class HER(TorchRLAlgorithm):
         agent_infos = []
         env_infos = []
         next_observations = []
-        o = self.env.reset()
         path_length = 0
-        goal = self.env.sample_goal_for_rollout()
-        self.env.set_goal(goal)
+        # goal = self.env.sample_goal_for_rollout()
+        # self.env.set_goal(goal)
+        o = self.env.reset()
+        goal = self.env.multitask_goal.copy()
         while path_length < self.max_path_length:
             a, agent_info = self.get_eval_action(o, goal)
             next_o, r, d, env_info = self.env.step(a)
