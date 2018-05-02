@@ -27,12 +27,12 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
         self.observation_space = Box(
             -self.BOUNDARY_DIST * np.ones(2),
             self.BOUNDARY_DIST * np.ones(2),
-            dtype=np.float32,
+            # dtype=np.float32,
         )
         self.goal_space = Box(
             -self.BOUNDARY_DIST * np.ones(2),
             self.BOUNDARY_DIST * np.ones(2),
-            dtype=np.float32,
+            # dtype=np.float32,
         )
 
     def step(self, u):

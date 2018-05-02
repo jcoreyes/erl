@@ -5,22 +5,21 @@ import torch
 
 import railrl.torch.pytorch_util as ptu
 from railrl.core import logger
+from railrl.data_management.path_builder import PathBuilder
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.state_distance.tdm import TemporalDifferenceModel
 import torch.optim as optim
 import torch.nn as nn
-
 from railrl.torch.core import np_to_pytorch_batch
+from railrl.torch.inverse_model.rollout_util import InverseModelSimplePathSampler
 from railrl.torch.modules import HuberLoss
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
 
-class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
+class Inverse_Model(TorchRLAlgorithm):
     def __init__(
             self,
             env,
             exploration_policy,
-            tdm_kwargs,
             base_kwargs,
             policy=None,
             loss_fn=None,
@@ -29,13 +28,13 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
             policy_criterion='MSE',
             replay_buffer=None,
     ):
+
         TorchRLAlgorithm.__init__(
             self,
             env,
             exploration_policy,
             **base_kwargs
         )
-        super().__init__(**tdm_kwargs)
         self.policy = policy
         self.loss_fn=loss_fn
         self.policy_learning_rate = policy_learning_rate
@@ -48,7 +47,16 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
         elif policy_criterion=='Huber':
             self.policy_criterion = HuberLoss()
         self.eval_policy = self.policy
+        self._current_path_goal = None
         self.replay_buffer = replay_buffer
+        self._rollout_tau = np.array([self.max_path_length])
+        #TEMPORARY SAMPLER:
+        self.eval_sampler = InverseModelSimplePathSampler(
+            env=self.env,
+            policy=self.eval_policy,
+            max_samples=self.num_steps_per_eval,
+            max_path_length=self.max_path_length,
+        )
 
     @property
     def networks(self):
@@ -57,69 +65,20 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
         ]
 
     def get_batch(self):
-        batch = self.replay_buffer.random_batch_random_tau(self.batch_size, self.max_tau)
-        """
-        Update the goal states/rewards
-        """
-        num_steps_left = self._sample_taus_for_training(batch)
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
-        goals = batch['training_goals']
-        rewards = self._compute_scaled_rewards_np(
-            batch, obs, actions, next_obs, goals
-        )
-        terminals = batch['terminals']
-
-        #not too sure what this code does
-        if self.tau_sample_strategy == 'all_valid':
-            obs = np.repeat(obs, self.max_tau + 1, 0)
-            actions = np.repeat(actions, self.max_tau + 1, 0)
-            next_obs = np.repeat(next_obs, self.max_tau + 1, 0)
-            goals = np.repeat(goals, self.max_tau + 1, 0)
-            rewards = np.repeat(rewards, self.max_tau + 1, 0)
-            terminals = np.repeat(terminals, self.max_tau + 1, 0)
-
-        if self.finite_horizon:
-            terminals = 1 - (1 - terminals) * (num_steps_left != 0)
-        if self.terminate_when_goal_reached:
-            diff = self.env.convert_obs_to_goals(next_obs) - goals
-            goal_not_reached = (
-                    np.linalg.norm(diff, axis=1, keepdims=True)
-                    > self.goal_reached_epsilon
-            )
-            terminals = 1 - (1 - terminals) * goal_not_reached
-
-        if not self.dense_rewards:
-            rewards = rewards * terminals
-
-        """
-        Update the batch
-        """
-        batch['rewards'] = rewards
-        batch['terminals'] = terminals
-        batch['actions'] = actions
-        batch['num_steps_left'] = num_steps_left
-        batch['goals'] = goals
-        batch['observations'] = obs
-        batch['next_observations'] = next_obs
-
+        batch = self.replay_buffer.random_batch_random_tau(self.batch_size, max_tau=self.max_path_length)
         return np_to_pytorch_batch(batch)
 
     def _do_training(self):
         batch = self.get_batch()
         obs = batch['observations']
         actions = batch['actions']
-        num_steps_left = batch['num_steps_left']
         next_obs = batch['next_observations']
 
         """
         Policy operations.
         """
-        # import ipdb; ipdb.set_trace()
-        policy_actions = self.policy(
-            obs, self.env.convert_obs_to_goals(next_obs), num_steps_left, return_preactivations=False,
-        )
+        inputs = torch.cat((obs, self.env.convert_obs_to_goals(next_obs)), dim=1)
+        policy_actions = self.policy(inputs)
         policy_loss = self.policy_criterion(policy_actions, actions)
         """
         Update Networks
@@ -128,7 +87,8 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
         policy_loss.backward()
         self.policy_optimizer.step()
 
-        if self.eval_statistics is None:
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
             """
             This way, these statistics are only computed for one batch.
             """
@@ -140,6 +100,61 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
                 'Policy Action',
                 ptu.get_numpy(policy_actions),
             ))
+
+    def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
+        self.exploration_policy.reset()
+        self._current_path_goal = self.training_env.sample_goal_for_rollout()
+        self.training_env.set_goal(self._current_path_goal)
+        self._rollout_tau = np.array([self.max_path_length])
+        return self.training_env.reset()
+
+    def _get_action_and_info(self, observation):
+        """
+        Get an action to take in the environment.
+        :param observation:
+        :return:
+        """
+        self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
+        inputs = np.hstack((observation, self._current_path_goal))
+        return self.exploration_policy.get_action(inputs)
+
+    def _handle_step(
+            self,
+            observation,
+            action,
+            reward,
+            next_observation,
+            terminal,
+            agent_info,
+            env_info,
+    ):
+        self._current_path_builder.add_all(
+            observations=observation,
+            actions=action,
+            rewards=reward,
+            next_observations=next_observation,
+            terminals=terminal,
+            agent_infos=agent_info,
+            env_infos=env_info,
+            num_steps_left=self._rollout_tau,
+            goals=self._current_path_goal,
+        )
+        self._rollout_tau -= 1
+        if self._rollout_tau[0] < 0:
+            self._rollout_tau = np.array([self.max_path_length])
+
+    def _handle_rollout_ending(self):
+        self._n_rollouts_total += 1
+        if len(self._current_path_builder) > 0:
+            path = self._current_path_builder.get_all_stacked()
+            self.replay_buffer.add_path(path)
+            # self.replay_buffer.add_path(path)
+            self._exploration_paths.append(path)
+            self._current_path_builder = PathBuilder()
+
+    def _handle_path(self, path):
+        self._n_rollouts_total += 1
+        self.replay_buffer.add_path(path)
 
     def evaluate(self, epoch):
         statistics = OrderedDict()
@@ -158,16 +173,3 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
             exploration_policy=self.exploration_policy,
         )
         return snapshot
-
-    def _get_action_and_info(self, observation):
-        """
-        Get an action to take in the environment.
-        :param observation:
-        :return:
-        """
-        self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
-        return self.exploration_policy.get_action(
-            observation,
-            self._current_path_goal,
-            self._rollout_tau,
-        )

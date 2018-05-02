@@ -384,7 +384,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if len(self._current_path_builder) > 0:
             path = self._current_path_builder.get_all_stacked()
             self.replay_buffer.add_path(path)
-            self.replay_buffer.add_path(path)
             self._exploration_paths.append(path)
             self._current_path_builder = PathBuilder()
 

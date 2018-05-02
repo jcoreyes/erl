@@ -56,7 +56,7 @@ if __name__ == "__main__":
             max_path_length=max_path_length,
             batch_size=64,
             discount=0.99,
-            soft_target_tau=0.01,
+            soft_target_tau=0.001,
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
