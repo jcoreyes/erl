@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-easy-ish-check-fixed-env'
+    exp_prefix = 'sawyer-sim-push-63ddd2c50332985938149b8-xml'
 
     search_space = {
         # 'env_kwargs.randomize_goals': [True, False],

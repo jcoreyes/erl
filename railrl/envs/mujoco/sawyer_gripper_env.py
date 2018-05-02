@@ -11,8 +11,6 @@ from railrl.envs.env_utils import get_asset_full_path
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 
-from gym.envs.robotics import FetchPushEnv
-
 
 class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     """Implements a 3D-position controlled Sawyer environment"""
