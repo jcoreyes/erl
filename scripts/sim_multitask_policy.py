@@ -24,7 +24,6 @@ def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
     o = env.reset()
     if animated:
         env.render()
-    # import pdb; pdb.set_trace()
     while path_length < max_path_length:
         goal = env.multitask_goal
         new_o = np.hstack((o, goal))

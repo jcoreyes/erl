@@ -8,10 +8,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "ashvin/vae/new-reacher2d/run2/id0/params.pkl",
-        "4": "ashvin/vae/new-reacher2d/run2/id1/params.pkl",
-        "8": "ashvin/vae/new-reacher2d/run2/id2/params.pkl",
-        "16": "ashvin/vae/new-reacher2d/run2/id3/params.pkl"
+        "2": "ashvin/vae/new-reacher2d/run3/id0/params.pkl",
+        "4": "ashvin/vae/new-reacher2d/run3/id1/params.pkl",
+        "8": "ashvin/vae/new-reacher2d/run3/id2/params.pkl",
+        "16": "ashvin/vae/new-reacher2d/run3/id3/params.pkl"
     }
 
     variant = dict(
@@ -50,7 +50,7 @@ if __name__ == "__main__":
         track_qpos_goal=5,
     )
 
-    n_seeds = 3
+    n_seeds = 2
 
     search_space = {
         'exploration_type': [
@@ -59,10 +59,9 @@ if __name__ == "__main__":
         'algo_kwargs.reward_scale': [1],
         'training_mode': ['train', ],
         'testing_mode': ['train_env_goals', ],
-        'reward_params.epsilon': [1.0, 0.1],
+        'reward_params.epsilon': [1.0, 10.0],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
-        'env_kwargs.reward_params.epsilon': [0.5],
         'rdim': [2, 4, 8, 16],
         'seedid': range(n_seeds),
     }
