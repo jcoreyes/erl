@@ -161,13 +161,13 @@ def pop_tabular_prefix():
     _tabular_prefix_str = ''.join(_tabular_prefixes)
 
 
-def save_extra_data(data):
+def save_extra_data(data, file_name='extra_data.pkl'):
     """
     Data saved here will always override the last entry
 
     :param data: Something pickle'able.
     """
-    file_name = osp.join(_snapshot_dir, 'extra_data.pkl')
+    file_name = osp.join(_snapshot_dir, file_name)
     joblib.dump(data, file_name, compress=3)
 
 

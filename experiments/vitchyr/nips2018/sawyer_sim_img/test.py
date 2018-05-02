@@ -13,7 +13,7 @@ while True:
     for t in range(1000):
         action = env.action_space.sample()
         obs, reward, done, info = env.step(action)
-        raw_img = env.image_observation()
+        raw_img = env._image_observation()
         img = np.concatenate((
             raw_img[::-1, :, 2:3],
             raw_img[::-1, :, 1:2],

@@ -45,8 +45,8 @@ def experiment(variant):
 
 if __name__ == "__main__":
     num_epochs = 50
-    num_steps_per_epoch=500
-    num_steps_per_eval=200
+    num_steps_per_epoch=1000
+    num_steps_per_eval=1000
     max_path_length=100
     variant = dict(
         algo_params=dict(
@@ -56,7 +56,6 @@ if __name__ == "__main__":
             max_path_length=max_path_length,
             batch_size=64,
             discount=0.99,
-            soft_target_tau=0.001,
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
@@ -77,17 +76,25 @@ if __name__ == "__main__":
         ],
         'algo_params.num_updates_per_env_step': [
             1,
+            4,
         ],
         'algo_params.soft_target_tau': [
-            .01,
+            .001,
         ],
+        'algo_params.collection_mode':[
+            'online-parallel',
+            'online',
+        ],
+        'env_params.randomize_goal_on_reset': [
+            False,
+        ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     n_seeds = 1
     for variant in sweeper.iterate_hyperparameters():
-        exp_prefix = 'sac_reaching_smaller_architecture_parallel'
+        exp_prefix = 'sawyer_torque_ddpg_xyz_fixed_ee'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

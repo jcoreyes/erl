@@ -65,12 +65,12 @@ def experiment(variant):
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = "local"
+    mode = "here_no_doodad"
     exp_prefix = "dev-tdm-example-7dof-reacher"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "tdm-example-7dof-reacher-nupo-25-x-axis-100steps-2"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "tdm-example-7dof-reacher-nupo-25-x-axis-100steps-2"
 
     variant = dict(
         ddpg_tdm_kwargs=dict(

@@ -30,8 +30,8 @@ class ProxyEnv(Serializable, Env):
     def step(self, action):
         return self._wrapped_env.step(action)
 
-    def render(self, *args, **kwargs):
-        return self._wrapped_env.render(*args, **kwargs)
+    # def render(self, *args, **kwargs):
+    #     return self._wrapped_env.render(*args, **kwargs)
 
     def log_diagnostics(self, paths, *args, **kwargs):
         if hasattr(self._wrapped_env, 'log_diagnostics'):
@@ -59,6 +59,8 @@ class ImageMujocoEnv(ProxyEnv, Env):
                  init_camera=None,
                  camera_name=None,
                  transpose=False,
+                 grayscale=False,
+                 normalize=False,
     ):
         self.quick_init(locals())
         super().__init__(wrapped_env)
@@ -76,8 +78,10 @@ class ImageMujocoEnv(ProxyEnv, Env):
             viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=-1)
             init_camera(viewer.cam)
             sim.add_render_context(viewer)
-        self.camera_name = camera_name
+        self.camera_name = camera_name # None means default camera
         self.transpose = transpose
+        self.grayscale = grayscale
+        self.normalize = normalize
 
         self.observation_space = Box(low=0.0,
                                      high=1.0,
@@ -90,7 +94,7 @@ class ImageMujocoEnv(ProxyEnv, Env):
         observation = self._image_observation()
         self.history.append(observation)
         history = self._get_history().flatten()
-        full_obs = self._add_extra_info(history, true_state)
+        full_obs = self._get_obs(history, true_state)
         return full_obs, reward, done, info
 
     def reset(self):
@@ -100,22 +104,24 @@ class ImageMujocoEnv(ProxyEnv, Env):
         observation = self._image_observation()
         self.history.append(observation)
         history = self._get_history().flatten()
-        full_obs = self._add_extra_info(history, true_state)
+        full_obs = self._get_obs(history, true_state)
         return full_obs
 
-    def _add_extra_info(self, history_flat, true_state):
+    def _get_obs(self, history_flat, true_state):
         # adds extra information from true_state into to the image observation.
         # Used in ImageWithObsEnv.
         return history_flat
 
     def _image_observation(self):
         # returns the image as a torch format np array
-        image_obs = self._wrapped_env.sim.render(width=self.imsize, height=self.imsize)
-        image_obs = Image.fromarray(image_obs).convert('L')
-        #image_obs.save('images/' + str(self.i) + '.png')
-        #self.i += 1
-        image_obs = np.array(image_obs)
-        image_obs = image_obs / 255.0
+        image_obs = self._wrapped_env.sim.render(width=self.imsize, height=self.imsize, camera_name=self.camera_name)
+        if self.grayscale:
+            image_obs = Image.fromarray(image_obs).convert('L')
+            image_obs = np.array(image_obs)
+        if self.normalize:
+            image_obs = image_obs / 255.0
+        if self.transpose:
+            image_obs = image_obs.transpose()
         return image_obs
 
     def _get_history(self):
@@ -145,7 +151,7 @@ class ImageMujocoWithObsEnv(ImageMujocoEnv):
                                      shape=(self.image_length * self.history_length +
                                             self.wrapped_env.obs_dim,))
 
-    def _add_extra_info(self, history_flat, true_state):
+    def _get_obs(self, history_flat, true_state):
         return np.concatenate([history_flat,
                                true_state])
 

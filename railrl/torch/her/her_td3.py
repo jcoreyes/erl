@@ -1,5 +1,5 @@
-
-from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer
+from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer, \
+    RelabelingReplayBuffer
 from railrl.torch.her.her import HER
 from railrl.torch.td3.td3 import TD3
 
@@ -11,4 +11,8 @@ class HerTd3(HER, TD3):
             **kwargs
     ):
         super().__init__(*args, **kwargs)
-        assert isinstance(self.replay_buffer, SimpleHerReplayBuffer)
+        assert isinstance(
+            self.replay_buffer, SimpleHerReplayBuffer
+        ) or isinstance(
+            self.replay_buffer, RelabelingReplayBuffer
+        )

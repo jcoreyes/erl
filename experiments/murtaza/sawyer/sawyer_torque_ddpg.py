@@ -46,14 +46,13 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=50,
-            num_steps_per_epoch=500,
-            num_steps_per_eval=500,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             use_soft_update=True,
             max_path_length=100,
             render=False,
             normalize_env=False,
             train_on_eval_paths=True,
-            num_updates_per_env_step=1,
         ),
         es_kwargs=dict(
             theta=0.1,
@@ -68,17 +67,15 @@ if __name__ == "__main__":
     search_space = {
         'algo_params.num_updates_per_env_step': [
             1,
-            #2,
             3,
-            #4,
+            4,
         ],
         'algo_params.reward_scale': [
             1,
-            100,
-            #1000,
+            #100,
         ],
         'env_params.randomize_goal_on_reset': [
-            False,
+            True,
         ],
         'algo_params.batch_size': [
             64,
@@ -92,8 +89,8 @@ if __name__ == "__main__":
     )
 
     for variant in sweeper.iterate_hyperparameters():
-        n_seeds = 3
-        exp_prefix = 'sawyer_torque_ddpg_xyz_reaching'
+        n_seeds = 1
+        exp_prefix = 'sawyer_torque_ddpg_xyz_varying_ee'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

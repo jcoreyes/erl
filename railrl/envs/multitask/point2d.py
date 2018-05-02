@@ -88,6 +88,9 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
         Point2DEnv.log_diagnostics(self, paths, **kwargs)
         MultitaskEnv.log_diagnostics(self, paths, **kwargs)
 
+    def get_qpos(self):
+        return self._position.copy()
+
 class MultitaskImagePoint2DEnv(MultitaskPoint2DEnv, MultitaskEnv):
     def _get_observation(self):
         return self.get_image()
