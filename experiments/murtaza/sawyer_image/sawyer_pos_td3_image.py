@@ -9,6 +9,7 @@ from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 import torch
+from railrl.torch.td3.td3 import TD3
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 from sawyer_control.sawyer_image import ImageSawyerEnv
 
@@ -26,10 +27,17 @@ def experiment(variant):
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
 
-    qf = MergedCNN(input_width=imsize,
+    qf1 = MergedCNN(input_width=imsize,
                    input_height=imsize,
                    output_size=1,
                    input_channels= 3 * history,
+                   added_fc_input_size=action_dim,
+                   **variant['cnn_params'])
+
+    qf2 = MergedCNN(input_width=imsize,
+                   input_height=imsize,
+                   output_size=1,
+                   input_channels=3 * history,
                    added_fc_input_size=action_dim,
                    **variant['cnn_params'])
 
@@ -47,12 +55,13 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    algorithm = DDPG(
+    algorithm = TD3(
         env,
-        qf=qf,
+        qf1=qf1,
+        qf2=qf2,
         policy=policy,
         exploration_policy=exploration_policy,
-        **variant['algo_params']
+        **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
         algorithm.cuda()
@@ -65,21 +74,16 @@ if __name__ == "__main__":
     variant = dict(
         imsize=84,
         history=1,
-        algo_params=dict(
-            num_epochs=1000,
+        algo_kwargs=dict(
+            num_epochs=50,
             num_steps_per_epoch=1000,
-            num_steps_per_eval=500,
+            num_steps_per_eval=1000,
             batch_size=64,
             max_path_length=100,
-            discount=.99,
-
-            use_soft_update=True,
-            tau=1e-3,
-            qf_learning_rate=1e-3,
-            policy_learning_rate=1e-4,
-
-            save_replay_buffer=False,
-            replay_buffer_size=int(2E4),
+            discount=0.99,
+            train_on_eval_paths=True,
+            replay_buffer_size=int(1E6),
+            normalize_env=False,
         ),
         cnn_params=dict(
             kernel_sizes=[5, 5],

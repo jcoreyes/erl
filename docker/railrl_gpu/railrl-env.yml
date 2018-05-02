@@ -1,4 +1,4 @@
-name: railrl-env
+name: railrl-env-gpu
 channels:
 - kne  # for pybox2d
 - pytorch
