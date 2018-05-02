@@ -10,6 +10,10 @@
         <geom friction=".8 .1 .1" density="300" margin="0.002" condim="1" contype="1" conaffinity="1"/>
     </default>
 
+    <visual>
+        <headlight ambient="0.5 0.5 0.5"  />
+    </visual>
+
     <worldbody>
         <!-- <light diffuse=".5 .5 .5" pos="0 0 3" dir="0 0 -1"/> -->
         <geom type="plane" pos="0 0.5 -0.15" size="2 2 0.1" contype="1" conaffinity="1"/>

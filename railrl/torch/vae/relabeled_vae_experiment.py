@@ -98,6 +98,7 @@ def experiment(variant):
     if do_state_based_exp:
         testing_env = env
         training_env = env
+        relabeling_env = pickle.loads(pickle.dumps(env))
     else:
         training_mode = variant.get("training_mode", "train")
         testing_mode = variant.get("testing_mode", "test")

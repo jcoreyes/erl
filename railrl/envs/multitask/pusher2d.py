@@ -523,7 +523,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         self.arm_range = arm_range
         self.reward_params = reward_params
         self.reward_type = self.reward_params["type"]
-        self.epsilon = self.reward_params.get("epsilon", 0.2 if include_puck else 0.1)
+        self.epsilon = self.reward_params.get("epsilon", 0.5 if include_puck else 0.5)
         if include_puck:
             self.goal_space = Box(
                 low=np.array([-arm_range, -arm_range, -arm_range, -1, -1]),
@@ -581,6 +581,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         qpos = self.sim.data.qpos.flat.copy()
         qvel = self.sim.data.qvel.flat.copy()
         qpos[:3] = self._target_hand_position
+        qpos[3:5] = self._target_cylinder_position
         # qpos[-4:-2] = self._target_cylinder_position
         # qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
