@@ -38,8 +38,20 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
     """This class wraps an image-based environment with a VAE.
     Assumes you get flattened (channels,84,84) observations from wrapped_env.
     """
-    def __init__(self, wrapped_env, vae, use_vae_obs=True, use_vae_reward=True, use_vae_goals=True,
-        render_goals=False, render_rollouts=False):
+    def __init__(self, wrapped_env, vae,
+        use_vae_obs=True,
+        use_vae_reward=True,
+        use_vae_goals=True, # whether you use goals from VAE or rendered from environment state
+
+        decode_goals=False,
+        render_goals=False,
+        render_rollouts=False,
+        render_decoded=False,
+
+        reward_params=dict(),
+        track_qpos_goal=0,
+        mode="train",
+    ):
         self.quick_init(locals())
         super().__init__(wrapped_env)
         if type(vae) is str:
@@ -51,8 +63,16 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
         self.use_vae_goals = use_vae_goals
         self.use_vae_reward = use_vae_reward
         self.use_vae_obs = use_vae_obs
+
+        self.decode_goals = decode_goals
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
+        self.render_decoded = render_decoded
+
+        self.track_qpos_goal = track_qpos_goal
+        self.reward_params = reward_params
+        self.reward_type = self.reward_params.get("type", None)
+        self.epsilon = self.reward_params.get("epsilon", 20)
         if ptu.gpu_enabled():
             self.vae.cuda()
 
@@ -66,6 +86,35 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
             10 * np.ones(self.representation_size),
             dtype=np.float32,
         )
+
+        self.mode(mode)
+
+    def mode(self, name):
+        self.current_mode = name
+        if name == "train":
+            self.use_vae_goals = True
+        elif name == "train_env_goals":
+            self.use_vae_goals = False
+        elif name == "test":
+            self.use_vae_goals = False
+        elif name == "video_vae":
+            self.use_vae_goals = True
+            self.decode_goals = True
+            self.render_goals = False
+            self.render_rollouts = False
+            self.render_decoded = False
+        elif name == "video_env":
+            self.use_vae_goals = False
+            self.decode_goals = False
+            self.render_goals = False
+            self.render_rollouts = False
+            self.render_decoded = False
+        else:
+            error
+
+    @property
+    def goal_dim(self):
+        return self.representation_size
 
     def step(self, action):
         observation, reward, done, info = self._wrapped_env.step(action)
@@ -85,7 +134,30 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
             dist = self.multitask_goal - observation
             var = np.exp(ptu.get_numpy(logvar).flatten())
             err = dist * dist / 2 / var
-            reward = -np.sum(err)
+            mdist = np.sum(err) # mahalanobis distance
+            if self.reward_type is None:
+                reward = -mdist
+            elif self.reward_type == "sparse":
+                reward = 0 if mdist < self.epsilon else -1
+            info["vae_mdist"] = mdist
+            info["vae_success"] = 1 if mdist < self.epsilon else 0
+
+        if self.track_qpos_goal:
+            if not self.use_vae_goals:
+                qpos = self.get_qpos()
+                qpos_d = abs(qpos - self.qpos_goal)
+                for i in range(self.track_qpos_goal):
+                    name = "qpos_d" + str(i)
+                    info[name] = qpos_d[i]
+                info["qpos"] = qpos
+                info["qpos_goal"] = self.qpos_goal
+            else: # garbage for consistent logging
+                for i in range(self.track_qpos_goal):
+                    name = "qpos_d" + str(i)
+                    info[name] = 0
+                info["qpos"] = self.get_qpos()
+                info["qpos_goal"] = None
+
         return observation, reward, done, info
 
     def reset(self):
@@ -112,14 +184,17 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
 
+    def convert_obs_to_goals(self, obs):
+        return obs
+        # return ptu.get_numpy(
+            # self.vae.encode(ptu.np_to_var(obs))
+        # )
+
     def sample_goals(self, batch_size):
-        if self.use_vae_goals:
-            mu, sigma = self.vae.dist_mu, self.vae.dist_std
-            # mu, sigma = 0, 1 # sample from prior
-            n = np.random.randn(batch_size, self.representation_size)
-            return sigma * n + mu
-        else:
-            return self._wrapped_env.sample_goals(batch_size)
+        goals = np.zeros((batch_size, self.representation_size))
+        for i in range(batch_size):
+            goals[i, :] = self.sample_goal_for_rollout()
+        return goals
 
     def sample_goal_for_rollout(self):
         """
@@ -127,107 +202,47 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
         do rollouts.
         :return:
         """
-        goal = self.sample_goals(1)
+        if self.use_vae_goals:
+            mu, sigma = self.vae.dist_mu, self.vae.dist_std
+            # mu, sigma = 0, 1 # sample from prior
+            n = np.random.randn(self.representation_size)
+            goal = sigma * n + mu
+        else:
+            observation = self._wrapped_env.reset() # TODO: instead of reset this should probably operate sample_goal...
+            if self.track_qpos_goal:
+                self.qpos_goal = self.get_qpos()
+            self.true_goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
+            img = Variable(ptu.from_numpy(observation))
+            e = self.vae.encode(img)[0]
+            goal = ptu.get_numpy(e).flatten()
 
-        # this could be optional, as its not necessary for training
-        observation = self.vae.decode(Variable(ptu.from_numpy(goal))).data.view(1, self.input_channels, 84, 84)
-        observation = ptu.get_numpy(observation)
-        self.goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
+        if self.decode_goals:
+            observation = self.vae.decode(Variable(ptu.from_numpy(goal))).data.view(1, self.input_channels, 84, 84)
+            observation = ptu.get_numpy(observation)
+            self.goal_decoded = observation.reshape(self.input_channels, 84, 84).transpose()
 
-        if self.render_goals:
+        if self.use_vae_goals:
+            if self.decode_goals:
+                self.goal_obs = self.goal_decoded
+        else:
+            self.goal_obs = self.true_goal_obs
+
+        if self.render_goals and not self.use_vae_goals:
             cv2.imshow('goal', self.goal_obs)
             cv2.waitKey(1)
-        return goal[0]
 
-class VAEWrappedImageGoalEnv(ProxyEnv, Env):
-    """This class wraps an image-based environment with a VAE.
-    Assumes you get flattened (channels,84,84) observations from wrapped_env.
-    Additionally this class assumes that if do reset() on the wrapped env you
-    get a goal state, and uses that as a goal for rollout instead of from the
-    VAE prior.
-    """
-    def __init__(self, wrapped_env, vae,
-        use_vae_obs=True, use_vae_reward=True, use_vae_goals=True,
-        render_goals=False, render_rollouts=False, track_qpos_goal=0):
-        self.quick_init(locals())
-        super().__init__(wrapped_env)
-        if type(vae) is str:
-            self.vae = load_vae(vae)
-        else:
-            self.vae = vae
-        self.representation_size = self.vae.representation_size
-        self.input_channels = self.vae.input_channels
-        self.use_vae_goals = use_vae_goals
-        self.use_vae_reward = use_vae_reward
-        self.use_vae_obs = use_vae_obs
-        self.render_goals = render_goals
-        self.render_rollouts = render_rollouts
-        self.track_qpos_goal = track_qpos_goal
-        if ptu.gpu_enabled():
-            self.vae.cuda()
-
-        self.observation_space = Box(
-            -10 * np.ones(self.representation_size),
-            10 * np.ones(self.representation_size),
-            dtype=np.float32,
-        )
-        self.goal_space = Box(
-            -10 * np.ones(self.representation_size),
-            10 * np.ones(self.representation_size),
-            dtype=np.float32,
-        )
-
-    def step(self, action):
-        observation, reward, done, info = self._wrapped_env.step(action)
-        self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
-        if self.render_rollouts:
-            cv2.imshow('env', self.cur_obs)
+        if self.render_goals:
+            cv2.imshow('decoded', self.goal_decoded)
             cv2.waitKey(1)
-        if self.use_vae_obs:
-            img = Variable(ptu.from_numpy(observation))
-            if ptu.gpu_enabled():
-                self.vae.cuda()
-            mu, logvar = self.vae.encode(img)
-            observation = ptu.get_numpy(mu).flatten()
-        if self.use_vae_reward:
-            # replace reward with Euclidean distance in VAE latent space
-            # currently assumes obs and goals are also from VAE
-            dist = self.multitask_goal - observation
-            var = np.exp(ptu.get_numpy(logvar).flatten())
-            err = dist * dist / 2 / var
-            reward = -np.sum(err)
 
-        if self.track_qpos_goal:
-            qpos = self.get_qpos()
-            qpos_d = abs(qpos - self.qpos_goal)
-            for i in range(self.track_qpos_goal):
-                name = "qpos_d" + str(i)
-                info[name] = qpos_d[i]
-            info["qpos"] = qpos
-            info["qpos_goal"] = self.qpos_goal
-
-        return observation, reward, done, info
-
-    def reset(self):
-        observation = self._wrapped_env.reset()
-        self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
-        if self.render_rollouts:
-            cv2.imshow('env', self.cur_obs)
-            cv2.waitKey(1)
-        if self.use_vae_obs:
-            img = Variable(ptu.from_numpy(observation))
-            if ptu.gpu_enabled():
-                self.vae.cuda()
-            e = self.vae.encode(img)[0]
-            observation = ptu.get_numpy(e).flatten()
-        return observation
+        return goal
 
     def log_diagnostics(self, paths, logger=default_logger, **kwargs):
         super().log_diagnostics(paths, logger=logger, **kwargs)
 
         statistics = OrderedDict()
-        for i in range(self.track_qpos_goal):
-            stat_name_in_paths = "qpos_d" + str(i)
+        names = ["qpos_d" + str(i) for i in range(self.track_qpos_goal)] + ["vae_mdist", "vae_success"]
+        for stat_name_in_paths in names:
             stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
             statistics.update(create_stats_ordered_dict(
                 stat_name_in_paths,
@@ -242,32 +257,3 @@ class VAEWrappedImageGoalEnv(ProxyEnv, Env):
             ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
-
-    def enable_render(self):
-        self.render_goals=True
-        self.render_rollouts=True
-
-    """
-    Multitask functions
-    """
-    def set_goal(self, goal):
-        MultitaskEnv.set_goal(self, goal)
-
-    def sample_goal_for_rollout(self):
-        """
-        These goals are fed to a policy when the policy wants to actually
-        do rollouts.
-        :return:
-        """
-        observation = self._wrapped_env.reset()
-        if self.track_qpos_goal:
-            self.qpos_goal = self.get_qpos()
-        self.goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
-        if self.render_goals:
-            cv2.imshow('goal', self.goal_obs)
-            cv2.waitKey(1)
-        img = Variable(ptu.from_numpy(observation))
-        if ptu.gpu_enabled():
-            self.vae.cuda()
-        e = self.vae.encode(img)[0]
-        return ptu.get_numpy(e).flatten()
