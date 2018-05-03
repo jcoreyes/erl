@@ -81,8 +81,11 @@ class ConvVAETrainer():
             size_average=False
         )
 
-    def kl_divergence(self, recon_x, x, mu, logvar):
-        return -self.beta * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    def kl_divergence(self, recon_x, x, mu, logvar, epoch):
+        if epoch > 100:
+            return - (epoch + 1) / 150 * self.beta * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        else:
+            return 0 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
     def train_epoch(self, epoch):
         self.model.train()
@@ -94,7 +97,7 @@ class ConvVAETrainer():
             self.optimizer.zero_grad()
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = self.kl_divergence(recon_batch, data, mu, logvar)
+            kle = self.kl_divergence(recon_batch, data, mu, logvar, epoch)
             loss = bce + kle
             loss.backward()
 
@@ -125,7 +128,7 @@ class ConvVAETrainer():
             data = self.get_batch()
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = self.kl_divergence(recon_batch, data, mu, logvar)
+            kle = self.kl_divergence(recon_batch, data, mu, logvar, epoch)
             loss = bce + kle
 
             z_data = ptu.get_numpy(mu.cpu())
@@ -263,6 +266,7 @@ class ConvVAE(nn.Module):
         self.fc2.bias.data.uniform_(-init_w, init_w)
 
     def encode(self, input):
+        input = input.view(-1, self.imlength + self.added_fc_size)
         conv_input = input.narrow(start=0, length=self.imlength, dimension=1)
 
         # batch_size = input.size(0)
@@ -356,6 +360,7 @@ class SpatialVAE(ConvVAE):
         self.fc2.bias.data.uniform_(-init_w, init_w)
 
     def encode(self, input):
+        input = input.view(-1, self.imlength + self.added_fc_size)
         conv_input = input.narrow(start=0, length=self.imlength, dimension=1)
 
         # batch_size = input.size(0)
