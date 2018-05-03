@@ -14,10 +14,6 @@ from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
-import railrl.images.camera as camera
-from railrl.envs.mujoco.pusher2d import RandomGoalPusher2DEnv
-from railrl.envs.wrappers import ImageMujocoEnv
-import pdb
 
 import numpy as np
 from PIL import Image
@@ -36,7 +32,7 @@ class CNN(PyTorchModule):
                 hidden_sizes=[],
                 added_fc_input_size=0,
                 use_batch_norm=False,
-                init_w=3e-4,
+                init_w=1e-4,
                 hidden_activation=nn.ReLU(),
                 output_activation=identity
         ):
@@ -296,7 +292,6 @@ class MlpPolicy(Mlp, Policy):
         self.save_init_params(locals())
         super().__init__(*args, **kwargs)
         self.obs_normalizer = obs_normalizer
-        self.i = 0
 
     def forward(self, obs, **kwargs):
         if self.obs_normalizer:
@@ -305,7 +300,6 @@ class MlpPolicy(Mlp, Policy):
 
     def get_action(self, obs_np):
         actions = self.get_actions(obs_np[None])
-        self.i += 1
         return actions[0, :], {}
 
     def get_actions(self, obs):
@@ -320,49 +314,6 @@ class TanhMlpPolicy(MlpPolicy):
         self.save_init_params(locals())
         super().__init__(*args, output_activation=torch.tanh, **kwargs)
 
-
-class AETanhPolicy(Mlp, Policy):
-    """
-    A helper class since most policies have a tanh output activation.
-    """
-    def __init__(
-            self,
-            ae,
-            env,
-            history_length,
-            input_length,
-            *args,
-            obs_normalizer: TorchFixedNormalizer = None,
-            **kwargs
-    ):
-        self.save_init_params(locals())
-        super().__init__(*args, **kwargs, output_activation=torch.tanh)
-        self.ae = ae
-        self.obs_normalizer = obs_normalizer
-        self.history_length = history_length
-        self.input_length = input_length
-        self.env = env
-        self.i = 0
-
-    def forward(self, obs, **kwargs):
-        if self.obs_normalizer:
-            obs = self.obs_normalizer.normalize(obs)
-        return super().forward(obs, **kwargs)
-
-    def get_action(self, obs_np):
-        self.i += 1
-        obs = obs_np
-        obs = ptu.np_to_var(obs)
-        image_obs, fc_obs = self.env.split_obs(obs)
-        latent_obs = self.ae.history_encoder(image_obs, self.history_length)
-        if fc_obs is not None:
-            latent_obs = torch.cat((latent_obs, fc_obs), dim=1)
-        obs_np = ptu.get_numpy(latent_obs)[0] # jank [0] here. Not sure why needed...
-        actions = self.get_actions(obs_np[None])
-        return actions[0, :], {}
-
-    def get_actions(self, obs):
-        return self.eval_np(obs)
 
 class FeedForwardQFunction(PyTorchModule):
     def __init__(
@@ -514,52 +465,45 @@ class OuterProductFF(PyTorchModule):
         else:
             return output
 
-class Autoencoder(PyTorchModule):
+
+class AETanhPolicy(Mlp, Policy):
+    """
+    A helper class since most policies have a tanh output activation.
+    """
     def __init__(
             self,
-            input_length,
-            output_length,
-            latent_length
+            ae,
+            env,
+            history_length,
+            *args,
+            obs_normalizer: TorchFixedNormalizer = None,
+            **kwargs
     ):
         self.save_init_params(locals())
-        super().__init__()
-        self.input_length = input_length
-        self.output_length = output_length
-        self.latent_length = latent_length
-        #### Encoder ####
-        self.fc1 = nn.Linear(self.input_length, 400)
-        self.fc2 = nn.Linear(400, self.latent_length)
-        #### Decoder ####
-        self.fc3 = nn.Linear(self.latent_length, 400)
-        self.last_fc = nn.Linear(400, self.output_length)
+        super().__init__(*args, **kwargs, output_activation=torch.tanh)
+        self.ae = ae
+        self.obs_normalizer = obs_normalizer
+        self.history_length = history_length
+        self.env = env
 
+    def forward(self, obs, **kwargs):
+        if self.obs_normalizer:
+            obs = self.obs_normalizer.normalize(obs)
+        return super().forward(obs, **kwargs)
 
-    def forward(self, input):
-        h = self.encoder(input)
-        out = self.decoder(h)
-        return out
+    def get_action(self, obs_np):
+        obs = obs_np
+        obs = ptu.np_to_var(obs)
+        image_obs, fc_obs = self.env.split_obs(obs)
+        latent_obs = self.ae.history_encoder(image_obs, self.history_length)
+        if fc_obs is not None:
+            latent_obs = torch.cat((latent_obs, fc_obs), dim=1)
+        obs_np = ptu.get_numpy(latent_obs)[0]
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
 
-    def encoder(self, input):
-        x = input
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        return x
-
-    def decoder(self, input):
-        x = input
-        x = F.relu(self.fc3(x))
-        x = self.last_fc(x)
-        return x
-
-
-    def history_encoder(self, input, history_length):
-        input = input.contiguous().view(-1, self.input_length)
-        latent = self.encoder(input)
-
-        assert latent.shape[0] % history_length == 0
-        n_samples = latent.shape[0] // history_length
-        latent = latent.view(n_samples, -1)
-        return latent
+    def get_actions(self, obs):
+        return self.eval_np(obs)
 
 
 
@@ -600,7 +544,6 @@ class FeatPointMlp(PyTorchModule):
         self.fc1 = nn.Linear(2 * self.num_feat_points, 400)
         self.fc2 = nn.Linear(400, 300)
         self.last_fc = nn.Linear(300, self.input_channels * self.downsample_size* self.downsample_size)
-        #self.debug = nn.Linear(2 * self.num_feat_points, 3)
 
         self.init_weights(init_w)
         self.i = 0
@@ -645,10 +588,7 @@ class FeatPointMlp(PyTorchModule):
         h = F.relu(self.fc1(h))
         h = F.relu(self.fc2(h))
         h = self.last_fc(h)
-#        h = self.debug(h)
         return h
-
-
 
     def history_encoder(self, input, history_length):
         input = input.contiguous().view(-1,

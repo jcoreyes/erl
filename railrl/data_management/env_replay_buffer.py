@@ -47,7 +47,6 @@ class AEEnvReplayBuffer(EnvReplayBuffer):
     ):
         super().__init__(max_replay_buffer_size, env)
         self._downsampled = np.zeros((max_replay_buffer_size, history_length * downsampled_size * downsampled_size))
-        self._goal = np.zeros((max_replay_buffer_size, 3))
         self.imsize = imsize
         self.history_length = history_length
         self.downsampled_size = downsampled_size
@@ -66,7 +65,6 @@ class AEEnvReplayBuffer(EnvReplayBuffer):
         downsampled = np.concatenate(downsampled)
 
         self._downsampled[self._top] = downsampled
-        self._goal[self._top] = kwargs['env_info']['testing']
         return super().add_sample(observation, action, reward, terminal, next_observation, **kwargs)
 
     def random_batch(self, batch_size):
@@ -78,7 +76,6 @@ class AEEnvReplayBuffer(EnvReplayBuffer):
             terminals=self._terminals[indices],
             next_observations=self._next_obs[indices],
             downsampled=self._downsampled[indices],
-            goal=self._goal[indices],
         )
 
 
@@ -89,7 +86,6 @@ class AEEnvReplayBuffer(EnvReplayBuffer):
         self._rewards = np.zeros(self._rewards.shape)
         self._terminals = np.zeros(self._terminals.shape, dtype='uint8')
         self._downsampled = np.zeros(self._downsampled.shape)
-        self._goal= np.zeros(self._goal.shape)
         self._size = 0
         self._top = 0
         self._bottom = 0
@@ -148,3 +144,4 @@ class VPGEnvReplayBuffer(EnvReplayBuffer):
         self._size = 0
         self._top = 0
         self._bottom = 0
+

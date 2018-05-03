@@ -1,136 +1,32 @@
-from collections import OrderedDict
-
 import numpy as np
 import torch.optim as optim
 
 import railrl.torch.pytorch_util as ptu
 import torch
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.misc.ml_util import (
-    StatConditionalSchedule,
-    ConstantSchedule,
-)
-from railrl.policies.simple import RandomPolicy
-from railrl.samplers.util import rollout
-from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.core import logger
-from railrl.torch.networks import FeatPointMlp
+from torch.autograd import Variable
 from torch import nn as nn
+from railrl.misc.eval_util import create_stats_ordered_dict
+from railrl.torch.ddpg.ddpg import DDPG
 from PIL import Image
 
-from torch.autograd import Variable
 
 
-class FeatPointDDPG(TorchRLAlgorithm):
-    """
-    Deep Deterministic Policy Gradient
-    """
+class FeatPointDDPG(DDPG):
 
     def __init__(
             self,
-            env,
-            qf,
-            policy,
-            exploration_policy,
             ae,
             history_length,
-
-            policy_learning_rate=1e-4,
-            qf_learning_rate=1e-3,
-            qf_weight_decay=0,
-            target_hard_update_period=1000,
-            tau=1e-2,
-            use_soft_update=True,
-            qf_criterion=None,
-            residual_gradient_weight=0,
-            epoch_discount_schedule=None,
-            eval_with_target_policy=False,
-            policy_pre_activation_weight=0.,
-            optimizer_class=optim.Adam,
-
-            plotter=None,
-            render_eval_paths=False,
-
-            obs_normalizer: TorchFixedNormalizer = None,
-            action_normalizer: TorchFixedNormalizer = None,
-            num_paths_for_normalization=0,
-
-            min_q_value=-np.inf,
-            max_q_value=np.inf,
 
             extra_fc_size=0,
             imsize=64,
             downsampled_size=32,
             ae_learning_rate=1e-3,
-
+            optimizer_class=optim.Adam,
+            *args,
             **kwargs
     ):
-        """
-
-        :param env:
-        :param qf:
-        :param policy:
-        :param exploration_policy:
-        :param policy_learning_rate:
-        :param qf_learning_rate:
-        :param qf_weight_decay:
-        :param target_hard_update_period:
-        :param tau:
-        :param use_soft_update:
-        :param qf_criterion: Loss function to use for the q function. Should
-        be a function that takes in two inputs (y_predicted, y_target).
-        :param residual_gradient_weight: c, float between 0 and 1. The gradient
-        used for training the Q function is then
-            (1-c) * normal td gradient + c * residual gradient
-        :param epoch_discount_schedule: A schedule for the discount factor
-        that varies with the epoch.
-        :param kwargs:
-        """
-        self.target_policy = policy.copy()
-        if eval_with_target_policy:
-            eval_policy = self.target_policy
-        else:
-            eval_policy = policy
-        super().__init__(
-            env,
-            exploration_policy,
-            eval_policy=eval_policy,
-            **kwargs
-        )
-        if qf_criterion is None:
-            qf_criterion = nn.MSELoss()
-        self.qf = qf
-        self.policy = policy
-        self.policy_learning_rate = policy_learning_rate
-        self.qf_learning_rate = qf_learning_rate
-        self.qf_weight_decay = qf_weight_decay
-        self.target_hard_update_period = target_hard_update_period
-        self.tau = tau
-        self.use_soft_update = use_soft_update
-        self.residual_gradient_weight = residual_gradient_weight
-        self.policy_pre_activation_weight = policy_pre_activation_weight
-        self.qf_criterion = qf_criterion
-        if epoch_discount_schedule is None:
-            epoch_discount_schedule = ConstantSchedule(self.discount)
-        self.epoch_discount_schedule = epoch_discount_schedule
-        self.plotter = plotter
-        self.render_eval_paths = render_eval_paths
-        self.obs_normalizer = obs_normalizer
-        self.action_normalizer = action_normalizer
-        self.num_paths_for_normalization = num_paths_for_normalization
-        self.min_q_value = min_q_value
-        self.max_q_value = max_q_value
-
-        self.target_qf = self.qf.copy()
-        self.qf_optimizer = optimizer_class(
-            self.qf.parameters(),
-            lr=self.qf_learning_rate,
-        )
-        self.policy_optimizer = optimizer_class(
-            self.policy.parameters(),
-            lr=self.policy_learning_rate,
-        )
+        super().__init__(*args, **kwargs)
 
         self.ae = ae
         self.ae_criterion = nn.MSELoss()
@@ -142,17 +38,11 @@ class FeatPointDDPG(TorchRLAlgorithm):
         self.downsampled_size = downsampled_size
         self.history_length = history_length
         self.extra_fc_size = extra_fc_size
-        self.i = 0
         self.input_length = self.imsize**2 * self.history_length + self.extra_fc_size
-
-    def _start_epoch(self, epoch):
-        super()._start_epoch(epoch)
-        self.discount = self.epoch_discount_schedule.get_value(epoch)
 
     def train_ae(self, batch):
         obs = batch['observations']
         downsampled = batch['downsampled']
-        goal = batch['goal']
         # get the first image of history
         downsampled = downsampled.narrow(start=0,
                                          length=self.downsampled_size**2,
@@ -164,28 +54,15 @@ class FeatPointDDPG(TorchRLAlgorithm):
         reconstructed = self.ae(obs)
         self.ae_optimizer.zero_grad()
         loss = self.ae_criterion(reconstructed, downsampled)
-        #loss = self.ae_criterion(reconstructed, goal)
-        if self.i % 1000 == 0:
-   #         pass
-            self.save_and_compare(obs, reconstructed, downsampled)
-        self.i += 1
         loss.backward()
-        if self.i < 40000:
-            self.ae_optimizer.step()
-            #print("ENDING AE TRAINING")
-        std =(reconstructed - downsampled).std()
-        std = ptu.get_numpy(std)[0]
-        max = (reconstructed - downsampled).abs().max()
-        max = ptu.get_numpy(max)[0]
-        return loss, std, max
+        return loss
 
     def get_latent_obs(self, batch):
         obs = batch['observations']
         next_obs = batch['next_observations']
         image_obs, fc_obs = self.env.split_obs(obs)
         next_image_obs, next_fc_obs = self.env.split_obs(next_obs)
-#        latent_obs = self.ae(image_obs)
-#        next_latent_obs = self.ae(next_image_obs)
+
         latent_obs = self.ae.history_encoder(image_obs, self.history_length)
         next_latent_obs = self.ae.history_encoder(next_image_obs, self.history_length)
 
@@ -194,15 +71,6 @@ class FeatPointDDPG(TorchRLAlgorithm):
             next_latent_obs = torch.cat((next_latent_obs, next_fc_obs), dim=1)
 
         return latent_obs, next_latent_obs
-
-
-
-    def save_and_compare(self, original, reconstructed, downsampled):
-        for i in range(0, 50):
-        #    Image.fromarray(np.uint8(255 * np.array(original.data).reshape(-1, 64, 64)[i])).save('images/' + str(i) + '.png')
-            Image.fromarray(np.uint8(255 * np.array(reconstructed.data).reshape(-1, self.downsampled_size, self.downsampled_size)[i])).save('images/' + str(i) + 'r.png')
-            Image.fromarray(np.uint8(255 * np.array(downsampled.data).reshape(-1, self.downsampled_size, self.downsampled_size)[i])).save('images/' + str(i) + 'd.png')
-
 
     def _do_training(self):
         batch = self.get_batch()
@@ -214,8 +82,9 @@ class FeatPointDDPG(TorchRLAlgorithm):
         """
         autoencoder training
         """
-        ae_loss, ae_std, ae_max = self.train_ae(batch)
+        ae_loss = self.train_ae(batch)
         obs, next_obs = self.get_latent_obs(batch)
+        # Convert observation to latent
         obs = obs.detach()
         next_obs = next_obs.detach()
         """
@@ -306,6 +175,7 @@ class FeatPointDDPG(TorchRLAlgorithm):
 
         if self.need_to_update_eval_statistics:
             self.need_to_update_eval_statistics = False
+            self.eval_statistics['Autoencoder Reconstruction Loss'] = np.mean(ptu.get_numpy(ae_loss))
             self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
@@ -333,98 +203,3 @@ class FeatPointDDPG(TorchRLAlgorithm):
                 'Policy Action',
                 ptu.get_numpy(policy_actions),
             ))
-            self.eval_statistics['Autoencoder Reconstruction Loss'] = np.mean(ptu.get_numpy(ae_loss))
-            self.eval_statistics['Autoencoder Reconstruction Max Loss'] = ae_max
-            self.eval_statistics['Autoencoder Reconstruction Std Loss'] = ae_std
-
-    def _update_target_networks(self):
-        if self.use_soft_update:
-            ptu.soft_update_from_to(self.policy, self.target_policy, self.tau)
-            ptu.soft_update_from_to(self.qf, self.target_qf, self.tau)
-        else:
-            if self._n_train_steps_total % self.target_hard_update_period == 0:
-                ptu.copy_model_params_from_to(self.qf, self.target_qf)
-                ptu.copy_model_params_from_to(self.policy, self.target_policy)
-
-    def evaluate(self, epoch):
-        statistics = OrderedDict()
-        if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
-            table_dict = logger.get_table_dict()
-            # rllab converts things to strings for some reason
-            value = float(
-                table_dict[self.epoch_discount_schedule.statistic_name]
-            )
-            self.epoch_discount_schedule.update(value)
-
-        if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
-            statistics['Discount Factor'] = self.discount
-
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-        super().evaluate(epoch)
-
-    def offline_evaluate(self, epoch):
-        statistics = OrderedDict()
-        statistics['Epoch'] = epoch
-
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-    def get_epoch_snapshot(self, epoch):
-        snapshot = super().get_epoch_snapshot(epoch)
-        snapshot.update(
-            qf=self.qf,
-            policy=self.eval_policy,
-            trained_policy=self.policy,
-            target_policy=self.target_policy,
-            exploration_policy=self.exploration_policy,
-        )
-        return snapshot
-
-    @property
-    def networks(self):
-        return [
-            self.policy,
-            self.qf,
-            self.target_policy,
-            self.target_qf,
-            self.ae,
-        ]
-
-    def pretrain(self):
-        if (
-                self.num_paths_for_normalization == 0
-                or (
-                self.obs_normalizer is None and self.action_normalizer is None)
-        ):
-            return
-
-        pretrain_paths = []
-        random_policy = RandomPolicy(self.env.action_space)
-        while len(pretrain_paths) < self.num_paths_for_normalization:
-            path = rollout(self.env, random_policy, self.max_path_length)
-            pretrain_paths.append(path)
-
-        ob_mean, ob_std, ac_mean, ac_std = (
-            compute_normalization(pretrain_paths)
-        )
-        if self.obs_normalizer is not None:
-            self.obs_normalizer.set_mean(ob_mean)
-            self.obs_normalizer.set_std(ob_std)
-            self.target_qf.obs_normalizer = self.obs_normalizer
-            self.target_policy.obs_normalizer = self.obs_normalizer
-        if self.action_normalizer is not None:
-            self.action_normalizer.set_mean(ac_mean)
-            self.action_normalizer.set_std(ac_std)
-            self.target_qf.action_normalizer = self.action_normalizer
-            self.target_policy.action_normalizer = self.action_normalizer
-
-
-def compute_normalization(paths):
-    obs = np.vstack([path["observations"] for path in paths])
-    ob_mean = np.mean(obs, axis=0)
-    ob_std = np.std(obs, axis=0)
-    actions = np.vstack([path["actions"] for path in paths])
-    ac_mean = np.mean(actions, axis=0)
-    ac_std = np.std(actions, axis=0)
-    return ob_mean, ob_std, ac_mean, ac_std

@@ -34,22 +34,24 @@ def sawyer_init_camera(camera):
     camera.trackbodyid = 0
     camera.distance = 1.0
 
-    cam_dist = 0.2
+    # robot view
+    #rotation_angle = 90
+    #cam_dist = 1
+    #cam_pos = np.array([0, 0.5, 0.2, cam_dist, -45, rotation_angle])
+
+    # 3rd person view
+    cam_dist = 0.3
     rotation_angle = 270
-    cam_pos = np.array([0, .6, 0.5, cam_dist, -90, rotation_angle])
+    cam_pos = np.array([0, 1.0, 0.5, cam_dist, -45, rotation_angle])
+
+    # top down view
+    #cam_dist = 0.2
+    #rotation_angle = 0
+    #cam_pos = np.array([0, 0, 1.5, cam_dist, -90, rotation_angle])
+
     for i in range(3):
         camera.lookat[i] = cam_pos[i]
     camera.distance = cam_pos[3]
     camera.elevation = cam_pos[4]
     camera.azimuth = cam_pos[5]
     camera.trackbodyid = -1
-
-    """cam_dist = 0.0
-    rotation_angle = 270
-    cam_pos = np.array([0, 1.0, 0.5, cam_dist, -45, rotation_angle])
-    for i in range(3):
-        camera.lookat[i] = cam_pos[i]
-    camera.distance = cam_pos[3]
-    camera.elevation = cam_pos[4]
-    camera.azimuth = cam_pos[5]
-    camera.trackbodyid = -1"""

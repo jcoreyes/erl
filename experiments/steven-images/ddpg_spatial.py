@@ -38,20 +38,17 @@ def experiment(variant):
     downsampled_size = 32
 
     env = SawyerXYZEnv()
-#    env = RandomGoalPusher2DEnv()
     extra_fc_size = env.obs_dim
-#    extra_fc_size = 0
     env = ImageMujocoWithObsEnv(env,
                                 imsize=imsize,
+                                normalize=True,
+                                grayscale=True,
                                 keep_prev=history-1,
-                                #init_camera=camera.pusher_2d_init_camera)
                                 init_camera=camera.sawyer_init_camera)
     """env = ImageMujocoEnv(env,
                         imsize=imsize,
                         keep_prev=history-1,
                         init_camera=camera.sawyer_init_camera)"""
-
-#    env = NormalizedBoxEnv(env)
 
     es = GaussianStrategy(
         action_space=env.action_space,
@@ -82,7 +79,6 @@ def experiment(variant):
         input_size=latent_obs_dim + extra_fc_size,
         ae=ae,
         env=env,
-        input_length=imsize**2 * history + extra_fc_size,
         history_length=history,
         output_size=action_dim,
         hidden_sizes=[400, 300],
@@ -94,15 +90,15 @@ def experiment(variant):
 
 
     algorithm = FeatPointDDPG(
-        env,
+        ae,
+        history,
+        env=env,
         qf=qf,
         policy=policy,
         exploration_policy=exploration_policy,
         replay_buffer=replay_buffer,
         extra_fc_size=extra_fc_size,
 
-        ae=ae,
-        history_length=history,
         imsize=imsize,
         downsampled_size=downsampled_size,
         **variant['algo_params']
