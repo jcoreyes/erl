@@ -1,6 +1,7 @@
 
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
+from railrl.misc.ml_util import LinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 from railrl.torch.vae.sawyer2d_push_data import get_data
 
@@ -13,10 +14,14 @@ def experiment(variant):
     train_data, test_data, info = get_data(**variant['get_data_kwargs'])
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
+    beta_schedule = LinearSchedule(
+        **variant['beta_schedule_kwargs'],
+    )
     m = ConvVAE(representation_size, input_channels=3)
     if ptu.gpu_enabled():
         m.cuda()
-    t = ConvVAETrainer(train_data, test_data, m, beta=beta)
+    t = ConvVAETrainer(train_data, test_data, m, beta=beta,
+                       beta_schedule=beta_schedule)
     for epoch in range(variant['num_epochs']):
         t.train_epoch(epoch)
         t.test_epoch(epoch)
@@ -40,6 +45,11 @@ if __name__ == "__main__":
         get_data_kwargs=dict(
             N=5000,
         ),
+        beta_schedule_kwargs=dict(
+            init_value=0,
+            final_value=5,
+            ramp_duration=100,
+        )
     )
 
     search_space = {

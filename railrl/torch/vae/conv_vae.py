@@ -10,6 +10,7 @@ from torch.nn import functional as F
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
+from railrl.misc.ml_util import ConstantSchedule
 from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
@@ -38,12 +39,16 @@ class ConvVAETrainer():
             batch_size=128,
             log_interval=0,
             beta=0.5,
+            beta_schedule=None,
             imsize=84,
             do_scatterplot=False,
     ):
         self.log_interval = log_interval
         self.batch_size = batch_size
         self.beta = beta
+        self.beta_schedule = beta_schedule
+        if self.beta_schedule is None:
+            self.beta_schedule = ConstantSchedule(beta)
         self.imsize = imsize
         self.do_scatterplot = do_scatterplot
 
@@ -80,7 +85,7 @@ class ConvVAETrainer():
         )
 
     def kl_divergence(self, recon_x, x, mu, logvar):
-        return -self.beta * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
     def train_epoch(self, epoch):
         self.model.train()
@@ -92,7 +97,8 @@ class ConvVAETrainer():
             self.optimizer.zero_grad()
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = self.kl_divergence(recon_batch, data, mu, logvar)
+            beta = self.beta_schedule.get_value(epoch)
+            kle = beta * self.kl_divergence(recon_batch, data, mu, logvar)
             loss = bce + kle
             loss.backward()
 
@@ -123,7 +129,8 @@ class ConvVAETrainer():
             data = self.get_batch()
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = self.kl_divergence(recon_batch, data, mu, logvar)
+            beta = self.beta_schedule.get_value(epoch)
+            kle = beta * self.kl_divergence(recon_batch, data, mu, logvar)
             loss = bce + kle
 
             z_data = ptu.get_numpy(mu.cpu())
