@@ -85,19 +85,19 @@ class ConvVAETrainer():
         )
 
     def kl_divergence(self, recon_x, x, mu, logvar):
-        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
     def train_epoch(self, epoch):
         self.model.train()
         losses = []
         bces = []
         kles = []
+        beta = self.beta_schedule.get_value(epoch)
         for batch_idx in range(100):
             data = self.get_batch()
             self.optimizer.zero_grad()
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
-            beta = self.beta_schedule.get_value(epoch)
             kle = beta * self.kl_divergence(recon_batch, data, mu, logvar)
             loss = bce + kle
             loss.backward()
@@ -125,11 +125,11 @@ class ConvVAETrainer():
         bces = []
         kles = []
         zs = []
+        beta = self.beta_schedule.get_value(epoch)
         for batch_idx in range(10):
             data = self.get_batch()
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
-            beta = self.beta_schedule.get_value(epoch)
             kle = beta * self.kl_divergence(recon_batch, data, mu, logvar)
             loss = bce + kle
 
@@ -165,6 +165,7 @@ class ConvVAETrainer():
         logger.record_tabular("test/BCE", np.mean(bces) / self.batch_size)
         logger.record_tabular("test/KL", np.mean(kles) / self.batch_size)
         logger.record_tabular("test/loss", np.mean(losses) / self.batch_size)
+        logger.record_tabular("beta", beta)
         logger.dump_tabular()
 
         # logger.save_itr_params(epoch, self.model) # slow...
@@ -182,16 +183,26 @@ class ConvVAETrainer():
         )
 
     def plot_scattered(self, z, epoch):
+        dim_and_stds = [(i, np.std(z[:, i])) for i in range(z.shape[1])]
+        dim_and_stds = sorted(
+            dim_and_stds,
+            key=lambda x: x[1]
+        )
+        dim1 = dim_and_stds[-1][0]
+        dim2 = dim_and_stds[-2][0]
         import matplotlib.pyplot as plt
         plt.figure(figsize=(8, 8))
-        plt.scatter(z[:, 0], z[:, 1], marker='o', edgecolor='none')
+        plt.scatter(z[:, dim1], z[:, dim2], marker='o', edgecolor='none')
         if self.model.dist_mu is not None:
-            x1, y1 = self.model.dist_mu[:2]
-            x2, y2 = self.model.dist_mu[:2] + self.model.dist_std[:2]
+            x1 = self.model.dist_mu[dim1:dim1+1]
+            y1 = self.model.dist_mu[dim2:dim2+1]
+            x2 = self.model.dist_mu[dim1:dim1+1] + self.model.dist_std[dim1:dim1+1]
+            y2 = self.model.dist_mu[dim2:dim2+1] + self.model.dist_std[dim2:dim2+1]
         plt.plot([x1, x2], [y1, y2], color='k', linestyle='-', linewidth=2)
         axes = plt.gca()
         axes.set_xlim([-6, 6])
         axes.set_ylim([-6, 6])
+        axes.set_title('dim {} vs dim {}'.format(dim1, dim2))
         plt.grid(True)
         save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
         plt.savefig(save_file)
