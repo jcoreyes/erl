@@ -67,7 +67,10 @@ class ImageMujocoEnv(ProxyEnv, Env):
         super().__init__(wrapped_env)
 
         self.imsize = imsize
-        self.image_length = self.imsize * self.imsize
+        if grayscale:
+            self.image_length = self.imsize * self.imsize
+        else:
+            self.image_length = 3 * self.imsize * self.imsize
         # This is torch format rather than PIL image
         self.image_shape = (self.imsize, self.imsize)
         # Flattened past image queue
