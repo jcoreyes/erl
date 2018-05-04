@@ -466,7 +466,7 @@ class OuterProductFF(PyTorchModule):
             return output
 
 
-class AETanhPolicy(Mlp, Policy):
+class AETanhPolicy(MlpPolicy):
     """
     A helper class since most policies have a tanh output activation.
     """
@@ -476,20 +476,13 @@ class AETanhPolicy(Mlp, Policy):
             env,
             history_length,
             *args,
-            obs_normalizer: TorchFixedNormalizer = None,
             **kwargs
     ):
         self.save_init_params(locals())
         super().__init__(*args, **kwargs, output_activation=torch.tanh)
         self.ae = ae
-        self.obs_normalizer = obs_normalizer
         self.history_length = history_length
         self.env = env
-
-    def forward(self, obs, **kwargs):
-        if self.obs_normalizer:
-            obs = self.obs_normalizer.normalize(obs)
-        return super().forward(obs, **kwargs)
 
     def get_action(self, obs_np):
         obs = obs_np
@@ -501,10 +494,6 @@ class AETanhPolicy(Mlp, Policy):
         obs_np = ptu.get_numpy(latent_obs)[0]
         actions = self.get_actions(obs_np[None])
         return actions[0, :], {}
-
-    def get_actions(self, obs):
-        return self.eval_np(obs)
-
 
 
 class FeatPointMlp(PyTorchModule):
