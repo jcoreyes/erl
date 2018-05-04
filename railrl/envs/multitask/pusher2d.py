@@ -528,8 +528,8 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         if include_puck:
             if self.puck_reward_only:
                 self.goal_space = Box(
-                    low=np.array([-1, -1]),
-                    high=np.array([1, 0]),
+                    low=np.array([-0.8, -0.8]),
+                    high=np.array([-0.3, -0.3]),
                     dtype=np.float32,
                 )
             else:
@@ -625,8 +625,8 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         # high = np.array([2.5, 2.32, 2.32, 1, 1, 6, 6, 6, 6])
         r = self.arm_range
         if self.include_puck:
-            low = np.array([-r, -r, -r, -1, -1, 6, 6, 6, 6])
-            high = np.array([r, r, r, 1, 0, 6, 6, 6, 6])
+            low = np.array([-r, -r, -r, 0.3, -0.8, 6, 6, 6, 6])
+            high = np.array([r, r, r, 0.8, -0.3, 6, 6, 6, 6])
         else:
             low = np.array([-r, -r, -r, 6, 6, 6, 6, 6, 6])
             high = np.array([r, r, r, 6, 6, 6, 6, 6, 6])
