@@ -162,8 +162,8 @@ class ConvVAETrainer():
         zs = np.array(zs)
         self.model.dist_mu = zs.mean(axis=0)
         self.model.dist_std = zs.std(axis=0)
-        #if self.do_scatterplot:
-        #    self.plot_scattered(np.array(zs), epoch)
+        if self.do_scatterplot:
+            self.plot_scattered(np.array(zs), epoch)
 
         logger.record_tabular("test/BCE", np.mean(bces) / self.batch_size)
         logger.record_tabular("test/KL", np.mean(kles) / self.batch_size)
@@ -211,7 +211,7 @@ class ConvVAETrainer():
         plt.savefig(save_file)
 
 class ConvVAE(nn.Module):
-#class ConvVAE(PyTorchModule):
+# class ConvVAE(PyTorchModule):
     def __init__(
             self,
             representation_size,
@@ -222,7 +222,7 @@ class ConvVAE(nn.Module):
             hidden_init=ptu.fanin_init,
             output_activation=identity,
     ):
-        #self.save_init_params(locals())
+        # self.save_init_params(locals())
         super().__init__()
         self.representation_size = representation_size
         self.hidden_init = hidden_init
