@@ -29,12 +29,12 @@ def experiment(variant):
     env = variant["env"](**variant['env_kwargs'])
 
     do_state_based_exp = variant.get("do_state_based_exp", False)
+    render = variant["render"]
 
     if not do_state_based_exp:
         rdim = variant["rdim"]
         use_env_goals = variant["use_env_goals"]
         vae_path = variant["vae_paths"][str(rdim)]
-        render = variant["render"]
         wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
         reward_params = variant.get("reward_params", dict())
 
@@ -54,6 +54,9 @@ def experiment(variant):
         vae_wrapped_env = env
 
     env = MultitaskEnvToSilentMultitaskEnv(env)
+    if do_state_based_exp and render:
+        env.pause_on_goal = True
+
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
@@ -130,6 +133,7 @@ def experiment(variant):
         policy=policy,
         exploration_policy=exploration_policy,
         render=do_state_based_exp and variant.get("render", False),
+        render_during_eval=do_state_based_exp and variant.get("render", False),
         **variant['algo_kwargs']
     )
 

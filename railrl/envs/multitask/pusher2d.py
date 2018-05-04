@@ -517,39 +517,45 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
     2 hand xy goal
     2 puck xy goal
     """
-    def __init__(self, include_puck=True, arm_range=0.1, reward_params={"type": "euclidean"}, **kwargs):
+    def __init__(self, include_puck=True, arm_range=0.1, reward_params={"type": "euclidean", "puck_reward_only": False}, **kwargs):
         self.quick_init(locals())
         self.include_puck = include_puck
         self.arm_range = arm_range
         self.reward_params = reward_params
-        self.reward_type = self.reward_params["type"]
+        self.reward_type = self.reward_params.get("type", "euclidean")
         self.epsilon = self.reward_params.get("epsilon", 0.5 if include_puck else 0.5)
+        self.puck_reward_only = self.reward_params.get("puck_reward_only", False)
         if include_puck:
-            self.goal_space = Box(
-                low=np.array([-arm_range, -arm_range, -arm_range, -1, -1]),
-                high=np.array([arm_range, arm_range, arm_range, 1, 0]),
-                dtype=np.float32,
-            )
+            if self.puck_reward_only:
+                self.goal_space = Box(
+                    low=np.array([-1, -1]),
+                    high=np.array([1, 0]),
+                    dtype=np.float32,
+                )
+            else:
+                self.goal_space = Box(
+                    low=np.array([-arm_range, -arm_range, -arm_range, -1, -1]),
+                    high=np.array([arm_range, arm_range, arm_range, 1, 0]),
+                    dtype=np.float32,
+                )
+            self.obs_dim = 7
         else:
             self.goal_space = Box(
                 low=np.array([-arm_range, -arm_range, -arm_range]),
                 high=np.array([arm_range, arm_range, arm_range]),
                 dtype=np.float32,
             )
+            self.obs_dim = 3
+        self.goal_slice = slice(0, self.goal_dim)
+        if self.puck_reward_only:
+            self.goal_slice = slice(3, 5)
         self.current_goal = self.goal_space.sample()
         super().__init__(goal=self.current_goal, **kwargs)
-        if include_puck:
-            self.observation_space = Box(
-                low=-5 * np.ones((5)),
-                high=5 * np.ones((5)),
-                dtype=np.float32,
-            )
-        else:
-            self.observation_space = Box(
-                low=-5 * np.ones((3)),
-                high=5 * np.ones((3)),
-                dtype=np.float32,
-            )
+        self.observation_space = Box(
+            low=-5 * np.ones((self.obs_dim)),
+            high=5 * np.ones((self.obs_dim)),
+            dtype=np.float32,
+        )
 
     def get_qpos(self):
         return self.sim.data.qpos.copy()
@@ -561,9 +567,6 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
     def goal_dim(self):
         return self.goal_space.low.shape[0]
 
-    def convert_obs_to_goals(self, obs):
-        return obs[:, -2:]
-
     def set_goal(self, goal):
         super().set_goal(goal)
         self.current_goal = goal
@@ -572,8 +575,12 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
             self._target_cylinder_position = self._target_hand_position
         else:
             if self.include_puck:
-                self._target_hand_position = goal[:3]
-                self._target_cylinder_position = goal[3:5]
+                if self.puck_reward_only:
+                    self._target_hand_position = np.zeros((3))
+                    self._target_cylinder_position = goal
+                else:
+                    self._target_hand_position = goal[:3]
+                    self._target_cylinder_position = goal[3:5]
             else:
                 self._target_hand_position = goal
                 self._target_cylinder_position = goal
@@ -588,18 +595,15 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
 
     def step(self, u):
         ob, _, done, info = super().step(u)
-        if self.include_puck:
-            qpos = self.sim.data.qpos[:5].copy()
-            dist = np.linalg.norm(qpos - self.current_goal)
-        else:
-            qpos = self.sim.data.qpos[:3].copy()
-            dist = np.linalg.norm(qpos - self._target_hand_position)
+        reached_goal = ob[self.goal_slice]
+        dist = np.linalg.norm(reached_goal - self.current_goal)
         info["dist"] = dist
-        info["success"] = dist < self.epsilon
+        info["success"] = int(dist < self.epsilon)
         if self.reward_type == "sparse":
             reward = 0 if dist < self.epsilon else -1
         else:
             reward = -dist
+        # print(info["dist"], info["success"])
         return ob, reward, done, info
 
     def do_simulation(self, ctrl, n_frames):
@@ -609,11 +613,11 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
 
     def _get_obs(self):
         return np.concatenate([
-            self.sim.data.qpos.flat[:self.goal_dim],
+            self.sim.data.qpos.flat[:5],
             # self.sim.data.qvel.flat[:3],
-            # self.get_body_com("distal_4")[:2],
+            self.get_body_com("distal_4")[:2],
             # self.get_body_com("object")[:2],
-        ])
+        ])[:self.obs_dim]
 
     def reset_model(self):
         # fully random
@@ -636,7 +640,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         return self._get_obs()
 
     def convert_obs_to_goals(self, obs):
-        return obs
+        return obs[:, self.goal_slice]
 
     def compute_her_reward_np(
             self,
@@ -645,7 +649,8 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
             next_observation,
             goal,
     ):
-        dist = np.linalg.norm(next_observation - goal)
+        reached_goal = next_observation[self.goal_slice]
+        dist = np.linalg.norm(reached_goal - goal)
         if self.reward_type == "sparse":
             reward = 0 if dist < self.epsilon else -1
         else:
