@@ -31,9 +31,9 @@ if __name__ == "__main__":
             include_puck=True,
             arm_range=0.1,
             reward_params=dict(
-                type="euclidean",
-                epsilon=0.1,
-                puck_reward_only=True,
+                type="sparse",
+                epsilon=0.2,
+                # puck_reward_only=True,
             ),
         ),
         replay_kwargs=dict(
@@ -60,8 +60,9 @@ if __name__ == "__main__":
             'epsilon',
         ],
         'env_kwargs.arm_range': [0.5],
+        'env_kwargs.reward_params.epsilon': [0.5, 1.0],
         'algo_kwargs.reward_scale': [1],
-        'algo_kwargs.num_updates_per_env_step': [1],
+        'algo_kwargs.num_updates_per_env_step': [1, 4, 16],
         'algo_kwargs.discount': [0.99],
         'exploration_noise': [0.2],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5,],

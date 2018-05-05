@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=100,
+            num_epochs=1005,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -31,9 +31,9 @@ if __name__ == "__main__":
             include_puck=True,
             arm_range=0.1,
             reward_params=dict(
-                type="euclidean",
-                epsilon=0.1,
-                puck_reward_only=True,
+                type="sparse",
+                epsilon=0.2,
+                # puck_reward_only=True,
             ),
         ),
         replay_kwargs=dict(
@@ -60,12 +60,13 @@ if __name__ == "__main__":
             'epsilon',
         ],
         'env_kwargs.arm_range': [0.5],
+        'env_kwargs.reward_params.epsilon': [0.5, 0.25],
         'algo_kwargs.reward_scale': [1],
-        'algo_kwargs.num_updates_per_env_step': [1],
+        'algo_kwargs.num_updates_per_env_step': [1, 4, 16],
         'algo_kwargs.discount': [0.99],
         'exploration_noise': [0.2],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5,],
-        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         # 'rdim': [2, 4, 8, 16],
         'seedid': range(n_seeds),
     }

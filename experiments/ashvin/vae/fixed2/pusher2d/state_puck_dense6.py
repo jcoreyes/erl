@@ -61,7 +61,7 @@ if __name__ == "__main__":
         ],
         'env_kwargs.arm_range': [0.5],
         'algo_kwargs.reward_scale': [1],
-        'algo_kwargs.num_updates_per_env_step': [1],
+        'algo_kwargs.num_updates_per_env_step': [1, 4],
         'algo_kwargs.discount': [0.99],
         'exploration_noise': [0.2],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5,],
