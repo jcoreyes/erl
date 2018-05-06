@@ -53,7 +53,8 @@ def experiment(variant):
 
         vae_wrapped_env = env
 
-    env = MultitaskEnvToSilentMultitaskEnv(env)
+    if do_state_based_exp:
+        env = MultitaskEnvToSilentMultitaskEnv(env)
     if do_state_based_exp and render:
         env.pause_on_goal = True
 
@@ -112,11 +113,9 @@ def experiment(variant):
         training_env.mode(training_mode)
         relabeling_env = pickle.loads(pickle.dumps(env))
         relabeling_env.mode(training_mode)
-        video_vae_env = pickle.loads(pickle.dumps(vae_wrapped_env))
-        video_vae_env = MultitaskToFlatEnv(video_vae_env)
+        video_vae_env = pickle.loads(pickle.dumps(env))
         video_vae_env.mode("video_vae")
-        video_goal_env = pickle.loads(pickle.dumps(vae_wrapped_env))
-        video_goal_env = MultitaskToFlatEnv(video_goal_env)
+        video_goal_env = pickle.loads(pickle.dumps(env))
         video_goal_env.mode("video_env")
 
     replay_buffer = RelabelingReplayBuffer(
@@ -145,7 +144,7 @@ def experiment(variant):
         algorithm.cuda()
         if not do_state_based_exp:
             for e in [testing_env, training_env, video_vae_env, video_goal_env]:
-                e._wrapped_env.vae.cuda()
+                e.vae.cuda()
 
     save_video = variant.get("save_video", True)
     if not do_state_based_exp and save_video:

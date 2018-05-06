@@ -34,7 +34,7 @@ def load_vae(vae_file):
     print("loaded", local_path)
     return vae
 
-class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
+class VAEWrappedEnv(ProxyEnv, Env):
     """This class wraps an image-based environment with a VAE.
     Assumes you get flattened (channels,84,84) observations from wrapped_env.
     """
@@ -49,7 +49,7 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
         render_decoded=False,
 
         reward_params=dict(),
-        track_qpos_goal=0,
+        track_qpos_goal=0, # UNUSED
         mode="train",
     ):
         self.quick_init(locals())
@@ -69,7 +69,6 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
         self.render_rollouts = render_rollouts
         self.render_decoded = render_decoded
 
-        self.track_qpos_goal = track_qpos_goal
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", None)
         self.epsilon = self.reward_params.get("epsilon", 20)
@@ -131,7 +130,7 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
         if self.use_vae_reward:
             # replace reward with Euclidean distance in VAE latent space
             # currently assumes obs and goals are also from VAE
-            dist = self.multitask_goal - observation
+            dist = self.vae_goal - observation
             var = np.exp(ptu.get_numpy(logvar).flatten())
             err = dist * dist / 2 / var
             mdist = np.sum(err) # mahalanobis distance
@@ -142,25 +141,11 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
             info["vae_mdist"] = mdist
             info["vae_success"] = 1 if mdist < self.epsilon else 0
 
-        if self.track_qpos_goal:
-            if not self.use_vae_goals:
-                qpos = self.get_qpos()
-                qpos_d = abs(qpos - self.qpos_goal)
-                for i in range(self.track_qpos_goal):
-                    name = "qpos_d" + str(i)
-                    info[name] = qpos_d[i]
-                info["qpos"] = qpos
-                info["qpos_goal"] = self.qpos_goal
-            else: # garbage for consistent logging
-                for i in range(self.track_qpos_goal):
-                    name = "qpos_d" + str(i)
-                    info[name] = 0
-                info["qpos"] = self.get_qpos()
-                info["qpos_goal"] = None
-
         return observation, reward, done, info
 
     def reset(self):
+        self.vae_goal = self.sample_vae_goal_for_rollout()
+
         observation = self._wrapped_env.reset()
         self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
@@ -184,8 +169,6 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
     """
     Multitask functions
     """
-    def set_goal(self, goal):
-        MultitaskEnv.set_goal(self, goal)
 
     def convert_obs_to_goals(self, obs):
         return obs
@@ -199,7 +182,7 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
             goals[i, :] = self.sample_goal_for_rollout()
         return goals
 
-    def sample_goal_for_rollout(self):
+    def sample_vae_goal_for_rollout(self):
         """
         These goals are fed to a policy when the policy wants to actually
         do rollouts.
@@ -211,9 +194,9 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
             n = np.random.randn(self.representation_size)
             goal = sigma * n + mu
         else:
+            self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
+
             observation = self._wrapped_env.reset() # TODO: instead of reset this should probably operate sample_goal...
-            if self.track_qpos_goal:
-                self.qpos_goal = self.get_qpos()
             self.true_goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
             img = Variable(ptu.from_numpy(observation))
             e = self.vae.encode(img)[0]
@@ -244,8 +227,7 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
         super().log_diagnostics(paths, logger=logger, **kwargs)
 
         statistics = OrderedDict()
-        names = ["qpos_d" + str(i) for i in range(self.track_qpos_goal)] + ["vae_mdist", "vae_success"]
-        for stat_name_in_paths in names:
+        for stat_name_in_paths in ["vae_mdist", "vae_success"]:
             stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
             statistics.update(create_stats_ordered_dict(
                 stat_name_in_paths,
@@ -260,3 +242,21 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
             ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+    def get_goal(self):
+        return self.vae_goal.copy()
+
+    def compute_her_reward_np(
+            self,
+            observation,
+            action,
+            next_observation,
+            goal,
+    ):
+        reached_goal = next_observation
+        dist = np.linalg.norm(reached_goal - goal)
+        if self.reward_type == "sparse":
+            reward = 0 if dist < self.epsilon else -1
+        else:
+            reward = -dist
+        return reward

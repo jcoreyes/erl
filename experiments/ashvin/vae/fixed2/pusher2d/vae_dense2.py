@@ -67,7 +67,7 @@ if __name__ == "__main__":
         'exploration_noise': [0.2],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5,],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
-        'rdim': [8, 16],
+        'rdim': [4, 8, 16],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

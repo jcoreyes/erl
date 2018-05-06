@@ -33,7 +33,7 @@ class HER(TorchRLAlgorithm):
         # self._rollout_goal = self.env.sample_goal_for_rollout()
         # self.training_env.set_goal(self._rollout_goal)
         o = self.training_env.reset()
-        self._rollout_goal = self.training_env.multitask_goal.copy()
+        self._rollout_goal = self.training_env.get_goal()
         return o
 
     def _handle_step(

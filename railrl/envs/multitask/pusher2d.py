@@ -546,7 +546,6 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
                 dtype=np.float32,
             )
             self.obs_dim = 3
-        import pdb; pdb.set_trace()
         self.goal_slice = slice(0, self.goal_dim)
         if self.puck_reward_only:
             self.goal_slice = slice(3, 5)
@@ -571,20 +570,16 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
     def set_goal(self, goal):
         super().set_goal(goal)
         self.current_goal = goal
-        if self.ignore_multitask_goal:
-            self._target_hand_position = self.goal_space.sample()
-            self._target_cylinder_position = self._target_hand_position
-        else:
-            if self.include_puck:
-                if self.puck_reward_only:
-                    self._target_hand_position = np.zeros((3))
-                    self._target_cylinder_position = goal
-                else:
-                    self._target_hand_position = goal[:3]
-                    self._target_cylinder_position = goal[3:5]
-            else:
-                self._target_hand_position = goal
+        if self.include_puck:
+            if self.puck_reward_only:
+                self._target_hand_position = np.zeros((3))
                 self._target_cylinder_position = goal
+            else:
+                self._target_hand_position = goal[:3]
+                self._target_cylinder_position = goal[3:5]
+        else:
+            self._target_hand_position = goal
+            self._target_cylinder_position = goal
 
         qpos = self.sim.data.qpos.flat.copy()
         qvel = self.sim.data.qvel.flat.copy()
@@ -659,7 +654,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         return reward
 
     def log_diagnostics(self, paths, logger=default_logger, **kwargs):
-        super().log_diagnostics(paths, logger=logger, **kwargs)
+        # super().log_diagnostics(paths, logger=logger, **kwargs)
 
         statistics = OrderedDict()
 
