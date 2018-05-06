@@ -98,6 +98,9 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             ob[None], action[None], next_ob[None], goal[None]
         )
 
+    def get_goal(self):
+        return self.multitask_goal.copy()
+
     """
     Check out these default functions below! You may want to override them.
     """

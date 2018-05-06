@@ -117,7 +117,7 @@ class HER(TorchRLAlgorithm):
         o = self.env.reset()
         if self.render_during_eval:
             self.env.render()
-        goal = self.env.multitask_goal.copy()
+        goal = self.env.get_goal()
         while path_length < self.max_path_length:
             a, agent_info = self.get_eval_action(o, goal)
             next_o, r, d, env_info = self.env.step(a)

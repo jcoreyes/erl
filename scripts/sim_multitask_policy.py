@@ -80,6 +80,9 @@ def simulate_policy(args):
         policy.cuda()
     if args.pause:
         import ipdb; ipdb.set_trace()
+    if args.enable_render:
+        # some environments need to be reconfigured for visualization
+        env.enable_render()
     if args.multitaskpause:
         env.pause_on_goal = True
     if isinstance(policy, PyTorchModule):
@@ -108,6 +111,7 @@ if __name__ == "__main__":
                         help='Speedup')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--pause', action='store_true')
+    parser.add_argument('--enable_render', action='store_true')
     parser.add_argument('--multitaskpause', action='store_true')
     parser.add_argument('--hide', action='store_true')
     args = parser.parse_args()

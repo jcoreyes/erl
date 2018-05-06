@@ -175,8 +175,11 @@ class VAEWrappedEnv(ProxyEnv, Env, MultitaskEnv):
         return observation
 
     def enable_render(self):
-        self.render_goals=True
-        self.render_rollouts=True
+        self.use_vae_goals = True
+        self.decode_goals = True
+        self.render_goals = True
+        self.render_rollouts = True
+        self.render_decoded = True
 
     """
     Multitask functions

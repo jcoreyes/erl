@@ -546,6 +546,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
                 dtype=np.float32,
             )
             self.obs_dim = 3
+        import pdb; pdb.set_trace()
         self.goal_slice = slice(0, self.goal_dim)
         if self.puck_reward_only:
             self.goal_slice = slice(3, 5)
@@ -625,8 +626,8 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         # high = np.array([2.5, 2.32, 2.32, 1, 1, 6, 6, 6, 6])
         r = self.arm_range
         if self.include_puck:
-            low = np.array([-r, -r, -r, 0.3, -0.8, 6, 6, 6, 6])
-            high = np.array([r, r, r, 0.8, -0.3, 6, 6, 6, 6])
+            low = np.array([0, 0, 0, 0.3, -0.8, 6, 6, 6, 6])
+            high = np.array([0, 0, 0, 0.8, -0.3, 6, 6, 6, 6])
         else:
             low = np.array([-r, -r, -r, 6, 6, 6, 6, 6, 6])
             high = np.array([r, r, r, 6, 6, 6, 6, 6, 6])
