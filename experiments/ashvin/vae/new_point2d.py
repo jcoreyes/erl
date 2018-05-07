@@ -22,8 +22,8 @@ def experiment(variant):
     representation_size = variant["representation_size"]
     train_data, test_data = get_data(10000)
     m = ConvVAE(representation_size)
-    t = ConvVAETrainer(train_data, test_data, m, beta=beta)
-    for epoch in range(500):
+    t = ConvVAETrainer(train_data, test_data, m, beta=beta, do_scatterplot=False)
+    for epoch in range(100):
         t.train_epoch(epoch)
         t.test_epoch(epoch)
         t.dump_samples(epoch)
@@ -38,4 +38,4 @@ if __name__ == "__main__":
                 representation_size=representation_size,
             )
             variants.append(variant)
-    run_variants(experiment, variants, run_id=2)
+    run_variants(experiment, variants, run_id=3)

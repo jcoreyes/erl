@@ -199,6 +199,7 @@ class ConvVAE(nn.Module):
             imsize=84,
             hidden_init=ptu.fanin_init,
             output_activation=identity,
+            min_variance=1e-4,
     ):
         # self.save_init_params(locals())
         super().__init__()
@@ -207,6 +208,7 @@ class ConvVAE(nn.Module):
         self.output_activation = output_activation
         self.input_channels = input_channels
         self.imsize = imsize
+        self.log_min_variance = float(np.log(min_variance))
 
         self.dist_mu = None
         self.dist_std = None
@@ -261,7 +263,8 @@ class ConvVAE(nn.Module):
         x = F.relu(self.bn3(self.conv3(x)))
         h = x.view(-1, 128) # flatten
         mu = self.output_activation(self.fc1(h))
-        logvar = self.output_activation(self.fc2(h))
+        # make the minimum variance 0.0001
+        logvar = self.log_min_variance + self.relu(self.fc2(h))
         return mu, logvar
 
     def reparameterize(self, mu, logvar):

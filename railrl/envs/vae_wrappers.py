@@ -121,6 +121,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
     def step(self, action):
         observation, reward, done, info = self._wrapped_env.step(action)
+        done = False # no early termination
         self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
             cv2.imshow('env', self.cur_obs)
