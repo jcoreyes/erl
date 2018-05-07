@@ -653,6 +653,9 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
             reward = -dist
         return reward
 
+    def sample_env_goal(self):
+        return self.sample_goal_for_rollout()
+
     def log_diagnostics(self, paths, logger=default_logger, **kwargs):
         # super().log_diagnostics(paths, logger=logger, **kwargs)
 

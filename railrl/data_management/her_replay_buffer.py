@@ -707,7 +707,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
         # env_goals = self.env.sample_goals(batch_size)
         for i in range(batch_size):
             if random_numbers[i] < self.fraction_goals_are_env_goals:
-                resampled_goals[i, :] = self.env.sample_goal_for_rollout() # env_goals[i, :]
+                resampled_goals[i, :] = self.env.sample_env_goal() # env_goals[i, :]
 
             new_reward = self.reward_scale * self.env.compute_her_reward_np(
                 new_obs[i, :],

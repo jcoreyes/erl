@@ -223,6 +223,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
         return goal
 
+    def sample_env_goal(self):
+        return self.sample_vae_goal_for_rollout()
+
     def log_diagnostics(self, paths, logger=default_logger, **kwargs):
         super().log_diagnostics(paths, logger=logger, **kwargs)
 
