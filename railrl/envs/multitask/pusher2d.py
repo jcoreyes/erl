@@ -579,7 +579,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
                 self._target_cylinder_position = goal[3:5]
         else:
             self._target_hand_position = goal
-            self._target_cylinder_position = goal
+            self._target_cylinder_position = np.array((6, 6))
 
         qpos = self.sim.data.qpos.flat.copy()
         qvel = self.sim.data.qvel.flat.copy()
@@ -657,7 +657,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         return self.sample_goal_for_rollout()
 
     def log_diagnostics(self, paths, logger=default_logger, **kwargs):
-        # super().log_diagnostics(paths, logger=logger, **kwargs)
+        super().log_diagnostics(paths, logger=logger, **kwargs)
 
         statistics = OrderedDict()
 

@@ -95,6 +95,11 @@ class MultitaskImagePoint2DEnv(MultitaskPoint2DEnv, MultitaskEnv):
     def _get_observation(self):
         return self.get_image()
 
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._position = goal
+        self._target_position = goal
+
     # def reset(self):
     #     goal = self.sample_goals(1)
     #     self.set_goal(goal[0, :])

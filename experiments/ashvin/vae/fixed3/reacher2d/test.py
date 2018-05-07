@@ -8,10 +8,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "ashvin/vae/new-point2d/run1/id0/params.pkl",
-        "4": "ashvin/vae/new-point2d/run1/id1/params.pkl",
-        "8": "ashvin/vae/new-point2d/run1/id2/params.pkl",
-        "16": "ashvin/vae/new-point2d/run1/id3/params.pkl"
+        "2": "ashvin/vae/new-reacher2d/run3/id0/params.pkl",
+        "4": "ashvin/vae/new-reacher2d/run3/id1/params.pkl",
+        "8": "ashvin/vae/new-reacher2d/run3/id2/params.pkl",
+        "16": "ashvin/vae/new-reacher2d/run3/id3/params.pkl"
     }
 
     variant = dict(
@@ -27,26 +27,28 @@ if __name__ == "__main__":
             # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
-            render_onscreen=False,
-            render_size=84,
-            ignore_multitask_goal=True,
-            ball_radius=1,
+            include_puck=False,
+            arm_range=0.5,
         ),
         replay_kwargs=dict(
             fraction_goals_are_rollout_goals=1.0,
             fraction_goals_are_env_goals=0.0,
         ),
+        # reward_params=dict(
+        #     type="sparse",
+        #     epsilon=20.0,
+        # ),
         algorithm='TD3',
         normalize=False,
         rdim=4,
         render=False,
-        env=MultitaskImagePoint2DEnv,
+        env=FullPusher2DEnv,
         use_env_goals=False,
         vae_paths=vae_paths,
-        track_qpos_goal=2,
+        wrap_mujoco_env=True,
     )
 
-    n_seeds = 3
+    n_seeds = 2
 
     search_space = {
         'exploration_type': [
@@ -61,4 +63,4 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)

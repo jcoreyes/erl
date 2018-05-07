@@ -144,7 +144,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return observation, reward, done, info
 
     def reset(self):
-        self.vae_goal = self.sample_vae_goal_for_rollout()
+        self.vae_goal = self.sample_goal_for_rollout()
 
         observation = self._wrapped_env.reset()
         self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
@@ -182,7 +182,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             goals[i, :] = self.sample_goal_for_rollout()
         return goals
 
-    def sample_vae_goal_for_rollout(self):
+    def sample_goal_for_rollout(self):
         """
         These goals are fed to a policy when the policy wants to actually
         do rollouts.
@@ -195,8 +195,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
             goal = sigma * n + mu
         else:
             self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
+            observation = self._wrapped_env.get_image()
+            self._wrapped_env.reset()
 
-            observation = self._wrapped_env.reset() # TODO: instead of reset this should probably operate sample_goal...
             self.true_goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
             img = Variable(ptu.from_numpy(observation))
             e = self.vae.encode(img)[0]
@@ -222,9 +223,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.waitKey(1)
 
         return goal
-
-    def sample_env_goal(self):
-        return self.sample_vae_goal_for_rollout()
 
     def log_diagnostics(self, paths, logger=default_logger, **kwargs):
         super().log_diagnostics(paths, logger=logger, **kwargs)
