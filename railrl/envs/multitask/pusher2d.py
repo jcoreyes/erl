@@ -523,7 +523,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         self.arm_range = arm_range
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", "euclidean")
-        self.epsilon = self.reward_params.get("epsilon", 0.5 if include_puck else 0.5)
+        self.epsilon = self.reward_params.get("epsilon", 0.5 if include_puck else 0.25)
         self.puck_reward_only = self.reward_params.get("puck_reward_only", False)
         if include_puck:
             if self.puck_reward_only:

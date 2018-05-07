@@ -57,10 +57,10 @@ if __name__ == "__main__":
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train', 'test', ],
         'testing_mode': ['test', ],
-        'rdim': [2, 4, 8, 16],
+        'rdim': [4, 8, 16],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)

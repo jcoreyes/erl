@@ -132,6 +132,10 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         return goal
 
     def log_diagnostics(self, paths, logger=default_logger):
+        return
+
+    def old_log_diagnostics(self, paths, logger=default_logger):
+        """Unused because it conflicts if goals don't come from environment"""
         list_of_goals = _extract_list_of_goals(paths)
         if list_of_goals is None:
             return
