@@ -112,6 +112,10 @@ class ImageMujocoEnv(ProxyEnv, Env):
         full_obs = self._get_obs(history, true_state)
         return full_obs
 
+    def get_image(self):
+        """TODO: this should probably consider history"""
+        return self._image_observation()
+
     def _get_obs(self, history_flat, true_state):
         # adds extra information from true_state into to the image observation.
         # Used in ImageWithObsEnv.

@@ -15,13 +15,11 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
     def __init__(
             self,
             use_sparse_rewards=False,
-            ignore_multitask_goal=False, # for latent space stuff
             **kwargs
     ):
         Serializable.quick_init(self, locals())
         Point2DEnv.__init__(self, **kwargs)
         MultitaskEnv.__init__(self)
-        self.ignore_multitask_goal = ignore_multitask_goal
         self.use_sparse_rewards = use_sparse_rewards
         self.ob_to_goal_slice = slice(0, 2)
         self.observation_space = Box(
@@ -43,12 +41,7 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
         self._target_position = goal
 
     def reset(self):
-        if self.ignore_multitask_goal:
-            self._target_position = np.random.uniform(
-                size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
-            )
-        else:
-            self._target_position = self.multitask_goal
+        self._target_position = self.multitask_goal
         self._position = np.random.uniform(
             size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
         )
@@ -94,6 +87,11 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
 class MultitaskImagePoint2DEnv(MultitaskPoint2DEnv, MultitaskEnv):
     def _get_observation(self):
         return self.get_image()
+
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._position = goal
+        self._target_position = goal
 
     # def reset(self):
     #     goal = self.sample_goals(1)

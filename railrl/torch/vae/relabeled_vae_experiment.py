@@ -29,12 +29,12 @@ def experiment(variant):
     env = variant["env"](**variant['env_kwargs'])
 
     do_state_based_exp = variant.get("do_state_based_exp", False)
+    render = variant["render"]
 
     if not do_state_based_exp:
         rdim = variant["rdim"]
         use_env_goals = variant["use_env_goals"]
         vae_path = variant["vae_paths"][str(rdim)]
-        render = variant["render"]
         wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
         reward_params = variant.get("reward_params", dict())
 
@@ -53,7 +53,11 @@ def experiment(variant):
 
         vae_wrapped_env = env
 
-    env = MultitaskEnvToSilentMultitaskEnv(env)
+    if do_state_based_exp:
+        env = MultitaskEnvToSilentMultitaskEnv(env)
+    if do_state_based_exp and render:
+        env.pause_on_goal = True
+
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
@@ -98,6 +102,7 @@ def experiment(variant):
     if do_state_based_exp:
         testing_env = env
         training_env = env
+        relabeling_env = pickle.loads(pickle.dumps(env))
     else:
         training_mode = variant.get("training_mode", "train")
         testing_mode = variant.get("testing_mode", "test")
@@ -108,11 +113,10 @@ def experiment(variant):
         training_env.mode(training_mode)
         relabeling_env = pickle.loads(pickle.dumps(env))
         relabeling_env.mode(training_mode)
-        video_vae_env = pickle.loads(pickle.dumps(vae_wrapped_env))
-        video_vae_env = MultitaskToFlatEnv(video_vae_env)
+        relabeling_env.do_reset = False # save time by not resetting relabel env
+        video_vae_env = pickle.loads(pickle.dumps(env))
         video_vae_env.mode("video_vae")
-        video_goal_env = pickle.loads(pickle.dumps(vae_wrapped_env))
-        video_goal_env = MultitaskToFlatEnv(video_goal_env)
+        video_goal_env = pickle.loads(pickle.dumps(env))
         video_goal_env.mode("video_env")
 
     replay_buffer = RelabelingReplayBuffer(
@@ -129,6 +133,7 @@ def experiment(variant):
         policy=policy,
         exploration_policy=exploration_policy,
         render=do_state_based_exp and variant.get("render", False),
+        render_during_eval=do_state_based_exp and variant.get("render", False),
         **variant['algo_kwargs']
     )
 
@@ -140,7 +145,7 @@ def experiment(variant):
         algorithm.cuda()
         if not do_state_based_exp:
             for e in [testing_env, training_env, video_vae_env, video_goal_env]:
-                e._wrapped_env.vae.cuda()
+                e.vae.cuda()
 
     save_video = variant.get("save_video", True)
     if not do_state_based_exp and save_video:

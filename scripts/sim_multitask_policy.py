@@ -9,7 +9,7 @@ from railrl.core import logger
 import numpy as np
 
 
-def multitask_rollout(env, agent, max_path_length=np.inf, animated=False, multitaskpause=False):
+def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
     observations = []
     actions = []
     rewards = []
@@ -21,9 +21,6 @@ def multitask_rollout(env, agent, max_path_length=np.inf, animated=False, multit
     path_length = 0
     goal = env.sample_goal_for_rollout()
     env.set_goal(goal)
-    if multitaskpause and animated:
-        for i in range(100):
-            env.render()
     o = env.reset()
     if animated:
         env.render()
@@ -83,6 +80,11 @@ def simulate_policy(args):
         policy.cuda()
     if args.pause:
         import ipdb; ipdb.set_trace()
+    if args.enable_render:
+        # some environments need to be reconfigured for visualization
+        env.enable_render()
+    if args.multitaskpause:
+        env.pause_on_goal = True
     if isinstance(policy, PyTorchModule):
         policy.train(False)
     paths = []
@@ -92,7 +94,6 @@ def simulate_policy(args):
             policy,
             max_path_length=args.H,
             animated=not args.hide,
-            multitaskpause=args.multitaskpause,
         ))
         if hasattr(env, "log_diagnostics"):
             env.log_diagnostics(paths)
@@ -110,6 +111,7 @@ if __name__ == "__main__":
                         help='Speedup')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--pause', action='store_true')
+    parser.add_argument('--enable_render', action='store_true')
     parser.add_argument('--multitaskpause', action='store_true')
     parser.add_argument('--hide', action='store_true')
     args = parser.parse_args()
