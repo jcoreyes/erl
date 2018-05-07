@@ -1,4 +1,4 @@
-from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
+from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv, MultitaskPoint2DEnv
 from railrl.envs.multitask.pusher2d import FullPusher2DEnv
 
 from railrl.launchers.arglauncher import run_variants
@@ -8,10 +8,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "ashvin/vae/new-point2d/run1/id0/params.pkl",
-        "4": "ashvin/vae/new-point2d/run1/id1/params.pkl",
-        "8": "ashvin/vae/new-point2d/run1/id2/params.pkl",
-        "16": "ashvin/vae/new-point2d/run1/id3/params.pkl"
+        "2": "ashvin/vae/new-point2d/run2/id0/params.pkl",
+        "4": "ashvin/vae/new-point2d/run2/id1/params.pkl",
+        "8": "ashvin/vae/new-point2d/run2/id2/params.pkl",
+        "16": "ashvin/vae/new-point2d/run2/id3/params.pkl"
     }
 
     variant = dict(
@@ -39,10 +39,11 @@ if __name__ == "__main__":
         normalize=False,
         rdim=4,
         render=False,
-        env=MultitaskImagePoint2DEnv,
+        env=MultitaskPoint2DEnv,
         use_env_goals=False,
         vae_paths=vae_paths,
         track_qpos_goal=2,
+        do_state_based_exp=True,
     )
 
     n_seeds = 3
@@ -51,13 +52,12 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.reward_scale': [1e-4],
-        'training_mode': ['train', 'test', ],
-        'testing_mode': ['test', ],
-        'rdim': [2, 4, 8, 16],
+        'algo_kwargs.reward_scale': [1],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=2)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)

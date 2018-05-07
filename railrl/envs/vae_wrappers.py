@@ -48,6 +48,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
         render_rollouts=False,
         render_decoded=False,
 
+        do_reset = True,
+
         reward_params=dict(),
         track_qpos_goal=0, # UNUSED
         mode="train",
@@ -68,6 +70,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
         self.render_decoded = render_decoded
+
+        self.do_reset = do_reset
 
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", None)
@@ -196,12 +200,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
         else:
             self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
             observation = self._wrapped_env.get_image()
-            self._wrapped_env.reset()
 
             self.true_goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
             img = Variable(ptu.from_numpy(observation))
             e = self.vae.encode(img)[0]
             goal = ptu.get_numpy(e).flatten()
+
+        if self.do_reset:
+            self._wrapped_env.reset()
 
         if self.decode_goals:
             observation = self.vae.decode(Variable(ptu.from_numpy(goal))).data.view(1, self.input_channels, 84, 84)

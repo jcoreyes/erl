@@ -29,12 +29,15 @@ if __name__ == "__main__":
         env_kwargs=dict(
             render_onscreen=False,
             render_size=84,
-            ignore_multitask_goal=False,
             ball_radius=1,
         ),
         replay_kwargs=dict(
             fraction_goals_are_rollout_goals=1.0,
             fraction_goals_are_env_goals=0.0,
+        ),
+        reward_params=dict(
+            type="sparse",
+            epsilon=20.0,
         ),
         algorithm='TD3',
         normalize=False,
@@ -52,13 +55,16 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.reward_scale': [1e-4],
+        'algo_kwargs.reward_scale': [1],
         'training_mode': ['train', 'test', ],
         'testing_mode': ['test', ],
         'rdim': [2, 4, 8, 16],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
+        'reward_params.epsilon': [200.0],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=2)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)

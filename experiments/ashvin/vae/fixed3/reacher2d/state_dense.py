@@ -8,10 +8,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "ashvin/vae/new-point2d/run1/id0/params.pkl",
-        "4": "ashvin/vae/new-point2d/run1/id1/params.pkl",
-        "8": "ashvin/vae/new-point2d/run1/id2/params.pkl",
-        "16": "ashvin/vae/new-point2d/run1/id3/params.pkl"
+        "2": "ashvin/vae/new-reacher2d/run4/id0/params.pkl",
+        "4": "ashvin/vae/new-reacher2d/run4/id1/params.pkl",
+        "8": "ashvin/vae/new-reacher2d/run4/id2/params.pkl",
+        "16": "ashvin/vae/new-reacher2d/run4/id3/params.pkl"
     }
 
     variant = dict(
@@ -27,22 +27,26 @@ if __name__ == "__main__":
             # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
-            render_onscreen=False,
-            render_size=84,
-            ball_radius=1,
+            include_puck=False,
+            arm_range=0.5,
         ),
         replay_kwargs=dict(
             fraction_goals_are_rollout_goals=1.0,
             fraction_goals_are_env_goals=0.0,
         ),
+        # reward_params=dict(
+        #     type="sparse",
+        #     epsilon=20.0,
+        # ),
         algorithm='TD3',
         normalize=False,
         rdim=4,
         render=False,
-        env=MultitaskImagePoint2DEnv,
+        env=FullPusher2DEnv,
         use_env_goals=False,
         vae_paths=vae_paths,
-        track_qpos_goal=2,
+        wrap_mujoco_env=True,
+        do_state_based_exp=True,
     )
 
     n_seeds = 3
@@ -51,13 +55,12 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.reward_scale': [1e-4],
-        'training_mode': ['train', 'test', ],
-        'testing_mode': ['test', ],
-        'rdim': [2, 4, 8, 16],
+        'algo_kwargs.reward_scale': [1],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=2)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)

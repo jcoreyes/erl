@@ -113,6 +113,7 @@ def experiment(variant):
         training_env.mode(training_mode)
         relabeling_env = pickle.loads(pickle.dumps(env))
         relabeling_env.mode(training_mode)
+        relabeling_env.do_reset = False # save time by not resetting relabel env
         video_vae_env = pickle.loads(pickle.dumps(env))
         video_vae_env.mode("video_vae")
         video_goal_env = pickle.loads(pickle.dumps(env))
