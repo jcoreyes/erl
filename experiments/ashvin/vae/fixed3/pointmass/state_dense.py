@@ -53,11 +53,11 @@ if __name__ == "__main__":
             'ou',
         ],
         'algo_kwargs.reward_scale': [1],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)
