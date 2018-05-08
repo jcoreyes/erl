@@ -42,14 +42,12 @@ def experiment(variant):
             env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True, normalize=True)
 
         use_vae_goals = not use_env_goals
-        track_qpos_goal = variant.get("track_qpos_goal", 0)
         env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
             use_vae_reward=True, use_vae_goals=use_vae_goals,
             decode_goals=render,
             render_goals=render, render_rollouts=render,
             render_decoded=render,
-            reward_params=reward_params,
-            track_qpos_goal=track_qpos_goal)
+            reward_params=reward_params)
 
         vae_wrapped_env = env
 

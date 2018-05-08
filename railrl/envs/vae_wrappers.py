@@ -51,7 +51,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         do_reset = True,
 
         reward_params=dict(),
-        track_qpos_goal=0, # UNUSED
         mode="train",
     ):
         self.quick_init(locals())

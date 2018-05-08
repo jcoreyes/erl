@@ -42,7 +42,6 @@ if __name__ == "__main__":
         env=MultitaskPoint2DEnv,
         use_env_goals=False,
         vae_paths=vae_paths,
-        track_qpos_goal=2,
         do_state_based_exp=True,
     )
 
