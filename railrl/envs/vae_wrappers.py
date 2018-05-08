@@ -25,13 +25,14 @@ from railrl.misc.asset_loader import sync_down
 import cv2
 import torch
 import joblib
+import pickle
 
 def load_vae(vae_file):
     if vae_file[0] == "/":
         local_path = vae_file
     else:
         local_path = sync_down(vae_file)
-    vae = joblib.load(local_path)
+    vae = pickle.load(open(local_path, "rb"))
     # vae = torch.load(local_path, map_location=lambda storage, loc: storage)
     print("loaded", local_path)
     return vae

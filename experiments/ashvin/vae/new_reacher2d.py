@@ -23,7 +23,7 @@ def experiment(variant):
     train_data, test_data = get_data(10000)
     m = ConvVAE(representation_size, input_channels=3)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta)
-    for epoch in range(500):
+    for epoch in range(501):
         t.train_epoch(epoch)
         t.test_epoch(epoch)
         t.dump_samples(epoch)
@@ -36,6 +36,8 @@ if __name__ == "__main__":
             variant = dict(
                 beta=beta,
                 representation_size=representation_size,
+                snapshot_mode="gap",
+                snapshot_gap=100,
             )
             variants.append(variant)
-    run_variants(experiment, variants, run_id=6)
+    run_variants(experiment, variants, run_id=7)
