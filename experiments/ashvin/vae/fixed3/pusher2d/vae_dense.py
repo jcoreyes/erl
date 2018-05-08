@@ -8,10 +8,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "ashvin/vae/new-pusher2d/run5/id0/params.pkl",
-        "4": "ashvin/vae/new-pusher2d/run5/id1/params.pkl",
-        "8": "ashvin/vae/new-pusher2d/run5/id2/params.pkl",
-        "16": "ashvin/vae/new-pusher2d/run5/id3/params.pkl"
+        "2": "ashvin/vae/new-pusher2d/run7/id0/itr_100.pkl",
+        "4": "ashvin/vae/new-pusher2d/run7/id1/itr_40.pkl",
+        "8": "ashvin/vae/new-pusher2d/run7/id2/params.pkl",
+        "16": "ashvin/vae/new-pusher2d/run7/id3/params.pkl"
     }
 
     variant = dict(
@@ -69,7 +69,7 @@ if __name__ == "__main__":
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train', 'test', ],
         'testing_mode': ['test', ],
-        'rdim': [4, 8, 16],
+        'rdim': [2, 4, 8, 16],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

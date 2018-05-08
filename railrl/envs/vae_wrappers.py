@@ -24,13 +24,15 @@ from railrl.misc.asset_loader import sync_down
 
 import cv2
 import torch
+import joblib
 
 def load_vae(vae_file):
     if vae_file[0] == "/":
         local_path = vae_file
     else:
         local_path = sync_down(vae_file)
-    vae = torch.load(local_path, map_location=lambda storage, loc: storage)
+    vae = joblib.load(local_path)
+    # vae = torch.load(local_path, map_location=lambda storage, loc: storage)
     print("loaded", local_path)
     return vae
 
@@ -48,7 +50,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         render_rollouts=False,
         render_decoded=False,
 
-        do_reset = True,
+        reset_on_sample_goal_for_rollout = True,
 
         reward_params=dict(),
         mode="train",
@@ -70,7 +72,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.render_rollouts = render_rollouts
         self.render_decoded = render_decoded
 
-        self.do_reset = do_reset
+        self.reset_on_sample_goal_for_rollout = reset_on_sample_goal_for_rollout
 
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", None)
@@ -206,7 +208,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             e = self.vae.encode(img)[0]
             goal = ptu.get_numpy(e).flatten()
 
-        if self.do_reset:
+        if self.reset_on_sample_goal_for_rollout:
             self._wrapped_env.reset()
 
         if self.decode_goals:
