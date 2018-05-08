@@ -171,10 +171,10 @@ class ConvVAETrainer():
         logger.record_tabular("beta", beta)
         logger.dump_tabular()
 
-        # logger.save_itr_params(epoch, self.model) # slow...
+        logger.save_itr_params(epoch, self.model) # slow...
         logdir = logger.get_snapshot_dir()
         filename = osp.join(logdir, 'params.pkl')
-        torch.save(self.model, filename)
+        # torch.save(self.model, filename)
 
     def dump_samples(self, epoch):
         sample = ptu.Variable(torch.randn(64, self.representation_size))
@@ -210,8 +210,8 @@ class ConvVAETrainer():
         save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
         plt.savefig(save_file)
 
-class ConvVAE(nn.Module):
-# class ConvVAE(PyTorchModule):
+# class ConvVAE(nn.Module):
+class ConvVAE(PyTorchModule):
     def __init__(
             self,
             representation_size,
@@ -221,8 +221,9 @@ class ConvVAE(nn.Module):
             added_fc_size=0,
             hidden_init=ptu.fanin_init,
             output_activation=identity,
+            min_variance=1e-4,
     ):
-        # self.save_init_params(locals())
+        self.save_init_params(locals())
         super().__init__()
         self.representation_size = representation_size
         self.hidden_init = hidden_init
@@ -230,6 +231,7 @@ class ConvVAE(nn.Module):
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize**2 * self.input_channels
+        self.log_min_variance = float(np.log(min_variance))
 
         self.dist_mu = None
         self.dist_std = None
@@ -295,7 +297,7 @@ class ConvVAE(nn.Module):
             h = torch.cat((h, fc_input), dim=1)
         #h = F.relu(self.hidden(h))
         mu = self.output_activation(self.fc1(h))
-        logvar = self.output_activation(self.fc2(h))
+        logvar = self.log_min_variance + self.relu(self.fc2(h))
         return mu, logvar
 
     def reparameterize(self, mu, logvar):
@@ -318,6 +320,18 @@ class ConvVAE(nn.Module):
         mu, logvar = self.encode(x)
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
+
+    def __getstate__(self):
+        d = super().__getstate__()
+        # Add these explicitly in case they were modified
+        d["_dist_mu"] = self.dist_mu
+        d["_dist_std"] = self.dist_std
+        return d
+
+    def __setstate__(self, d):
+        super().__setstate__(d)
+        self.dist_mu = d["_dist_mu"]
+        self.dist_std = d["_dist_std"]
 
 #class SpatialVAE(nn.Module):
 class SpatialVAE(ConvVAE):

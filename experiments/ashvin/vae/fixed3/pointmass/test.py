@@ -42,7 +42,6 @@ if __name__ == "__main__":
         env=MultitaskImagePoint2DEnv,
         use_env_goals=False,
         vae_paths=vae_paths,
-        track_qpos_goal=2,
     )
 
     n_seeds = 3

@@ -8,15 +8,15 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "ashvin/vae/new-reacher2d/run4/id0/params.pkl",
-        "4": "ashvin/vae/new-reacher2d/run4/id1/params.pkl",
-        "8": "ashvin/vae/new-reacher2d/run4/id2/params.pkl",
-        "16": "ashvin/vae/new-reacher2d/run4/id3/params.pkl"
+        "2": "ashvin/vae/new-reacher2d/run5/id0/params.pkl",
+        "4": "ashvin/vae/new-reacher2d/run5/id1/params.pkl",
+        "8": "ashvin/vae/new-reacher2d/run5/id2/params.pkl",
+        "16": "ashvin/vae/new-reacher2d/run5/id3/params.pkl"
     }
 
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=100,
+            num_epochs=205,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -63,4 +63,4 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)

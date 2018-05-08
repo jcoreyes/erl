@@ -19,13 +19,11 @@ def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
     agent.reset()
     next_o = None
     path_length = 0
-    goal = env.sample_goal_for_rollout()
-    env.set_goal(goal)
     o = env.reset()
     if animated:
         env.render()
     while path_length < max_path_length:
-        goal = env.multitask_goal
+        goal = env.get_goal()
         new_o = np.hstack((o, goal))
         a, agent_info = agent.get_action(new_o)
         a = a + np.random.normal(a.shape) / 10

@@ -34,7 +34,9 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
         )
 
     def step(self, u):
-        return self._step(u)
+        observation, reward, done, info = self._step(u)
+        done = False # no early termination
+        return observation, reward, done, info
 
     def set_goal(self, goal):
         super().set_goal(goal)
