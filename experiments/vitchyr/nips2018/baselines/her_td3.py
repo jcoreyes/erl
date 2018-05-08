@@ -1,10 +1,7 @@
-from gym.envs.robotics import FetchPushEnv
-
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer, \
-    RelabelingReplayBuffer
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv, SawyerXYZEnv
+from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
+from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv#, SawyerXYZEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
@@ -114,7 +111,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-63ddd2c50332985938149b8-xml-plus-rk4'
+    exp_prefix = 'sawyer-sim-push-63ddd2c50332985938149b8-xml-plus-rk4-her-td3'
 
     search_space = {
         # 'env_kwargs.randomize_goals': [True, False],
@@ -125,9 +122,10 @@ if __name__ == "__main__":
             1,
             # 5,
         ],
+        'replay_buffer_kwargs.fraction_goals_are_env_goals': [0.0, 0.5],
+        'replay_buffer_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'algo_kwargs.max_path_length': [
             100,
-            50,
         ],
         'exploration_type': [
             'epsilon',

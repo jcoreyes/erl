@@ -32,29 +32,30 @@ if __name__ == "__main__":
     exp_prefix = 'dev-sawyer-push-vae'
     use_gpu = True
 
-    # n_seeds = 1
-    # mode = 'ec2'
-    exp_prefix = 'sawyer-pusher-vae-anneal-beta-piecewise-and-scatter-100-pix'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer-pusher-vae-anneal-beta-fix-action-on-reset-500pix'
     # exp_prefix = 'sawyer-pusher-vae-beta-2000'
     # use_gpu = False
 
     variant = dict(
         beta=5.0,
-        num_epochs=200,
+        num_epochs=300,
         get_data_kwargs=dict(
-            N=100,
+            N=500,
+            # N=1,
         ),
         algo_kwargs=dict(
             do_scatterplot=True,
         ),
         beta_schedule_kwargs=dict(
-            x_values=[0, 100, 200],
+            x_values=[0, 150, 200],
             y_values=[0, 0, 2*128],
         )
     )
 
     search_space = {
-        'representation_size': [32],
+        'representation_size': [4, 16, 32, 64],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
