@@ -51,13 +51,21 @@ class IntLinearSchedule(LinearSchedule):
         return int(super().get_value(t))
 
 
-# TODO(vitchyr)
 class PiecewiseLinearSchedule(ScalarSchedule):
     """
     Given a list of (x, t) value-time pairs, return value x at time t,
     and linearly interpolate between the two
     """
-    pass
+    def __init__(
+            self,
+            x_values,
+            y_values,
+    ):
+        self._x_values = x_values
+        self._y_values = y_values
+
+    def get_value(self, t):
+        return np.interp(t, self._x_values, self._y_values)
 
 
 def none_to_infty(bounds):

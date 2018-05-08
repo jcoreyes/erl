@@ -58,7 +58,7 @@ if __name__ == "__main__":
         env_class=SawyerPushXYEnv,
         env_kwargs=dict(
             frame_skip=50,
-            only_reward_block_to_goal=True,
+            only_reward_block_to_goal=False,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],

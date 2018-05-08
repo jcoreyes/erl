@@ -85,7 +85,7 @@ if __name__ == "__main__":
         # env_class=SawyerXYZEnv,
         env_kwargs=dict(
             frame_skip=50,
-            only_reward_block_to_goal=True,
+            only_reward_block_to_goal=False,
         ),
         algorithm='TD3',
         version='normal',
@@ -98,7 +98,8 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-easy-ish-check-fixed-env'
+    exp_prefix = 'sawyer-sim-push-63ddd2c50332985938149b8-xml-plus-rk4'
+    # exp_prefix = 'sawyer-sim-push-63ddd2c50332985938149b8-xml-plus-rk4-lower-rot-inertia'
 
     search_space = {
         # 'env_kwargs.randomize_goals': [True, False],
