@@ -160,9 +160,26 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
         if relative:
             self.reset_mocap2body_xpos()
-            self.data.set_mocap_pos('mocap', self.data.mocap_pos + pos_delta)
+            new_mocap_pos = self.data.mocap_pos + pos_delta
         else:
-            self.data.set_mocap_pos('mocap', pos_delta)
+            new_mocap_pos = pos_delta
+        new_mocap_pos[0, 0] = np.clip(
+            new_mocap_pos[0, 0],
+            -0.1,
+            0.1,
+        )
+        new_mocap_pos[0, 1] = np.clip(
+            new_mocap_pos[0, 1],
+            -0.1 + 0.6,
+            0.1 + 0.6,
+        )
+        new_mocap_pos[0, 2] = np.clip(
+            new_mocap_pos[0, 2],
+            0,
+            0.5,
+        )
+        # import ipdb; ipdb.set_trace()
+        self.data.set_mocap_pos('mocap', new_mocap_pos)
         self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
 
     def reset(self):
@@ -431,29 +448,29 @@ class SawyerPushXYEnv(SawyerPushEnv):
     @property
     def init_angles(self):
         # To start on right side of Sawyer (from Sawyer's POV).
-        return [6.49751287e-01, -6.13245189e-01, 3.68179034e-01,
-                1.55969534e+00, -4.67787323e-01, 7.11615700e-01,
-                2.97853855e+00, 3.12823177e-02, 1.82764768e-01,
-                6.01241700e-01, 2.09921520e-02, 9.99984569e-01,
-                1.29839525e-06,  4.60381956e-06,  5.55527642e-03,
-                -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
-                1, 0, 0, 0]
+        # return [6.49751287e-01, -6.13245189e-01, 3.68179034e-01,
+        #         1.55969534e+00, -4.67787323e-01, 7.11615700e-01,
+        #         2.97853855e+00, 3.12823177e-02, 1.82764768e-01,
+        #         6.01241700e-01, 2.09921520e-02, 9.99984569e-01,
+        #         1.29839525e-06,  4.60381956e-06,  5.55527642e-03,
+        #         -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
+        #         1, 0, 0, 0]
         # To start in middle:
-        # return [
-            # 1.02866769e+00, - 6.95207647e-01, 4.22932911e-01,
-            # 1.76670458e+00, - 5.69637604e-01, 6.24117280e-01,
-            # 3.53404635e+00, 2.99584816e-02, - 2.00417049e-02,
-            # 6.07093769e-01, 2.10679106e-02, 9.99910945e-01,
-            # - 4.60349085e-05, - 1.78179392e-03, - 1.32259491e-02,
-            # 1.07586388e-02, 6.62018003e-01, 2.09936716e-02,
-            # 1.00000000e+00, 3.76632959e-14, 1.36837913e-11,
-            # 1.56567415e-23
-        # ]
+        return [
+            1.02866769e+00, - 6.95207647e-01, 4.22932911e-01,
+            1.76670458e+00, - 5.69637604e-01, 6.24117280e-01,
+            3.53404635e+00, 2.99584816e-02, - 2.00417049e-02,
+            6.07093769e-01, 2.10679106e-02, 9.99910945e-01,
+            - 4.60349085e-05, - 1.78179392e-03, - 1.32259491e-02,
+            1.07586388e-02, 6.62018003e-01, 2.09936716e-02,
+            1.00000000e+00, 3.76632959e-14, 1.36837913e-11,
+            1.56567415e-23
+        ]
 
     def step(self, a):
         a = np.clip(a, -1, 1)
-        # mocap_delta_z = 0.02 - self.data.mocap_pos[0, 2]
-        mocap_delta_z = 0
+        mocap_delta_z = 0.06 - self.data.mocap_pos[0, 2]
+        # mocap_delta_z = 0
         new_mocap_action = np.hstack((
             a[:2] * self._pos_action_scale,
             np.array([mocap_delta_z])
