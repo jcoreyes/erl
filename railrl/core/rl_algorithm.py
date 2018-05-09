@@ -312,7 +312,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._n_env_steps_total += path_length
                 n_steps_current_epoch += path_length
                 self._handle_path(path)
-                self._start_new_rollout()
+                self.exploration_policy.reset()
             gt.stamp('sample')
             self._try_to_train()
             gt.stamp('train')
