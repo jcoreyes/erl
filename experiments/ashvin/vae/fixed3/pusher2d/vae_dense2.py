@@ -8,15 +8,12 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "ashvin/vae/new-reacher2d/run4/id0/params.pkl",
-        "4": "ashvin/vae/new-reacher2d/run4/id1/params.pkl",
-        "8": "ashvin/vae/new-reacher2d/run4/id2/params.pkl",
-        "16": "ashvin/vae/new-reacher2d/run4/id3/params.pkl"
+        "2": "ashvin/vae/new-pusher2d/run9/id0/itr_1000.pkl"
     }
 
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=205,
+            num_epochs=505,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -27,26 +24,29 @@ if __name__ == "__main__":
             # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
-            include_puck=False,
-            arm_range=0.5,
+            include_puck=True,
+            arm_range=0.1,
+            use_big_red_puck=True,
+            reward_params=dict(
+                type="sparse",
+                epsilon=0.2,
+                # puck_reward_only=True,
+            ),
         ),
         replay_kwargs=dict(
-            fraction_goals_are_rollout_goals=1.0,
-            fraction_goals_are_env_goals=0.0,
+            fraction_goals_are_rollout_goals=0.2,
+            fraction_goals_are_env_goals=0.5,
         ),
-        # reward_params=dict(
-        #     type="sparse",
-        #     epsilon=20.0,
-        # ),
         algorithm='TD3',
         normalize=False,
         rdim=4,
         render=False,
         env=FullPusher2DEnv,
-        use_env_goals=False,
+        use_env_goals=True,
         vae_paths=vae_paths,
         wrap_mujoco_env=True,
-        do_state_based_exp=True,
+        do_state_based_exp=False,
+        exploration_noise=0.1,
     )
 
     n_seeds = 3
@@ -55,12 +55,20 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.reward_scale': [1],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5],
+        'env_kwargs.arm_range': [0.5],
+        'env_kwargs.reward_params.epsilon': [0.5],
+        'algo_kwargs.num_updates_per_env_step': [1, 4],
+        'algo_kwargs.discount': [0.99],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5,],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
+        'exploration_noise': [0.2],
+        'algo_kwargs.reward_scale': [1e-4],
+        'training_mode': ['train', ],
+        'testing_mode': ['test', ],
+        'rdim': [2],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)

@@ -8,10 +8,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "ashvin/vae/new-reacher2d/run5/id0/params.pkl",
-        "4": "ashvin/vae/new-reacher2d/run5/id1/params.pkl",
-        "8": "ashvin/vae/new-reacher2d/run5/id2/params.pkl",
-        "16": "ashvin/vae/new-reacher2d/run5/id3/params.pkl"
+        "2": "ashvin/vae/new-reacher2d/run7/id0/itr_500.pkl",
+        "4": "ashvin/vae/new-reacher2d/run7/id1/itr_500.pkl",
+        "8": "ashvin/vae/new-reacher2d/run7/id2/itr_500.pkl",
+        "16": "ashvin/vae/new-reacher2d/run7/id3/itr_500.pkl"
     }
 
     variant = dict(
@@ -55,12 +55,15 @@ if __name__ == "__main__":
             'ou',
         ],
         'algo_kwargs.reward_scale': [1e-4],
-        'training_mode': ['train', 'test', ],
+        'training_mode': ['train', ],
         'testing_mode': ['test', ],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5,],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
+        'algo_kwargs.num_updates_per_env_step': [1, 4,],
         'rdim': [2, 4, 8, 16],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=3)
