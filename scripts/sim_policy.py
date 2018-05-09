@@ -4,6 +4,7 @@ from railrl.torch.core import PyTorchModule
 from railrl.torch.pytorch_util import set_gpu_mode
 import argparse
 import joblib
+import pickle
 import uuid
 from railrl.core import logger
 
@@ -12,7 +13,7 @@ filename = str(uuid.uuid4())
 
 
 def simulate_policy(args):
-    data = joblib.load(args.file)
+    data = pickle.load(open(args.file, "rb")) # joblib.load(args.file)
     if 'eval_policy' in data:
         policy = data['eval_policy']
     elif 'policy' in data:

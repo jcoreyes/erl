@@ -60,8 +60,8 @@ if __name__ == "__main__":
             1.0,
         ],
         'env_kwargs.reward_info.type': [
-            'hand_to_object_only',
-            # 'shaped',
+            # 'hand_to_object_only',
+            'shaped',
             # 'euclidean',
         ],
         'exploration_type': [

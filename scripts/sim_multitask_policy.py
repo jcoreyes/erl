@@ -7,7 +7,7 @@ import joblib
 import uuid
 from railrl.core import logger
 import numpy as np
-
+import pickle
 
 def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
     observations = []
@@ -66,7 +66,7 @@ def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
 
 
 def simulate_policy(args):
-    data = joblib.load(args.file)
+    data = pickle.load(open(args.file, "rb")) # joblib.load(args.file)
     policy = data['policy']
 
     env = data['env']

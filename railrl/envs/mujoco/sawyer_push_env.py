@@ -215,19 +215,20 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
         return self._get_obs()
 
     def compute_reward(self, ob, action, next_ob, goal):
-        reached = self.convert_ob_to_goal(next_ob)
+        hand_xy = next_ob[:2]
+        obj_xy = next_ob[-2:]
         if not self.reward_info or self.reward_info["type"] == "euclidean":
-            r = - np.linalg.norm(reached - goal)
+            r = - np.linalg.norm(obj_xy - goal)
         elif self.reward_info["type"] == "shaped":
-            r = - np.linalg.norm(reached - goal) - np.linalg.norm(
-                self.get_endeff_pos() - self.get_block_pos()
+            r = - np.linalg.norm(obj_xy - goal) - np.linalg.norm(
+                hand_xy - obj_xy
             )
         elif self.reward_info["type"] == "hand_to_object_only":
-            r = - np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
+            r = - np.linalg.norm(hand_xy - obj_xy)
         elif self.reward_info["type"] == "sparse":
             t = self.reward_info["threshold"]
             r = float(
-                np.linalg.norm(self.convert_ob_to_goal(ob) - goal) < t
+                np.linalg.norm(obj_xy - goal) < t
             ) - 1
         else:
             raise NotImplementedError("Invalid/no reward type.")

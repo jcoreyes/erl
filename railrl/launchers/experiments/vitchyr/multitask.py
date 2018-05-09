@@ -1,5 +1,6 @@
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
+    MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
@@ -16,6 +17,8 @@ from railrl.torch.td3.td3 import TD3
 def td3_experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
     env = MultitaskToFlatEnv(env)
+    if variant.get('make_silent_env', True):
+        env = MultitaskEnvToSilentMultitaskEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
@@ -70,6 +73,8 @@ def td3_experiment(variant):
 
 def her_td3_experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
+    if variant.get('make_silent_env', True):
+        env = MultitaskEnvToSilentMultitaskEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
@@ -131,6 +136,8 @@ def her_td3_experiment(variant):
 def ddpg_experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
     env = MultitaskToFlatEnv(env)
+    if variant.get('make_silent_env', True):
+        env = MultitaskEnvToSilentMultitaskEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']

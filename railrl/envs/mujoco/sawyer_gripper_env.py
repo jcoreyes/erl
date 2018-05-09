@@ -178,7 +178,6 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             0,
             0.5,
         )
-        # import ipdb; ipdb.set_trace()
         self.data.set_mocap_pos('mocap', new_mocap_pos)
         self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
 
@@ -193,21 +192,16 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     def compute_reward(self, ob, action, next_ob, goal):
         if not self.reward_info or self.reward_info["type"] == "euclidean":
-            r = -np.linalg.norm(ob - goal)
+            r = -np.linalg.norm(next_ob - goal)
         elif self.reward_info["type"] == "sparse":
             t = self.reward_info["threshold"]
-            r = float(np.linalg.norm(ob - goal) < t) - 1
+            r = float(np.linalg.norm(next_ob - goal) < t) - 1
         else:
             raise NotImplementedError("Invalid/no reward type.")
         return r
 
     def compute_her_reward_np(self, ob, action, next_ob, goal):
-        if not self.reward_info or self.reward_info["type"] == "euclidean":
-            r = -np.linalg.norm(next_ob - goal)
-        elif self.reward_info["type"] == "sparse":
-            t = self.reward_info["threshold"]
-            r = float(np.linalg.norm(next_ob - goal) < t) - 1
-        return r
+        return self.compute_reward(ob, action, next_ob, goal)
 
     @property
     def init_angles(self):
