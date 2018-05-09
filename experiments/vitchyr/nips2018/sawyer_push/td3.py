@@ -7,13 +7,14 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=500,
+            num_epochs=100,
             num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_steps_per_eval=300,
             tau=1e-2,
             batch_size=128,
             max_path_length=100,
             discount=0.99,
+            render_during_eval=True,
         ),
         env_class=SawyerPushXYEnv,
         env_kwargs=dict(
@@ -34,16 +35,19 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev'
+    exp_prefix = 'dev-sawyer-new-pusher'
 
     # n_seeds = 1
     # mode = 'ec2'
-    # exp_prefix = 'sawyer-sim-push-63ddd2c50332985938149b8-xml-plus-rk4'
-    # exp_prefix = 'sawyer-sim-push-63ddd2c50332985938149b8-xml-plus-rk4-lower-rot-inertia'
+    # exp_prefix = 'sawyer-new-pusher'
 
     search_space = {
         # 'env_kwargs.randomize_goals': [True, False],
         'algo_kwargs.max_path_length': [100],
+        'env_kwargs.reward_info.type': [
+            # 'hand_to_object_only',
+            'shaped',
+        ],
         'exploration_type': [
             'ou',
             # 'epsilon',

@@ -222,6 +222,8 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
             r = - np.linalg.norm(reached - goal) - np.linalg.norm(
                 self.get_endeff_pos() - self.get_block_pos()
             )
+        elif self.reward_info["type"] == "hand_to_object_only":
+            r = - np.linalg.norm(self.get_endeff_pos() - self.get_block_pos())
         elif self.reward_info["type"] == "sparse":
             t = self.reward_info["threshold"]
             r = float(
