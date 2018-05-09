@@ -34,25 +34,24 @@ if __name__ == "__main__":
     exp_prefix = 'dev-sawyer-push-new-vae'
     use_gpu = True
 
-    # n_seeds = 1
-    # mode = 'ec2'
+    n_seeds = 1
+    mode = 'ec2'
     # exp_prefix = 'sawyer-pusher-vae-anneal-beta-fix-action-on-reset-500pix'
     # exp_prefix = 'sawyer-pusher-vae-beta-2000'
     exp_prefix = 'sawyer-push-new-vae'
 
     variant = dict(
         beta=5.0,
-        num_epochs=300,
+        num_epochs=1000,
         get_data_kwargs=dict(
-            N=500,
-            # N=1,
+            N=1000,
         ),
         algo_kwargs=dict(
             do_scatterplot=True,
         ),
         beta_schedule_kwargs=dict(
-            x_values=[0, 150, 200],
-            y_values=[0, 0, 2*128],
+            x_values=[0, 400, 800],
+            y_values=[0, 0, 5*128],
         )
     )
 
