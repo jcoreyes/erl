@@ -41,13 +41,13 @@ if __name__ == "__main__":
     exp_prefix = 'dev-sawyer-push-new-vae'
     use_gpu = True
 
-    # n_seeds = 1
-    # mode = 'ec2'
-    exp_prefix = 'sawyer-new-push-vae-new-corrected-losses-min-var-with-abs'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer-new-push-vae-min-var-long'
 
     variant = dict(
         beta=5.0,
-        num_epochs=500,
+        num_epochs=1000,
         get_data_kwargs=dict(
             N=1000,
             dataset_path="05-09-sawyer-new-pusher/imgs_1000.npy"
@@ -57,7 +57,7 @@ if __name__ == "__main__":
             lr=1e-3,
         ),
         beta_schedule_kwargs=dict(
-            x_values=[0, 100, 200, 300],
+            x_values=[0, 100, 200, 500],
             # y_values=[0, 0, 0.1, 0.5],
             y_values=[0, 0, 5, 5],
         ),
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'representation_size': [32],
+        'representation_size': [4, 8, 16, 32, 64],
         # 'beta_schedule_kwargs.y_values': [
         #     [0, 0, 0.1, 0.5],
         #     [0, 0, 0.1, 0.1],
