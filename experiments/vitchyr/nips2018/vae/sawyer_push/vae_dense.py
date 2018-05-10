@@ -13,12 +13,12 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'name'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer-new-push-vae-rl'
 
     vae_paths = {
-        "32": "05-09-vae-sawyer-new-push/vae_500.pkl",
+        "32": "05-09-sawyer-new-push-vae-min-var-long/05-09-sawyer-new-push-vae-min-var-long-id0-s17149-r32/params.pkl",
     }
 
     variant = dict(
@@ -45,7 +45,7 @@ if __name__ == "__main__":
         ),
         algorithm='HER-TD3',
         normalize=False,
-        rdim=4,
+        rdim=32,
         render=False,
         env=SawyerPushXYEnv,
         use_env_goals=True,
@@ -67,7 +67,6 @@ if __name__ == "__main__":
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train', 'test'],
         'testing_mode': ['test', ],
-        'rdim': [32],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -79,4 +78,5 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
+                use_gpu=True,
             )
