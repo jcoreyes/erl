@@ -14,7 +14,6 @@ if __name__ == "__main__":
             num_updates_per_env_step=1,
             batch_size=128,
             discount=0.99,
-            render_during_eval=True,
         ),
         env_class=SawyerPushAndReachXYEnv,
         env_kwargs=dict(
@@ -36,15 +35,15 @@ if __name__ == "__main__":
         ),
         normalize=True,
         algorithm='HER-TD3',
-        version='her',
+        version='normal',
     )
     n_seeds = 1
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer-new-pusher-her-td3-follow-up-sweep-2'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'sawyer-push-and-reach'
 
     search_space = {
         'algo_kwargs.num_updates_per_env_step': [
@@ -53,21 +52,21 @@ if __name__ == "__main__":
         ],
         'replay_buffer_kwargs.fraction_goals_are_env_goals': [
             0.0,
-            # 0.5,
+            0.5,
         ],
         'replay_buffer_kwargs.fraction_goals_are_rollout_goals': [
-            # 0.2,
+            0.2,
             1.0,
         ],
         'env_kwargs.reward_info.type': [
-            'hand_only',
+            # 'hand_only',
             # 'shaped',
-            # 'euclidean',
+            'euclidean',
         ],
         'exploration_type': [
-            # 'epsilon',
+            'epsilon',
             'ou',
-            # 'gaussian',
+            'gaussian',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
