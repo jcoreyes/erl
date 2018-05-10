@@ -1,23 +1,18 @@
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
+from railrl.envs.multitask.sawyer_env_v2 import MultiTaskSawyerXYZReachingEnv
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofGoalStateEverything,
-    Reacher7DofFullGoal,
-)
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
+)
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.tdm_ddpg import TdmDdpg
-from railrl.state_distance.tdm_networks import TdmPolicy, \
-    TdmQf, TdmNormalizer
+from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy, TdmNormalizer
 from railrl.torch.modules import HuberLoss
-
-
+import railrl.torch.pytorch_util as ptu
+import copy
 def experiment(variant):
-    env = NormalizedBoxEnv(Reacher7DofGoalStateEverything())
+    env_params = variant['env_params']
+    env = MultiTaskSawyerXYZReachingEnv(env_params)
     tdm_normalizer = TdmNormalizer(
         env,
         vectorized=True,
@@ -26,13 +21,14 @@ def experiment(variant):
     qf = TdmQf(
         env=env,
         vectorized=True,
+        hidden_sizes=[variant['hidden_sizes'], variant['hidden_sizes']],
+        structure='norm_difference',
         tdm_normalizer=tdm_normalizer,
-        **variant['qf_kwargs']
     )
     policy = TdmPolicy(
         env=env,
+        hidden_sizes=[variant['hidden_sizes'], variant['hidden_sizes']],
         tdm_normalizer=tdm_normalizer,
-        **variant['policy_kwargs']
     )
     es = OUStrategy(
         action_space=env.action_space,
@@ -47,9 +43,8 @@ def experiment(variant):
         **variant['her_replay_buffer_kwargs']
     )
     qf_criterion = variant['qf_criterion_class']()
-    ddpg_tdm_kwargs = variant['ddpg_tdm_kwargs']
+    ddpg_tdm_kwargs = copy.deepcopy(variant['ddpg_tdm_kwargs'])
     ddpg_tdm_kwargs['ddpg_kwargs']['qf_criterion'] = qf_criterion
-    ddpg_tdm_kwargs['tdm_kwargs']['tdm_normalizer'] = tdm_normalizer
     algorithm = TdmDdpg(
         env,
         qf=qf,
@@ -64,29 +59,24 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = "here_no_doodad"
-    exp_prefix = "dev-tdm-example-7dof-reacher"
-
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "tdm-example-7dof-reacher-nupo-25-x-axis-100steps-2"
-
     variant = dict(
         ddpg_tdm_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=100,
-                num_steps_per_epoch=100,
+                num_epochs=50,
+                num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=100,
-                num_updates_per_env_step=25,
                 batch_size=64,
                 discount=1,
-                reward_scale=1,
+                num_updates_per_env_step=4,
+                reward_scale=10,
+                normalize_env=False,
             ),
             tdm_kwargs=dict(
-                max_tau=15,
                 num_pretrain_paths=0,
+                vectorized=True,
+                max_tau=15,
+                sample_rollout_goals_from='replay_buffer'
             ),
             ddpg_kwargs=dict(
                 tau=0.001,
@@ -97,21 +87,23 @@ if __name__ == "__main__":
         her_replay_buffer_kwargs=dict(
             max_size=int(2E5),
         ),
-        qf_kwargs=dict(
-            hidden_sizes=[300, 300],
-            structure='norm_difference',
-        ),
-        policy_kwargs=dict(
-            hidden_sizes=[300, 300],
-        ),
         es_kwargs=dict(
             theta=0.1,
             max_sigma=0.1,
             min_sigma=0.1,
         ),
         qf_criterion_class=HuberLoss,
-        algorithm="DDPG-TDM",
+        env_params=dict(
+            action_mode='torque',
+            randomize_goal_on_reset=False,
+            reward='norm',
+        ),
+        hidden_sizes=100,
     )
+
+    n_seeds = 1
+    exp_prefix = 'sawyer_torque_tdm_ddpg_xyz_reaching_baseline'
+    mode = 'here_no_doodad'
     for i in range(n_seeds):
         run_experiment(
             experiment,

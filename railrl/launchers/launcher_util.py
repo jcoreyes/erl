@@ -503,6 +503,7 @@ def run_experiment_here(
         script_name=script_name,
         base_log_dir=base_log_dir,
     )
+
     save_experiment_data(
         dict(
             run_experiment_here_kwargs=run_experiment_here_kwargs
@@ -599,6 +600,7 @@ def setup_logger(
 
     if variant is not None:
         logger.log("Variant:")
+
         logger.log(json.dumps(ppp.dict_to_safe_json(variant), indent=2))
         variant_log_path = osp.join(log_dir, variant_log_file)
         logger.log_variant(variant_log_path, variant)

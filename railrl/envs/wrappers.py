@@ -1,3 +1,4 @@
+import torch
 import mujoco_py
 import numpy as np
 import gym.spaces
@@ -11,7 +12,6 @@ from collections import deque
 from railrl.core.serializable import Serializable
 #from torchvision.transforms import ToTensor, ToPILImage
 import mujoco_py
-import torch
 
 class ProxyEnv(Serializable, Env):
     def __init__(self, wrapped_env):
@@ -209,7 +209,7 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         self._obs_mean = obs_mean
         self._obs_std = obs_std
         ub = np.ones(self._wrapped_env.action_space.shape)
-        self.action_space = Box(-1 * ub, ub, dtype=np.float32)
+        self.action_space = Box(-1 * ub, ub)
 
     def estimate_obs_stats(self, obs_batch, override_values=False):
         if self._obs_mean is not None and not override_values:

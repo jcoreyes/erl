@@ -12,7 +12,7 @@ import railrl.misc.hyperparameter as hyp
 
 def experiment(variant):
     env_params = variant['env_params']
-    es_params = variant['es_params']
+    #es_params = variant['es_params']
     env = SawyerXYZReachingEnv(**env_params)
     # es = OUStrategy(action_space=env.action_space, **es_params)
     es = EpsilonGreedy(
@@ -50,8 +50,8 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
-            num_epochs=30,
-            num_steps_per_epoch=100,
+            num_epochs=50,
+            num_steps_per_epoch=50,
             num_steps_per_eval=50,
             use_soft_update=True,
             tau=1e-2,
@@ -64,27 +64,29 @@ if __name__ == "__main__":
             num_updates_per_env_step=1,
             #collection_mode='online-parallel',
             normalize_env=False,
+            train_on_eval_paths=True,
         ),
         env_params=dict(
             action_mode='position',
-            reward_magnitude=10,
-            #desired=[0.68546601, 0, 0.378612]
+            reward_magnitude=1,
+            #desired=[0.5, 0.0, 0.15],
         ),
-        es_params=dict(
-            theta=.1,
-            max_sigma=.25,
-            min_sigma=.25
-        )
+        # es_params=dict(
+        #     theta=.1,
+        #     max_sigma=.25,
+        #     min_sigma=.25
+        # )
     )
     search_space = {
-        'algo_params.max_path_length': [
+        'algo_params.reward_scale': [
+            # 1,
             10,
-            15,
+            #100,
         ],
         'algo_params.num_updates_per_env_step': [
-            1,
             5,
             10,
+            #15,
         ],
         'env_params.randomize_goal_on_reset': [
             True,
@@ -96,7 +98,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 1
-        exp_prefix = 'sawyer_pos_ddpg_r'
+        exp_prefix = 'sawyer_pos_ddpg_2'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

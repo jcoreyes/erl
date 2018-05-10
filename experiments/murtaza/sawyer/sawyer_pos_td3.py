@@ -59,36 +59,29 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             num_epochs=50,
-            num_steps_per_epoch=50,
-            num_steps_per_eval=50,
+            num_steps_per_epoch=300,
+            num_steps_per_eval=300,
             batch_size=64,
             max_path_length=10,
             discount=0.9,
             replay_buffer_size=int(1E6),
             normalize_env=False,
         ),
-        es_kwargs=dict(
-            max_sigma=0.25,
-            min_sigma=0.25,
-        ),
+        # es_kwargs=dict(
+        #     max_sigma=0.25,
+        #     min_sigma=0.25,
+        # ),
         env_params=dict(
-            desired=[0.59, 0.1, 0.4],
             action_mode='position',
             reward='norm'
-
         )
     )
     search_space = {
 
-        'algo_params.max_path_length': [
-            5,
-            10,
-            15,
-        ],
         'algo_params.num_updates_per_env_step': [
             5,
-            10,
-            15,
+            #10,
+            #15,
         ],
         'env_params.randomize_goal_on_reset': [
             True,
@@ -103,7 +96,7 @@ if __name__ == "__main__":
     )
 
     for variant in sweeper.iterate_hyperparameters():
-        n_seeds = 1
+        n_seeds = 11
         exp_prefix = 'sawyer_td3_pos'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
