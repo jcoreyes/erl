@@ -16,16 +16,22 @@ def experiment(variant):
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
-    beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
+    if 'beta_schedule_kwargs' in variant:
+        beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
+    else:
+        beta_schedule = None
     m = ConvVAE(representation_size, input_channels=3)
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
+    save_period = variant['save_period']
     for epoch in range(variant['num_epochs']):
+        should_save_imgs = (epoch % save_period == 0)
         t.train_epoch(epoch)
-        t.test_epoch(epoch)
-        t.dump_samples(epoch)
+        t.test_epoch(epoch, save_reconstruction=should_save_imgs)
+        if should_save_imgs:
+            t.dump_samples(epoch)
 
 
 if __name__ == "__main__":
@@ -34,29 +40,36 @@ if __name__ == "__main__":
     exp_prefix = 'dev-sawyer-push-new-vae'
     use_gpu = True
 
-    n_seeds = 1
-    mode = 'ec2'
-    # exp_prefix = 'sawyer-pusher-vae-anneal-beta-fix-action-on-reset-500pix'
-    # exp_prefix = 'sawyer-pusher-vae-beta-2000'
-    exp_prefix = 'sawyer-push-new-vae'
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer-new-push-vae-load-dataset-test-smaller-betas'
 
     variant = dict(
         beta=5.0,
-        num_epochs=1000,
+        num_epochs=500,
         get_data_kwargs=dict(
             N=1000,
+            dataset_path="05-09-sawyer-new-pusher/imgs_1000.npy"
         ),
         algo_kwargs=dict(
-            do_scatterplot=True,
+            do_scatterplot=False,
+            lr=1e-3,
         ),
         beta_schedule_kwargs=dict(
-            x_values=[0, 400, 800],
-            y_values=[0, 0, 5*128],
-        )
+            x_values=[0, 100, 200, 300],
+            y_values=[0, 0, 0.1, 0.5],
+        ),
+        save_period=5,
     )
 
     search_space = {
-        'representation_size': [4, 16, 32, 64],
+        'representation_size': [32],
+        # 'beta_schedule_kwargs.y_values': [
+        #     [0, 0, 0.1, 0.5],
+        #     [0, 0, 0.1, 0.1],
+        #     [0, 0, 5, 5],
+        # ],
+        # 'algo_kwargs.lr': [1e-3, 1e-2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -69,4 +82,5 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=use_gpu,
+                trial_dir_suffix='r'+str(variant.get('representation_size', 0)),
             )

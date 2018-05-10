@@ -72,7 +72,7 @@ class ConvVAETrainer():
         self.imlength = model.imlength
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
-        self.train_dataset, self.test_data = train_dataset, test_dataset
+        self.train_dataset, self.test_dataset = train_dataset, test_dataset
 
     def get_batch(self, train=True):
         dataset = self.train_dataset if train else self.test_dataset
@@ -83,7 +83,6 @@ class ConvVAETrainer():
         return F.binary_cross_entropy(
             recon_x,
             x.narrow(start=0, length=self.imlength, dimension=1).contiguous().view(-1, self.imlength),
-            size_average=False
         )
 
     def kl_divergence(self, recon_x, x, mu, logvar):
@@ -100,8 +99,8 @@ class ConvVAETrainer():
             self.optimizer.zero_grad()
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = beta * self.kl_divergence(recon_batch, data, mu, logvar)
-            loss = bce + kle
+            kle = self.kl_divergence(recon_batch, data, mu, logvar)
+            loss = bce + beta * kle
             loss.backward()
 
             losses.append(loss.data[0])
@@ -121,7 +120,7 @@ class ConvVAETrainer():
         logger.record_tabular("train/loss", np.mean(losses) / self.batch_size)
 
 
-    def test_epoch(self, epoch):
+    def test_epoch(self, epoch, save_reconstruction=True):
         self.model.eval()
         losses = []
         bces = []
@@ -129,11 +128,11 @@ class ConvVAETrainer():
         zs = []
         beta = self.beta_schedule.get_value(epoch)
         for batch_idx in range(10):
-            data = self.get_batch()
+            data = self.get_batch(train=False)
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = beta * self.kl_divergence(recon_batch, data, mu, logvar)
-            loss = bce + kle
+            kle = self.kl_divergence(recon_batch, data, mu, logvar)
+            loss = bce + beta * kle
 
             z_data = ptu.get_numpy(mu.cpu())
             for i in range(len(z_data)):
@@ -142,7 +141,7 @@ class ConvVAETrainer():
             bces.append(bce.data[0])
             kles.append(kle.data[0])
 
-            if batch_idx == 0:
+            if batch_idx == 0 and save_reconstruction:
                 n = min(data.size(0), 8)
                 comparison = torch.cat([
                     data[:n].narrow(start=0, length=self.imlength, dimension=1)
