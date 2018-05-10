@@ -29,7 +29,8 @@ def experiment(variant):
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
         t.train_epoch(epoch)
-        t.test_epoch(epoch, save_reconstruction=should_save_imgs)
+        t.test_epoch(epoch, save_reconstruction=should_save_imgs,
+                     save_scatterplot=should_save_imgs)
         if should_save_imgs:
             t.dump_samples(epoch)
 
@@ -42,7 +43,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'ec2'
-    # exp_prefix = 'sawyer-new-push-vae-load-dataset-test-smaller-betas'
+    exp_prefix = 'sawyer-new-push-vae-new-corrected-losses-min-var-with-abs'
 
     variant = dict(
         beta=5.0,
@@ -52,12 +53,13 @@ if __name__ == "__main__":
             dataset_path="05-09-sawyer-new-pusher/imgs_1000.npy"
         ),
         algo_kwargs=dict(
-            do_scatterplot=False,
+            do_scatterplot=True,
             lr=1e-3,
         ),
         beta_schedule_kwargs=dict(
             x_values=[0, 100, 200, 300],
-            y_values=[0, 0, 0.1, 0.5],
+            # y_values=[0, 0, 0.1, 0.5],
+            y_values=[0, 0, 5, 5],
         ),
         save_period=5,
     )
