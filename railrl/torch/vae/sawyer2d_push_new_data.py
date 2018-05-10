@@ -8,13 +8,19 @@ from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.images.camera import sawyer_init_camera
 import cv2
 
+from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+
 
 def generate_vae_dataset(
-        N=10000, test_p=0.9, use_cached=True, imsize=84, show=False
+        N=10000, test_p=0.9, use_cached=True, imsize=84, show=False,
+        dataset_path=None,
 ):
     filename = "/tmp/sawyer_" + str(N) + ".npy"
     info = {}
-    if use_cached and osp.isfile(filename):
+    if dataset_path is not None:
+        filename = local_path_from_s3_or_local_path(dataset_path)
+        dataset = np.load(filename)
+    elif use_cached and osp.isfile(filename):
         dataset = np.load(filename)
         print("loaded data from saved file", filename)
     else:

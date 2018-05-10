@@ -318,8 +318,3 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     def sample_goals(self, batch_size):
         raise NotImplementedError()
-        # return np.random.uniform(
-        #     self.PUCK_GOAL_LOW,
-        #     self.PUCK_GOAL_HIGH,
-        #     size=(batch_size, 2),
-        # )

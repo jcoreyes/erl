@@ -7,12 +7,12 @@ from railrl.launchers.launcher_util import run_experiment
 if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=500,
+            num_epochs=300,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             max_path_length=100,
             num_updates_per_env_step=1,
-            batch_size=128,
+            batch_size=100,
             discount=0.99,
         ),
         env_class=SawyerPushXYEnv,
@@ -41,9 +41,10 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
+    n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-new-pusher-her-td3-follow-up-sweep-2'
+    exp_prefix = 'sawyer-new-pusher-euler'
+    # mode='here_no_doodad'
 
     search_space = {
         'algo_kwargs.num_updates_per_env_step': [
@@ -60,7 +61,7 @@ if __name__ == "__main__":
         ],
         'env_kwargs.reward_info.type': [
             # 'hand_to_object_only',
-            # 'shaped',
+            'shaped',
             'euclidean',
         ],
         'exploration_type': [

@@ -26,11 +26,13 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
             frame_skip=50,
             pos_action_scale=2. / 100,
             randomize_goals=True,
+            hide_goal=False,
     ):
         self.quick_init(locals())
         self.reward_info = reward_info
         self.randomize_goals = randomize_goals
         self._pos_action_scale = pos_action_scale
+        self.hide_goal = hide_goal
         self._goal_xy = self.sample_goal_xy()
         MultitaskEnv.__init__(self, distance_metric_order=2)
         MujocoEnv.__init__(self, self.model_name, frame_skip=frame_skip)
@@ -52,7 +54,10 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     @property
     def model_name(self):
-        return get_asset_full_path('sawyer_push_mocap.xml')
+        if self.hide_goal:
+            return get_asset_full_path('sawyer_push_mocap_goal_hidden.xml')
+        else:
+            return get_asset_full_path('sawyer_push_mocap.xml')
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = 0

@@ -72,7 +72,7 @@ class ConvVAETrainer():
         self.imlength = model.imlength
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
-        self.train_dataset, self.test_data = train_dataset, test_dataset
+        self.train_dataset, self.test_dataset = train_dataset, test_dataset
 
     def get_batch(self, train=True):
         dataset = self.train_dataset if train else self.test_dataset
@@ -80,11 +80,14 @@ class ConvVAETrainer():
         return ptu.np_to_var(dataset[ind, :])
 
     def logprob(self, recon_x, x, mu, logvar):
+        # Divide by batch_size rather than setting size_average=True because
+        # otherwise the averaging will also happen across dimension 1 (the
+        # pixels)
         return F.binary_cross_entropy(
             recon_x,
             x.narrow(start=0, length=self.imlength, dimension=1).contiguous().view(-1, self.imlength),
-            size_average=False
-        )
+            size_average=False,
+        ) / self.batch_size
 
     def kl_divergence(self, recon_x, x, mu, logvar):
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
@@ -100,8 +103,8 @@ class ConvVAETrainer():
             self.optimizer.zero_grad()
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = beta * self.kl_divergence(recon_batch, data, mu, logvar)
-            loss = bce + kle
+            kle = self.kl_divergence(recon_batch, data, mu, logvar)
+            loss = bce + beta * kle
             loss.backward()
 
             losses.append(loss.data[0])
@@ -116,12 +119,16 @@ class ConvVAETrainer():
                     loss.data[0] / len(data)))
 
         logger.record_tabular("train/epoch", epoch)
-        logger.record_tabular("train/BCE", np.mean(bces) / self.batch_size)
-        logger.record_tabular("train/KL", np.mean(kles) / self.batch_size)
-        logger.record_tabular("train/loss", np.mean(losses) / self.batch_size)
+        logger.record_tabular("train/BCE", np.mean(bces))
+        logger.record_tabular("train/KL", np.mean(kles))
+        logger.record_tabular("train/loss", np.mean(losses))
 
-
-    def test_epoch(self, epoch):
+    def test_epoch(
+            self,
+            epoch,
+            save_reconstruction=True,
+            save_scatterplot=True,
+    ):
         self.model.eval()
         losses = []
         bces = []
@@ -129,11 +136,11 @@ class ConvVAETrainer():
         zs = []
         beta = self.beta_schedule.get_value(epoch)
         for batch_idx in range(10):
-            data = self.get_batch()
+            data = self.get_batch(train=False)
             recon_batch, mu, logvar = self.model(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = beta * self.kl_divergence(recon_batch, data, mu, logvar)
-            loss = bce + kle
+            kle = self.kl_divergence(recon_batch, data, mu, logvar)
+            loss = bce + beta * kle
 
             z_data = ptu.get_numpy(mu.cpu())
             for i in range(len(z_data)):
@@ -142,7 +149,7 @@ class ConvVAETrainer():
             bces.append(bce.data[0])
             kles.append(kle.data[0])
 
-            if batch_idx == 0:
+            if batch_idx == 0 and save_reconstruction:
                 n = min(data.size(0), 8)
                 comparison = torch.cat([
                     data[:n].narrow(start=0, length=self.imlength, dimension=1)
@@ -162,12 +169,12 @@ class ConvVAETrainer():
         zs = np.array(zs)
         self.model.dist_mu = zs.mean(axis=0)
         self.model.dist_std = zs.std(axis=0)
-        if self.do_scatterplot:
+        if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
 
-        logger.record_tabular("test/BCE", np.mean(bces) / self.batch_size)
-        logger.record_tabular("test/KL", np.mean(kles) / self.batch_size)
-        logger.record_tabular("test/loss", np.mean(losses) / self.batch_size)
+        logger.record_tabular("test/BCE", np.mean(bces))
+        logger.record_tabular("test/KL", np.mean(kles))
+        logger.record_tabular("test/loss", np.mean(losses))
         logger.record_tabular("beta", beta)
         logger.dump_tabular()
 
@@ -177,6 +184,7 @@ class ConvVAETrainer():
         # torch.save(self.model, filename)
 
     def dump_samples(self, epoch):
+        self.model.eval()
         sample = ptu.Variable(torch.randn(64, self.representation_size))
         sample = self.model.decode(sample).cpu()
         save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
@@ -186,6 +194,12 @@ class ConvVAETrainer():
         )
 
     def plot_scattered(self, z, epoch):
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            logger.log(__file__ + ": Unable to load matplotlib. Consider "
+                                  "setting do_scatterplot to False")
+            return
         dim_and_stds = [(i, np.std(z[:, i])) for i in range(z.shape[1])]
         dim_and_stds = sorted(
             dim_and_stds,
@@ -193,7 +207,6 @@ class ConvVAETrainer():
         )
         dim1 = dim_and_stds[-1][0]
         dim2 = dim_and_stds[-2][0]
-        import matplotlib.pyplot as plt
         plt.figure(figsize=(8, 8))
         plt.scatter(z[:, dim1], z[:, dim2], marker='o', edgecolor='none')
         if self.model.dist_mu is not None:
@@ -297,7 +310,7 @@ class ConvVAE(PyTorchModule):
             h = torch.cat((h, fc_input), dim=1)
         #h = F.relu(self.hidden(h))
         mu = self.output_activation(self.fc1(h))
-        logvar = self.log_min_variance + self.relu(self.fc2(h))
+        logvar = self.log_min_variance + torch.abs(self.fc2(h))
         return mu, logvar
 
     def reparameterize(self, mu, logvar):

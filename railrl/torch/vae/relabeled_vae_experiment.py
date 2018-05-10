@@ -38,8 +38,22 @@ def experiment(variant):
         wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
         reward_params = variant.get("reward_params", dict())
 
+
+        init_camera = variant.get("init_camera", None)
+        if init_camera is None:
+            camera_name= "topview"
+        else:
+            camera_name = None
+
         if wrap_mujoco_env:
-            env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True, normalize=True)
+            env = ImageMujocoEnv(
+                env,
+                84,
+                init_camera=init_camera,
+                camera_name=camera_name,
+                transpose=True,
+                normalize=True,
+            )
 
         use_vae_goals = not use_env_goals
         env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
@@ -138,11 +152,13 @@ def experiment(variant):
         **variant['algo_kwargs']
     )
 
-    print("use_gpu", variant["use_gpu"], bool(variant["use_gpu"]))
-    if variant["use_gpu"]: # change this to standardized format
-        gpu_id = variant["gpu_id"]
-        ptu.set_gpu_mode(True)
-        ptu.set_device(gpu_id)
+    # print("use_gpu", variant["use_gpu"], bool(variant["use_gpu"]))
+    # if variant["use_gpu"]: # change this to standardized format
+    if ptu.gpu_enabled():
+        print("using GPU")
+        # gpu_id = variant["gpu_id"]
+        # ptu.set_gpu_mode(True)
+        # ptu.set_device(gpu_id)
         algorithm.cuda()
         if not do_state_based_exp:
             for e in [testing_env, training_env, video_vae_env, video_goal_env]:

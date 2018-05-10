@@ -52,11 +52,11 @@ char_to_action = {
 }
 
 ACTION_FROM = 'controller'
-# ACTION_FROM = 'pd'
-# ACTION_FROM = 'random'
 H = 100000
+# ACTION_FROM = 'random'
 # H = 300
-# H = 50
+ACTION_FROM = 'pd'
+H = 50
 
 
 lock_action = False
