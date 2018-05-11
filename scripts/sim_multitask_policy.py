@@ -78,6 +78,8 @@ def simulate_policy(args):
         policy.cuda()
     if args.pause:
         import ipdb; ipdb.set_trace()
+    if args.mode:
+        env.mode(args.mode)
     if args.enable_render:
         # some environments need to be reconfigured for visualization
         env.enable_render()
@@ -107,6 +109,7 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--speedup', type=float, default=10,
                         help='Speedup')
+    parser.add_argument('--mode', type=str, help='env mode')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--pause', action='store_true')
     parser.add_argument('--enable_render', action='store_true')
