@@ -28,11 +28,13 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
             frame_skip=50,
             pos_action_scale=2. / 100,
             randomize_goals=True,
+            hide_goal=False,
     ):
         self.quick_init(locals())
         self.reward_info = reward_info
         self.randomize_goals = randomize_goals
         self._pos_action_scale = pos_action_scale
+        self.hide_goal = hide_goal
         self._goal_xyxy = self.sample_goal_xyxy()
         MultitaskEnv.__init__(self, distance_metric_order=2)
         MujocoEnv.__init__(self, self.model_name, frame_skip=frame_skip)
@@ -54,7 +56,12 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     @property
     def model_name(self):
-        return get_asset_full_path('sawyer_push_and_reach_mocap.xml')
+        if self.hide_goal:
+            return get_asset_full_path(
+                'sawyer_push_and_reach_mocap_goal_hidden.xml'
+            )
+        else:
+            return get_asset_full_path('sawyer_push_and_reach_mocap.xml')
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = 0
@@ -312,9 +319,22 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xyxy(goal)
+        # hack for VAE
+        self.set_to_goal(goal)
+
+    def set_to_goal(self, goal):
+        self.set_hand_xy(goal[:2])
+        self.set_puck_xy(goal[-2:])
 
     def convert_obs_to_goals(self, obs):
         return obs
 
     def sample_goals(self, batch_size):
         raise NotImplementedError()
+
+    def set_hand_xy(self, xy):
+        for _ in range(10):
+            self.data.set_mocap_pos('mocap', np.array([xy[0], xy[1], 0.02]))
+            self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
+            u = np.zeros(7)
+            self.do_simulation(u, self.frame_skip)

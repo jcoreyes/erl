@@ -205,7 +205,7 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
             np.array([self.data.body_xquat[self.endeff_id]]),
         )
 
-    def reset(self):
+    def reset(self, resample_block=True):
         velocities = self.data.qvel.copy()
         angles = np.array(self.init_angles)
         self.set_state(angles.flatten(), velocities.flatten())
@@ -215,7 +215,8 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
         # set_state resets the goal xy, so we need to explicit set it again
         self.set_goal_xy(self._goal_xy)
-        self.set_block_xy(self.sample_block_xy())
+        if resample_block:
+            self.set_block_xy(self.sample_block_xy())
         self.reset_mocap_welds()
         return self._get_obs()
 
@@ -293,6 +294,12 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xy(goal)
+        self.set_to_goal(goal)
+
+    def set_to_goal(self, goal):
+        # Hack for now since there isn't a goal hand position
+        self.reset(resample_block=False)
+        self.set_block_xy(goal)
 
     def convert_obs_to_goals(self, obs):
         return obs[:, -2:]

@@ -1,3 +1,4 @@
+from railrl.envs.mujoco.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.multitask.pusher2d import FullPusher2DEnv
@@ -15,8 +16,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'sawyer-new-push-vae-rl-reproduce-res-with-set-goal-settting' \
-                 '-block'
+    exp_prefix = 'sawyer-push-and-reach-vae-rl'
 
     vae_paths = {
         "32": "05-09-sawyer-new-push-vae-min-var-long/05-09-sawyer-new-push-vae-min-var-long-id0-s17149-r32/params.pkl",
@@ -36,9 +36,9 @@ if __name__ == "__main__":
         ),
         env_kwargs=dict(
             hide_goal=True,
-            reward_info=dict(
-                type="shaped",
-            ),
+            # reward_info=dict(
+            #     type="shaped",
+            # ),
         ),
         replay_kwargs=dict(
             fraction_goals_are_rollout_goals=0.2,
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         normalize=False,
         rdim=32,
         render=False,
-        env=SawyerPushXYEnv,
+        env=SawyerPushAndReachXYEnv,
         use_env_goals=True,
         vae_paths=vae_paths,
         wrap_mujoco_env=True,
