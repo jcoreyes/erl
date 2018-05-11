@@ -168,7 +168,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return observation
 
     def enable_render(self):
-        self.use_vae_goals = True
         self.decode_goals = True
         self.render_goals = True
         self.render_rollouts = True
