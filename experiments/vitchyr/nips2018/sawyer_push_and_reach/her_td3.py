@@ -36,7 +36,7 @@ if __name__ == "__main__":
         ),
         normalize=True,
         algorithm='HER-TD3',
-        version='normal',
+        version='min-10k',
     )
     n_seeds = 1
     mode = 'local'
@@ -49,6 +49,10 @@ if __name__ == "__main__":
     search_space = {
         'algo_kwargs.num_updates_per_env_step': [
             1,
+            # 5,
+        ],
+        'algo_kwargs.min_num_steps_before_training': [
+            10000,
             # 5,
         ],
         'replay_buffer_kwargs.fraction_goals_are_env_goals': [
