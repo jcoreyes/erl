@@ -8,10 +8,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "4": "ashvin/vae/new-pusher2d/run10/id0/itr_1000.pkl",
-        "8": "ashvin/vae/new-pusher2d/run10/id1/itr_1000.pkl",
-        "16": "ashvin/vae/new-pusher2d/run10/id2/itr_1000.pkl",
-        "32": "ashvin/vae/new-pusher2d/run10/id3/itr_1000.pkl"
+        "4": "ashvin/vae/new-pusher2d/run11/id0/itr_1000.pkl",
+        "8": "ashvin/vae/new-pusher2d/run11/id1/itr_1000.pkl",
+        "16": "ashvin/vae/new-pusher2d/run11/id2/itr_1000.pkl",
+        "32": "ashvin/vae/new-pusher2d/run11/id3/itr_1000.pkl"
     }
 
     variant = dict(
@@ -35,6 +35,7 @@ if __name__ == "__main__":
                 epsilon=0.2,
                 # puck_reward_only=True,
             ),
+            only_far_goals=True,
         ),
         replay_kwargs=dict(
             fraction_goals_are_rollout_goals=0.2,
@@ -60,13 +61,15 @@ if __name__ == "__main__":
         ],
         'env_kwargs.arm_range': [0.5],
         'env_kwargs.reward_params.epsilon': [0.5],
-        'algo_kwargs.num_updates_per_env_step': [1, 4],
+        'env_kwargs.only_far_goals': [True, False],
+        'algo_kwargs.num_updates_per_env_step': [1],
+        'algo_kwargs.batch_size': [128, 512],
         'algo_kwargs.discount': [0.99],
         'replay_kwargs.fraction_goals_are_env_goals': [0.5,],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2,],
-        'exploration_noise': [0.2],
+        'exploration_noise': [0.5],
         'algo_kwargs.reward_scale': [1e-4],
-        'training_mode': ['train', ],
+        'training_mode': ['train', 'test', ],
         'testing_mode': ['test', ],
         'rdim': [4, 8, 16, 32],
         'seedid': range(n_seeds),
@@ -74,4 +77,4 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=3)

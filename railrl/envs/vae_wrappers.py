@@ -62,7 +62,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_vae(vae)
         else:
             self.vae = vae
-        self.vae.eval()
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self.use_vae_goals = use_vae_goals
@@ -168,7 +167,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return observation
 
     def enable_render(self):
-        self.use_vae_goals = True
+        self.use_vae_goals = False
         self.decode_goals = True
         self.render_goals = True
         self.render_rollouts = True

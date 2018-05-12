@@ -8,10 +8,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "4": "ashvin/vae/new-pusher2d/run10/id0/itr_1000.pkl",
-        "8": "ashvin/vae/new-pusher2d/run10/id1/itr_1000.pkl",
-        "16": "ashvin/vae/new-pusher2d/run10/id2/itr_1000.pkl",
-        "32": "ashvin/vae/new-pusher2d/run10/id3/itr_1000.pkl"
+        "4": "ashvin/vae/new-pusher2d/run12/id0/itr_1000.pkl",
+        "8": "ashvin/vae/new-pusher2d/run12/id1/itr_1000.pkl",
+        "16": "ashvin/vae/new-pusher2d/run12/id2/itr_1000.pkl",
+        "32": "ashvin/vae/new-pusher2d/run12/id3/itr_1000.pkl"
     }
 
     variant = dict(
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         'algo_kwargs.discount': [0.99],
         'replay_kwargs.fraction_goals_are_env_goals': [0.5,],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2,],
-        'exploration_noise': [0.2],
+        'exploration_noise': [0.5],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train', ],
         'testing_mode': ['test', ],
@@ -74,4 +74,4 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=2)

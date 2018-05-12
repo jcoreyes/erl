@@ -8,10 +8,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "4": "ashvin/vae/new-pusher2d/run10/id0/itr_1000.pkl",
-        "8": "ashvin/vae/new-pusher2d/run10/id1/itr_1000.pkl",
-        "16": "ashvin/vae/new-pusher2d/run10/id2/itr_1000.pkl",
-        "32": "ashvin/vae/new-pusher2d/run10/id3/itr_1000.pkl"
+        "4": "ashvin/vae/new-pusher2d/run11/id0/itr_1000.pkl",
+        "8": "ashvin/vae/new-pusher2d/run11/id1/itr_1000.pkl",
+        "16": "ashvin/vae/new-pusher2d/run11/id2/itr_1000.pkl",
+        "32": "ashvin/vae/new-pusher2d/run11/id3/itr_1000.pkl"
     }
 
     variant = dict(

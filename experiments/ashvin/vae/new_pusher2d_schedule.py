@@ -12,6 +12,8 @@ from railrl.torch.vae.pusher2d_data import get_data
 from railrl.launchers.arglauncher import run_variants
 import railrl.torch.pytorch_util as ptu
 
+from railrl.misc.ml_util import PiecewiseLinearSchedule
+
 def experiment(variant):
     if variant["use_gpu"]:
         gpu_id = variant["gpu_id"]
@@ -22,7 +24,11 @@ def experiment(variant):
     representation_size = variant["representation_size"]
     train_data, test_data = get_data(10000)
     m = ConvVAE(representation_size, input_channels=3)
-    t = ConvVAETrainer(train_data, test_data, m, beta=beta)
+    t = ConvVAETrainer(train_data,
+        test_data,
+        m,
+        beta_schedule=PiecewiseLinearSchedule([0, 400, 800], [0.5, 0.5, beta])
+    )
     for epoch in range(1001):
         t.train_epoch(epoch)
         t.test_epoch(epoch)
@@ -32,12 +38,11 @@ if __name__ == "__main__":
     variants = []
 
     for representation_size in [4, 8, 16, 32]:
-        for beta in [5.0]:
-            variant = dict(
-                beta=beta,
-                representation_size=representation_size,
-                snapshot_mode="gap",
-                snapshot_gap=100,
-            )
-            variants.append(variant)
-    run_variants(experiment, variants, run_id=14)
+        variant = dict(
+            beta=5.0,
+            representation_size=representation_size,
+            snapshot_mode="gap",
+            snapshot_gap=100,
+        )
+        variants.append(variant)
+    run_variants(experiment, variants, run_id=1)
