@@ -1,6 +1,7 @@
 import sys
 
-from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
+from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv, \
+    SawyerPushXYEasyEnv
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -11,7 +12,8 @@ import numpy as np
 
 print("making env")
 # env = SawyerPushXYEnv(randomize_goals=True, frame_skip=50)
-env = SawyerPushXYEnv(frame_skip=50, pos_action_scale=1./100)
+# env = SawyerPushXYEnv()
+env = SawyerPushXYEasyEnv()
 env = MultitaskToFlatEnv(env)
 
 policy = ZeroPolicy(env.action_space.low.size)
@@ -55,8 +57,8 @@ ACTION_FROM = 'controller'
 H = 100000
 # ACTION_FROM = 'random'
 # H = 300
-ACTION_FROM = 'pd'
-H = 50
+# ACTION_FROM = 'pd'
+# H = 50
 
 
 lock_action = False
