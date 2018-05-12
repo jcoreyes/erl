@@ -1,10 +1,10 @@
+from railrl.envs.wrappers import ProxyEnv
 import abc
 from collections import OrderedDict
 
 import numpy as np
 from gym.spaces import Box
 
-from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core.serializable import Serializable
 from railrl.core import logger as default_logger
@@ -365,8 +365,8 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
         ProxyEnv.__init__(self, env)
 
     def reset(self):
-        self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
-
+        goal = self._wrapped_env.sample_goal_for_rollout()
+        self._wrapped_env.set_goal(goal)
         if self.pause_on_goal:
             for i in range(100):
                 self.render()

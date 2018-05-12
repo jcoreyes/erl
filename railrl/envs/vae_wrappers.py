@@ -84,13 +84,11 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
         self.observation_space = Box(
             -10 * np.ones(self.representation_size),
-            10 * np.ones(self.representation_size),
-            dtype=np.float32,
+            10 * np.ones(self.representation_size)
         )
         self.goal_space = Box(
             -10 * np.ones(self.representation_size),
-            10 * np.ones(self.representation_size),
-            dtype=np.float32,
+            10 * np.ones(self.representation_size)
         )
 
         self.mode(mode)

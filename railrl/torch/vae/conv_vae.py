@@ -80,6 +80,7 @@ class ConvVAETrainer():
         return ptu.np_to_var(dataset[ind, :])
 
     def logprob(self, recon_x, x, mu, logvar):
+
         # Divide by batch_size rather than setting size_average=True because
         # otherwise the averaging will also happen across dimension 1 (the
         # pixels)
@@ -88,7 +89,6 @@ class ConvVAETrainer():
             x.narrow(start=0, length=self.imlength, dimension=1).contiguous().view(-1, self.imlength),
             size_average=False,
         ) / self.batch_size
-
     def kl_divergence(self, recon_x, x, mu, logvar):
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
@@ -178,6 +178,7 @@ class ConvVAETrainer():
         logger.record_tabular("beta", beta)
         logger.dump_tabular()
 
+
         logger.save_itr_params(epoch, self.model) # slow...
         logdir = logger.get_snapshot_dir()
         filename = osp.join(logdir, 'params.pkl')
@@ -222,6 +223,7 @@ class ConvVAETrainer():
         plt.grid(True)
         save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
         plt.savefig(save_file)
+
 
 # class ConvVAE(nn.Module):
 class ConvVAE(PyTorchModule):

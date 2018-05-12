@@ -70,7 +70,7 @@ if __name__ == "__main__":
                 init_tau=max_tau,
                 goal=goal,
                 max_path_length=args.H,
-                animated=not args.hide,
+                # animated=not args.hide,
                 cycle_tau=args.cycle or not args.ndc,
                 decrement_tau=args.dt or not args.ndc,
                 # get_action_kwargs={'deterministic': True},
@@ -78,6 +78,7 @@ if __name__ == "__main__":
             print("last state", path['next_observations'][-1])
             paths.append(path)
         env.log_diagnostics(paths)
+        import ipdb; ipdb.set_trace()
         for key, value in get_generic_path_information(paths).items():
             logger.record_tabular(key, value)
         logger.dump_tabular()

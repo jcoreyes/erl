@@ -1,5 +1,5 @@
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, MultitaskEnvToSilentMultitaskEnv
-from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
+# from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -94,17 +94,17 @@ def experiment(variant):
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[100, 100],
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[100, 100],
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=[400, 300],
+        hidden_sizes=[100, 100],
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -168,10 +168,11 @@ def experiment(variant):
     if not do_state_based_exp and save_video:
         from railrl.torch.vae.sim_vae_policy import dump_video
         logdir = logger.get_snapshot_dir()
-        filename = osp.join(logdir, 'video_0_env.mp4')
-        dump_video(video_goal_env, policy, filename)
-        filename = osp.join(logdir, 'video_0_vae.mp4')
-        dump_video(video_vae_env, policy, filename)
+        # Don't dump initial video any more, its uninformative
+        # filename = osp.join(logdir, 'video_0_env.mp4')
+        # dump_video(video_goal_env, policy, filename)
+        # filename = osp.join(logdir, 'video_0_vae.mp4')
+        # dump_video(video_vae_env, policy, filename)
 
     algorithm.train()
 

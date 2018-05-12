@@ -49,7 +49,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             train_policy_with_reparameterization=False,
             soft_target_tau=1e-2,
             eval_deterministic=True,
-
+            target_hard_update_period=1,
             eval_policy=None,
             exploration_policy=None,
             **kwargs
@@ -92,6 +92,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             self.vf.parameters(),
             lr=vf_lr,
         )
+        self.target_hard_update_period = target_hard_update_period
 
     def _do_training(self):
         batch = self.get_batch()
@@ -200,8 +201,12 @@ class SoftActorCritic(TorchRLAlgorithm):
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
 
+    # def _update_target_network(self):
+    #     ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
+
     def _update_target_network(self):
-        ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
+        if self._n_env_steps_total % self.target_hard_update_period == 0:
+            ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
 
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)

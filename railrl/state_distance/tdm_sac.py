@@ -2,11 +2,14 @@ from collections import OrderedDict
 
 import numpy as np
 
+from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.misc.eval_util import create_stats_ordered_dict
+from railrl.torch.distributions import TanhNormal
 from railrl.torch.sac.sac import SoftActorCritic
 from railrl.state_distance.tdm import TemporalDifferenceModel
 import railrl.torch.pytorch_util as ptu
-
+import torch.nn as nn
+import torch
 
 class TdmSac(TemporalDifferenceModel, SoftActorCritic):
     def __init__(
@@ -20,6 +23,8 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
             policy=None,
             replay_buffer=None,
             give_terminal_reward=False,
+            supervised_policy_criterion=nn.MSELoss,
+            supervised_weight=0,
     ):
         SoftActorCritic.__init__(
             self,
@@ -44,6 +49,8 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
             )
         self.terminal_bonus = float(terminal_reward)
         self.give_terminal_reward = give_terminal_reward
+        self.supervised_policy_criterion = supervised_policy_criterion
+        self.supervised_weight = supervised_weight
 
     def _do_training(self):
         batch = self.get_batch()
@@ -54,7 +61,6 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
         next_obs = batch['next_observations']
         goals = batch['goals']
         num_steps_left = batch['num_steps_left']
-
         q_pred = self.qf(
             observations=obs,
             actions=actions,
@@ -116,7 +122,15 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
             (pre_tanh_value**2).sum(dim=1).mean()
         )
         policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
-        policy_loss = policy_loss + policy_reg_loss
+        _, means, _, _, _, stds, _, _ = self.policy(
+            observations=obs,
+            goals=self.env.convert_obs_to_goal_state(next_obs),
+            num_steps_left=num_steps_left,
+            return_log_prob=True,
+        )
+        log_probs = TanhNormal(means, stds).log_prob(actions)
+        policy_supervised_loss = -1*torch.sum(log_probs) * self.supervised_weight
+        policy_loss = policy_loss + policy_reg_loss + policy_supervised_loss
 
         """
         Update networks
@@ -142,6 +156,10 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
+            if self.supervised_weight != 0:
+                self.eval_statistics['Supervised Policy Loss'] = np.mean(ptu.get_numpy(
+                    policy_supervised_loss
+                ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q Predictions',
                 ptu.get_numpy(q_pred),

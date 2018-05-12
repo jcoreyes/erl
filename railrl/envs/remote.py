@@ -82,7 +82,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     breaks some abstractions around ray. Plus, then things like
     `ray_env.action_space` wouldn't work
 
-    It's the responsibly of the caller to call ray.init() at some point before
+    It's the responsibility of the caller to call ray.init() at some point before
     initializing an instance of this class. (Okay, this breaks the
     abstraction, but I can't think of a much cleaner alternative for now.)
     """
@@ -109,9 +109,10 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             rollout_function,
         )
         self._rollout_promise = None
+        self.counter = 0
     def rollout(self, policy, use_exploration_strategy):
         if self._rollout_promise is None:
-            policy_params = policy.get_param_values()
+            policy_params = policy.get_param_values_np()
             self._rollout_promise = self._ray_env.rollout.remote(
                 policy_params,
                 use_exploration_strategy,
@@ -120,7 +121,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
 
         # Check if remote path has been collected.
         paths, _ = ray.wait([self._rollout_promise], timeout=0)
-
+        self.counter += 1
+        # print(self.counter)
         if len(paths):
             policy_params = policy.get_param_values_np()
             self._rollout_promise = self._ray_env.rollout.remote(
