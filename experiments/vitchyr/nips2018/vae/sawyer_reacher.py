@@ -37,12 +37,12 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev-sawyer-reacher-vae-train-4'
+    exp_prefix = 'dev-sawyer-reacher-vae-train'
     use_gpu = True
 
     # n_seeds = 1
     # mode = 'ec2'
-    exp_prefix = 'sawyer-vae-push-recreate-results-2'
+    exp_prefix = 'sawyer-vae-reacher-recreate-results'
     # use_gpu = False
 
     variant = dict(
@@ -50,6 +50,7 @@ if __name__ == "__main__":
         num_epochs=100,
         get_data_kwargs=dict(
             N=5000,
+            dataset_path="05-10-sawyer-reacher/sawyer_reacher_5000.npy",
         ),
         algo_kwargs=dict(
         ),

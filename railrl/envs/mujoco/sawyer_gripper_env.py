@@ -16,9 +16,10 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     """Implements a 3D-position controlled Sawyer environment"""
 
     def __init__(self, reward_info=None, frame_skip=30,
-                 pos_action_scale=1. / 100):
+                 pos_action_scale=1. / 100, hide_goal=False):
         self.quick_init(locals())
         self.reward_info = reward_info
+        self.hide_goal = hide_goal
         self._goal_xyz = self.sample_goal_xyz()
         self._pos_action_scale = pos_action_scale
         MultitaskEnv.__init__(self, distance_metric_order=2)
@@ -42,7 +43,10 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     @property
     def model_name(self):
-        return get_asset_full_path('sawyer_gripper_mocap.xml')
+        if self.hide_goal:
+            return get_asset_full_path('sawyer_gripper_mocap_goal_hidden.xml')
+        else:
+            return get_asset_full_path('sawyer_gripper_mocap.xml')
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = 0
@@ -270,6 +274,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xyz(goal)
+        self.set_to_goal(goal)
 
     def convert_obs_to_goals(self, obs):
         return obs
@@ -280,6 +285,16 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             np.array([0.2, 0.7, 0.2]),
             size=(batch_size, 3),
         )
+
+    def set_to_goal(self, goal):
+        self.set_hand_xyz(goal)
+
+    def set_hand_xyz(self, xyz):
+        for _ in range(10):
+            self.data.set_mocap_pos('mocap', np.array(xyz))
+            self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
+            u = np.zeros(8)
+            self.do_simulation(u, self.frame_skip)
 
 
 class SawyerPickAndPlaceEnv(SawyerXYZEnv):
@@ -525,6 +540,13 @@ class SawyerXYEnv(SawyerXYZEnv):
             np.array([-1, -1]),
             np.array([1, 1]),
         )
+
+    def sample_goal_xyz(self):
+        pos = np.random.uniform(
+            np.array([-0.2, 0.5, 0.02]),
+            np.array([0.2, 0.7, 0.02]),
+        )
+        return pos
 
     @property
     def init_angles(self):
