@@ -68,14 +68,14 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [1, 5],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
+        'algo_kwargs.num_updates_per_env_step': [1, 4, 8, 16],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 0.9, 1.0],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
-        'rdim': [4, 16, 64],
+        'rdim': [64, 16, 4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if (
                 variant['replay_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
-                and variant['replay_kwargs']['fraction_goals_are_env_goals'] == 0.5
+                and variant['replay_kwargs']['fraction_goals_are_env_goals'] != 0.0
         ):
             # redundant
             continue
