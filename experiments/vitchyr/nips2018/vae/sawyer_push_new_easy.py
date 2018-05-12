@@ -43,11 +43,11 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'ec2'
-    exp_prefix = 'vae-sawyer-new-push-easy-2'
+    exp_prefix = 'vae-sawyer-new-push-easy-3'
 
     variant = dict(
         beta=5.0,
-        num_epochs=100,
+        num_epochs=500,
         get_data_kwargs=dict(
             N=5000,
         ),

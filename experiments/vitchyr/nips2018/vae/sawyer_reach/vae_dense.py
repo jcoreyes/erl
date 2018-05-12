@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'sawyer-reach-vae-rl-reproduce'
+    exp_prefix = 'sawyer-reach-vae-rl-reproduce-2'
 
     vae_paths = {
         "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -73,7 +73,7 @@ if __name__ == "__main__":
             'ou',
         ],
         'algo_kwargs.num_updates_per_env_step': [1],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5,],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],
@@ -85,6 +85,12 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if (
+                variant['replay_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
+                and variant['replay_kwargs']['fraction_goals_are_env_goals'] == 0.5
+        ):
+            # redundant setting
+            continue
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
