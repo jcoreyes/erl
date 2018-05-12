@@ -12,6 +12,8 @@ import torch
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 from sawyer_control.sawyer_image import ImageSawyerEnv
 
+import numpy as np
+
 def experiment(variant):
 
     imsize = variant['imsize']
@@ -66,7 +68,7 @@ if __name__ == "__main__":
         imsize=84,
         history=1,
         algo_params=dict(
-            num_epochs=1000,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=500,
             batch_size=64,
@@ -82,16 +84,16 @@ if __name__ == "__main__":
             replay_buffer_size=int(2E4),
         ),
         cnn_params=dict(
-            kernel_sizes=[5, 5],
-            n_channels=[16, 32],
-            strides=[2, 2],
-            pool_sizes=[1, 1],
-            hidden_sizes=[100, 100],
-            paddings=[0, 0],
+            kernel_sizes=[5, 5, 5],
+            n_channels=[32, 32, 32],
+            strides=[3, 3, 2],
+            pool_sizes=[1, 1, 1],
+            hidden_sizes=[128, 128],
+            paddings=[0, 0, 0],
             use_batch_norm=False,
         ),
         env_params=dict(
-            action_mode='torque',
+            action_mode='position',
         ),
 
         algo_class=DDPG,

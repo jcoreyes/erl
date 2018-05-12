@@ -8,6 +8,10 @@ from railrl.torch.ddpg.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 import railrl.misc.hyperparameter as hyp
+import ray
+#ray.init()
+
+
 def experiment(variant):
     env_params = variant['env_params']
     env = SawyerXYZReachingEnv(**env_params)
@@ -53,6 +57,7 @@ if __name__ == "__main__":
             render=False,
             normalize_env=False,
             train_on_eval_paths=True,
+            #collection_mode='online-parallel',
         ),
         es_kwargs=dict(
             theta=0.1,
@@ -96,6 +101,7 @@ if __name__ == "__main__":
             run_experiment(
                 experiment,
                 mode=mode,
+                use_gpu=True,
                 exp_prefix=exp_prefix,
                 variant=variant,
             )

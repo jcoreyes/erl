@@ -116,6 +116,9 @@ class CNN(PyTorchModule):
                        self.input_height,
                        self.input_width)
 
+        #image_arr = np.array(h[0].transpose(0, 2).data)
+        #from PIL import Image
+        #import pdb; pdb.set_trace()
         h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
         # flatten channels for fc layers
         h = h.view(h.size(0), -1)

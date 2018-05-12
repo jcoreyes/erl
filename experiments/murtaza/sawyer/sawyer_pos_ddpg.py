@@ -49,6 +49,7 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         **variant['algo_params']
     )
+
     if ptu.gpu_enabled():
         algorithm.cuda()
     algorithm.train()
@@ -73,6 +74,7 @@ if __name__ == "__main__":
         ),
         env_params=dict(
             action_mode='position',
+            update_hz=20,
             reward_magnitude=1,
         ),
         es_params=dict(
@@ -113,12 +115,14 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 1
-        exp_prefix = 'sawyer_pos_ddpg_pos_sweep'
+        # exp_prefix = 'sawyer_pos_ddpg_pos_sweep'
+        exp_prefix = 'test'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(
                 experiment,
                 mode=mode,
+                # use_gpu='gpu',
                 exp_prefix=exp_prefix,
                 variant=variant,
             )

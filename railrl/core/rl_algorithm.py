@@ -158,6 +158,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def train(self, start_epoch=0):
         self.pretrain()
+        import ipdb; ipdb.set_trace()
         if start_epoch == 0:
             params = self.get_epoch_snapshot(-1)
             logger.save_itr_params(-1, params)
