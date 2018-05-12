@@ -19,6 +19,7 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
     INIT_GOAL_LOW = INIT_BLOCK_LOW
     INIT_GOAL_HIGH = INIT_BLOCK_HIGH
     FIXED_GOAL_INIT = np.array([0.05, 0.6])
+    INIT_HAND_POS = np.array([0, 0.4, 0.02])
 
     def __init__(
             self,
@@ -164,6 +165,7 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
         return pos
 
     def sample_block_xy(self):
+        raise NotImplementedError("Shouldn't you use SawyerPushXYEasyEnv? Ask Vitchyr")
         pos = np.random.uniform(self.INIT_BLOCK_LOW, self.INIT_BLOCK_HIGH)
         while np.linalg.norm(self.get_endeff_pos()[:2] - pos) < 0.035:
             pos = np.random.uniform(self.INIT_BLOCK_LOW, self.INIT_BLOCK_HIGH)
@@ -205,17 +207,20 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
             np.array([self.data.body_xquat[self.endeff_id]]),
         )
 
-    def reset(self):
+    def reset(self, resample_block=True):
         velocities = self.data.qvel.copy()
         angles = np.array(self.init_angles)
         self.set_state(angles.flatten(), velocities.flatten())
+        init_block_pos = self.get_block_pos()
         for _ in range(10):
-            new_mocap_pos = np.array([0, 0.6, 0.02])
-            self.data.set_mocap_pos('mocap', new_mocap_pos)
+            self.data.set_mocap_pos('mocap', self.INIT_HAND_POS)
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
         # set_state resets the goal xy, so we need to explicit set it again
         self.set_goal_xy(self._goal_xy)
-        self.set_block_xy(self.sample_block_xy())
+        if resample_block:
+            self.set_block_xy(self.sample_block_xy())
+        else:
+            self.set_block_xy(init_block_pos[:2])
         self.reset_mocap_welds()
         return self._get_obs()
 
@@ -242,16 +247,27 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
     def compute_her_reward_np(self, ob, action, next_ob, goal):
         return self.compute_reward(ob, action, next_ob, goal)
 
+    # @property
+    # def init_angles(self):
+    #     return [
+    #         1.06139477e+00, -6.93988797e-01, 3.76729934e-01, 1.78410587e+00,
+    #         - 5.36763074e-01, 5.88122189e-01, 3.51531533e+00,
+    #         0.05, 0.55, 0.02,
+    #         1, 0, 0, 0,
+    #         0, 0.6, 0.02,
+    #         1, 0, 1, 0,
+    #     ]
+
     @property
     def init_angles(self):
-        return [
-            1.06139477e+00, -6.93988797e-01, 3.76729934e-01, 1.78410587e+00,
-            - 5.36763074e-01, 5.88122189e-01, 3.51531533e+00,
-            0.05, 0.55, 0.02,
-            1, 0, 0, 0,
-            0, 0.6, 0.02,
-            1, 0, 1, 0,
-        ]
+        return [1.78026069e+00, - 6.84415781e-01, - 1.54549231e-01,
+                2.30672090e+00, 1.93111471e+00,  1.27854012e-01,
+                1.49353907e+00, 1.80196716e-03, 7.40415706e-01,
+                2.09895360e-02,  9.99999990e-01,  3.05766105e-05,
+                - 3.78462492e-06, 1.38684523e-04, - 3.62518873e-02,
+                6.13435141e-01, 2.09686080e-02,  7.07106781e-01,
+                1.48979724e-14, 7.07106781e-01, - 1.48999170e-14
+                ]
 
     def log_diagnostics(self, paths, logger=logger, prefix=""):
         super().log_diagnostics(paths)
@@ -293,6 +309,12 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xy(goal)
+        self.set_to_goal(goal)
+
+    def set_to_goal(self, goal):
+        # Hack for now since there isn't a goal hand position
+        self.reset(resample_block=False)
+        self.set_block_xy(goal)
 
     def convert_obs_to_goals(self, obs):
         return obs[:, -2:]
@@ -326,6 +348,17 @@ class SawyerPushXYEnv(SawyerPushEnv):
             np.array([mocap_delta_z])
         ))
         return super().step(new_mocap_action)
+
+
+class SawyerPushXYEasyEnv(SawyerPushXYEnv):
+    """
+    Always start the block in the same position
+    """
+    INIT_GOAL_LOW = np.array([-0.05, 0.6])
+    INIT_GOAL_HIGH = np.array([0.05, 0.75])
+
+    def sample_block_xy(self):
+        return np.array([0, 0.6])
 
 
 if __name__ == "__main__":

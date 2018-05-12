@@ -149,10 +149,14 @@ def run_experiment(
     try:
         import git
         repo = git.Repo(os.getcwd())
+        try:
+            branch_name = repo.active_branch.name
+        except TypeError:
+            branch_name = '[DETACHED]'
         git_info = GitInfo(
             code_diff=repo.git.diff(None),
             commit_hash=repo.head.commit.hexsha,
-            branch_name=repo.active_branch.name,
+            branch_name=branch_name,
         )
     except ImportError:
         git_info = None

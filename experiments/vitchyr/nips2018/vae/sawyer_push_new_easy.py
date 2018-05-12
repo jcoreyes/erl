@@ -1,8 +1,9 @@
+
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-from railrl.torch.vae.sawyer2d_reach_data import generate_vae_dataset
+from railrl.torch.vae.sawyer2d_push_new_easy_data import generate_vae_dataset
 
 
 def experiment(variant):
@@ -37,33 +38,39 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev-sawyer-reacher-vae-train'
+    exp_prefix = 'dev-sawyer-push-new-vae'
     use_gpu = True
 
     # n_seeds = 1
     # mode = 'ec2'
-    exp_prefix = 'sawyer-vae-reacher-recreate-results'
-    # use_gpu = False
+    exp_prefix = 'vae-sawyer-new-push-easy-3'
 
     variant = dict(
         beta=5.0,
-        num_epochs=100,
+        num_epochs=500,
         get_data_kwargs=dict(
             N=5000,
-            dataset_path="05-10-sawyer-reacher/sawyer_reacher_5000.npy",
         ),
         algo_kwargs=dict(
+            do_scatterplot=False,
+            lr=1e-3,
         ),
-        # beta_schedule_kwargs=dict(
-        #     x_values=[0, 100, 200, 500],
-        #     # y_values=[0, 0, 0.1, 0.5],
-        #     y_values=[0, 0, 5, 5],
-        # ),
-        save_period=1,
+        beta_schedule_kwargs=dict(
+            x_values=[0, 100, 200, 500],
+            # y_values=[0, 0, 0.1, 0.5],
+            y_values=[0, 0, 5, 5],
+        ),
+        save_period=5,
     )
 
     search_space = {
-        'representation_size': [2, 4, 8, 16],
+        'representation_size': [4, 8, 16, 32, 64],
+        # 'beta_schedule_kwargs.y_values': [
+        #     [0, 0, 0.1, 0.5],
+        #     [0, 0, 0.1, 0.1],
+        #     [0, 0, 5, 5],
+        # ],
+        # 'algo_kwargs.lr': [1e-3, 1e-2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

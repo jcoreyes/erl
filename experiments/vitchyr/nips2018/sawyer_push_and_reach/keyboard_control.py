@@ -1,6 +1,7 @@
 import sys
 
-from railrl.envs.mujoco.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
+from railrl.envs.mujoco.sawyer_push_and_reach_env import \
+    SawyerPushAndReachXYEnv, SawyerPushAndReachXYEasyEnv
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -10,6 +11,7 @@ from railrl.policies.simple import ZeroPolicy
 import numpy as np
 
 print("making env")
+# env = SawyerPushAndReachXYEasyEnv()
 env = SawyerPushAndReachXYEnv()
 env = MultitaskToFlatEnv(env)
 

@@ -242,7 +242,7 @@
             <joint name="hand-goal-joint" type="free" limited='false'
                    damping="0" armature="0" />
             <geom name="hand-goal-marker" type="sphere" pos="0 0 0" size="0.02"
-                  rgba=".9 .9 .1 1" contype="0" conaffinity="8"/>
+                  rgba=".9 .9 .1 0" contype="0" conaffinity="8"/>
             <site name="hand-goal-site" pos="0 0 0" size="0.01" />
         </body>
 
@@ -251,7 +251,7 @@
             <joint name="puck-goal-joint" type="free" limited='false'
                    damping="0" armature="0" />
             <geom name="puck-goal-marker" type="sphere" pos="0 0 0" size="0.02"
-                  rgba=".9 .1 .1 1" contype="0" conaffinity="8"/>
+                  rgba=".9 .1 .1 0" contype="0" conaffinity="8"/>
             <site name="puck-goal-site" pos="0 0 0" size="0.01" />
         </body>
 

@@ -3,9 +3,11 @@ import time
 import numpy as np
 import os.path as osp
 
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv, \
+    SawyerPushXYEasyEnv
 from railrl.envs.wrappers import ImageMujocoEnv
-from railrl.images.camera import sawyer_init_camera
+from railrl.images.camera import sawyer_init_camera, \
+    sawyer_init_camera_zoomed_in
 import cv2
 
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
@@ -15,7 +17,7 @@ def generate_vae_dataset(
         N=10000, test_p=0.9, use_cached=True, imsize=84, show=False,
         dataset_path=None,
 ):
-    filename = "/tmp/sawyer_reacher_" + str(N) + ".npy"
+    filename = "/tmp/sawyer_push_new_easy" + str(N) + ".npy"
     info = {}
     if dataset_path is not None:
         filename = local_path_from_s3_or_local_path(dataset_path)
@@ -25,24 +27,24 @@ def generate_vae_dataset(
         print("loaded data from saved file", filename)
     else:
         now = time.time()
-        env = SawyerXYEnv()
+        env = SawyerPushXYEasyEnv(hide_goal=True)
         env = ImageMujocoEnv(
             env, imsize,
             transpose=True,
-            init_camera=sawyer_init_camera,
+            init_camera=sawyer_init_camera_zoomed_in,
+            # init_camera=sawyer_init_camera,
             normalize=True,
         )
         info['env'] = env
 
         dataset = np.zeros((N, imsize * imsize * 3))
         for i in range(N):
-            # Move the goal out of the image
-            env.wrapped_env.set_goal(np.array([100, 100, 100]))
             env.reset()
-            for _ in range(50):
-                env.wrapped_env.step(
-                    env.wrapped_env.action_space.sample()
-                )
+            for _ in range(100):
+                action = env.wrapped_env.action_space.sample()
+                # action[0] = 0
+                # action[1] = 1
+                env.wrapped_env.step(action)
             img = env.step(env.action_space.sample())[0]
             dataset[i, :] = img
             if show:
@@ -58,4 +60,4 @@ def generate_vae_dataset(
 
 
 if __name__ == "__main__":
-    generate_vae_dataset(5000, use_cached=False)
+    generate_vae_dataset(10, use_cached=False, show=True)

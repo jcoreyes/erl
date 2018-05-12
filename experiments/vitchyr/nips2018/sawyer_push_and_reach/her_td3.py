@@ -1,13 +1,14 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
-from railrl.envs.mujoco.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
+from railrl.envs.mujoco.sawyer_push_and_reach_env import \
+    SawyerPushAndReachXYEnv, SawyerPushAndReachXYEasyEnv
 from railrl.launchers.experiments.vitchyr.multitask import her_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=500,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             max_path_length=100,
@@ -15,7 +16,7 @@ if __name__ == "__main__":
             batch_size=128,
             discount=0.99,
         ),
-        env_class=SawyerPushAndReachXYEnv,
+        env_class=SawyerPushAndReachXYEasyEnv,
         env_kwargs=dict(
             reward_info=dict(
                 type='shaped',
@@ -35,7 +36,7 @@ if __name__ == "__main__":
         ),
         normalize=True,
         algorithm='HER-TD3',
-        version='normal',
+        version='min-10k',
     )
     n_seeds = 1
     mode = 'local'
@@ -43,11 +44,15 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer-push-and-reach'
+    exp_prefix = 'sawyer-push-and-reach-easy'
 
     search_space = {
         'algo_kwargs.num_updates_per_env_step': [
             1,
+            # 5,
+        ],
+        'algo_kwargs.min_num_steps_before_training': [
+            10000,
             # 5,
         ],
         'replay_buffer_kwargs.fraction_goals_are_env_goals': [
@@ -73,6 +78,12 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if (
+                variant['replay_buffer_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
+                and variant['replay_buffer_kwargs']['fraction_goals_are_env_goals'] == 0.5
+        ):
+            # redundant
+            continue
         for _ in range(n_seeds):
             run_experiment(
                 her_td3_experiment,

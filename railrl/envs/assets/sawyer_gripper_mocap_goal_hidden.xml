@@ -3,7 +3,7 @@
     <!-- <option gravity="0 0 0" /> -->
     <!-- <option impratio="0.01" /> -->
     <!-- <option collision="predefined" /> -->
-    <option integrator="Euler" timestep="0.002" iterations="50"/>
+    <option integrator="RK4" timestep="0.002" iterations="50"/>
     <size njmax="500" nconmax="100" />
     <asset>
         <mesh name="pedestal" file="pedestal.stl" />
@@ -50,13 +50,6 @@
 
         <geom name="tableTop" type="plane" pos="0 0.6 0" size="0.4 0.2 0.5"
               rgba=".6 .6 .5 1" contype="15" conaffinity="15" />
-        <!--<geom name="plane"-->
-              <!--type="plane"-->
-              <!--pos="0 0.6 0"-->
-              <!--size="0.4 0.2 0.5"-->
-              <!--rgba=".6 .6 .5 1"-->
-              <!--contype="15"-->
-              <!--conaffinity="15" />-->
 
         <body name="base" pos="0 0 0">
             <site name="basesite" pos="0 0 0" size="0.01" />
@@ -160,9 +153,9 @@
                                                 <body name="claw" pos="0 0 0" quat="-1 0 1 0">
                                                     <geom class="1" name="Geomclaw" type="box" size="0.01 0.04 0.01" />
 
-                                                    <body name="rightclaw"
-                                                          pos=".01 .015 0" >
+                                                    <body name="rightclaw" pos=".01 -.02 0" >
                                                         <geom name="rightclaw_it" class="1" type="box" pos="0 0 0" size="0.05 0.005 0.005" friction="0.001 0.005 0.0001" rgba="0.0 1.0 0.0 1.0"/>
+                                                        <joint name="rc_close" type="slide" pos="0 0 0" axis="0 1 0" range="0 0.03" user="008"/>
                                                     </body>
 
                                                     <body name="leftclaw" pos=".01 .02 0">
@@ -212,47 +205,30 @@
             <geom conaffinity="0" contype="0" pos="0 0 0" rgba="0.5 0.5 0.5 0" size="0.1 0.02 0.02" type="box"></geom>
         </body>
 
-        <body name="puck" pos="0 0 0.1">
-            <joint name="puckjoint" type="free" limited='false' damping="0" armature="0" />
-            <!--<joint name="puckjoint-x" type="slide" limited='false' pos="0 0 0"-->
+        <body name="block" pos="0 0 0.1">
+            <joint name="blockjoint" type="free" limited='false' damping="0" armature="0" />
+            <!--<joint name="blockjoint-x" type="slide" limited='false' pos="0 0 0"-->
                    <!--axis="1 0 0"-->
                    <!--/>-->
-            <!--<joint name="puckjoint-y" type="slide" limited='false' pos="0 0 0"-->
+            <!--<joint name="blockjoint-y" type="slide" limited='false' pos="0 0 0"-->
                    <!--axis="0 1 0"-->
             <!--/>-->
-            <!--<joint name="puckjoint-z" type="slide" limited='false' pos="0 0 0"-->
+            <!--<joint name="blockjoint-z" type="slide" limited='false' pos="0 0 0"-->
                    <!--axis="0 0 1"-->
             <!--/>-->
             <inertial pos="0 0 0" mass=".1" diaginertia="100000 100000 100000"/>
-            <!--type="box"-->
-            <!--size="0.02 0.02 0.02"-->
-            <geom name="puckbox"
-                  type="cylinder"
-                  pos="0 0 0"
-                  size="0.04 0.015"
-                  rgba=".1 .1 .9 1"
-                  contype="2"
-                  conaffinity="4"
+            <geom name="blockbox" type="box" pos="0 0 0"
+                  size="0.02 0.02 0.02" rgba=".1 .1 .9 1" contype="2" conaffinity="4"
             />
-            <site name="puck" pos="0 0 0" size="0.01" />
+            <site name="block" pos="0 0 0" size="0.01" />
         </body>
 
-        <body name="hand-goal" pos="0 0 0">
+        <body name="goal" pos="0 0 0">
             <!--<inertial mass="0"/>-->
-            <joint name="hand-goal-joint" type="free" limited='false'
-                   damping="0" armature="0" />
-            <geom name="hand-goal-marker" type="sphere" pos="0 0 0" size="0.02"
-                  rgba=".9 .9 .1 1" contype="0" conaffinity="8"/>
-            <site name="hand-goal-site" pos="0 0 0" size="0.01" />
-        </body>
-
-        <body name="puck-goal" pos="0 0 0">
-            <!--<inertial mass="0"/>-->
-            <joint name="puck-goal-joint" type="free" limited='false'
-                   damping="0" armature="0" />
-            <geom name="puck-goal-marker" type="sphere" pos="0 0 0" size="0.02"
-                  rgba=".9 .1 .1 1" contype="0" conaffinity="8"/>
-            <site name="puck-goal-site" pos="0 0 0" size="0.01" />
+            <joint name="goaljoint" type="free" limited='false' damping="0" armature="0" />
+            <geom name="goalbox" type="sphere" pos="0 0 0" size="0.02"
+                  rgba=".9 .1 .1 0" contype="0" conaffinity="8"/>
+            <site name="goal" pos="0 0 0" size="0.01" />
         </body>
 
     </worldbody>
@@ -265,7 +241,7 @@
         <motor joint="right_j4" ctrlrange="-100.0 100.0" ctrllimited="false"/>
         <motor joint="right_j5" ctrlrange="-100.0 100.0" ctrllimited="false"/>
         <motor joint="right_j6" ctrlrange="-100.0 100.0" ctrllimited="false"/>
-        <!--<motor gear="1" joint="rc_close" name="slide"/>-->
+        <motor gear="1" joint="rc_close" name="slide"/>
     </actuator>
 
 </mujoco>
