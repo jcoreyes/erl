@@ -120,10 +120,16 @@ class Point2DEnv(Serializable, Env):
             ('distance_reward', 'Distance Reward'),
             ('action_reward', 'Action Reward'),
         ]:
-            stat = get_stat_in_paths(paths, 'env_infos', name_in_env_infos)
+            stats = get_stat_in_paths(paths, 'env_infos', name_in_env_infos)
             statistics.update(create_stats_ordered_dict(
                 name_to_log,
-                stat,
+                stats,
+            ))
+            final_stats = [s[-1] for s in stats]
+            statistics.update(create_stats_ordered_dict(
+                "Final " + name_to_log,
+                final_stats,
+                always_show_all_stats=True,
             ))
         statistics.update(create_stats_ordered_dict(
             "Path Lengths",

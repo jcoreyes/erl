@@ -58,7 +58,7 @@ if __name__ == "__main__":
         env_class=SawyerPushXYEnv,
         env_kwargs=dict(
             frame_skip=50,
-            only_reward_block_to_goal=True,
+            only_reward_block_to_goal=False,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -80,11 +80,12 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-xy-center-start'
+    exp_prefix = 'sawyer-sim-push-easy-ish-check-fixed-env'
 
     search_space = {
-        'env_kwargs.randomize_goals': [True, False],
-        'env_kwargs.only_reward_block_to_goal': [False, True],
+        # 'env_kwargs.randomize_goals': [True, False],
+        # 'env_kwargs.only_reward_block_to_goal': [False, True],
+        'algo_kwargs.max_path_length': [50, 100],
         'algo_kwargs.reward_scale': [10, 100, 1000],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

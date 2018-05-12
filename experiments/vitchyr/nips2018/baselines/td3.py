@@ -73,7 +73,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=50,
+            num_epochs=300,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -81,11 +81,11 @@ if __name__ == "__main__":
             max_path_length=100,
             discount=0.99,
         ),
-        # env_class=SawyerPushXYEnv,
-        env_class=SawyerXYZEnv,
+        env_class=SawyerPushXYEnv,
+        # env_class=SawyerXYZEnv,
         env_kwargs=dict(
-            # frame_skip=50,
-            # only_reward_block_to_goal=True,
+            frame_skip=50,
+            only_reward_block_to_goal=False,
         ),
         algorithm='TD3',
         version='normal',
@@ -98,11 +98,12 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-reach-sanity-check-2'
+    exp_prefix = 'sawyer-sim-push-63ddd2c50332985938149b8-xml-plus-rk4'
+    # exp_prefix = 'sawyer-sim-push-63ddd2c50332985938149b8-xml-plus-rk4-lower-rot-inertia'
 
     search_space = {
         # 'env_kwargs.randomize_goals': [True, False],
-        # 'env_kwargs.only_reward_block_to_goal': [False, True],
+        'algo_kwargs.max_path_length': [50, 100],
         'exploration_type': [
             'ou',
             'epsilon',

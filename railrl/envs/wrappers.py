@@ -13,6 +13,9 @@ from railrl.core.serializable import Serializable
 #from torchvision.transforms import ToTensor, ToPILImage
 import mujoco_py
 
+import torch
+import cv2
+
 class ProxyEnv(Serializable, Env):
     def __init__(self, wrapped_env):
         Serializable.quick_init(self, locals())
@@ -66,7 +69,10 @@ class ImageMujocoEnv(ProxyEnv, Env):
         super().__init__(wrapped_env)
 
         self.imsize = imsize
-        self.image_length = self.imsize * self.imsize
+        if grayscale:
+            self.image_length = self.imsize * self.imsize
+        else:
+            self.image_length = 3 * self.imsize * self.imsize
         # This is torch format rather than PIL image
         self.image_shape = (self.imsize, self.imsize)
         # Flattened past image queue
@@ -82,6 +88,7 @@ class ImageMujocoEnv(ProxyEnv, Env):
         self.transpose = transpose
         self.grayscale = grayscale
         self.normalize = normalize
+        self._render_local = False
 
         self.observation_space = Box(low=0.0,
                                      high=1.0,
@@ -107,6 +114,10 @@ class ImageMujocoEnv(ProxyEnv, Env):
         full_obs = self._get_obs(history, true_state)
         return full_obs
 
+    def get_image(self):
+        """TODO: this should probably consider history"""
+        return self._image_observation()
+
     def _get_obs(self, history_flat, true_state):
         # adds extra information from true_state into to the image observation.
         # Used in ImageWithObsEnv.
@@ -115,6 +126,9 @@ class ImageMujocoEnv(ProxyEnv, Env):
     def _image_observation(self):
         # returns the image as a torch format np array
         image_obs = self._wrapped_env.sim.render(width=self.imsize, height=self.imsize, camera_name=self.camera_name)
+        if self._render_local:
+            cv2.imshow('env', image_obs)
+            cv2.waitKey(1)
         if self.grayscale:
             image_obs = Image.fromarray(image_obs).convert('L')
             image_obs = np.array(image_obs)
@@ -140,6 +154,25 @@ class ImageMujocoEnv(ProxyEnv, Env):
             pil_image = self.torch_to_pil(torch.Tensor(image_obs))
             images.append(pil_image)
         return images
+
+    def split_obs(self, obs):
+        # splits observation into image input and true observation input
+        imlength = self.image_length * self.history_length
+        obs_length = self.observation_space.low.size
+        obs = obs.view(-1, obs_length)
+        image_obs = obs.narrow(start=0,
+                               length=imlength,
+                               dimension=1)
+        if obs_length == imlength:
+            return image_obs, None
+
+        fc_obs = obs.narrow(start=imlength,
+                            length=obs.shape[1] - imlength,
+                            dimension=1)
+        return image_obs, fc_obs
+
+    def enable_render(self):
+        self._render_local = True
 
 
 class ImageMujocoWithObsEnv(ImageMujocoEnv):

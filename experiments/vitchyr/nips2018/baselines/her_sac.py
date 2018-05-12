@@ -1,6 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer
+from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer, \
+    RelabelingReplayBuffer
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv, SawyerXYZEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
@@ -31,7 +32,7 @@ def experiment(variant):
         action_dim=action_dim,
         **variant['policy_kwargs']
     )
-    replay_buffer = SimpleHerReplayBuffer(
+    replay_buffer = variant['replay_buffer_class'](
         env=env,
         **variant['replay_buffer_kwargs']
     )
@@ -51,22 +52,24 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=50,
+            num_epochs=300,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
             max_path_length=100,
             discount=0.99,
         ),
-        # env_class=SawyerPushXYEnv,
-        env_class=SawyerXYZEnv,
+        env_class=SawyerPushXYEnv,
+        # env_class=SawyerXYZEnv,
         env_kwargs=dict(
-            # frame_skip=50,
-            # only_reward_block_to_goal=True,
+            frame_skip=50,
+            only_reward_block_to_goal=False,
         ),
+        replay_buffer_class=RelabelingReplayBuffer,
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            num_goals_to_sample=0,
+            fraction_goals_are_rollout_goals=0.1,
+            fraction_goals_are_env_goals=0.5,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -85,15 +88,17 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer-sim-reach-sanity-check-2'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer-sim-push-easy-ish-check-fixed-env'
 
     search_space = {
         # 'env_kwargs.randomize_goals': [True, False],
         # 'env_kwargs.only_reward_block_to_goal': [False, True],
-        'replay_buffer_kwargs.num_goals_to_sample': [4],
-        'algo_kwargs.num_updates_per_env_step': [5],
+        'algo_kwargs.max_path_length': [
+            100,
+            50,
+        ],
         'algo_kwargs.reward_scale': [10, 100, 1000],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

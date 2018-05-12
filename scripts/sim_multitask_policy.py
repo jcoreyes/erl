@@ -7,7 +7,7 @@ import joblib
 import uuid
 from railrl.core import logger
 import numpy as np
-
+import pickle
 
 def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
     observations = []
@@ -16,16 +16,14 @@ def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
     terminals = []
     agent_infos = []
     env_infos = []
-    o = env.reset()
     agent.reset()
     next_o = None
     path_length = 0
+    o = env.reset()
     if animated:
         env.render()
-    goal = env.sample_goal_for_rollout()
-    env.set_goal(goal)
     while path_length < max_path_length:
-        goal = env.multitask_goal
+        goal = env.get_goal()
         new_o = np.hstack((o, goal))
         a, agent_info = agent.get_action(new_o)
         a = a + np.random.normal(a.shape) / 10
@@ -68,7 +66,7 @@ def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
 
 
 def simulate_policy(args):
-    data = joblib.load(args.file)
+    data = pickle.load(open(args.file, "rb")) # joblib.load(args.file)
     policy = data['policy']
 
     env = data['env']
@@ -80,6 +78,13 @@ def simulate_policy(args):
         policy.cuda()
     if args.pause:
         import ipdb; ipdb.set_trace()
+    if args.mode:
+        env.mode(args.mode)
+    if args.enable_render:
+        # some environments need to be reconfigured for visualization
+        env.enable_render()
+    if args.multitaskpause:
+        env.pause_on_goal = True
     if isinstance(policy, PyTorchModule):
         policy.train(False)
     paths = []
@@ -104,8 +109,11 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--speedup', type=float, default=10,
                         help='Speedup')
+    parser.add_argument('--mode', type=str, help='env mode')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--pause', action='store_true')
+    parser.add_argument('--enable_render', action='store_true')
+    parser.add_argument('--multitaskpause', action='store_true')
     parser.add_argument('--hide', action='store_true')
     args = parser.parse_args()
 
