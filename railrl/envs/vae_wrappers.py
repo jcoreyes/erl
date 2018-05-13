@@ -40,11 +40,15 @@ def load_vae(vae_file):
 class VAEWrappedEnv(ProxyEnv, Env):
     """This class wraps an image-based environment with a VAE.
     Assumes you get flattened (channels,84,84) observations from wrapped_env.
+
+    This class adheres to the "Silent Multitask Env" semantics: on reset,
+    it resamples a goal.
     """
     def __init__(self, wrapped_env, vae,
         use_vae_obs=True,
         use_vae_reward=True,
         use_vae_goals=True, # whether you use goals from VAE or rendered from environment state
+        sample_from_true_prior=False,
 
         decode_goals=False,
         render_goals=False,
@@ -68,6 +72,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.use_vae_goals = use_vae_goals
         self.use_vae_reward = use_vae_reward
         self.use_vae_obs = use_vae_obs
+        self.sample_from_true_prior = sample_from_true_prior
 
         self.decode_goals = decode_goals
         self.render_goals = render_goals
@@ -135,6 +140,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 self.vae.cuda()
             mu, logvar = self.vae.encode(img)
             observation = ptu.get_numpy(mu).flatten()
+        else:
+            raise NotImplementedError
         if self.use_vae_reward:
             # replace reward with Euclidean distance in VAE latent space
             # currently assumes obs and goals are also from VAE
@@ -148,6 +155,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 reward = 0 if mdist < self.epsilon else -1
             info["vae_mdist"] = mdist
             info["vae_success"] = 1 if mdist < self.epsilon else 0
+            info["var"] = var
 
         return observation, reward, done, info
 
@@ -196,8 +204,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
         :return:
         """
         if self.use_vae_goals:
-            mu, sigma = self.vae.dist_mu, self.vae.dist_std
-            # mu, sigma = 0, 1 # sample from prior
+            if self.sample_from_true_prior:
+                mu, sigma = 0, 1 # sample from prior
+            else:
+                mu, sigma = self.vae.dist_mu, self.vae.dist_std
             n = np.random.randn(self.representation_size)
             goal = sigma * n + mu
         else:
@@ -262,11 +272,30 @@ class VAEWrappedEnv(ProxyEnv, Env):
             action,
             next_observation,
             goal,
+            env_info=None,
     ):
-        reached_goal = next_observation
-        dist = np.linalg.norm(reached_goal - goal)
-        if self.reward_type == "sparse":
-            reward = 0 if dist < self.epsilon else -1
-        else:
+        if self.reward_type == 'latent_distance':
+            reached_goal = next_observation
+            dist = np.linalg.norm(reached_goal - goal)
             reward = -dist
+            return reward
+        elif self.reward_type == 'latent_sparse':
+            reached_goal = next_observation
+            dist = np.linalg.norm(reached_goal - goal)
+            reward = 0 if dist < self.epsilon else -1
+            return reward
+        if not self.use_vae_obs:
+            raise NotImplementedError
+        if not self.use_vae_reward:
+            raise NotImplementedError
+        var = env_info[0]['var']
+        dist = goal - next_observation
+        err = dist * dist / 2 / var
+        mdist = np.sum(err) # mahalanobis distance
+        if self.reward_type == "log_prob":
+            reward = -mdist
+        elif self.reward_type == "sparse":
+            reward = 0 if mdist < self.epsilon else -1
+        else:
+            raise NotImplementedError
         return reward
