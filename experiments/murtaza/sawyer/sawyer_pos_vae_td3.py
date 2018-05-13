@@ -7,9 +7,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "16": "ashvin/vae/sawyer3d/run0/id0/itr_980.pkl",
-        "32": "ashvin/vae/sawyer3d/run0/id1/itr_980.pkl",
-        "64": "ashvin/vae/sawyer3d/run0/id2/itr_980.pkl"
+        "2": "ashvin/vae/sawyer3d/run0/id0/itr_980.pkl",
+                 "05-12-sawyer-vae-train/05-12-sawyer_vae_train_2018_05_12_17_25_35_0000--s-68311
+        # "32": "ashvin/vae/sawyer3d/run0/id1/itr_980.pkl",
+        # "64": "ashvin/vae/sawyer3d/run0/id2/itr_980.pkl"
     }
 
     variant = dict(

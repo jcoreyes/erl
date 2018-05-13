@@ -6,10 +6,12 @@ import cv2
 
 
 def get_data(N = 10000, test_p = 0.9):
-    dir = '/home/shikharbahl/ros_ws/src/sawyer_control/src/sawyer_control/images_data_1/'
+    dir = '/home/mdalal/catkin_ws/src/sawyer_control/src/sawyer_control/images_data_reset_100/'
     images = []
     for i in range(N):
         im = cv2.imread(dir + str(i) + '.png', cv2.IMREAD_UNCHANGED)
+        # cv2.imshow('img', im)
+        # cv2.waitKey(1000)
         images.append((im / 255.0).transpose().flatten())
     images = np.array(images)
     data = np.split(images, [int(N*test_p)])
