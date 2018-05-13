@@ -7,8 +7,7 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "2": "ashvin/vae/sawyer3d/run0/id0/itr_980.pkl",
-                 "05-12-sawyer-vae-train/05-12-sawyer_vae_train_2018_05_12_17_25_35_0000--s-68311
+        "4": "/home/mdalal/Documents/railrl-private/data/local/05-12-sawyer-vae-train/05-12-sawyer_vae_train_2018_05_12_23_48_18_0000--s-89945/itr_800.pkl",
         # "32": "ashvin/vae/sawyer3d/run0/id1/itr_980.pkl",
         # "64": "ashvin/vae/sawyer3d/run0/id2/itr_980.pkl"
     }
@@ -45,7 +44,8 @@ if __name__ == "__main__":
         do_state_based_exp=False,
         exploration_noise=0.1,
         snapshot_mode='gap',
-        snapshot_gap=1
+        snapshot_gap=1,
+        mode='here_no_doodad',
     )
 
     n_seeds = 1
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         'algo_kwargs.reward_scale': [1e-4], # use ~1e-4 for VAE experiments
         'training_mode': ['train', ],
         'testing_mode': ['test', ],
-        'rdim': [16, 32, 64], # Sweep only for VAE experiments
+        'rdim': [4], # Sweep only for VAE experiments
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

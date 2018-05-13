@@ -3,16 +3,19 @@ from railrl.exploration_strategies.base import (
 )
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.td3.td3 import TD3
 import railrl.torch.pytorch_util as ptu
-from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
+from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv, SawyerXYReachingEnv
 import railrl.misc.hyperparameter as hyp
+import ray
+ray.init()
 
 def experiment(variant):
     env_params = variant['env_params']
-    env = SawyerXYZReachingEnv(**env_params)
+    env = SawyerXYReachingEnv(**env_params)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     qf1 = FlattenMlp(
@@ -34,9 +37,13 @@ def experiment(variant):
     #     action_space=env.action_space,
     #     **variant['es_kwargs']
     # )
-    es = EpsilonGreedy(
+    # es = EpsilonGreedy(
+    #     action_space=env.action_space,
+    #     prob_random_action=0.2,
+    # )
+    es = OUStrategy(
         action_space=env.action_space,
-        prob_random_action=0.2,
+        **variant['es_kwargs']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -67,28 +74,30 @@ if __name__ == "__main__":
             replay_buffer_size=int(1E6),
             normalize_env=False,
         ),
-        # es_kwargs=dict(
-        #     max_sigma=0.25,
-        #     min_sigma=0.25,
-        # ),
+        es_kwargs=dict(
+            max_sigma=0.25,
+            min_sigma=0.25,
+        ),
         env_params=dict(
             action_mode='position',
             reward='norm'
         )
     )
     search_space = {
-
+        # 'es_class':[
+        #     GaussianStrategy,
+        #     OUStrategy,
+        #     EpsilonGreedy,
+        # ],
         'algo_params.num_updates_per_env_step': [
             5,
-            #10,
-            #15,
         ],
         'env_params.randomize_goal_on_reset': [
             True,
         ],
         'algo_kwargs.collection_mode': [
             'online',
-            # 'online-parallel'
+            'online-parallel',
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -97,7 +106,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 1
-        exp_prefix = 'sawyer_td3_pos_2'
+        exp_prefix = 'test'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

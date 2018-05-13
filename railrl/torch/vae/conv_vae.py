@@ -163,8 +163,9 @@ class ConvVAETrainer():
                         self.imsize,
                     )[:n]
                 ])
-                save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
-                save_image(comparison.data.cpu(), save_dir, nrow=n)
+                if epoch % 100 == 0:
+                    save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
+                    save_image(comparison.data.cpu(), save_dir, nrow=n)
 
         zs = np.array(zs)
         self.model.dist_mu = zs.mean(axis=0)
@@ -188,11 +189,12 @@ class ConvVAETrainer():
         self.model.eval()
         sample = ptu.Variable(torch.randn(64, self.representation_size))
         sample = self.model.decode(sample).cpu()
-        save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
-        save_image(
-            sample.data.view(64, self.input_channels, self.imsize, self.imsize),
-            save_dir
-        )
+        if epoch %100 == 0:
+            save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
+            save_image(
+                sample.data.view(64, self.input_channels, self.imsize, self.imsize),
+                save_dir
+            )
 
     def plot_scattered(self, z, epoch):
         try:
