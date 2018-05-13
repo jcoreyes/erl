@@ -68,7 +68,7 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [1, 4, 8, 16],
+        'algo_kwargs.num_updates_per_env_step': [32, 64],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 0.9, 1.0],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'exploration_noise': [0.2],
