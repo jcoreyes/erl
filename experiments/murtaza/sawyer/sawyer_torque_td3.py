@@ -88,25 +88,30 @@ if __name__ == "__main__":
     search_space = {
         'algo_kwargs.num_updates_per_env_step': [
             1,
-	    4,
+#	    4,
 	    5,
         ],
         'env_params.randomize_goal_on_reset': [
             True,
         ],
 	'algo_kwargs.batch_size':[
-	    64,
+	 #   64,
 #	    256,
 	    512,
 	],
 	'hidden_size':[
 	    #50,
 	    100,
-	    200,
+            150,
+#	    200,
 	],
 	'algo_kwargs.reward_scale':[
 #	    10,
 	    1,
+	],
+        'algo_kwargs.collection_mode':[
+            'online-parallel',
+            'online',
 	],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
