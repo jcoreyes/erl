@@ -25,7 +25,7 @@ def generate_vae_dataset(
         print("loaded data from saved file", filename)
     else:
         now = time.time()
-        env = SawyerXYEnv()
+        env = SawyerXYEnv(hide_goal=True)
         env = ImageMujocoEnv(
             env, imsize,
             transpose=True,
@@ -37,7 +37,7 @@ def generate_vae_dataset(
         dataset = np.zeros((N, imsize * imsize * 3))
         for i in range(N):
             # Move the goal out of the image
-            env.wrapped_env.set_goal(np.array([100, 100, 100]))
+            # env.wrapped_env.set_goal(np.array([100, 100, 100]))
             env.reset()
             for _ in range(50):
                 env.wrapped_env.step(
