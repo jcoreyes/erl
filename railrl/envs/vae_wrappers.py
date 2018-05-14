@@ -57,9 +57,11 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
         reset_on_sample_goal_for_rollout = True,
 
-        reward_params=dict(),
+        reward_params=None,
         mode="train",
     ):
+        if reward_params is None:
+            reward_params = dict()
         self.quick_init(locals())
         super().__init__(wrapped_env)
         if type(vae) is str:
@@ -82,7 +84,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.reset_on_sample_goal_for_rollout = reset_on_sample_goal_for_rollout
 
         self.reward_params = reward_params
-        self.reward_type = self.reward_params.get("type", None)
+        self.reward_type = self.reward_params.get("type", 'latent_distance')
         self.epsilon = self.reward_params.get("epsilon", 20)
         if ptu.gpu_enabled():
             self.vae.cuda()
