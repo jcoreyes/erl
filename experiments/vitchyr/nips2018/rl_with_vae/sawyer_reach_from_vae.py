@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'sawyer-reach-vae-rl-log-prob-rewards-sample-from-prior'
+    exp_prefix = 'sawyer-reach-vae-rl-log-prob-rewards-no-min-var'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
