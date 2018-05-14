@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'sawyer-reach-vae-rl-log-prob-rewards-no-min-var'
+    exp_prefix = 'paper-sawyer-reach-vae-rl-rewards-no-min-var'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -36,13 +36,14 @@ if __name__ == "__main__":
 
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=205,
-            num_steps_per_epoch=100,
+            num_epochs=200,
+            num_steps_per_epoch=50,
             num_steps_per_eval=1000,
             tau=1e-2,
             batch_size=128,
-            max_path_length=100,
+            max_path_length=50,
             discount=0.99,
+            min_num_steps_before_training=128,
             # qf_learning_rate=1e-3,
             # policy_learning_rate=1e-4,
         ),
@@ -75,15 +76,15 @@ if __name__ == "__main__":
             'ou',
         ],
         'algo_kwargs.num_updates_per_env_step': [1],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5],
-        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
         # 'rdim': [2, 4, 8, 16],
         'rdim': [16],
-        'reward_params.type': ['log_prob'],
+        'reward_params.type': ['latent_distance', 'log_prob'],
         'vae_wrapped_env_kwargs.sample_from_true_prior': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

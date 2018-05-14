@@ -244,6 +244,7 @@ def plot_trials(
             y_values = np.vstack([values[:min_len] for values in all_values])
         except ValueError as e:
             import ipdb; ipdb.set_trace()
+            print(e)
         mean = np.mean(y_values, axis=0)
         std = np.std(y_values, axis=0)
         plt.fill_between(x_values, mean - std, mean + std, alpha=0.1)

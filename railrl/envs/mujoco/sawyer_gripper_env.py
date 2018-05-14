@@ -204,7 +204,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             raise NotImplementedError("Invalid/no reward type.")
         return r
 
-    def compute_her_reward_np(self, ob, action, next_ob, goal):
+    def compute_her_reward_np(self, ob, action, next_ob, goal, env_info=None):
         return self.compute_reward(ob, action, next_ob, goal)
 
     @property
