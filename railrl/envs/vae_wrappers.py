@@ -54,6 +54,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         reset_on_sample_goal_for_rollout = True,
 
         reward_params=dict(),
+        history_size=2,
         mode="train",
     ):
         self.quick_init(locals())
@@ -82,15 +83,16 @@ class VAEWrappedEnv(ProxyEnv, Env):
         if ptu.gpu_enabled():
             self.vae.cuda()
 
+        self.history_size = history_size
         self.observation_space = Box(
-            -10 * np.ones(self.representation_size),
-            10 * np.ones(self.representation_size)
+            -10 * np.ones(self.representation_size*self.history_size),
+            10 * np.ones(self.representation_size*self.history_size)
         )
         self.goal_space = Box(
             -10 * np.ones(self.representation_size),
             10 * np.ones(self.representation_size)
         )
-
+        self.history = []
         self.mode(mode)
 
     def mode(self, name):
@@ -113,8 +115,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.render_goals = False
             self.render_rollouts = False
             self.render_decoded = False
-        else:
-            error
 
     @property
     def goal_dim(self):
@@ -133,6 +133,16 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 self.vae.cuda()
             mu, logvar = self.vae.encode(img)
             observation = ptu.get_numpy(mu).flatten()
+            if len(self.history) == 0:
+                for i in range(self.history_size-1):
+                    self.history.append(observation)
+            self.history.append(observation)
+            j = 0
+            stacked_obs = np.zeros(len(observation)*self.history_size)
+            for i in range(0, len(observation)*self.history_size, len(observation)):
+                stacked_obs[i:i+len(observation)] = self.history[j]
+                j+=1
+            del self.history[0]
         if self.use_vae_reward:
             # replace reward with Euclidean distance in VAE latent space
             # currently assumes obs and goals are also from VAE
@@ -146,6 +156,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 reward = 0 if mdist < self.epsilon else -1
             info["vae_mdist"] = mdist
             info["vae_success"] = 1 if mdist < self.epsilon else 0
+            observation = stacked_obs
 
         return observation, reward, done, info
 
@@ -163,6 +174,15 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 self.vae.cuda()
             e = self.vae.encode(img)[0]
             observation = ptu.get_numpy(e).flatten()
+            for i in range(self.history_size):
+                self.history.append(observation)
+            obs = np.zeros(len(observation) * self.history_size)
+            j = 0
+            for i in range(0, len(observation) * self.history_size, len(observation)):
+                obs[i:i + len(observation)] = self.history[j]
+                j+=1
+            del self.history[0]
+            observation = obs
         return observation
 
     def enable_render(self):
@@ -177,7 +197,13 @@ class VAEWrappedEnv(ProxyEnv, Env):
     """
 
     def convert_obs_to_goals(self, obs):
-        return obs
+        '''
+        returns latest observation of each history
+        :param obs:
+        :return:
+        '''
+        return obs[:, (self.history_size-1)*self.representation_size:]
+        # return obs
         # return ptu.get_numpy(
             # self.vae.encode(ptu.np_to_var(obs))
         # )
@@ -262,7 +288,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             next_observation,
             goal,
     ):
-        reached_goal = next_observation
+        reached_goal = next_observation[(self.history_size-1)*self.representation_size:]
         dist = np.linalg.norm(reached_goal - goal)
         if self.reward_type == "sparse":
             reward = 0 if dist < self.epsilon else -1

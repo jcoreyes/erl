@@ -73,6 +73,7 @@ if __name__ == "__main__":
             discount=0.98,
             replay_buffer_size=int(1E6),
             normalize_env=False,
+            collection_mode='online-parallel'
         ),
         es_kwargs=dict(
             max_sigma=0.25,

@@ -3,11 +3,13 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.vae.relabeled_vae_experiment import experiment
+import ray
+ray.init()
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        "4": "/home/mdalal/Documents/railrl-private/data/local/05-12-sawyer-vae-train/05-12-sawyer_vae_train_2018_05_12_23_48_18_0000--s-89945/itr_800.pkl",
+        "16": "/home/mdalal/Documents/railrl-private/data/local/05-13-sawyer-vae-train/05-13-sawyer_vae_train_2018_05_13_12_47_34_0000--s-49137/itr_940.pkl",
         # "32": "ashvin/vae/sawyer3d/run0/id1/itr_980.pkl",
         # "64": "ashvin/vae/sawyer3d/run0/id2/itr_980.pkl"
     }
@@ -23,6 +25,7 @@ if __name__ == "__main__":
             discount=0.95,
             # qf_learning_rate=1e-3,
             # policy_learning_rate=1e-4,
+            collection_mode='online-parallel'
         ),
         env_kwargs=dict(
             action_mode='position',
@@ -43,8 +46,7 @@ if __name__ == "__main__":
         wrap_mujoco_env=False,
         do_state_based_exp=False,
         exploration_noise=0.1,
-        snapshot_mode='gap',
-        snapshot_gap=1,
+        snapshot_mode='last',
         mode='here_no_doodad',
     )
 
@@ -54,17 +56,15 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        #'env_kwargs.arm_range': [0.5],
-        #'env_kwargs.reward_params.epsilon': [0.5],
         'algo_kwargs.num_updates_per_env_step': [5],
         'algo_kwargs.discount': [0.98],
-        'replay_kwargs.fraction_goals_are_env_goals': [0, 0.5], # 0.0 is normal, 0.5 means half goals are resampled from env
-        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],#[0.2, 1.0], # 1.0 is normal, 0.2 is (future, k=4) HER
+        'replay_kwargs.fraction_goals_are_env_goals': [0, 0.5],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
-        'algo_kwargs.reward_scale': [1e-4], # use ~1e-4 for VAE experiments
+        'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train', ],
         'testing_mode': ['test', ],
-        'rdim': [4], # Sweep only for VAE experiments
+        'rdim': [16],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
