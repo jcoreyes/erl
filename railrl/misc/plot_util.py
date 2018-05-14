@@ -217,6 +217,7 @@ def plot_trials(
         x_label=None,
         y_label=None,
         process_values=sum,
+        process_time_series=identity_fn,
 ):
     if isinstance(y_keys, str):
         y_keys = [y_keys]
@@ -238,6 +239,7 @@ def plot_trials(
                     trial.data[k] for k in y_keys
                 ]
                 values = process_values(multiple_values)
+            values = process_time_series(values)
             all_values.append(values)
             x_values = trial.data[x_key][:min_len]
         try:
@@ -260,6 +262,27 @@ def moving_average(a, n=3) :
     ret = np.cumsum(a, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
+
+
+def padded_ma_filter(N):
+    return lambda x: padded_moving_average(x, N)
+
+
+def padded_moving_average(data_array, window=5):
+    """Does not affect the length"""
+    data_array = np.array(data_array)
+    new_list = []
+    for i in range(len(data_array)):
+        indices = list(range(max(i - window + 1, 0),
+                             min(i + window + 1, len(data_array))))
+        avg = 0
+        for j in indices:
+            avg += data_array[j]
+        avg /= float(len(indices))
+        new_list.append(avg)
+
+    return np.array(new_list)
+
 
 import itertools
 def scatterplot_matrix(data1, data2, **kwargs):

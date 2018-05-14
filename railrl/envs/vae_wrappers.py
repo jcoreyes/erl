@@ -150,7 +150,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             # currently assumes obs and goals are also from VAE
             dist = self.vae_goal - observation
             var = np.exp(ptu.get_numpy(logvar).flatten())
-            var = np.max(var, self.reward_min_variance)
+            var = np.maximum(var, self.reward_min_variance)
             err = dist * dist / 2 / var
             mdist = np.sum(err) # mahalanobis distance
             if self.reward_type == "latent_distance":
@@ -296,7 +296,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             raise NotImplementedError
         var = env_info[0]['var']
         dist = goal - next_observation
-        var = np.max(var, self.reward_min_variance)
+        var = np.maximum(var, self.reward_min_variance)
         err = dist * dist / 2 / var
         mdist = np.sum(err) # mahalanobis distance
         if self.reward_type == "log_prob":

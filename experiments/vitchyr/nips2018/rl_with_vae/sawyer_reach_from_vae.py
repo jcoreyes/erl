@@ -14,9 +14,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'paper-sawyer-reach-vae-rl-rewards-no-min-var'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'paper-sawyer-reach-vae-rl-lprob-rewards-min-var-after-fact'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         # 'rdim': [2, 4, 8, 16],
         'rdim': [16],
         'reward_params.type': ['log_prob'],
-        'reward_params.min_variance': [0, 1e-4, 1e-2],
+        'reward_params.min_variance': [1e-4, 1e-2, 1],
         'vae_wrapped_env_kwargs.sample_from_true_prior': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -107,5 +107,5 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                # use_gpu=True,
+                use_gpu=True,
             )
