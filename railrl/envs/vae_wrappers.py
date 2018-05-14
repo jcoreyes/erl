@@ -86,6 +86,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", 'latent_distance')
         self.epsilon = self.reward_params.get("epsilon", 20)
+        self.reward_min_variance = self.reward_params.get("min_variance", 0)
         if ptu.gpu_enabled():
             self.vae.cuda()
 
@@ -149,9 +150,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
             # currently assumes obs and goals are also from VAE
             dist = self.vae_goal - observation
             var = np.exp(ptu.get_numpy(logvar).flatten())
+            var = np.max(var, self.reward_min_variance)
             err = dist * dist / 2 / var
             mdist = np.sum(err) # mahalanobis distance
-            if self.reward_type is None:
+            if self.reward_type == "latent_distance":
+                reward = - np.linalg.norm(dist)
+            elif self.reward_type == "log_prob":
                 reward = -mdist
             elif self.reward_type == "sparse":
                 reward = 0 if mdist < self.epsilon else -1
@@ -292,6 +296,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             raise NotImplementedError
         var = env_info[0]['var']
         dist = goal - next_observation
+        var = np.max(var, self.reward_min_variance)
         err = dist * dist / 2 / var
         mdist = np.sum(err) # mahalanobis distance
         if self.reward_type == "log_prob":

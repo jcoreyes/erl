@@ -14,9 +14,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'paper-sawyer-reach-vae-rl-rewards-no-min-var'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'paper-sawyer-reach-vae-rl-rewards-no-min-var'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -69,6 +69,9 @@ if __name__ == "__main__":
         exploration_noise=0.1,
         init_camera=sawyer_init_camera,
         version='normal',
+        reward_params=dict(
+            min_variance=0,
+        ),
     )
 
     search_space = {
@@ -77,14 +80,15 @@ if __name__ == "__main__":
         ],
         'algo_kwargs.num_updates_per_env_step': [1],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
-        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
         # 'rdim': [2, 4, 8, 16],
         'rdim': [16],
-        'reward_params.type': ['latent_distance', 'log_prob'],
+        'reward_params.type': ['log_prob'],
+        'reward_params.min_variance': [0, 1e-4, 1e-2],
         'vae_wrapped_env_kwargs.sample_from_true_prior': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -103,5 +107,5 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                use_gpu=True,
+                # use_gpu=True,
             )
