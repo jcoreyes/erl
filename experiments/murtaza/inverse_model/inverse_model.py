@@ -1,5 +1,7 @@
 from railrl.data_management.tau_replay_buffer import TauReplayBuffer
+from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
+from railrl.envs.multitask.pusher2d import FullPusher2DEnv
 from railrl.envs.multitask.reacher_7dof import Reacher7DofMultitaskEnv, Reacher7DofFullGoal
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -18,8 +20,11 @@ from railrl.torch.networks import TanhMlpPolicy
 
 
 def experiment(variant):
-    env = NormalizedBoxEnv(MultitaskPoint2DEnv())
+    # env = NormalizedBoxEnv(MultitaskPoint2DEnv())
     # env = Reacher7DofFullGoal()
+    env = FullPusher2DEnv(include_puck=False, arm_range=.5)
+    env = SawyerXYEnv()
+    prob_random_action = variant['prob_random_action']
     # es = OUStrategy(action_space=env.action_space)
     es = EpsilonGreedy(action_space=env.action_space, prob_random_action=.2)
     obs_dim = env.observation_space.low.size
@@ -54,12 +59,12 @@ if __name__ == "__main__":
         ),
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=50,
+                num_epochs=10,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=100,
-                num_updates_per_env_step=1,
-                batch_size=512,
+                num_updates_per_env_step=15,
+                batch_size=64,
                 replay_buffer_size=10000,
                 render=True,
             ),
@@ -71,9 +76,16 @@ if __name__ == "__main__":
         ],
         'algo_params.base_kwargs.num_updates_per_env_step':[
             1,
+            # 5,
+            # 10,
+            # 15,
+        ],
+        'algo_params.time_horizon':[
+            # 0,
             5,
             10,
             15,
+            None,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

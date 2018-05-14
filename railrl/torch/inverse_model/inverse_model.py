@@ -27,6 +27,7 @@ class Inverse_Model(TorchRLAlgorithm):
             optimizer_class=optim.Adam,
             policy_criterion='MSE',
             replay_buffer=None,
+            time_horizon=None,
     ):
 
         TorchRLAlgorithm.__init__(
@@ -46,6 +47,11 @@ class Inverse_Model(TorchRLAlgorithm):
             self.policy_criterion = nn.MSELoss()
         elif policy_criterion=='Huber':
             self.policy_criterion = HuberLoss()
+
+        if time_horizon==None:
+            self.time_horizon = self.max_path_length
+        else:
+            self.time_horizon = time_horizon
         self.eval_policy = self.policy
         self._current_path_goal = None
         self.replay_buffer = replay_buffer
@@ -65,7 +71,7 @@ class Inverse_Model(TorchRLAlgorithm):
         ]
 
     def get_batch(self):
-        batch = self.replay_buffer.random_batch_random_tau(self.batch_size, max_tau=self.max_path_length)
+        batch = self.replay_buffer.random_batch_random_tau(self.batch_size, max_tau=self.time_horizon)
         return np_to_pytorch_batch(batch)
 
     def _do_training(self):

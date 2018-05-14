@@ -9,21 +9,24 @@ from railrl.core import logger
 import numpy as np
 
 
-def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
+def multitask_rollout(env, agent, max_path_length=np.inf, animated=False, multitaskpause=False):
     observations = []
     actions = []
     rewards = []
     terminals = []
     agent_infos = []
     env_infos = []
-    o = env.reset()
     agent.reset()
     next_o = None
     path_length = 0
-    if animated:
-        env.render()
     goal = env.sample_goal_for_rollout()
     env.set_goal(goal)
+    if multitaskpause and animated:
+        for i in range(100):
+            env.render()
+    o = env.reset()
+    if animated:
+        env.render()
     while path_length < max_path_length:
         goal = env.multitask_goal
         new_o = np.hstack((o, goal))
@@ -89,6 +92,7 @@ def simulate_policy(args):
             policy,
             max_path_length=args.H,
             animated=not args.hide,
+            multitaskpause=args.multitaskpause,
         ))
         if hasattr(env, "log_diagnostics"):
             env.log_diagnostics(paths)
@@ -106,6 +110,7 @@ if __name__ == "__main__":
                         help='Speedup')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--pause', action='store_true')
+    parser.add_argument('--multitaskpause', action='store_true')
     parser.add_argument('--hide', action='store_true')
     args = parser.parse_args()
 

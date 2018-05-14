@@ -1,6 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer
+from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer, \
+    RelabelingReplayBuffer
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -51,7 +52,7 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    replay_buffer = SimpleHerReplayBuffer(
+    replay_buffer = variant['replay_buffer_class'](
         env=env,
         **variant['replay_buffer_kwargs']
     )
@@ -84,9 +85,11 @@ if __name__ == "__main__":
             frame_skip=50,
             only_reward_block_to_goal=True,
         ),
+        replay_buffer_class=RelabelingReplayBuffer,
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            num_goals_to_sample=0,
+            fraction_goals_are_rollout_goals=0.1,
+            fraction_goals_are_env_goals=0.5,
         ),
         normalize=True,
         algorithm='HER-DDPG',
@@ -98,13 +101,17 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer-sim-push-xy-center-start'
+    exp_prefix = 'sawyer-sim-push-easy-ish-check-fixed-env'
 
     search_space = {
-        'env_kwargs.randomize_goals': [True, False],
-        'env_kwargs.only_reward_block_to_goal': [False, True],
-        'replay_buffer_kwargs.num_goals_to_sample': [4],
-        'algo_kwargs.num_updates_per_env_step': [5],
+        # 'env_kwargs.randomize_goals': [True, False],
+        # 'env_kwargs.only_reward_block_to_goal': [False, True],
+        # 'replay_buffer_kwargs.num_goals_to_sample': [4],
+        # 'algo_kwargs.num_updates_per_env_step': [5],
+        'algo_kwargs.max_path_length': [
+            100,
+            50,
+        ],
         'exploration_type': [
             'ou',
             'epsilon',

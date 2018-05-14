@@ -16,53 +16,60 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
 
 from railrl.envs.wrappers import ImageMujocoEnv
-from railrl.envs.vae_wrappers import VAEWrappedImageGoalEnv, VAEWrappedEnv
+from railrl.envs.vae_wrappers import VAEWrappedEnv
+from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
+from railrl.torch.her.relabeled_td3 import RelabeledTd3
 import torch
+import pickle
 
 from railrl.core import logger
 import os.path as osp
 
 def experiment(variant):
-    rdim = variant["rdim"]
-    use_env_goals = variant["use_env_goals"]
-    vae_path = variant["vae_paths"][str(rdim)]
-    render = variant["render"]
-    wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
-
-    # vae = torch.load(vae_path)
-    # print("loaded", vae_path)
-
     env = variant["env"](**variant['env_kwargs'])
-    if wrap_mujoco_env:
-        env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True, normalize=True)
 
+    do_state_based_exp = variant.get("do_state_based_exp", False)
 
-    if use_env_goals:
+    if not do_state_based_exp:
+        rdim = variant["rdim"]
+        use_env_goals = variant["use_env_goals"]
+        vae_path = variant["vae_paths"][str(rdim)]
+        render = variant["render"]
+        wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
+        reward_params = variant.get("reward_params", dict())
+
+        if wrap_mujoco_env:
+            env = ImageMujocoEnv(env, 84, camera_name="topview", transpose=True, normalize=True)
+
+        use_vae_goals = not use_env_goals
         track_qpos_goal = variant.get("track_qpos_goal", 0)
-        env = VAEWrappedImageGoalEnv(env, vae_path, use_vae_obs=True,
-            use_vae_reward=True, use_vae_goals=True,
-            render_goals=render, render_rollouts=render, track_qpos_goal=track_qpos_goal)
-    else:
         env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
-            use_vae_reward=True, use_vae_goals=True,
-            render_goals=render, render_rollouts=render)
+            use_vae_reward=True, use_vae_goals=use_vae_goals,
+            decode_goals=render,
+            render_goals=render, render_rollouts=render,
+            render_decoded=render,
+            reward_params=reward_params,
+            track_qpos_goal=track_qpos_goal)
+
+        vae_wrapped_env = env
 
     env = MultitaskToFlatEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
+    exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
         es = OUStrategy(action_space=env.action_space)
     elif exploration_type == 'gaussian':
         es = GaussianStrategy(
             action_space=env.action_space,
-            max_sigma=0.1,
-            min_sigma=0.1,  # Constant sigma
+            max_sigma=exploration_noise,
+            min_sigma=exploration_noise,  # Constant sigma
         )
     elif exploration_type == 'epsilon':
         es = EpsilonGreedy(
             action_space=env.action_space,
-            prob_random_action=0.1,
+            prob_random_action=exploration_noise,
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
@@ -87,13 +94,31 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
+
+    if do_state_based_exp:
+        testing_env = env
+        training_env = env
+    else:
+        training_mode = variant.get("training_mode", "train")
+        testing_mode = variant.get("testing_mode", "test")
+
+        testing_env = pickle.loads(pickle.dumps(env))
+        testing_env.mode(testing_mode)
+        training_env = pickle.loads(pickle.dumps(env))
+        training_env.mode(training_mode)
+        video_vae_env = pickle.loads(pickle.dumps(env))
+        video_vae_env.mode("video_vae")
+        video_goal_env = pickle.loads(pickle.dumps(env))
+        video_goal_env.mode("video_env")
+
     algorithm = TD3(
-        env,
-        training_env=env,
+        testing_env,
+        training_env=training_env,
         qf1=qf1,
         qf2=qf2,
         policy=policy,
         exploration_policy=exploration_policy,
+        render=do_state_based_exp and variant.get("render", False),
         **variant['algo_kwargs']
     )
 
@@ -103,20 +128,26 @@ def experiment(variant):
         ptu.set_gpu_mode(True)
         ptu.set_device(gpu_id)
         algorithm.cuda()
-        env._wrapped_env.vae.cuda()
+        if not do_state_based_exp:
+            for e in [testing_env, training_env, video_vae_env, video_goal_env]:
+                e._wrapped_env.vae.cuda()
 
     save_video = variant.get("save_video", True)
-    if save_video:
+    if not do_state_based_exp and save_video:
         from railrl.torch.vae.sim_vae_policy import dump_video
         logdir = logger.get_snapshot_dir()
-        filename = osp.join(logdir, 'video_0.mp4')
-        dump_video(env, policy, filename)
+        filename = osp.join(logdir, 'video_0_env.mp4')
+        dump_video(video_goal_env, policy, filename)
+        filename = osp.join(logdir, 'video_0_vae.mp4')
+        dump_video(video_vae_env, policy, filename)
 
     algorithm.train()
 
-    if save_video:
-        filename = osp.join(logdir, 'video_final.mp4')
-        dump_video(env, policy, filename)
+    if not do_state_based_exp and save_video:
+        filename = osp.join(logdir, 'video_final_env.mp4')
+        dump_video(video_goal_env, policy, filename)
+        filename = osp.join(logdir, 'video_final_vae.mp4')
+        dump_video(video_vae_env, policy, filename)
 
 
 if __name__ == "__main__":

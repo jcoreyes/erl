@@ -1,5 +1,6 @@
 
-from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer
+from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer, \
+    RelabelingReplayBuffer
 from railrl.torch.ddpg.ddpg import DDPG
 from railrl.torch.her.her import HER
 
@@ -11,4 +12,8 @@ class HerDdpg(HER, DDPG):
             **kwargs
     ):
         super().__init__(*args, **kwargs)
-        assert isinstance(self.replay_buffer, SimpleHerReplayBuffer)
+        assert isinstance(
+            self.replay_buffer, SimpleHerReplayBuffer
+        ) or isinstance(
+            self.replay_buffer, RelabelingReplayBuffer
+        )
