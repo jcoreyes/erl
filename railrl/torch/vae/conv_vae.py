@@ -233,10 +233,10 @@ class ConvVAE(nn.Module):
         self.conv4 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
         self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=3)
-
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
+        import ipdb; ipdb.set_trace()
         self.hidden_init(self.conv1.weight)
         self.conv1.bias.data.fill_(0)
         self.hidden_init(self.conv2.weight)

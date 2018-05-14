@@ -41,4 +41,4 @@ def get_data(N = 10000, test_p = 0.9, use_cached=True, imsize=84):
     return train_dataset, test_dataset, info
 
 if __name__ == "__main__":
-    get_data(200, use_cached=False)
+    get_data(use_cached=False)
