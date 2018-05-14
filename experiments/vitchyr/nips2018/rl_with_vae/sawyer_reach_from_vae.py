@@ -14,21 +14,30 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer-reach-vae-rl-reproduce-2'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'sawyer-reach-vae-rl-log-prob-rewards-no-min-var'
 
     vae_paths = {
-        "2": "05-12-sawyer-vae-reacher-recreate-results/05-12-sawyer-vae-reacher-recreate-results_2018_05_12_15_14_35_0000--s-13215-r2/params.pkl",
-        "4": "05-12-sawyer-vae-reacher-recreate-results/05-12-sawyer-vae-reacher-recreate-results_2018_05_12_15_48_43_0000--s-77177-r4/params.pkl",
-        "8": "05-12-sawyer-vae-reacher-recreate-results/05-12-sawyer-vae-reacher-recreate-results_2018_05_12_15_53_51_0000--s-45475-r8/params.pkl",
-        "16": "05-12-sawyer-vae-reacher-recreate-results/05-12-sawyer-vae-reacher-recreate-results_2018_05_12_15_58_58_0000--s-27547-r16/params.pkl",
+        # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
+        #      "-reacher-recreate-results_2018_05_11_01_18_09_0000--s-33239-r2"
+        #      "/params.pkl",
+        # "4": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
+        #      "-reacher-recreate-results_2018_05_11_01_21_47_0000--s-74741-r4"
+        #      "/params.pkl",
+        # "8": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
+        #      "-reacher-recreate-results_2018_05_11_01_25_22_0000--s-82322-r8"
+        #      "/params.pkl",
+        # "16": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
+        #       "-reacher-recreate-results_2018_05_11_01_28_52_0000--s-570-r16"
+        #       "/params.pkl",
+        "16": "05-12-sawyer-vae-reacher-no-min-var/05-12-sawyer-vae-reacher-no-min-var_2018_05_12_23_51_16_0000--s-15031-r16/params.pkl"
     }
 
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=505,
-            num_steps_per_epoch=1000,
+            num_epochs=205,
+            num_steps_per_epoch=100,
             num_steps_per_eval=1000,
             tau=1e-2,
             batch_size=128,
@@ -58,6 +67,7 @@ if __name__ == "__main__":
         do_state_based_exp=False,
         exploration_noise=0.1,
         init_camera=sawyer_init_camera,
+        version='normal',
     )
 
     search_space = {
@@ -66,12 +76,15 @@ if __name__ == "__main__":
         ],
         'algo_kwargs.num_updates_per_env_step': [1],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5],
-        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
-        'rdim': [2, 4, 8, 16],
+        # 'rdim': [2, 4, 8, 16],
+        'rdim': [16],
+        'reward_params.type': ['log_prob'],
+        'vae_wrapped_env_kwargs.sample_from_true_prior': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
