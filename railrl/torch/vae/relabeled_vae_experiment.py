@@ -62,10 +62,9 @@ def experiment(variant):
             render_goals=render, render_rollouts=render,
             render_decoded=render,
             reward_params=reward_params,
+            use_gpu = variant['use_gpu'],
             **variant.get('vae_wrapped_env_kwargs', {})
         )
-
-        vae_wrapped_env = env
 
     if do_state_based_exp:
         env = MultitaskEnvToSilentMultitaskEnv(env)
@@ -93,20 +92,21 @@ def experiment(variant):
         raise Exception("Invalid type: " + exploration_type)
     obs_dim = env.observation_space.low.size + env.goal_space.low.size
     action_dim = env.action_space.low.size
+    hidden_sizes = variant.get('hidden_sizes', [400, 300])
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[100, 100],
+        hidden_sizes=hidden_sizes,
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[100, 100],
+        hidden_sizes=hidden_sizes,
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=[100, 100],
+        hidden_sizes=hidden_sizes,
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -151,16 +151,12 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         render=do_state_based_exp and variant.get("render", False),
         render_during_eval=do_state_based_exp and variant.get("render", False),
+        min_num_steps_before_training=variant['algo_kwargs']['batch_size'],
         **variant['algo_kwargs']
     )
 
-    # print("use_gpu", variant["use_gpu"], bool(variant["use_gpu"]))
-    # if variant["use_gpu"]: # change this to standardized format
-    if ptu.gpu_enabled():
+    if variant["use_gpu"]:
         print("using GPU")
-        # gpu_id = variant["gpu_id"]
-        # ptu.set_gpu_mode(True)
-        # ptu.set_device(gpu_id)
         algorithm.cuda()
         if not do_state_based_exp:
             for e in [testing_env, training_env, video_vae_env, video_goal_env]:

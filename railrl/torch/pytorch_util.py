@@ -141,7 +141,6 @@ def batch_square_vector(vector, M):
 
 
 def fanin_init(tensor):
-    #import ipdb; ipdb.set_trace()
     if isinstance(tensor, TorchVariable):
         return fanin_init(tensor.data)
     size = tensor.size()

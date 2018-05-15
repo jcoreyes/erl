@@ -6,25 +6,26 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     vae_paths = {
-        "16": "/home/mdalal/Documents/railrl-private/data/local/05-13-sawyer-vae-train/05-13-sawyer_vae_train_2018_05_13_12_47_34_0000--s-49137/itr_1000.pkl",
-        "32": "/home/mdalal/Documents/railrl-private/data/local/05-13-sawyer-vae-train/05-13-sawyer_vae_train_2018_05_13_12_48_26_0000--s-87652/itr_1000.pkl",
-        "64": "/home/mdalal/Documents/railrl-private/data/local/05-13-sawyer-vae-train/05-13-sawyer_vae_train_2018_05_13_12_49_07_0000--s-13504/itr_1000.pkl",
+        "16": "/home/mdalal/Documents/railrl-private/data/local/05-14-sawyer-torque-vae-train-16/05-14-sawyer_torque_vae_train_16_2018_05_14_21_48_53_0000--s-32499/itr_1000.pkl",
+        "32": "/home/mdalal/Documents/railrl-private/data/local/05-14-sawyer-torque-vae-train-32/05-14-sawyer_torque_vae_train_32_2018_05_14_21_49_34_0000--s-13212/itr_1000.pkl",
+        "64": "/home/mdalal/Documents/railrl-private/data/local/05-14-sawyer-torque-vae-train-64/05-14-sawyer_torque_vae_train_64_2018_05_14_22_08_58_0000--s-19762/itr_1000.pkl",
 
     }
-
+    use_gpu=True
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=100,
-            num_steps_per_epoch=500,
+            num_epochs=50,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=500,
             tau=1e-2,
-            batch_size=512,
+            batch_size=128,
             max_path_length=100,
             discount=0.95,
         ),
         env_kwargs=dict(
             action_mode='torque',
-            reward='norm'
+            reward='norm',
+            update_hz=100,
 
         ),
         replay_kwargs=dict(
@@ -43,6 +44,7 @@ if __name__ == "__main__":
         exploration_noise=0.1,
         snapshot_mode='last',
         mode='here_no_doodad',
+        use_gpu=use_gpu,
     )
 
     n_seeds = 1
@@ -51,16 +53,17 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [1, 3],
+        'algo_kwargs.num_updates_per_env_step': [3],
         'algo_kwargs.discount': [0.98],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.5], # 0.0 is normal, 0.5 means half goals are resampled from env
+        'replay_kwargs.fraction_goals_are_env_goals': [0, 0.5], # 0.0 is normal, 0.5 means half goals are resampled from env
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],#[0.2, 1.0], # 1.0 is normal, 0.2 is (future, k=4) HER
-        'exploration_noise': [0.2],
+        'exploration_noise': [0.25],
         'algo_kwargs.reward_scale': [1e-4], # use ~1e-4 for VAE experiments
         'training_mode': ['train', ],
         'testing_mode': ['test', ],
         'rdim': [16, 32, 64], # Sweep only for VAE experiments
         'seedid': range(n_seeds),
+        'hidden_sizes':[[100, 100]],
     }
     # run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=10)
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -69,7 +72,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 1
-        exp_prefix = 'sawyer_torque_vae_td3_history'
+        exp_prefix = 'test'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(
@@ -77,4 +80,5 @@ if __name__ == "__main__":
                 mode=mode,
                 exp_prefix=exp_prefix,
                 variant=variant,
+                use_gpu=use_gpu,
             )
