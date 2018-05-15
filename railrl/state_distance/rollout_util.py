@@ -42,7 +42,10 @@ class MultigoalSimplePathSampler(object):
             paths.append(path)
         return paths
 
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except ImportError as e:
+    print("could not import matplotlib")
 ax1 = None
 ax2 = None
 
@@ -100,7 +103,6 @@ def multitask_rollout(
     env_infos = []
     taus = []
 
-    o = env.reset()
     agent.reset()
     path_length = 0
     if animated:
@@ -110,10 +112,13 @@ def multitask_rollout(
     if goal is None:
         goal = env.sample_goal_for_rollout()
     env.set_goal(goal)
+    o = env.reset()
+    assert (env.get_goal() == goal).all()
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o, goal, tau, **get_action_kwargs)
         if animated:
-            env.render(debug_info=agent_info)
+            # env.render(debug_info=agent_info)
+            env.render()
         next_o, r, d, env_info = env.step(a)
         next_observations.append(next_o)
         observations.append(o)

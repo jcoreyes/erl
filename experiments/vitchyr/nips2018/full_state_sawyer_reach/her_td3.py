@@ -1,6 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from railrl.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
 from railrl.launchers.experiments.vitchyr.multitask import her_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
 
@@ -16,11 +17,12 @@ if __name__ == "__main__":
             discount=0.99,
             min_num_steps_before_training=128,
         ),
+        # env_class=SawyerReachXYEnv,
         env_class=SawyerXYEnv,
         env_kwargs=dict(
-            reward_info=dict(
-                type='shaped',
-            ),
+            # reward_info=dict(
+            #     type='shaped',
+            # ),
         ),
         replay_buffer_class=RelabelingReplayBuffer,
         replay_buffer_kwargs=dict(
@@ -42,21 +44,21 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'full-state-sawyer-reach-2'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'full-state-sawyer-reach-2'
 
     search_space = {
         'algo_kwargs.num_updates_per_env_step': [
             1,
         ],
         'replay_buffer_kwargs.fraction_goals_are_env_goals': [
-            0.0,
+            # 0.0,
             0.5,
         ],
         'replay_buffer_kwargs.fraction_goals_are_rollout_goals': [
             0.2,
-            1.0,
+            # 1.0,
         ],
         'env_kwargs.reward_info.type': [
             # 'hand_only',
@@ -64,9 +66,9 @@ if __name__ == "__main__":
             'euclidean',
         ],
         'exploration_type': [
-            'epsilon',
+            # 'epsilon',
             'ou',
-            'gaussian',
+            # 'gaussian',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

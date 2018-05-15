@@ -145,6 +145,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             tau_sampling_function=self._sample_max_tau_for_rollout,
             goal_sampling_function=self._sample_goal_for_rollout,
             cycle_taus_for_rollout=self.cycle_taus_for_rollout,
+            render=self.render_during_eval,
         )
         self.pretrain_obs = None
         if self.collection_mode == 'online-parallel':
@@ -233,7 +234,15 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                                                                  goals)
             return neg_distances * self.reward_scale
         elif self.reward_type == 'env':
-            return batch['rewards']
+            rewards = batch['rewards']
+            for i in range(len(rewards)):
+                rewards[i] = self.training_env.compute_her_reward_np(
+                    obs[i],
+                    actions[i],
+                    next_obs[i],
+                    goals[i]
+                )
+            return rewards
         else:
             raise TypeError("Invalid reward type: {}".format(self.reward_type))
 
@@ -340,7 +349,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self._current_path_goal = self._sample_goal_for_rollout()
         self.training_env.set_goal(self._current_path_goal)
         self._rollout_tau = np.array([self.max_tau])
-        return self.training_env.reset()
+        obs = self.training_env.reset()
+        assert (self.training_env.get_goal() == self._current_path_goal).all()
+        return obs
 
     def _handle_step(
             self,

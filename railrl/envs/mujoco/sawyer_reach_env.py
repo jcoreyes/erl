@@ -165,6 +165,7 @@ class SawyerReachXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
         angles = self.data.qpos.copy()
         velocities = self.data.qvel.copy()
         angles[:] = self.init_angles
+        velocities[:] = 0
         self.set_state(angles.flatten(), velocities.flatten())
         self.set_goal_xyz(self._goal_xyz)
         return self._get_obs()
@@ -174,7 +175,7 @@ class SawyerReachXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             r = -np.linalg.norm(next_ob - goal)
         elif self.reward_info["type"] == "sparse":
             t = self.reward_info["threshold"]
-            r = float(np.linalg.norm(next_ob - goal) < t) - 1
+            r = float(np.linalg.norm(next_ob - goal) < t)
         else:
             raise NotImplementedError("Invalid/no reward type.")
         return r
@@ -240,7 +241,10 @@ class SawyerReachXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xyz(goal)
-        self.set_to_goal(goal)
+        # self.set_to_goal(goal)
+
+    def get_goal(self):
+        return self._goal_xyz
 
     def convert_obs_to_goals(self, obs):
         return obs
