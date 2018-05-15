@@ -597,6 +597,15 @@ class SawyerXYEnv(SawyerXYZEnv):
         return self.get_endeff_pos()
 
 
+class SawyerXYEasyEnv(SawyerXYEnv):
+    def sample_goal_xyz(self):
+        pos = np.random.uniform(
+            np.array([-0.1, 0.5, 0.02]),
+            np.array([0.1, 0.7, 0.02]),
+        )
+        return pos
+
+
 if __name__ == "__main__":
     e = SawyerXYZEnv(reward_info=dict(type="euclidean"))
     for j in range(50):
