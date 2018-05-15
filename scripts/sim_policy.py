@@ -4,6 +4,7 @@ from railrl.torch.core import PyTorchModule
 from railrl.torch.pytorch_util import set_gpu_mode
 import argparse
 import joblib
+import pickle
 import uuid
 from railrl.core import logger
 import ray
@@ -13,7 +14,7 @@ filename = str(uuid.uuid4())
 
 
 def simulate_policy(args):
-    data = joblib.load(args.file)
+    data = pickle.load(open(args.file, "rb")) # joblib.load(args.file)
     if 'eval_policy' in data:
         policy = data['eval_policy']
     elif 'policy' in data:
@@ -38,6 +39,8 @@ def simulate_policy(args):
     if args.enable_render:
         # some environments need to be reconfigured for visualization
         env.enable_render()
+    if args.multitaskpause:
+        env.pause_on_goal = True
 
     if args.gpu:
         set_gpu_mode(True)
@@ -81,6 +84,7 @@ if __name__ == "__main__":
     parser.add_argument('--pause', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--enable_render', action='store_true')
+    parser.add_argument('--multitaskpause', action='store_true')
     args = parser.parse_args()
 
     simulate_policy(args)

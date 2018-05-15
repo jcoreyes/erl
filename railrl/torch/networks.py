@@ -16,6 +16,7 @@ from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 
 import numpy as np
+from PIL import Image
 
 class CNN(PyTorchModule):
     def __init__(self,
@@ -116,6 +117,9 @@ class CNN(PyTorchModule):
                        self.input_height,
                        self.input_width)
 
+        #image_arr = np.array(h[0].transpose(0, 2).data)
+        #from PIL import Image
+        #import pdb; pdb.set_trace()
         h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
         # flatten channels for fc layers
         h = h.view(h.size(0), -1)
@@ -463,3 +467,131 @@ class OuterProductFF(PyTorchModule):
             return output, preactivation
         else:
             return output
+
+
+class AETanhPolicy(MlpPolicy):
+    """
+    A helper class since most policies have a tanh output activation.
+    """
+    def __init__(
+            self,
+            ae,
+            env,
+            history_length,
+            *args,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__(*args, **kwargs, output_activation=torch.tanh)
+        self.ae = ae
+        self.history_length = history_length
+        self.env = env
+
+    def get_action(self, obs_np):
+        obs = obs_np
+        obs = ptu.np_to_var(obs)
+        image_obs, fc_obs = self.env.split_obs(obs)
+        latent_obs = self.ae.history_encoder(image_obs, self.history_length)
+        if fc_obs is not None:
+            latent_obs = torch.cat((latent_obs, fc_obs), dim=1)
+        obs_np = ptu.get_numpy(latent_obs)[0]
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+
+class FeatPointMlp(PyTorchModule):
+    def __init__(
+            self,
+            downsample_size,
+            input_channels,
+            num_feat_points,
+            temperature=1.0,
+            init_w=1e-3,
+            input_size=32,
+            hidden_init=ptu.fanin_init,
+            output_activation=identity,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.downsample_size = downsample_size
+        self.temperature = temperature
+        self.num_feat_points = num_feat_points
+        self.hidden_init = hidden_init
+        self.output_activation = output_activation
+        self.input_channels = input_channels
+        self.input_size = input_size
+
+#        self.bn1 = nn.BatchNorm2d(1)
+        self.conv1 = nn.Conv2d(input_channels, 48, kernel_size=5, stride=2)
+#        self.bn1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(48, 48, kernel_size=5, stride=1)
+        self.conv3 = nn.Conv2d(48, self.num_feat_points, kernel_size=5, stride=1)
+
+        test_mat = Variable(torch.zeros(1, self.input_channels, self.input_size, self.input_size))
+        test_mat = self.conv1(test_mat)
+        test_mat = self.conv2(test_mat)
+        test_mat = self.conv3(test_mat)
+        self.out_size = int(np.prod(test_mat.shape))
+        self.fc1 = nn.Linear(2 * self.num_feat_points, 400)
+        self.fc2 = nn.Linear(400, 300)
+        self.last_fc = nn.Linear(300, self.input_channels * self.downsample_size* self.downsample_size)
+
+        self.init_weights(init_w)
+        self.i = 0
+
+    def init_weights(self, init_w):
+        self.hidden_init(self.conv1.weight)
+        self.conv1.bias.data.fill_(0)
+        self.hidden_init(self.conv2.weight)
+        self.conv2.bias.data.fill_(0)
+
+    def forward(self, input):
+        h = self.encoder(input)
+        out = self.decoder(h)
+        return out
+
+
+    def encoder(self, input):
+        x = input.contiguous().view(-1, self.input_channels, self.input_size, self.input_size)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = self.conv3(x)
+        d = int((self.out_size // self.num_feat_points)**(1/2))
+        x = x.view(-1, self.num_feat_points, d*d)
+        x = F.softmax(x / self.temperature, 2)
+        x = x.view(-1, self.num_feat_points, d, d)
+
+        maps_x = torch.sum(x, 2)
+        maps_y = torch.sum(x, 3)
+
+        weights = ptu.np_to_var(np.arange(d) / (d + 1))
+
+        fp_x = torch.sum(maps_x * weights, 2)
+        fp_y = torch.sum(maps_y * weights, 2)
+
+        x = torch.cat([fp_x, fp_y], 1)
+#        h = x.view(-1, 2, self.num_feat_points).transpose(1, 2).contiguous().view(-1, self.num_feat_points * 2)
+        h = x.view(-1, self.num_feat_points * 2)
+        return h
+
+    def decoder(self, input):
+        h = input
+        h = F.relu(self.fc1(h))
+        h = F.relu(self.fc2(h))
+        h = self.last_fc(h)
+        return h
+
+    def history_encoder(self, input, history_length):
+        input = input.contiguous().view(-1,
+                                        self.input_channels,
+                                        self.input_size,
+                                        self.input_size)
+        latent = self.encoder(input)
+
+        assert latent.shape[0] % history_length == 0
+        n_samples = latent.shape[0] // history_length
+        latent = latent.view(n_samples, -1)
+        return latent
+
+

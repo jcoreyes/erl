@@ -37,12 +37,20 @@ class Point2DEnv(Serializable, Env):
         self._target_position = None
         self._position = None
 
+<<<<<<< HEAD
         # self.action_space = Box(np.array([-1, -1]), np.array([1, 1]), dtype=np.float32)
         self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
         self.observation_space = Box(
             -self.BOUNDARY_DIST * np.ones(4),
             self.BOUNDARY_DIST * np.ones(4),
             # dtype=np.float32
+=======
+        self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
+        self.observation_space = Box(
+            -self.BOUNDARY_DIST * np.ones(4),
+            self.BOUNDARY_DIST * np.ones(4)
+            #dtype=np.float32
+>>>>>>> 38de36382a334146d27d01c30102f6210df64a87
         )
 
         self.drawer = None
@@ -121,10 +129,16 @@ class Point2DEnv(Serializable, Env):
             ('distance_reward', 'Distance Reward'),
             ('action_reward', 'Action Reward'),
         ]:
-            stat = get_stat_in_paths(paths, 'env_infos', name_in_env_infos)
+            stats = get_stat_in_paths(paths, 'env_infos', name_in_env_infos)
             statistics.update(create_stats_ordered_dict(
                 name_to_log,
-                stat,
+                stats,
+            ))
+            final_stats = [s[-1] for s in stats]
+            statistics.update(create_stats_ordered_dict(
+                "Final " + name_to_log,
+                final_stats,
+                always_show_all_stats=True,
             ))
         statistics.update(create_stats_ordered_dict(
             "Path Lengths",

@@ -15,7 +15,7 @@ def experiment(variant):
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     train_data, test_data = get_data(10000)
-    m = ConvVAE(train_data, test_data, representation_size, beta=beta, use_cuda=True)
+    m = ConvVAE(train_data, test_data, representation_size, beta=beta)
     for epoch in range(10):
         m.train_epoch(epoch)
         m.test_epoch(epoch)
@@ -23,7 +23,6 @@ def experiment(variant):
 
 if __name__ == "__main__":
     variants = []
-
     for representation_size in [2]:
         for beta in [5.0]:
             variant = dict(

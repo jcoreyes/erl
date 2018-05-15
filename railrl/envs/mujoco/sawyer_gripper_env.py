@@ -11,16 +11,15 @@ from railrl.envs.env_utils import get_asset_full_path
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 
-from gym.envs.robotics import FetchPushEnv
-
 
 class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     """Implements a 3D-position controlled Sawyer environment"""
 
     def __init__(self, reward_info=None, frame_skip=30,
-                 pos_action_scale=1. / 100):
+                 pos_action_scale=1. / 100, hide_goal=False):
         self.quick_init(locals())
         self.reward_info = reward_info
+        self.hide_goal = hide_goal
         self._goal_xyz = self.sample_goal_xyz()
         self._pos_action_scale = pos_action_scale
         MultitaskEnv.__init__(self, distance_metric_order=2)
@@ -44,7 +43,10 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     @property
     def model_name(self):
-        return get_asset_full_path('sawyer_gripper_mocap.xml')
+        if self.hide_goal:
+            return get_asset_full_path('sawyer_gripper_mocap_goal_hidden.xml')
+        else:
+            return get_asset_full_path('sawyer_gripper_mocap.xml')
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = 0
@@ -162,9 +164,25 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
         if relative:
             self.reset_mocap2body_xpos()
-            self.data.set_mocap_pos('mocap', self.data.mocap_pos + pos_delta)
+            new_mocap_pos = self.data.mocap_pos + pos_delta
         else:
-            self.data.set_mocap_pos('mocap', pos_delta)
+            new_mocap_pos = pos_delta
+        new_mocap_pos[0, 0] = np.clip(
+            new_mocap_pos[0, 0],
+            -0.1,
+            0.1,
+        )
+        new_mocap_pos[0, 1] = np.clip(
+            new_mocap_pos[0, 1],
+            -0.1 + 0.6,
+            0.1 + 0.6,
+        )
+        new_mocap_pos[0, 2] = np.clip(
+            new_mocap_pos[0, 2],
+            0,
+            0.5,
+        )
+        self.data.set_mocap_pos('mocap', new_mocap_pos)
         self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
 
     def reset(self):
@@ -178,21 +196,16 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     def compute_reward(self, ob, action, next_ob, goal):
         if not self.reward_info or self.reward_info["type"] == "euclidean":
-            r = -np.linalg.norm(ob - goal)
-        elif self.reward_info["type"] == "sparse":
-            t = self.reward_info["threshold"]
-            r = float(np.linalg.norm(ob - goal) < t) - 1
-        else:
-            raise NotImplementedError("Invalid/no reward type.")
-        return r
-
-    def compute_her_reward_np(self, ob, action, next_ob, goal):
-        if not self.reward_info or self.reward_info["type"] == "euclidean":
             r = -np.linalg.norm(next_ob - goal)
         elif self.reward_info["type"] == "sparse":
             t = self.reward_info["threshold"]
             r = float(np.linalg.norm(next_ob - goal) < t) - 1
+        else:
+            raise NotImplementedError("Invalid/no reward type.")
         return r
+
+    def compute_her_reward_np(self, ob, action, next_ob, goal, env_info=None):
+        return self.compute_reward(ob, action, next_ob, goal)
 
     @property
     def init_angles(self):
@@ -261,6 +274,7 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xyz(goal)
+        self.set_to_goal(goal)
 
     def convert_obs_to_goals(self, obs):
         return obs
@@ -271,6 +285,16 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
             np.array([0.2, 0.7, 0.2]),
             size=(batch_size, 3),
         )
+
+    def set_to_goal(self, goal):
+        self.set_hand_xyz(goal)
+
+    def set_hand_xyz(self, xyz):
+        for _ in range(10):
+            self.data.set_mocap_pos('mocap', np.array(xyz))
+            self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
+            u = np.zeros(8)
+            self.do_simulation(u, self.frame_skip)
 
 
 class SawyerPickAndPlaceEnv(SawyerXYZEnv):
@@ -433,29 +457,29 @@ class SawyerPushXYEnv(SawyerPushEnv):
     @property
     def init_angles(self):
         # To start on right side of Sawyer (from Sawyer's POV).
-        return [6.49751287e-01, -6.13245189e-01, 3.68179034e-01,
-                1.55969534e+00, -4.67787323e-01, 7.11615700e-01,
-                2.97853855e+00, 3.12823177e-02, 1.82764768e-01,
-                6.01241700e-01, 2.09921520e-02, 9.99984569e-01,
-                1.29839525e-06,  4.60381956e-06,  5.55527642e-03,
-                -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
-                1, 0, 0, 0]
+        # return [6.49751287e-01, -6.13245189e-01, 3.68179034e-01,
+        #         1.55969534e+00, -4.67787323e-01, 7.11615700e-01,
+        #         2.97853855e+00, 3.12823177e-02, 1.82764768e-01,
+        #         6.01241700e-01, 2.09921520e-02, 9.99984569e-01,
+        #         1.29839525e-06,  4.60381956e-06,  5.55527642e-03,
+        #         -1.09103281e-01, 6.55806890e-01,  7.29068781e-02,
+        #         1, 0, 0, 0]
         # To start in middle:
-        # return [
-            # 1.02866769e+00, - 6.95207647e-01, 4.22932911e-01,
-            # 1.76670458e+00, - 5.69637604e-01, 6.24117280e-01,
-            # 3.53404635e+00, 2.99584816e-02, - 2.00417049e-02,
-            # 6.07093769e-01, 2.10679106e-02, 9.99910945e-01,
-            # - 4.60349085e-05, - 1.78179392e-03, - 1.32259491e-02,
-            # 1.07586388e-02, 6.62018003e-01, 2.09936716e-02,
-            # 1.00000000e+00, 3.76632959e-14, 1.36837913e-11,
-            # 1.56567415e-23
-        # ]
+        return [
+            1.02866769e+00, - 6.95207647e-01, 4.22932911e-01,
+            1.76670458e+00, - 5.69637604e-01, 6.24117280e-01,
+            3.53404635e+00, 2.99584816e-02, - 2.00417049e-02,
+            6.07093769e-01, 2.10679106e-02, 9.99910945e-01,
+            - 4.60349085e-05, - 1.78179392e-03, - 1.32259491e-02,
+            1.07586388e-02, 6.62018003e-01, 2.09936716e-02,
+            1.00000000e+00, 3.76632959e-14, 1.36837913e-11,
+            1.56567415e-23
+        ]
 
     def step(self, a):
         a = np.clip(a, -1, 1)
-        # mocap_delta_z = 0.02 - self.data.mocap_pos[0, 2]
-        mocap_delta_z = 0
+        mocap_delta_z = 0.06 - self.data.mocap_pos[0, 2]
+        # mocap_delta_z = 0
         new_mocap_action = np.hstack((
             a[:2] * self._pos_action_scale,
             np.array([mocap_delta_z])
@@ -517,6 +541,13 @@ class SawyerXYEnv(SawyerXYZEnv):
             np.array([1, 1]),
         )
 
+    def sample_goal_xyz(self):
+        pos = np.random.uniform(
+            np.array([-0.2, 0.5, 0.02]),
+            np.array([0.2, 0.7, 0.02]),
+        )
+        return pos
+
     @property
     def init_angles(self):
         return [
@@ -564,6 +595,15 @@ class SawyerXYEnv(SawyerXYZEnv):
 
     def get_qpos(self):
         return self.get_endeff_pos()
+
+
+class SawyerXYEasyEnv(SawyerXYEnv):
+    def sample_goal_xyz(self):
+        pos = np.random.uniform(
+            np.array([-0.1, 0.5, 0.02]),
+            np.array([0.1, 0.7, 0.02]),
+        )
+        return pos
 
 
 if __name__ == "__main__":

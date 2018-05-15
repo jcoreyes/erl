@@ -6,6 +6,9 @@ from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
 class HER(TorchRLAlgorithm):
     """
+    Note: this assumes the env will sample the goal when reset() is called,
+    i.e. use a "silent" env.
+
     Hindsight Experience Replay
 
     This is a template class that should be the first sub-class, i.e.[
@@ -30,10 +33,9 @@ class HER(TorchRLAlgorithm):
     """
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
-        # self._rollout_goal = self.env.sample_goal_for_rollout()
-        # self.training_env.set_goal(self._rollout_goal)
+        # Note: we assume we're using a silent env.
         o = self.training_env.reset()
-        self._rollout_goal = self.training_env.multitask_goal.copy()
+        self._rollout_goal = self.training_env.get_goal()
         return o
 
     def _handle_step(
@@ -115,10 +117,14 @@ class HER(TorchRLAlgorithm):
         # goal = self.env.sample_goal_for_rollout()
         # self.env.set_goal(goal)
         o = self.env.reset()
-        goal = self.env.multitask_goal.copy()
+        if self.render_during_eval:
+            self.env.render()
+        goal = self.env.get_goal()
         while path_length < self.max_path_length:
             a, agent_info = self.get_eval_action(o, goal)
             next_o, r, d, env_info = self.env.step(a)
+            if self.render_during_eval:
+                self.env.render()
             observations.append(o)
             rewards.append(r)
             terminals.append(d)

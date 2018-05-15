@@ -53,7 +53,7 @@ if __name__ == "__main__":
             num_steps_per_eval=num_steps_per_eval,
             max_path_length=max_path_length,
             batch_size=64,
-            discount=1,
+            discount=0.9,
             soft_target_tau=0.01,
             policy_lr=3E-4,
             qf_lr=3E-4,
@@ -61,26 +61,29 @@ if __name__ == "__main__":
         ),
         net_size=300,
         env_params=dict(
-            desired=[0.97711039, 0.56662792, 0.27901027],
+            desired=[0.59, 0.1, 0.4],
             action_mode='position',
             reward='norm',
         )
     )
     search_space = {
-        'algo_params.reward_scale': [
-            1,
+
+        'algo_params.max_path_length': [
+            5,
             10,
+            15,
         ],
         'algo_params.num_updates_per_env_step': [
             5,
             10,
+            15,
         ],
         'algo_params.soft_target_tau': [
             .01,
         ],
         'env_params.randomize_goal_on_reset':[
             True,
-            # False,
+            #False,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -88,7 +91,7 @@ if __name__ == "__main__":
     )
     n_seeds = 1
     for variant in sweeper.iterate_hyperparameters():
-        exp_prefix = 'sawyer_pos_reaching'
+        exp_prefix = 'sawyer_pos_sac_r'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

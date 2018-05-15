@@ -16,7 +16,6 @@ class TdmTd3(TemporalDifferenceModel, TD3):
             env,
             qf1,
             qf2,
-            vf,
             exploration_policy,
             td3_kwargs,
             tdm_kwargs,
@@ -26,7 +25,6 @@ class TdmTd3(TemporalDifferenceModel, TD3):
             replay_buffer=None,
 
             optimizer_class=optim.Adam,
-            vf_learning_rate=1e-3,
     ):
         TD3.__init__(
             self,
@@ -42,11 +40,6 @@ class TdmTd3(TemporalDifferenceModel, TD3):
             **base_kwargs
         )
         super().__init__(**tdm_kwargs)
-        self.vf = vf
-        self.vf_optimizer = optimizer_class(
-            self.vf.parameters(),
-            lr=vf_learning_rate,
-        )
 
     def _do_training(self):
         batch = self.get_batch()
@@ -121,22 +114,6 @@ class TdmTd3(TemporalDifferenceModel, TD3):
         qf1_loss = bellman_errors_1.mean()
         qf2_loss = bellman_errors_2.mean()
 
-        v_pred = self.vf(
-            observations=obs,
-            goals=goals,
-            num_steps_left=num_steps_left,
-        )
-        opt_actions = self.policy(
-            observations=obs, goals=goals, num_steps_left=num_steps_left
-        )
-        v_target = self.qf1(
-            observations=obs,
-            actions=opt_actions,
-            goals=goals,
-            num_steps_left=num_steps_left,
-        ).detach()
-        vf_loss = ((v_pred - v_target)**2).mean()
-
         """
         Update Networks
         """
@@ -147,10 +124,6 @@ class TdmTd3(TemporalDifferenceModel, TD3):
         self.qf2_optimizer.zero_grad()
         qf2_loss.backward()
         self.qf2_optimizer.step()
-
-        self.vf_optimizer.zero_grad()
-        vf_loss.backward()
-        self.vf_optimizer.step()
 
         policy_actions, pre_tanh_value = self.policy(
             obs, goals, num_steps_left, return_preactivations=True,
@@ -171,13 +144,9 @@ class TdmTd3(TemporalDifferenceModel, TD3):
             ptu.soft_update_from_to(self.qf1, self.target_qf1, self.tau)
             ptu.soft_update_from_to(self.qf2, self.target_qf2, self.tau)
 
-        if self.eval_statistics is None:
-            """
-            Eval should set this to None.
-            This way, these statistics are only computed for one batch.
-            """
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
             self.eval_statistics = OrderedDict()
-            self.eval_statistics['VF Loss'] = np.mean(ptu.get_numpy(vf_loss))
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
@@ -224,7 +193,6 @@ class TdmTd3(TemporalDifferenceModel, TD3):
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)
         snapshot.update(
-            vf=self.vf,
             qf=self.qf1,
             qf2=self.qf2,
             policy=self.eval_policy,
@@ -238,7 +206,6 @@ class TdmTd3(TemporalDifferenceModel, TD3):
     def networks(self):
         return [
             self.policy,
-            self.vf,
             self.qf1,
             self.qf2,
             self.target_policy,

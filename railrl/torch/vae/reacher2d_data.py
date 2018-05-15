@@ -13,16 +13,18 @@ def get_data(N = 10000, test_p = 0.9, use_cached=True, render=False):
     else:
         # if not cached
         now = time.time()
-        e = FullPusher2DEnv(include_puck=False, arm_range=0.1)
+        e = FullPusher2DEnv(include_puck=False, arm_range=1.0)
         e = ImageMujocoEnv(e, 84, camera_name="topview", transpose=True, normalize=True)
         dataset = np.zeros((N, 3*84*84))
         for i in range(N):
             if i % 100 == 0:
                 e.reset()
+
             # u = np.ones((3))
             # if i % 100 > 50:
                 # u = -u
             u = np.random.rand(3) * 4 - 2
+
             img, _, _, _ = e.step(u)
             dataset[i, :] = img
             if render:
@@ -38,3 +40,4 @@ def get_data(N = 10000, test_p = 0.9, use_cached=True, render=False):
 
 if __name__ == "__main__":
     train, test = get_data(use_cached=True, render=True)
+

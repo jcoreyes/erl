@@ -18,10 +18,7 @@ def experiment(variant):
     env = SawyerXYZReachingEnv(**env_params)
     es = OUStrategy(action_space=env.action_space, **es_params)
     hidden_sizes = variant['hidden_sizes']
-    # es = EpsilonGreedy(
-    #     action_space=env.action_space,
-    #     prob_random_action=.2,
-    # )
+
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     qf = FlattenMlp(
@@ -49,6 +46,7 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         **variant['algo_params']
     )
+
     if ptu.gpu_enabled():
         algorithm.cuda()
     algorithm.train()
@@ -73,6 +71,7 @@ if __name__ == "__main__":
         ),
         env_params=dict(
             action_mode='position',
+            update_hz=20,
             reward_magnitude=1,
         ),
         es_params=dict(
@@ -90,10 +89,6 @@ if __name__ == "__main__":
             1,
             5,
         ],
-        'env_params.randomize_goal_on_reset': [
-            False,
-            True,
-        ],
         'algo_params.collection_mode':[
             'online-parallel',
             'online'
@@ -105,6 +100,9 @@ if __name__ == "__main__":
         'hidden_sizes':[
             100,
             200,
+        ],
+        'env_params.randomize_goal_on_reset': [
+            True,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -113,7 +111,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 1
-        exp_prefix = 'sawyer_pos_ddpg_pos_sweep'
+        exp_prefix = 'sawyer_pos_ddpg'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

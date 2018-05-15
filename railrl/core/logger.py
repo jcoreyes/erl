@@ -247,30 +247,40 @@ def pop_prefix():
     global _prefix_str
     _prefix_str = ''.join(_prefixes)
 
-
 def save_itr_params(itr, params):
+    # convert to cpu
+    # for param in params:
+    #     cpu = getattr(params[param], 'cpu', None)
+    #     if callable(cpu):
+    #         params[param].cpu()
+
     if _snapshot_dir:
         if _snapshot_mode == 'all':
             file_name = osp.join(_snapshot_dir, 'itr_%d.pkl' % itr)
-            joblib.dump(params, file_name, compress=3)
+            pickle.dump(params, open(file_name, "wb"))
         elif _snapshot_mode == 'last':
             # override previous params
             file_name = osp.join(_snapshot_dir, 'params.pkl')
-            joblib.dump(params, file_name, compress=3)
+            pickle.dump(params, open(file_name, "wb"))
         elif _snapshot_mode == "gap":
             if itr % _snapshot_gap == 0:
                 file_name = osp.join(_snapshot_dir, 'itr_%d.pkl' % itr)
-                joblib.dump(params, file_name, compress=3)
+                pickle.dump(params, open(file_name, "wb"))
         elif _snapshot_mode == "gap_and_last":
             if itr % _snapshot_gap == 0:
                 file_name = osp.join(_snapshot_dir, 'itr_%d.pkl' % itr)
-                joblib.dump(params, file_name, compress=3)
+                pickle.dump(params, open(file_name, "wb"))
             file_name = osp.join(_snapshot_dir, 'params.pkl')
-            joblib.dump(params, file_name, compress=3)
+            pickle.dump(params, open(file_name, "wb"))
         elif _snapshot_mode == 'none':
             pass
         else:
             raise NotImplementedError
+    # # senc models back to gpu
+    # for param in params:
+    #     cuda = getattr(params[param], 'cuda', None)
+    #     if callable(cuda):
+    #         params[param].cuda()
 
 
 class MyEncoder(json.JSONEncoder):

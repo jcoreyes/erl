@@ -33,14 +33,6 @@ def experiment(variant):
         output_size=action_dim,
         hidden_sizes=[hidden_size, hidden_size],
     )
-    # es = GaussianStrategy(
-    #     action_space=env.action_space,
-    #     **variant['es_kwargs']
-    # )
-    # es = EpsilonGreedy(
-    #     action_space=env.action_space,
-    #     prob_random_action=.2,
-    # )
     es = OUStrategy(
         action_space=env.action_space,
         **variant['es_kwargs']
@@ -83,31 +75,29 @@ if __name__ == "__main__":
             action_mode='torque',
             reward='norm',
         ),
-	hidden_size=100,
+        hidden_size=100,
     )
     search_space = {
         'algo_kwargs.num_updates_per_env_step': [
             1,
-	    4,
-	    5,
+            5,
         ],
         'env_params.randomize_goal_on_reset': [
             True,
         ],
-	'algo_kwargs.batch_size':[
-	    64,
-#	    256,
-	    512,
-	],
-	'hidden_size':[
-	    #50,
-	    100,
-	    200,
-	],
-	'algo_kwargs.reward_scale':[
-#	    10,
-	    1,
-	],
+        'algo_kwargs.batch_size':[
+            512,
+        ],
+        'hidden_size':[
+            100,
+            150,
+        ],
+        'algo_kwargs.reward_scale':[
+            1,
+        ],
+        'algo_kwargs.collection_mode':[
+            'online-parallel',
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -115,7 +105,7 @@ if __name__ == "__main__":
 
     for variant in sweeper.iterate_hyperparameters():
         n_seeds = 1
-        exp_prefix = 'sawyer_torque_td3_xyz_reaching_varying_ee'
+        exp_prefix = 'sawyer_torque_td3_xyz_reaching_varying_ee_parallel'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(

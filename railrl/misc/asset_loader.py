@@ -5,6 +5,14 @@ from multiprocessing import Process
 from railrl.launchers.config import LOCAL_LOG_DIR, AWS_S3_PATH
 import os
 
+
+def local_path_from_s3_or_local_path(filename):
+    if os.path.isfile(filename):
+        return filename
+    else:
+        return sync_down(filename)
+
+
 def sync_down(path, check_exists=True):
     is_docker = os.path.isfile("/.dockerenv")
     if is_docker:
@@ -35,6 +43,7 @@ def sync_down(path, check_exists=True):
     try:
         p = Popen(cmd_list).wait()
     except:
+        local_path = None
         print("Failed to sync!....", path)
     return local_path
 

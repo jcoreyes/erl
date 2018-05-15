@@ -76,6 +76,7 @@ def rollout(env, agent, frames, max_path_length=np.inf, animated=False):
     agent_infos = []
     env_infos = []
     o = env.reset()
+    goal = env.get_goal()
     agent.reset()
     # obs, goal = env.goal_obs, env.cur_obs
     frames.append(get_image(env.goal_obs, env.cur_obs))
@@ -84,7 +85,8 @@ def rollout(env, agent, frames, max_path_length=np.inf, animated=False):
     if animated:
         env.render()
     while path_length < max_path_length:
-        a, agent_info = agent.get_action(o)
+        obs = np.hstack((o, goal))
+        a, agent_info = agent.get_action(obs)
         next_o, r, d, env_info = env.step(a)
         frames.append(get_image(env.goal_obs, env.cur_obs))
         observations.append(o)
