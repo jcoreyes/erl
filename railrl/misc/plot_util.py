@@ -3,7 +3,10 @@ import numpy as np
 
 import json
 from pprint import pprint
-import rllab.viskit.core as core
+try:
+    import rllab.viskit.core as core
+except:
+    import viskit.core as core
 
 read_tb = lambda: None
 import glob
@@ -198,6 +201,60 @@ def split(exps,
             if print_plot:
                 plt.title(prettify_configuration(c) + " Vary " + " ".join(vary))
 
+
+def min_length(trials, key):
+    min_len = np.inf
+    for trial in trials:
+        values_ts = trial.data[key]
+        min_len = min(min_len, len(values_ts))
+    return min_len
+
+
+def plot_trials(
+        name_to_trials,
+        y_keys=None,
+        x_key="Number of env steps total",
+        x_label=None,
+        y_label=None,
+        process_values=sum,
+        process_time_series=identity_fn,
+):
+    if isinstance(y_keys, str):
+        y_keys = [y_keys]
+    if x_label is None:
+        x_label = x_key
+    if y_label is None:
+        y_label = "+".join(y_keys)
+    y_keys = [y.replace(" ", "_") for y in y_keys]
+    x_key = x_key.replace(" ", "_")
+    all_trials = [t for trials in name_to_trials.values() for t in trials]
+    min_len = min_length(all_trials, x_key)
+    for name, trials in name_to_trials.items():
+        all_values = []
+        for trial in trials:
+            if len(y_keys) == 0:
+                values = trial.data[y_keys[0]]
+            else:
+                multiple_values = [
+                    trial.data[k] for k in y_keys
+                ]
+                values = process_values(multiple_values)
+            values = process_time_series(values)
+            all_values.append(values)
+            x_values = trial.data[x_key][:min_len]
+        try:
+            y_values = np.vstack([values[:min_len] for values in all_values])
+        except ValueError as e:
+            import ipdb; ipdb.set_trace()
+            print(e)
+        mean = np.mean(y_values, axis=0)
+        std = np.std(y_values, axis=0)
+        plt.fill_between(x_values, mean - std, mean + std, alpha=0.1)
+        plt.plot(x_values, mean, label=name)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.legend()
+
 def ma_filter(N):
     return lambda x: moving_average(x, N)
 
@@ -205,6 +262,27 @@ def moving_average(a, n=3) :
     ret = np.cumsum(a, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
+
+
+def padded_ma_filter(N):
+    return lambda x: padded_moving_average(x, N)
+
+
+def padded_moving_average(data_array, window=5):
+    """Does not affect the length"""
+    data_array = np.array(data_array)
+    new_list = []
+    for i in range(len(data_array)):
+        indices = list(range(max(i - window + 1, 0),
+                             min(i + window + 1, len(data_array))))
+        avg = 0
+        for j in indices:
+            avg += data_array[j]
+        avg /= float(len(indices))
+        new_list.append(avg)
+
+    return np.array(new_list)
+
 
 import itertools
 def scatterplot_matrix(data1, data2, **kwargs):

@@ -64,7 +64,6 @@ if __name__ == "__main__":
         paths = []
         for _ in range(args.nrolls):
             goal = env.sample_goal_for_rollout()
-            print("goal", goal)
             path = multitask_rollout(
                 env,
                 policy,

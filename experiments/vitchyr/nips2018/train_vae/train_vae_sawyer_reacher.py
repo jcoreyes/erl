@@ -19,7 +19,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = ConvVAE(representation_size, input_channels=3)
+    m = ConvVAE(representation_size, input_channels=3, **variant['conv_vae_kwargs'])
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'ec2'
-    exp_prefix = 'sawyer-vae-reacher-recreate-results'
+    exp_prefix = 'sawyer-vae-reacher-no-min-var'
     # use_gpu = False
 
     variant = dict(
@@ -54,6 +54,9 @@ if __name__ == "__main__":
         ),
         algo_kwargs=dict(
         ),
+        conv_vae_kwargs=dict(
+            min_variance=None,
+        ),
         # beta_schedule_kwargs=dict(
         #     x_values=[0, 100, 200, 500],
         #     # y_values=[0, 0, 0.1, 0.5],
@@ -63,7 +66,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'representation_size': [2, 4, 8, 16],
+        # 'representation_size': [2, 4, 8, 16],
+        'representation_size': [16],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

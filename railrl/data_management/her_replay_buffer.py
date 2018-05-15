@@ -583,6 +583,8 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
         self.reward_scale = reward_scale
         self.truncated_geom_factor = float(truncated_geom_factor)
         self.resampling_strategy = resampling_strategy
+        # Hack for now for NIPS2018
+        self._env_infos = np.array([[None]] * max_size)
 
         # Let j be any index in self._idx_to_future_obs_idx[i]
         # Then self._next_obs[j] is a valid next observation for observation i
@@ -600,6 +602,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
         terminals = path["terminals"]
         goals = path["goals"]
         num_steps_left = path["rewards"].copy() # path["num_steps_left"] # irrelevant for non-TDM
+        env_infos = np.array(path["env_infos"]).reshape(-1, 1)
         path_len = len(rewards)
 
         actions = flatten_n(actions)
@@ -628,6 +631,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
                 self._terminals[buffer_slice] = terminals[path_slice]
                 self._goals[buffer_slice] = goals[path_slice]
                 self._num_steps_left[buffer_slice] = num_steps_left[path_slice]
+                self._env_infos[buffer_slice] = env_infos[path_slice]
             # Pointers from before the wrap
             for i in range(self._top, self._max_replay_buffer_size):
                 self._idx_to_future_obs_idx[i] = np.hstack((
@@ -651,6 +655,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             self._terminals[slc] = terminals
             self._goals[slc] = goals
             self._num_steps_left[slc] = num_steps_left
+            self._env_infos[slc] = env_infos
             for i in range(self._top, self._top + path_len):
                 self._idx_to_future_obs_idx[i] = np.arange(
                     i, self._top + path_len
@@ -703,6 +708,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
         new_next_obs = self._next_obs[indices]
         new_actions = self._actions[indices]
         new_rewards = self._rewards[indices].copy() # needs to be recomputed
+        env_infos = self._env_infos[indices]
         random_numbers = np.random.rand(batch_size)
         # env_goals = self.env.sample_goals(batch_size)
         for i in range(batch_size):
@@ -714,6 +720,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
                 new_actions[i, :],
                 new_next_obs[i, :],
                 resampled_goals[i, :],
+                env_infos[i, :],
             )
             new_rewards[i] = new_reward
 
@@ -728,6 +735,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             num_steps_left=self._num_steps_left[indices],
             indices=np.array(indices).reshape(-1, 1),
             goals=resampled_goals,
+            env_infos=env_infos,
         )
 
 

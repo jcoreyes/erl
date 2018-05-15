@@ -248,7 +248,10 @@ class ConvVAE(PyTorchModule):
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize**2 * self.input_channels
-        self.log_min_variance = float(np.log(min_variance))
+        if min_variance is None:
+            self.log_min_variance = None
+        else:
+            self.log_min_variance = float(np.log(min_variance))
 
         self.dist_mu = None
         self.dist_std = None
@@ -314,7 +317,10 @@ class ConvVAE(PyTorchModule):
             h = torch.cat((h, fc_input), dim=1)
         #h = F.relu(self.hidden(h))
         mu = self.output_activation(self.fc1(h))
-        logvar = self.log_min_variance + torch.abs(self.fc2(h))
+        if self.log_min_variance is None:
+            logvar = self.output_activation(self.fc2(h))
+        else:
+            logvar = self.log_min_variance + torch.abs(self.fc2(h))
         return mu, logvar
 
     def reparameterize(self, mu, logvar):
