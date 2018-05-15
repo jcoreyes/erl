@@ -186,7 +186,6 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xyz(goal)
-        # self.set_to_goal(goal)
 
     def get_goal(self):
         return self._goal_xyz
@@ -195,6 +194,9 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
         return obs[:, -3:]
 
     def sample_goals(self, batch_size):
+        raise NotImplementedError()
+
+    def set_to_goal(self, goal):
         raise NotImplementedError()
 
 

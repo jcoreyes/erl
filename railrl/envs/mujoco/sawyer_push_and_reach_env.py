@@ -333,8 +333,6 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xyxy(goal)
-        # hack for VAE
-        self.set_to_goal(goal)
 
     def set_to_goal(self, goal):
         self.set_hand_xy(goal[:2])

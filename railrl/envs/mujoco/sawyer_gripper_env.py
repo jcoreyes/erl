@@ -274,7 +274,6 @@ class SawyerXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xyz(goal)
-        self.set_to_goal(goal)
 
     def convert_obs_to_goals(self, obs):
         return obs
