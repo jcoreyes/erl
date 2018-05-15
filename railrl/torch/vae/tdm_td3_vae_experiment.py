@@ -149,8 +149,9 @@ def tdm_td3_vae_experiment(variant):
     algo_kwargs = variant['algo_kwargs']
     algo_kwargs['td3_kwargs']['qf_criterion'] = qf_criterion
     algo_kwargs['tdm_kwargs']['env_samples_goal_on_reset'] = True
+    algo_kwargs['td3_kwargs']['training_env'] = training_env
     algorithm = TdmTd3(
-        env,
+        testing_env,
         qf1=qf1,
         qf2=qf2,
         replay_buffer=replay_buffer,

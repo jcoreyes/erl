@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'tbd-tdm-td3-reacher'
+    exp_prefix = 'tbd-tdm-td3-reacher-good-logging'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"

@@ -24,6 +24,9 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--load', action='store_true')
     parser.add_argument('--hide', action='store_true')
+    parser.add_argument('--enable_render', action='store_true')
+    parser.add_argument('--mode', type=str, help='env mode')
+    parser.add_argument('--silent', action='store_true')
     parser.add_argument('--pause', action='store_true')
     parser.add_argument('--dt', help='decrement tau', action='store_true')
     parser.add_argument('--cycle', help='cycle tau', action='store_true')
@@ -58,11 +61,19 @@ if __name__ == "__main__":
     if args.gpu:
         ptu.set_gpu_mode(True)
         policy.cuda()
+    if args.enable_render:
+        # some environments need to be reconfigured for visualization
+        env.enable_render()
+    if args.mode:
+        env.mode(args.mode)
 
     while True:
         paths = []
         for _ in range(args.nrolls):
-            goal = env.sample_goal_for_rollout()
+            if args.silent:
+                goal = None
+            else:
+                goal = env.sample_goal_for_rollout()
             path = multitask_rollout(
                 env,
                 policy,
@@ -72,6 +83,7 @@ if __name__ == "__main__":
                 animated=not args.hide,
                 cycle_tau=args.cycle or not args.ndc,
                 decrement_tau=args.dt or not args.ndc,
+                env_samples_goal_on_reset=args.silent,
                 # get_action_kwargs={'deterministic': True},
             )
             print("last state", path['next_observations'][-1])
