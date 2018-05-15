@@ -1,4 +1,5 @@
 from railrl.envs.remote import RemoteRolloutEnv
+from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.samplers.util import rollout
 from railrl.torch.core import PyTorchModule
 from railrl.torch.pytorch_util import set_gpu_mode
@@ -124,7 +125,88 @@ def rollout(env, agent, frames, max_path_length=np.inf, animated=False):
     )
 
 
-def dump_video(env, policy, filename, ROWS=3, COLUMNS=6, do_timer=True, horizon=100):
+def create_multitask_rollout_function(
+        max_tau,
+):
+    def multitask_rollout(env, agent, frames, max_path_length=np.inf,
+                         animated=False):
+        observations = []
+        actions = []
+        rewards = []
+        terminals = []
+        agent_infos = []
+        env_infos = []
+        taus = []
+        # since env is a VAE env, this hsould set the goal_obs
+        assert isinstance(env, VAEWrappedEnv)
+        o = env.reset()
+        goal = env.get_goal()
+        agent.reset()
+        # obs, goal = env.goal_obs, env.cur_obs
+        frames.append(get_image(env.goal_obs, env.cur_obs))
+        next_o = None
+        path_length = 0
+        if animated:
+            env.render()
+        tau = np.array([max_tau])
+        while path_length < max_path_length:
+            a, agent_info = agent.get_action(o, goal, tau)
+            next_o, r, d, env_info = env.step(a)
+            frames.append(get_image(env.goal_obs, env.cur_obs))
+            observations.append(o)
+            rewards.append(r)
+            terminals.append(d)
+            actions.append(a)
+            taus.append(tau.copy())
+            agent_infos.append(agent_info)
+            env_infos.append(env_info)
+            path_length += 1
+            o = next_o
+            if animated:
+                env.render()
+            tau -= 1
+            if tau < 0:
+                tau = np.array([max_tau])
+
+        actions = np.array(actions)
+        if len(actions.shape) == 1:
+            actions = np.expand_dims(actions, 1)
+        observations = np.array(observations)
+        if len(observations.shape) == 1:
+            observations = np.expand_dims(observations, 1)
+            next_o = np.array([next_o])
+        next_observations = np.vstack(
+            (
+                observations[1:, :],
+                np.expand_dims(next_o, 0)
+            )
+        )
+        return dict(
+            observations=observations,
+            actions=actions,
+            rewards=np.array(rewards).reshape(-1, 1),
+            next_observations=next_observations,
+            terminals=np.array(terminals).reshape(-1, 1),
+            agent_infos=agent_infos,
+            env_infos=env_infos,
+            num_steps_left=np.array(taus),
+            goals=_expand_goal(goal, len(terminals))
+        )
+    return multitask_rollout
+
+
+def _expand_goal(goal, path_length):
+    return np.repeat(
+        np.expand_dims(goal, 0),
+        path_length,
+        0,
+    )
+
+
+def dump_video(env, policy, filename, ROWS=3, COLUMNS=6, do_timer=True,
+               horizon=100,
+               rollout_function=rollout,
+               ):
     policy.train(False) # is this right/necessary?
     paths = []
     num_channels = env.vae.input_channels
@@ -132,7 +214,7 @@ def dump_video(env, policy, filename, ROWS=3, COLUMNS=6, do_timer=True, horizon=
     N = ROWS * COLUMNS
     for i in range(N):
         start = time.time()
-        paths.append(rollout(
+        paths.append(rollout_function(
             env,
             policy,
             frames,
