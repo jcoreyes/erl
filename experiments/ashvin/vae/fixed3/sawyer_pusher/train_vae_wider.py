@@ -2,7 +2,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-from railrl.torch.vae.sawyer2d_push_new_easy_data import generate_vae_dataset
+from railrl.torch.vae.sawyer2d_push_new_easy_data_wider import generate_vae_dataset
 
 from railrl.launchers.arglauncher import run_variants
 
@@ -23,6 +23,9 @@ def experiment(variant):
     m = ConvVAE(representation_size, input_channels=3)
     if ptu.gpu_enabled():
         m.cuda()
+        gpu_id = variant.get("gpu_id", None)
+        if gpu_id is not None:
+            ptu.set_device(gpu_id)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
     save_period = variant['save_period']
@@ -49,7 +52,7 @@ if __name__ == "__main__":
         beta=5.0,
         num_epochs=500,
         get_data_kwargs=dict(
-            N=5000,
+            N=10000,
         ),
         algo_kwargs=dict(
             do_scatterplot=False,
@@ -64,7 +67,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'representation_size': [4, 8, 16, 32, 64],
+        'representation_size': [4, 16],
         # 'beta_schedule_kwargs.y_values': [
         #     [0, 0, 0.1, 0.5],
         #     [0, 0, 0.1, 0.1],
@@ -75,5 +78,5 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=5)
 

@@ -13,16 +13,13 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     vae_paths = {
-        "4": "ashvin/vae/fixed3/sawyer-pusher/train-vae/run1/id0/itr_480.pkl",
-        "8": "ashvin/vae/fixed3/sawyer-pusher/train-vae/run1/id1/itr_480.pkl",
-        "16": "ashvin/vae/fixed3/sawyer-pusher/train-vae/run1/id2/itr_480.pkl",
-        "32": "ashvin/vae/fixed3/sawyer-pusher/train-vae/run1/id3/itr_480.pkl",
-        "64": "ashvin/vae/fixed3/sawyer-pusher/train-vae/run1/id4/itr_480.pkl",
+        "4": "ashvin/vae/fixed3/sawyer-pusher/train-vae-wider/run4/id0/itr_480.pkl",
+        "16": "ashvin/vae/fixed3/sawyer-pusher/train-vae-wider/run4/id1/itr_480.pkl",
     }
 
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=105,
+            num_epochs=205,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -42,6 +39,9 @@ if __name__ == "__main__":
             fraction_goals_are_rollout_goals=0.2,
             fraction_goals_are_env_goals=0.5,
         ),
+        vae_wrapped_env_kwargs=dict(
+            sample_from_true_prior=False,
+        ),
         algorithm='HER-TD3',
         normalize=False,
         rdim=4,
@@ -55,19 +55,20 @@ if __name__ == "__main__":
         init_camera=sawyer_init_camera_zoomed_in,
     )
 
-    n_seeds = 2
+    n_seeds = 3
     search_space = {
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [32, 64],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 0.9, 1.0],
+        'algo_kwargs.num_updates_per_env_step': [1, 4],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, ],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
+        'vae_wrapped_env_kwargs.sample_from_true_prior': [False],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
-        'rdim': [64, 16, 4],
+        'rdim': [16, 4],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
