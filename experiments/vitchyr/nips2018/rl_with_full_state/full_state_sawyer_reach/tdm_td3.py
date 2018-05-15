@@ -1,16 +1,13 @@
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofGoalStateEverything,
-    Reacher7DofFullGoal,
-)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.tdm_ddpg import TdmDdpg
+from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from railrl.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
 from railrl.state_distance.tdm_networks import TdmPolicy, \
     TdmQf, TdmNormalizer
 from railrl.state_distance.tdm_td3 import TdmTd3
@@ -19,12 +16,7 @@ from railrl.torch.modules import HuberLoss
 
 def experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
-    env = NormalizedBoxEnv(env)
-    tdm_normalizer = TdmNormalizer(
-        env,
-        vectorized=True,
-        max_tau=variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau'],
-    )
+    tdm_normalizer = None
     qf1 = TdmQf(
         env=env,
         vectorized=True,
@@ -55,9 +47,9 @@ def experiment(variant):
         **variant['her_replay_buffer_kwargs']
     )
     qf_criterion = variant['qf_criterion_class']()
-    ddpg_tdm_kwargs = variant['ddpg_tdm_kwargs']
-    ddpg_tdm_kwargs['ddpg_kwargs']['qf_criterion'] = qf_criterion
-    ddpg_tdm_kwargs['tdm_kwargs']['tdm_normalizer'] = tdm_normalizer
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['td3_kwargs']['qf_criterion'] = qf_criterion
+    algo_kwargs['tdm_kwargs']['tdm_normalizer'] = tdm_normalizer
     algorithm = TdmTd3(
         env,
         qf1=qf1,
@@ -77,37 +69,35 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-tdm-td3-full-state-sawyer"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "tdm-example-7dof-reacher-nupo-25-x-axis-100steps-2"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "tdm-td3-reach-sweep"
 
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=100,
-                num_steps_per_epoch=100,
+                num_epochs=200,
+                num_steps_per_epoch=50,
                 num_steps_per_eval=1000,
-                max_path_length=100,
-                num_updates_per_env_step=25,
-                batch_size=64,
+                max_path_length=50,
+                num_updates_per_env_step=1,
+                batch_size=128,
                 discount=1,
                 reward_scale=1,
+                min_num_steps_before_training=128,
             ),
             tdm_kwargs=dict(
                 max_tau=15,
                 num_pretrain_paths=0,
             ),
-            ddpg_kwargs=dict(
-                tau=0.001,
-                qf_learning_rate=1e-3,
-                policy_learning_rate=1e-4,
+            td3_kwargs=dict(
             ),
         ),
         env_class=SawyerXYEnv,
         env_kwargs=dict(
         ),
         her_replay_buffer_kwargs=dict(
-            max_size=int(2E5),
+            max_size=int(1E6),
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
@@ -122,12 +112,22 @@ if __name__ == "__main__":
             min_sigma=0.1,
         ),
         qf_criterion_class=HuberLoss,
-        algorithm="DDPG-TDM",
+        algorithm="TDM-TD3",
     )
-    for i in range(n_seeds):
-        run_experiment(
-            experiment,
-            mode=mode,
-            exp_prefix=exp_prefix,
-            variant=variant,
-        )
+
+    search_space = {
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 5, 10],
+        'algo_kwargs.tdm_kwargs.max_tau': [0, 5, 10],
+        'env_class': [SawyerXYEnv, SawyerReachXYEnv],
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for _ in range(n_seeds):
+            run_experiment(
+                experiment,
+                exp_prefix=exp_prefix,
+                mode=mode,
+                variant=variant,
+            )
