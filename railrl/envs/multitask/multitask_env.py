@@ -365,8 +365,8 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
         ProxyEnv.__init__(self, env)
 
     def reset(self):
-        self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
-
+        goal = self._wrapped_env.sample_goal_for_rollout()
+        self._wrapped_env.set_goal(goal)
         if self.pause_on_goal:
             for i in range(100):
                 self.render()

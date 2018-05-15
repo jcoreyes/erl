@@ -173,6 +173,7 @@ def run_experiment(
         logger=logger,
         trial_dir_suffix=trial_dir_suffix,
     )
+    base_log_dir = "/home/mdalal/Documents/railrl-private/data/local/"
     if mode == 'here_no_doodad':
         run_experiment_kwargs['base_log_dir'] = base_log_dir
         return run_experiment_here(

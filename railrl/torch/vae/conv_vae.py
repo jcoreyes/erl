@@ -80,6 +80,7 @@ class ConvVAETrainer():
         return ptu.np_to_var(dataset[ind, :])
 
     def logprob(self, recon_x, x, mu, logvar):
+
         # Divide by batch_size rather than setting size_average=True because
         # otherwise the averaging will also happen across dimension 1 (the
         # pixels)
@@ -88,7 +89,6 @@ class ConvVAETrainer():
             x.narrow(start=0, length=self.imlength, dimension=1).contiguous().view(-1, self.imlength),
             size_average=False,
         ) / self.batch_size
-
     def kl_divergence(self, recon_x, x, mu, logvar):
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
@@ -163,8 +163,9 @@ class ConvVAETrainer():
                         self.imsize,
                     )[:n]
                 ])
-                save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
-                save_image(comparison.data.cpu(), save_dir, nrow=n)
+                if epoch % 100 == 0:
+                    save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
+                    save_image(comparison.data.cpu(), save_dir, nrow=n)
 
         zs = np.array(zs)
         self.model.dist_mu = zs.mean(axis=0)
@@ -178,6 +179,7 @@ class ConvVAETrainer():
         logger.record_tabular("beta", beta)
         logger.dump_tabular()
 
+
         logger.save_itr_params(epoch, self.model) # slow...
         logdir = logger.get_snapshot_dir()
         filename = osp.join(logdir, 'params.pkl')
@@ -187,11 +189,12 @@ class ConvVAETrainer():
         self.model.eval()
         sample = ptu.Variable(torch.randn(64, self.representation_size))
         sample = self.model.decode(sample).cpu()
-        save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
-        save_image(
-            sample.data.view(64, self.input_channels, self.imsize, self.imsize),
-            save_dir
-        )
+        if epoch %100 == 0:
+            save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
+            save_image(
+                sample.data.view(64, self.input_channels, self.imsize, self.imsize),
+                save_dir
+            )
 
     def plot_scattered(self, z, epoch):
         try:
@@ -222,6 +225,7 @@ class ConvVAETrainer():
         plt.grid(True)
         save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
         plt.savefig(save_file)
+
 
 # class ConvVAE(nn.Module):
 class ConvVAE(PyTorchModule):

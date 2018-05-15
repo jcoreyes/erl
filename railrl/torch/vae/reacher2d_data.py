@@ -19,10 +19,12 @@ def get_data(N = 10000, test_p = 0.9, use_cached=True, render=False):
         for i in range(N):
             if i % 100 == 0:
                 e.reset()
+
             # u = np.ones((3))
             # if i % 100 > 50:
                 # u = -u
             u = np.random.rand(3) * 4 - 2
+
             img, _, _, _ = e.step(u)
             dataset[i, :] = img
             if render:

@@ -16,6 +16,7 @@ import mujoco_py
 import torch
 import cv2
 
+
 class ProxyEnv(Serializable, Env):
     def __init__(self, wrapped_env):
         Serializable.quick_init(self, locals())

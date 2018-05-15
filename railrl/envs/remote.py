@@ -4,7 +4,7 @@ from railrl.envs.base import RolloutEnv
 from railrl.envs.wrappers import NormalizedBoxEnv, ProxyEnv
 from railrl.samplers.util import rollout
 from railrl.core.serializable import Serializable
-
+import numpy as np
 
 @ray.remote
 class RayEnv(object):
@@ -35,8 +35,52 @@ class RayEnv(object):
             policy = self._exploration_policy
         else:
             policy = self._policy
+        # return self.multitask_rollout(self._env, policy, self._max_path_length)
         return self.rollout_function(self._env, policy, self._max_path_length)
 
+    #HACK FOR COMPUTING MULITASK ROLLOUTS FOR PARALLEL
+    def multitask_rollout(self, env, policy, max_path_length):
+        observations = []
+        actions = []
+        rewards = []
+        terminals = []
+        agent_infos = []
+        env_infos = []
+        next_observations = []
+        path_length = 0
+        o = env.reset()
+        goal = env.get_goal()
+        while path_length < max_path_length:
+            new_obs = np.hstack((o, goal))
+            a, agent_info = policy.get_action(new_obs)
+            next_o, r, d, env_info = env.step(a)
+            observations.append(o)
+            rewards.append(r)
+            terminals.append(d)
+            actions.append(a)
+            next_observations.append(next_o)
+            agent_infos.append(agent_info)
+            env_infos.append(env_info)
+            path_length += 1
+            if d:
+                break
+            o = next_o
+
+        actions = np.array(actions)
+        if len(actions.shape) == 1:
+            actions = np.expand_dims(actions, 1)
+        observations = np.array(observations)
+        next_observations = np.array(next_observations)
+        return dict(
+            observations=observations,
+            actions=actions,
+            rewards=np.array(rewards).reshape(-1, 1),
+            next_observations=next_observations,
+            terminals=np.array(terminals).reshape(-1, 1),
+            agent_infos=agent_infos,
+            env_infos=env_infos,
+            goals=np.repeat(goal[None], path_length, 0),
+        )
 
 class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     """
