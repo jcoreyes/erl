@@ -16,12 +16,12 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
     """Implements a torque-controlled Sawyer environment"""
 
     def __init__(self, reward_info=None, frame_skip=30,
-                 pos_action_scale=1. / 100, hide_goal=False):
+                 action_scale=1. / 10, hide_goal=False):
         self.quick_init(locals())
         self.reward_info = reward_info
         self.hide_goal = hide_goal
+        self.action_scale = action_scale
         self._goal_xyz = self.sample_goal_xyz()
-        self._pos_action_scale = pos_action_scale
         MultitaskEnv.__init__(self, distance_metric_order=2)
         MujocoEnv.__init__(self, self.model_name, frame_skip=frame_skip)
 
@@ -65,6 +65,7 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
         self.viewer.cam.trackbodyid = -1
 
     def step(self, a):
+        a = a * self.action_scale
         obs = self._get_obs()
         self.do_simulation(a, self.frame_skip)
         next_obs = self._get_obs()

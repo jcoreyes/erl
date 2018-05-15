@@ -16,13 +16,21 @@ vae_trials = get_trials(
         'vae_wrapped_env_kwargs.sample_from_true_prior': False,
     }
 )
-state_trials = get_trials(
+state_her_td3 = get_trials(
     '/home/vitchyr/git/railrl/data/doodads3/05-13-full-state-sawyer-reach-2/',
     criteria={
         'replay_buffer_kwargs.fraction_goals_are_env_goals': 0.5,
         'replay_buffer_kwargs.fraction_goals_are_rollout_goals': 0.2,
         'exploration_type': 'ou',
     }
+)
+state_tdm_ddpg = get_trials(
+    '/home/vitchyr/git/railrl/data/doodads3/05-14-tdm-ddpg-reach-sweep-2/',
+    criteria={
+        'env_class.$class': 'railrl.envs.mujoco.sawyer_gripper_env.SawyerXYEnv',
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': 10,
+        'algo_kwargs.tdm_kwargs.max_tau': 5,
+    },
 )
 # vae_trials = get_trials(
 #     '/home/vitchyr/git/railrl/data/doodads3/05-12-sawyer-reach-vae-rl-reproduce-2/',
@@ -38,8 +46,8 @@ y_keys = [
 ]
 plot_trials(
     {
-        'State - HER TD3': state_trials,
-        # 'State - TD3': td3_trials,
+        'State - HER TD3': state_her_td3,
+        'State - TDM DDPG': state_tdm_ddpg,
         'VAE - HER TD3': vae_trials,
         # 'VAE - TD3': vae_td3_trials,
     },
