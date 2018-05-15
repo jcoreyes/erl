@@ -34,7 +34,7 @@ if __name__ == "__main__":
             variants.append(variant)
     for variant in variants:
         n_seeds = 1
-        exp_prefix = 'sawyer_vae_train'
+        exp_prefix = 'sawyer_torque_vae_train_64'
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(
