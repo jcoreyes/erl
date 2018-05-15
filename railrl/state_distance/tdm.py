@@ -39,6 +39,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             tdm_normalizer: TdmNormalizer = None,
             num_pretrain_paths=0,
             normalize_distance=False,
+            env_samples_goal_on_reset=False,
     ):
         """
 
@@ -102,6 +103,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             'all_valid',
         ]
         assert reward_type in ['distance', 'indicator', 'env']
+        # Just for NIPS 2018
+        assert reward_type == 'env'
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 
@@ -135,6 +138,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.tdm_normalizer = tdm_normalizer
         self.num_pretrain_paths = num_pretrain_paths
         self.normalize_distance = normalize_distance
+        self.env_samples_goal_on_reset = env_samples_goal_on_reset
 
         self.eval_sampler = MultigoalSimplePathSampler(
             env=self.env,
@@ -145,6 +149,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goal_sampling_function=self._sample_goal_for_rollout,
             cycle_taus_for_rollout=self.cycle_taus_for_rollout,
             render=self.render_during_eval,
+            env_samples_goal_on_reset=env_samples_goal_on_reset,
         )
         self.pretrain_obs = None
         if self.collection_mode == 'online-parallel':
@@ -173,8 +178,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         actions = batch['actions']
         next_obs = batch['next_observations']
         goals = self._sample_goals_for_training(batch)
+        env_infos = batch.get('env_infos', None)
         rewards = self._compute_scaled_rewards_np(
-            batch, obs, actions, next_obs, goals
+            batch, obs, actions, next_obs, goals, env_infos
         )
         terminals = batch['terminals']
 
@@ -212,7 +218,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
         return np_to_pytorch_batch(batch)
 
-    def _compute_scaled_rewards_np(self, batch, obs, actions, next_obs, goals):
+    def _compute_scaled_rewards_np(self, batch, obs, actions, next_obs,
+                                   goals, env_infos):
         """
         Rewards should be already multiplied by the reward scale and/or other
         factors. In other words, the rewards returned here should be
@@ -233,12 +240,18 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             return neg_distances * self.reward_scale
         elif self.reward_type == 'env':
             rewards = batch['rewards']
+            # Hacky/inefficient for NIPS 2018
             for i in range(len(rewards)):
+                if env_infos is None:
+                    env_info = None
+                else:
+                    env_info = env_infos[i]
                 rewards[i] = self.training_env.compute_her_reward_np(
                     obs[i],
                     actions[i],
                     next_obs[i],
-                    goals[i]
+                    goals[i],
+                    env_info,
                 )
             return rewards
         else:
@@ -344,11 +357,15 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
-        self._current_path_goal = self._sample_goal_for_rollout()
-        self.training_env.set_goal(self._current_path_goal)
         self._rollout_tau = np.array([self.max_tau])
-        obs = self.training_env.reset()
-        assert (self.training_env.get_goal() == self._current_path_goal).all()
+        if self.env_samples_goal_on_reset:
+            obs = self.training_env.reset()
+            self._current_path_goal = self.training_env.get_goal()
+        else:
+            self._current_path_goal = self._sample_goal_for_rollout()
+            self.training_env.set_goal(self._current_path_goal)
+            obs = self.training_env.reset()
+            assert (self.training_env.get_goal() == self._current_path_goal).all()
         return obs
 
     def _handle_step(

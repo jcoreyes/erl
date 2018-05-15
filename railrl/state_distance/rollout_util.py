@@ -14,6 +14,7 @@ class MultigoalSimplePathSampler(object):
             goal_sampling_function,
             cycle_taus_for_rollout=True,
             render=False,
+            env_samples_goal_on_reset=False,
     ):
         self.env = env
         self.policy = policy
@@ -23,12 +24,16 @@ class MultigoalSimplePathSampler(object):
         self.goal_sampling_function = goal_sampling_function
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
         self.render = render
+        self.env_samples_goal_on_reset = env_samples_goal_on_reset
 
     def obtain_samples(self):
         paths = []
         for i in range(self.max_samples // self.max_path_length):
             tau = self.tau_sampling_function()
-            goal = self.goal_sampling_function()
+            if self.env_samples_goal_on_reset:
+                goal = None
+            else:
+                goal = self.goal_sampling_function()
             path = multitask_rollout(
                 self.env,
                 self.policy,
@@ -38,6 +43,7 @@ class MultigoalSimplePathSampler(object):
                 decrement_tau=self.cycle_taus_for_rollout,
                 cycle_tau=self.cycle_taus_for_rollout,
                 animated=self.render,
+                env_samples_goal_on_reset=self.env_samples_goal_on_reset,
             )
             paths.append(path)
         return paths
@@ -91,6 +97,7 @@ def multitask_rollout(
         decrement_tau=False,
         cycle_tau=False,
         get_action_kwargs=None,
+        env_samples_goal_on_reset=False,
 ):
     if get_action_kwargs is None:
         get_action_kwargs = {}
@@ -109,10 +116,14 @@ def multitask_rollout(
         env.render()
 
     tau = np.array([init_tau])
-    if goal is None:
-        goal = env.sample_goal_for_rollout()
-    env.set_goal(goal)
-    o = env.reset()
+    if goal is None and env_samples_goal_on_reset:
+        o = env.reset()
+        goal = env.get_goal()
+    else:
+        if goal is None:
+            goal = env.sample_goal_for_rollout()
+        env.set_goal(goal)
+        o = env.reset()
     assert (env.get_goal() == goal).all()
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o, goal, tau, **get_action_kwargs)

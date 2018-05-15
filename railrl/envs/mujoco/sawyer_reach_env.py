@@ -241,7 +241,6 @@ class SawyerReachXYZEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xyz(goal)
-        # self.set_to_goal(goal)
 
     def get_goal(self):
         return self._goal_xyz

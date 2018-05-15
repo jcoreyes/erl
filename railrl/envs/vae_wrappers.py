@@ -239,7 +239,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
             n = np.random.randn(self.representation_size)
             goal = sigma * n + mu
         else:
-            self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
+            goal = self._wrapped_env.sample_goal_for_rollout()
+            self._wrapped_env.set_goal(goal)
+            self._wrapped_env.set_to_goal(goal)
             observation = self._wrapped_env.get_image()
 
             self.true_goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()

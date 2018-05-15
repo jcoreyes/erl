@@ -309,7 +309,6 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
     def set_goal(self, goal):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xy(goal)
-        self.set_to_goal(goal)
 
     def set_to_goal(self, goal):
         # Hack for now since there isn't a goal hand position
