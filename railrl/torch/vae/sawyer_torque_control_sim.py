@@ -3,19 +3,20 @@ import time
 import numpy as np
 import os.path as osp
 
+from railrl.envs.mujoco.sawyer_reach_torque_env import SawyerReachTorqueEnv
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
 from railrl.envs.wrappers import ImageMujocoEnv
-from railrl.images.camera import sawyer_init_camera
+from railrl.images.camera import sawyer_init_camera, sawyer_torque_env_camera
 import cv2
 
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 
 
 def generate_vae_dataset(
-        N=10000, test_p=0.9, use_cached=True, imsize=84, show=False,
+        N=10000, test_p=0.9, use_cached=True, imsize=84, show=True,
         dataset_path=None,
 ):
-    filename = "/tmp/sawyer_reacher_" + str(N) + ".npy"
+    filename = "/tmp/sawyer_torque_control" + str(N) + ".npy"
     info = {}
     if dataset_path is not None:
         filename = local_path_from_s3_or_local_path(dataset_path)
@@ -25,11 +26,12 @@ def generate_vae_dataset(
         print("loaded data from saved file", filename)
     else:
         now = time.time()
-        env = SawyerXYEnv()
+        env = SawyerReachTorqueEnv()
+        # env = SawyerXYEnv()
         env = ImageMujocoEnv(
             env, imsize,
             transpose=True,
-            init_camera=sawyer_init_camera,
+            init_camera=sawyer_torque_env_camera,
             normalize=True,
         )
         info['env'] = env
@@ -39,7 +41,7 @@ def generate_vae_dataset(
             # Move the goal out of the image
             env.wrapped_env.set_goal(np.array([100, 100, 100]))
             env.reset()
-            for _ in range(50):
+            for _ in range(75):
                 env.wrapped_env.step(
                     env.wrapped_env.action_space.sample()
                 )
@@ -59,4 +61,4 @@ def generate_vae_dataset(
 
 
 if __name__ == "__main__":
-    generate_vae_dataset(1000 , use_cached=True)
+    generate_vae_dataset(5000, use_cached=False)

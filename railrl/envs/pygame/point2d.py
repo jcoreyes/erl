@@ -37,20 +37,11 @@ class Point2DEnv(Serializable, Env):
         self._target_position = None
         self._position = None
 
-<<<<<<< HEAD
-        # self.action_space = Box(np.array([-1, -1]), np.array([1, 1]), dtype=np.float32)
-        self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
-        self.observation_space = Box(
-            -self.BOUNDARY_DIST * np.ones(4),
-            self.BOUNDARY_DIST * np.ones(4),
-            # dtype=np.float32
-=======
         self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
         self.observation_space = Box(
             -self.BOUNDARY_DIST * np.ones(4),
             self.BOUNDARY_DIST * np.ones(4)
             #dtype=np.float32
->>>>>>> 38de36382a334146d27d01c30102f6210df64a87
         )
 
         self.drawer = None

@@ -197,7 +197,7 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
         raise NotImplementedError()
 
     def set_to_goal(self, goal):
-        raise NotImplementedError()
+        self.set_goal_xyz(goal)
 
 
 if __name__ == "__main__":

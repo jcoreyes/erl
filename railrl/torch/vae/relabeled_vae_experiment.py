@@ -62,6 +62,7 @@ def experiment(variant):
             render_goals=render, render_rollouts=render,
             render_decoded=render,
             reward_params=reward_params,
+            history_size=variant['history_len'],
             use_gpu = variant['use_gpu'],
             **variant.get('vae_wrapped_env_kwargs', {})
         )
