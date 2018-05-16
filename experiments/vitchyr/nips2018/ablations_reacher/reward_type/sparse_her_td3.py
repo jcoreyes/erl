@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'tbd-goal-conditioned-td3-sawyer-reach-vae-rl'
+    exp_prefix = 'tbd-sparse-her-td3-sawyer-reach-vae-rl'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -54,8 +54,8 @@ if __name__ == "__main__":
             # ),
         ),
         replay_kwargs=dict(
-            fraction_goals_are_rollout_goals=1.0,
-            fraction_goals_are_env_goals=0.0,
+            fraction_goals_are_rollout_goals=0.2,
+            fraction_goals_are_env_goals=0.5,
         ),
         algorithm='HER-TD3',
         normalize=False,
@@ -78,19 +78,28 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
+        'algo_kwargs.num_updates_per_env_step': [1, 5, 10],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
         'rdim': [16],
-        'reward_params.type': ['latent_distance'],
-        'reward_params.min_variance': [0],
+        'reward_params.type': ['latent_sparse'],
+        'reward_params.epsilon': [0.5, 1, 2],
         'vae_wrapped_env_kwargs.sample_from_true_prior': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if (
+                variant['replay_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
+                and variant['replay_kwargs']['fraction_goals_are_env_goals'] == 0.5
+        ):
+            # redundant setting
+            continue
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
