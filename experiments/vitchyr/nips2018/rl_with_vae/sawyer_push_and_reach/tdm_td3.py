@@ -1,4 +1,6 @@
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from railrl.envs.mujoco.sawyer_push_and_reach_env import \
+    SawyerPushAndReachXYEasyEnv
 from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.multitask.pusher2d import FullPusher2DEnv
@@ -18,7 +20,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'tbd-tdm-td3-reacher-good-logging'
+    exp_prefix = 'tbd-tdm-td3-sawyer-push-and-reach'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -39,15 +41,15 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=200,
-                num_steps_per_epoch=50,
+                num_epochs=105,
+                num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                max_path_length=50,
+                max_path_length=100,
                 num_updates_per_env_step=1,
                 batch_size=128,
                 discount=1,
                 reward_scale=1e-4,
-                min_num_steps_before_training=128,
+                min_num_steps_before_training=1000,
             ),
             tdm_kwargs=dict(
                 max_tau=15,
@@ -79,7 +81,7 @@ if __name__ == "__main__":
         normalize=False,
         rdim=32,
         render=False,
-        env=SawyerXYEnv,
+        env=SawyerPushAndReachXYEasyEnv,
         use_env_goals=True,
         vae_paths=vae_paths,
         wrap_mujoco_env=True,

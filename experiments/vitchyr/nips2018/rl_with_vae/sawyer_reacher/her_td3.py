@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'paper-sawyer-reach-vae-rl-lprob-rewards-min-var-after-fact'
+    exp_prefix = 'tbd-her-td3-sawyer-reach-vae-rl'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -78,18 +78,17 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [1],
+        'algo_kwargs.num_updates_per_env_step': [1, 5, 10],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
-        # 'rdim': [2, 4, 8, 16],
         'rdim': [16],
-        'reward_params.type': ['log_prob'],
-        'reward_params.min_variance': [1e-4, 1e-2, 1],
-        'vae_wrapped_env_kwargs.sample_from_true_prior': [True, False],
+        'reward_params.type': ['latent_distance'],
+        'reward_params.min_variance': [0],
+        'vae_wrapped_env_kwargs.sample_from_true_prior': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
