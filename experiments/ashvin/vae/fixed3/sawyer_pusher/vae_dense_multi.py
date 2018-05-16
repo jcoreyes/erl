@@ -13,8 +13,8 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     vae_paths = {
-        "4": "ashvin/vae/fixed3/sawyer-pusher/train-vae-multi/run6/id0/itr_480.pkl",
-        "16": "ashvin/vae/fixed3/sawyer-pusher/train-vae-multi/run6/id1/itr_480.pkl",
+        "4": "ashvin/vae/fixed3/sawyer-pusher/train-vae-multi/run7/id0/itr_480.pkl",
+        "16": "ashvin/vae/fixed3/sawyer-pusher/train-vae-multi/run7/id1/itr_480.pkl",
     }
 
     variant = dict(
@@ -57,17 +57,17 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [4, ],
+        'algo_kwargs.num_updates_per_env_step': [1, 4, ],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, ],
-        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, ],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
-        'rdim': [16, 4],
+        'rdim': [4, 16, ],
         'seedid': range(n_seeds),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=1)

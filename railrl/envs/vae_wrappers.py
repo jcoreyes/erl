@@ -150,7 +150,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             var = np.exp(ptu.get_numpy(logvar).flatten())
             err = dist * dist / 2 / var
             mdist = np.sum(err) # mahalanobis distance
-            if self.reward_type == "latent_distance":
+            if self.reward_type == "latent_distance" or self.reward_type == "log_prob":
                 reward = -mdist
             elif self.reward_type == "sparse":
                 reward = 0 if mdist < self.epsilon else -1

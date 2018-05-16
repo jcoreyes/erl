@@ -3,7 +3,7 @@ import time
 import numpy as np
 import os.path as osp
 
-from railrl.envs.mujoco.sawyer_push_and_reach_env import SawyerMultiPushAndReachEasyEnv
+from railrl.envs.mujoco.sawyer_push_and_reach_env import SawyerVaryMultiPushAndReachEasyEnv
 from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.images.camera import sawyer_init_camera, sawyer_init_camera_zoomed_in
 import cv2
@@ -11,14 +11,14 @@ import cv2
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 def generate_vae_dataset(N = 10000, test_p = 0.9, use_cached=True, imsize=84, show=False):
-    filename = "/tmp/sawyer2d_multi_push_" + str(N) + ".npy"
+    filename = "/tmp/sawyer2d_vary_multi_push_" + str(N) + ".npy"
     info = {}
     if use_cached and osp.isfile(filename):
         dataset = np.load(filename)
         print("loaded data from saved file", filename)
     else:
         now = time.time()
-        env = SawyerMultiPushAndReachEasyEnv(hide_goal=True)
+        env = SawyerVaryMultiPushAndReachEasyEnv(hide_goal=True)
         env = ImageMujocoEnv(
             env, imsize,
             transpose=True,

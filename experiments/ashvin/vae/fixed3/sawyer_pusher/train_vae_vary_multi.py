@@ -2,10 +2,9 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-from railrl.torch.vae.sawyer2d_push_new_easy_data_wider import generate_vae_dataset
+from railrl.torch.vae.sawyer2d_vary_multi_push_data import generate_vae_dataset
 
 from railrl.launchers.arglauncher import run_variants
-
 def experiment(variant):
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
@@ -61,7 +60,7 @@ if __name__ == "__main__":
         beta_schedule_kwargs=dict(
             x_values=[0, 100, 200, 500],
             # y_values=[0, 0, 0.1, 0.5],
-            y_values=[0.5, 0.5, 0.5, 0.5],
+            y_values=[0, 0, 5, 5],
         ),
         save_period=5,
     )
@@ -78,5 +77,5 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=9)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)
 

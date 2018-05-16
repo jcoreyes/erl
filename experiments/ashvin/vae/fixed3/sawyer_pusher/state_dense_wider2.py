@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=205,
+            num_epochs=505,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -41,6 +41,9 @@ if __name__ == "__main__":
         ),
         vae_wrapped_env_kwargs=dict(
             sample_from_true_prior=False,
+            reward_params=dict(
+                type="log_prob",
+            )
         ),
         algorithm='HER-TD3',
         normalize=False,
@@ -50,21 +53,21 @@ if __name__ == "__main__":
         use_env_goals=True,
         vae_paths=vae_paths,
         wrap_mujoco_env=True,
-        do_state_based_exp=False,
+        do_state_based_exp=True,
         exploration_noise=0.1,
         init_camera=sawyer_init_camera_zoomed_in,
     )
 
-    n_seeds = 3
+    n_seeds = 5
     search_space = {
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [1, 4],
+        'algo_kwargs.num_updates_per_env_step': [4],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, ],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, ],
         'vae_wrapped_env_kwargs.sample_from_true_prior': [False],
-        'exploration_noise': [0.2, 0.5],
+        'exploration_noise': [0.2, ],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train'],
         'testing_mode': ['test', ],

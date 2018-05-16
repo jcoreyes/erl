@@ -27,7 +27,7 @@ def experiment(variant):
         if gpu_id is not None:
             ptu.set_device(gpu_id)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
-                       beta_schedule=beta_schedule, **variant['algo_kwargs'])
+                       beta_schedule=beta_schedule, normalize=True, **variant['algo_kwargs'])
     save_period = variant['save_period']
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
@@ -78,5 +78,5 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=9)
+    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)
 
