@@ -60,6 +60,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         reward_params=None,
         use_gpu=False,
         mode="train",
+        image_env=None,
     ):
         if reward_params is None:
             reward_params = dict()
@@ -69,7 +70,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_vae(vae)
         else:
             self.vae = vae
-        self.vae.eval()
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self.use_vae_goals = use_vae_goals
@@ -101,7 +101,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
             -10 * np.ones(self.representation_size),
             10 * np.ones(self.representation_size)
         )
+<<<<<<< HEAD
         self.history = []
+=======
+        self.image_env = image_env
+
+>>>>>>> origin/goal-conditioned-images-ashvin
         self.mode(mode)
         self.use_gpu = use_gpu
 
@@ -134,6 +139,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         observation, reward, done, info = self._wrapped_env.step(action)
         done = False # no early termination
         self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
+        if self.image_env:
+            ob = self.image_env.get_image()
+            self.image_env.cur_obs = ob.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
             cv2.imshow('env', self.cur_obs)
             cv2.waitKey(1)
@@ -177,6 +185,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.vae_goal = self.sample_goal_for_rollout()
         observation = self._wrapped_env.reset()
         self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
+        if self.image_env:
+            ob = self.image_env.get_image()
+            self.image_env.cur_obs = ob.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
             cv2.imshow('env', self.cur_obs)
             cv2.waitKey(1)
@@ -199,6 +210,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return observation
 
     def enable_render(self):
+        self.use_vae_goals = False
         self.decode_goals = True
         self.render_goals = True
         self.render_rollouts = True
@@ -244,6 +256,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self._wrapped_env.set_goal(goal)
             self._wrapped_env.set_to_goal(goal)
             observation = self._wrapped_env.get_image()
+
+            if self.image_env:
+                ob = self.image_env.get_image()
+                self.image_env.goal_obs = ob.reshape(self.input_channels, 84, 84).transpose()
 
             self.true_goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
             img = Variable(ptu.from_numpy(observation))

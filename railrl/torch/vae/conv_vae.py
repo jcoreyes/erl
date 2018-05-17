@@ -43,6 +43,7 @@ class ConvVAETrainer():
             imsize=84,
             lr=1e-3,
             do_scatterplot=False,
+            normalize=False,
     ):
         self.log_interval = log_interval
         self.batch_size = batch_size
@@ -73,11 +74,20 @@ class ConvVAETrainer():
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
+        self.normalize = normalize
+
+        if self.normalize:
+            self.train_data_mean = np.mean(self.train_dataset, axis=0)
+            # self.train_dataset = ((self.train_dataset - self.train_data_mean)) + 1 / 2
+            # self.test_dataset = ((self.test_dataset - self.train_data_mean)) + 1 / 2
 
     def get_batch(self, train=True):
         dataset = self.train_dataset if train else self.test_dataset
         ind = np.random.randint(0, len(dataset), self.batch_size)
-        return ptu.np_to_var(dataset[ind, :])
+        samples = dataset[ind, :]
+        if self.normalize:
+            samples = ((samples - self.train_data_mean) + 1) / 2
+        return ptu.np_to_var(samples)
 
     def logprob(self, recon_x, x, mu, logvar):
 
@@ -237,6 +247,7 @@ class ConvVAE(PyTorchModule):
             hidden_init=ptu.fanin_init,
             output_activation=identity,
             min_variance=1e-4,
+            use_min_variance=True,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -289,6 +300,12 @@ class ConvVAE(PyTorchModule):
         self.conv2.bias.data.fill_(0)
         self.hidden_init(self.conv3.weight)
         self.conv3.bias.data.fill_(0)
+        # self.hidden_init(self.conv4.weight)
+        # self.conv4.bias.data.fill_(0)
+        # self.hidden_init(self.conv5.weight)
+        # self.conv5.bias.data.fill_(0)
+        # self.hidden_init(self.conv6.weight)
+        # self.conv6.bias.data.fill_(0)
 
         self.hidden_init(self.fc1.weight)
         self.fc1.bias.data.fill_(0)
@@ -298,6 +315,14 @@ class ConvVAE(PyTorchModule):
         self.fc2.bias.data.fill_(0)
         self.fc2.weight.data.uniform_(-init_w, init_w)
         self.fc2.bias.data.uniform_(-init_w, init_w)
+        # self.hidden_init(self.fc3.weight)
+        # self.fc3.bias.data.fill_(0)
+        # self.fc3.weight.data.uniform_(-init_w, init_w)
+        # self.fc3.bias.data.uniform_(-init_w, init_w)
+        # self.hidden_init(self.fc4.weight)
+        # self.fc4.bias.data.fill_(0)
+        # self.fc4.weight.data.uniform_(-init_w, init_w)
+        # self.fc4.bias.data.uniform_(-init_w, init_w)
 
     def encode(self, input):
         input = input.view(-1, self.imlength + self.added_fc_size)

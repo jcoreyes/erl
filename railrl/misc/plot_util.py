@@ -94,7 +94,8 @@ def filter_by_flat_params(d):
 
 def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3),
     xlabel="Number of env steps total", default_vary=False, xlim=None, ylim=None,
-    print_final=False, print_max=False, print_min=False, print_plot=True):
+    print_final=False, print_max=False, print_min=False, print_plot=True,
+    reduce_op=sum, method_order=None):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
     vary is (what we might think is) the causal variable
@@ -124,25 +125,35 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
 
             d = l['progress']
             x = d[xlabel]
-            if key in d:
-                y = d[key]
-
-                y_smooth = smooth(y)
-                x_smooth = x[:len(y_smooth)]
-                ys.append(y_smooth)
-                xs.append(x_smooth)
+            y = [0]
+            if type(key) is list:
+                vals = []
+                for k in key:
+                    vals.append(d[k])
+                y = reduce_op(vals)
             else:
-                print("not found", key)
-                print(d.keys())
+                if key in d:
+                    y = d[key]
+                else:
+                    print("not found", key)
+                    print(d.keys())
+
+            y_smooth = smooth(y)
+            x_smooth = x[:len(y_smooth)]
+            ys.append(y_smooth)
+            xs.append(x_smooth)
 
     lines = []
-    for label in sorted(y_data.keys()):
+    labels = sorted(y_data.keys())
+    if method_order:
+        labels = np.array(labels)[np.array(method_order)]
+    for label in labels:
         ys = to_array(y_data[label])
         x = np.nanmean(to_array(x_data[label]), axis=0)
         y = np.nanmean(ys, axis=0)
-        s = np.nanstd(ys, axis=0)
+        s = np.nanstd(ys, axis=0)  / len(ys)
         if print_plot:
-            plt.fill_between(x, y-s, y+s, alpha=0.2)
+            plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2)
             line, = plt.plot(x, y, label=str(label))
             lines.append(line)
 
@@ -159,6 +170,8 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
 
     if print_plot:
         plt.legend(handles=lines, bbox_to_anchor=(1.5, 0.75))
+
+    return lines
 
 def split(exps,
     keys,

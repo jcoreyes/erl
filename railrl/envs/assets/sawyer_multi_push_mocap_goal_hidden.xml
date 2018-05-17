@@ -46,7 +46,6 @@
     </equality>
 
     <worldbody>
-        <camera pos="0 1.2 0.8" euler="-0.8 0 3.1415" name="topview" />
         <!-- <light directional="true" cutoff="40" exponent="10" diffuse=".4 .4 .4" specular=".7 .7 .7" pos="0 0 1.5" dir="0 0 -1"/> -->
 
         <geom name="tableTop" type="plane" pos="0 0.6 0" size="0.4 0.2 0.5"
@@ -213,47 +212,62 @@
             <geom conaffinity="0" contype="0" pos="0 0 0" rgba="0.5 0.5 0.5 0" size="0.1 0.02 0.02" type="box"></geom>
         </body>
 
-        <body name="puck" pos="0 0 0.1">
-            <joint name="puckjoint" type="free" limited='false' damping="0" armature="0" />
-            <!--<joint name="puckjoint-x" type="slide" limited='false' pos="0 0 0"-->
+        <body name="block" pos="0 0 0.1">
+            <joint name="blockjoint" type="free" limited='false' damping="0" armature="0" />
+            <!--<joint name="blockjoint-x" type="slide" limited='false' pos="0 0 0"-->
                    <!--axis="1 0 0"-->
                    <!--/>-->
-            <!--<joint name="puckjoint-y" type="slide" limited='false' pos="0 0 0"-->
+            <!--<joint name="blockjoint-y" type="slide" limited='false' pos="0 0 0"-->
                    <!--axis="0 1 0"-->
             <!--/>-->
-            <!--<joint name="puckjoint-z" type="slide" limited='false' pos="0 0 0"-->
+            <!--<joint name="blockjoint-z" type="slide" limited='false' pos="0 0 0"-->
                    <!--axis="0 0 1"-->
             <!--/>-->
             <inertial pos="0 0 0" mass=".1" diaginertia="100000 100000 100000"/>
             <!--type="box"-->
             <!--size="0.02 0.02 0.02"-->
-            <geom name="puckbox"
+            <geom name="blockbox"
                   type="cylinder"
                   pos="0 0 0"
-                  size="0.04 0.015"
+                  size="0.04 0.02"
                   rgba=".1 .1 .9 1"
-                  contype="2"
-                  conaffinity="4"
+                  contype="18"
+                  conaffinity="20"
             />
-            <site name="puck" pos="0 0 0" size="0.01" />
+            <site name="block" pos="0 0 0" size="0.01" />
         </body>
 
-        <body name="hand-goal" pos="0 0 0">
-            <!--<inertial mass="0"/>-->
-            <joint name="hand-goal-joint" type="free" limited='false'
-                   damping="0" armature="0" />
-            <geom name="hand-goal-marker" type="sphere" pos="0 0 0" size="0.02"
-                  rgba=".9 .9 .1 0" contype="0" conaffinity="8"/>
-            <site name="hand-goal-site" pos="0 0 0" size="0.01" rgba="0 0 0 0" />
+        <body name="block2" pos="0.1 0.1 0.1">
+            <joint name="blockjoint2" type="free" limited='false' damping="0" armature="0" />
+            <!--<joint name="blockjoint-x" type="slide" limited='false' pos="0 0 0"-->
+                   <!--axis="1 0 0"-->
+                   <!--/>-->
+            <!--<joint name="blockjoint-y" type="slide" limited='false' pos="0 0 0"-->
+                   <!--axis="0 1 0"-->
+            <!--/>-->
+            <!--<joint name="blockjoint-z" type="slide" limited='false' pos="0 0 0"-->
+                   <!--axis="0 0 1"-->
+            <!--/>-->
+            <inertial pos="0 0 0" mass=".1" diaginertia="100000 100000 100000"/>
+            <!--type="box"-->
+            <!--size="0.02 0.02 0.02"-->
+            <geom name="blockbox2"
+                  type="cylinder"
+                  pos="0 0 0"
+                  size="0.04 0.02"
+                  rgba=".1 .9 .1 1"
+                  contype="18"
+                  conaffinity="20"
+            />
+            <site name="block2" pos="0 0 0" size="0.01" />
         </body>
 
-        <body name="puck-goal" pos="0 0 0">
+        <body name="goal" pos="0 0 0">
             <!--<inertial mass="0"/>-->
-            <joint name="puck-goal-joint" type="free" limited='false'
-                   damping="0" armature="0" />
-            <geom name="puck-goal-marker" type="sphere" pos="0 0 0" size="0.02"
+            <joint name="goaljoint" type="free" limited='false' damping="0" armature="0" />
+            <geom name="goalbox" type="sphere" pos="0 0 0" size="0.02"
                   rgba=".9 .1 .1 0" contype="0" conaffinity="8"/>
-            <site name="puck-goal-site" pos="0 0 0" size="0.01" rgba="0 0 0 0" />
+            <site name="goal" pos="0 0 0" size="0.01" />
         </body>
 
     </worldbody>

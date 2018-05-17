@@ -93,9 +93,9 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
                 ob.unsqueeze(0)
             )[0]
 
-    def compute_reward(self, ob, action, next_ob, goal):
+    def compute_reward(self, ob, action, next_ob, goal, env_info=None):
         return self.compute_rewards(
-            ob[None], action[None], next_ob[None], goal[None]
+            ob[None], action[None], next_ob[None], goal[None], env_info=env_info,
         )
 
     def get_goal(self):
@@ -107,7 +107,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     def set_goal(self, goal):
         self.multitask_goal = goal
 
-    def compute_rewards(self, obs, actions, next_obs, goals):
+    def compute_rewards(self, obs, actions, next_obs, goals, env_info=None):
         return - np.linalg.norm(
             self.convert_obs_to_goals(next_obs) - goals,
             axis=1,

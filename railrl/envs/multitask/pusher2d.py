@@ -517,7 +517,8 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
     2 hand xy goal
     2 puck xy goal
     """
-    def __init__(self, include_puck=True, arm_range=0.1, reward_params={"type": "euclidean", "puck_reward_only": False}, **kwargs):
+    def __init__(self, include_puck=True, arm_range=0.1, only_far_goals=False,
+        reward_params={"type": "euclidean", "puck_reward_only": False}, **kwargs):
         self.quick_init(locals())
         self.include_puck = include_puck
         self.arm_range = arm_range
@@ -525,6 +526,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
         self.reward_type = self.reward_params.get("type", "euclidean")
         self.epsilon = self.reward_params.get("epsilon", 0.5 if include_puck else 0.25)
         self.puck_reward_only = self.reward_params.get("puck_reward_only", False)
+        self.only_far_goals = only_far_goals
         if include_puck:
             if self.puck_reward_only:
                 self.goal_space = Box(
@@ -533,9 +535,10 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
                     dtype=np.float32,
                 )
             else:
+                goal_min = 0.0 if self.only_far_goals else 0.8
                 self.goal_space = Box(
-                    low=np.array([-arm_range, -arm_range, -arm_range, -1, -1]),
-                    high=np.array([arm_range, arm_range, arm_range, 1, 0]),
+                    low=np.array([-arm_range, -arm_range, -arm_range, -0.8, -0.8]),
+                    high=np.array([arm_range, arm_range, arm_range, goal_min, -0.3]),
                     dtype=np.float32,
                 )
             self.obs_dim = 5

@@ -36,7 +36,7 @@ def experiment(variant):
         use_env_goals = variant["use_env_goals"]
         vae_path = variant["vae_paths"][str(rdim)]
         wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
-        reward_params = variant.get("reward_params", dict())
+        # reward_params = variant.get("reward_params", dict())
 
 
         init_camera = variant.get("init_camera", None)
@@ -116,7 +116,7 @@ def experiment(variant):
 
     if do_state_based_exp:
         testing_env = env
-        training_env = env
+        training_env = pickle.loads(pickle.dumps(env))
         relabeling_env = pickle.loads(pickle.dumps(env))
     else:
         training_mode = variant.get("training_mode", "train")
