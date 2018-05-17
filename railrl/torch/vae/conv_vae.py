@@ -86,7 +86,7 @@ class ConvVAETrainer():
         ind = np.random.randint(0, len(dataset), self.batch_size)
         samples = dataset[ind, :]
         if self.normalize:
-            samples = ((samples - self.train_data_mean)) + 1 / 2
+            samples = ((samples - self.train_data_mean) + 1) / 2
         return ptu.np_to_var(samples)
 
     def logprob(self, recon_x, x, mu, logvar):

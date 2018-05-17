@@ -444,10 +444,11 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
         reward = 0
         done = False
 
+        hand_goal = self.multitask_goal[0:2]
         goal1 = self.multitask_goal[2:4]
         goal2 = self.multitask_goal[4:6]
         hand_distance = np.linalg.norm(
-            self.get_hand_goal_pos() - self.get_endeff_pos()
+            hand_goal - self.get_endeff_pos()[:2]
         )
         puck_distance = np.linalg.norm(
             goal1 - self.get_puck_pos()[:2])
@@ -455,11 +456,15 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
             goal2 - self.get_puck2_pos()[:2])
         touch_distance = np.linalg.norm(
             self.get_endeff_pos() - self.get_puck_pos())
+        total_distance = hand_distance
+        total_distance += puck_distance
+        total_distance += puck2_distance
         info = dict(
             hand_distance=hand_distance,
             puck_distance=puck_distance,
             puck2_distance=puck2_distance,
             touch_distance=touch_distance,
+            total_distance=total_distance,
             success=float(puck_distance < 0.1),
         )
         return obs, reward, done, info
@@ -501,6 +506,30 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
 
     def set_goal_xy(self, pos):
         pass
+
+    def log_diagnostics(self, paths, logger=logger, prefix=""):
+        super().log_diagnostics(paths)
+
+        statistics = OrderedDict()
+        for stat_name in [
+            'puck2_distance',
+            'total_distance',
+        ]:
+            stat_name = stat_name
+            stat = get_stat_in_paths(paths, 'env_infos', stat_name)
+            statistics.update(create_stats_ordered_dict(
+                '%s %s' % (prefix, stat_name),
+                stat,
+                always_show_all_stats=True,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                'Final %s %s' % (prefix, stat_name),
+                [s[-1] for s in stat],
+                always_show_all_stats=True,
+            ))
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
 
 
 class SawyerVaryMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):

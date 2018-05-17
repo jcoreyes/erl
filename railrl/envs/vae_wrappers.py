@@ -59,6 +59,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
         reward_params=None,
         mode="train",
+        image_env=None,
     ):
         if reward_params is None:
             reward_params = dict()
@@ -98,6 +99,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             10 * np.ones(self.representation_size),
             dtype=np.float32,
         )
+        self.image_env = image_env
 
         self.mode(mode)
 
@@ -132,6 +134,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         observation, reward, done, info = self._wrapped_env.step(action)
         done = False # no early termination
         self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
+        if self.image_env:
+            ob = self.image_env.get_image()
+            self.image_env.cur_obs = ob.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
             cv2.imshow('env', self.cur_obs)
             cv2.waitKey(1)
@@ -165,6 +170,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
         observation = self._wrapped_env.reset()
         self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
+        if self.image_env:
+            ob = self.image_env.get_image()
+            self.image_env.cur_obs = ob.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
             cv2.imshow('env', self.cur_obs)
             cv2.waitKey(1)
@@ -215,6 +223,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
         else:
             self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
             observation = self._wrapped_env.get_image()
+
+            if self.image_env:
+                ob = self.image_env.get_image()
+                self.image_env.goal_obs = ob.reshape(self.input_channels, 84, 84).transpose()
 
             self.true_goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
             img = Variable(ptu.from_numpy(observation))
