@@ -14,9 +14,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
+    n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'tbd-her-td3-sawyer-reach-vae-rl'
+    exp_prefix = 'reach-ablation-reward-type-2'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -57,7 +57,7 @@ if __name__ == "__main__":
             fraction_goals_are_rollout_goals=0.2,
             fraction_goals_are_env_goals=0.5,
         ),
-        algorithm='HER-TD3',
+        algorithm='Ours',
         normalize=False,
         rdim=32,
         render=False,
@@ -78,8 +78,8 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [1, 5, 10],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
+        'algo_kwargs.num_updates_per_env_step': [5],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.5],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],

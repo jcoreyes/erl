@@ -1,4 +1,6 @@
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from railrl.envs.mujoco.sawyer_push_and_reach_env import \
+    SawyerPushAndReachXYEasyEnv
 from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.multitask.pusher2d import FullPusher2DEnv
@@ -18,29 +20,17 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'reach-ablation-reward-type-2'
+    exp_prefix = 'pusher-ablation-reward-type'
 
     vae_paths = {
-        # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #      "-reacher-recreate-results_2018_05_11_01_18_09_0000--s-33239-r2"
-        #      "/params.pkl",
-        # "4": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #      "-reacher-recreate-results_2018_05_11_01_21_47_0000--s-74741-r4"
-        #      "/params.pkl",
-        # "8": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #      "-reacher-recreate-results_2018_05_11_01_25_22_0000--s-82322-r8"
-        #      "/params.pkl",
-        # "16": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #       "-reacher-recreate-results_2018_05_11_01_28_52_0000--s-570-r16"
-        #       "/params.pkl",
-        "16": "05-12-sawyer-vae-reacher-no-min-var/05-12-sawyer-vae-reacher-no-min-var_2018_05_12_23_51_16_0000--s-15031-r16/params.pkl"
+        "16": "nips-2018-pusher/SawyerXY_vae_for_pushing.pkl",
     }
 
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=200,
-                num_steps_per_epoch=50,
+                num_epochs=505,
+                num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=50,
                 num_updates_per_env_step=1,
@@ -57,6 +47,7 @@ if __name__ == "__main__":
             td3_kwargs=dict(
             ),
         ),
+        env=SawyerPushAndReachXYEasyEnv,
         env_kwargs=dict(
             hide_goal=True,
             # reward_info=dict(
@@ -79,7 +70,6 @@ if __name__ == "__main__":
         normalize=False,
         rdim=32,
         render=False,
-        env=SawyerXYEnv,
         use_env_goals=True,
         vae_paths=vae_paths,
         wrap_mujoco_env=True,
@@ -104,6 +94,7 @@ if __name__ == "__main__":
         'exploration_noise': [0.2],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
+        # 'rdim': [2, 4, 8, 16],
         'rdim': [16],
         'reward_params.type': ['latent_distance'],
         'reward_params.min_variance': [0],
