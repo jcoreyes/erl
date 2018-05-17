@@ -186,6 +186,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 self.vae.cuda()
             e = self.vae.encode(img)[0]
             observation = ptu.get_numpy(e).flatten()
+            history=[]
             for i in range(self.history_size):
                 self.history.append(observation)
             obs = np.zeros(len(observation) * self.history_size)

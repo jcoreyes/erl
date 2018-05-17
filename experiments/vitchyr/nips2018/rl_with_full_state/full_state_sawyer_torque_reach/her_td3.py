@@ -40,9 +40,9 @@ if __name__ == "__main__":
         algorithm='HER-TD3',
         version='normal',
     )
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'dev'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'dev'
 
     n_seeds = 3
     mode = 'ec2'

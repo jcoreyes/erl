@@ -6,8 +6,8 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'sawyer_torque_control_vae_sweep2'
+    mode = 'ec2'
+    exp_prefix = 'sawyer_torque_control_vae_fixed_history_bug'
 
     vae_paths = {
      "16": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_params.pkl"
@@ -50,19 +50,20 @@ if __name__ == "__main__":
 
     search_space = {
         'exploration_type': [
+            'epsilon',
             'ou',
+            'gaussian',
         ],
         'algo_kwargs.num_updates_per_env_step': [1, 25],
         'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'exploration_noise': [0.2],
-        'algo_kwargs.reward_scale': [1e-3, 1e-2, 1],
+        'algo_kwargs.reward_scale': [1e-4, 1e-3, 1e-2, 1],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
-        'use_env_gaols':[True, False],
-        # 'do_state_based_exp':[True, False],
+        'use_env_goals':[True, False],
         'rdim': [16],
-        'reward_params.type': ['latent_distance'],
+        'reward_params.type': ['latent_distance', 'log_prob'],
         'history_len':[2, 3],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
