@@ -1,4 +1,4 @@
-from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEasyEnv
+from railrl.envs.mujoco.sawyer_push_and_reach_env import SawyerMultiPushAndReachEasyEnv
 from railrl.images.camera import sawyer_init_camera
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
@@ -10,7 +10,7 @@ if __name__ == "__main__":
     exp_prefix = 'test'
 
     vae_paths = {
-         "16": "/home/murtaza/Documents/rllab/railrl/data/local/05-17-sawyer-push-easy-ae/05-17-sawyer_push_easy_ae_2018_05_17_12_00_00_0000--s-49686/iter_30.pkl"
+         "16": "/home/murtaza/Documents/rllab/railrl/data/local/05-17-sawyer-multi-push-ae/05-17-sawyer_multi_push_ae_2018_05_17_12_37_03_0000--s-9903/iter_30.pkl"
     #  "16": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/params.pkl"
     }
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
         normalize=False,
         rdim=16,
         render=False,
-        env=SawyerPushXYEasyEnv,
+        env=SawyerMultiPushAndReachEasyEnv,
         use_env_goals=True,
         vae_paths=vae_paths,
         wrap_mujoco_env=True,
@@ -47,7 +47,8 @@ if __name__ == "__main__":
         reward_params=dict(
             min_variance=0,
         ),
-        use_gpu=True
+        use_gpu=True,
+        history_len=1,
     )
 
     search_space = {

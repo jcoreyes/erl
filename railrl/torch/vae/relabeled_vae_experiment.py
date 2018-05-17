@@ -36,8 +36,7 @@ def experiment(variant):
         use_env_goals = variant["use_env_goals"]
         vae_path = variant["vae_paths"][str(rdim)]
         wrap_mujoco_env = variant.get("wrap_mujoco_env", False)
-        # reward_params = variant.get("reward_params", dict())
-
+        reward_params = variant.get("reward_params", dict())
 
         init_camera = variant.get("init_camera", None)
         if init_camera is None:
@@ -172,7 +171,6 @@ def experiment(variant):
         # dump_video(video_goal_env, policy, filename)
         # filename = osp.join(logdir, 'video_0_vae.mp4')
         # dump_video(video_vae_env, policy, filename)
-
     algorithm.train()
 
     if not do_state_based_exp and save_video:

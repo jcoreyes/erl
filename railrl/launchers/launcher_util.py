@@ -551,6 +551,7 @@ def create_log_dir(
     :param exp_id: Different exp_ids will be in different directories.
     :return:
     """
+
     if variant and "run_id" in variant and variant["run_id"] is not None:
         run_id, exp_id = variant["run_id"], variant["exp_id"]
         trial_name = "run{}/id{}".format(run_id, exp_id)

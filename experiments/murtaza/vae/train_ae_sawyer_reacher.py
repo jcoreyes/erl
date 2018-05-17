@@ -3,7 +3,8 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 from railrl.torch.vae.sawyer2d_multi_push_data import generate_vae_dataset
-
+# from railrl.torch.vae.sawyer2d_reach_data import generate_vae_dataset
+# from railrl.torch.vae.sawyer2d_push_new_easy_data import generate_vae_dataset
 
 def experiment(variant):
     from railrl.core import logger
@@ -37,7 +38,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sawyer_push_easy_ae'
+    exp_prefix = 'sawyer_multi_push_ae'
     use_gpu = True
 
     variant = dict(
@@ -56,7 +57,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'representation_size': [16, 32, 64],
+        'representation_size': [16],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -69,4 +70,6 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=use_gpu,
+                snapshot_mode='gap',
+                snapshot_gap=10,
             )

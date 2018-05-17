@@ -59,4 +59,4 @@ def generate_vae_dataset(
 
 
 if __name__ == "__main__":
-    generate_vae_dataset(1000 , use_cached=True)
+    generate_vae_dataset(10000, use_cached=False)

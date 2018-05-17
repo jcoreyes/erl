@@ -56,7 +56,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         render_decoded=False,
 
         reset_on_sample_goal_for_rollout = True,
-        history_size=2,
+        history_size=1,
         reward_params=None,
         use_gpu=False,
         mode="train",
@@ -101,12 +101,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
             -10 * np.ones(self.representation_size),
             10 * np.ones(self.representation_size)
         )
-<<<<<<< HEAD
         self.history = []
-=======
         self.image_env = image_env
 
->>>>>>> origin/goal-conditioned-images-ashvin
         self.mode(mode)
         self.use_gpu = use_gpu
 

@@ -5,7 +5,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
-    n_seeds = 1
+    n_seeds = 5
     mode = 'local'
     exp_prefix = 'sawyer_reacher_autoencoder_ablation'
 
@@ -16,20 +16,21 @@ if __name__ == "__main__":
 
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=200,
+            num_epochs=1000,
             num_steps_per_epoch=50,
             num_steps_per_eval=1000,
             tau=1e-2,
             batch_size=128,
             max_path_length=50,
             discount=0.99,
+            num_updates_per_env_step=4,
         ),
         env_kwargs=dict(
             hide_goal=True,
         ),
         replay_kwargs=dict(
-            fraction_goals_are_rollout_goals=0.2,
-            fraction_goals_are_env_goals=0.5,
+            fraction_goals_are_rollout_goals=1,
+            fraction_goals_are_env_goals=0,
         ),
         algorithm='HER-TD3',
         normalize=False,
@@ -53,9 +54,6 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [1],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
-        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train'],
@@ -67,12 +65,6 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if (
-                variant['replay_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
-                and variant['replay_kwargs']['fraction_goals_are_env_goals'] == 0.5
-        ):
-            # redundant setting
-            continue
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
