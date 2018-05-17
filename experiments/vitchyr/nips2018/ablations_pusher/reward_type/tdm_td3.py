@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'pusher-ablation-reward-type'
+    exp_prefix = 'pusher-ablation-reward-type-max-path-length-100'
 
     vae_paths = {
         "16": "nips-2018-pusher/SawyerXY_vae_for_pushing.pkl",
@@ -32,7 +32,7 @@ if __name__ == "__main__":
                 num_epochs=505,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                max_path_length=50,
+                max_path_length=100,
                 num_updates_per_env_step=1,
                 batch_size=128,
                 discount=1,
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [5],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
         'replay_kwargs.fraction_goals_are_env_goals': [0.5],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
