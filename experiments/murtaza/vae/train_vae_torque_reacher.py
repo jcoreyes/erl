@@ -2,7 +2,9 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-from railrl.torch.vae.sawyer_torque_control_sim import generate_vae_dataset
+# from railrl.torch.vae.sawyer2d_multi_push_data import generate_vae_dataset
+from railrl.torch.vae.sawyer2d_reach_data import generate_vae_dataset
+# from railrl.torch.vae.sawyer2d_push_new_easy_data import generate_vae_dataset
 
 
 def experiment(variant):
@@ -37,14 +39,14 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sawyer_torque_reacher_vae'
+    exp_prefix = 'sawyer_reacher_vae'
     use_gpu = True
 
     variant = dict(
         beta=5,
         num_epochs=100,
         get_data_kwargs=dict(
-            N=5000,
+            N=10000,
             use_cached=True,
         ),
         algo_kwargs=dict(
