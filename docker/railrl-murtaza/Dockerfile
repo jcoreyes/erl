@@ -1,4 +1,9 @@
-FROM nvidia/cuda:8.0-cudnn6-devel-ubuntu16.04
+FROM ubuntu:16.04
+MAINTAINER Vitchyr Pong <@berkeley.edu>
+
+# Remove apt-util warning for Ubuntu 16.05
+# https://github.com/phusion/baseimage-docker/issues/319
+RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
 
 # ========== Anaconda ==========
 # https://github.com/ContinuumIO/docker-images/blob/master/anaconda/Dockerfile
@@ -24,7 +29,7 @@ ENV LANG C.UTF-8
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
 
 # ========== Special Deps ==========
-RUN apt-get -y install git make cmake unzip
+RUN apt-get update --fix-missing && apt-get -y install git make cmake unzip
 RUN pip install awscli
 # ALE requires zlib
 RUN apt-get -y install zlib1g-dev
@@ -42,15 +47,27 @@ RUN pip install Pillow
 # ========== OpenAI Gym ==========
 RUN apt-get -y install libgtk2.0-0
 RUN pip install gym
-#RUN apt-get -y install ffmpeg
-RUN apt-get -y install libav-tools
-CMD alias ffmpeg="avconv"
+RUN alias ffmpeg="avconv"
+# See https://github.com/openai/gym/issues/218
+RUN apt-get -y install \
+    xvfb \
+    libav-tools \
+    xorg-dev \
+    libsdl2-dev \
+    swig
+
+# ========== mujoco-py ==========
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install \
+    libosmesa6-dev
 
 # ========== Add codebase stub ==========
 RUN mkdir /root/code
 ADD railrl-env.yml /root/code/environment.yml
 RUN conda env create -f /root/code/environment.yml
 
+# This doesn't seem to work always. Not sure why.
+# I'll just add railrl-rl env to the path manually and leave this here in case
+# someone wants to fix this later
 RUN echo "source activate railrl-env" >> /root/.bashrc
 ENV BASH_ENV /root/.bashrc
 WORKDIR /root/code
@@ -60,57 +77,11 @@ ENV THEANO_FLAGS mode=FAST_RUN,device=gpu,floatX=float32
 
 ENV PATH /opt/conda/envs/railrl-env/bin:$PATH
 
-#RUN  apt-get install libglfw3
-
-#ENV DISPLAY :0
-
-
-# https://github.com/NVIDIA/nvidia-docker/issues/136
-# install EGL-Gears
-#RUN apt-get update && apt-get install -y \
-#    mesa-utils mesa-utils-extra
-
-# nvidia-docker hooks
-#LABEL com.nvidia.volumes.needed="nvidia_driver"
-#ENV PATH /usr/local/nvidia/bin:${PATH}
-#ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
-
-RUN apt-get update -q \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    cmake \
-    curl \
-    git \
-    libgl1-mesa-dev \
-    libgl1-mesa-glx \
-    libglew-dev \
-    libopenmpi-dev \
-    libosmesa6-dev \
-    python3-pip \
-    python3-numpy \
-    python3-scipy \
-    net-tools \
-    unzip \
-    vim \
-    wget \
-    xpra \
-    xserver-xorg-dev \
-    zlib1g-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sci-artifacts/manual-builds/patchelf_0.9_amd64.elf \
+# More mujoco stuff
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/.mujoco/mjpro150/bin
+RUN /usr/bin/curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sci-artifacts/manual-builds/patchelf_0.9_amd64.elf \
     && chmod +x /usr/local/bin/patchelf
+COPY .mujoco /root/.mujoco
 
-ENV LANG C.UTF-8
-
-COPY vendor/Xdummy /usr/local/bin/Xdummy
-RUN chmod +x /usr/local/bin/Xdummy
-
-RUN rm /usr/bin/python
-RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN ln -s /usr/bin/pip3 /usr/bin/pip
-
-# Workaround for https://bugs.launchpad.net/ubuntu/+source/nvidia-graphics-drivers-375/+bug/1674677
-COPY ./vendor/10_nvidia.json /usr/share/glvnd/egl_vendor.d/10_nvidia.json
-
-ENTRYPOINT ["/selfsupervised/vendor/Xdummy-entrypoint"]
+# Trigger the cython code generation
+RUN python -c "import mujoco_py"

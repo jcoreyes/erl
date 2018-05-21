@@ -4,9 +4,8 @@ import numpy as np
 import os.path as osp
 
 from railrl.envs.mujoco.sawyer_reach_torque_env import SawyerReachTorqueEnv
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
 from railrl.envs.wrappers import ImageMujocoEnv
-from railrl.images.camera import sawyer_init_camera, sawyer_torque_env_camera
+from railrl.images.camera import sawyer_torque_env_camera
 import cv2
 
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
