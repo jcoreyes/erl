@@ -11,7 +11,7 @@ base_dir = '/home/vitchyr/git/railrl/data/papers/nips2018/for-ashvin' \
 trials = get_trials(
     '/home/vitchyr/git/railrl/data/doodads3/05-16-paper-reacher-results-full-state-oracle-ish/',
     criteria={
-        'replay_buffer_kwargs.fraction_goals_are_env_goals': 1.0,
+        'replay_buffer_kwargs.fraction_resampled_goals_are_env_goals': 1.0,
         'algo_kwargs.num_updates_per_env_step': 5,
         'exploration_type': 'epsilon',
     }

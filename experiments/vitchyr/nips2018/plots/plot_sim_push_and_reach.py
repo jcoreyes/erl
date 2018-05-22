@@ -10,7 +10,7 @@ plt.style.use("ggplot")
 state_trials = get_trials(
     '/home/vitchyr/git/railrl/data/doodads3/05-12-sawyer-push-and-reach-easy/',
     criteria={
-        'replay_buffer_kwargs.fraction_goals_are_env_goals': 0.5,
+        'replay_buffer_kwargs.fraction_resampled_goals_are_env_goals': 0.5,
         'replay_buffer_kwargs.fraction_goals_are_rollout_goals': 0.2,
         'exploration_type': 'ou'
     }
@@ -25,7 +25,7 @@ td3_trials = get_trials(
 my_trials = get_trials(
     '/home/vitchyr/git/railrl/data/doodads3/05-12-sawyer-push-and-reach-easy-vae-rl',
     criteria={
-        'replay_kwargs.fraction_goals_are_env_goals': 0.5,
+        'replay_kwargs.fraction_resampled_goals_are_env_goals': 0.5,
         'replay_kwargs.fraction_goals_are_rollout_goals': 0.2,
     }
 )

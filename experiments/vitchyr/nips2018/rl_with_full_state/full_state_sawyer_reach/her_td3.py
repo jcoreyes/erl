@@ -52,7 +52,7 @@ if __name__ == "__main__":
         'algo_kwargs.num_updates_per_env_step': [
             1,
         ],
-        'replay_buffer_kwargs.fraction_goals_are_env_goals': [
+        'replay_buffer_kwargs.fraction_resampled_goals_are_env_goals': [
             0.0,
             0.5,
             1.0,
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if (
                 variant['replay_buffer_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
-                and variant['replay_buffer_kwargs']['fraction_goals_are_env_goals'] != 0.0
+                and variant['replay_buffer_kwargs']['fraction_resampled_goals_are_env_goals'] != 0.0
         ): # redundant setting
             continue
         for _ in range(n_seeds):

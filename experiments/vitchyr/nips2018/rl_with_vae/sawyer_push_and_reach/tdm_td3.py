@@ -101,7 +101,7 @@ if __name__ == "__main__":
             'ou',
         ],
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 5, 10],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
+        'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.0, 0.5, 1.0],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
         'training_mode': ['train'],
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if (
                 variant['replay_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
-                and variant['replay_kwargs']['fraction_goals_are_env_goals'] == 0.5
+                and variant['replay_kwargs']['fraction_resampled_goals_are_env_goals'] == 0.5
         ):
             # redundant setting
             continue

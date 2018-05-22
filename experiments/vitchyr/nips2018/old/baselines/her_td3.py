@@ -122,7 +122,7 @@ if __name__ == "__main__":
             1,
             # 5,
         ],
-        'replay_buffer_kwargs.fraction_goals_are_env_goals': [0.0, 0.5],
+        'replay_buffer_kwargs.fraction_resampled_goals_are_env_goals': [0.0, 0.5],
         'replay_buffer_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'algo_kwargs.max_path_length': [
             100,

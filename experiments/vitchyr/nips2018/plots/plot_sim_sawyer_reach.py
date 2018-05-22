@@ -10,7 +10,7 @@ vae_trials = get_trials(
     # '/home/vitchyr/git/railrl/data/doodads3/05-12-sawyer-reach-vae-rl-log-prob-rewards-2',
     '/home/vitchyr/git/railrl/data/doodads3/05-14-paper-sawyer-reach-vae-rl-lprob-rewards-min-var-after-fact/',
     criteria={
-        'replay_kwargs.fraction_goals_are_env_goals': 0.5,
+        'replay_kwargs.fraction_resampled_goals_are_env_goals': 0.5,
         'replay_kwargs.fraction_goals_are_rollout_goals': 0.2,
         'reward_params.min_variance': 1,
         'vae_wrapped_env_kwargs.sample_from_true_prior': False,
@@ -19,7 +19,7 @@ vae_trials = get_trials(
 state_her_td3 = get_trials(
     '/home/vitchyr/git/railrl/data/doodads3/05-13-full-state-sawyer-reach-2/',
     criteria={
-        'replay_buffer_kwargs.fraction_goals_are_env_goals': 0.5,
+        'replay_buffer_kwargs.fraction_resampled_goals_are_env_goals': 0.5,
         'replay_buffer_kwargs.fraction_goals_are_rollout_goals': 0.2,
         'exploration_type': 'ou',
     }
@@ -35,7 +35,7 @@ state_tdm_ddpg = get_trials(
 # vae_trials = get_trials(
 #     '/home/vitchyr/git/railrl/data/doodads3/05-12-sawyer-reach-vae-rl-reproduce-2/',
 #     criteria={
-#         'replay_kwargs.fraction_goals_are_env_goals': 0.5,
+#         'replay_kwargs.fraction_resampled_goals_are_env_goals': 0.5,
 #         'replay_kwargs.fraction_goals_are_rollout_goals': 0.2,
 #     }
 # )

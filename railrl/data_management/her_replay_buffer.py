@@ -554,18 +554,12 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             max_size,
             env,
             fraction_goals_are_rollout_goals=1.0, # default, no HER
-            fraction_goals_are_env_goals=0.0, # this many goals are just sampled from environment directly
+            fraction_resampled_goals_are_env_goals=0.0, # this many goals are just sampled from environment directly
             resampling_strategy='uniform', # 'uniform' is the HER 'future' strategy
             truncated_geom_factor=1.,
             reward_scale=1.0,
     ):
         """
-
-        :param max_size:
-        :param observation_dim:
-        :param action_dim:
-        :param num_goals_to_sample:
-        :param fraction_goals_are_rollout_goals:
         :param resampling_strategy: How to resample states from the rest of
         the trajectory?
         - 'uniform': Sample them uniformly
@@ -579,7 +573,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
         self._goals = np.zeros((max_size, self.env.goal_dim))
         self._num_steps_left = np.zeros((max_size, 1))
         self.fraction_goals_are_rollout_goals = fraction_goals_are_rollout_goals
-        self.fraction_goals_are_env_goals = fraction_goals_are_env_goals
+        self.fraction_resampled_goals_are_env_goals = fraction_resampled_goals_are_env_goals
         self.reward_scale = reward_scale
         self.truncated_geom_factor = float(truncated_geom_factor)
         self.resampling_strategy = resampling_strategy
@@ -711,7 +705,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
         env_infos = self._env_infos[indices]
         random_numbers = np.random.rand(batch_size)
         for i in range(batch_size):
-            if random_numbers[i] < self.fraction_goals_are_env_goals:
+            if random_numbers[i] < self.fraction_resampled_goals_are_env_goals:
                 resampled_goals[i, :] = self.env.sample_goal_for_rollout() # env_goals[i, :]
 
             new_reward = self.reward_scale * self.env.compute_her_reward_np(

@@ -19,7 +19,7 @@ base_dir = '/home/vitchyr/git/railrl/data/papers/nips2018/for-ashvin' \
 trials = get_trials(
     '/home/vitchyr/git/railrl/data/papers/nips2018/reacher-abalation-resample-strategy/',
     criteria={
-        'replay_kwargs.fraction_goals_are_env_goals': 0.5,
+        'replay_kwargs.fraction_resampled_goals_are_env_goals': 0.5,
         'replay_kwargs.fraction_goals_are_rollout_goals': 0.2,
         'algo_kwargs.num_updates_per_env_step': 5,
     }
@@ -37,7 +37,7 @@ for trial in trials:
 trials = get_trials(
     '/home/vitchyr/git/railrl/data/papers/nips2018/reacher-abalation-resample-strategy/',
     criteria={
-        'replay_kwargs.fraction_goals_are_env_goals': 1.0,
+        'replay_kwargs.fraction_resampled_goals_are_env_goals': 1.0,
         'replay_kwargs.fraction_goals_are_rollout_goals': 0.2,
         'algo_kwargs.num_updates_per_env_step': 5,
     }
@@ -55,7 +55,7 @@ for trial in trials:
 trials = get_trials(
     '/home/vitchyr/git/railrl/data/papers/nips2018/reacher-abalation-resample-strategy/',
     criteria={
-        'replay_kwargs.fraction_goals_are_env_goals': 0.0,
+        'replay_kwargs.fraction_resampled_goals_are_env_goals': 0.0,
         'replay_kwargs.fraction_goals_are_rollout_goals': 0.2,
         'algo_kwargs.num_updates_per_env_step': 5,
     }
@@ -73,7 +73,7 @@ for trial in trials:
 trials = get_trials(
     '/home/vitchyr/git/railrl/data/papers/nips2018/reacher-abalation-resample-strategy/',
     criteria={
-        'replay_kwargs.fraction_goals_are_env_goals': 0.0,
+        'replay_kwargs.fraction_resampled_goals_are_env_goals': 0.0,
         'replay_kwargs.fraction_goals_are_rollout_goals': 1.0,
         'algo_kwargs.num_updates_per_env_step': 5,
     }

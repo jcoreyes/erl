@@ -73,7 +73,7 @@ if __name__ == "__main__":
             'ou',
         ],
         'algo_kwargs.num_updates_per_env_step': [1],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.0],
+        'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.0],
         'replay_kwargs.fraction_goals_are_rollout_goals': [1.0],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4],
