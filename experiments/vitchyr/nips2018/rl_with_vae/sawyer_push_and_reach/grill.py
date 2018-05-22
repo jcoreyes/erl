@@ -16,9 +16,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
+    n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'grill-sawyer-push-zoom-camera-test-2'
+    exp_prefix = 'grill-sawyer-push-test-reward-scale-and-mahalanobis'
 
     zoomed_in_path = "05-22-vae-sawyer-new-push-easy-zoomed-in-1000_2018_05_22_13_09_28_0000--s-98682-r16/params.pkl"
     zoomed_out_path = "05-22-vae-sawyer-new-push-easy-no-zoom-1000_2018_05_22_13_10_43_0000--s-30039-r16/params.pkl"
@@ -26,8 +26,8 @@ if __name__ == "__main__":
     vae_paths = {
         # "4": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push-easy"
         #       "-3_2018_05_12_02_00_01_0000--s-91524-r4/params.pkl",
-        # "16": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
-        #       "-easy-3_2018_05_12_02_33_54_0000--s-1937-r16/params.pkl",
+        "16": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
+              "-easy-3_2018_05_12_02_33_54_0000--s-1937-r16/params.pkl",
         # "64": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
         #       "-easy-3_2018_05_12_03_06_20_0000--s-33176-r64/params.pkl",
     }
@@ -42,8 +42,6 @@ if __name__ == "__main__":
             max_path_length=100,
             discount=0.99,
             min_num_steps_before_training=1000,
-            # qf_learning_rate=1e-3,
-            # policy_learning_rate=1e-4,
         ),
         env_kwargs=dict(
             hide_goal=True,
@@ -77,19 +75,24 @@ if __name__ == "__main__":
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1, 1e-4],
+        'reward_params.type': [
+            'mahalanobis_distance',
+            'log_prob',
+            'latent_distance',
+        ],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
         'rdim': [16],
-        'init_camera': [sawyer_init_camera_zoomed_in, sawyer_init_camera],
+        # 'init_camera': [sawyer_init_camera_zoomed_in, sawyer_init_camera],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if variant['init_camera'] == sawyer_init_camera_zoomed_in:
-            variant['vae_paths']['16'] = zoomed_in_path
-        elif variant['init_camera'] == sawyer_init_camera:
-            variant['vae_paths']['16'] = zoomed_out_path
+        # if variant['init_camera'] == sawyer_init_camera_zoomed_in:
+        #     variant['vae_paths']['16'] = zoomed_in_path
+        # elif variant['init_camera'] == sawyer_init_camera:
+        #     variant['vae_paths']['16'] = zoomed_out_path
         for _ in range(n_seeds):
             run_experiment(
                 experiment,

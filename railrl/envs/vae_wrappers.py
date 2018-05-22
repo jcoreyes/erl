@@ -153,15 +153,18 @@ class VAEWrappedEnv(ProxyEnv, Env):
             var = np.maximum(var, self.reward_min_variance)
             err = dist * dist / 2 / var
             mdist = np.sum(err) # mahalanobis distance
-            if self.reward_type == "latent_distance":
-                reward = - np.linalg.norm(dist)
-            elif self.reward_type == "log_prob":
-                reward = -mdist
-            elif self.reward_type == "sparse":
-                reward = 0 if mdist < self.epsilon else -1
             info["vae_mdist"] = mdist
             info["vae_success"] = 1 if mdist < self.epsilon else 0
             info["var"] = var
+            reward = self.compute_her_reward_np(
+                None,
+                action,
+                observation,
+                self.vae_goal,
+                env_info=[info],
+            )
+        else:
+            raise NotImplementedError()
 
         return observation, reward, done, info
 
@@ -186,6 +189,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.render_goals = True
         self.render_rollouts = True
         self.render_decoded = True
+
+    def disable_render(self):
+        self.decode_goals = False
+        self.render_goals = False
+        self.render_rollouts = False
+        self.render_decoded = False
 
     """
     Multitask functions
@@ -303,6 +312,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
         mdist = np.sum(err) # mahalanobis distance
         if self.reward_type == "log_prob":
             reward = -mdist
+        elif self.reward_type == "mahalanobis_distance":
+            reward = -np.sqrt(mdist)
         elif self.reward_type == "sparse":
             reward = 0 if mdist < self.epsilon else -1
         else:
