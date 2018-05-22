@@ -1,4 +1,4 @@
-from railrl.envs.wrappers import ProxyEnv
+from railrl.envs.wrappers import ProxyEnv, HistoryEnv
 import abc
 from collections import OrderedDict
 
@@ -401,3 +401,28 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
 
     def joints_to_full_state(self, *args, **kwargs):
         return self._wrapped_env.joints_to_full_state(*args, **kwargs)
+
+class MultiTaskHistoryEnv(HistoryEnv, MultitaskEnv):
+    @property
+    def goal_dim(self) -> int:
+        return self._wrapped_env.goal_dim
+
+    def sample_goal_for_rollout(self):
+        return self._wrapped_env.sample_goal_for_rollout()
+
+    def set_goal(self, goal):
+        self._wrapped_env.set_goal(goal)
+
+    def get_goal(self):
+        return self._wrapped_env.get_goal()
+
+    def convert_obs_to_goals(self, obs):
+        obs_dim = int(obs.shape[1]/self.history_len)
+        obs = obs[:, (self.history_len - 1) * obs_dim:]
+        return self._wrapped_env.convert_obs_to_goals(obs)
+
+    def sample_goals(self, batch_size):
+        raise self._wrapped_env.sample_goals(batch_size)
+
+    def set_to_goal(self, goal):
+        self._wrapped_env.set_to_goal(goal)

@@ -3,7 +3,7 @@ import mujoco_py
 import numpy as np
 import gym.spaces
 import itertools
-from gym import Env
+from gym import Env, spaces
 from gym.spaces import Box
 from gym.spaces import Discrete
 from PIL import Image
@@ -38,8 +38,8 @@ class ProxyEnv(Serializable, Env):
 
     def log_diagnostics(self, paths, logger=None, *args, **kwargs):
         if hasattr(self._wrapped_env, 'log_diagnostics'):
-            self._wrapped_env.log_diagnostics(paths, logger=logger, *args, **kwargs)
-
+            # self._wrapped_env.log_diagnostics(paths, logger=logger, *args, **kwargs)
+            self._wrapped_env.log_diagnostics(paths, *args, **kwargs)
     @property
     def horizon(self):
         return self._wrapped_env.horizon
@@ -52,6 +52,41 @@ class ProxyEnv(Serializable, Env):
         if attrname == '_serializable_initialized':
             return None
         return getattr(self._wrapped_env, attrname)
+
+class HistoryEnv(ProxyEnv, Env):
+    def __init__(self, wrapped_env, history_len):
+        self.quick_init(locals())
+        super().__init__(wrapped_env)
+        self.history_len = history_len
+
+        high = np.inf * np.ones(self.history_len*self.obs_dim)
+        low = -high
+        self.observation_space = Box(low=low,
+                                     high=high,
+                                     )
+        self.history = deque(maxlen=self.history_len)
+
+    def step(self, action):
+        state, reward, done, info = super().step(action)
+        self.history.append(state)
+        flattened_history = self._get_history().flatten()
+        return flattened_history, reward, done, info
+
+    def reset(self, **kwargs):
+        state = super().reset()
+        self.history = deque(maxlen=self.history_len)
+        self.history.append(state)
+        flattened_history = self._get_history().flatten()
+        return flattened_history
+
+    def _get_history(self):
+        observations = list(self.history)
+
+        obs_count = len(observations)
+        for _ in range(self.history_len - obs_count):
+            dummy = np.zeros(self._wrapped_env.observation_space.low.size)
+            observations.append(dummy)
+        return np.c_[observations]
 
 
 class ImageMujocoEnv(ProxyEnv, Env):
