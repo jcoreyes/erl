@@ -6,8 +6,8 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_torque_control_vae_fixed_history_bug'
+    mode = 'local_docker'
+    exp_prefix = 'sawyer_torque_control_vae_history_len_2'
 
     vae_paths = {
      "16": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_params.pkl"
@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=200,
+            num_epochs=500,
             num_steps_per_epoch=50,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -43,28 +43,24 @@ if __name__ == "__main__":
         init_camera=sawyer_torque_env_camera,
         version='normal',
         reward_params=dict(
-            min_variance=0,
         ),
         use_gpu=True
     )
 
     search_space = {
         'exploration_type': [
-            'epsilon',
             'ou',
-            'gaussian',
         ],
-        'algo_kwargs.num_updates_per_env_step': [1, 25],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.0, 0.5, 1.0],
-        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
+        'algo_kwargs.num_updates_per_env_step': [5],
+        'replay_kwargs.fraction_goals_are_env_goals': [0.5, 1.0],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
-        'algo_kwargs.reward_scale': [1e-4, 1e-3, 1e-2, 1],
+        'algo_kwargs.reward_scale': [1e-4,],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
-        'use_env_goals':[True, False],
         'rdim': [16],
         'reward_params.type': ['latent_distance', 'log_prob'],
-        'history_len':[2, 3],
+        'history_len':[2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

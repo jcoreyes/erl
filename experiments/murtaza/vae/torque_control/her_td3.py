@@ -7,7 +7,7 @@ from railrl.launchers.launcher_util import run_experiment
 if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=200,
+            num_epochs=500,
             num_steps_per_epoch=50,
             num_steps_per_eval=1000,
             max_path_length=50,
@@ -17,7 +17,9 @@ if __name__ == "__main__":
             min_num_steps_before_training=128,
         ),
         env_class=SawyerReachTorqueEnv,
-        env_kwargs=dict(),
+        env_kwargs=dict(
+            keep_vel_in_obs=False,
+        ),
         replay_buffer_class=RelabelingReplayBuffer,
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
@@ -36,31 +38,30 @@ if __name__ == "__main__":
     )
 
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'full-state-sawyer-torque-reach'
+    mode = 'local'
+    exp_prefix = 'test'
 
     search_space = {
         'algo_kwargs.num_updates_per_env_step': [
             1,
             5,
-            25,
+            10,
         ],
         'replay_buffer_kwargs.fraction_goals_are_env_goals': [
-            0.0,
             0.5,
             1.0,
         ],
         'replay_buffer_kwargs.fraction_goals_are_rollout_goals': [
             0.2,
-            1.0,
         ],
         'env_kwargs.reward_info.type': [
             'euclidean',
         ],
         'exploration_type': [
-            'epsilon',
             'ou',
-            'gaussian',
+        ],
+        'history_len': [
+            1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
