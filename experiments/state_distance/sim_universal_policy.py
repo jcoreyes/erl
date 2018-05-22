@@ -78,7 +78,6 @@ if __name__ == "__main__":
             print("last state", path['next_observations'][-1][21:24])
             paths.append(path)
         env.log_diagnostics(paths)
-        import ipdb; ipdb.set_trace()
         for key, value in get_generic_path_information(paths).items():
             logger.record_tabular(key, value)
         logger.dump_tabular()

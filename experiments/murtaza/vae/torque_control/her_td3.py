@@ -61,7 +61,7 @@ if __name__ == "__main__":
             'ou',
         ],
         'history_len': [
-            1,
+            2,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
