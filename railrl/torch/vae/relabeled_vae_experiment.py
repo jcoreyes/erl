@@ -56,13 +56,14 @@ def experiment(variant):
 
         use_vae_goals = not use_env_goals
         env = VAEWrappedEnv(env, vae_path, use_vae_obs=True,
-            use_vae_reward=True, use_vae_goals=use_vae_goals,
+            use_vae_reward=variant.get('use_vae_reward', True), use_vae_goals=use_vae_goals,
             decode_goals=render,
             render_goals=render, render_rollouts=render,
             render_decoded=render,
             reward_params=reward_params,
             history_size=variant['history_len'],
             use_gpu = variant['use_gpu'],
+            use_state_reward=variant.get('use_state_reward', False),
             **variant.get('vae_wrapped_env_kwargs', {})
         )
 
