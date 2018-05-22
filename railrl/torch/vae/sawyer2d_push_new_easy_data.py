@@ -15,9 +15,13 @@ from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 
 def generate_vae_dataset(
         N=10000, test_p=0.9, use_cached=True, imsize=84, show=False,
+        init_camera=sawyer_init_camera_zoomed_in,
         dataset_path=None,
 ):
-    filename = "/tmp/sawyer_push_new_easy" + str(N) + ".npy"
+    filename = "/tmp/sawyer_push_new_easy{}_{}.npy".format(
+        str(N),
+        init_camera.__name__,
+    )
     info = {}
     if dataset_path is not None:
         filename = local_path_from_s3_or_local_path(dataset_path)
@@ -31,8 +35,7 @@ def generate_vae_dataset(
         env = ImageMujocoEnv(
             env, imsize,
             transpose=True,
-            init_camera=sawyer_init_camera_zoomed_in,
-            # init_camera=sawyer_init_camera,
+            init_camera=init_camera,
             normalize=True,
         )
         info['env'] = env
@@ -60,4 +63,9 @@ def generate_vae_dataset(
 
 
 if __name__ == "__main__":
-    generate_vae_dataset(10, use_cached=False, show=True)
+    generate_vae_dataset(
+        1000,
+        use_cached=False,
+        # show=True,
+        init_camera=sawyer_init_camera_zoomed_in,
+    )

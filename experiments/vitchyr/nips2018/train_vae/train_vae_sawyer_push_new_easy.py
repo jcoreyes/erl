@@ -1,5 +1,9 @@
 
 import railrl.misc.hyperparameter as hyp
+from railrl.images.camera import (
+    sawyer_init_camera_zoomed_in,
+    sawyer_init_camera,
+)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
@@ -43,13 +47,14 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'ec2'
-    exp_prefix = 'vae-sawyer-new-push-easy-3'
+    exp_prefix = 'vae-sawyer-new-push-easy-zoomed-in-1000'
 
     variant = dict(
         beta=5.0,
         num_epochs=500,
         get_data_kwargs=dict(
-            N=5000,
+            N=1000,
+            init_camera=sawyer_init_camera_zoomed_in,
         ),
         algo_kwargs=dict(
             do_scatterplot=False,
