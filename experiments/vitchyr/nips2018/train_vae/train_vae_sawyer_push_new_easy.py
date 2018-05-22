@@ -47,29 +47,33 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'ec2'
-    exp_prefix = 'vae-sawyer-new-push-easy-zoomed-in-1000'
+    # exp_prefix = 'vae-sawyer-new-push-easy-zoomed-in-1000'
+    exp_prefix = 'vae-sawyer-new-push-easy-no-zoom-1000'
 
     variant = dict(
         beta=5.0,
-        num_epochs=500,
+        num_epochs=100,
         get_data_kwargs=dict(
-            N=1000,
-            init_camera=sawyer_init_camera_zoomed_in,
+            # N=1000,
+            # init_camera=sawyer_init_camera_zoomed_in,
+            dataset_path='05-22-sawyer_push_dataset'
+                         '/sawyer_push_new_easy1000_sawyer_init_camera.npy',
+                         # '/sawyer_push_new_easy1000_sawyer_init_camera_zoomed_in.npy',
         ),
         algo_kwargs=dict(
             do_scatterplot=False,
             lr=1e-3,
         ),
         beta_schedule_kwargs=dict(
-            x_values=[0, 100, 200, 500],
+            x_values=[0, 30, 100],
             # y_values=[0, 0, 0.1, 0.5],
-            y_values=[0, 0, 5, 5],
+            y_values=[0, 5, 5],
         ),
         save_period=5,
     )
 
     search_space = {
-        'representation_size': [4, 8, 16, 32, 64],
+        'representation_size': [16],
         # 'beta_schedule_kwargs.y_values': [
         #     [0, 0, 0.1, 0.5],
         #     [0, 0, 0.1, 0.1],

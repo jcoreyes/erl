@@ -26,6 +26,7 @@ def generate_vae_dataset(
     if dataset_path is not None:
         filename = local_path_from_s3_or_local_path(dataset_path)
         dataset = np.load(filename)
+        N = dataset.shape[0]
     elif use_cached and osp.isfile(filename):
         dataset = np.load(filename)
         print("loaded data from saved file", filename)
@@ -64,7 +65,7 @@ def generate_vae_dataset(
 
 if __name__ == "__main__":
     generate_vae_dataset(
-        1000,
+        10,
         use_cached=False,
         # show=True,
         init_camera=sawyer_init_camera_zoomed_in,
