@@ -53,7 +53,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         decode_goals=False,
         render_goals=False,
         render_rollouts=False,
-        render_decoded=False,
 
         reset_on_sample_goal_for_rollout = True,
 
@@ -79,7 +78,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.decode_goals = decode_goals
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
-        self.render_decoded = render_decoded
 
         self.reset_on_sample_goal_for_rollout = reset_on_sample_goal_for_rollout
 
@@ -116,13 +114,11 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.decode_goals = True
             self.render_goals = False
             self.render_rollouts = False
-            self.render_decoded = False
         elif name == "video_env":
             self.use_vae_goals = False
             self.decode_goals = False
             self.render_goals = False
             self.render_rollouts = False
-            self.render_decoded = False
         else:
             error
 
@@ -188,13 +184,11 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.decode_goals = True
         self.render_goals = True
         self.render_rollouts = True
-        self.render_decoded = True
 
     def disable_render(self):
         self.decode_goals = False
         self.render_goals = False
         self.render_rollouts = False
-        self.render_decoded = False
 
     """
     Multitask functions
@@ -244,9 +238,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
             observation = ptu.get_numpy(observation)
             self.goal_decoded = observation.reshape(self.input_channels, 84, 84).transpose()
 
-        if self.use_vae_goals:
-            if self.decode_goals:
-                self.goal_obs = self.goal_decoded
+        if self.use_vae_goals and self.decode_goals:
+            self.goal_obs = self.goal_decoded
         else:
             self.goal_obs = self.true_goal_obs
 
