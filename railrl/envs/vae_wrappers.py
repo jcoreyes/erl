@@ -161,7 +161,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 action,
                 observation,
                 self.vae_goal,
-                env_info=[info],
+                env_info=info,
             )
         else:
             raise NotImplementedError()
@@ -305,7 +305,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             raise NotImplementedError
         if not self.use_vae_reward:
             raise NotImplementedError
-        var = env_info[0]['var']
+        var = env_info['var']
         dist = goal - next_observation
         var = np.maximum(var, self.reward_min_variance)
         err = dist * dist / 2 / var

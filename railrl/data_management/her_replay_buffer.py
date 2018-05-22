@@ -584,7 +584,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
         self.truncated_geom_factor = float(truncated_geom_factor)
         self.resampling_strategy = resampling_strategy
         # Hack for now for NIPS2018
-        self._env_infos = np.array([[None]] * max_size)
+        self._env_infos = np.array([None] * max_size)
 
         # Let j be any index in self._idx_to_future_obs_idx[i]
         # Then self._next_obs[j] is a valid next observation for observation i
@@ -602,7 +602,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
         terminals = path["terminals"]
         goals = path["goals"]
         num_steps_left = path["rewards"].copy() # path["num_steps_left"] # irrelevant for non-TDM
-        env_infos = np.array(path["env_infos"]).reshape(-1, 1)
+        env_infos = np.array(path["env_infos"])
         path_len = len(rewards)
 
         actions = flatten_n(actions)
@@ -655,7 +655,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             self._terminals[slc] = terminals
             self._goals[slc] = goals
             self._num_steps_left[slc] = num_steps_left
-            self._env_infos[slc] = env_infos
+            self._env_infos[self._top:self._top+path_len] = env_infos
             for i in range(self._top, self._top + path_len):
                 self._idx_to_future_obs_idx[i] = np.arange(
                     i, self._top + path_len
@@ -710,7 +710,6 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
         new_rewards = self._rewards[indices].copy() # needs to be recomputed
         env_infos = self._env_infos[indices]
         random_numbers = np.random.rand(batch_size)
-        # env_goals = self.env.sample_goals(batch_size)
         for i in range(batch_size):
             if random_numbers[i] < self.fraction_goals_are_env_goals:
                 resampled_goals[i, :] = self.env.sample_goal_for_rollout() # env_goals[i, :]
@@ -720,7 +719,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
                 new_actions[i, :],
                 new_next_obs[i, :],
                 resampled_goals[i, :],
-                env_infos[i, :],
+                env_infos[i],
             )
             new_rewards[i] = new_reward
 
