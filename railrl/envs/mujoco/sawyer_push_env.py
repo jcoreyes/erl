@@ -324,9 +324,10 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
         MultitaskEnv.set_goal(self, goal)
         self.set_goal_xy(goal)
 
-    def set_to_goal(self, goal):
+    def set_to_goal(self, goal, reset_hand=True):
         # Hack for now since there isn't a goal hand position
-        self.reset(resample_block=False)
+        if reset_hand:
+            self.reset(resample_block=False)
         self.set_block_xy(goal)
 
     def convert_obs_to_goals(self, obs):

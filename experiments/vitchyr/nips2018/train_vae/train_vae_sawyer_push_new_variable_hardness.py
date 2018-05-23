@@ -1,8 +1,10 @@
 
 import railrl.misc.hyperparameter as hyp
 from railrl.images.camera import (
-    sawyer_init_camera_zoomed_in,
-    sawyer_init_camera,
+    # sawyer_init_camera_zoomed_in,
+    # sawyer_init_camera,
+    # sawyer_init_camera_zoomed_in_fixed,
+    sawyer_init_camera_zoomed_out_fixed,
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
@@ -49,17 +51,13 @@ if __name__ == "__main__":
     # mode = 'ec2'
     # exp_prefix = 'vae-sawyer-new-push-easy-zoomed-in-1000'
     # exp_prefix = 'vae-sawyer-variable-zoomed-in'
-    exp_prefix = 'vae-sawyer-variable-no-zoom-300-epochs'
+    exp_prefix = 'vae-sawyer-variable-fixed-zoomed-out-N-100--500-epochs'
 
     variant = dict(
         beta=5.0,
-        num_epochs=300,
+        num_epochs=500,
         generate_vae_dataset_kwargs=dict(
-            N=1000,
-            init_camera=sawyer_init_camera_zoomed_in,
-            dataset_path='05-22-sawyer_push_dataset'
-                         '/sawyer_push_variable1000_sawyer_init_camera.npy',
-                         # '/sawyer_push_variable1000_sawyer_init_camera_zoomed_in.npy',
+            N=100,
             env_kwargs=dict(
                 init_goal_low=(-0.15, 0.5),
                 init_goal_high=(0.15, 0.7),
@@ -71,7 +69,7 @@ if __name__ == "__main__":
         ),
         # TODO: automate this process
         beta_schedule_kwargs=dict(
-            x_values=[0, 100, 200, 300],
+            x_values=[0, 100, 200, 500],
             # y_values=[0, 0, 0.1, 0.5],
             y_values=[0, 0, 5, 5],
         ),
@@ -88,7 +86,9 @@ if __name__ == "__main__":
         # 'algo_kwargs.lr': [1e-3, 1e-2],
         'generate_vae_dataset_kwargs.init_camera': [
             # sawyer_init_camera_zoomed_in,
-            sawyer_init_camera,
+            # sawyer_init_camera,
+            # sawyer_init_camera_zoomed_in_fixed,
+            sawyer_init_camera_zoomed_out_fixed,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
