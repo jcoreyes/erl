@@ -42,15 +42,16 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'ec2'
-    exp_prefix = 'sawyer-vae-reacher-no-min-var'
+    # exp_prefix = 'sawyer-vae-reacher-beta-0-epoch-100'
+    exp_prefix = 'sawyer-vae-reacher-train-with-100'
     # use_gpu = False
 
     variant = dict(
-        beta=5.0,
+        beta=5,
         num_epochs=100,
         get_data_kwargs=dict(
-            N=5000,
-            dataset_path="05-10-sawyer-reacher/sawyer_reacher_5000.npy",
+            N=100,
+            # dataset_path="05-10-sawyer-reacher/sawyer_reacher_5000.npy",
         ),
         algo_kwargs=dict(
         ),

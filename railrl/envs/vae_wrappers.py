@@ -53,7 +53,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         decode_goals=False,
         render_goals=False,
         render_rollouts=False,
-        render_decoded=False,
 
         reset_on_sample_goal_for_rollout = True,
         history_size=1,
@@ -81,7 +80,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.decode_goals = decode_goals
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
-        self.render_decoded = render_decoded
 
         self.reset_on_sample_goal_for_rollout = reset_on_sample_goal_for_rollout
 
@@ -122,13 +120,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.decode_goals = True
             self.render_goals = False
             self.render_rollouts = False
-            self.render_decoded = False
         elif name == "video_env":
             self.use_vae_goals = False
             self.decode_goals = False
             self.render_goals = False
             self.render_rollouts = False
             self.render_decoded = False
+        else:
+            error
 
     def _get_history(self):
         observations = list(self.history)
@@ -159,7 +158,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 self.vae.cuda()
             mu, logvar = self.vae.encode(img)
             observation = ptu.get_numpy(mu).flatten()
-
         if self.use_vae_reward:
             # replace reward with Euclidean distance in VAE latent space
             # currently assumes obs and goals are also from VAE
@@ -168,23 +166,27 @@ class VAEWrappedEnv(ProxyEnv, Env):
             var = np.maximum(var, self.reward_min_variance)
             err = dist * dist / 2 / var
             mdist = np.sum(err) # mahalanobis distance
-            if self.reward_type == "latent_distance":
-                reward = - np.linalg.norm(dist)
-            elif self.reward_type == "log_prob":
-                reward = -mdist
-            elif self.reward_type == "sparse":
-                reward = 0 if mdist < self.epsilon else -1
             info["vae_mdist"] = mdist
             info["vae_success"] = 1 if mdist < self.epsilon else 0
             info["var"] = var
-        if self.use_state_reward:
+            self.history.append(observation)
+            observation = self._get_history().flatten()
+            reward = self.compute_her_reward_np(
+                None,
+                action,
+                observation,
+                self.vae_goal,
+                env_info=info,
+            )
+        elif self.use_state_reward:
             #assume goal is not in vae space
             state_obs = self._wrapped_env._wrapped_env._get_obs()
             info['state_goal'] = self.state_goal
             info['state_obs'] = state_obs
 
-        self.history.append(observation)
-        observation = self._get_history().flatten()
+        else:
+            raise NotImplementedError()
+
         return observation, reward, done, info
 
     def reset(self):
@@ -214,7 +216,11 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.decode_goals = True
         self.render_goals = True
         self.render_rollouts = True
-        self.render_decoded = True
+
+    def disable_render(self):
+        self.decode_goals = False
+        self.render_goals = False
+        self.render_rollouts = False
 
     """
     Multitask functions
@@ -338,13 +344,15 @@ class VAEWrappedEnv(ProxyEnv, Env):
             raise NotImplementedError
         if not self.use_vae_reward:
             raise NotImplementedError
-        var = env_info[0]['var']
+        var = env_info['var']
         dist = goal - next_observation
         var = np.maximum(var, self.reward_min_variance)
         err = dist * dist / 2 / var
         mdist = np.sum(err) # mahalanobis distance
         if self.reward_type == "log_prob":
             reward = -mdist
+        elif self.reward_type == "mahalanobis_distance":
+            reward = -np.sqrt(mdist)
         elif self.reward_type == "sparse":
             reward = 0 if mdist < self.epsilon else -1
         else:

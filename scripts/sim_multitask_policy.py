@@ -1,13 +1,15 @@
+import argparse
+import pickle
+
+import numpy as np
+
+from railrl.core import logger
 from railrl.envs.remote import RemoteRolloutEnv
-from railrl.samplers.util import rollout
+from railrl.envs.vae_wrappers import VAEWrappedEnv
+from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.torch.core import PyTorchModule
 from railrl.torch.pytorch_util import set_gpu_mode
-import argparse
-import joblib
-import uuid
-from railrl.core import logger
-import numpy as np
-import pickle
+
 
 def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
     observations = []
@@ -80,7 +82,11 @@ def simulate_policy(args):
         import ipdb; ipdb.set_trace()
     if args.mode:
         env.mode(args.mode)
-    if args.enable_render:
+    is_mj_env = (
+        isinstance(env, VAEWrappedEnv) and
+        isinstance(env.wrapped_env, ImageMujocoEnv)
+    )
+    if args.enable_render or is_mj_env:
         # some environments need to be reconfigured for visualization
         env.enable_render()
     if args.multitaskpause:
@@ -93,7 +99,7 @@ def simulate_policy(args):
             env,
             policy,
             max_path_length=args.H,
-            animated=not args.hide,
+            animated=not args.hide and not is_mj_env,
         ))
         if hasattr(env, "log_diagnostics"):
             env.log_diagnostics(paths)

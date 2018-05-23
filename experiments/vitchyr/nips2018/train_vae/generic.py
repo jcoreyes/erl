@@ -48,7 +48,7 @@ if __name__ == "__main__":
     # n_seeds = 1
     # mode = 'ec2'
     # exp_prefix = 'vae-sawyer-new-push-easy-zoomed-in-1000'
-    exp_prefix = 'vae-sawyer-new-push-easy-no-zoom-1000'
+    exp_prefix = 'vae-sawyer-reset-free-zoomed-in'
 
     variant = dict(
         beta=5.0,
@@ -57,8 +57,7 @@ if __name__ == "__main__":
             # N=1000,
             # init_camera=sawyer_init_camera_zoomed_in,
             dataset_path='05-22-sawyer_push_dataset'
-                         '/sawyer_push_new_easy1000_sawyer_init_camera.npy',
-                         # '/sawyer_push_new_easy1000_sawyer_init_camera_zoomed_in.npy',
+                         '/sawyer_reset_free_push1000_sawyer_init_camera_zoomed_in.npy'
         ),
         algo_kwargs=dict(
             do_scatterplot=False,

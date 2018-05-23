@@ -3,14 +3,13 @@ import time
 import numpy as np
 import os.path as osp
 
-from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv, \
-    SawyerPushXYEasyEnv
+from railrl.envs.mujoco.sawyer_reset_free_push_env import SawyerResetFreePushEnv
 from railrl.envs.wrappers import ImageMujocoEnv
-from railrl.images.camera import sawyer_init_camera, \
-    sawyer_init_camera_zoomed_in
+from railrl.images.camera import sawyer_init_camera, sawyer_init_camera_zoomed_in
 import cv2
 
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+
 
 
 def generate_vae_dataset(
@@ -18,7 +17,10 @@ def generate_vae_dataset(
         init_camera=sawyer_init_camera_zoomed_in,
         dataset_path=None,
 ):
-    filename = "/tmp/sawyer_push_new_easy{}_{}.npy".format(
+    """
+    Oracle means that we use `set_to_goal` rather than doing random rollouts.
+    """
+    filename = "/tmp/sawyer_reset_free_push{}_{}.npy".format(
         str(N),
         init_camera.__name__,
     )
@@ -32,7 +34,7 @@ def generate_vae_dataset(
         print("loaded data from saved file", filename)
     else:
         now = time.time()
-        env = SawyerPushXYEasyEnv(hide_goal=True)
+        env = SawyerResetFreePushEnv(hide_goal=True)
         env = ImageMujocoEnv(
             env, imsize,
             transpose=True,
@@ -43,13 +45,11 @@ def generate_vae_dataset(
 
         dataset = np.zeros((N, imsize * imsize * 3))
         for i in range(N):
-            env.reset()
-            for _ in range(100):
-                action = env.wrapped_env.action_space.sample()
-                # action[0] = 0
-                # action[1] = 1
-                env.wrapped_env.step(action)
-            img = env.step(env.action_space.sample())[0]
+            goal = env.sample_goal_for_rollout()
+            hand_pos = env.sample_hand_xy()
+            env.set_to_goal(goal)
+            env.set_hand_xy(hand_pos)
+            img = env.reset()
             dataset[i, :] = img
             if show:
                 cv2.imshow('img', img.reshape(3, 84, 84).transpose())
@@ -64,9 +64,4 @@ def generate_vae_dataset(
 
 
 if __name__ == "__main__":
-    generate_vae_dataset(
-        10,
-        use_cached=False,
-        # show=True,
-        init_camera=sawyer_init_camera_zoomed_in,
-    )
+    generate_vae_dataset(1000, use_cached=False, show=True)

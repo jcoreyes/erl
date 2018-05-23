@@ -139,8 +139,8 @@ class ImageMujocoEnv(ProxyEnv, Env):
         full_obs = self._get_obs(history, true_state)
         return full_obs, reward, done, info
 
-    def reset(self):
-        true_state = super().reset()
+    def reset(self, **kwargs):
+        true_state = super().reset(**kwargs)
         self.history = deque(maxlen=self.history_length)
 
         observation = self._image_observation()

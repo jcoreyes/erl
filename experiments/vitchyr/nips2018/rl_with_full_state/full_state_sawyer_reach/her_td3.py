@@ -44,17 +44,18 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'full-state-sawyer-reach-2'
+    n_seeds = 5
+    mode = 'ec2'
+    exp_prefix = 'paper-reacher-results-full-state-oracle-ish'
 
     search_space = {
         'algo_kwargs.num_updates_per_env_step': [
             1,
         ],
-        'replay_buffer_kwargs.fraction_goals_are_env_goals': [
-            # 0.0,
+        'replay_buffer_kwargs.fraction_resampled_goals_are_env_goals': [
+            0.0,
             0.5,
+            1.0,
         ],
         'replay_buffer_kwargs.fraction_goals_are_rollout_goals': [
             0.2,
@@ -66,9 +67,9 @@ if __name__ == "__main__":
             'euclidean',
         ],
         'exploration_type': [
-            # 'epsilon',
+            'epsilon',
             'ou',
-            # 'gaussian',
+            'gaussian',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -77,7 +78,7 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if (
                 variant['replay_buffer_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
-                and variant['replay_buffer_kwargs']['fraction_goals_are_env_goals'] != 0.0
+                and variant['replay_buffer_kwargs']['fraction_resampled_goals_are_env_goals'] != 0.0
         ): # redundant setting
             continue
         for _ in range(n_seeds):

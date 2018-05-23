@@ -14,9 +14,10 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 5
+    n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'grill-reacher-only-100-2'
+    # exp_prefix = 'tbd-goal-conditioned-td3-sawyer-reach-vae-rl'
+    exp_prefix = 'tbd-ablation-resampling-strat-td3-sawyer-reach-vae-rl'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -31,10 +32,7 @@ if __name__ == "__main__":
         # "16": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
         #       "-reacher-recreate-results_2018_05_11_01_28_52_0000--s-570-r16"
         #       "/params.pkl",
-        # "16": "05-12-sawyer-vae-reacher-no-min-var/05-12-sawyer-vae-reacher-no-min-var_2018_05_12_23_51_16_0000--s-15031-r16/params.pkl"
-        "16": "05-17-sawyer-vae-reacher"
-              "-train-with-100/05-17-sawyer-vae-reacher-train-with"
-              "-100_2018_05_17_20_17_32_0000--s-96338-r16/params.pkl"
+        "16": "05-12-sawyer-vae-reacher-no-min-var/05-12-sawyer-vae-reacher-no-min-var_2018_05_12_23_51_16_0000--s-15031-r16/params.pkl"
     }
 
     variant = dict(
@@ -57,8 +55,8 @@ if __name__ == "__main__":
             # ),
         ),
         replay_kwargs=dict(
-            fraction_goals_are_rollout_goals=0.2,
-            fraction_goals_are_env_goals=0.5,
+            fraction_goals_are_rollout_goals=1.0,
+            fraction_goals_are_env_goals=0.0,
         ),
         algorithm='HER-TD3',
         normalize=False,
@@ -81,10 +79,10 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [4],
-        'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.5],
-        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
+        'algo_kwargs.num_updates_per_env_step': [1, 5, 10],
+        'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.0, 0.5, 1.0],
+        'replay_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
@@ -99,7 +97,7 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if (
                 variant['replay_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
-                and variant['replay_kwargs']['fraction_resampled_goals_are_env_goals'] == 0.5
+                and variant['replay_kwargs']['fraction_resampled_goals_are_env_goals'] != 0.0
         ):
             # redundant setting
             continue

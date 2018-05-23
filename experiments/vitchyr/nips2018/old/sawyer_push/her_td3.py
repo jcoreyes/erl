@@ -52,7 +52,7 @@ if __name__ == "__main__":
             1,
             # 5,
         ],
-        'replay_buffer_kwargs.fraction_goals_are_env_goals': [
+        'replay_buffer_kwargs.fraction_resampled_goals_are_env_goals': [
             0.0,
             0.5,
         ],
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if (
             variant['replay_buffer_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
-            and variant['replay_buffer_kwargs']['fraction_goals_are_env_goals'] == 0.5
+            and variant['replay_buffer_kwargs']['fraction_resampled_goals_are_env_goals'] == 0.5
         ):
             # redundant
             continue

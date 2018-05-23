@@ -7,7 +7,7 @@ from railrl.images.camera import (
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-from railrl.torch.vae.sawyer2d_push_new_easy_data import generate_vae_dataset
+from railrl.torch.vae.sawyer2d_reset_free_push_img_data import generate_vae_dataset
 
 
 def experiment(variant):
@@ -16,7 +16,7 @@ def experiment(variant):
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     train_data, test_data, info = generate_vae_dataset(
-        **variant['get_data_kwargs']
+        **variant['generate_vae_dataset_kwargs']
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
@@ -48,17 +48,15 @@ if __name__ == "__main__":
     # n_seeds = 1
     # mode = 'ec2'
     # exp_prefix = 'vae-sawyer-new-push-easy-zoomed-in-1000'
-    exp_prefix = 'vae-sawyer-new-push-easy-no-zoom-1000'
+    # exp_prefix = 'vae-sawyer-variable-zoomed-in'
+    exp_prefix = 'vae-sawyer-pusher-reset-free'
 
     variant = dict(
         beta=5.0,
-        num_epochs=100,
-        get_data_kwargs=dict(
-            # N=1000,
-            # init_camera=sawyer_init_camera_zoomed_in,
-            dataset_path='05-22-sawyer_push_dataset'
-                         '/sawyer_push_new_easy1000_sawyer_init_camera.npy',
-                         # '/sawyer_push_new_easy1000_sawyer_init_camera_zoomed_in.npy',
+        num_epochs=200,
+        generate_vae_dataset_kwargs=dict(
+            N=1000,
+            init_camera=sawyer_init_camera_zoomed_in,
         ),
         algo_kwargs=dict(
             do_scatterplot=False,
@@ -80,6 +78,10 @@ if __name__ == "__main__":
         #     [0, 0, 5, 5],
         # ],
         # 'algo_kwargs.lr': [1e-3, 1e-2],
+        'generate_vae_dataset_kwargs.init_camera': [
+            sawyer_init_camera_zoomed_in,
+            # sawyer_init_camera,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

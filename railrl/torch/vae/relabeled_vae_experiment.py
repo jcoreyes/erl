@@ -59,7 +59,6 @@ def experiment(variant):
             use_vae_reward=variant.get('use_vae_reward', True), use_vae_goals=use_vae_goals,
             decode_goals=render,
             render_goals=render, render_rollouts=render,
-            render_decoded=render,
             reward_params=reward_params,
             history_size=variant['history_len'],
             use_gpu = variant['use_gpu'],
@@ -131,6 +130,7 @@ def experiment(variant):
         relabeling_env.mode(training_mode)
         # save time by not resetting relabel env
         relabeling_env.reset_on_sample_goal_for_rollout = False
+        relabeling_env.disable_render()
 
         video_vae_env = pickle.loads(pickle.dumps(env))
         video_vae_env.mode("video_vae")

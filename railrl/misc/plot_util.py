@@ -245,7 +245,7 @@ def plot_trials(
     for name, trials in name_to_trials.items():
         all_values = []
         for trial in trials:
-            if len(y_keys) == 0:
+            if len(y_keys) == 1:
                 values = trial.data[y_keys[0]]
             else:
                 multiple_values = [
