@@ -5,10 +5,13 @@ import os.path as osp
 
 from railrl.envs.mujoco.sawyer_reach_torque_env import SawyerReachTorqueEnv
 from railrl.envs.wrappers import ImageMujocoEnv
+from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.images.camera import sawyer_torque_env_camera
 import cv2
 
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+from railrl.policies.simple import ZeroPolicy, RandomPolicy
 
 
 def generate_vae_dataset(
@@ -18,6 +21,7 @@ def generate_vae_dataset(
     img_file = "/tmp/sawyer_torque_control_imgs" + str(N) + ".npy"
     state_file = "/tmp/sawyer_torque_control_states" + str(N) + ".npy"
     info = {}
+
     if dataset_path is not None:
         img_file = local_path_from_s3_or_local_path(dataset_path)
         dataset = np.load(img_file)
@@ -35,15 +39,28 @@ def generate_vae_dataset(
             normalize=True,
         )
         info['env'] = env
+        # policy = ZeroPolicy(env.action_space.low.size)
+        policy = RandomPolicy(env.action_space)
+        es = OUStrategy(action_space=env.action_space)
+        exploration_policy = PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=es,
+            policy=policy,
+        )
 
         dataset = np.zeros((N, imsize * imsize * 3))
         states = np.zeros((N, obs_dim))
         for i in range(N):
             # Move the goal out of the image
             env.wrapped_env.set_goal(np.array([100, 100, 100]))
+            # if i %50==0:
+            #     print('Reset')
+            #     env.reset()
+            #     exploration_policy.reset()
             env.reset()
-            action = env.wrapped_env.action_space.sample()
-            for _ in range(100):
+            action = -1*env.action_space.sample()
+            # action = exploration_policy.get_action()[0]*10
+            for _ in range(75):
+                # action = exploration_policy.get_action()[0]*10
                 env.wrapped_env.step(
                     action
                 )
@@ -65,4 +82,4 @@ def generate_vae_dataset(
 
 
 if __name__ == "__main__":
-    generate_vae_dataset(5000, use_cached=False, show=True)
+    generate_vae_dataset(10000, use_cached=False, show=True, save_state_info=True)

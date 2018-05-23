@@ -13,15 +13,15 @@ from railrl.torch.networks import FlattenMlp
 from railrl.torch import pytorch_util as ptu
 from sklearn.model_selection import train_test_split
 
-X = np.load('/tmp/sawyer_torque_control_imgs5000.npy')
-Y = np.load('/tmp/sawyer_torque_control_states5000.npy')
-hidden_sizes = [100]
-representation_size = 16
-num_samples = 5000
-batch_size = 128
+X = np.load('/tmp/sawyer_torque_control_imgs10000.npy')
+Y = np.load('/tmp/sawyer_torque_control_states10000.npy')
+hidden_sizes = [300, 300]
+representation_size =16
+num_samples = 10000
+batch_size = 1024
 model = FlattenMlp(input_size = representation_size, hidden_sizes=hidden_sizes, output_size=Y.shape[1])
 #load vae
-vae = load_vae('/home/murtaza/Documents/rllab/railrl/data/local/05-22-sawyer-reacher-vae/05-22-sawyer_reacher_vae_2018_05_22_12_42_34_0000--s-34466/params.pkl')
+vae = load_vae('/home/murtaza/Documents/rllab/railrl/data/local/05-22-sawyer-torque-reacher-vae-10K/05-22-sawyer_torque_reacher_vae_10K_2018_05_22_16_54_56_0000--s-15151/params.pkl')
 tensor = ptu.np_to_var(X)
 X, log_var = vae.encode(tensor)
 X = ptu.get_numpy(X)

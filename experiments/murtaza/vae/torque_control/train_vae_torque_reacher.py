@@ -37,14 +37,14 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sawyer_torque_reacher_vae'
+    exp_prefix = 'sawyer_torque_reacher_vae_10K'
     use_gpu = True
 
     variant = dict(
         beta=5,
-        num_epochs=100,
+        num_epochs=300,
         get_data_kwargs=dict(
-            N=5000,
+            N=10000,
             use_cached=True,
         ),
         algo_kwargs=dict(
@@ -69,4 +69,6 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=use_gpu,
+                snapshot_mode='gap',
+                snapshot_gap=20,
             )
