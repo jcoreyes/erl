@@ -24,8 +24,9 @@ def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
     o = env.reset()
     if animated:
         env.render()
+    goal = env.sample_goal_for_rollout()
     while path_length < max_path_length:
-        goal = env.get_goal()
+        # goal = env.get_goal()
         new_o = np.hstack((o, goal))
         a, agent_info = agent.get_action(new_o)
         a = a + np.random.normal(a.shape) / 10
@@ -80,7 +81,7 @@ def simulate_policy(args):
         policy.cuda()
     if args.pause:
         import ipdb; ipdb.set_trace()
-    if args.mode:
+    if isinstance(env, VAEWrappedEnv):
         env.mode(args.mode)
     is_mj_env = (
         isinstance(env, VAEWrappedEnv) and
@@ -115,7 +116,8 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--speedup', type=float, default=10,
                         help='Speedup')
-    parser.add_argument('--mode', type=str, help='env mode')
+    parser.add_argument('--mode', default='video_env', type=str,
+                        help='env mode')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--pause', action='store_true')
     parser.add_argument('--enable_render', action='store_true')
