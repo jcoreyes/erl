@@ -358,8 +358,8 @@ class SawyerPushAndReachXYEasyEnv(SawyerPushAndReachXYEnv):
     """
     Always start the block in the same position
     """
-    PUCK_GOAL_LOW = np.array([-0.2, 0.5])
-    PUCK_GOAL_HIGH = np.array([0.2, 0.7])
+    PUCK_GOAL_LOW = np.array([-0.15, 0.5])
+    PUCK_GOAL_HIGH = np.array([0.15, 0.7])
 
     def sample_puck_xy(self):
         return np.array([0, 0.6])

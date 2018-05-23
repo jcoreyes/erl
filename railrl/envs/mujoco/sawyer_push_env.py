@@ -295,6 +295,20 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
+    def sample_hand_xy(self):
+        return np.random.uniform(
+            [-0.1, -0.1 + 0.6],
+            [0.1, 0.1 + 0.6],
+            size=2
+        )
+
+    def set_hand_xy(self, xy):
+        for _ in range(10):
+            self.data.set_mocap_pos('mocap', np.array([xy[0], xy[1], 0.02]))
+            self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
+            u = np.zeros(7)
+            self.do_simulation(u, self.frame_skip)
+
     """
     Multitask functions
     """
@@ -355,9 +369,21 @@ class SawyerPushXYEasyEnv(SawyerPushXYEnv):
     """
     INIT_GOAL_LOW = np.array([-0.05, 0.6])
     INIT_GOAL_HIGH = np.array([0.05, 0.75])
-
     def sample_block_xy(self):
         return np.array([0, 0.6])
+
+
+class SawyerPushXYVariableEnv(SawyerPushXYEasyEnv):
+    def __init__(
+            self,
+            init_goal_low=(-0.15, 0.5),
+            init_goal_high=(0.15, 0.7),
+            **kwargs
+    ):
+        self.quick_init(locals())
+        self.INIT_GOAL_LOW = np.array(init_goal_low)
+        self.INIT_GOAL_HIGH = np.array(init_goal_high)
+        super().__init__(**kwargs)
 
 
 if __name__ == "__main__":

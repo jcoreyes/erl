@@ -16,21 +16,27 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 2
+    n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'grill-sawyer-push-does-vae-matter-2'
+    exp_prefix = 'grill-sawyer-push-oracle-vae-with-variable-training'
 
-    zoomed_in_path = "05-22-vae-sawyer-new-push-easy-zoomed-in-1000_2018_05_22_13_09_28_0000--s-98682-r16/params.pkl"
-    zoomed_out_path = "05-22-vae-sawyer-new-push-easy-no-zoom-1000_2018_05_22_13_10_43_0000--s-30039-r16/params.pkl"
+    # zoomed_in_path = "05-22-vae-sawyer-new-push-easy-zoomed-in-1000_2018_05_22_13_09_28_0000--s-98682-r16/params.pkl"
+    # zoomed_out_path = "05-22-vae-sawyer-new-push-easy-no-zoom-1000_2018_05_22_13_10_43_0000--s-30039-r16/params.pkl"
+    zoomed_in_path = "05-22-vae-sawyer-variable-zoomed-in/05-22-vae-sawyer" \
+                     "-variable-zoomed-in_2018_05_22_20_56_11_0000--s-10690" \
+                     "-r16/params.pkl"
+    zoomed_out_path = "05-22-vae-sawyer-variable-no-zoom/05-22-vae-sawyer" \
+                      "-variable-no-zoom_2018_05_22_20_59_07_0000--s-40296" \
+                      "-r16/params.pkl"
 
     vae_paths = {
-        "4": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push-easy"
-              "-3_2018_05_12_02_00_01_0000--s-91524-r4/params.pkl",
-        "16": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
-              "-easy-3_2018_05_12_02_33_54_0000--s-1937-r16/params.pkl",
-        "16b": zoomed_in_path,
-        "64": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
-              "-easy-3_2018_05_12_03_06_20_0000--s-33176-r64/params.pkl",
+        # "4": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push-easy"
+        #       "-3_2018_05_12_02_00_01_0000--s-91524-r4/params.pkl",
+        # "16": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
+        #       "-easy-3_2018_05_12_02_33_54_0000--s-1937-r16/params.pkl",
+        # "16b": zoomed_in_path,
+        # "64": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
+        #       "-easy-3_2018_05_12_03_06_20_0000--s-33176-r64/params.pkl",
     }
 
     variant = dict(
@@ -81,17 +87,21 @@ if __name__ == "__main__":
         ],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
-        'rdim': ['16b', '4', '16', '64'],
-        # 'init_camera': [sawyer_init_camera_zoomed_in, sawyer_init_camera],
+        # 'rdim': ['16b', '4', '16', '64'],
+        'rdim': ['16'],
+        'init_camera': [
+            sawyer_init_camera,
+            sawyer_init_camera_zoomed_in,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        # if variant['init_camera'] == sawyer_init_camera_zoomed_in:
-        #     variant['vae_paths']['16'] = zoomed_in_path
-        # elif variant['init_camera'] == sawyer_init_camera:
-        #     variant['vae_paths']['16'] = zoomed_out_path
+        if variant['init_camera'] == sawyer_init_camera_zoomed_in:
+            variant['vae_paths']['16'] = zoomed_in_path
+        elif variant['init_camera'] == sawyer_init_camera:
+            variant['vae_paths']['16'] = zoomed_out_path
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
