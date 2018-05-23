@@ -1,6 +1,7 @@
 from railrl.envs.mujoco.sawyer_push_and_reach_env import \
     SawyerPushAndReachXYEnv, SawyerPushAndReachXYEasyEnv
 from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
+from railrl.envs.mujoco.sawyer_reset_free_push_env import SawyerResetFreePushEnv
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.multitask.pusher2d import FullPusher2DEnv
 from railrl.images.camera import sawyer_init_camera, \
@@ -18,7 +19,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'grill-sawyer-reset-free-2'
+    exp_prefix = 'grill-sawyer-reset-free-4'
 
     vae_paths = {
         #       "-3_2018_05_12_02_00_01_0000--s-91524-r4/params.pkl",
@@ -49,7 +50,7 @@ if __name__ == "__main__":
         normalize=False,
         rdim=4,
         render=False,
-        env=SawyerPushAndReachXYEasyEnv,
+        env=SawyerResetFreePushEnv,
         use_env_goals=True,
         vae_paths=vae_paths,
         wrap_mujoco_env=True,

@@ -625,7 +625,8 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
                 self._terminals[buffer_slice] = terminals[path_slice]
                 self._goals[buffer_slice] = goals[path_slice]
                 self._num_steps_left[buffer_slice] = num_steps_left[path_slice]
-                self._env_infos[buffer_slice] = env_infos[path_slice]
+            self._env_infos[self._top:self._top + num_pre_wrap_steps] = env_infos[0:num_pre_wrap_steps]
+            self._env_infos[post_wrap_buffer_slice] = env_infos[post_wrap_path_slice]
             # Pointers from before the wrap
             for i in range(self._top, self._max_replay_buffer_size):
                 self._idx_to_future_obs_idx[i] = np.hstack((
