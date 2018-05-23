@@ -52,7 +52,6 @@ def generate_vae_dataset(
             goal = env.sample_goal_for_rollout()
             hand_pos = env.sample_hand_xy()
             env.set_to_goal(goal, reset_hand=False)
-            hand_pos[1] = 0.7
             env.set_hand_xy(hand_pos)
             # img = env.reset()
             img = env.step(env.action_space.sample())[0]

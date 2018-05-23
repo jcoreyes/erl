@@ -5,7 +5,7 @@ from railrl.images.camera import (
     # sawyer_init_camera,
     # sawyer_init_camera_zoomed_in_fixed,
     sawyer_init_camera_zoomed_out_fixed,
-)
+    sawyer_init_camera_zoomed_in_fixed)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
@@ -51,13 +51,14 @@ if __name__ == "__main__":
     # mode = 'ec2'
     # exp_prefix = 'vae-sawyer-new-push-easy-zoomed-in-1000'
     # exp_prefix = 'vae-sawyer-variable-zoomed-in'
-    exp_prefix = 'vae-sawyer-variable-fixed-zoomed-out-N-100--500-epochs'
+    exp_prefix = 'vae-sawyer-variable-fixed-2'
 
     variant = dict(
         beta=5.0,
         num_epochs=500,
         generate_vae_dataset_kwargs=dict(
-            N=100,
+            N=1000,
+            use_cached=False,
             env_kwargs=dict(
                 init_goal_low=(-0.15, 0.5),
                 init_goal_high=(0.15, 0.7),
@@ -87,8 +88,8 @@ if __name__ == "__main__":
         'generate_vae_dataset_kwargs.init_camera': [
             # sawyer_init_camera_zoomed_in,
             # sawyer_init_camera,
-            # sawyer_init_camera_zoomed_in_fixed,
-            sawyer_init_camera_zoomed_out_fixed,
+            sawyer_init_camera_zoomed_in_fixed,
+            # sawyer_init_camera_zoomed_out_fixed,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -96,11 +97,15 @@ if __name__ == "__main__":
     )
     for _ in range(n_seeds):
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            suffix = "nImg-{}--cam-{}".format(
+                variant['generate_vae_dataset_kwargs']['N'],
+                variant['generate_vae_dataset_kwargs']['init_camera'].__name__,
+            )
             run_experiment(
                 experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
                 use_gpu=use_gpu,
-                trial_dir_suffix='r'+str(variant.get('representation_size', 0)),
+                trial_dir_suffix=suffix,
             )
