@@ -114,6 +114,7 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
         info = dict(
             hand_distance=hand_distance,
             puck_distance=puck_distance,
+            sum_distance=hand_distance+puck_distance,
             touch_distance=touch_distance,
             success=float(hand_distance + puck_distance < 0.06),
         )
@@ -300,6 +301,7 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
         for stat_name in [
             'hand_distance',
             'puck_distance',
+            'sum_distance',
             'touch_distance',
             'success',
         ]:

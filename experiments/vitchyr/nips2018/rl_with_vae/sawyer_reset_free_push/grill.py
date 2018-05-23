@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'grill-sawyer-reset-free'
+    exp_prefix = 'grill-sawyer-reset-free-2'
 
     vae_paths = {
         #       "-3_2018_05_12_02_00_01_0000--s-91524-r4/params.pkl",
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         ],
         'algo_kwargs.num_updates_per_env_step': [1],
         'exploration_noise': [0.2],
-        'algo_kwargs.reward_scale': [1, 1e-4],
+        'algo_kwargs.reward_scale': [1],
         'reward_params.type': [
             # 'mahalanobis_distance',
             # 'log_prob',
