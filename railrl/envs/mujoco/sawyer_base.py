@@ -68,6 +68,12 @@ class SawyerMocapBase(object):
     def get_goal_pos(self):
         return self.data.body_xpos[self.goal_id].copy()
 
+    def get_hand_goal_pos(self):
+        return self.data.body_xpos[self.hand_goal_id].copy()
+
+    def get_puck_goal_pos(self):
+        return self.data.body_xpos[self.puck_goal_id].copy()
+
     @property
     def endeff_id(self):
         return self.model.body_names.index('leftclaw')
@@ -83,6 +89,14 @@ class SawyerMocapBase(object):
     @property
     def goal_id(self):
         return self.model.body_names.index('goal')
+
+    @property
+    def hand_goal_id(self):
+        return self.model.body_names.index('hand-goal')
+
+    @property
+    def puck_goal_id(self):
+        return self.model.body_names.index('puck-goal')
 
     def mocap_set_action(self, action):
         pos_delta = action[None]

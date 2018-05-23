@@ -86,7 +86,7 @@ while True:
                     elif new_action == 'reset':
                         done = True
                     elif new_action is not None:
-                        action = new_action
+                        action = new_action / 10
                     else:
                         action = np.array([0 , 0 , 0 , 0])
                     print("got char:", char)
