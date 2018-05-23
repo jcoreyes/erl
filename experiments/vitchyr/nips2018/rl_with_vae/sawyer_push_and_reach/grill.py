@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'grill-sawyer-push-oracle-vae-with-variable-training'
+    exp_prefix = 'grill-sawyer-push-oracle-vae-with-variable-training-longer'
 
     # zoomed_in_path = "05-22-vae-sawyer-new-push-easy-zoomed-in-1000_2018_05_22_13_09_28_0000--s-98682-r16/params.pkl"
     # zoomed_out_path = "05-22-vae-sawyer-new-push-easy-no-zoom-1000_2018_05_22_13_10_43_0000--s-30039-r16/params.pkl"
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=100,
+            num_epochs=500,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,

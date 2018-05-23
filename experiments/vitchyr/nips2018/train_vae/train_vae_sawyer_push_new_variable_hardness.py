@@ -69,10 +69,11 @@ if __name__ == "__main__":
             do_scatterplot=False,
             lr=1e-3,
         ),
+        # TODO: automate this process
         beta_schedule_kwargs=dict(
-            x_values=[0, 30, 100],
+            x_values=[0, 100, 200, 300],
             # y_values=[0, 0, 0.1, 0.5],
-            y_values=[0, 5, 5],
+            y_values=[0, 0, 5, 5],
         ),
         save_period=5,
     )
