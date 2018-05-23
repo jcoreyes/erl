@@ -101,6 +101,12 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     def get_goal(self):
         return self.multitask_goal.copy()
 
+    def get_nongoal_state(self):
+        return None
+
+    def set_nongoal_state(self, state):
+        return
+
     """
     Check out these default functions below! You may want to override them.
     """

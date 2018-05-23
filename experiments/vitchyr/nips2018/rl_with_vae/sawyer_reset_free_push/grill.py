@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'grill-sawyer-reset-free-4'
+    exp_prefix = 'grill-sawyer-reset-free-5'
 
     vae_paths = {
         #       "-3_2018_05_12_02_00_01_0000--s-91524-r4/params.pkl",

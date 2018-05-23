@@ -222,8 +222,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
         else:
             goal = self._wrapped_env.sample_goal_for_rollout()
             self._wrapped_env.set_goal(goal)
+            state = self._wrapped_env.get_nongoal_state()
             self._wrapped_env.set_to_goal(goal)
             observation = self._wrapped_env.get_image()
+            self._wrapped_env.set_nongoal_state(state)
 
             self.true_goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
             img = Variable(ptu.from_numpy(observation))

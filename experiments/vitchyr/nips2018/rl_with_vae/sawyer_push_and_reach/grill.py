@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'grill-sawyer-push-oracle-vae-with-variable-training-longer'
+    exp_prefix = 'grill-sawyer-push-oracle-vae-reward-type-dist-mdist-logp'
 
     # zoomed_in_path = "05-22-vae-sawyer-new-push-easy-zoomed-in-1000_2018_05_22_13_09_28_0000--s-98682-r16/params.pkl"
     # zoomed_out_path = "05-22-vae-sawyer-new-push-easy-no-zoom-1000_2018_05_22_13_10_43_0000--s-30039-r16/params.pkl"
@@ -84,10 +84,10 @@ if __name__ == "__main__":
         ],
         'algo_kwargs.num_updates_per_env_step': [1],
         'exploration_noise': [0.2],
-        'algo_kwargs.reward_scale': [1e-4],
+        'algo_kwargs.reward_scale': [1],
         'reward_params.type': [
-            # 'mahalanobis_distance',
-            # 'log_prob',
+            'mahalanobis_distance',
+            'log_prob',
             'latent_distance',
         ],
         'training_mode': ['train'],
@@ -96,17 +96,17 @@ if __name__ == "__main__":
         'rdim': ['16'],
         'init_camera': [
             sawyer_init_camera,
-            # sawyer_init_camera_zoomed_in,
+            sawyer_init_camera_zoomed_in,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if variant['init_camera'] == sawyer_init_camera_zoomed_in:
-            variant['vae_paths']['16'] = zoomed_in_path
-        elif variant['init_camera'] == sawyer_init_camera:
-            variant['vae_paths']['16'] = zoomed_out_path
+        # if variant['init_camera'] == sawyer_init_camera_zoomed_in:
+        #     variant['vae_paths']['16'] = zoomed_in_path
+        # elif variant['init_camera'] == sawyer_init_camera:
+        #     variant['vae_paths']['16'] = zoomed_out_path
         for _ in range(n_seeds):
             run_experiment(
                 experiment,

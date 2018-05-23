@@ -17,8 +17,8 @@ class SawyerResetFreePushEnv(SawyerMocapBase, MujocoEnv, Serializable,
     """Implements a 3D-position controlled Sawyer environment"""
     PUCK_GOAL_LOW = np.array([-0.05, 0.55])
     PUCK_GOAL_HIGH = np.array([0.05, 0.65])
-    HAND_GOAL_LOW = PUCK_GOAL_LOW
-    HAND_GOAL_HIGH = PUCK_GOAL_HIGH
+    HAND_GOAL_LOW = np.array([-0.1, 0.5])
+    HAND_GOAL_HIGH = np.array([0.1, 0.7])
     FIXED_GOAL_INIT = np.array([0.05, 0.6])
     INIT_HAND_POS = np.array([0, 0.4, 0.02])
 
@@ -202,6 +202,18 @@ class SawyerResetFreePushEnv(SawyerMocapBase, MujocoEnv, Serializable,
         qvel[16:19] = [0, 0, 0]
         self.set_state(qpos, qvel)
 
+    def get_nongoal_state(self):
+        qpos = self.data.qpos.flat.copy()
+        qvel = self.data.qvel.flat.copy()
+        mocap_pos = self.data.get_mocap_pos('mocap').copy()
+        mocap_quat = self.data.get_mocap_quat('mocap').copy()
+        return qpos.copy(), qvel.copy(), mocap_pos, mocap_quat
+
+    def set_nongoal_state(self, state):
+        self.set_state(state[0], state[1])
+        self.data.set_mocap_pos('mocap', state[2])
+        self.data.set_mocap_quat('mocap', state[3])
+
     """
     Multitask functions
     """
@@ -219,7 +231,7 @@ class SawyerResetFreePushEnv(SawyerMocapBase, MujocoEnv, Serializable,
 
     def set_to_goal(self, goal):
         self.set_hand_xy(goal[:2])
-        self.set_puck_xy(goal[-2:])
+        self.set_puck_xy(goal[2:])
 
     def convert_obs_to_goals(self, obs):
         return obs

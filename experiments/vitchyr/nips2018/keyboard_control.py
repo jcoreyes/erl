@@ -14,9 +14,9 @@ import numpy as np
 print("making env")
 # env = SawyerPushAndReachXYEasyEnv()
 env = SawyerResetFreePushEnv(
-    hide_goal=True,
+    hide_goal=False,
 )
-env = MultitaskToFlatEnv(env)
+# env = MultitaskToFlatEnv(env)
 
 policy = ZeroPolicy(env.action_space.low.size)
 es = OUStrategy(
@@ -65,6 +65,11 @@ H = 100000
 
 lock_action = False
 while True:
+    goal = env.sample_goal_for_rollout()
+    env.set_goal(goal)
+    state = env.get_nongoal_state()
+    env.set_to_goal(goal)
+    env.set_nongoal_state(state)
     obs = env.reset()
     last_reward_t = 0
     returns = 0
