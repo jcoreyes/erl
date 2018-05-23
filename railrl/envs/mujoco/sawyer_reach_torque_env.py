@@ -236,7 +236,7 @@ if __name__ == "__main__":
     # H = 50
 
     env = SawyerReachTorqueEnv(hide_goal=True, keep_vel_in_obs=False)
-    env = MultitaskToFlatEnv(env)
+    # env = MultitaskToFlatEnv(env)
     lock_action = False
     while True:
         obs = env.reset()

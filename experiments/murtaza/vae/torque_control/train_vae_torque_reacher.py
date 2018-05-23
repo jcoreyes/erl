@@ -37,7 +37,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sawyer_torque_reacher_vae_10K'
+    exp_prefix = 'sawyer_torque_reacher_ou_vae_10K'
     use_gpu = True
 
     variant = dict(

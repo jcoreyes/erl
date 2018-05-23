@@ -12,16 +12,21 @@ from railrl.envs.vae_wrappers import load_vae
 from railrl.torch.networks import FlattenMlp
 from railrl.torch import pytorch_util as ptu
 from sklearn.model_selection import train_test_split
-
-X = np.load('/tmp/sawyer_torque_control_imgs10000.npy')
-Y = np.load('/tmp/sawyer_torque_control_states10000.npy')
-hidden_sizes = [300, 300]
+#
+# X = np.load('/tmp/sawyer_torque_control_ou_imgs10000.npy')
+# Y = np.load('/tmp/sawyer_torque_control_ou_states10000.npy')
+X = np.load('/tmp/sawyer_pos_control_imgs10000.npy')
+Y = np.load('/tmp/sawyer_pos_control_states10000.npy')
+hidden_sizes = [300]
 representation_size =16
 num_samples = 10000
-batch_size = 1024
+batch_size = 128
+# Y = np.concatenate((Y[:, :7], Y[:, 14:]), axis=1)
+# Y = Y[:, :7] #joint angle regression only
 model = FlattenMlp(input_size = representation_size, hidden_sizes=hidden_sizes, output_size=Y.shape[1])
 #load vae
-vae = load_vae('/home/murtaza/Documents/rllab/railrl/data/local/05-22-sawyer-torque-reacher-vae-10K/05-22-sawyer_torque_reacher_vae_10K_2018_05_22_16_54_56_0000--s-15151/params.pkl')
+vae = load_vae('/home/murtaza/Documents/rllab/railrl/data/local/05-23-sawyer-torque-reacher-ou-vae-10K/05-23-sawyer_torque_reacher_ou_vae_10K_2018_05_23_11_40_40_0000--s-26175/itr_280.pkl')
+# vae = load_vae('/home/murtaza/Documents/rllab/railrl/data/local/05-23-sawyer-pos-control-vae-10K/05-23-sawyer-pos_control-vae-10K_2018_05_23_11_39_38_0000--s-823-r16/params.pkl')
 tensor = ptu.np_to_var(X)
 X, log_var = vae.encode(tensor)
 X = ptu.get_numpy(X)

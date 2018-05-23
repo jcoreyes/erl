@@ -18,8 +18,8 @@ def generate_vae_dataset(
         N=10000, test_p=0.9, use_cached=True, imsize=84, show=True,
         dataset_path=None, save_state_info=False,
 ):
-    img_file = "/tmp/sawyer_torque_control_imgs" + str(N) + ".npy"
-    state_file = "/tmp/sawyer_torque_control_states" + str(N) + ".npy"
+    img_file = "/tmp/sawyer_torque_control_ou_imgs" + str(N) + ".npy"
+    state_file = "/tmp/sawyer_torque_control_ou_states" + str(N) + ".npy"
     info = {}
 
     if dataset_path is not None:
@@ -41,7 +41,7 @@ def generate_vae_dataset(
         info['env'] = env
         # policy = ZeroPolicy(env.action_space.low.size)
         policy = RandomPolicy(env.action_space)
-        es = OUStrategy(action_space=env.action_space)
+        es = OUStrategy(action_space=env.action_space, theta=0)
         exploration_policy = PolicyWrappedWithExplorationStrategy(
             exploration_strategy=es,
             policy=policy,
@@ -52,15 +52,15 @@ def generate_vae_dataset(
         for i in range(N):
             # Move the goal out of the image
             env.wrapped_env.set_goal(np.array([100, 100, 100]))
-            # if i %50==0:
-            #     print('Reset')
-            #     env.reset()
-            #     exploration_policy.reset()
-            env.reset()
-            action = -1*env.action_space.sample()
+            if i %50==0:
+                print('Reset')
+                env.reset()
+                exploration_policy.reset()
+            # env.reset()
+            # action = -1*env.action_space.sample()
             # action = exploration_policy.get_action()[0]*10
             for _ in range(75):
-                # action = exploration_policy.get_action()[0]*10
+                action = exploration_policy.get_action()[0]*10
                 env.wrapped_env.step(
                     action
                 )
@@ -82,4 +82,4 @@ def generate_vae_dataset(
 
 
 if __name__ == "__main__":
-    generate_vae_dataset(10000, use_cached=False, show=True, save_state_info=True)
+    generate_vae_dataset(10000, use_cached=False, show=False, save_state_info=True)

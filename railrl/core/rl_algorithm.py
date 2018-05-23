@@ -199,7 +199,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 next_ob, raw_reward, terminal, env_info = (
                     self.training_env.step(action)
                 )
-                # print(self.training_env._target_cylinder_position)
                 self._n_env_steps_total += 1
                 reward = raw_reward * self.reward_scale
                 terminal = np.array([terminal])
