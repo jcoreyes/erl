@@ -201,12 +201,8 @@ class SoftActorCritic(TorchRLAlgorithm):
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
 
-    # def _update_target_network(self):
-    #     ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
-
     def _update_target_network(self):
-        if self._n_env_steps_total % self.target_hard_update_period == 0:
-            ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
+        ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
 
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)

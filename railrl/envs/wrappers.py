@@ -38,8 +38,8 @@ class ProxyEnv(Serializable, Env):
 
     def log_diagnostics(self, paths, logger=None, *args, **kwargs):
         if hasattr(self._wrapped_env, 'log_diagnostics'):
-            # self._wrapped_env.log_diagnostics(paths, logger=logger, *args, **kwargs)
             self._wrapped_env.log_diagnostics(paths, *args, **kwargs)
+
     @property
     def horizon(self):
         return self._wrapped_env.horizon

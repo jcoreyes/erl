@@ -63,8 +63,8 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
                 obs,
                 action,
                 reward,
-                terminal,
                 next_obs,
+                terminal,
                 agent_info=agent_info,
                 env_info=env_info,
             )
