@@ -49,11 +49,11 @@ if __name__ == "__main__":
     # mode = 'ec2'
     # exp_prefix = 'vae-sawyer-new-push-easy-zoomed-in-1000'
     # exp_prefix = 'vae-sawyer-variable-zoomed-in'
-    exp_prefix = 'vae-sawyer-variable-no-zoom'
+    exp_prefix = 'vae-sawyer-variable-no-zoom-300-epochs'
 
     variant = dict(
         beta=5.0,
-        num_epochs=200,
+        num_epochs=300,
         generate_vae_dataset_kwargs=dict(
             N=1000,
             init_camera=sawyer_init_camera_zoomed_in,

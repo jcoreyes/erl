@@ -25,9 +25,14 @@ if __name__ == "__main__":
     zoomed_in_path = "05-22-vae-sawyer-variable-zoomed-in/05-22-vae-sawyer" \
                      "-variable-zoomed-in_2018_05_22_20_56_11_0000--s-10690" \
                      "-r16/params.pkl"
-    zoomed_out_path = "05-22-vae-sawyer-variable-no-zoom/05-22-vae-sawyer" \
-                      "-variable-no-zoom_2018_05_22_20_59_07_0000--s-40296" \
-                      "-r16/params.pkl"
+    # zoomed_out_path = (
+        # "05-22-vae-sawyer-variable-no-zoom_2018_05_22_21_46_54_0000--s-76844"
+        # "-r16params.pkl"
+    # )
+    zoomed_out_path = (
+        "05-22-vae-sawyer-variable-no-zoom-300-epochs_2018_05_22_21_55_41_0000--s-48052-r16"
+        "/params.pkl"
+    )
 
     vae_paths = {
         # "4": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push-easy"
@@ -91,7 +96,7 @@ if __name__ == "__main__":
         'rdim': ['16'],
         'init_camera': [
             sawyer_init_camera,
-            sawyer_init_camera_zoomed_in,
+            # sawyer_init_camera_zoomed_in,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
