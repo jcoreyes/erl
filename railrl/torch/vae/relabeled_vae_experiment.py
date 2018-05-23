@@ -60,7 +60,6 @@ def experiment(variant):
             use_vae_reward=True, use_vae_goals=use_vae_goals,
             decode_goals=render,
             render_goals=render, render_rollouts=render,
-            render_decoded=render,
             reward_params=reward_params,
             **variant.get('vae_wrapped_env_kwargs', {})
         )

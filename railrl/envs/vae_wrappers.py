@@ -238,8 +238,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
             observation = ptu.get_numpy(observation)
             self.goal_decoded = observation.reshape(self.input_channels, 84, 84).transpose()
 
-        if self.use_vae_goals and self.decode_goals:
-            self.goal_obs = self.goal_decoded
+        if self.use_vae_goals:
+            if self.decode_goals:
+                self.goal_obs = self.goal_decoded
         else:
             self.goal_obs = self.true_goal_obs
 
