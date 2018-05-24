@@ -178,6 +178,7 @@ def dump_video(
         f1.append(np.concatenate(f2, axis=1))
     outputdata = np.concatenate(f1, axis=2)
     skvideo.io.vwrite(filename, outputdata)
+    print("Saved video to ", filename)
 
     return paths
 
