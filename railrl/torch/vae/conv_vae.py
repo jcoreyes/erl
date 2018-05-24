@@ -134,8 +134,8 @@ class ConvVAETrainer():
                 recon_batch, mu, logvar = self.model(X)
                 bce = self.logprob(recon_batch, X, mu, logvar)
                 kle = self.kl_divergence(recon_batch, X, mu, logvar)
-                sim_loss = self.state_similarity_loss(self.model, mu, Y) * self.mse_weight
-                loss = bce + beta * kle + sim_loss
+                sim_loss = self.state_similarity_loss(self.model, mu, Y)
+                loss = bce + beta * kle + sim_loss*self.mse_weight
                 loss.backward()
             else:
                 data = self.get_batch()
@@ -186,7 +186,7 @@ class ConvVAETrainer():
                 recon_batch, mu, logvar = self.model(X)
                 bce = self.logprob(recon_batch, X, mu, logvar)
                 kle = self.kl_divergence(recon_batch, X, mu, logvar)
-                sim_loss = self.state_similarity_loss(self.model, mu, Y) * self.mse_weight
+                sim_loss = self.state_similarity_loss(self.model, mu, Y)
                 loss = bce + beta * kle + sim_loss
                 data = X
             else:

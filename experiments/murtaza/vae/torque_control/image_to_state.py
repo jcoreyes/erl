@@ -15,7 +15,7 @@ set_session(tf.Session(config=config))
 X = np.load('/home/murtaza/vae_data/sawyer_torque_control_ou_imgs_zoomed_out10000.npy')
 Y = np.load('/home/murtaza/vae_data/sawyer_torque_control_ou_states_zoomed_out10000.npy')
 # Y = np.concatenate((Y[:, :7], Y[:, 14:]), axis=1)
-Y = Y[:, :7] #joint angle regression only
+Y = Y[:, :7] % (2*np.pi) #joint angle regression only
 X = np.reshape(X, (X.shape[0], 84, 84, 3))
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=.1)
 def create_feedforward_network(model, hidden_sizes, input_shape=None):
@@ -63,22 +63,22 @@ def create_network(hidden_sizes, num_outputs, do_regression, use_fc=True, conv_s
     return model
 
 conv_architectures = [
-    [[16, 3, 1], [32, 3, 2], [64, 3, 2], [64, 3, 2]],
+    [[16, 5, 1]],
     # [[16, 5, 3, 2], [32, 3, 1, 1]],
 ]
 fc_architectures = [
     # [256, 128, 64, 32, 16],
-    [128, 32],
+    [32],
 ]
 
 batch_size = 32
-num_epochs = 10
+num_epochs = 100
 histories = []
 for conv_architecture in conv_architectures:
     for fc_architecture in fc_architectures:
         model = create_network(fc_architecture, Y_train.shape[1], do_regression=True, conv_sizes = conv_architecture, use_fc=False, input_shape=[84, 84, 3])
-        hist = model.fit(X_train, Y_train, batch_size=batch_size, shuffle=True, steps_per_epoch=None, epochs=num_epochs, validation_split=0)
-        print(model.evaluate(X_train, Y_train))
+        hist = model.fit(X_train, Y_train, batch_size=batch_size, shuffle=True, steps_per_epoch=None, epochs=num_epochs, validation_split=0.1)
+        print('Test Loss:', model.evaluate(X_train, Y_train))
         histories.append(hist)
 train_losses = [history.history['loss'] for history in histories]
 labels = ['Training']
@@ -94,4 +94,4 @@ X = np.load('/home/murtaza/vae_data/sawyer_torque_control_ou_imgs_zoomed_out_210
 Y = np.load('/home/murtaza/vae_data/sawyer_torque_control_ou_states_zoomed_out_210000.npy')
 X = np.reshape(X, (X.shape[0], 84, 84, 3))
 Y = Y[:,:7]
-print(model.evaluate(X, Y))
+print('Different Data Set Test Loss: ', model.evaluate(X, Y))

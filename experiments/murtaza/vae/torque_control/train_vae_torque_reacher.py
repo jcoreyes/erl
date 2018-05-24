@@ -37,7 +37,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'sawyer_torque_vae_zoomed_out_large_representation_size'
     use_gpu = True
 
     variant = dict(
@@ -56,7 +56,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'representation_size': [16, 32],
+        'representation_size': [64, 100],
+        'beta':[5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
