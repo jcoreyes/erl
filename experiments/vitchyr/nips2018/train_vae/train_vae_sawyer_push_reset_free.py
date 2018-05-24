@@ -3,7 +3,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.images.camera import (
     sawyer_init_camera_zoomed_in,
     sawyer_init_camera,
-)
+    sawyer_init_camera_zoomed_in_fixed)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
@@ -42,28 +42,31 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev-sawyer-push-new-vae'
+    exp_prefix = 'dev'
     use_gpu = True
 
     # n_seeds = 1
     # mode = 'ec2'
     # exp_prefix = 'vae-sawyer-new-push-easy-zoomed-in-1000'
     # exp_prefix = 'vae-sawyer-variable-zoomed-in'
-    exp_prefix = 'vae-sawyer-pusher-reset-free'
+    exp_prefix = 'vae-sawyer-pusher-reset-free-large'
 
     variant = dict(
         beta=5.0,
-        num_epochs=200,
+        num_epochs=500,
         generate_vae_dataset_kwargs=dict(
             N=1000,
-            init_camera=sawyer_init_camera_zoomed_in,
+            init_camera=sawyer_init_camera_zoomed_in_fixed,
+            env_kwargs=dict(
+                puck_limit='large',
+            ),
         ),
         algo_kwargs=dict(
             do_scatterplot=False,
             lr=1e-3,
         ),
         beta_schedule_kwargs=dict(
-            x_values=[0, 30, 100],
+            x_values=[0, 100, 200],
             # y_values=[0, 0, 0.1, 0.5],
             y_values=[0, 5, 5],
         ),
@@ -79,7 +82,7 @@ if __name__ == "__main__":
         # ],
         # 'algo_kwargs.lr': [1e-3, 1e-2],
         'generate_vae_dataset_kwargs.init_camera': [
-            sawyer_init_camera_zoomed_in,
+            sawyer_init_camera_zoomed_in_fixed,
             # sawyer_init_camera,
         ],
     }

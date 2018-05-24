@@ -17,6 +17,8 @@ class SawyerResetFreePushEnv(SawyerMocapBase, MujocoEnv, Serializable,
     """Implements a 3D-position controlled Sawyer environment"""
     PUCK_GOAL_LOW = np.array([-0.05, 0.55])
     PUCK_GOAL_HIGH = np.array([0.05, 0.65])
+    PUCK_GOAL_LARGE_LOW = np.array([-0.1, 0.5])
+    PUCK_GOAL_LARGE_HIGH = np.array([0.1, 0.65])
     HAND_GOAL_LOW = np.array([-0.1, 0.5])
     HAND_GOAL_HIGH = np.array([0.1, 0.7])
     FIXED_GOAL_INIT = np.array([0.05, 0.6])
@@ -29,12 +31,14 @@ class SawyerResetFreePushEnv(SawyerMocapBase, MujocoEnv, Serializable,
             pos_action_scale=2. / 100,
             randomize_goals=True,
             hide_goal=False,
+            puck_limit='normal'
     ):
         self.quick_init(locals())
         self.reward_info = reward_info
         self.randomize_goals = randomize_goals
         self._pos_action_scale = pos_action_scale
         self.hide_goal = hide_goal
+        self.puck_limit = puck_limit
         self._goal_xyxy = self.sample_goal_xyxy()
         MultitaskEnv.__init__(self, distance_metric_order=2)
         MujocoEnv.__init__(self, self.model_name, frame_skip=frame_skip)
@@ -59,10 +63,24 @@ class SawyerResetFreePushEnv(SawyerMocapBase, MujocoEnv, Serializable,
 
     @property
     def model_name(self):
-        if self.hide_goal:
-            return get_asset_full_path('sawyer_push_joint_limited_mocap_goal_hidden.xml')
+        if self.puck_limit == 'normal':
+            if self.hide_goal:
+                return get_asset_full_path('sawyer_push_joint_limited_mocap_goal_hidden.xml')
+            else:
+                return get_asset_full_path('sawyer_push_joint_limited_mocap.xml')
+        elif self.puck_limit == 'large':
+            if self.hide_goal:
+                return get_asset_full_path(
+                    'sawyer_push_joint_limited_large_mocap_goal_hidden.xml'
+                )
+            else:
+                return get_asset_full_path(
+                    'sawyer_push_joint_limited_large_mocap.xml'
+                )
         else:
-            return get_asset_full_path('sawyer_push_joint_limited_mocap.xml')
+            raise ValueError("Unrecoginzed puck limit: {}".format(
+                self.puck_limit
+            ))
 
     def step(self, a):
         a = np.clip(a[:2], -1, 1)
@@ -173,7 +191,13 @@ class SawyerResetFreePushEnv(SawyerMocapBase, MujocoEnv, Serializable,
 
     def sample_goal_xyxy(self):
         hand = np.random.uniform(self.HAND_GOAL_LOW, self.HAND_GOAL_HIGH)
-        puck = np.random.uniform(self.PUCK_GOAL_LOW, self.PUCK_GOAL_HIGH)
+        if self.puck_limit == 'normal':
+            puck = np.random.uniform(self.PUCK_GOAL_LOW, self.PUCK_GOAL_HIGH)
+        elif self.puck_limit == 'large':
+            puck = np.random.uniform(
+                self.PUCK_GOAL_LARGE_LOW,
+                self.PUCK_GOAL_LARGE_HIGH,
+            )
         return np.hstack((hand, puck))
 
     def set_hand_xy(self, xy):

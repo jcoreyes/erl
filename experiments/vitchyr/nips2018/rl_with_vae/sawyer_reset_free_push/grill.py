@@ -4,8 +4,11 @@ from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
 from railrl.envs.mujoco.sawyer_reset_free_push_env import SawyerResetFreePushEnv
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.multitask.pusher2d import FullPusher2DEnv
-from railrl.images.camera import sawyer_init_camera, \
-    sawyer_init_camera_zoomed_in
+from railrl.images.camera import (
+    sawyer_init_camera,
+    sawyer_init_camera_zoomed_in,
+    sawyer_init_camera_zoomed_in_fixed,
+)
 
 from railrl.launchers.arglauncher import run_variants
 import railrl.misc.hyperparameter as hyp
@@ -19,13 +22,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'grill-sawyer-reset-free-5'
+    exp_prefix = 'grill-sawyer-reset-free-large-limits'
 
     vae_paths = {
-        #       "-3_2018_05_12_02_00_01_0000--s-91524-r4/params.pkl",
-        "16": "05-22-vae-sawyer-reset-free-zoomed-in/05-22-vae-sawyer-reset"
-              "-free-zoomed-in_2018_05_22_17_08_31_0000--s-51746-r16/params.pkl"
-        #       "-easy-3_2018_05_12_03_06_20_0000--s-33176-r64/params.pkl",
+        # "16": "05-22-vae-sawyer-reset-free-zoomed-in/05-22-vae-sawyer-reset"
+              # "-free-zoomed-in_2018_05_22_17_08_31_0000--s-51746-r16/params.pkl"
+        "16": "05-23-vae-sawyer-pusher-reset-free-large-joint-limts/05-23-vae-sawyer-pusher-reset-free-large-joint-limts_2018_05_23_16_30_36_0000--s-5828-r16/params.pkl",
     }
 
     variant = dict(
@@ -41,6 +43,7 @@ if __name__ == "__main__":
         ),
         env_kwargs=dict(
             hide_goal=True,
+            puck_limit='large',
         ),
         replay_kwargs=dict(
             fraction_goals_are_rollout_goals=0.2,
@@ -56,7 +59,8 @@ if __name__ == "__main__":
         wrap_mujoco_env=True,
         do_state_based_exp=False,
         exploration_noise=0.1,
-        init_camera=sawyer_init_camera_zoomed_in,
+        # init_camera=sawyer_init_camera_zoomed_in,
+        init_camera=sawyer_init_camera_zoomed_in_fixed,
     )
 
     search_space = {

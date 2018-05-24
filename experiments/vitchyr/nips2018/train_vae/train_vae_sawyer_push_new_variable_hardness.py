@@ -47,18 +47,15 @@ if __name__ == "__main__":
     exp_prefix = 'dev-sawyer-push-new-vae'
     use_gpu = True
 
-    # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'vae-sawyer-new-push-easy-zoomed-in-1000'
-    # exp_prefix = 'vae-sawyer-variable-zoomed-in'
-    exp_prefix = 'vae-sawyer-variable-fixed-2'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'vae-sawyer-variable-zoomed-out-sweep'
 
     variant = dict(
         beta=5.0,
         num_epochs=500,
         generate_vae_dataset_kwargs=dict(
             N=1000,
-            use_cached=False,
             env_kwargs=dict(
                 init_goal_low=(-0.15, 0.5),
                 init_goal_high=(0.15, 0.7),
@@ -70,26 +67,27 @@ if __name__ == "__main__":
         ),
         # TODO: automate this process
         beta_schedule_kwargs=dict(
-            x_values=[0, 100, 200, 500],
+            x_values=[0, 100, 200, 300, 400, 500],
             # y_values=[0, 0, 0.1, 0.5],
-            y_values=[0, 0, 5, 5],
+            y_values=[0, 0, 5, 5, 5, 5],
         ),
-        save_period=5,
+        save_period=10,
     )
 
     search_space = {
         'representation_size': [16],
-        # 'beta_schedule_kwargs.y_values': [
-        #     [0, 0, 0.1, 0.5],
-        #     [0, 0, 0.1, 0.1],
-        #     [0, 0, 5, 5],
-        # ],
+        'beta_schedule_kwargs.y_values': [
+            [0, 0, 0, 0.1, 0.5, 1],
+            [0, 0, 0, 1, 1, 1],
+            [0, 0, 1, 1, 5, 5],
+            [0, 0, 0.5, 1, 1, 5],
+        ],
         # 'algo_kwargs.lr': [1e-3, 1e-2],
         'generate_vae_dataset_kwargs.init_camera': [
             # sawyer_init_camera_zoomed_in,
             # sawyer_init_camera,
-            sawyer_init_camera_zoomed_in_fixed,
-            # sawyer_init_camera_zoomed_out_fixed,
+            # sawyer_init_camera_zoomed_in_fixed,
+            sawyer_init_camera_zoomed_out_fixed,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

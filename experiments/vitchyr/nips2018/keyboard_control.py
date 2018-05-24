@@ -15,6 +15,7 @@ print("making env")
 # env = SawyerPushAndReachXYEasyEnv()
 env = SawyerResetFreePushEnv(
     hide_goal=False,
+    puck_limit='large',
 )
 # env = MultitaskToFlatEnv(env)
 
