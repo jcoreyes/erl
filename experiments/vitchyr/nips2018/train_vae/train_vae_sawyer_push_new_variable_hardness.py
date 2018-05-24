@@ -47,9 +47,9 @@ if __name__ == "__main__":
     exp_prefix = 'dev-sawyer-push-new-vae'
     use_gpu = True
 
-    n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'vae-sawyer-variable-zoomed-out-sweep'
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'vae-sawyer-variable-zoomed-out-sweep'
 
     variant = dict(
         beta=5.0,

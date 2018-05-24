@@ -78,6 +78,6 @@ if __name__ == "__main__":
         show=True,
         # init_camera=sawyer_init_camera_zoomed_in,
         # init_camera=sawyer_init_camera,
-        # init_camera=sawyer_init_camera_zoomed_in_fixed,
-        init_camera=sawyer_init_camera_zoomed_out_fixed,
+        init_camera=sawyer_init_camera_zoomed_in_fixed,
+        # init_camera=sawyer_init_camera_zoomed_out_fixed,
     )

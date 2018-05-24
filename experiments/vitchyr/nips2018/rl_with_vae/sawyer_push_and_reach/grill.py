@@ -20,10 +20,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
+    n_seeds = 2
     mode = 'ec2'
-    # exp_prefix = 'grill-sawyer-push-fixed-camera-sweep'
-    exp_prefix = 'grill-sawyer-push-oracle-vae-reward-type-dist-mdist-logp-2'
+    exp_prefix = 'grill-sawyer-push-zoomed-out-camera'
 
     # zoomed_in_path = "05-22-vae-sawyer-new-push-easy-zoomed-in-1000_2018_05_22_13_09_28_0000--s-98682-r16/params.pkl"
     # zoomed_out_path = "05-22-vae-sawyer-new-push-easy-no-zoom-1000_2018_05_22_13_10_43_0000--s-30039-r16/params.pkl"
@@ -42,8 +41,10 @@ if __name__ == "__main__":
     vae_paths = {
         # "4": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push-easy"
         #       "-3_2018_05_12_02_00_01_0000--s-91524-r4/params.pkl",
-        "16": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
-              "-easy-3_2018_05_12_02_33_54_0000--s-1937-r16/params.pkl",
+        # "16": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
+              # "-easy-3_2018_05_12_02_33_54_0000--s-1937-r16/params.pkl",
+        # "16": "05-23-vae-sawyer-variable-zoomed-out-sweep/05-23-vae-sawyer-variable-zoomed-out-sweep-id0-s31952-nImg-1000--cam-sawyer_init_camera_zoomed_out_fixed/params.pkl",
+        "16": "05-23-vae-sawyer-variable-zoomed-out-sweep/05-23-vae-sawyer-variable-zoomed-out-sweep-id0-s52951-nImg-1000--cam-sawyer_init_camera_zoomed_out_fixed/params.pkl",
         # "16b": zoomed_in_path,
         # "64": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
         #       "-easy-3_2018_05_12_03_06_20_0000--s-33176-r64/params.pkl",
@@ -99,10 +100,10 @@ if __name__ == "__main__":
         'testing_mode': ['test', ],
         # 'rdim': ['16b', '4', '16', '64'],
         'rdim': ['16'],
-        # 'init_camera': [
-        #     sawyer_init_camera,
-        #     sawyer_init_camera_zoomed_in,
-        # ],
+        'init_camera': [
+            # sawyer_init_camera,
+            sawyer_init_camera_zoomed_out_fixed,
+        ],
         # 'vae_paths.16': [
             # '05-23-vae-sawyer-variable-fixed-2/'
             # '05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_02_0000--s-27304-nImg-100--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl',
