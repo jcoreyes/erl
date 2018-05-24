@@ -44,6 +44,8 @@ class ConvVAETrainer():
             lr=1e-3,
             do_scatterplot=False,
             normalize=False,
+            state_sim_debug=False,
+            mse_weight=0.1,
     ):
         self.log_interval = log_interval
         self.batch_size = batch_size
@@ -75,6 +77,8 @@ class ConvVAETrainer():
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
         self.normalize = normalize
+        self.state_sim_debug=state_sim_debug
+        self.mse_weight = mse_weight
 
         if self.normalize:
             self.train_data_mean = np.mean(self.train_dataset, axis=0)
@@ -89,6 +93,15 @@ class ConvVAETrainer():
             samples = ((samples - self.train_data_mean) + 1) / 2
         return ptu.np_to_var(samples)
 
+
+    def get_debug_batch(self, train=True):
+        dataset = self.train_dataset if train else self.test_dataset
+        X, Y = dataset
+        ind = np.random.randint(0, Y.shape[0], self.batch_size)
+        X = X[ind, :]
+        Y = Y[ind, :]
+        return ptu.np_to_var(X), ptu.np_to_var(Y)
+
     def logprob(self, recon_x, x, mu, logvar):
 
         # Divide by batch_size rather than setting size_average=True because
@@ -99,27 +112,45 @@ class ConvVAETrainer():
             x.narrow(start=0, length=self.imlength, dimension=1).contiguous().view(-1, self.imlength),
             size_average=False,
         ) / self.batch_size
+
     def kl_divergence(self, recon_x, x, mu, logvar):
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
+
+    def state_similarity_loss(self, model, encoded_x, states):
+        output = self.model.fc6(F.relu(self.model.fc5(encoded_x)))
+        return torch.norm(output-states)**2 / self.batch_size
 
     def train_epoch(self, epoch):
         self.model.train()
         losses = []
         bces = []
         kles = []
+        mses = []
         beta = self.beta_schedule.get_value(epoch)
         for batch_idx in range(100):
-            data = self.get_batch()
-            self.optimizer.zero_grad()
-            recon_batch, mu, logvar = self.model(data)
-            bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = self.kl_divergence(recon_batch, data, mu, logvar)
-            loss = bce + beta * kle
-            loss.backward()
+            if self.state_sim_debug:
+                X, Y = self.get_debug_batch()
+                self.optimizer.zero_grad()
+                recon_batch, mu, logvar = self.model(X)
+                bce = self.logprob(recon_batch, X, mu, logvar)
+                kle = self.kl_divergence(recon_batch, X, mu, logvar)
+                sim_loss = self.state_similarity_loss(self.model, mu, Y) * self.mse_weight
+                loss = bce + beta * kle + sim_loss
+                loss.backward()
+            else:
+                data = self.get_batch()
+                self.optimizer.zero_grad()
+                recon_batch, mu, logvar = self.model(data)
+                bce = self.logprob(recon_batch, data, mu, logvar)
+                kle = self.kl_divergence(recon_batch, data, mu, logvar)
+                loss = bce + beta * kle
+                loss.backward()
 
             losses.append(loss.data[0])
             bces.append(bce.data[0])
             kles.append(kle.data[0])
+            if self.state_sim_debug:
+                mses.append(sim_loss.data[0])
 
             self.optimizer.step()
             if self.log_interval and batch_idx % self.log_interval == 0:
@@ -131,7 +162,10 @@ class ConvVAETrainer():
         logger.record_tabular("train/epoch", epoch)
         logger.record_tabular("train/BCE", np.mean(bces))
         logger.record_tabular("train/KL", np.mean(kles))
+        if self.state_sim_debug:
+            logger.record_tabular("train/mse", np.mean(mses))
         logger.record_tabular("train/loss", np.mean(losses))
+
 
     def test_epoch(
             self,
@@ -144,13 +178,24 @@ class ConvVAETrainer():
         bces = []
         kles = []
         zs = []
+        mses = []
         beta = self.beta_schedule.get_value(epoch)
         for batch_idx in range(10):
-            data = self.get_batch(train=False)
-            recon_batch, mu, logvar = self.model(data)
-            bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = self.kl_divergence(recon_batch, data, mu, logvar)
-            loss = bce + beta * kle
+            if self.state_sim_debug:
+                X, Y = self.get_debug_batch(train=False)
+                recon_batch, mu, logvar = self.model(X)
+                bce = self.logprob(recon_batch, X, mu, logvar)
+                kle = self.kl_divergence(recon_batch, X, mu, logvar)
+                sim_loss = self.state_similarity_loss(self.model, mu, Y) * self.mse_weight
+                loss = bce + beta * kle + sim_loss
+                data = X
+            else:
+                data = self.get_batch(train=False)
+                recon_batch, mu, logvar = self.model(data)
+                bce = self.logprob(recon_batch, data, mu, logvar)
+                kle = self.kl_divergence(recon_batch, data, mu, logvar)
+                loss = bce + beta * kle
+
 
             z_data = ptu.get_numpy(mu.cpu())
             for i in range(len(z_data)):
@@ -158,6 +203,8 @@ class ConvVAETrainer():
             losses.append(loss.data[0])
             bces.append(bce.data[0])
             kles.append(kle.data[0])
+            if self.state_sim_debug:
+                mses.append(sim_loss.data[0])
 
             if batch_idx == 0 and save_reconstruction:
                 n = min(data.size(0), 8)
@@ -186,6 +233,8 @@ class ConvVAETrainer():
         logger.record_tabular("test/KL", np.mean(kles))
         logger.record_tabular("test/loss", np.mean(losses))
         logger.record_tabular("beta", beta)
+        if self.state_sim_debug:
+            logger.record_tabular("test/MSE", np.mean(mses))
         logger.dump_tabular()
 
 
@@ -235,7 +284,7 @@ class ConvVAETrainer():
         plt.savefig(save_file)
 
 
-# class ConvVAE(nn.Module):
+
 class ConvVAE(PyTorchModule):
     def __init__(
             self,
@@ -248,6 +297,8 @@ class ConvVAE(PyTorchModule):
             output_activation=identity,
             min_variance=1e-4,
             use_min_variance=True,
+            state_sim_debug=False,
+            state_size=0,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -261,7 +312,7 @@ class ConvVAE(PyTorchModule):
             self.log_min_variance = None
         else:
             self.log_min_variance = float(np.log(min_variance))
-
+        self.state_sim_debug = state_sim_debug
         self.dist_mu = None
         self.dist_std = None
 
@@ -288,6 +339,11 @@ class ConvVAE(PyTorchModule):
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
 
         self.fc4 = nn.Linear(self.conv_output_dim, imsize*imsize)
+
+        if self.state_sim_debug:
+            self.fc5 = nn.Linear(self.representation_size, 100)
+            self.fc6 = nn.Linear(100, state_size)
+
         self.conv4 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
         self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=3)
@@ -315,6 +371,16 @@ class ConvVAE(PyTorchModule):
         self.fc2.bias.data.fill_(0)
         self.fc2.weight.data.uniform_(-init_w, init_w)
         self.fc2.bias.data.uniform_(-init_w, init_w)
+
+        if self.state_sim_debug:
+            self.fc5.bias.data.fill_(0)
+            self.fc5.weight.data.uniform_(-init_w, init_w)
+            self.fc5.bias.data.uniform_(-init_w, init_w)
+
+            self.fc6.bias.data.fill_(0)
+            self.fc6.weight.data.uniform_(-init_w, init_w)
+            self.fc6.bias.data.uniform_(-init_w, init_w)
+
         # self.hidden_init(self.fc3.weight)
         # self.fc3.bias.data.fill_(0)
         # self.fc3.weight.data.uniform_(-init_w, init_w)

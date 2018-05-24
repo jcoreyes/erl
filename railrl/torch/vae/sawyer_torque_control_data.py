@@ -18,8 +18,8 @@ def generate_vae_dataset(
         N=10000, test_p=0.9, use_cached=True, imsize=84, show=True,
         dataset_path=None, save_state_info=False,
 ):
-    img_file = "/tmp/sawyer_torque_control_ou_imgs" + str(N) + ".npy"
-    state_file = "/tmp/sawyer_torque_control_ou_states" + str(N) + ".npy"
+    img_file = "/home/murtaza/vae_data/sawyer_torque_control_ou_imgs_zoomed_out" + str(N) + ".npy"
+    state_file = "/home/murtaza/vae_data/sawyer_torque_control_ou_states_zoomed_out" + str(N) + ".npy"
     info = {}
 
     if dataset_path is not None:

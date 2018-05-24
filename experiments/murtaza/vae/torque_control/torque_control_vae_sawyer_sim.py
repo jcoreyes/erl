@@ -6,11 +6,12 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_torque_control_updated_vae'
+    mode = 'local_docker'
+    exp_prefix = 'sawyer_torque_control_ou_vae'
 
     vae_paths = {
-     "16": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_control/torque_params.pkl"
+     # "16": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_control/torque_params.pkl",
+     "16": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_control/ou_torque_params.pkl",
     }
 
     variant = dict(
@@ -28,7 +29,7 @@ if __name__ == "__main__":
         ),
         replay_kwargs=dict(
             fraction_goals_are_rollout_goals=0.2,
-            fraction_goals_are_env_goals=0.5,
+            fraction_resampled_goals_are_env_goals=0.5,
         ),
         algorithm='HER-TD3',
         normalize=True,
@@ -60,8 +61,8 @@ if __name__ == "__main__":
         'testing_mode': ['test', ],
         'rdim': [16],
         'reward_params.type': ['latent_distance', 'log_prob'],
-        'history_len':[1, 2],
-        'hidden_sizes':[[200, 400, 300], [400, 300]]
+        'history_len':[2],
+        'hidden_sizes':[[300, 400, 300], [400, 300]]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

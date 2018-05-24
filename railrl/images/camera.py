@@ -61,9 +61,9 @@ def sawyer_torque_env_camera(camera):
     camera.distance = 1.0
 
     # 3rd person view
-    cam_dist = 0.5
+    cam_dist = 1
     rotation_angle = 270
-    cam_pos = np.array([0, 1.0, 0.5, cam_dist, -30, rotation_angle])
+    cam_pos = np.array([0, 1.0, 0.5, cam_dist, -15, rotation_angle])
 
     for i in range(3):
         camera.lookat[i] = cam_pos[i]
