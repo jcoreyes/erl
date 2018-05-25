@@ -120,12 +120,8 @@ class TdmDdpg(TemporalDifferenceModel, DDPG):
 
         self._update_target_networks()
 
-        if self.eval_statistics is None:
-            """
-            Eval should set this to None.
-            This way, these statistics are only computed for one batch.
-            """
-            self.eval_statistics = OrderedDict()
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
             self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss

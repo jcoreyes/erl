@@ -66,8 +66,6 @@ class DQN(TorchRLAlgorithm):
         )
         self.qf_criterion = qf_criterion or nn.MSELoss()
 
-        self.eval_statistics = None
-
     def _do_training(self):
         batch = self.get_batch()
         rewards = batch['rewards']
@@ -100,8 +98,8 @@ class DQN(TorchRLAlgorithm):
         """
         Save some statistics for eval
         """
-        if self.eval_statistics is None:
-            self.eval_statistics = OrderedDict()
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
             self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Y Predictions',
@@ -119,7 +117,6 @@ class DQN(TorchRLAlgorithm):
         raise NotImplementedError()
 
     def get_epoch_snapshot(self, epoch):
-        self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,

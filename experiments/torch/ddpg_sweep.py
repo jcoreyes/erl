@@ -4,13 +4,13 @@ from gym.envs.mujoco import (
     AntEnv,
     HopperEnv,
     Walker2dEnv,
-)
+    InvertedPendulumEnv, InvertedDoublePendulumEnv)
 
 from railrl.envs.pygame.point2d import Point2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
@@ -19,8 +19,8 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 
 def experiment(variant):
-    env = NormalizedBoxEnv(variant['env_class']())
-    es = OUStrategy(
+    env = variant['env_class'](**variant['env_kwargs'])
+    es = GaussianStrategy(
         action_space=env.action_space,
         **variant['es_kwargs']
     )
@@ -53,94 +53,63 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'dev'
+
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'fh-ddpg-vs-ddpg-pendulums-h20'
+
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=10,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
+            batch_size=128,
+            max_path_length=20,
+            discount=.99,
+
             use_soft_update=True,
             tau=1e-2,
-            batch_size=128,
-            max_path_length=1000,
-            discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
 
-            save_replay_buffer=True,
-            replay_buffer_size=15000,
+            save_replay_buffer=False,
+            replay_buffer_size=int(1E6),
         ),
         qf_kwargs=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[400, 300],
         ),
         policy_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
+        env_kwargs=dict(
+        ),
         es_kwargs=dict(
-            min_sigma=None,  # Constant sigma
+            max_sigma=0.1,
+            min_sigma=0.1,  # Constant sigma
         ),
         algorithm="DDPG",
         version="DDPG",
-        normalize=True,
-        env_class=HalfCheetahEnv,
     )
     search_space = {
         'env_class': [
-            # InvertedPendulumEnv,
-            # InvertedDoublePendulumEnv,
-            # HalfCheetahEnv,
-            # SwimmerEnv,
-            # AntEnv,
-            # HopperEnv,
-            # Walker2dEnv,
-            Point2DEnv,
-            # InvertedDoublePendulumEnv,
+            InvertedPendulumEnv,
+            InvertedDoublePendulumEnv,
         ],
-        'algo_kwargs.reward_scale': [
-            1,
-        ],
-        'algo_kwargs.policy_pre_activation_weight': [
-            0,
-        ],
-        'algo_kwargs.optimizer_class': [
-            optim.Adam,
-        ],
-        'algo_kwargs.tau': [
-            1e-2,
-        ],
-        'algo_kwargs.num_updates_per_env_step': [
-            1,
-        ],
-        'qf_kwargs.layer_norm': [
-            True,
-        ],
-        'policy_kwargs.layer_norm': [
-            True,
-        ],
-        'es_kwargs.theta': [
-            1, 0.3
-        ],
-        'es_kwargs.max_sigma': [
-            1, 0.3
-        ],
-        'es_kwargs.min_sigma': [
-            None, 0.1,
-        ],
-        'es_kwargs.decay_period': [
-            10000,
-        ],
+        'algo_kwargs.num_updates_per_env_step': [1, 5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(3):
+        for _ in range(n_seeds):
             run_experiment(
                 experiment,
-                # exp_prefix="dev-ddpg-sweep",
-                exp_prefix="ddpg-point2d-exploration-sweep",
-                mode='ec2',
-                exp_id=exp_id,
+                exp_prefix=exp_prefix,
+                mode=mode,
                 variant=variant,
-                use_gpu=False,
+                exp_id=exp_id,
             )

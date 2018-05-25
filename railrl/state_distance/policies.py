@@ -14,7 +14,7 @@ from railrl.torch import pytorch_util as ptu
 from railrl.core import logger
 
 
-class UniversalPolicy(metaclass=abc.ABCMeta):
+class UniversalPolicy(ExplorationPolicy, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def get_action(self, observation, goal, tau, **kwargs):
         pass

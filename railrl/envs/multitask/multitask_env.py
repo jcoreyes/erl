@@ -38,13 +38,14 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     See `MultitaskEnvToSilentMultitaskEnv` for more detail.
     """
 
-    def __init__(self, distance_metric_order=1, goal_dim_weights=None):
+    def __init__(self, distance_metric_order=1, goal_dim_weights=None, ignore_multitask_goal=False, **kwargs):
         self.multitask_goal = np.zeros(self.goal_dim)
         if goal_dim_weights is None:
             self.goal_dim_weights = np.ones(self.goal_dim)
         else:
             self.goal_dim_weights = np.array(goal_dim_weights)
         self.distance_metric_order = distance_metric_order
+        self.ignore_multitask_goal = ignore_multitask_goal
 
     @property
     @abc.abstractmethod
@@ -97,6 +98,15 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             ob[None], action[None], next_ob[None], goal[None]
         )
 
+    def get_goal(self):
+        return self.multitask_goal.copy()
+
+    def get_nongoal_state(self):
+        return None
+
+    def set_nongoal_state(self, state):
+        return
+
     """
     Check out these default functions below! You may want to override them.
     """
@@ -128,6 +138,10 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         return goal
 
     def log_diagnostics(self, paths, logger=default_logger):
+        return
+
+    def old_log_diagnostics(self, paths, logger=default_logger):
+        """Unused because it conflicts if goals don't come from environment"""
         list_of_goals = _extract_list_of_goals(paths)
         if list_of_goals is None:
             return
@@ -250,6 +264,7 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
             self,
             env: MultitaskEnv,
             give_goal_difference=False,
+            pause_on_goal=False,
     ):
         # self._wrapped_env needs to be called first because
         # Serializable.quick_init calls getattr, on this class. And the
@@ -268,14 +283,15 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         wrapped_low = self.observation_space.low
         low = np.hstack((
             wrapped_low,
-            min(wrapped_low) * np.ones(self._wrapped_env.goal_dim)
+            self._wrapped_env.goal_space.low,
         ))
         wrapped_high = self.observation_space.low
         high = np.hstack((
             wrapped_high,
-            max(wrapped_high) * np.ones(self._wrapped_env.goal_dim)
+            self._wrapped_env.goal_space.high,
         ))
         self.observation_space = Box(low, high)
+        self.pause_on_goal = pause_on_goal
 
     def step(self, action):
         ob, reward, done, info_dict = self._wrapped_env.step(action)
@@ -284,6 +300,11 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
 
     def reset(self):
         self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
+
+        if self.pause_on_goal:
+            for i in range(100):
+                self.render()
+
         ob = super().reset()
         new_ob = self._add_goal_to_observation(ob)
         return new_ob
@@ -328,8 +349,34 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
     Normally, reset() on a multitask env doesn't change the goal.
     Now, reset will silently change the goal.
     """
+    def __init__(
+            self,
+            env: MultitaskEnv,
+            give_goal_difference=False,
+            pause_on_goal=False,
+    ):
+        # self._wrapped_env needs to be called first because
+        # Serializable.quick_init calls getattr, on this class. And the
+        # implementation of getattr (see below) calls self._wrapped_env.
+        # Without setting this first, the call to self._wrapped_env would call
+        # getattr again (since it's not set yet) and therefore loop forever.
+        self._wrapped_env = env
+        # Or else serialization gets delegated to the wrapped_env. Serialize
+        # this env separately from the wrapped_env.
+        self._serializable_initialized = False
+        self._wrapped_obs_dim = env.observation_space.low.size
+        self.give_goal_difference = give_goal_difference
+        self.pause_on_goal = pause_on_goal
+        Serializable.quick_init(self, locals())
+        ProxyEnv.__init__(self, env)
+
     def reset(self):
         self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
+
+        if self.pause_on_goal:
+            for i in range(100):
+                self.render()
+
         return super().reset()
 
     def cost_fn(self, states, actions, next_states):

@@ -5,6 +5,9 @@ from collections import OrderedDict
 from torch import nn as nn
 from torch.autograd import Variable
 
+import torch
+import tempfile
+
 from railrl.torch import pytorch_util as ptu
 from railrl.core.serializable import Serializable
 
@@ -12,10 +15,19 @@ from railrl.core.serializable import Serializable
 class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
 
     def get_param_values(self):
-        return self.state_dict()
+        save_buffer = tempfile.TemporaryFile() # TODO: change this to io.BytesIO
+        torch.save(self.state_dict(), save_buffer)
+        save_buffer.seek(0)
+        save_bytes = save_buffer.read()
+        return save_bytes
 
     def set_param_values(self, param_values):
-        self.load_state_dict(param_values)
+        save_buffer = tempfile.TemporaryFile()
+        save_buffer.write(param_values)
+        save_buffer.seek(0)
+        # always loads to CPU
+        state_dict = torch.load(save_buffer, map_location=lambda storage, loc: storage)
+        self.load_state_dict(state_dict)
 
     def get_param_values_np(self):
         state_dict = self.state_dict()
@@ -30,8 +42,19 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
             torch_dict[key] = ptu.from_numpy(tensor)
         self.load_state_dict(torch_dict)
 
-    def copy(self):
+    def copy(self, copy_parameters=True):
+        if not copy_parameters:
+            # Basically the same code as clone, but do not set param values.
+            assert isinstance(self, Serializable)
+            d = Serializable.__getstate__(self)
+            d["__kwargs"] = dict(d["__kwargs"])
+            out = type(self).__new__(type(self))
+            Serializable.__setstate__(out, d)
+            return out
+
         copy = Serializable.clone(self)
+        # Not actually necessary since the parameters should already be
+        # copied, but just to be safe...
         ptu.copy_model_params_from_to(self, copy)
         return copy
 

@@ -161,13 +161,13 @@ def pop_tabular_prefix():
     _tabular_prefix_str = ''.join(_tabular_prefixes)
 
 
-def save_extra_data(data):
+def save_extra_data(data, file_name='extra_data.pkl'):
     """
     Data saved here will always override the last entry
 
     :param data: Something pickle'able.
     """
-    file_name = osp.join(_snapshot_dir, 'extra_data.pkl')
+    file_name = osp.join(_snapshot_dir, file_name)
     joblib.dump(data, file_name, compress=3)
 
 
@@ -247,26 +247,25 @@ def pop_prefix():
     global _prefix_str
     _prefix_str = ''.join(_prefixes)
 
-
 def save_itr_params(itr, params):
     if _snapshot_dir:
         if _snapshot_mode == 'all':
             file_name = osp.join(_snapshot_dir, 'itr_%d.pkl' % itr)
-            joblib.dump(params, file_name, compress=3)
+            pickle.dump(params, open(file_name, "wb"))
         elif _snapshot_mode == 'last':
             # override previous params
             file_name = osp.join(_snapshot_dir, 'params.pkl')
-            joblib.dump(params, file_name, compress=3)
+            pickle.dump(params, open(file_name, "wb"))
         elif _snapshot_mode == "gap":
             if itr % _snapshot_gap == 0:
                 file_name = osp.join(_snapshot_dir, 'itr_%d.pkl' % itr)
-                joblib.dump(params, file_name, compress=3)
+                pickle.dump(params, open(file_name, "wb"))
         elif _snapshot_mode == "gap_and_last":
             if itr % _snapshot_gap == 0:
                 file_name = osp.join(_snapshot_dir, 'itr_%d.pkl' % itr)
-                joblib.dump(params, file_name, compress=3)
+                pickle.dump(params, open(file_name, "wb"))
             file_name = osp.join(_snapshot_dir, 'params.pkl')
-            joblib.dump(params, file_name, compress=3)
+            pickle.dump(params, open(file_name, "wb"))
         elif _snapshot_mode == 'none':
             pass
         else:

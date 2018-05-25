@@ -26,7 +26,6 @@ def experiment(variant):
     qf = TdmQf(
         env=env,
         vectorized=True,
-        norm_order=1,
         tdm_normalizer=tdm_normalizer,
         **variant['qf_kwargs']
     )
@@ -69,11 +68,10 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
     exp_prefix = "tdm-example-cheetah"
 
-    # noinspection PyTypeChecker
     variant = dict(
         ddpg_tdm_kwargs=dict(
             base_kwargs=dict(
@@ -101,6 +99,7 @@ if __name__ == "__main__":
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
+            structure='norm_difference',
         ),
         policy_kwargs=dict(
             hidden_sizes=[300, 300],

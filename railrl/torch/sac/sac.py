@@ -46,9 +46,8 @@ class SoftActorCritic(TorchRLAlgorithm):
             policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
 
+            train_policy_with_reparameterization=False,
             soft_target_tau=1e-2,
-            plotter=None,
-            render_eval_paths=False,
             eval_deterministic=True,
 
             eval_policy=None,
@@ -73,13 +72,13 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.policy_mean_reg_weight = policy_mean_reg_weight
         self.policy_std_reg_weight = policy_std_reg_weight
         self.policy_pre_activation_weight = policy_pre_activation_weight
-        self.plotter = plotter
-        self.render_eval_paths = render_eval_paths
+        self.train_policy_with_reparameterization = (
+            train_policy_with_reparameterization
+        )
 
         self.target_vf = vf.copy()
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
-        self.eval_statistics = None
 
         self.policy_optimizer = optimizer_class(
             self.policy.parameters(),
@@ -125,11 +124,13 @@ class SoftActorCritic(TorchRLAlgorithm):
         """
         Policy Loss
         """
-        # paper says to do + but apparently that's a typo. Do Q - V.
-        log_policy_target = q_new_actions - v_pred
-        policy_loss = (
-            log_pi * (log_pi - log_policy_target).detach()
-        ).mean()
+        if self.train_policy_with_reparameterization:
+            policy_loss = (log_pi - q_new_actions).mean()
+        else:
+            log_policy_target = q_new_actions - v_pred
+            policy_loss = (
+                log_pi * (log_pi - log_policy_target).detach()
+            ).mean()
         mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
         std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
         pre_tanh_value = policy_outputs[-1]
@@ -159,12 +160,8 @@ class SoftActorCritic(TorchRLAlgorithm):
         """
         Save some statistics for eval
         """
-        if self.eval_statistics is None:
-            """
-            Eval should set this to None.
-            This way, these statistics are only computed for one batch.
-            """
-            self.eval_statistics = OrderedDict()
+        if self.need_to_update_eval_statistics:
+            self.need_to_update_eval_statistics = False
             self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
             self.eval_statistics['VF Loss'] = np.mean(ptu.get_numpy(vf_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(

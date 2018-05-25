@@ -13,7 +13,6 @@ import datetime
 import dateutil.tz
 import joblib
 import numpy as np
-import tensorflow as tf
 
 import railrl.pythonplusplus as ppp
 from railrl.core import logger as default_logger
@@ -64,6 +63,8 @@ def run_experiment(
         instance_type=None,
         spot_price=None,
         logger=default_logger,
+        verbose=False,
+        trial_dir_suffix=None,
 ):
     """
     Usage:
@@ -148,10 +149,14 @@ def run_experiment(
     try:
         import git
         repo = git.Repo(os.getcwd())
+        try:
+            branch_name = repo.active_branch.name
+        except TypeError:
+            branch_name = '[DETACHED]'
         git_info = GitInfo(
             code_diff=repo.git.diff(None),
             commit_hash=repo.head.commit.hexsha,
-            branch_name=repo.active_branch.name,
+            branch_name=branch_name,
         )
     except ImportError:
         git_info = None
@@ -166,6 +171,7 @@ def run_experiment(
         git_info=git_info,
         script_name=main.__file__,
         logger=logger,
+        trial_dir_suffix=trial_dir_suffix,
     )
     if mode == 'here_no_doodad':
         run_experiment_kwargs['base_log_dir'] = base_log_dir
@@ -227,6 +233,15 @@ def run_experiment(
         aws_s3_path = config.AWS_S3_PATH
     else:
         aws_s3_path = None
+
+    if "run_id" in variant and variant["run_id"] is not None:
+        run_id, exp_id = variant["run_id"], variant["exp_id"]
+        s3_log_name = "run{}/id{}".format(run_id, exp_id)
+    else:
+        s3_log_name = "{}-id{}-s{}".format(exp_prefix, exp_id, seed)
+    if trial_dir_suffix is not None:
+        s3_log_name = s3_log_name + "-" + trial_dir_suffix
+
     mode_str_to_doodad_mode = {
         'local': doodad.mode.Local(),
         'local_docker': doodad.mode.LocalDocker(
@@ -240,7 +255,7 @@ def run_experiment(
             instance_type=instance_type,
             spot_price=spot_price,
             s3_log_prefix=exp_prefix,
-            s3_log_name="{}-id{}-s{}".format(exp_prefix, exp_id, seed),
+            s3_log_name=s3_log_name,
             gpu=use_gpu,
             aws_s3_path=aws_s3_path,
             **mode_kwargs
@@ -293,6 +308,7 @@ def run_experiment(
         },
         use_cloudpickle=True,
         target_mount=target_mount,
+        verbose=verbose,
     )
 
 
@@ -325,6 +341,7 @@ def create_mounts(
             mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
             output=True,
             sync_interval=sync_interval,
+            include_types=('*.txt', '*.csv', '*.json', '*.gz', '*.tar', '*.log', '*.pkl', '*.mp4')
         )
     elif mode == 'local':
         output_mount = mount.MountLocal(
@@ -439,6 +456,7 @@ def run_experiment_here(
         base_log_dir=None,
         log_dir=None,
         logger=default_logger,
+        trial_dir_suffix=None,
 ):
     """
     Run an experiment locally without any serialization.
@@ -477,6 +495,7 @@ def run_experiment_here(
         git_info=git_info,
         script_name=script_name,
         logger=logger,
+        trial_dir_suffix=trial_dir_suffix,
     )
 
     set_seed(seed)
@@ -503,7 +522,7 @@ def run_experiment_here(
     return experiment_function(variant)
 
 
-def create_exp_name(exp_prefix, exp_id=0, seed=0):
+def create_trial_name(exp_prefix, exp_id=0, seed=0):
     """
     Create a semi-unique experiment name that has a timestamp
     :param exp_prefix:
@@ -515,7 +534,14 @@ def create_exp_name(exp_prefix, exp_id=0, seed=0):
     return "%s_%s_%04d--s-%d" % (exp_prefix, timestamp, exp_id, seed)
 
 
-def create_log_dir(exp_prefix, exp_id=0, seed=0, base_log_dir=None):
+def create_log_dir(
+        exp_prefix,
+        exp_id=0,
+        seed=0,
+        base_log_dir=None,
+        variant=None,
+        trial_dir_suffix=None,
+):
     """
     Creates and returns a unique log directory.
 
@@ -524,11 +550,17 @@ def create_log_dir(exp_prefix, exp_id=0, seed=0, base_log_dir=None):
     :param exp_id: Different exp_ids will be in different directories.
     :return:
     """
-    exp_name = create_exp_name(exp_prefix, exp_id=exp_id,
-                               seed=seed)
+    if variant and "run_id" in variant and variant["run_id"] is not None:
+        run_id, exp_id = variant["run_id"], variant["exp_id"]
+        trial_name = "run{}/id{}".format(run_id, exp_id)
+    else:
+        trial_name = create_trial_name(exp_prefix, exp_id=exp_id,
+                                       seed=seed)
+    if trial_dir_suffix is not None:
+        trial_name = "{}-{}".format(trial_name, trial_dir_suffix)
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
-    log_dir = osp.join(base_log_dir, exp_prefix.replace("_", "-"), exp_name)
+    log_dir = osp.join(base_log_dir, exp_prefix.replace("_", "-"), trial_name)
     if osp.exists(log_dir):
         print("WARNING: Log directory already exists {}".format(log_dir))
     os.makedirs(log_dir, exist_ok=True)
@@ -551,6 +583,7 @@ def setup_logger(
         git_info=None,
         script_name=None,
         logger=default_logger,
+        trial_dir_suffix=None,
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -581,8 +614,14 @@ def setup_logger(
     """
     first_time = log_dir is None
     if first_time:
-        log_dir = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
-                                           base_log_dir=base_log_dir)
+        log_dir = create_log_dir(
+            exp_prefix,
+            exp_id=exp_id,
+            seed=seed,
+            base_log_dir=base_log_dir,
+            variant=variant,
+            trial_dir_suffix=trial_dir_suffix,
+        )
 
     if variant is not None:
         logger.log("Variant:")
@@ -633,7 +672,11 @@ def set_seed(seed):
     seed = int(seed)
     random.seed(seed)
     np.random.seed(seed)
-    tf.set_random_seed(seed)
+    try:
+        import tensorflow as tf
+        tf.set_random_seed(seed)
+    except ImportError as e:
+        print("Could not import tensorflow. Skipping tf.set_random_seed")
 
 
 def reset_execution_environment(logger=default_logger):
@@ -641,7 +684,11 @@ def reset_execution_environment(logger=default_logger):
     Call this between calls to separate experiments.
     :return:
     """
-    tf.reset_default_graph()
+    try:
+        import tensorflow as tf
+        tf.reset_default_graph()
+    except ImportError as e:
+        print("Could not import tensorflow. Skipping tf.reset_default_graph")
     import importlib
     importlib.reload(logger)
 

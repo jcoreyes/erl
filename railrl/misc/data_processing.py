@@ -10,7 +10,7 @@ from collections import defaultdict, namedtuple
 from railrl.pythonplusplus import nested_dict_to_dot_map_dict
 
 
-Trial = namedtuple("Trial", ["data", "variant"])
+Trial = namedtuple("Trial", ["data", "variant", "directory"])
 
 
 def matches_dict(criteria_dict, test_dict):
@@ -102,7 +102,7 @@ def get_dirs(root):
 
 def get_trials(base_dir, verbose=False, criteria=None, ):
     """
-    Get a list of (data, variant) tuples, loaded from
+    Get a list of (data, variant, directory) tuples, loaded from
         - process.csv
         - variant.json
     files under this directory.
@@ -148,7 +148,7 @@ def get_trials(base_dir, verbose=False, criteria=None, ):
             dtype=None,
             names=True,
         )
-        trials.append(Trial(data, variant))
+        trials.append(Trial(data, variant, dir_name))
     return trials
 
 

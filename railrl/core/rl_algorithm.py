@@ -1,17 +1,19 @@
 import abc
 import pickle
 import time
+from collections import OrderedDict
+
 import gtimer as gt
 import numpy as np
 import ray
 
+from railrl.core import logger
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
-from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.remote import RemoteRolloutEnv
+from railrl.misc import eval_util
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
-from railrl.core import logger
 
 
 class RLAlgorithm(metaclass=abc.ABCMeta):
@@ -20,6 +22,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             env,
             exploration_policy: ExplorationPolicy,
             training_env=None,
+            eval_sampler=None,
+            eval_policy=None,
+            collection_mode='online',
+
             num_epochs=100,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
@@ -28,19 +34,22 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             batch_size=1024,
             max_path_length=1000,
             discount=0.99,
-            replay_buffer_size=1000000,
             reward_scale=1,
+            min_num_steps_before_training=None,
+            replay_buffer_size=1000000,
+            replay_buffer=None,
+
+            # I/O parameters
             render=False,
+            render_during_eval=False,
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=True,
-            eval_sampler=None,
-            eval_policy=None,
-            collection_mode='online',
+
+            # Remove env parameters
             sim_throttle=False,
             normalize_env=True,
             parallel_step_to_train_ratio=20,
-            replay_buffer=None,
     ):
         """
         Base class for RL Algorithms
@@ -90,10 +99,14 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.replay_buffer_size = replay_buffer_size
         self.reward_scale = reward_scale
         self.render = render
+        self.render_during_eval = render_during_eval
         self.collection_mode = collection_mode
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
+        if min_num_steps_before_training is None:
+            min_num_steps_before_training = self.batch_size
+        self.min_num_steps_before_training = min_num_steps_before_training
         if eval_sampler is None:
             if eval_policy is None:
                 eval_policy = exploration_policy
@@ -102,9 +115,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 policy=eval_policy,
                 max_samples=self.num_steps_per_eval + self.max_path_length,
                 max_path_length=self.max_path_length,
+                render=render_during_eval,
             )
         self.eval_policy = eval_policy
         self.eval_sampler = eval_sampler
+        self.eval_statistics = OrderedDict()
+        self.need_to_update_eval_statistics = True
 
         self.action_space = env.action_space
         self.obs_space = env.observation_space
@@ -193,9 +209,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     agent_info=agent_info,
                     env_info=env_info,
                 )
-                if terminal or len(self._current_path_builder) >= self.max_path_length:
+                if terminal or len(
+                        self._current_path_builder) >= self.max_path_length:
                     self._handle_rollout_ending()
-                    observation = self._start_new_rollout()
+                    observation = self._start_new_rollout(
+                        terminal=terminal,
+                        previous_rollout_last_ob=next_ob,
+                    )
                 else:
                     observation = next_ob
 
@@ -237,7 +257,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     agent_info=agent_info,
                     env_info=env_info,
                 )
-                if terminal or len(self._current_path_builder) >= self.max_path_length:
+                if terminal or len(
+                        self._current_path_builder) >= self.max_path_length:
                     self._handle_rollout_ending()
                     observation = self._start_new_rollout()
                 else:
@@ -261,7 +282,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._start_epoch(epoch)
         while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
             if self.sim_throttle:
-                if epoch == 0 or self._n_env_steps_total//(self._n_train_steps_total+1) < self.parallel_step_to_train_ratio:
+                if epoch == 0 or self._n_env_steps_total // (
+                    self._n_train_steps_total + 1) < self.parallel_step_to_train_ratio:
                     path = self.training_env.rollout(
                         self.exploration_policy,
                         use_exploration_strategy=True,
@@ -358,6 +380,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def _try_to_offline_eval(self, epoch):
         start_time = time.time()
+        logger.save_extra_data(self.get_extra_data_to_save(epoch))
         self.offline_evaluate(epoch)
         params = self.get_epoch_snapshot(epoch)
         logger.save_itr_params(epoch, params)
@@ -370,25 +393,53 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
         logger.log("Eval Time: {0}".format(time.time() - start_time))
 
+    def evaluate(self, epoch):
+        statistics = OrderedDict()
+        statistics.update(self.eval_statistics)
+
+        logger.log("Collecting samples for evaluation")
+        test_paths = self.get_eval_paths()
+
+        statistics.update(eval_util.get_generic_path_information(
+            test_paths, stat_prefix="Test",
+        ))
+        if len(self._exploration_paths) > 0:
+            statistics.update(eval_util.get_generic_path_information(
+                self._exploration_paths, stat_prefix="Exploration",
+            ))
+        if hasattr(self.env, "log_diagnostics"):
+            self.env.log_diagnostics(test_paths)
+
+        average_returns = eval_util.get_average_returns(test_paths)
+        statistics['AverageReturn'] = average_returns
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+        self.need_to_update_eval_statistics = True
+
+    def get_eval_paths(self):
+        return self.eval_sampler.obtain_samples()
+
+    def offline_evaluate(self, epoch):
+        for key, value in self.eval_statistics.items():
+            logger.record_tabular(key, value)
+        self.need_to_update_eval_statistics = True
+
     def _can_evaluate(self):
         """
         One annoying thing about the logger table is that the keys at each
         iteration need to be the exact same. So unless you can compute
         everything, skip evaluation.
-
-        A common example for why you might want to skip evaluation is that at
-        the beginning of training, you may not have enough data for a
-        validation and training set.
-
-        :return:
         """
         return (
             len(self._exploration_paths) > 0
-            and self.replay_buffer.num_steps_can_sample() >= self.batch_size
+            and not self.need_to_update_eval_statistics
         )
 
     def _can_train(self):
-        return self.replay_buffer.num_steps_can_sample() >= self.batch_size
+        return (
+            self.replay_buffer.num_steps_can_sample() >=
+            self.min_num_steps_before_training
+        )
 
     def _get_action_and_info(self, observation):
         """
@@ -414,7 +465,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.log("Started Training: {0}".format(self._can_train()))
         logger.pop_prefix()
 
-    def _start_new_rollout(self):
+    def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
         return self.training_env.reset()
 
@@ -425,13 +476,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :return:
         """
         for (
-            ob,
-            action,
-            reward,
-            next_ob,
-            terminal,
-            agent_info,
-            env_info
+                ob,
+                action,
+                reward,
+                next_ob,
+                terminal,
+                agent_info,
+                env_info
         ) in zip(
             path["observations"],
             path["actions"],
@@ -498,8 +549,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._current_path_builder = PathBuilder()
 
     def get_epoch_snapshot(self, epoch):
-        if self.render:
-            self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,
@@ -516,8 +565,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :param epoch:
         :return:
         """
-        if self.render:
-            self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
         )
@@ -545,25 +592,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :return:
         """
         pass
-
-    @abc.abstractmethod
-    def evaluate(self, epoch):
-        """
-        Evaluate the policy, e.g. save/print progress.
-        :param epoch:
-        :return:
-        """
-        pass
-
-    # Don't make this abstract so that every class doesn't have to implement
-    # this.
-    def offline_evaluate(self, epoch):
-        """
-        Evaluate without collecting new data.
-        :param epoch:
-        :return:
-        """
-        raise NotImplementedError()
 
     @abc.abstractmethod
     def _do_training(self):
