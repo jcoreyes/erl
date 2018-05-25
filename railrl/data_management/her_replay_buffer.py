@@ -717,6 +717,13 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
                 env_infos[i],
             )
             new_rewards[i] = new_reward
+        # new_rewards = self.env.computer_her_reward_np_batch(
+        #     new_obs,
+        #     new_actions,
+        #     new_next_obs,
+        #     resampled_goals,
+        #     env_infos,
+        # )
 
         return dict(
             observations=new_obs,

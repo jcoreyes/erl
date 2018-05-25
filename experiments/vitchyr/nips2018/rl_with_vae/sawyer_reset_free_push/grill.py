@@ -25,9 +25,9 @@ if __name__ == "__main__":
     exp_prefix = 'grill-sawyer-reset-free-large-limits'
 
     vae_paths = {
-        # "16": "05-22-vae-sawyer-reset-free-zoomed-in/05-22-vae-sawyer-reset"
-              # "-free-zoomed-in_2018_05_22_17_08_31_0000--s-51746-r16/params.pkl"
-        "16": "05-23-vae-sawyer-pusher-reset-free-large-joint-limts/05-23-vae-sawyer-pusher-reset-free-large-joint-limts_2018_05_23_16_30_36_0000--s-5828-r16/params.pkl",
+        "16": "05-22-vae-sawyer-reset-free-zoomed-in/05-22-vae-sawyer-reset"
+              "-free-zoomed-in_2018_05_22_17_08_31_0000--s-51746-r16/params.pkl"
+        # "16": "05-23-vae-sawyer-pusher-reset-free-large-joint-limts/05-23-vae-sawyer-pusher-reset-free-large-joint-limts_2018_05_23_16_30_36_0000--s-5828-r16/params.pkl",
     }
 
     variant = dict(

@@ -1,6 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.envs.mujoco.sawyer_push_and_reach_env import \
     SawyerPushAndReachXYEasyEnv
+from railrl.envs.mujoco.sawyer_reset_free_push_env import SawyerResetFreePushEnv
 from railrl.images.camera import sawyer_init_camera_zoomed_in_fixed
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.modules import HuberLoss
@@ -13,32 +14,21 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'grill-tdm-td3-sawyer-push-and-reach-max-length-16'
+    exp_prefix = 'tdm-grill-td3-sawyer-push-reset-free-large-joint-limits'
 
     vae_paths = {
-        # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #      "-reacher-recreate-results_2018_05_11_01_18_09_0000--s-33239-r2"
-        #      "/params.pkl",
-        # "4": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #      "-reacher-recreate-results_2018_05_11_01_21_47_0000--s-74741-r4"
-        #      "/params.pkl",
-        # "8": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #      "-reacher-recreate-results_2018_05_11_01_25_22_0000--s-82322-r8"
-        #      "/params.pkl",
-        # "16": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #       "-reacher-recreate-results_2018_05_11_01_28_52_0000--s-570-r16"
-        #       "/params.pkl",
-        "16": "05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable"
-              "-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
+        # "16": "05-22-vae-sawyer-reset-free-zoomed-in/05-22-vae-sawyer-reset"
+        #       "-free-zoomed-in_2018_05_22_17_08_31_0000--s-51746-r16/params.pkl"
+        "16": "05-23-vae-sawyer-pusher-reset-free-large-joint-limts/05-23-vae-sawyer-pusher-reset-free-large-joint-limts_2018_05_23_16_30_36_0000--s-5828-r16/params.pkl",
     }
 
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=101,
+                num_epochs=301,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                max_path_length=16,
+                max_path_length=100,
                 num_updates_per_env_step=1,
                 batch_size=128,
                 discount=1,
@@ -55,9 +45,7 @@ if __name__ == "__main__":
         ),
         env_kwargs=dict(
             hide_goal=True,
-            # reward_info=dict(
-            #     type="shaped",
-            # ),
+            puck_limit='large',
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -76,7 +64,7 @@ if __name__ == "__main__":
         normalize=False,
         rdim=32,
         render=False,
-        env=SawyerPushAndReachXYEasyEnv,
+        env=SawyerResetFreePushEnv,
         use_env_goals=True,
         vae_paths=vae_paths,
         wrap_mujoco_env=True,
@@ -111,7 +99,7 @@ if __name__ == "__main__":
             # 'mahalanobis_distance'
         ],
         'reward_params.min_variance': [0],
-        'vae_wrapped_env_kwargs.sample_from_true_prior': [True, False],
+        'vae_wrapped_env_kwargs.sample_from_true_prior': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

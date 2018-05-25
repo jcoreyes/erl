@@ -1,17 +1,19 @@
-import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
     MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import (
+from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-)
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.state_distance.tdm_networks import TdmPolicy, \
+    TdmQf
+from railrl.state_distance.tdm_td3 import TdmTd3
 from railrl.torch.ddpg.ddpg import DDPG
 from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.td3.td3 import TD3
+import railrl.torch.pytorch_util as ptu
 
 
 def td3_experiment(variant):
@@ -127,6 +129,68 @@ def her_td3_experiment(variant):
         exploration_policy=exploration_policy,
         replay_buffer=replay_buffer,
         **variant['algo_kwargs']
+    )
+    if ptu.gpu_enabled():
+        algorithm.cuda()
+    algorithm.train()
+
+
+def tdm_td3_experiment(variant):
+    env = variant['env_class'](**variant['env_kwargs'])
+    tdm_normalizer = None
+    qf1 = TdmQf(
+        env=env,
+        vectorized=True,
+        tdm_normalizer=tdm_normalizer,
+        **variant['qf_kwargs']
+    )
+    qf2 = TdmQf(
+        env=env,
+        vectorized=True,
+        tdm_normalizer=tdm_normalizer,
+        **variant['qf_kwargs']
+    )
+    policy = TdmPolicy(
+        env=env,
+        tdm_normalizer=tdm_normalizer,
+        **variant['policy_kwargs']
+    )
+    exploration_type = variant['exploration_type']
+    if exploration_type == 'ou':
+        es = OUStrategy(action_space=env.action_space)
+    elif exploration_type == 'gaussian':
+        es = GaussianStrategy(
+            action_space=env.action_space,
+            max_sigma=0.1,
+            min_sigma=0.1,  # Constant sigma
+        )
+    elif exploration_type == 'epsilon':
+        es = EpsilonGreedy(
+            action_space=env.action_space,
+            prob_random_action=0.1,
+        )
+    else:
+        raise Exception("Invalid type: " + exploration_type)
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+    replay_buffer = variant['replay_buffer_class'](
+        env=env,
+        **variant['replay_buffer_kwargs']
+    )
+    qf_criterion = variant['qf_criterion_class']()
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['td3_kwargs']['qf_criterion'] = qf_criterion
+    algo_kwargs['tdm_kwargs']['tdm_normalizer'] = tdm_normalizer
+    algorithm = TdmTd3(
+        env,
+        qf1=qf1,
+        qf2=qf2,
+        replay_buffer=replay_buffer,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        **algo_kwargs
     )
     if ptu.gpu_enabled():
         algorithm.cuda()

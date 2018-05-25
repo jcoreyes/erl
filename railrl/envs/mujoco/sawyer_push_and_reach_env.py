@@ -101,7 +101,7 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
         u = np.zeros(7)
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
-        reward = self.compute_reward(obs, u, obs, self._goal_xyxy)
+        reward = self.compute_her_reward_np(obs, u, obs, self._goal_xyxy)
         done = False
 
         hand_distance = np.linalg.norm(
@@ -244,13 +244,24 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
         self.reset_mocap_welds()
         return self._get_obs()
 
-    def compute_reward(self, ob, action, next_ob, goal):
-        hand_xy = next_ob[:2]
-        puck_xy = next_ob[-2:]
-        hand_goal_xy = goal[:2]
-        puck_goal_xy = goal[-2:]
-        hand_dist = np.linalg.norm(hand_xy - hand_goal_xy)
-        puck_dist = np.linalg.norm(puck_xy - puck_goal_xy)
+    def compute_her_reward_np(self, ob, action, next_ob, goal, env_info=None):
+        return self.compute_her_reward_np_batch(
+            ob[None],
+            action[None],
+            next_ob[None],
+            goal[None],
+            [env_info],
+        )[0]
+
+    def compute_her_reward_np_batch(
+            self, obs, actions, next_obs, goals, env_infos=None
+    ):
+        hand_xy = next_obs[:, 2]
+        puck_xy = next_obs[:, -2:]
+        hand_goal_xy = goals[:, :2]
+        puck_goal_xy = goals[:, -2:]
+        hand_dist = np.linalg.norm(hand_xy - hand_goal_xy, axis=1)
+        puck_dist = np.linalg.norm(puck_xy - puck_goal_xy, axis=1)
         if not self.reward_info or self.reward_info["type"] == "euclidean":
             r = - hand_dist - puck_dist
         elif self.reward_info["type"] == "hand_only":
@@ -259,15 +270,12 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
             r = - puck_dist
         elif self.reward_info["type"] == "sparse":
             t = self.reward_info["threshold"]
-            r = float(
+            r = ((
                 hand_dist + puck_dist < t
-            ) - 1
+            ) - 1).astype(float)
         else:
             raise NotImplementedError("Invalid/no reward type.")
         return r
-
-    def compute_her_reward_np(self, ob, action, next_ob, goal):
-        return self.compute_reward(ob, action, next_ob, goal)
 
     # @property
     # def init_angles(self):

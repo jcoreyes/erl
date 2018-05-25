@@ -114,7 +114,7 @@ class SawyerResetFreePushEnv(SawyerMocapBase, MujocoEnv, Serializable,
         return obs, reward, done, info
 
     def _get_obs(self):
-        e = self.get_endeff_pos()
+        e = self.get_endeff_pos()[:2]
         b = self.get_puck_pos()[:2]
         return np.concatenate((e, b))
 
