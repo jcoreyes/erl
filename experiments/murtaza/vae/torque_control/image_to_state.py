@@ -16,7 +16,7 @@ X = np.load('/home/murtaza/vae_data/sawyer_torque_control_ou_imgs_zoomed_out1000
 Y = np.load('/home/murtaza/vae_data/sawyer_torque_control_ou_states_zoomed_out10000.npy')
 # Y = np.concatenate((Y[:, :7], Y[:, 14:]), axis=1)
 Y = Y[:, :7] % (2*np.pi) #joint angle regression only
-X = np.reshape(X, (X.shape[0], 84, 84, 3))
+X = np.reshape(X, (X.shape[0], 3, 84, 84))
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=.1)
 def create_feedforward_network(model, hidden_sizes, input_shape=None):
     count = 0
@@ -76,9 +76,9 @@ num_epochs = 100
 histories = []
 for conv_architecture in conv_architectures:
     for fc_architecture in fc_architectures:
-        model = create_network(fc_architecture, Y_train.shape[1], do_regression=True, conv_sizes = conv_architecture, use_fc=False, input_shape=[84, 84, 3])
+        model = create_network(fc_architecture, Y_train.shape[1], do_regression=True, conv_sizes = conv_architecture, use_fc=False, input_shape=[3, 84, 84])
         hist = model.fit(X_train, Y_train, batch_size=batch_size, shuffle=True, steps_per_epoch=None, epochs=num_epochs, validation_split=0.1)
-        print('Test Loss:', model.evaluate(X_train, Y_train))
+        print('Test Loss:', model.evaluate(X_test, Y_test))
         histories.append(hist)
 train_losses = [history.history['loss'] for history in histories]
 labels = ['Training']
