@@ -4,13 +4,13 @@ from railrl.envs.mujoco.sawyer_push_and_reach_env import \
 from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.multitask.pusher2d import FullPusher2DEnv
-from railrl.images.camera import sawyer_init_camera
+from railrl.images.camera import sawyer_init_camera, \
+    sawyer_init_camera_zoomed_in_fixed
 
 from railrl.launchers.arglauncher import run_variants
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.modules import HuberLoss
-from railrl.torch.vae.relabeled_vae_experiment import experiment
 from railrl.torch.vae.tdm_td3_vae_experiment import tdm_td3_vae_experiment
 
 if __name__ == "__main__":
@@ -18,9 +18,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
+    n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'tbd-tdm-td3-sawyer-push-and-reach'
+    exp_prefix = 'grill-tdm-td3-sawyer-push-and-reach'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -35,7 +35,8 @@ if __name__ == "__main__":
         # "16": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
         #       "-reacher-recreate-results_2018_05_11_01_28_52_0000--s-570-r16"
         #       "/params.pkl",
-        "16": "05-12-sawyer-vae-reacher-no-min-var/05-12-sawyer-vae-reacher-no-min-var_2018_05_12_23_51_16_0000--s-15031-r16/params.pkl"
+        "16": "05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable"
+              "-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
     }
 
     variant = dict(
@@ -74,8 +75,9 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
         replay_kwargs=dict(
+            max_size=100000,
             fraction_goals_are_rollout_goals=0.2,
-            fraction_goals_are_env_goals=0.5,
+            fraction_resampled_goals_are_env_goals=0.5,
         ),
         algorithm='HER-TD3',
         normalize=False,
@@ -87,7 +89,7 @@ if __name__ == "__main__":
         wrap_mujoco_env=True,
         do_state_based_exp=False,
         exploration_noise=0.1,
-        init_camera=sawyer_init_camera,
+        init_camera=sawyer_init_camera_zoomed_in_fixed,
         version='normal',
         reward_params=dict(
             min_variance=0,
@@ -98,17 +100,23 @@ if __name__ == "__main__":
 
     search_space = {
         'exploration_type': [
+            'epsilon',
+            'gaussian',
             'ou',
         ],
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 5, 10],
-        'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.0, 0.5, 1.0],
+        'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.5],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
         # 'rdim': [2, 4, 8, 16],
         'rdim': [16],
-        'reward_params.type': ['latent_distance', 'log_prob'],
+        'reward_params.type': [
+            'latent_distance',
+            'log_prob',
+            'mahalanobis_distance'
+        ],
         'reward_params.min_variance': [0],
         'vae_wrapped_env_kwargs.sample_from_true_prior': [False],
     }

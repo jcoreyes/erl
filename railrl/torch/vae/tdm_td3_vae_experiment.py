@@ -64,7 +64,6 @@ def tdm_td3_vae_experiment(variant):
             use_vae_reward=True, use_vae_goals=use_vae_goals,
             decode_goals=render,
             render_goals=render, render_rollouts=render,
-            render_decoded=render,
             reward_params=reward_params,
             **variant.get('vae_wrapped_env_kwargs', {})
         )
@@ -134,6 +133,7 @@ def tdm_td3_vae_experiment(variant):
         relabeling_env.mode(training_mode)
         # save time by not resetting relabel env
         relabeling_env.reset_on_sample_goal_for_rollout = False
+        relabeling_env.disable_render()
 
         video_vae_env = pickle.loads(pickle.dumps(env))
         video_vae_env.mode("video_vae")
@@ -141,7 +141,6 @@ def tdm_td3_vae_experiment(variant):
         video_goal_env.mode("video_env")
 
     replay_buffer = RelabelingReplayBuffer(
-        max_size=100000,
         env=relabeling_env,
         **variant['replay_kwargs']
     )

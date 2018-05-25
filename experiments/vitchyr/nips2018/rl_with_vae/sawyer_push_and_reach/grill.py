@@ -123,7 +123,7 @@ if __name__ == "__main__":
         #     variant['vae_paths']['16'] = zoomed_in_path
         # elif variant['init_camera'] == sawyer_init_camera:
         #     variant['vae_paths']['16'] = zoomed_out_path
-        # zoomed = 'zoomed_out' in variant['vae_paths']['16']
+        # zoomed = 'zoomed_out' not in variant['vae_paths']['16']
         # n1000 = 'nImg-1000' in variant['vae_paths']['16']
         # if zoomed:
             # variant['init_camera'] = sawyer_init_camera_zoomed_out_fixed
