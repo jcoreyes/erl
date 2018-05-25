@@ -128,7 +128,6 @@ def multitask_rollout(
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o, goal, tau, **get_action_kwargs)
         if animated:
-            # env.render(debug_info=agent_info)
             env.render()
         next_o, r, d, env_info = env.step(a)
         next_observations.append(next_o)
@@ -146,7 +145,7 @@ def multitask_rollout(
             if cycle_tau:
                 tau = np.array([init_tau])
             else:
-                tau = 0
+                tau = np.array([0])
         if d:
             break
         o = next_o
