@@ -299,6 +299,7 @@ class ConvVAE(PyTorchModule):
             use_min_variance=True,
             state_sim_debug=False,
             state_size=0,
+            is_auto_encoder=False,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -313,6 +314,7 @@ class ConvVAE(PyTorchModule):
         else:
             self.log_min_variance = float(np.log(min_variance))
         self.state_sim_debug = state_sim_debug
+        self.is_auto_encoder=is_auto_encoder
         self.dist_mu = None
         self.dist_std = None
 
@@ -381,14 +383,14 @@ class ConvVAE(PyTorchModule):
             self.fc6.weight.data.uniform_(-init_w, init_w)
             self.fc6.bias.data.uniform_(-init_w, init_w)
 
-        # self.hidden_init(self.fc3.weight)
-        # self.fc3.bias.data.fill_(0)
-        # self.fc3.weight.data.uniform_(-init_w, init_w)
-        # self.fc3.bias.data.uniform_(-init_w, init_w)
-        # self.hidden_init(self.fc4.weight)
-        # self.fc4.bias.data.fill_(0)
-        # self.fc4.weight.data.uniform_(-init_w, init_w)
-        # self.fc4.bias.data.uniform_(-init_w, init_w)
+        self.hidden_init(self.fc3.weight)
+        self.fc3.bias.data.fill_(0)
+        self.fc3.weight.data.uniform_(-init_w, init_w)
+        self.fc3.bias.data.uniform_(-init_w, init_w)
+        self.hidden_init(self.fc4.weight)
+        self.fc4.bias.data.fill_(0)
+        self.fc4.weight.data.uniform_(-init_w, init_w)
+        self.fc4.bias.data.uniform_(-init_w, init_w)
 
     def encode(self, input):
         input = input.view(-1, self.imlength + self.added_fc_size)
@@ -429,7 +431,10 @@ class ConvVAE(PyTorchModule):
 
     def forward(self, x):
         mu, logvar = self.encode(x)
-        z = self.reparameterize(mu, logvar)
+        if self.is_auto_encoder:
+            z=mu
+        else:
+            z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
 
     def __getstate__(self):
