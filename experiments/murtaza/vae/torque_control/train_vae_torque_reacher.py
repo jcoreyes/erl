@@ -4,6 +4,11 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 from railrl.torch.vae.sawyer_torque_control_data import generate_vae_dataset
 import numpy as np
+images = np.zeros((100000, 21168))
+for i in range(10):
+    imgs = np.load('/home/murtaza/vae_data/sawyer_torque_control_images100000_'+str(i+1)+'.npy')
+    images[i*10000:(i+1)*10000] = imgs
+train_data, test_data = images[:90000], images[90000:]
 
 def experiment(variant):
     from railrl.core import logger
@@ -14,11 +19,8 @@ def experiment(variant):
     #     **variant['get_data_kwargs']
     # )
     info = dict()
-    images = np.zeros((100000, 21168))
-    for i in range(10):
-        imgs = np.load('/home/murtaza/vae_data/sawyer_torque_control_images100000_'+str(i+1)+'.npy')
-        images[i*10000:(i+1)*10000] = imgs
-    train_data, test_data = images[:90000], images[90000:]
+
+    # train_data, test_data = images[:9000], images[9000:]
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
     if 'beta_schedule_kwargs' in variant:
@@ -43,27 +45,27 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sawyer_torque_vae_much_larger_dataset'
+    exp_prefix = 'sawyer_torque_new_vae_100K_data'
     use_gpu = True
 
     variant = dict(
         beta=5,
         num_epochs=300,
-        # get_data_kwargs=dict(
-        #     N=10000,
-        #     use_cached=True,
-        # ),
         algo_kwargs=dict(
+            batch_size=64,
         ),
         conv_vae_kwargs=dict(
             min_variance=None,
+            use_old_architecture=True,
         ),
-        save_period=1,
+        save_period=10,
     )
 
     search_space = {
-        'representation_size': [32, 128, 1024],
-        'beta':[5]
+        'representation_size': [16, 32, 128, 1024],
+        'beta':[5],
+        'algo_kwargs.lr':[1e-2, 1e-3, 1e-4],
+        'conv_vae_kwargs.use_old_architecture':[False]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

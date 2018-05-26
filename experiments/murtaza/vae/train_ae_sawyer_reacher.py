@@ -2,9 +2,9 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-# from railrl.torch.vae.sawyer2d_multi_push_data import generate_vae_dataset
+#from railrl.torch.vae.sawyer2d_multi_push_data import generate_vae_dataset
 from railrl.torch.vae.sawyer2d_reach_data import generate_vae_dataset
-# from railrl.torch.vae.sawyer2d_push_new_easy_data import generate_vae_dataset
+#from railrl.torch.vae.sawyer2d_push_new_easy_data import generate_vae_dataset
 
 def experiment(variant):
     from railrl.core import logger
@@ -38,7 +38,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sawyer_pos_reacher_ae_smaller_latents'
+    exp_prefix = 'sawyer_reacher_ae_sweep_for_test'
     use_gpu = True
 
     variant = dict(
@@ -49,16 +49,20 @@ if __name__ == "__main__":
             use_cached=True,
         ),
         algo_kwargs=dict(
+            # batch_size=32,
+            lr=1e-1,
         ),
         conv_vae_kwargs=dict(
             min_variance=None,
+            use_old_architecture=True,
         ),
         is_auto_encoder=True,
         save_period=5,
     )
 
     search_space = {
-        'representation_size': [4],
+        'representation_size': [4, 16],
+        'algo_kwargs.lr': [1e-2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
