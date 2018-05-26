@@ -296,12 +296,11 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     def log_diagnostics(self, paths, logger=logger, prefix=""):
         super().log_diagnostics(paths)
-
         statistics = OrderedDict()
         for stat_name in [
             'hand_distance',
             'puck_distance',
-            'sum_distance',
+            # 'sum_distance', #a bug here when calling log diagnostics from multi push env had to comment this out
             'touch_distance',
             'success',
         ]:
