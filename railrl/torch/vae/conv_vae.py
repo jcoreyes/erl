@@ -300,6 +300,7 @@ class ConvVAE(PyTorchModule):
             state_sim_debug=False,
             state_size=0,
             is_auto_encoder=False,
+            use_old_architecture=True,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -315,6 +316,7 @@ class ConvVAE(PyTorchModule):
             self.log_min_variance = float(np.log(min_variance))
         self.state_sim_debug = state_sim_debug
         self.is_auto_encoder=is_auto_encoder
+        self.use_old_architecture = use_old_architecture
         self.dist_mu = None
         self.dist_std = None
 
@@ -323,12 +325,28 @@ class ConvVAE(PyTorchModule):
         self.added_fc_size = added_fc_size
         self.init_w = init_w
 
-        self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=3)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.conv2 = nn.Conv2d(16, 32, kernel_size=5, stride=3)
-        self.bn2 = nn.BatchNorm2d(32)
-        self.conv3 = nn.Conv2d(32, 32, kernel_size=5, stride=3)
-        self.bn3 = nn.BatchNorm2d(32)
+        if self.use_old_architecture:
+            self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=3)
+            self.bn1 = nn.BatchNorm2d(16)
+            self.conv2 = nn.Conv2d(16, 32, kernel_size=5, stride=3)
+            self.bn2 = nn.BatchNorm2d(32)
+            self.conv3 = nn.Conv2d(32, 32, kernel_size=5, stride=3)
+            self.bn3 = nn.BatchNorm2d(32)
+        else:
+            self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=1)
+            self.bn1 = nn.BatchNorm2d(16)
+            self.conv2 = nn.Conv2d(16, 32, kernel_size=5, stride=1)
+            self.bn2 = nn.BatchNorm2d(32)
+            self.conv3 = nn.Conv2d(32, 32, kernel_size=5, stride=1)
+            self.bn3 = nn.BatchNorm2d(32)
+
+            self.conv4 = nn.Conv2d(32, 32, kernel_size=5, stride=3)
+            self.bn4 = nn.BatchNorm2d(32)
+            self.conv5 = nn.Conv2d(32, 32, kernel_size=5, stride=3)
+            self.bn5 = nn.BatchNorm2d(32)
+            self.conv6 = nn.Conv2d(32, 32, kernel_size=5, stride=2)
+            self.bn6 = nn.BatchNorm2d(32)
+
 
         # self.conv_output_dim = 1568 # kernel 2
         self.conv_output_dim = 128 # kernel 3
@@ -346,9 +364,17 @@ class ConvVAE(PyTorchModule):
             self.fc5 = nn.Linear(self.representation_size, 100)
             self.fc6 = nn.Linear(100, state_size)
 
-        self.conv4 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
-        self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
-        self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=3)
+        if self.use_old_architecture:
+            self.conv4 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
+            self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
+            self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=3)
+        else:
+            self.conv7 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=2)
+            self.conv8 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
+            self.conv9= nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
+            self.conv10 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=1)
+            self.conv11 = nn.ConvTranspose2d(32, 16, kernel_size=5, stride=1)
+            self.conv12 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=1)
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
@@ -358,12 +384,24 @@ class ConvVAE(PyTorchModule):
         self.conv2.bias.data.fill_(0)
         self.hidden_init(self.conv3.weight)
         self.conv3.bias.data.fill_(0)
-        # self.hidden_init(self.conv4.weight)
-        # self.conv4.bias.data.fill_(0)
-        # self.hidden_init(self.conv5.weight)
-        # self.conv5.bias.data.fill_(0)
-        # self.hidden_init(self.conv6.weight)
-        # self.conv6.bias.data.fill_(0)
+        self.hidden_init(self.conv4.weight)
+        self.conv4.bias.data.fill_(0)
+        self.hidden_init(self.conv5.weight)
+        self.conv5.bias.data.fill_(0)
+        self.hidden_init(self.conv6.weight)
+        self.conv6.bias.data.fill_(0)
+
+        if not self.use_old_architecture:
+            self.hidden_init(self.conv7.weight)
+            self.conv7.bias.data.fill_(0)
+            self.hidden_init(self.conv8.weight)
+            self.conv8.bias.data.fill_(0)
+            self.hidden_init(self.conv9.weight)
+            self.conv9.bias.data.fill_(0)
+            self.hidden_init(self.conv10.weight)
+            self.conv10.bias.data.fill_(0)
+            self.hidden_init(self.conv11.weight)
+            self.conv11.bias.data.fill_(0)
 
         self.hidden_init(self.fc1.weight)
         self.fc1.bias.data.fill_(0)
@@ -401,6 +439,11 @@ class ConvVAE(PyTorchModule):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
+
+        if not self.use_old_architecture:
+            x = F.relu(self.bn4(self.conv4(x)))
+            x = F.relu(self.bn5(self.conv5(x)))
+            x = F.relu(self.bn6(self.conv6(x)))
         h = x.view(-1, 128) # flatten
         if self.added_fc_size != 0:
             fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dimension=1)
@@ -423,10 +466,20 @@ class ConvVAE(PyTorchModule):
 
     def decode(self, z):
         h3 = self.relu(self.fc3(z))
+
         h = h3.view(-1, 32, 2, 2)
-        x = F.relu(self.conv4(h))
-        x = F.relu(self.conv5(x))
-        x = self.conv6(x).view(-1, self.imsize*self.imsize*self.input_channels)
+        if self.use_old_architecture:
+            x = F.relu(self.conv4(h))
+            x = F.relu(self.conv5(x))
+            x = self.conv6(x).view(-1, self.imsize*self.imsize*self.input_channels)
+        else:
+            x = F.relu(self.conv7(h))
+            x = F.relu(self.conv8(x))
+            x = F.relu(self.conv9(x))
+            x = F.relu(self.conv10(x))
+            x = F.relu(self.conv11(x))
+            x = self.conv12(x).view(-1, self.imsize*self.imsize*self.input_channels)
+
         return self.sigmoid(x)
 
     def forward(self, x):
