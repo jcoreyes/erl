@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     variant = dict(
         beta=5,
-        num_epochs=100,
+        num_epochs=500,
         get_data_kwargs=dict(
             N=10000,
             use_cached=True,

@@ -15,11 +15,11 @@ from railrl.policies.simple import ZeroPolicy, RandomPolicy
 
 
 def generate_vae_dataset(
-        N=10000, test_p=0.9, use_cached=True, imsize=84, show=True,
+        N=10000, num_divisions=10, test_p=0.9, use_cached=True, imsize=84, show=True,
         dataset_path=None, save_state_info=False,
 ):
-    img_file = "/home/murtaza/vae_data/sawyer_torque_control_ou_imgs_zoomed_out" + str(N) + ".npy"
-    state_file = "/home/murtaza/vae_data/sawyer_torque_control_ou_states_zoomed_out" + str(N) + ".npy"
+    img_file = "/home/murtaza/vae_data/sawyer_torque_control_images" + str(N)
+    state_file = "/home/murtaza/vae_data/sawyer_torque_control_states" + str(N)
     info = {}
 
     if dataset_path is not None:
@@ -46,35 +46,40 @@ def generate_vae_dataset(
             exploration_strategy=es,
             policy=policy,
         )
-
-        dataset = np.zeros((N, imsize * imsize * 3))
-        states = np.zeros((N, obs_dim))
+        single_set_size = int(N/num_divisions)
+        dataset = np.zeros((single_set_size, imsize * imsize * 3))
+        states = np.zeros((single_set_size, obs_dim))
+        count = 1
         for i in range(N):
+            if i % single_set_size==0 and i!=0:
+                np.save(img_file + '_'+str(count)+'.npy', dataset)
+                np.save(state_file+'_'+str(count)+'.npy', states)
+                dataset = np.zeros((single_set_size, imsize * imsize * 3))
+                states = np.zeros((single_set_size, obs_dim))
+                count+=1
             # Move the goal out of the image
             env.wrapped_env.set_goal(np.array([100, 100, 100]))
             if i %50==0:
                 print('Reset')
                 env.reset()
                 exploration_policy.reset()
-            # env.reset()
-            # action = -1*env.action_space.sample()
-            # action = exploration_policy.get_action()[0]*10
             for _ in range(75):
                 action = exploration_policy.get_action()[0]*10
                 env.wrapped_env.step(
                     action
                 )
             img = env.step(env.action_space.sample())[0]
-            states[i,:] = env._wrapped_env._get_obs()
-            dataset[i, :] = img
+            states[i%single_set_size,:] = env._wrapped_env._get_obs()
+            dataset[i%single_set_size, :] = img
             if show:
                 cv2.imshow('img', img.reshape(3, 84, 84).transpose())
                 cv2.waitKey(1)
             print(i)
-        print("done making training data", img_file, time.time() - now)
-        np.save(img_file, dataset)
-        np.save(state_file, states)
 
+
+        print("done making training data", time.time() - now)
+        np.save(img_file + '_' + str(count) + '.npy', dataset)
+        np.save(state_file + '_' + str(count) + '.npy', states)
     n = int(N * test_p)
     train_dataset = dataset[:n, :]
     test_dataset = dataset[n:, :]
@@ -82,4 +87,4 @@ def generate_vae_dataset(
 
 
 if __name__ == "__main__":
-    generate_vae_dataset(10000, use_cached=False, show=False, save_state_info=True)
+    generate_vae_dataset(100000, num_divisions=10, use_cached=False, show=False, save_state_info=True)
