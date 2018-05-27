@@ -49,12 +49,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         use_vae_reward=True,
         use_vae_goals=True, # whether you use goals from VAE or rendered from environment state
         sample_from_true_prior=False,
-        use_state_reward = False,
-        use_state_obs=False,
         decode_goals=False,
         render_goals=False,
         render_rollouts=False,
-
         reset_on_sample_goal_for_rollout = True,
         history_size=1,
         reward_params=None,
@@ -76,8 +73,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.use_vae_reward = use_vae_reward
         self.use_vae_obs = use_vae_obs
         self.sample_from_true_prior = sample_from_true_prior
-        self.use_state_reward = use_state_reward
-        self.use_state_obs = use_state_obs
         self.decode_goals = decode_goals
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
@@ -130,15 +125,11 @@ class VAEWrappedEnv(ProxyEnv, Env):
         else:
             error
 
-    def _get_history(self):
+    def _get_history(self, observation):
         observations = list(self.history)
         obs_count = len(observations)
         for _ in range(self.history_len - obs_count):
-            if self.use_state_obs:
-                dummy = np.zeros(self._wrapped_env._wrapped_env.observation_space.low.size)
-            else:
-                dummy = np.zeros(self.representation_size)
-            observations.append(dummy)
+            observations.append(observation)
         return np.c_[observations]
 
     @property
@@ -172,9 +163,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             info["vae_mdist"] = mdist
             info["vae_success"] = 1 if mdist < self.epsilon else 0
             info["var"] = var
-            if not self.use_state_obs:
-                self.history.append(observation)
-                observation = self._get_history().flatten()
             reward = self.compute_her_reward_np(
                 None,
                 action,
@@ -182,15 +170,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 self.vae_goal,
                 env_info=info,
             )
-        elif self.use_state_reward:
-            #assume goal is not in vae space
-            state_obs = self._wrapped_env._wrapped_env._get_obs()
-            info['state_goal'] = self.state_goal
-            info['state_obs'] = state_obs
         else:
             raise NotImplementedError()
-        if self.use_state_obs:
-            observation = self._wrapped_env._wrapped_env._get_obs()
         return observation, reward, done, info
 
     def reset(self):
@@ -209,11 +190,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 self.vae.cuda()
             e = self.vae.encode(img)[0]
             observation = ptu.get_numpy(e).flatten()
-        if self.use_state_obs:
-            observation = self._wrapped_env._wrapped_env._get_obs()
         self.history = deque(maxlen=self.history_len)
         self.history.append(observation)
-        observation = self._get_history().flatten()
+        observation = self._get_history(observation).flatten()
         return observation
 
     def enable_render(self):
@@ -237,10 +216,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         :param obs:
         :return:
         '''
-        if self.use_state_obs:
-            return obs[:, (self.history_len - 1) * self._wrapped_env._wrapped_env.observation_space.low.size:]
-        else:
-            return obs[:, (self.history_len - 1) * self.representation_size:]
+        return obs[:, (self.history_len - 1) * self.representation_size:]
         # return obs
         # return ptu.get_numpy(
             # self.vae.encode(ptu.np_to_var(obs))
@@ -267,7 +243,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             goal = sigma * n + mu
         else:
             goal = self._wrapped_env.sample_goal_for_rollout()
-            self.state_goal = goal
             self._wrapped_env.set_goal(goal)
             self._wrapped_env.set_to_goal(goal)
             observation = self._wrapped_env.get_image()
@@ -303,8 +278,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.imshow('decoded', self.goal_decoded)
             cv2.waitKey(1)
 
-        if self.use_state_reward:
-            self.state_goal = self._wrapped_env._wrapped_env._get_obs()
         return goal
 
     def log_diagnostics(self, paths, logger=default_logger, **kwargs):
@@ -328,10 +301,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             logger.record_tabular(key, value)
 
     def get_goal(self):
-        if self.use_state_obs:
-            return self.state_goal
-        else:
-            return self.vae_goal.copy()
+        return self.vae_goal.copy()
 
     def compute_her_reward_np(
             self,
@@ -342,11 +312,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             env_info=None,
             next_env_info=None,
     ):
-        if self.use_state_obs:
-            next_observation = next_env_info['image_obs']
-            next_observation = self.vae.encode(next_observation)
-        else:
-            next_observation = next_observation[(self.history_len - 1) * self.representation_size:]
+        next_observation = next_observation[(self.history_len - 1) * self.representation_size:]
         if self.reward_type == 'latent_distance':
             reached_goal = next_observation
             dist = np.linalg.norm(reached_goal - goal)
