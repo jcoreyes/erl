@@ -27,6 +27,10 @@ def experiment(variant):
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
     if 'beta_schedule_kwargs' in variant:
+        kwargs = variant['beta_schedule_kwargs']
+        kwargs['y_values'][2] = variant['beta']
+        kwargs['x_values'][1] = variant['flat_x']
+        kwargs['x_values'][2] = variant['ramp_x'] + variant['flat_x']
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
@@ -49,19 +53,23 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sawyer_torque_auto_encoder_new_architecture'
+    exp_prefix = 'sawyer_torque_vae_scheduled'
     use_gpu = True
 
     variant = dict(
-        beta=0,
-        num_epochs=100,
-        is_auto_encoder=True,
+        beta=5,
+        num_epochs=200,
+        is_auto_encoder=False,
         algo_kwargs=dict(
             batch_size=128,
         ),
         conv_vae_kwargs=dict(
             min_variance=None,
             use_old_architecture=False,
+        ),
+        beta_schedule_kwargs=dict(
+            x_values = [0, 50, 120],
+            y_values = [0, 0, 5],
         ),
         save_period=10,
     )
@@ -70,6 +78,9 @@ if __name__ == "__main__":
         'representation_size': [1024],
         'conv_vae_kwargs.use_old_architecture':[False],
         'algo_kwargs.lr':[1e-3],
+        'beta':[5, 100, 1000],
+        'flat_x':[25, 50, 75],
+        'ramp_x':[50, 100]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
