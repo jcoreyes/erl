@@ -53,6 +53,7 @@ class ConvVAETrainer():
         self.beta = beta
         if is_auto_encoder:
             self.beta = 0
+            beta = 0
         self.beta_schedule = beta_schedule
         if self.beta_schedule is None:
             self.beta_schedule = ConstantSchedule(beta)
@@ -336,32 +337,32 @@ class ConvVAE(PyTorchModule):
             self.conv3 = nn.Conv2d(32, 32, kernel_size=5, stride=3)
             self.bn3 = nn.BatchNorm2d(32)
         else:
-            self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=3, stride=1)
+            self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=1)
             self.bn1 = nn.BatchNorm2d(16)
-            self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1)
+            self.conv2 = nn.Conv2d(16, 32, kernel_size=5, stride=1)
             self.bn2 = nn.BatchNorm2d(32)
-            self.conv3 = nn.Conv2d(32, 32, kernel_size=3, stride=2)
+            self.conv3 = nn.Conv2d(32, 32, kernel_size=5, stride=1)
             self.bn3 = nn.BatchNorm2d(32)
 
-            self.conv4 = nn.Conv2d(32, 64, kernel_size=3, stride=3)
-            self.bn4 = nn.BatchNorm2d(64)
-            self.conv5 = nn.Conv2d(64, 64, kernel_size=3, stride=3)
-            self.bn5 = nn.BatchNorm2d(64)
-            self.conv6 = nn.Conv2d(64, 128, kernel_size=3, stride=3)
-            self.bn6 = nn.BatchNorm2d(128)
+            self.conv4 = nn.Conv2d(32, 32, kernel_size=5, stride=3)
+            self.bn4 = nn.BatchNorm2d(32)
+            self.conv5 = nn.Conv2d(32, 32, kernel_size=5, stride=3)
+            self.bn5 = nn.BatchNorm2d(32)
+            self.conv6 = nn.Conv2d(32, 32, kernel_size=5, stride=2)
+            self.bn6 = nn.BatchNorm2d(32)
 
 
-        # self.conv_output_dim = 1568 # kernel 2
-        self.conv_output_dim = 128 # kernel 3
+            # self.conv_output_dim = 1568 # kernel 2
+        self.conv_output_dim = 128  # kernel 3
 
-        #self.hidden = nn.Linear(self.conv_output_dim + added_fc_size, representation_size)
+        # self.hidden = nn.Linear(self.conv_output_dim + added_fc_size, representation_size)
 
         self.fc1 = nn.Linear(self.conv_output_dim, representation_size)
         self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
 
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
 
-        self.fc4 = nn.Linear(self.conv_output_dim, imsize*imsize)
+        self.fc4 = nn.Linear(self.conv_output_dim, imsize * imsize)
 
         if self.state_sim_debug:
             self.fc5 = nn.Linear(self.representation_size, 100)
@@ -372,12 +373,12 @@ class ConvVAE(PyTorchModule):
             self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
             self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=3)
         else:
-            self.conv7 = nn.ConvTranspose2d(128, 64, kernel_size=3, stride=3)
-            self.conv8 = nn.ConvTranspose2d(64, 64, kernel_size=3, stride=3)
-            self.conv9= nn.ConvTranspose2d(64, 32, kernel_size=3, stride=3)
-            self.conv10 = nn.ConvTranspose2d(32, 32, kernel_size=3, stride=3)
-            self.conv11 = nn.ConvTranspose2d(32, 16, kernel_size=3, stride=1)
-            self.conv12 = nn.ConvTranspose2d(16, input_channels, kernel_size=2, stride=1)
+            self.conv7 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=2)
+            self.conv8 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
+            self.conv9 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
+            self.conv10 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=1)
+            self.conv11 = nn.ConvTranspose2d(32, 16, kernel_size=5, stride=1)
+            self.conv12 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=1)
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
@@ -469,14 +470,13 @@ class ConvVAE(PyTorchModule):
 
     def decode(self, z):
         h3 = self.relu(self.fc3(z))
+        h = h3.view(-1, 32, 2, 2)
         if self.use_old_architecture:
-            h = h3.view(-1, 32, 2, 2)
             x = F.relu(self.conv4(h))
             x = F.relu(self.conv5(x))
             x = self.conv6(x).view(-1, self.imsize*self.imsize*self.input_channels)
         else:
-            ho = h3.view(-1, 128, 1, 1)
-            x = F.relu(self.conv7(ho))
+            x = F.relu(self.conv7(h))
             x = F.relu(self.conv8(x))
             x = F.relu(self.conv9(x))
             x = F.relu(self.conv10(x))
