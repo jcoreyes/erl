@@ -147,7 +147,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
         self.sim_throttle = sim_throttle
         if self.collection_mode == 'online-parallel':
-#            ray.init()
+            '''
+            The caller must have run ray.init() before running this line of code.
+            Not the ideal scenario, but if the caller wants to run multiple experiments 
+            in a loop, the ray.init() call must be place outside the loop in order to
+            ensure that the init does not get called more than once (which would result
+            in an error)
+            '''
             self.training_env = RemoteRolloutEnv(
                 env=env,
                 policy=eval_policy,

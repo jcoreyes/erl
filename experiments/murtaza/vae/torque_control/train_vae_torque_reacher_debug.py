@@ -12,6 +12,7 @@ def experiment(variant):
     import railrl.torch.pytorch_util as ptu
     beta = variant["beta"]
     representation_size = variant["representation_size"]
+    #this has both states and images so can't use generate vae dataset
     X = np.load('/home/murtaza/vae_data/sawyer_torque_control_ou_imgs_zoomed_out10000.npy')
     Y = np.load('/home/murtaza/vae_data/sawyer_torque_control_ou_states_zoomed_out10000.npy')
     Y = np.concatenate((Y[:, :7], Y[:, 14:]), axis=1)
