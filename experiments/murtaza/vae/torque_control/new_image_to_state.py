@@ -27,8 +27,6 @@ def experiment(variant):
         std = np.std(states, axis=0)
         mu = np.mean(states, axis=0)
         states = np.divide((states - mu), std)
-        std = np.std(states, axis=0)
-        mu = np.mean(states, axis=0)
     mid = int(num_divisions * 10000 * .9)
     train_images, test_images = images[:mid], images[mid:]
     train_labels, test_labels = states[:mid], states[mid:]
@@ -51,7 +49,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'conv_net_sweep'
     use_gpu = True
 
     variant = dict(
@@ -79,7 +77,7 @@ if __name__ == "__main__":
     search_space = {
         'batch_size':[128, 256],
         'cnn_kwargs.hidden_sizes':[[100], [100, 100]],
-        'weight_decay':[0, .0001, .0005, .001],
+        'weight_decay':[0, .0001, .0005, .001, .01],
         'lr':[1e-2, 1e-3, 1e-4],
         'normalize':[True, False],
     }
@@ -112,7 +110,7 @@ def compute_conv_layer_sizes(h_in, w_in, kernel_sizes, strides, pool_sizes, padd
     if paddings==None:
         for kernel, stride, pool in zip(kernel_sizes, strides, pool_sizes):
             h_in, w_in = compute_conv_output_size(h_in, w_in, kernel, stride)
-            h_in, w_in = compute_conv_output_size(h_in, w_in, pool, pool)
+            # h_in, w_in = compute_conv_output_size(h_in, w_in, pool, pool)
             print('Output Size:', (h_in, w_in))
     else:
         for kernel, stride, pool, padding in zip(kernel_sizes, strides, pool_sizes, paddings):
