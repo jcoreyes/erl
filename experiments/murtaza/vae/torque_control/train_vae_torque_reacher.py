@@ -4,11 +4,6 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 from railrl.torch.vae.sawyer_torque_control_data import generate_vae_dataset
 import numpy as np
-images = np.zeros((100000, 21168))
-for i in range(10):
-    imgs = np.load('/home/murtaza/vae_data/sawyer_torque_control_images100000_'+str(i+1)+'.npy')
-    images[i*10000:(i+1)*10000] = imgs
-train_data, test_data = images[:90000], images[90000:]
 
 def experiment(variant):
     from railrl.core import logger
@@ -18,6 +13,13 @@ def experiment(variant):
     # train_data, test_data, info = generate_vae_dataset(
     #     **variant['get_data_kwargs']
     # )
+    num_divisions = 1
+    images = np.zeros((num_divisions * 10000, 21168))
+    for i in range(num_divisions):
+        imgs = np.load('/home/murtaza/vae_data/sawyer_torque_control_images100000_' + str(i + 1) + '.npy')
+        images[i * 10000:(i + 1) * 10000] = imgs
+    mid = int(num_divisions * 10000 * .9)
+    train_data, test_data = images[:mid], images[mid:]
     info = dict()
 
     # train_data, test_data = images[:9000], images[9000:]
@@ -45,27 +47,27 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sawyer_torque_new_vae_100K_data'
+    exp_prefix = 'sawyer_torque_new_ae_10K_data'
     use_gpu = True
 
     variant = dict(
-        beta=5,
+        beta=0,
         num_epochs=300,
         algo_kwargs=dict(
             batch_size=64,
         ),
         conv_vae_kwargs=dict(
             min_variance=None,
-            use_old_architecture=True,
+            use_old_architecture=False,
+            is_auto_encoder=True,
         ),
         save_period=10,
     )
 
     search_space = {
-        'representation_size': [16, 32, 128, 1024],
-        'beta':[5],
-        'algo_kwargs.lr':[1e-2, 1e-3, 1e-4],
-        'conv_vae_kwargs.use_old_architecture':[False]
+        'representation_size': [1024],
+        # 'beta':[0],
+        'algo_kwargs.lr':[1e-2, 1e-3],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
