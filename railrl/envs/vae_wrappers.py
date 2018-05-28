@@ -87,12 +87,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
         if use_gpu:
             self.vae.cuda()
 
-        self.history_len = history_size
-        self.history = deque(maxlen=self.history_len)
+        self.history_size = history_size
+        self.history = deque(maxlen=self.history_size)
 
         self.observation_space = Box(
-            -10 * np.ones(self.representation_size * self.history_len),
-            10 * np.ones(self.representation_size * self.history_len)
+            -10 * np.ones(self.representation_size * self.history_size),
+            10 * np.ones(self.representation_size * self.history_size)
         )
         self.goal_space = Box(
             -10 * np.ones(self.representation_size),
@@ -128,7 +128,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
     def _get_history(self, observation):
         observations = list(self.history)
         obs_count = len(observations)
-        for _ in range(self.history_len - obs_count):
+        for _ in range(self.history_size - obs_count):
             observations.append(observation)
         return np.c_[observations]
 
@@ -152,6 +152,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 self.vae.cuda()
             mu, logvar = self.vae.encode(img)
             observation = ptu.get_numpy(mu).flatten()
+
         if self.use_vae_reward:
             # replace reward with Euclidean distance in VAE latent space
             # currently assumes obs and goals are also from VAE
@@ -163,6 +164,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
             info["vae_mdist"] = mdist
             info["vae_success"] = 1 if mdist < self.epsilon else 0
             info["var"] = var
+            self.history.append(observation)
+            observation = self._get_history(observation).flatten()
             reward = self.compute_her_reward_np(
                 None,
                 action,
@@ -170,8 +173,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 self.vae_goal,
                 env_info=info,
             )
-        else:
-            raise NotImplementedError()
         return observation, reward, done, info
 
     def reset(self):
@@ -190,7 +191,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 self.vae.cuda()
             e = self.vae.encode(img)[0]
             observation = ptu.get_numpy(e).flatten()
-        self.history = deque(maxlen=self.history_len)
+        self.history = deque(maxlen=self.history_size)
         self.history.append(observation)
         observation = self._get_history(observation).flatten()
         return observation
@@ -216,7 +217,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         :param obs:
         :return:
         '''
-        return obs[:, (self.history_len - 1) * self.representation_size:]
+        return obs[:, (self.history_size - 1) * self.representation_size:]
         # return obs
         # return ptu.get_numpy(
             # self.vae.encode(ptu.np_to_var(obs))
@@ -310,16 +311,15 @@ class VAEWrappedEnv(ProxyEnv, Env):
             next_observation,
             goal,
             env_info=None,
-            next_env_info=None,
     ):
-        next_observation = next_observation[(self.history_len - 1) * self.representation_size:]
+        next_observation = np.reshape(next_observation, (1, next_observation.shape[0]))
         if self.reward_type == 'latent_distance':
-            reached_goal = next_observation
+            reached_goal = self.convert_obs_to_goals(next_observation)[0]
             dist = np.linalg.norm(reached_goal - goal)
             reward = -dist
             return reward
         elif self.reward_type == 'latent_sparse':
-            reached_goal = next_observation
+            reached_goal = self.convert_obs_to_goals(next_observation)[0]
             dist = np.linalg.norm(reached_goal - goal)
             reward = 0 if dist < self.epsilon else -1
             return reward
