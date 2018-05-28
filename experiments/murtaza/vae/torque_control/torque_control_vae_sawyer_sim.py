@@ -6,7 +6,7 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = 'local_docker'
+    mode = 'ec2'
     exp_prefix = 'sawyer_torque_control_scheduled_vae'
 
     vae_paths = {
