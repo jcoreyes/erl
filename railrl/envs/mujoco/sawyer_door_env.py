@@ -199,7 +199,6 @@ if __name__ == "__main__":
 
     env = SawyerDoorEnv()
     env.reset()
-    import ipdb; ipdb.set_trace()
     lock_action = False
     while True:
         obs = env.reset()
