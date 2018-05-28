@@ -105,7 +105,7 @@ class SawyerDoorEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
     @property
     def init_angles(self):
         return [
-            1.57,
+            0,
             1.02866769e+00, - 6.95207647e-01, 4.22932911e-01,
             1.76670458e+00, - 5.69637604e-01, 6.24117280e-01,
             3.53404635e+00,
@@ -122,13 +122,14 @@ class DoorPushOpenEnv(SawyerDoorEnv, MultitaskEnv):
         )
         self.observation_space = Box(
             np.array([-1, -1, -1, 0]),
-            np.array([1, 1, 1, 3]),
+            np.array([1, 1, 1, self.max_angle]),
         )
+        self.max_angle = 1.5708
 
         #this should be
         self.goal_space = Box(
             np.array([0]),
-            np.array([3]),
+            np.array([self.max_angle]),
         )
 
     def _get_obs(self):
@@ -141,7 +142,7 @@ class DoorPushOpenEnv(SawyerDoorEnv, MultitaskEnv):
         return 1
 
     def sample_goals(self, batch_size):
-        return np.random.uniform(0, 3, batch_size)
+        return np.random.uniform(0, self.max_angle, batch_size)
 
     def convert_obs_to_goals(self, obs):
         return obs[:, -1]
@@ -155,7 +156,7 @@ class DoorPushOpenEnv(SawyerDoorEnv, MultitaskEnv):
         qpos = self.data.qpos.flat.copy()
         qvel = self.data.qvel.flat.copy()
         qpos[0] = angle.copy()
-        qvel[7:10] = [0, 0, 0]
+        qvel[0] = [0]
         self.set_state(qpos, qvel)
 
     def sample_goal_for_rollout(self):
@@ -198,6 +199,7 @@ if __name__ == "__main__":
 
     env = SawyerDoorEnv()
     env.reset()
+    import ipdb; ipdb.set_trace()
     lock_action = False
     while True:
         obs = env.reset()
