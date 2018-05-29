@@ -2,6 +2,7 @@
 # import numpy as np
 # import mnist_data
 # import os
+from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 from railrl.torch.vae.reacher2d_data import get_data
 # import plot_utils
@@ -12,32 +13,44 @@ from railrl.torch.vae.reacher2d_data import get_data
 from railrl.launchers.arglauncher import run_variants
 import railrl.torch.pytorch_util as ptu
 
+
 def experiment(variant):
     if variant["use_gpu"]:
-        gpu_id = variant["gpu_id"]
         ptu.set_gpu_mode(True)
-        ptu.set_device(gpu_id)
+        ptu.set_device(0)
 
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     train_data, test_data = get_data(10000)
     m = ConvVAE(representation_size, input_channels=3)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta)
-    for epoch in range(501):
+    for epoch in range(1000):
         t.train_epoch(epoch)
         t.test_epoch(epoch)
         t.dump_samples(epoch)
 
 if __name__ == "__main__":
     variants = []
-
-    for representation_size in [2, 4, 8, 16]:
-        for beta in [640.0]:
+    representation_sizes = [8, 16]
+    for representation_size in representation_sizes:
+        for beta in [0]:
             variant = dict(
                 beta=beta,
                 representation_size=representation_size,
-                snapshot_mode="gap",
-                snapshot_gap=100,
+                use_gpu='True',
             )
             variants.append(variant)
-    run_variants(experiment, variants, run_id=7)
+    for i, variant in enumerate(variants):
+        n_seeds = 1
+        exp_prefix = 'reacher_autoencoder_train_'+str(representation_sizes[i])
+        mode = 'local'
+        for i in range(n_seeds):
+            run_experiment(
+                experiment,
+                mode=mode,
+                snapshot_mode='gap',
+                snapshot_gap=20,
+                exp_prefix=exp_prefix,
+                variant=variant,
+                use_gpu=True,
+            )

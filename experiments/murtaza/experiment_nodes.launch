@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<launch>
-    <node pkg="robot_info" type="sawyer_server.py" name="jacobian"/>
-    <node pkg="gravity_torques" type="server.py" name="gravity_torques" />
-    <node pkg="objectattention_ros" type="bbox_server.py" name="bbox" />
-    <node pkg="objectattention_ros" type="image_publisher.py" name="images" />
-</launch>

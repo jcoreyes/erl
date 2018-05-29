@@ -106,7 +106,7 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
             hand_to_goal_dist=hand_to_goal_dist,
             block_distance=block_distance,
             touch_distance=touch_distance,
-            success=float(block_distance < 0.03),
+            success=float(block_distance < 0.1),
         )
         return obs, reward, done, info
 
@@ -115,8 +115,8 @@ class SawyerPushEnv(MujocoEnv, Serializable, MultitaskEnv):
         new_mocap_pos = self.data.mocap_pos + pos_delta
         new_mocap_pos[0, 0] = np.clip(
             new_mocap_pos[0, 0],
-            -0.1,
-            0.1,
+            -0.2,
+            0.2,
         )
         new_mocap_pos[0, 1] = np.clip(
             new_mocap_pos[0, 1],
@@ -367,11 +367,118 @@ class SawyerPushXYEasyEnv(SawyerPushXYEnv):
     """
     Always start the block in the same position
     """
+
     INIT_GOAL_LOW = np.array([-0.05, 0.6])
     INIT_GOAL_HIGH = np.array([0.05, 0.75])
+
     def sample_block_xy(self):
         return np.array([0, 0.6])
 
+
+class SawyerMultiPushEnv(SawyerPushXYEnv):
+    """
+    Always start the block in the same position
+    """
+    INIT_GOAL_LOW = np.array([-0.2, 0.5])
+    INIT_GOAL_HIGH = np.array([0.2, 0.7])
+
+    @property
+    def model_name(self):
+        return get_asset_full_path('sawyer_multi_push_mocap_goal_hidden.xml')
+
+    @property
+    def init_angles(self):
+        return [1.78026069e+00, - 6.84415781e-01, - 1.54549231e-01,
+                2.30672090e+00, 1.93111471e+00,  1.27854012e-01, 1.49353907e+00,
+                1.80196716e-03, 7.40415706e-01, 2.09895360e-02,
+                9.99999990e-01,  3.05766105e-05, - 3.78462492e-06, 1.38684523e-04,
+                - 3.62518873e-02, 6.13435141e-01, 2.09686080e-02,
+                9.99999990e-01,  3.05766105e-05, - 3.78462492e-06, 1.38684523e-04,
+                0, 0, 0,
+                7.07106781e-01, 1.48979724e-14, 7.07106781e-01, - 1.48999170e-14,
+                ]
+
+    def sample_block_xy(self):
+        return np.array([0, 0.6,])
+
+    def sample_goal_xy(self):
+        if self.randomize_goals:
+            g1 = 0
+            g2 = 0
+            while np.linalg.norm(g1 - g2) <= 0.08:
+                low = np.hstack((self.INIT_GOAL_LOW, self.INIT_GOAL_LOW))
+                high = np.hstack((self.INIT_GOAL_HIGH, self.INIT_GOAL_HIGH))
+                pos = np.random.uniform(low, high)
+                g1 = pos[:2]
+                g2 = pos[2:]
+
+        else:
+            pos = self.FIXED_GOAL_INIT.copy()
+        return pos
+
+    def set_to_goal(self, goal):
+        # Hack for now since there isn't a goal hand position
+        self.reset(resample_block=False)
+        self.set_block_xy(goal[:2])
+        self.set_block2_xy(goal[2:])
+
+    def set_block2_xy(self, pos):
+        qpos = self.data.qpos.flat.copy()
+        qvel = self.data.qvel.flat.copy()
+        qpos[21:24] = np.hstack((pos.copy(), np.array([0.02])))
+        qvel[21:24] = [0, 0, 0]
+        self.set_state(qpos, qvel)
+
+    def step(self, a):
+        a = np.clip(a, -1, 1)
+        mocap_delta_z = 0.06 - self.data.mocap_pos[0, 2]
+        new_mocap_action = np.hstack((
+            a,
+            np.array([mocap_delta_z])
+        ))
+        self.mocap_set_action(new_mocap_action[:3] * self._pos_action_scale)
+        u = np.zeros(7)
+        self.do_simulation(u, self.frame_skip)
+        obs = self._get_obs()
+        reward = self.compute_reward(obs, u, obs, self._goal_xy)
+        done = False
+
+        # hand_to_goal_dist = np.linalg.norm(
+            # self.get_goal_pos() - self.get_endeff_pos()
+        # )
+        goal1 = self.multitask_goal[:2]
+        goal2 = self.multitask_goal[2:]
+        block_distance = np.linalg.norm(
+            goal1 - self.get_block_pos()[:2])
+        block2_distance = np.linalg.norm(
+            goal2 - self.get_block2_pos()[:2])
+        touch_distance = np.linalg.norm(
+            self.get_endeff_pos() - self.get_block_pos())
+        info = dict(
+            # hand_to_goal_dist=hand_to_goal_dist,
+            block_distance=block_distance,
+            block2_distance=block2_distance,
+            touch_distance=touch_distance,
+            success=float(block_distance < 0.1),
+        )
+        return obs, reward, done, info
+
+    def compute_reward(self, ob, action, next_ob, goal):
+        return 0
+
+    def get_block2_pos(self):
+        return self.data.body_xpos[self.block2_id].copy()
+
+    @property
+    def block2_id(self):
+        return self.model.body_names.index('block2')
+
+    @property
+    def goal_dim(self) -> int:
+        return 4
+
+    def set_goal_xy(self, pos):
+        pass
 
 class SawyerPushXYVariableEnv(SawyerPushXYEasyEnv):
     def __init__(

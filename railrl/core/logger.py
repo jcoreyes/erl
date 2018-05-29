@@ -271,7 +271,6 @@ def save_itr_params(itr, params):
         else:
             raise NotImplementedError
 
-
 class MyEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, type):

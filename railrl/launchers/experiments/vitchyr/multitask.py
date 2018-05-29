@@ -1,7 +1,7 @@
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
-    MultitaskEnvToSilentMultitaskEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
+    MultitaskEnvToSilentMultitaskEnv, MultiTaskHistoryEnv
+from railrl.envs.wrappers import NormalizedBoxEnv, HistoryEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
@@ -73,6 +73,8 @@ def td3_experiment(variant):
 
 def her_td3_experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
+    history_len = variant.get('history_len', 1)
+    env = MultiTaskHistoryEnv(env, history_len=history_len)
     if variant.get('make_silent_env', True):
         env = MultitaskEnvToSilentMultitaskEnv(env)
     if variant['normalize']:

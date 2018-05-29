@@ -30,9 +30,8 @@ def experiment(variant):
 
 if __name__ == "__main__":
     variants = []
-
     for representation_size in [4, 8, 16, 32]:
-        for beta in [640.0]:
+        for beta in [5.0]:
             variant = dict(
                 beta=beta,
                 representation_size=representation_size,
@@ -41,3 +40,4 @@ if __name__ == "__main__":
             )
             variants.append(variant)
     run_variants(experiment, variants, run_id=9)
+
