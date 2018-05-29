@@ -52,10 +52,10 @@
 
 	    <body name="cabinet" pos="-0.8 0 0.2">
 	        <body name="door" pos="0.8 .7. -.5">
-	            <joint name="doorjoint" pos="-.1 0 0" axis="0 0 1" type="hinge" limited="true" range="0 3" damping="0.1" armature="0" />
+	            <joint name="doorjoint" pos="-.1 0 0" axis="0 0 1" type="hinge" limited="true" range="-1.5708 1.5708" damping="0.1" armature="0" />
 	            <geom type="box" pos="0 0 0" size="0.01 0.2 0.2" rgba=".1 .1 .9 1" contype="1" conaffinity="1" quat="0.5 0.5 -0.5 -0.5"/>
-	           	<geom type="box" pos="0.1 -0.1 0" size="0.05 0.01 0.01" rgba="0 0 0 1" contype="1" conaffinity="1" />
-	           	<geom type="box" pos="0.15 -0.05 0" size="0.01 0.05 0.01" rgba="0 0 0 1" contype="1" conaffinity="1"/>
+	           	<geom type="box" pos="0.1 -0.15 0" size="0.05 0.01 0.01" rgba="0 0 0 1" contype="1" conaffinity="1" />
+	           	<geom type="box" pos="0.15 -0.075 0" size="0.01 0.075 0.01" rgba="0 0 0 1" contype="1" conaffinity="1"/>
 	        </body>
 
 	    </body>
@@ -145,7 +145,7 @@
                                         <body name="right_l6" pos="0 -0.11 0.1053" quat="0.0616248 0.06163 -0.704416 0.704416">
                                             <inertial pos="-8.0726e-06 0.0085838 -0.0049566" quat="0.479044 0.515636 -0.513069 0.491322" mass="0.3292" diaginertia="0.000360258 0.000311068 0.000214974" />
                                             <joint name="right_j6" pos="0 0 0" axis="0 0 1" limited="true" range="-4.7124 4.7124" damping="10"/>
-                                            <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.5 0.1 0.1 1" mesh="l6" />
+                                            <geom type="mesh" contype="0" conaffinity="1" group="1" rgba="0.5 0.1 0.1 1" mesh="l6" />
                                             <geom size="0.055 0.025" pos="0 0.015 -0.01" type="cylinder" rgba="0.5 0.1 0.1 0" />
                                             <body name="right_hand" pos="0 0 0.0245" quat="0.707107 0 0 0.707107">
                                                 <inertial pos="1e-08 1e-08 1e-08" quat="0.820473 0.339851 -0.17592 0.424708" mass="1e-08" diaginertia="1e-08 1e-08 1e-08" />
