@@ -40,7 +40,9 @@
             <joint damping="5"/>
         </default>
     </default>
-
+    <equality>
+        <weld body1="mocap" body2="leftclaw" solref="0.01"></weld>
+    </equality>
     <worldbody>
         <!-- <light directional="true" cutoff="40" exponent="10" diffuse=".4 .4 .4" specular=".7 .7 .7" pos="0 0 1.5" dir="0 0 -1"/> -->
 
@@ -202,6 +204,12 @@
                     </body>
                 </body>
             </body>
+        </body>
+
+        <body mocap="true" name="mocap" pos="0 0 0">
+            <!--For debugging, set the alpha to 1-->
+            <!--<geom conaffinity="0" contype="0" pos="0 0 0" rgba="0.5 0.5 0.5 1.0" size="0.1 0.02 0.02" type="box"></geom>-->
+            <geom conaffinity="0" contype="0" pos="0 0 0" rgba="0.5 0.5 0.5 0" size="0.1 0.02 0.02" type="box"></geom>
         </body>
 
         <body name="goal" pos="0 0 0">

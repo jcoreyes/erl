@@ -4,6 +4,7 @@ from gym.envs.mujoco import MujocoEnv
 from gym.spaces import Box
 
 from railrl.core import logger
+import mujoco_py
 
 from railrl.core.serializable import Serializable
 from railrl.envs.env_utils import get_asset_full_path
@@ -30,6 +31,7 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
             np.array([0.2, 0.7, 0.5]),
         )
         self.reset()
+        self.reset_mocap_welds()
 
     @property
     def model_name(self):
@@ -63,6 +65,53 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
         self.viewer.cam.elevation = cam_pos[4]
         self.viewer.cam.azimuth = cam_pos[5]
         self.viewer.cam.trackbodyid = -1
+
+    def reset_mocap_welds(self):
+        """Resets the mocap welds that we use for actuation."""
+        sim = self.sim
+        if sim.model.nmocap > 0 and sim.model.eq_data is not None:
+            for i in range(sim.model.eq_data.shape[0]):
+                if sim.model.eq_type[i] == mujoco_py.const.EQ_WELD:
+                    sim.model.eq_data[i, :] = np.array(
+                        [0., 0., 0., 1., 0., 0., 0.])
+        sim.forward()
+
+    def reset_mocap2body_xpos(self):
+        # move mocap to weld joint
+        self.data.set_mocap_pos(
+            'mocap',
+            np.array([self.data.body_xpos[self.endeff_id]]),
+        )
+        self.data.set_mocap_quat(
+            'mocap',
+            np.array([self.data.body_xquat[self.endeff_id]]),
+        )
+
+    def mocap_set_action(self, action, relative=True):
+        pos_delta = action[None]
+
+        if relative:
+            self.reset_mocap2body_xpos()
+            new_mocap_pos = self.data.mocap_pos + pos_delta
+        else:
+            new_mocap_pos = pos_delta
+        new_mocap_pos[0, 0] = np.clip(
+            new_mocap_pos[0, 0],
+            -0.2,
+            0.2,
+        )
+        new_mocap_pos[0, 1] = np.clip(
+            new_mocap_pos[0, 1],
+            -0.1 + 0.6,
+            0.1 + 0.6,
+        )
+        new_mocap_pos[0, 2] = np.clip(
+            new_mocap_pos[0, 2],
+            0,
+            0.5,
+        )
+        self.data.set_mocap_pos('mocap', new_mocap_pos)
+        self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
 
     def step(self, a):
         a = a * self.action_scale
@@ -203,7 +252,14 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
         raise NotImplementedError()
 
     def set_to_goal(self, goal):
-        self.set_goal_xyz(goal) #TODO: FIX THIS, SET EE_POS TO GOAL
+        self._set_hand_xyz(goal)
+
+    def _set_hand_xyz(self, xyz):
+        for _ in range(10):
+            self.data.set_mocap_pos('mocap', np.array(xyz))
+            self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
+            u = np.zeros(7)
+            self.do_simulation(u, self.frame_skip)
 
 
 class SawyerReachTorqueJointLimitedEnv(SawyerReachTorqueEnv):
@@ -279,7 +335,6 @@ if __name__ == "__main__":
             # if t == 0:
             #     print("goal is", env.get_goal_pos())
             obs, reward, _, info = env.step(action)
-
             env.render()
             if done:
                 break
