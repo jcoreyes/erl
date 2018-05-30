@@ -1,6 +1,4 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.envs.mujoco.sawyer_push_and_reach_env import \
-    SawyerPushAndReachXYEasyEnv
 from railrl.envs.mujoco.sawyer_reset_free_push_env import SawyerResetFreePushEnv
 from railrl.images.camera import sawyer_init_camera_zoomed_in_fixed
 from railrl.launchers.launcher_util import run_experiment
@@ -14,18 +12,18 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'tdm-grill-td3-sawyer-push-reset-free-large-joint-limits'
+    exp_prefix = 'grill-tdm-td3-sawyer-push-reset-free-small-joint-limits-sweep-tau'
 
     vae_paths = {
-        # "16": "05-22-vae-sawyer-reset-free-zoomed-in/05-22-vae-sawyer-reset"
-        #       "-free-zoomed-in_2018_05_22_17_08_31_0000--s-51746-r16/params.pkl"
-        "16": "05-23-vae-sawyer-pusher-reset-free-large-joint-limts/05-23-vae-sawyer-pusher-reset-free-large-joint-limts_2018_05_23_16_30_36_0000--s-5828-r16/params.pkl",
+        "16": "05-22-vae-sawyer-reset-free-zoomed-in/05-22-vae-sawyer-reset"
+              "-free-zoomed-in_2018_05_22_17_08_31_0000--s-51746-r16/params.pkl"
+        # "16": "05-23-vae-sawyer-pusher-reset-free-large-joint-limts/05-23-vae-sawyer-pusher-reset-free-large-joint-limts_2018_05_23_16_30_36_0000--s-5828-r16/params.pkl",
     }
 
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=301,
+                num_epochs=101,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=100,
@@ -45,7 +43,8 @@ if __name__ == "__main__":
         ),
         env_kwargs=dict(
             hide_goal=True,
-            puck_limit='large',
+            # puck_limit='large',
+            puck_limit='normal',
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -77,6 +76,9 @@ if __name__ == "__main__":
         ),
         es_kwargs=dict(
         ),
+        tau_schedule_kwargs=dict(
+            x_values=[0, 20, 40, 60, 80, 100],
+        ),
     )
 
     search_space = {
@@ -85,7 +87,15 @@ if __name__ == "__main__":
             # 'gaussian',
             'ou',
         ],
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 5, 10, 20],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [5],
+        'tau_schedule_kwargs.y_values': [
+            [0, 3, 6, 9, 12, 15],
+            [15, 15, 15, 15, 15, 15],
+            [0, 5, 10, 15, 25, 30],
+            [30, 30, 30, 30, 30, 30],
+            [0, 10, 20, 30, 40, 50],
+            [50, 50, 50, 50, 50, 50],
+        ],
         'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.5],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
@@ -105,12 +115,6 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if (
-                variant['replay_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
-                and variant['replay_kwargs']['fraction_resampled_goals_are_env_goals'] == 0.5
-        ):
-            # redundant setting
-            continue
         for _ in range(n_seeds):
             run_experiment(
                 tdm_td3_vae_experiment,
