@@ -1,8 +1,9 @@
-from experiments.murtaza.vae.torque_control.ConvTrainer import ConvTrainer
-from railrl.launchers.launcher_util import run_experiment
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.networks import CNN
 import numpy as np
+
+import railrl.misc.hyperparameter as hyp
+from railrl.launchers.launcher_util import run_experiment
+from railrl.torch.networks import CNN
+from railrl.torch.supervised_learning.supervised_algorithm import SupervisedAlgorithm
 
 
 def experiment(variant):
@@ -27,12 +28,13 @@ def experiment(variant):
         std = np.std(states, axis=0)
         mu = np.mean(states, axis=0)
         states = np.divide((states - mu), std)
+        print(mu, std)
     mid = int(num_divisions * 10000 * .9)
     train_images, test_images = images[:mid], images[mid:]
     train_labels, test_labels = states[:mid], states[mid:]
 
 
-    algo = ConvTrainer(
+    algo = SupervisedAlgorithm(
         train_images,
         test_images,
         train_labels,
@@ -49,7 +51,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'conv_net_sweep'
+    exp_prefix = 'test'
     use_gpu = True
 
     variant = dict(
@@ -61,25 +63,25 @@ if __name__ == "__main__":
         kernel_sizes=[3, 3, 3, 3],
         n_channels=[16, 16, 16, 16],
         strides=[1, 1, 1, 1],
-        pool_sizes=[2, 2, 2,2],
+        pool_sizes=[2, 2, 2, 2],
         paddings=[0, 0, 0, 0],
-        hidden_sizes=[400, 300, 300],
+        hidden_sizes=[100],
         use_batch_norm=True,
         ),
         batch_size = 128,
         lr = 3e-4,
         normalize=False,
-        num_epochs=100,
+        num_epochs=500,
         weight_decay=0,
         num_divisions=5,
     )
 
     search_space = {
-        'batch_size':[128, 256],
+        'batch_size':[256],
         'cnn_kwargs.hidden_sizes':[[100], [100, 100]],
-        'weight_decay':[0, .0001, .0005, .001, .01],
+        'weight_decay':[0, .001, .01, .1],
         'lr':[1e-2, 1e-3, 1e-4],
-        'normalize':[True, False],
+        'normalize':[True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

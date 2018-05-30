@@ -4,7 +4,7 @@ from railrl.torch import pytorch_util as ptu
 from railrl.core import logger
 import numpy as np
 
-class ConvTrainer():
+class SupervisedAlgorithm():
     def __init__(
             self,
             X_train,
@@ -26,26 +26,30 @@ class ConvTrainer():
         self.X_train, self.X_test, self.y_train, self.y_test = X_train, X_test, y_train, y_test
         self.num_batches = num_batches
 
-    def random_batch(self, images, labels, batch_size=64):
-        idxs = np.random.choice(len(images), batch_size)
-        return images[idxs], labels[idxs]
+    def random_batch(self, inputs, labels, batch_size=64):
+        idxs = np.random.choice(len(inputs), batch_size)
+        return inputs[idxs], labels[idxs]
 
     def train_epoch(self, epoch):
         self.model.train()
         losses = []
+        per_dim_losses = np.zeros((self.num_batches, self.y_train.shape[1]))
         for batch in range(self.num_batches):
             inputs_np, labels_np = self.random_batch(self.X_train, self.y_train, batch_size=self.batch_size)
             inputs, labels = ptu.Variable(ptu.from_numpy(inputs_np)), ptu.Variable(ptu.from_numpy(labels_np))
-            # zero the parameter gradients
             self.optimizer.zero_grad()
             outputs = self.model(inputs)
             loss = self.criterion(outputs, labels)
             loss.backward()
             self.optimizer.step()
             losses.append(loss.data[0])
+            per_dim_loss = np.mean(np.power(ptu.get_numpy(outputs-labels), 2), axis=0)
+            per_dim_losses[batch] = per_dim_loss
 
         logger.record_tabular("train/epoch", epoch)
         logger.record_tabular("train/loss", np.mean(np.array(losses)))
+        for i in range(self.y_train.shape[1]):
+            logger.record_tabular("train/dim "+str(i)+" loss", np.mean(per_dim_losses[:, i]))
 
 
     def test_epoch(
@@ -54,13 +58,18 @@ class ConvTrainer():
     ):
         self.model.eval()
         val_losses = []
-        for batch in range(10):
-            inputs_np, labels_np = self.random_batch(self.X_test, self.y_test, batch_size=256)
+        per_dim_losses = np.zeros((self.num_batches, self.y_train.shape[1]))
+        for batch in range(self.num_batches):
+            inputs_np, labels_np = self.random_batch(self.X_test, self.y_test, batch_size=self.batch_size)
             inputs, labels = ptu.Variable(ptu.from_numpy(inputs_np)), ptu.Variable(ptu.from_numpy(labels_np))
             outputs = self.model(inputs)
             loss = self.criterion(outputs, labels)
             val_losses.append(loss.data[0])
+            per_dim_loss = np.mean(np.power(ptu.get_numpy(outputs - labels), 2), axis=0)
+            per_dim_losses[batch] = per_dim_loss
 
         logger.record_tabular("test/epoch", epoch)
         logger.record_tabular("test/loss", np.mean(np.array(val_losses)))
+        for i in range(self.y_train.shape[1]):
+            logger.record_tabular("test/dim "+str(i)+" loss", np.mean(per_dim_losses[:, i]))
         logger.dump_tabular()
