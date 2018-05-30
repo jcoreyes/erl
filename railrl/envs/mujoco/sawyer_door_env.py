@@ -9,8 +9,12 @@ from gym.spaces import Box
 from railrl.core import logger
 from railrl.core.serializable import Serializable
 from railrl.envs.env_utils import get_asset_full_path
-from railrl.envs.multitask.multitask_env import MultitaskEnv
+from railrl.envs.multitask.multitask_env import MultitaskEnv, MultitaskToFlatEnv
+from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
+from railrl.policies.simple import ZeroPolicy
 
 
 class SawyerDoorEnv(MultitaskEnv, MujocoEnv, Serializable, metaclass=abc.ABCMeta):
@@ -32,10 +36,9 @@ class SawyerDoorEnv(MultitaskEnv, MujocoEnv, Serializable, metaclass=abc.ABCMeta
         obs_space_angles = 1.5708
 
         self.action_space = Box(
-            np.array([-1, -1]),
-            np.array([1, 1]),
+            np.array([-1, -1, -1, -1]),
+            np.array([1, 1, 1, 1]),
         )
-
         self.observation_space = Box(
             np.array([-1, -1, -1, -obs_space_angles]),
             np.array([1, 1, 1, obs_space_angles]),
@@ -216,6 +219,23 @@ if __name__ == "__main__":
     }
 
     env = SawyerDoorPushOpenEnv()
+
+    env = MultitaskToFlatEnv(env)
+
+    policy = ZeroPolicy(env.action_space.low.size)
+    es = OUStrategy(
+        env.action_space,
+        theta=1
+    )
+    es = EpsilonGreedy(
+        action_space=env.action_space,
+        prob_random_action=0.1,
+    )
+    policy = exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+
     env.reset()
     ACTION_FROM = 'controller'
     # ACTION_FROM = 'pd'
@@ -226,13 +246,11 @@ if __name__ == "__main__":
 
 
     lock_action = False
-    goal = env.sample_goal_for_rollout()
-    env.set_goal(goal)
     while True:
         obs = env.reset()
         last_reward_t = 0
         returns = 0
-        action = np.zeros_like(env.action_space.sample())
+        action, _ = policy.get_action(None)
         for t in range(H):
             done = False
             if ACTION_FROM == 'controller':
