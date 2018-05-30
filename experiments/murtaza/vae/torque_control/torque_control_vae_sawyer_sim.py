@@ -7,10 +7,10 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_torque_control_scheduled_vae'
+    exp_prefix = 'sawyer_torque_control_vae_latest'
 
     vae_paths = {
-     "1024": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_control/torque_params.pkl",
+     "16": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_control/torque_params.pkl",
      # "32": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_control/debug_torque_params.pkl",
     }
 
@@ -25,7 +25,7 @@ if __name__ == "__main__":
             discount=0.99,
         ),
         env_kwargs=dict(
-            hide_goal=True,
+            hide_goal=False,
         ),
         replay_kwargs=dict(
             fraction_goals_are_rollout_goals=0.2,
@@ -58,10 +58,10 @@ if __name__ == "__main__":
         'algo_kwargs.reward_scale': [1e-4,],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
-        'rdim': [1024],
+        'rdim': [16],
         'reward_params.type': ['latent_distance'],
         'history_size':[2],
-        'hidden_sizes':[[300, 400, 300], [400, 300]]
+        'hidden_sizes':[[400, 300]]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

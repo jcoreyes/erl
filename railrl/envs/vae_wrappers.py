@@ -312,14 +312,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
             goal,
             env_info=None,
     ):
-        next_observation = np.reshape(next_observation, (1, next_observation.shape[0]))
+        next_observation = next_observation[(self.history_len - 1) * self.representation_size:]
         if self.reward_type == 'latent_distance':
-            reached_goal = self.convert_obs_to_goals(next_observation)[0]
+            reached_goal = next_observation
             dist = np.linalg.norm(reached_goal - goal)
             reward = -dist
             return reward
         elif self.reward_type == 'latent_sparse':
-            reached_goal = self.convert_obs_to_goals(next_observation)[0]
+            reached_goal = next_observation
             dist = np.linalg.norm(reached_goal - goal)
             reward = 0 if dist < self.epsilon else -1
             return reward
