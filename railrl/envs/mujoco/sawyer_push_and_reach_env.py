@@ -300,7 +300,7 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
         for stat_name in [
             'hand_distance',
             'puck_distance',
-            # 'sum_distance', #a bug here when calling log diagnostics from multi push env had to comment this out
+            'sum_distance',
             'touch_distance',
             'success',
         ]:
@@ -455,15 +455,15 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
             goal2 - self.get_puck2_pos()[:2])
         touch_distance = np.linalg.norm(
             self.get_endeff_pos() - self.get_puck_pos())
-        total_distance = hand_distance
-        total_distance += puck_distance
-        total_distance += puck2_distance
+        sum_distance = hand_distance
+        sum_distance += puck_distance
+        sum_distance += puck2_distance
         info = dict(
             hand_distance=hand_distance,
             puck_distance=puck_distance,
             puck2_distance=puck2_distance,
             touch_distance=touch_distance,
-            total_distance=total_distance,
+            sum_distance=sum_distance,
             success=float(puck_distance < 0.1),
         )
         return obs, reward, done, info
