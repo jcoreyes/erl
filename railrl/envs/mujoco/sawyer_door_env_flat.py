@@ -21,7 +21,7 @@ class SawyerDoorEnv(MultitaskEnv, MujocoEnv, Serializable, metaclass=abc.ABCMeta
     '''
     Work in Progress
     '''
-    def __init__(self, frame_skip=30):
+    def __init__(self, frame_skip=30, pos_action_scale=1/100):
         self.quick_init(locals())
         self.min_angle = -1.5708
         self.max_angle = 1.5708
@@ -32,6 +32,8 @@ class SawyerDoorEnv(MultitaskEnv, MujocoEnv, Serializable, metaclass=abc.ABCMeta
         )
         goal = self.sample_goal_for_rollout()
         self.set_goal(goal)
+        self._pos_action_scale = pos_action_scale
+
         MujocoEnv.__init__(self, self.model_path, frame_skip=frame_skip)
         obs_space_angles = 1.5708
 
@@ -44,13 +46,12 @@ class SawyerDoorEnv(MultitaskEnv, MujocoEnv, Serializable, metaclass=abc.ABCMeta
             np.array([1, 1, 1, obs_space_angles]),
         )
 
-
         self.reset()
         self.reset_mocap_welds()
 
     @property
     def model_path(self):
-        return get_asset_full_path('kitchen/sawyer_door.xml')
+        return get_asset_full_path('kitchen/sawyer_door_v2.xml')
 
     def reset_mocap_welds(self):
         """Resets the mocap welds that we use for actuation."""
@@ -69,9 +70,8 @@ class SawyerDoorEnv(MultitaskEnv, MujocoEnv, Serializable, metaclass=abc.ABCMeta
 
     def step(self, a):
         a = np.clip(a, -1, 1)
-        self.mocap_set_action(a[:3] / 100)
-        u = np.zeros((8))
-        u[7] = a[3]
+        self.mocap_set_action(a[:3]*self._pos_action_scale)
+        u = np.zeros((7))
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
         reward = self._compute_reward(obs,self.get_goal())
@@ -80,9 +80,15 @@ class SawyerDoorEnv(MultitaskEnv, MujocoEnv, Serializable, metaclass=abc.ABCMeta
         return obs, reward, done, info
 
     def mocap_set_action(self, action):
-        pos_delta = action[None] #changes dimension from (3,) to (1, 3)
+        pos_delta = action[None]
         self.reset_mocap2body_xpos()
-        self.data.set_mocap_pos('mocap', self.data.mocap_pos + pos_delta)
+        new_mocap_pos = self.data.mocap_pos + pos_delta
+        new_mocap_pos[0, 2] = np.clip(
+            0.06,
+            0,
+            0.5,
+        )
+        self.data.set_mocap_pos('mocap', new_mocap_pos)
         self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
 
     def reset_mocap2body_xpos(self):
@@ -124,7 +130,6 @@ class SawyerDoorEnv(MultitaskEnv, MujocoEnv, Serializable, metaclass=abc.ABCMeta
             1.02866769e+00, - 6.95207647e-01, 4.22932911e-01,
             1.76670458e+00, - 5.69637604e-01, 6.24117280e-01,
             3.53404635e+00,
-            0
         ]
 
     ''' Multitask Functions '''
@@ -187,14 +192,16 @@ class SawyerDoorEnv(MultitaskEnv, MujocoEnv, Serializable, metaclass=abc.ABCMeta
 class SawyerDoorPushOpenEnv(SawyerDoorEnv):
     def __init__(self, **kwargs):
         self.quick_init(locals())
-        super().__init__(**kwargs)
         self.min_angle = 0
+        self.max_angle = 1
+        super().__init__(**kwargs)
 
 class SawyerDoorPullOpenEnv(SawyerDoorEnv):
     def __init__(self, **kwargs):
         self.quick_init(locals())
-        super().__init__(**kwargs)
         self.max_angle = 0
+        self.min_angle = -.5708
+        super().__init__(**kwargs)
 
 
 if __name__ == "__main__":

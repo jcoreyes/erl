@@ -203,8 +203,13 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
         raise NotImplementedError()
 
     def set_to_goal(self, goal):
-        self.set_goal_xyz(goal)
+        self.set_goal_xyz(goal) #TODO: FIX THIS, SET EE_POS TO GOAL
 
+
+class SawyerReachTorqueJointLimitedEnv(SawyerReachTorqueEnv):
+    @property
+    def model_name(self):
+        return get_asset_full_path('sawyer_reach_torque_goal_hidden_joint_limited.xml')
 
 if __name__ == "__main__":
     import pygame
