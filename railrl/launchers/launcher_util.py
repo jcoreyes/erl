@@ -68,26 +68,21 @@ def run_experiment(
 ):
     """
     Usage:
-
     ```
     def foo(variant):
         x = variant['x']
         y = variant['y']
         logger.log("sum", x+y)
-
     variant = {
         'x': 4,
         'y': 3,
     }
     run_experiment(foo, variant, exp_prefix="my-experiment")
     ```
-
     Results are saved to
     `base_log_dir/<date>-my-experiment/<date>-my-experiment-<unique-id>`
-
     By default, the base_log_dir is determined by
     `config.LOCAL_LOG_DIR/`
-
     :param method_call: a function that takes in a dictionary as argument
     :param mode: A string:
      - 'local'
@@ -460,7 +455,6 @@ def run_experiment_here(
 ):
     """
     Run an experiment locally without any serialization.
-
     :param experiment_function: Function. `variant` will be passed in as its
     only argument.
     :param exp_prefix: Experiment prefix for the save file.
@@ -544,7 +538,6 @@ def create_log_dir(
 ):
     """
     Creates and returns a unique log directory.
-
     :param exp_prefix: All experiments with this prefix will have log
     directories be under this directory.
     :param exp_id: Different exp_ids will be in different directories.
@@ -587,15 +580,10 @@ def setup_logger(
 ):
     """
     Set up logger to have some reasonable default settings.
-
     Will save log output to
-
         based_log_dir/exp_prefix/exp_name.
-
     exp_name will be auto-generated to be unique.
-
     If log_dir is specified, then that directory is used as the output dir.
-
     :param exp_prefix: The sub-directory for this specific experiment.
     :param exp_id: The number of the specific experiment run within this
     experiment.
@@ -665,7 +653,6 @@ def setup_logger(
 def set_seed(seed):
     """
     Set the seed for all the possible random number generators.
-
     :param seed:
     :return: None
     """
@@ -722,12 +709,10 @@ def create_run_experiment_multiple_seeds(n_seeds, experiment, **kwargs):
 
 def query_yes_no(question, default="yes"):
     """Ask a yes/no question via raw_input() and return their answer.
-
     "question" is a string that is presented to the user.
     "default" is the presumed answer if the user just hits <Enter>.
         It must be "yes" (the default), "no" or None (meaning
         an answer is required of the user).
-
     The "answer" return value is True for "yes" or False for "no".
     """
     valid = {"yes": True, "y": True, "ye": True,

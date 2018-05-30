@@ -1,20 +1,18 @@
 import math
 import time
 from collections import OrderedDict
+
 import intera_interface as ii
 import numpy as np
 import rospy
-from gravity_torques.srv import *
 from intera_interface import CHECK_VERSION
 from numpy import linalg
-from objectattention_ros.srv import *
-from robot_info.srv import *
 
-from experiments.murtaza.ros.Sawyer.joint_space_impedance import PDController
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.core.serializable import Serializable
-from rllab.envs.base import Env
+from experiments.murtaza.ros.old_sawyer_code.joint_space_impedance import PDController
 from railrl.core import logger
+from railrl.core.serializable import Serializable
+from railrl.misc.eval_util import create_stats_ordered_dict
+from rllab.envs.base import Env
 from rllab.spaces.box import Box
 
 NUM_JOINTS = 7

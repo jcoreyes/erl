@@ -18,7 +18,7 @@ from torch.autograd import Variable
 
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger as default_logger
-from collections import OrderedDict
+from collections import OrderedDict, deque
 
 from railrl.misc.asset_loader import sync_down
 
@@ -49,15 +49,15 @@ class VAEWrappedEnv(ProxyEnv, Env):
         use_vae_reward=True,
         use_vae_goals=True, # whether you use goals from VAE or rendered from environment state
         sample_from_true_prior=False,
-
         decode_goals=False,
         render_goals=False,
         render_rollouts=False,
-
         reset_on_sample_goal_for_rollout = True,
-
+        history_size=1,
         reward_params=None,
+        use_gpu=False,
         mode="train",
+        image_env=None,
     ):
         if reward_params is None:
             reward_params = dict()
@@ -67,14 +67,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_vae(vae)
         else:
             self.vae = vae
-        self.vae.eval()
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self.use_vae_goals = use_vae_goals
         self.use_vae_reward = use_vae_reward
         self.use_vae_obs = use_vae_obs
         self.sample_from_true_prior = sample_from_true_prior
-
         self.decode_goals = decode_goals
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
@@ -85,21 +83,25 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.reward_type = self.reward_params.get("type", 'latent_distance')
         self.epsilon = self.reward_params.get("epsilon", 20)
         self.reward_min_variance = self.reward_params.get("min_variance", 0)
-        if ptu.gpu_enabled():
+
+        if use_gpu:
             self.vae.cuda()
 
+        self.history_len = history_size
+        self.history = deque(maxlen=self.history_len)
+
         self.observation_space = Box(
-            -10 * np.ones(self.representation_size),
-            10 * np.ones(self.representation_size),
-            dtype=np.float32,
+            -10 * np.ones(self.representation_size * self.history_len),
+            10 * np.ones(self.representation_size * self.history_len)
         )
         self.goal_space = Box(
             -10 * np.ones(self.representation_size),
-            10 * np.ones(self.representation_size),
-            dtype=np.float32,
+            10 * np.ones(self.representation_size)
         )
+        self.image_env = image_env
 
         self.mode(mode)
+        self.use_gpu = use_gpu
 
     def mode(self, name):
         self.current_mode = name
@@ -119,8 +121,16 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.decode_goals = False
             self.render_goals = False
             self.render_rollouts = False
+            self.render_decoded = False
         else:
             error
+
+    def _get_history(self, observation):
+        observations = list(self.history)
+        obs_count = len(observations)
+        for _ in range(self.history_len - obs_count):
+            observations.append(observation)
+        return np.c_[observations]
 
     @property
     def goal_dim(self):
@@ -130,17 +140,18 @@ class VAEWrappedEnv(ProxyEnv, Env):
         observation, reward, done, info = self._wrapped_env.step(action)
         done = False # no early termination
         self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
+        if self.image_env:
+            ob = self.image_env.get_image()
+            self.image_env.cur_obs = ob.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
             cv2.imshow('env', self.cur_obs)
             cv2.waitKey(1)
         if self.use_vae_obs:
             img = Variable(ptu.from_numpy(observation))
-            if ptu.gpu_enabled():
+            if self.use_gpu:
                 self.vae.cuda()
             mu, logvar = self.vae.encode(img)
             observation = ptu.get_numpy(mu).flatten()
-        else:
-            raise NotImplementedError
         if self.use_vae_reward:
             # replace reward with Euclidean distance in VAE latent space
             # currently assumes obs and goals are also from VAE
@@ -161,26 +172,31 @@ class VAEWrappedEnv(ProxyEnv, Env):
             )
         else:
             raise NotImplementedError()
-
         return observation, reward, done, info
 
     def reset(self):
         self.vae_goal = self.sample_goal_for_rollout()
-
         observation = self._wrapped_env.reset()
         self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
+        if self.image_env:
+            ob = self.image_env.get_image()
+            self.image_env.cur_obs = ob.reshape(self.input_channels, 84, 84).transpose()
         if self.render_rollouts:
             cv2.imshow('env', self.cur_obs)
             cv2.waitKey(1)
         if self.use_vae_obs:
             img = Variable(ptu.from_numpy(observation))
-            if ptu.gpu_enabled():
+            if self.use_gpu:
                 self.vae.cuda()
             e = self.vae.encode(img)[0]
             observation = ptu.get_numpy(e).flatten()
+        self.history = deque(maxlen=self.history_len)
+        self.history.append(observation)
+        observation = self._get_history(observation).flatten()
         return observation
 
     def enable_render(self):
+        self.use_vae_goals = False
         self.decode_goals = True
         self.render_goals = True
         self.render_rollouts = True
@@ -195,7 +211,13 @@ class VAEWrappedEnv(ProxyEnv, Env):
     """
 
     def convert_obs_to_goals(self, obs):
-        return obs
+        '''
+        returns latest observation of each history
+        :param obs:
+        :return:
+        '''
+        return obs[:, (self.history_len - 1) * self.representation_size:]
+        # return obs
         # return ptu.get_numpy(
             # self.vae.encode(ptu.np_to_var(obs))
         # )
@@ -224,6 +246,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self._wrapped_env.set_goal(goal)
             self._wrapped_env.set_to_goal(goal)
             observation = self._wrapped_env.get_image()
+
+            if self.image_env:
+                ob = self.image_env.get_image()
+                self.image_env.goal_obs = ob.reshape(self.input_channels, 84, 84).transpose()
 
             self.true_goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
             img = Variable(ptu.from_numpy(observation))
@@ -284,7 +310,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
             next_observation,
             goal,
             env_info=None,
+            next_env_info=None,
     ):
+        next_observation = next_observation[(self.history_len - 1) * self.representation_size:]
         if self.reward_type == 'latent_distance':
             reached_goal = next_observation
             dist = np.linalg.norm(reached_goal - goal)

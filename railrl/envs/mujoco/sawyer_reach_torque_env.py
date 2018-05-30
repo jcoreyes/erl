@@ -2,7 +2,6 @@ from collections import OrderedDict
 import numpy as np
 from gym.envs.mujoco import MujocoEnv
 from gym.spaces import Box
-import mujoco_py
 
 from railrl.core import logger
 
@@ -16,12 +15,13 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
     """Implements a torque-controlled Sawyer environment"""
 
     def __init__(self, reward_info=None, frame_skip=30,
-                 action_scale=1. / 10, hide_goal=False):
+                 action_scale=1. / 10, hide_goal=False,keep_vel_in_obs=True):
         self.quick_init(locals())
         self.reward_info = reward_info
         self.hide_goal = hide_goal
         self.action_scale = action_scale
         self._goal_xyz = self.sample_goal_xyz()
+        self.keep_vel_in_obs = keep_vel_in_obs
         MultitaskEnv.__init__(self, distance_metric_order=2)
         MujocoEnv.__init__(self, self.model_name, frame_skip=frame_skip)
 
@@ -79,11 +79,17 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
         return obs, reward, done, info
 
     def _get_obs(self):
-        return np.concatenate([
-            self.sim.data.qpos.flat,
-            self.sim.data.qvel.flat,
-            self.get_endeff_pos(),
-        ])
+        if self.keep_vel_in_obs:
+            return np.concatenate([
+                self.sim.data.qpos.flat,
+                self.sim.data.qvel.flat,
+                self.get_endeff_pos(),
+            ])
+        else:
+            return np.concatenate([
+                self.sim.data.qpos.flat,
+                self.get_endeff_pos(),
+            ])
 
     def get_endeff_pos(self):
         return self.data.body_xpos[self.endeff_id].copy()
@@ -197,7 +203,7 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
         raise NotImplementedError()
 
     def set_to_goal(self, goal):
-        raise NotImplementedError()
+        self.set_goal_xyz(goal)
 
 
 if __name__ == "__main__":
@@ -229,10 +235,8 @@ if __name__ == "__main__":
     # ACTION_FROM = 'pd'
     # H = 50
 
-    env = SawyerReachTorqueEnv(hide_goal=True)
-    # env = SawyerReachXYEnv()
-    env = MultitaskToFlatEnv(env)
-
+    env = SawyerReachTorqueEnv(hide_goal=True, keep_vel_in_obs=False)
+    # env = MultitaskToFlatEnv(env)
     lock_action = False
     while True:
         obs = env.reset()

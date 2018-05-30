@@ -38,6 +38,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             min_num_steps_before_training=None,
             replay_buffer_size=1000000,
             replay_buffer=None,
+            train_on_eval_paths=False,
 
             # I/O parameters
             render=False,
@@ -142,10 +143,17 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._old_table_keys = None
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
+        self.train_on_eval_paths = train_on_eval_paths
         self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
         self.sim_throttle = sim_throttle
         if self.collection_mode == 'online-parallel':
-            ray.init()
+            '''
+            The caller must have run ray.init() before running this line of code.
+            Not the ideal scenario, but if the caller wants to run multiple experiments 
+            in a loop, the ray.init() call must be place outside the loop in order to
+            ensure that the init does not get called more than once (which would result
+            in an error)
+            '''
             self.training_env = RemoteRolloutEnv(
                 env=env,
                 policy=eval_policy,
@@ -193,6 +201,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 )
                 if self.render:
                     self.training_env.render()
+
                 next_ob, raw_reward, terminal, env_info = (
                     self.training_env.step(action)
                 )
@@ -280,39 +289,50 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         n_steps_current_epoch = 0
         epoch = start_epoch
         self._start_epoch(epoch)
+        n_eval_steps = 0
+        self._eval_paths = []
+        eval_end = False
         while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
+            in_eval = n_steps_current_epoch >= self.num_env_steps_per_epoch
             if self.sim_throttle:
                 if epoch == 0 or self._n_env_steps_total // (
                     self._n_train_steps_total + 1) < self.parallel_step_to_train_ratio:
                     path = self.training_env.rollout(
                         self.exploration_policy,
-                        use_exploration_strategy=True,
+                        use_exploration_strategy=not in_eval,
                     )
             else:
                 path = self.training_env.rollout(
                     self.exploration_policy,
-                    use_exploration_strategy=True,
+                    use_exploration_strategy=not in_eval,
                 )
             if path is not None:
+                if in_eval:
+                    path_length = len(path['observations'])
+                    self._eval_paths.append(dict(path))
+                    n_eval_steps += path_length
+                    eval_end = n_eval_steps >= self.num_steps_per_eval + self.max_path_length
+
                 path['rewards'] = path['rewards'] * self.reward_scale
                 path_length = len(path['observations'])
                 self._n_env_steps_total += path_length
                 n_steps_current_epoch += path_length
                 self._handle_path(path)
-                if len(path) > 0:
-                    self._exploration_paths.append(path)
-            self._try_to_train()
+                self.exploration_policy.reset()
             gt.stamp('sample')
             self._try_to_train()
             gt.stamp('train')
             # Check if epoch is over
-            if n_steps_current_epoch >= self.num_env_steps_per_epoch:
+            if eval_end:
                 self._try_to_eval(epoch)
                 gt.stamp('eval')
                 self._end_epoch()
                 epoch += 1
                 n_steps_current_epoch = 0
                 self._start_epoch(epoch)
+                eval_end = False
+                n_eval_steps = 0
+                self._eval_paths = []
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)
@@ -398,8 +418,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics.update(self.eval_statistics)
 
         logger.log("Collecting samples for evaluation")
-        test_paths = self.get_eval_paths()
-
+        if self.collection_mode == 'online-parallel':
+            test_paths = self._eval_paths
+        else:
+            test_paths = self.get_eval_paths()
         statistics.update(eval_util.get_generic_path_information(
             test_paths, stat_prefix="Test",
         ))
@@ -408,7 +430,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._exploration_paths, stat_prefix="Exploration",
             ))
         if hasattr(self.env, "log_diagnostics"):
-            self.env.log_diagnostics(test_paths)
+            self.env.log_diagnostics(test_paths, logger=logger)
 
         average_returns = eval_util.get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
@@ -417,7 +439,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.need_to_update_eval_statistics = True
 
     def get_eval_paths(self):
-        return self.eval_sampler.obtain_samples()
+        paths = self.eval_sampler.obtain_samples()
+        if self.train_on_eval_paths:
+            for path in paths:
+                self._handle_path(path)
+        return paths
 
     def offline_evaluate(self, epoch):
         for key, value in self.eval_statistics.items():

@@ -50,6 +50,7 @@ if __name__ == "__main__":
     env = data['env']
     num_samples = 1000
     resolution = 10
+    max_tau=15
     if 'policy' in data:
         policy = data['policy']
     else:
@@ -80,13 +81,13 @@ if __name__ == "__main__":
                 init_tau=max_tau,
                 goal=goal,
                 max_path_length=args.H,
-                animated=not args.hide,
+                # animated=not args.hide,
                 cycle_tau=args.cycle or not args.ndc,
                 decrement_tau=args.dt or not args.ndc,
                 env_samples_goal_on_reset=args.silent,
                 # get_action_kwargs={'deterministic': True},
             )
-            print("last state", path['next_observations'][-1])
+            print("last state", path['next_observations'][-1][21:24])
             paths.append(path)
         env.log_diagnostics(paths)
         for key, value in get_generic_path_information(paths).items():
