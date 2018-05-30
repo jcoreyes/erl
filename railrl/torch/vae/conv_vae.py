@@ -337,6 +337,7 @@ class ConvVAE(PyTorchModule):
             min_variance=1e-4,
             use_min_variance=True,
             state_size=0,
+            state_sim_debug=False,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -352,7 +353,7 @@ class ConvVAE(PyTorchModule):
             self.log_min_variance = float(np.log(min_variance))
         self.dist_mu = None
         self.dist_std = None
-
+        self.state_sim_debug=False
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
         self.added_fc_size = added_fc_size
