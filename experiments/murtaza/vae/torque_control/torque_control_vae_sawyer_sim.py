@@ -6,12 +6,11 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_torque_control_vae_latest'
+    mode = 'local'
+    exp_prefix = 'sawyer_torque_control_vae_set_to_goal_fix'
 
     vae_paths = {
-     "16": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_control/torque_params.pkl",
-     # "32": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_control/debug_torque_params.pkl",
+     "32": "/home/murtaza/Documents/rllab/railrl/data/local/05-30-sawyer-torque-vae/05-30-sawyer_torque_vae_2018_05_30_16_37_30_0000--s-59706/itr_60.pkl",
     }
 
     variant = dict(
@@ -58,7 +57,7 @@ if __name__ == "__main__":
         'algo_kwargs.reward_scale': [1e-4,],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
-        'rdim': [16],
+        'rdim': [32],
         'reward_params.type': ['latent_distance'],
         'history_size':[2],
         'hidden_sizes':[[400, 300]]

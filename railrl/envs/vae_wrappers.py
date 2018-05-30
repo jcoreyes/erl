@@ -312,7 +312,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             goal,
             env_info=None,
     ):
-        next_observation = next_observation[(self.history_len - 1) * self.representation_size:]
+        next_observation = next_observation[(self.history_size - 1) * self.representation_size:]
         if self.reward_type == 'latent_distance':
             reached_goal = next_observation
             dist = np.linalg.norm(reached_goal - goal)
