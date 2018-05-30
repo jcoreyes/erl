@@ -15,7 +15,7 @@ def generate_vae_dataset(
         N=10000, test_p=0.9, use_cached=True, imsize=84, show=False,
         dataset_path=None,
 ):
-    filename = "/tmp/sawyer_pos_control_imgs" + str(N) + ".npy"
+    filename = "/tmp/sawyer_pos_control_xy_imgs" + str(N) + ".npy"
     info = {}
     if dataset_path is not None:
         filename = local_path_from_s3_or_local_path(dataset_path)
@@ -36,7 +36,7 @@ def generate_vae_dataset(
         dataset = np.zeros((N, imsize * imsize * 3))
         for i in range(N):
             # Move the goal out of the image
-            # env.wrapped_env.set_goal(np.array([100, 100, 100]))
+            env.wrapped_env.set_goal(np.array([100, 100, 100]))
             env.reset()
             for _ in range(50):
                 env.wrapped_env.step(
@@ -59,4 +59,4 @@ def generate_vae_dataset(
 
 
 if __name__ == "__main__":
-    generate_vae_dataset(10000, use_cached=False, show=True)
+    generate_vae_dataset(10000, use_cached=False, show=False)
