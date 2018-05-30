@@ -10,6 +10,7 @@ from torch.nn import functional as F
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
@@ -172,6 +173,10 @@ class ConvVAETrainer():
         if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
 
+
+        for key, value in self.debug_statistics().items():
+            logger.record_tabular(key, value)
+
         logger.record_tabular("test/BCE", np.mean(bces))
         logger.record_tabular("test/KL", np.mean(kles))
         logger.record_tabular("test/loss", np.mean(losses))
@@ -182,6 +187,37 @@ class ConvVAETrainer():
         logdir = logger.get_snapshot_dir()
         filename = osp.join(logdir, 'params.pkl')
         # torch.save(self.model, filename)
+
+    def debug_statistics(self):
+        """
+        Given an image $$x$$, samples a bunch of latents from the prior
+        $$z_i$$ and decode them $$\hat x_i$$.
+        Compare this to $$\hat x$$, the reconstruction of $$x$$.
+        Ideally
+         - All the $$\hat x_i$$s do worse than $$\hat x$$ (makes sure VAE
+           isn’t ignoring the latent)
+         - Some $$\hat x_i$$ do better than other $$\hat x_i$$ (tests for
+           coverage)
+        """
+        debug_batch_size = 64
+
+        data = self.get_batch(train=False)
+        recon_batch, mu, logvar = self.model(data)
+        img = data[0]
+        recon_mse = ((recon_batch[0] - img)**2).mean()
+
+        img_repeated = img.expand((debug_batch_size, img.shape[0]))
+
+        samples = ptu.Variable(torch.randn(debug_batch_size, self.representation_size))
+        random_imgs = self.model.decode(samples)
+        random_mse = ((random_imgs - img_repeated)**2).mean(dim=1)
+
+        mse_improvement = ptu.get_numpy(random_mse - recon_mse)
+        stats = create_stats_ordered_dict(
+            'debug/MSE improvement over random',
+            mse_improvement,
+        )
+        return stats
 
     def dump_samples(self, epoch):
         self.model.eval()
