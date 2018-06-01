@@ -214,6 +214,7 @@ def run_experiment(
             instance_type = config.INSTANCE_TYPE
         if spot_price is None:
             spot_price = config.SPOT_PRICE
+    singularity_image = config.GPU_SINGULARITY_IMAGE
 
     """
     Get the mode
@@ -248,6 +249,10 @@ def run_experiment(
             image=docker_image,
             gpu=use_gpu,
         ),
+        'local_singularity': doodad.mode.LocalSingularity(
+            image=singularity_image,
+            gpu=use_gpu,
+        ),
         'ec2': doodad.mode.EC2AutoconfigDocker(
             image=docker_image,
             image_id=image_id,
@@ -275,6 +280,7 @@ def run_experiment(
     """
     Get the outputs
     """
+    pre_cmd = []
     if mode == 'ec2':
         # Ignored since I'm setting the snapshot dir directly
         base_log_dir_for_script = None
@@ -289,6 +295,11 @@ def run_experiment(
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
+    elif mode == 'local_singularity':
+        base_log_dir_for_script = base_log_dir
+        # The snapshot dir will be automatically created
+        snapshot_dir_for_script = None
+        pre_cmd.extend(config.SINGULARITY_PRE_CMDS)
     elif mode == 'here_no_doodad':
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
@@ -309,6 +320,7 @@ def run_experiment(
         use_cloudpickle=True,
         target_mount=target_mount,
         verbose=verbose,
+        pre_cmd=pre_cmd,
     )
 
 
@@ -349,7 +361,7 @@ def create_mounts(
             mount_point=None,  # For purely local mode, skip mounting.
             output=True,
         )
-    elif mode == 'local_docker':
+    elif mode == 'local_docker' or mode =='local_singularity':
         output_mount = mount.MountLocal(
             local_dir=base_log_dir,
             mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
