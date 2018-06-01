@@ -63,6 +63,7 @@ def run_experiment(
         logger=default_logger,
         verbose=False,
         trial_dir_suffix=None,
+        time_in_mins=60,
 ):
     """
     Usage:
@@ -241,24 +242,35 @@ def run_experiment(
     if trial_dir_suffix is not None:
         s3_log_name = s3_log_name + "-" + trial_dir_suffix
 
-    mode_str_to_doodad_mode = {
-        'local': doodad.mode.Local(),
-        'local_docker': doodad.mode.LocalDocker(
+    """
+    Create mode
+    """
+    if mode == 'local':
+        dmode = doodad.mode.Local()
+    elif mode == 'local_docker':
+        dmode = doodad.mode.LocalDocker(
             image=docker_image,
             gpu=use_gpu,
-        ),
-        'local_singularity': doodad.mode.LocalSingularity(
+        )
+    elif mode == 'local_singularity':
+        dmode = doodad.mode.LocalSingularity(
             image=singularity_image,
             gpu=use_gpu,
-        ),
-        'slurm_singularity': doodad.mode.SlurmSingularity(
+        )
+    elif mode == 'slurm_singularity':
+        if use_gpu:
+            kwargs = config.SLURM_GPU_CONFIG
+        else:
+            kwargs = config.SLURM_CPU_CONFIG
+        dmode = doodad.mode.SlurmSingularity(
             image=singularity_image,
             gpu=use_gpu,
-        ),
-    }
-    if mode == 'ec2':
+            time_in_mins=time_in_mins,
+            **kwargs
+        )
+    elif mode == 'ec2':
         # Do this separately in case some one does not have EC2 configured
-        mode_str_to_doodad_mode[mode] = doodad.mode.EC2AutoconfigDocker(
+        dmode = doodad.mode.EC2AutoconfigDocker(
             image=docker_image,
             image_id=image_id,
             region=region,
@@ -270,6 +282,8 @@ def run_experiment(
             aws_s3_path=aws_s3_path,
             **mode_kwargs
         )
+    else:
+        raise NotImplementedError("Mode not supported: {}".format(mode))
 
     """
     Get the mounts
@@ -315,7 +329,7 @@ def run_experiment(
     run_experiment_kwargs['base_log_dir'] = base_log_dir_for_script
     target_mount = doodad.launch_python(
         target=config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH,
-        mode=mode_str_to_doodad_mode[mode],
+        mode=dmode,
         mount_points=mounts,
         args={
             'method_call': method_call,
