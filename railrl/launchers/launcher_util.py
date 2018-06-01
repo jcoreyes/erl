@@ -253,6 +253,10 @@ def run_experiment(
             image=singularity_image,
             gpu=use_gpu,
         ),
+        'slurm_singularity': doodad.mode.SlurmSingularity(
+            image=singularity_image,
+            gpu=use_gpu,
+        ),
         'ec2': doodad.mode.EC2AutoconfigDocker(
             image=docker_image,
             image_id=image_id,
@@ -281,6 +285,7 @@ def run_experiment(
     Get the outputs
     """
     pre_cmd = []
+    launch_locally = None
     if mode == 'ec2':
         # Ignored since I'm setting the snapshot dir directly
         base_log_dir_for_script = None
@@ -295,11 +300,12 @@ def run_experiment(
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
-    elif mode == 'local_singularity':
+    elif mode == 'local_singularity' or mode == 'slurm_singularity':
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
         pre_cmd.extend(config.SINGULARITY_PRE_CMDS)
+        launch_locally = True
     elif mode == 'here_no_doodad':
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
@@ -321,6 +327,7 @@ def run_experiment(
         target_mount=target_mount,
         verbose=verbose,
         pre_cmd=pre_cmd,
+        launch_locally=launch_locally,
     )
 
 
@@ -355,13 +362,18 @@ def create_mounts(
             sync_interval=sync_interval,
             include_types=('*.txt', '*.csv', '*.json', '*.gz', '*.tar', '*.log', '*.pkl', '*.mp4')
         )
-    elif mode == 'local':
+    elif (
+        mode == 'local'
+        or mode == 'local_singularity'
+        or mode == 'slurm_singularity'
+    ):
+        # To save directly to local files (singularity does this), skip mounting
         output_mount = mount.MountLocal(
             local_dir=base_log_dir,
-            mount_point=None,  # For purely local mode, skip mounting.
+            mount_point=None,
             output=True,
         )
-    elif mode == 'local_docker' or mode =='local_singularity':
+    elif mode == 'local_docker':
         output_mount = mount.MountLocal(
             local_dir=base_log_dir,
             mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
