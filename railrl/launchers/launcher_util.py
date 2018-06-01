@@ -11,13 +11,11 @@ from collections import namedtuple
 import __main__ as main
 import datetime
 import dateutil.tz
-import joblib
 import numpy as np
 
 import railrl.pythonplusplus as ppp
 from railrl.core import logger as default_logger
 from railrl.launchers import config
-from railrl.torch.pytorch_util import set_gpu_mode
 
 GitInfo = namedtuple('GitInfo', ['code_diff', 'commit_hash', 'branch_name'])
 
@@ -257,7 +255,10 @@ def run_experiment(
             image=singularity_image,
             gpu=use_gpu,
         ),
-        'ec2': doodad.mode.EC2AutoconfigDocker(
+    }
+    if mode == 'ec2':
+        # Do this separately in case some one does not have EC2 configured
+        mode_str_to_doodad_mode[mode] = doodad.mode.EC2AutoconfigDocker(
             image=docker_image,
             image_id=image_id,
             region=region,
@@ -268,8 +269,7 @@ def run_experiment(
             gpu=use_gpu,
             aws_s3_path=aws_s3_path,
             **mode_kwargs
-        ),
-    }
+        )
 
     """
     Get the mounts
@@ -392,6 +392,7 @@ def save_experiment_data(dictionary, log_dir):
 
 def resume_torch_algorithm(variant):
     from railrl.torch import pytorch_util as ptu
+    import joblib
     load_file = variant.get('params_file', None)
     if load_file is not None and osp.exists(load_file):
         data = joblib.load(load_file)
@@ -404,6 +405,7 @@ def resume_torch_algorithm(variant):
 
 
 def continue_experiment(load_experiment_dir, resume_function):
+    import joblib
     path = os.path.join(load_experiment_dir, 'experiment.pkl')
     if osp.exists(path):
         data = joblib.load(path)
@@ -440,6 +442,7 @@ def continue_experiment(load_experiment_dir, resume_function):
 
 
 def continue_experiment_simple(load_experiment_dir, resume_function):
+    import joblib
     path = os.path.join(load_experiment_dir, 'experiment.pkl')
     data = joblib.load(path)
     run_experiment_here_kwargs = data['run_experiment_here_kwargs']
@@ -455,6 +458,7 @@ def continue_experiment_simple(load_experiment_dir, resume_function):
 
 def resume_torch_algorithm_simple(variant):
     from railrl.torch import pytorch_util as ptu
+    import joblib
     load_file = variant.get('params_file', None)
     if load_file is not None and osp.exists(load_file):
         data = joblib.load(load_file)
@@ -523,6 +527,7 @@ def run_experiment_here(
     )
 
     set_seed(seed)
+    from railrl.torch.pytorch_util import set_gpu_mode
     set_gpu_mode(use_gpu)
 
     run_experiment_here_kwargs = dict(
