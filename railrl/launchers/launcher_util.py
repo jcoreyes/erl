@@ -293,7 +293,7 @@ def run_experiment(
     """
     Get the outputs
     """
-    pre_cmd = []
+    mode_specific_kwargs = {}
     launch_locally = None
     if mode == 'ec2':
         # Ignored since I'm setting the snapshot dir directly
@@ -313,7 +313,7 @@ def run_experiment(
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
-        pre_cmd.extend(config.SINGULARITY_PRE_CMDS)
+        mode_specific_kwargs['pre_cmd'] = config.SINGULARITY_PRE_CMDS
         launch_locally = True
     elif mode == 'here_no_doodad':
         base_log_dir_for_script = base_log_dir
@@ -335,8 +335,8 @@ def run_experiment(
         use_cloudpickle=True,
         target_mount=target_mount,
         verbose=verbose,
-        pre_cmd=pre_cmd,
         launch_locally=launch_locally,
+        **mode_specific_kwargs
     )
 
 
