@@ -12,7 +12,6 @@ import sys
 import datetime
 import dateutil.tz
 import csv
-import joblib
 import json
 import pickle
 import base64
@@ -167,6 +166,7 @@ def save_extra_data(data, file_name='extra_data.pkl'):
 
     :param data: Something pickle'able.
     """
+    import joblib
     file_name = osp.join(_snapshot_dir, file_name)
     joblib.dump(data, file_name, compress=3)
 

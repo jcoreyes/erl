@@ -11,13 +11,11 @@ from collections import namedtuple
 import __main__ as main
 import datetime
 import dateutil.tz
-import joblib
 import numpy as np
 
 import railrl.pythonplusplus as ppp
 from railrl.core import logger as default_logger
 from railrl.launchers import config
-from railrl.torch.pytorch_util import set_gpu_mode
 
 GitInfo = namedtuple('GitInfo', ['code_diff', 'commit_hash', 'branch_name'])
 
@@ -65,6 +63,7 @@ def run_experiment(
         logger=default_logger,
         verbose=False,
         trial_dir_suffix=None,
+        time_in_mins=60,
 ):
     """
     Usage:
@@ -214,6 +213,7 @@ def run_experiment(
             instance_type = config.INSTANCE_TYPE
         if spot_price is None:
             spot_price = config.SPOT_PRICE
+    singularity_image = config.GPU_SINGULARITY_IMAGE
 
     """
     Get the mode
@@ -242,13 +242,35 @@ def run_experiment(
     if trial_dir_suffix is not None:
         s3_log_name = s3_log_name + "-" + trial_dir_suffix
 
-    mode_str_to_doodad_mode = {
-        'local': doodad.mode.Local(),
-        'local_docker': doodad.mode.LocalDocker(
+    """
+    Create mode
+    """
+    if mode == 'local':
+        dmode = doodad.mode.Local()
+    elif mode == 'local_docker':
+        dmode = doodad.mode.LocalDocker(
             image=docker_image,
             gpu=use_gpu,
-        ),
-        'ec2': doodad.mode.EC2AutoconfigDocker(
+        )
+    elif mode == 'local_singularity':
+        dmode = doodad.mode.LocalSingularity(
+            image=singularity_image,
+            gpu=use_gpu,
+        )
+    elif mode == 'slurm_singularity':
+        if use_gpu:
+            kwargs = config.SLURM_GPU_CONFIG
+        else:
+            kwargs = config.SLURM_CPU_CONFIG
+        dmode = doodad.mode.SlurmSingularity(
+            image=singularity_image,
+            gpu=use_gpu,
+            time_in_mins=time_in_mins,
+            **kwargs
+        )
+    elif mode == 'ec2':
+        # Do this separately in case some one does not have EC2 configured
+        dmode = doodad.mode.EC2AutoconfigDocker(
             image=docker_image,
             image_id=image_id,
             region=region,
@@ -259,8 +281,9 @@ def run_experiment(
             gpu=use_gpu,
             aws_s3_path=aws_s3_path,
             **mode_kwargs
-        ),
-    }
+        )
+    else:
+        raise NotImplementedError("Mode not supported: {}".format(mode))
 
     """
     Get the mounts
@@ -275,6 +298,8 @@ def run_experiment(
     """
     Get the outputs
     """
+    pre_cmd = []
+    launch_locally = None
     if mode == 'ec2':
         # Ignored since I'm setting the snapshot dir directly
         base_log_dir_for_script = None
@@ -289,6 +314,12 @@ def run_experiment(
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
+    elif mode == 'local_singularity' or mode == 'slurm_singularity':
+        base_log_dir_for_script = base_log_dir
+        # The snapshot dir will be automatically created
+        snapshot_dir_for_script = None
+        pre_cmd.extend(config.SINGULARITY_PRE_CMDS)
+        launch_locally = True
     elif mode == 'here_no_doodad':
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
@@ -298,7 +329,7 @@ def run_experiment(
     run_experiment_kwargs['base_log_dir'] = base_log_dir_for_script
     target_mount = doodad.launch_python(
         target=config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH,
-        mode=mode_str_to_doodad_mode[mode],
+        mode=dmode,
         mount_points=mounts,
         args={
             'method_call': method_call,
@@ -309,6 +340,8 @@ def run_experiment(
         use_cloudpickle=True,
         target_mount=target_mount,
         verbose=verbose,
+        pre_cmd=pre_cmd,
+        launch_locally=launch_locally,
     )
 
 
@@ -343,10 +376,15 @@ def create_mounts(
             sync_interval=sync_interval,
             include_types=('*.txt', '*.csv', '*.json', '*.gz', '*.tar', '*.log', '*.pkl', '*.mp4')
         )
-    elif mode == 'local':
+    elif (
+        mode == 'local'
+        or mode == 'local_singularity'
+        or mode == 'slurm_singularity'
+    ):
+        # To save directly to local files (singularity does this), skip mounting
         output_mount = mount.MountLocal(
             local_dir=base_log_dir,
-            mount_point=None,  # For purely local mode, skip mounting.
+            mount_point=None,
             output=True,
         )
     elif mode == 'local_docker':
@@ -368,6 +406,7 @@ def save_experiment_data(dictionary, log_dir):
 
 def resume_torch_algorithm(variant):
     from railrl.torch import pytorch_util as ptu
+    import joblib
     load_file = variant.get('params_file', None)
     if load_file is not None and osp.exists(load_file):
         data = joblib.load(load_file)
@@ -380,6 +419,7 @@ def resume_torch_algorithm(variant):
 
 
 def continue_experiment(load_experiment_dir, resume_function):
+    import joblib
     path = os.path.join(load_experiment_dir, 'experiment.pkl')
     if osp.exists(path):
         data = joblib.load(path)
@@ -416,6 +456,7 @@ def continue_experiment(load_experiment_dir, resume_function):
 
 
 def continue_experiment_simple(load_experiment_dir, resume_function):
+    import joblib
     path = os.path.join(load_experiment_dir, 'experiment.pkl')
     data = joblib.load(path)
     run_experiment_here_kwargs = data['run_experiment_here_kwargs']
@@ -431,6 +472,7 @@ def continue_experiment_simple(load_experiment_dir, resume_function):
 
 def resume_torch_algorithm_simple(variant):
     from railrl.torch import pytorch_util as ptu
+    import joblib
     load_file = variant.get('params_file', None)
     if load_file is not None and osp.exists(load_file):
         data = joblib.load(load_file)
@@ -499,6 +541,7 @@ def run_experiment_here(
     )
 
     set_seed(seed)
+    from railrl.torch.pytorch_util import set_gpu_mode
     set_gpu_mode(use_gpu)
 
     run_experiment_here_kwargs = dict(
