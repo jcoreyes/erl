@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'grill-tdm-td3-sawyer-push-and-reach-max-length-16'
+    exp_prefix = 'grill-tdm-td3-does-soft-tau-matter'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -72,7 +72,7 @@ if __name__ == "__main__":
             fraction_goals_are_rollout_goals=0.2,
             fraction_resampled_goals_are_env_goals=0.5,
         ),
-        algorithm='HER-TD3',
+        algorithm='GRiLL-TDM-TD3',
         normalize=False,
         rdim=32,
         render=False,
@@ -97,7 +97,8 @@ if __name__ == "__main__":
             # 'gaussian',
             'ou',
         ],
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 5, 10, 20],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1],
+        'algo_kwargs.td3_kwargs.tau': [0.001, 0.01, 0.1, 1],
         'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.5],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
@@ -111,7 +112,7 @@ if __name__ == "__main__":
             # 'mahalanobis_distance'
         ],
         'reward_params.min_variance': [0],
-        'vae_wrapped_env_kwargs.sample_from_true_prior': [True, False],
+        'vae_wrapped_env_kwargs.sample_from_true_prior': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

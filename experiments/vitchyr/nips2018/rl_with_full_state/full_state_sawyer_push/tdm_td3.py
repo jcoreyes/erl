@@ -15,14 +15,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = 'dev'
 
-    n_seeds = 2
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "full-state-sawyer-push-reset-free"
+    exp_prefix = "full-state-sawyer-push-reset-free-tdm-softtau-sweep-3"
 
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=50,
+                num_epochs=500,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=100,
@@ -42,8 +42,8 @@ if __name__ == "__main__":
                 policy_learning_rate=1e-4,
             ),
         ),
-        env_class=SawyerResetFreePushEnv,
-        # env_class=SawyerPushAndReachXYEasyEnv,
+        # env_class=SawyerResetFreePushEnv,
+        env_class=SawyerPushAndReachXYEasyEnv,
         env_kwargs=dict(
             reward_info=dict(
                 type='euclidean',
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         replay_buffer_class=RelabelingReplayBuffer,
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_are_rollout_goals=0.1,
+            fraction_goals_are_rollout_goals=0.2,
             fraction_resampled_goals_are_env_goals=0.5,
         ),
         qf_kwargs=dict(
@@ -68,9 +68,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 4, 8],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1],
         'algo_kwargs.tdm_kwargs.max_tau': [15],
-        'env_kwargs.puck_limit': ['large', 'normal'],
+        'algo_kwargs.td3_kwargs.tau': [0.001, 0.01, 0.1],
         'exploration_type': [
             'epsilon',
             'ou',

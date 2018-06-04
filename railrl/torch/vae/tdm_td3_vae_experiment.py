@@ -141,7 +141,10 @@ def tdm_td3_vae_experiment(variant):
     algo_kwargs['td3_kwargs']['qf_criterion'] = qf_criterion
     algo_kwargs['tdm_kwargs']['env_samples_goal_on_reset'] = True
     algo_kwargs['td3_kwargs']['training_env'] = training_env
-    tau_schedule = IntPiecewiseLinearSchedule(**variant['tau_schedule_kwargs'])
+    if 'tau_schedule_kwargs' in variant:
+        tau_schedule = IntPiecewiseLinearSchedule(**variant['tau_schedule_kwargs'])
+    else:
+        tau_schedule = None
     algo_kwargs['tdm_kwargs']['epoch_max_tau_schedule'] = tau_schedule
     algorithm = TdmTd3(
         testing_env,
