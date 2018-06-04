@@ -52,6 +52,16 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
             self.observation_space.low,
             self.observation_space.high,
         )
+        # hack for state-based experiments for other envs
+        self.observation_space = Box(
+            np.array([-0.2, 0.5, -0.2, 0.5, -0.2, 0.5]),
+            np.array([0.2, 0.7, 0.2, 0.7, 0.2, 0.7]),
+        )
+        self.goal_space = Box(
+            np.array([-0.2, 0.5, -0.2, 0.5, -0.2, 0.5]),
+            np.array([0.2, 0.7, 0.2, 0.7, 0.2, 0.7]),
+        )
+
         self.reset()
         self.reset_mocap_welds()
 
@@ -376,6 +386,9 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
     HAND_GOAL_LOW = np.array([-0.05, 0.55])
     HAND_GOAL_HIGH = np.array([0.05, 0.65])
 
+    low = np.hstack((HAND_GOAL_LOW, PUCK1_GOAL_LOW, PUCK2_GOAL_LOW))
+    high = np.hstack((HAND_GOAL_HIGH, PUCK1_GOAL_HIGH, PUCK2_GOAL_HIGH))
+
     @property
     def model_name(self):
         return get_asset_full_path('sawyer_multi_push_and_reach_mocap_goal_hidden.xml')
@@ -396,6 +409,12 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
                 1, 0, 1, 0,
             ]
 
+    def _get_obs(self):
+        e = self.get_endeff_pos()[:2]
+        b = self.get_puck_pos()[:2]
+        c = self.get_puck2_pos()[:2]
+        return np.concatenate((e, b, c))
+
     def sample_puck_xy(self):
         return np.array([0.05, 0.6])
 
@@ -406,9 +425,10 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
         if self.randomize_goals:
             touching = [True]
             while any(touching):
-                hand = np.random.uniform(self.HAND_GOAL_LOW, self.HAND_GOAL_HIGH)
-                g1 = np.random.uniform(self.PUCK1_GOAL_LOW, self.PUCK1_GOAL_HIGH)
-                g2 = np.random.uniform(self.PUCK2_GOAL_LOW, self.PUCK2_GOAL_HIGH)
+                r = np.random.uniform(self.low, self.high)
+                hand = r[:2]
+                g1 = r[2:4]
+                g2 = r[4:6]
                 diffs = [hand - g1, hand - g2, g1 - g2]
                 touching = [np.linalg.norm(d) <= 0.08 for d in diffs]
         else:
@@ -422,6 +442,7 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
         self.set_hand_xy(goal[:2])
         self.set_puck_xy(goal[2:4])
         self.set_puck2_xy(goal[4:6])
+        # import pdb; pdb.set_trace()
 
     def set_puck2_xy(self, pos):
         qpos = self.data.qpos.flat.copy()
@@ -441,7 +462,6 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
         u = np.zeros(7)
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
-        reward = 0
         done = False
 
         hand_goal = self.multitask_goal[0:2]
@@ -459,6 +479,7 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
         total_distance = hand_distance
         total_distance += puck_distance
         total_distance += puck2_distance
+        reward = -total_distance
         info = dict(
             hand_distance=hand_distance,
             puck_distance=puck_distance,
@@ -483,8 +504,19 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
         self.reset_mocap_welds()
         return self._get_obs()
 
-    def compute_reward(self, ob, action, next_ob, goal):
-        return 0
+    def compute_reward(self, ob, action, next_ob, goal, env_info=None):
+        hand_xy = next_ob[:2]
+        puck_xy = next_ob[2:4]
+        puck2_xy = next_ob[4:6]
+        hand_goal_xy = goal[:2]
+        puck_goal_xy = goal[2:4]
+        puck2_goal_xy = goal[4:6]
+        hand_dist = np.linalg.norm(hand_xy - hand_goal_xy)
+        puck_dist = np.linalg.norm(puck_xy - puck_goal_xy)
+        puck2_dist = np.linalg.norm(puck2_xy - puck2_goal_xy)
+        if not self.reward_info or self.reward_info["type"] == "euclidean":
+            r = - hand_dist - puck_dist - puck2_dist
+        return r
 
     def get_puck2_pos(self):
         return self.data.body_xpos[self.puck2_id].copy()
@@ -654,17 +686,21 @@ class SawyerVaryMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
         # set_state resets the goal xy, so we need to explicit set it again
         self.set_goal_xyxy(self._goal_xyxy)
 
-        # include_puck1 = np.random.random() < 0.5
-        # if include_puck1:
-        p1 = self.sample_puck_xy()
-        # else:
-            # p1 = np.array([5,0])
-
-        # include_puck2 = np.random.random() < 0.5
-        # if include_puck2:
-        p2 = self.sample_puck2_xy()
-        # else:
-            # p2 = np.array([10,0])
+        match_goal_objects = False
+        if match_goal_objects:
+            # include_puck1 = np.random.random() < 0.5
+            if self.include_puck1:
+                p1 = self.sample_puck_xy()
+            else:
+                p1 = np.array([5,0])
+            # include_puck2 = np.random.random() < 0.5
+            if self.include_puck2:
+                p2 = self.sample_puck2_xy()
+            else:
+                p2 = np.array([10,0])
+        else:
+            p1 = self.sample_puck_xy()
+            p2 = self.sample_puck2_xy()
 
         self.set_puck_xy(p1)
         self.set_puck2_xy(p2)

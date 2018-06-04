@@ -345,6 +345,7 @@ class ConvVAE(PyTorchModule):
         return mu, logvar
 
     def reparameterize(self, mu, logvar):
+        return mu # TODO: get rid of
         if self.training:
             std = logvar.mul(0.5).exp_()
             eps = ptu.Variable(std.data.new(std.size()).normal_())
@@ -387,7 +388,7 @@ class SpatialVAE(ConvVAE):
             temperature=1.0,
             **kwargs
     ):
-#        self.save_init_params(locals())
+        self.save_init_params(locals())
         super().__init__(representation_size, *args, **kwargs)
         self.num_feat_points = num_feat_points
         self.conv3 = nn.Conv2d(32, self.num_feat_points, kernel_size=5, stride=3)
@@ -456,13 +457,14 @@ class SpatialVAE(ConvVAE):
 
         x = torch.cat([fp_x, fp_y], 1)
         h = x.view(-1, self.num_feat_points * 2)
-        if self.added_fc_size != 0:
-            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dimension=1)
-            h = torch.cat((h, fc_input), dim=1)
-        h = F.relu(self.spatial_fc(h))
-        mu = self.output_activation(self.fc1(h))
-        logvar = self.output_activation(self.fc2(h))
-        return mu, logvar
+        mu = h
+        # if self.added_fc_size != 0:
+        #     fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dimension=1)
+        #     h = torch.cat((h, fc_input), dim=1)
+        # h = F.relu(self.spatial_fc(h))
+        # mu = self.output_activation(self.fc1(h))
+        # logvar = self.output_activation(self.fc2(h))
+        return mu, ptu.Variable(torch.zeros(mu.shape)).cuda()
 
 if __name__ == "__main__":
     m = ConvVAE(2)
