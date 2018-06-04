@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'grill-tdm-td3-does-soft-tau-matter'
+    exp_prefix = 'grill-tdm-td3-does-structure-or-vectorization-matter'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -98,9 +98,11 @@ if __name__ == "__main__":
             'ou',
         ],
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [1],
-        'algo_kwargs.td3_kwargs.tau': [0.001, 0.01, 0.1, 1],
+        'algo_kwargs.td3_kwargs.tau': [0.001, 0.05, 1],
         'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.5],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
+        'algo_kwargs.tdm_kwargs.vectorized': [True, False],
+        'qf_kwargs.structure': ['none', 'norm_difference'],
         'exploration_noise': [0.2],
         'training_mode': ['train'],
         'testing_mode': ['test', ],

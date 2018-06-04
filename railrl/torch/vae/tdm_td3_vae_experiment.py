@@ -89,14 +89,15 @@ def tdm_td3_vae_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
+    vectorized = variant['algo_kwargs']['tdm_kwargs'].get('vectorized', True)
     qf1 = TdmQf(
         env=env,
-        vectorized=True,
+        vectorized=vectorized,
         **variant['qf_kwargs']
     )
     qf2 = TdmQf(
         env=env,
-        vectorized=True,
+        vectorized=vectorized,
         **variant['qf_kwargs']
     )
     policy = TdmPolicy(
