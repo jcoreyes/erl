@@ -372,6 +372,13 @@ class ConvVAE(PyTorchModule):
         self.fc1 = nn.Linear(self.conv_output_dim, representation_size)
         self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
 
+        self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
+
+        self.conv4 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
+        self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
+        self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6,
+                                        stride=3)
+
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
@@ -382,6 +389,11 @@ class ConvVAE(PyTorchModule):
         self.hidden_init(self.conv3.weight)
         self.conv3.bias.data.fill_(0)
         self.hidden_init(self.conv4.weight)
+        self.conv4.bias.data.fill_(0)
+        self.hidden_init(self.conv5.weight)
+        self.conv5.bias.data.fill_(0)
+        self.hidden_init(self.conv6.weight)
+        self.conv6.bias.data.fill_(0)
 
         self.hidden_init(self.fc1.weight)
         self.fc1.bias.data.fill_(0)
@@ -391,6 +403,9 @@ class ConvVAE(PyTorchModule):
         self.fc2.bias.data.fill_(0)
         self.fc2.weight.data.uniform_(-init_w, init_w)
         self.fc2.bias.data.uniform_(-init_w, init_w)
+
+        self.fc3.weight.data.uniform_(-init_w, init_w)
+        self.fc3.bias.data.uniform_(-init_w, init_w)
 
     def encode(self, input):
         input = input.view(-1, self.imlength + self.added_fc_size)
