@@ -55,7 +55,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         reset_on_sample_goal_for_rollout = True,
         history_size=1,
         reward_params=None,
-        use_gpu=False,
         mode="train",
         image_env=None,
     ):
@@ -84,9 +83,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.epsilon = self.reward_params.get("epsilon", 20)
         self.reward_min_variance = self.reward_params.get("min_variance", 0)
 
-        if use_gpu:
-            self.vae.cuda()
-
         self.history_size = history_size
         self.history = deque(maxlen=self.history_size)
 
@@ -101,7 +97,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.image_env = image_env
 
         self.mode(mode)
-        self.use_gpu = use_gpu
 
     def mode(self, name):
         self.current_mode = name
@@ -148,8 +143,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.waitKey(1)
         if self.use_vae_obs:
             img = Variable(ptu.from_numpy(observation))
-            if self.use_gpu:
-                self.vae.cuda()
             mu, logvar = self.vae.encode(img)
             observation = ptu.get_numpy(mu).flatten()
 
@@ -187,8 +180,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.waitKey(1)
         if self.use_vae_obs:
             img = Variable(ptu.from_numpy(observation))
-            if self.use_gpu:
-                self.vae.cuda()
             e = self.vae.encode(img)[0]
             observation = ptu.get_numpy(e).flatten()
         self.history = deque(maxlen=self.history_size)

@@ -61,7 +61,6 @@ def experiment(variant):
             render_goals=render, render_rollouts=render,
             reward_params=reward_params,
             history_size=variant['history_size'],
-            use_gpu = variant['use_gpu'],
             **variant.get('vae_wrapped_env_kwargs', {})
         )
 
@@ -155,7 +154,7 @@ def experiment(variant):
         **variant['algo_kwargs']
     )
 
-    if variant["use_gpu"]:
+    if ptu.gpu_enabled():
         print("using GPU")
         algorithm.cuda()
         if not do_state_based_exp:
