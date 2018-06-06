@@ -296,7 +296,6 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
 
     def log_diagnostics(self, paths, logger=logger, prefix=""):
         super().log_diagnostics(paths)
-
         statistics = OrderedDict()
         for stat_name in [
             'hand_distance',
@@ -456,15 +455,15 @@ class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
             goal2 - self.get_puck2_pos()[:2])
         touch_distance = np.linalg.norm(
             self.get_endeff_pos() - self.get_puck_pos())
-        total_distance = hand_distance
-        total_distance += puck_distance
-        total_distance += puck2_distance
+        sum_distance = hand_distance
+        sum_distance += puck_distance
+        sum_distance += puck2_distance
         info = dict(
             hand_distance=hand_distance,
             puck_distance=puck_distance,
             puck2_distance=puck2_distance,
             touch_distance=touch_distance,
-            total_distance=total_distance,
+            sum_distance=sum_distance,
             success=float(puck_distance < 0.1),
         )
         return obs, reward, done, info

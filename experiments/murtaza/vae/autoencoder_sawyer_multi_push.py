@@ -12,7 +12,7 @@ if __name__ == "__main__":
     vae_paths = {
          # # "16": "/home/murtaza/Documents/rllab/railrl/data/local/05-17-sawyer-multi-push-ae/05-17-sawyer_multi_push_ae_2018_05_17_12_37_03_0000--s-9903/itr_30.pkl"
          # "16": "05-17-sawyer-multi-push-ae/05-17-sawyer_multi_push_ae_2018_05_17_12_37_03_0000--s-9903/itr_30.pkl"
-        "16": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/multi_push_itr_30.pkl"
+        "4": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/multi_push.pkl"
     }
 
     variant = dict(
@@ -31,7 +31,7 @@ if __name__ == "__main__":
         ),
         replay_kwargs=dict(
             fraction_goals_are_rollout_goals=1,
-            fraction_goals_are_env_goals=0,
+            fraction_resampled_goals_are_env_goals=0,
         ),
         algorithm='HER-TD3',
         normalize=False,
@@ -60,8 +60,9 @@ if __name__ == "__main__":
         'algo_kwargs.reward_scale': [1e-4],
         'training_mode': ['train_env_goals'],
         'testing_mode': ['test', ],
-        'rdim': [16],
+        'rdim': [4],
         'reward_params.type': ['latent_distance'],
+        'vae_wrapped_env_kwargs.sample_from_true_prior': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

@@ -2,9 +2,9 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-# from railrl.torch.vae.sawyer2d_multi_push_data import generate_vae_dataset
-# from railrl.torch.vae.sawyer2d_reach_data import generate_vae_dataset
-from railrl.torch.vae.sawyer2d_push_new_easy_data import generate_vae_dataset
+#from railrl.torch.vae.sawyer2d_multi_push_data import generate_vae_dataset
+from railrl.torch.vae.sawyer2d_reach_data import generate_vae_dataset
+#from railrl.torch.vae.sawyer2d_push_new_easy_data import generate_vae_dataset
 
 def experiment(variant):
     from railrl.core import logger
@@ -20,7 +20,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = ConvVAE(representation_size, input_channels=3, **variant['conv_vae_kwargs'])
+    m = ConvVAE(representation_size, is_auto_encoder=variant['is_auto_encoder'], input_channels=3, **variant['conv_vae_kwargs'])
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -38,7 +38,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sawyer_single_pusher_ae'
+    exp_prefix = 'sawyer_reacher_ae_sweep_for_test'
     use_gpu = True
 
     variant = dict(
@@ -49,15 +49,20 @@ if __name__ == "__main__":
             use_cached=True,
         ),
         algo_kwargs=dict(
+            # batch_size=32,
+            lr=1e-1,
         ),
         conv_vae_kwargs=dict(
             min_variance=None,
+            use_old_architecture=True,
         ),
-        save_period=1,
+        is_auto_encoder=True,
+        save_period=5,
     )
 
     search_space = {
-        'representation_size': [16],
+        'representation_size': [4, 16],
+        'algo_kwargs.lr': [1e-2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
