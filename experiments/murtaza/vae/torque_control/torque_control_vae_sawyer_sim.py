@@ -6,12 +6,11 @@ from railrl.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = 'local_docker'
-    exp_prefix = 'sawyer_torque_control_ou_vae'
+    mode = 'local'
+    exp_prefix = 'sawyer_torque_control_vae_set_to_goal_fix'
 
     vae_paths = {
-     # "16": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_control/torque_params.pkl",
-     "16": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/torque_control/ou_torque_params.pkl",
+     "32": "/home/murtaza/Documents/rllab/railrl/data/local/05-30-sawyer-torque-vae/05-30-sawyer_torque_vae_2018_05_30_16_37_30_0000--s-59706/itr_60.pkl",
     }
 
     variant = dict(
@@ -25,7 +24,7 @@ if __name__ == "__main__":
             discount=0.99,
         ),
         env_kwargs=dict(
-            hide_goal=True,
+            hide_goal=False,
         ),
         replay_kwargs=dict(
             fraction_goals_are_rollout_goals=0.2,
@@ -33,7 +32,6 @@ if __name__ == "__main__":
         ),
         algorithm='HER-TD3',
         normalize=True,
-        rdim=16,
         render=False,
         env=SawyerReachTorqueEnv,
         use_env_goals=True,
@@ -53,16 +51,16 @@ if __name__ == "__main__":
             'ou',
         ],
         'algo_kwargs.num_updates_per_env_step': [4],
-        'replay_kwargs.fraction_goals_are_env_goals': [0.5, 1.0],
+        'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.5, 1.0],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1e-4,],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
-        'rdim': [16],
-        'reward_params.type': ['latent_distance', 'log_prob'],
-        'history_len':[2],
-        'hidden_sizes':[[300, 400, 300], [400, 300]]
+        'rdim': [32],
+        'reward_params.type': ['latent_distance'],
+        'history_size':[2],
+        'hidden_sizes':[[400, 300]]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

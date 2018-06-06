@@ -47,13 +47,16 @@ class ConvVAETrainer():
             normalize=False,
             state_sim_debug=False,
             mse_weight=0.1,
+            is_auto_encoder=False,
     ):
         self.log_interval = log_interval
         self.batch_size = batch_size
         self.beta = beta
+        if is_auto_encoder:
+            self.beta = 0
         self.beta_schedule = beta_schedule
         if self.beta_schedule is None:
-            self.beta_schedule = ConstantSchedule(beta)
+            self.beta_schedule = ConstantSchedule(self.beta)
         self.imsize = imsize
         self.do_scatterplot = do_scatterplot
 
@@ -135,8 +138,8 @@ class ConvVAETrainer():
                 recon_batch, mu, logvar = self.model(X)
                 bce = self.logprob(recon_batch, X, mu, logvar)
                 kle = self.kl_divergence(recon_batch, X, mu, logvar)
-                sim_loss = self.state_similarity_loss(self.model, mu, Y) * self.mse_weight
-                loss = bce + beta * kle + sim_loss
+                sim_loss = self.state_similarity_loss(self.model, mu, Y)
+                loss = bce + beta * kle + sim_loss*self.mse_weight
                 loss.backward()
             else:
                 data = self.get_batch()
@@ -187,7 +190,7 @@ class ConvVAETrainer():
                 recon_batch, mu, logvar = self.model(X)
                 bce = self.logprob(recon_batch, X, mu, logvar)
                 kle = self.kl_divergence(recon_batch, X, mu, logvar)
-                sim_loss = self.state_similarity_loss(self.model, mu, Y) * self.mse_weight
+                sim_loss = self.state_similarity_loss(self.model, mu, Y)
                 loss = bce + beta * kle + sim_loss
                 data = X
             else:
@@ -333,8 +336,8 @@ class ConvVAE(PyTorchModule):
             output_activation=identity,
             min_variance=1e-4,
             use_min_variance=True,
-            state_sim_debug=False,
             state_size=0,
+            state_sim_debug=False,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -348,10 +351,9 @@ class ConvVAE(PyTorchModule):
             self.log_min_variance = None
         else:
             self.log_min_variance = float(np.log(min_variance))
-        self.state_sim_debug = state_sim_debug
         self.dist_mu = None
         self.dist_std = None
-
+        self.state_sim_debug=False
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
         self.added_fc_size = added_fc_size
@@ -365,16 +367,16 @@ class ConvVAE(PyTorchModule):
         self.bn3 = nn.BatchNorm2d(32)
 
         # self.conv_output_dim = 1568 # kernel 2
-        self.conv_output_dim = 128 # kernel 3
+        self.conv_output_dim = 128  # kernel 3
 
-        #self.hidden = nn.Linear(self.conv_output_dim + added_fc_size, representation_size)
+        # self.hidden = nn.Linear(self.conv_output_dim + added_fc_size, representation_size)
 
         self.fc1 = nn.Linear(self.conv_output_dim, representation_size)
         self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
 
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
 
-        self.fc4 = nn.Linear(self.conv_output_dim, imsize*imsize)
+        self.fc4 = nn.Linear(self.conv_output_dim, imsize * imsize)
 
         if self.state_sim_debug:
             self.fc5 = nn.Linear(self.representation_size, 100)
@@ -392,12 +394,12 @@ class ConvVAE(PyTorchModule):
         self.conv2.bias.data.fill_(0)
         self.hidden_init(self.conv3.weight)
         self.conv3.bias.data.fill_(0)
-        # self.hidden_init(self.conv4.weight)
-        # self.conv4.bias.data.fill_(0)
-        # self.hidden_init(self.conv5.weight)
-        # self.conv5.bias.data.fill_(0)
-        # self.hidden_init(self.conv6.weight)
-        # self.conv6.bias.data.fill_(0)
+        self.hidden_init(self.conv4.weight)
+        self.conv4.bias.data.fill_(0)
+        self.hidden_init(self.conv5.weight)
+        self.conv5.bias.data.fill_(0)
+        self.hidden_init(self.conv6.weight)
+        self.conv6.bias.data.fill_(0)
 
         self.hidden_init(self.fc1.weight)
         self.fc1.bias.data.fill_(0)
@@ -417,14 +419,14 @@ class ConvVAE(PyTorchModule):
             self.fc6.weight.data.uniform_(-init_w, init_w)
             self.fc6.bias.data.uniform_(-init_w, init_w)
 
-        # self.hidden_init(self.fc3.weight)
-        # self.fc3.bias.data.fill_(0)
-        # self.fc3.weight.data.uniform_(-init_w, init_w)
-        # self.fc3.bias.data.uniform_(-init_w, init_w)
-        # self.hidden_init(self.fc4.weight)
-        # self.fc4.bias.data.fill_(0)
-        # self.fc4.weight.data.uniform_(-init_w, init_w)
-        # self.fc4.bias.data.uniform_(-init_w, init_w)
+        self.hidden_init(self.fc3.weight)
+        self.fc3.bias.data.fill_(0)
+        self.fc3.weight.data.uniform_(-init_w, init_w)
+        self.fc3.bias.data.uniform_(-init_w, init_w)
+        self.hidden_init(self.fc4.weight)
+        self.fc4.bias.data.fill_(0)
+        self.fc4.weight.data.uniform_(-init_w, init_w)
+        self.fc4.bias.data.uniform_(-init_w, init_w)
 
     def encode(self, input):
         input = input.view(-1, self.imlength + self.added_fc_size)
@@ -435,6 +437,7 @@ class ConvVAE(PyTorchModule):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
+
         h = x.view(-1, 128) # flatten
         if self.added_fc_size != 0:
             fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dimension=1)
@@ -461,6 +464,7 @@ class ConvVAE(PyTorchModule):
         x = F.relu(self.conv4(h))
         x = F.relu(self.conv5(x))
         x = self.conv6(x).view(-1, self.imsize*self.imsize*self.input_channels)
+
         return self.sigmoid(x)
 
     def forward(self, x):
@@ -480,7 +484,155 @@ class ConvVAE(PyTorchModule):
         self.dist_mu = d["_dist_mu"]
         self.dist_std = d["_dist_std"]
 
-#class SpatialVAE(nn.Module):
+class ConvVAELarge(ConvVAE):
+    def __init__(
+            self,
+            representation_size,
+            init_w=1e-3,
+            input_channels=1,
+            imsize=84,
+            added_fc_size=0,
+            hidden_init=ptu.fanin_init,
+            output_activation=identity,
+            min_variance=1e-4,
+            state_size=0,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+        self.representation_size = representation_size
+        self.hidden_init = hidden_init
+        self.output_activation = output_activation
+        self.input_channels = input_channels
+        self.imsize = imsize
+        self.imlength = self.imsize ** 2 * self.input_channels
+        if min_variance is None:
+            self.log_min_variance = None
+        else:
+            self.log_min_variance = float(np.log(min_variance))
+        self.dist_mu = None
+        self.dist_std = None
+
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+        self.added_fc_size = added_fc_size
+        self.init_w = init_w
+
+        self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=1)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=5, stride=1)
+        self.bn2 = nn.BatchNorm2d(32)
+        self.conv3 = nn.Conv2d(32, 32, kernel_size=5, stride=1)
+        self.bn3 = nn.BatchNorm2d(32)
+
+        self.conv4 = nn.Conv2d(32, 32, kernel_size=5, stride=3)
+        self.bn4 = nn.BatchNorm2d(32)
+        self.conv5 = nn.Conv2d(32, 32, kernel_size=5, stride=3)
+        self.bn5 = nn.BatchNorm2d(32)
+        self.conv6 = nn.Conv2d(32, 32, kernel_size=5, stride=2)
+        self.bn6 = nn.BatchNorm2d(32)
+
+        self.conv_output_dim = 128
+
+        self.fc1 = nn.Linear(self.conv_output_dim, representation_size)
+        self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
+
+        self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
+
+        self.fc4 = nn.Linear(self.conv_output_dim, imsize * imsize)
+
+        self.conv7 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=2)
+        self.conv8 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
+        self.conv9 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
+        self.conv10 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=1)
+        self.conv11 = nn.ConvTranspose2d(32, 16, kernel_size=5, stride=1)
+        self.conv12 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=1)
+        self.init_weights(init_w)
+
+    def init_weights(self, init_w):
+        self.hidden_init(self.conv1.weight)
+        self.conv1.bias.data.fill_(0)
+        self.hidden_init(self.conv2.weight)
+        self.conv2.bias.data.fill_(0)
+        self.hidden_init(self.conv3.weight)
+        self.conv3.bias.data.fill_(0)
+        self.hidden_init(self.conv4.weight)
+        self.conv4.bias.data.fill_(0)
+        self.hidden_init(self.conv5.weight)
+        self.conv5.bias.data.fill_(0)
+        self.hidden_init(self.conv6.weight)
+        self.conv6.bias.data.fill_(0)
+
+        self.hidden_init(self.conv7.weight)
+        self.conv7.bias.data.fill_(0)
+        self.hidden_init(self.conv8.weight)
+        self.conv8.bias.data.fill_(0)
+        self.hidden_init(self.conv9.weight)
+        self.conv9.bias.data.fill_(0)
+        self.hidden_init(self.conv10.weight)
+        self.conv10.bias.data.fill_(0)
+        self.hidden_init(self.conv11.weight)
+        self.conv11.bias.data.fill_(0)
+        self.hidden_init(self.conv12.weight)
+        self.conv12.bias.data.fill_(0)
+
+        self.hidden_init(self.fc1.weight)
+        self.fc1.bias.data.fill_(0)
+        self.fc1.weight.data.uniform_(-init_w, init_w)
+        self.fc1.bias.data.uniform_(-init_w, init_w)
+        self.hidden_init(self.fc2.weight)
+        self.fc2.bias.data.fill_(0)
+        self.fc2.weight.data.uniform_(-init_w, init_w)
+        self.fc2.bias.data.uniform_(-init_w, init_w)
+
+        self.hidden_init(self.fc3.weight)
+        self.fc3.bias.data.fill_(0)
+        self.fc3.weight.data.uniform_(-init_w, init_w)
+        self.fc3.bias.data.uniform_(-init_w, init_w)
+        self.hidden_init(self.fc4.weight)
+        self.fc4.bias.data.fill_(0)
+        self.fc4.weight.data.uniform_(-init_w, init_w)
+        self.fc4.bias.data.uniform_(-init_w, init_w)
+
+    def encode(self, input):
+        input = input.view(-1, self.imlength + self.added_fc_size)
+        conv_input = input.narrow(start=0, length=self.imlength, dimension=1)
+
+        # batch_size = input.size(0)
+        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize, self.imsize)
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn4(self.conv4(x)))
+        x = F.relu(self.bn5(self.conv5(x)))
+        x = F.relu(self.bn6(self.conv6(x)))
+        h = x.view(-1, 128)  # flatten
+        if self.added_fc_size != 0:
+            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dimension=1)
+            h = torch.cat((h, fc_input), dim=1)
+        mu = self.output_activation(self.fc1(h))
+        if self.log_min_variance is None:
+            logvar = self.output_activation(self.fc2(h))
+        else:
+            logvar = self.log_min_variance + torch.abs(self.fc2(h))
+        return mu, logvar
+
+    def decode(self, z):
+        h3 = self.relu(self.fc3(z))
+        h = h3.view(-1, 32, 2, 2)
+        x = F.relu(self.conv7(h))
+        x = F.relu(self.conv8(x))
+        x = F.relu(self.conv9(x))
+        x = F.relu(self.conv10(x))
+        x = F.relu(self.conv11(x))
+        x = self.conv12(x).view(-1, self.imsize * self.imsize * self.input_channels)
+        return self.sigmoid(x)
+
+class AutoEncoder(ConvVAE):
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z=mu
+        return self.decode(z), mu, logvar
+
 class SpatialVAE(ConvVAE):
     def __init__(
             self,

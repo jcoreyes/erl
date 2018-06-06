@@ -60,9 +60,8 @@ def experiment(variant):
             decode_goals=render,
             render_goals=render, render_rollouts=render,
             reward_params=reward_params,
-            history_size=variant['history_len'],
+            history_size=variant['history_size'],
             use_gpu = variant['use_gpu'],
-            use_state_reward=variant.get('use_state_reward', False),
             **variant.get('vae_wrapped_env_kwargs', {})
         )
 

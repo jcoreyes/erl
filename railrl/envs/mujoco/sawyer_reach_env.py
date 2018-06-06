@@ -294,7 +294,6 @@ class SawyerReachXYEnv(SawyerReachXYZEnv):
 
     def mocap_set_action(self, action, relative=True):
         pos_delta = action[None]
-
         if relative:
             self.reset_mocap2body_xpos()
             new_mocap_pos = self.data.mocap_pos + pos_delta
@@ -349,7 +348,6 @@ if __name__ == "__main__":
     # H = 50
 
     env = SawyerReachXYZEnv()
-    # env = SawyerReachXYEnv()
     env = MultitaskToFlatEnv(env)
 
     lock_action = False

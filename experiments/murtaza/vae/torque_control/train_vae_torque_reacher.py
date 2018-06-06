@@ -3,19 +3,34 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 from railrl.torch.vae.sawyer_torque_control_data import generate_vae_dataset
-
+from railrl.torch.vae.sawyer3d_reach_data_sim import generate_vae_dataset
+import numpy as np
 
 def experiment(variant):
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
     beta = variant["beta"]
     representation_size = variant["representation_size"]
-    train_data, test_data, info = generate_vae_dataset(
-        **variant['get_data_kwargs']
-    )
+    # train_data, test_data, info = generate_vae_dataset(
+    #     **variant['get_data_kwargs']
+    # )
+    num_divisions = 5
+    images = np.zeros((num_divisions * 10000, 21168))
+    for i in range(num_divisions):
+        imgs = np.load('/home/murtaza/vae_data/sawyer_torque_control_images100000_' + str(i + 1) + '.npy')
+        images[i * 10000:(i + 1) * 10000] = imgs
+        print(i)
+    mid = int(num_divisions * 10000 * .9)
+    train_data, test_data = images[:mid], images[mid:]
+    info = dict()
+
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
     if 'beta_schedule_kwargs' in variant:
+        kwargs = variant['beta_schedule_kwargs']
+        kwargs['y_values'][2] = variant['beta']
+        kwargs['x_values'][1] = variant['flat_x']
+        kwargs['x_values'][2] = variant['ramp_x'] + variant['flat_x']
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
@@ -37,26 +52,25 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'sawyer_torque_vae'
     use_gpu = True
 
     variant = dict(
         beta=5,
-        num_epochs=300,
-        get_data_kwargs=dict(
-            N=10000,
-            use_cached=True,
-        ),
+        num_epochs=100,
         algo_kwargs=dict(
+            batch_size=256,
         ),
         conv_vae_kwargs=dict(
             min_variance=None,
         ),
-        save_period=1,
+        save_period=10,
     )
 
     search_space = {
-        'representation_size': [16, 32],
+        'representation_size': [32],
+        'algo_kwargs.lr':[1e-3],
+        'beta':[5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

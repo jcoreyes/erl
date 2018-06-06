@@ -1,20 +1,18 @@
 import numpy as np
 
 import railrl.misc.hyperparameter as hyp
+from railrl.envs.vae_wrappers import load_vae
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import CNN
+from railrl.torch.networks import FlattenMlp
 from railrl.torch.supervised_learning.supervised_algorithm import SupervisedAlgorithm
 
 
 def experiment(variant):
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
-    ptu.set_gpu_mode(True)
     info = dict()
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
-    net = CNN(**variant['cnn_kwargs'])
-    net.cuda()
     num_divisions = variant['num_divisions']
     images = np.zeros((num_divisions * 10000, 21168))
     states = np.zeros((num_divisions*10000, 7))
@@ -29,10 +27,15 @@ def experiment(variant):
         mu = np.mean(states, axis=0)
         states = np.divide((states - mu), std)
         print(mu, std)
+    net = FlattenMlp(input_size=32, hidden_sizes=variant['hidden_sizes'], output_size=states.shape[1])
+    vae = variant['vae']
+    vae.cuda()
+    tensor = ptu.np_to_var(images)
+    images, log_var = vae.encode(tensor)
+    images = ptu.get_numpy(images)
     mid = int(num_divisions * 10000 * .9)
     train_images, test_images = images[:mid], images[mid:]
     train_labels, test_labels = states[:mid], states[mid:]
-
 
     algo = SupervisedAlgorithm(
         train_images,
@@ -51,36 +54,25 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'latent_regression_sweep'
     use_gpu = True
 
     variant = dict(
-        cnn_kwargs=dict(
-        input_width=84,
-        input_height=84,
-        input_channels=3,
-        output_size=7,
-        kernel_sizes=[3, 3, 3, 3],
-        n_channels=[16, 16, 16, 16],
-        strides=[1, 1, 1, 1],
-        pool_sizes=[2, 2, 2, 2],
-        paddings=[0, 0, 0, 0],
-        hidden_sizes=[100],
-        use_batch_norm=True,
-        ),
+        hidden_sizes = [300, 300, 300],
         batch_size = 128,
         lr = 3e-4,
-        normalize=False,
-        num_epochs=500,
+        normalize=True,
+        num_epochs=200,
         weight_decay=0,
-        num_divisions=5,
+        num_divisions=1,
+        vae = None #load vae here
     )
 
     search_space = {
         'batch_size':[256],
-        'cnn_kwargs.hidden_sizes':[[100], [100, 100]],
-        'weight_decay':[0, .001, .01, .1],
-        'lr':[1e-2, 1e-3, 1e-4],
+        'hidden_sizes':[[100], [100, 100], [300, 300, 300]],
+        'weight_decay':[.001, .01, .1],
+        'lr':[1e-3, 1e-4],
         'normalize':[True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
