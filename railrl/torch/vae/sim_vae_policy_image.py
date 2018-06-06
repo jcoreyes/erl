@@ -92,7 +92,7 @@ def rollout(env, agent, frames, max_path_length=np.inf, animated=False, image_en
         obs = np.hstack((o, goal))
         a, agent_info = agent.get_action(obs)
         next_o, r, d, env_info = env.step(a)
-        frames.append(get_image(env.goal_obs, env.cur_obs))
+        frames.append(get_image(env.goal_decoded, env.cur_obs))
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -149,7 +149,9 @@ def dump_video(env, policy, filename, ROWS=3, COLUMNS=6, do_timer=True, horizon=
         rollout_frames = frames[-101:]
         goal_img = np.flip(rollout_frames[0][:84, :84, :], 0)
         scipy.misc.imsave(rollout_dir+"/goal.png", goal_img)
-        for j in range(0, 101, 10):
+        goal_img = np.flip(rollout_frames[1][:84, :84, :], 0)
+        scipy.misc.imsave(rollout_dir+"/z_goal.png", goal_img)
+        for j in range(0, 101, 1):
             img = np.flip(rollout_frames[j][84:, :84, :], 0)
             scipy.misc.imsave(rollout_dir+"/"+str(j)+".png", img)
         if do_timer:
@@ -195,6 +197,7 @@ def simulate_policy(args):
     print("Policy loaded")
 
     env.mode("video_env")
+    env.decode_goals = True
 
     image_env = ImageMujocoEnv(
         env._wrapped_env._wrapped_env,
@@ -226,8 +229,8 @@ def simulate_policy(args):
         import ipdb; ipdb.set_trace()
     if isinstance(policy, PyTorchModule):
         policy.train(False)
-    ROWS = 2
-    COLUMNS = 3
+    ROWS = 3
+    COLUMNS = 6
     dirname = osp.dirname(args.file)
     filename = osp.join(dirname, "image.mp4")
     paths = dump_video(env, policy, filename, ROWS=ROWS, COLUMNS=COLUMNS, horizon=args.H, image_env=image_env, dirname=dirname)
