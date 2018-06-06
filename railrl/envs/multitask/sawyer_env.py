@@ -1,17 +1,16 @@
 from collections import OrderedDict
 
+import intera_interface as ii
+import numpy as np
+import rospy
+from intera_interface import CHECK_VERSION
 from numpy.linalg import linalg
 
-from experiments.murtaza.ros.Sawyer.joint_space_impedance import PDController
-from intera_interface import CHECK_VERSION
-from railrl.envs.ros.sawyer_env import SawyerEnv
-from railrl.envs.multitask.multitask_env import MultitaskEnv
-import numpy as np
-import intera_interface as ii
-import rospy
-
-from railrl.core.serializable import Serializable
+from experiments.murtaza.ros.old_sawyer_code.joint_space_impedance import PDController
 from railrl.core import logger
+from railrl.core.serializable import Serializable
+from railrl.envs.multitask.multitask_env import MultitaskEnv
+from railrl.envs.ros.sawyer_env import SawyerEnv
 from rllab.spaces import Box
 
 NUM_JOINTS = 7

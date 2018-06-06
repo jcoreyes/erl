@@ -41,6 +41,10 @@ def load_exps(dirnames, filter_fn=true_fn, suppress_output=False):
             good_exps.append(e)
     return good_exps
 
+def tag_exps(exps, tag_key, tag_value):
+    for e in exps:
+        e["flat_params"][tag_key] = tag_value
+
 def read_params_from_output(filename, maxlines=200):
     if not filename in cached_params:
         f = open(filename, "r")
@@ -92,9 +96,10 @@ def filter_by_flat_params(d):
         return True
     return f
 
-def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3),
+def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3.5),
     xlabel="Number of env steps total", default_vary=False, xlim=None, ylim=None,
-    print_final=False, print_max=False, print_min=False, print_plot=True):
+    print_final=False, print_max=False, print_min=False, print_plot=True,
+    reduce_op=sum, method_order=None, remap_keys={}):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
     vary is (what we might think is) the causal variable
@@ -115,7 +120,8 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
             return str(l['flat_params'][v])
         if v in default_vary:
             return str(default_vary[v])
-        error
+        print(v)
+        error_key_not_found_in_flat_params
     for l in exps:
         if f(l) and l['progress']:
             label = " ".join([v + ":" + lookup(v) for v in vary])
@@ -124,25 +130,41 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
 
             d = l['progress']
             x = d[xlabel]
-            if key in d:
-                y = d[key]
-
-                y_smooth = smooth(y)
-                x_smooth = x[:len(y_smooth)]
-                ys.append(y_smooth)
-                xs.append(x_smooth)
+            y = [0]
+            if type(key) is list:
+                vals = []
+                for k in key:
+                    if k in d:
+                        vals.append(d[k])
+                    elif k in remap_keys:
+                        k_new = remap_keys[k]
+                        vals.append(d[k_new])
+                    else:
+                        error_key_not_found_in_logs
+                y = reduce_op(vals)
             else:
-                print("not found", key)
-                print(d.keys())
+                if key in d:
+                    y = d[key]
+                else:
+                    print("not found", key)
+                    print(d.keys())
+
+            y_smooth = smooth(y)
+            x_smooth = x[-len(y_smooth):]
+            ys.append(y_smooth)
+            xs.append(x_smooth)
 
     lines = []
-    for label in sorted(y_data.keys()):
+    labels = sorted(y_data.keys())
+    if method_order:
+        labels = np.array(labels)[np.array(method_order)]
+    for label in labels:
         ys = to_array(y_data[label])
         x = np.nanmean(to_array(x_data[label]), axis=0)
         y = np.nanmean(ys, axis=0)
-        s = np.nanstd(ys, axis=0)
+        s = np.nanstd(ys, axis=0) / (len(ys) ** 0.5)
         if print_plot:
-            plt.fill_between(x, y-s, y+s, alpha=0.2)
+            plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2)
             line, = plt.plot(x, y, label=str(label))
             lines.append(line)
 
@@ -159,6 +181,8 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
 
     if print_plot:
         plt.legend(handles=lines, bbox_to_anchor=(1.5, 0.75))
+
+    return lines
 
 def split(exps,
     keys,

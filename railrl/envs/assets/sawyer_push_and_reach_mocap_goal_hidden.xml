@@ -46,6 +46,7 @@
     </equality>
 
     <worldbody>
+        <camera pos="0 1.2 0.8" euler="-0.8 0 3.1415" name="topview" />
         <!-- <light directional="true" cutoff="40" exponent="10" diffuse=".4 .4 .4" specular=".7 .7 .7" pos="0 0 1.5" dir="0 0 -1"/> -->
 
         <geom name="tableTop" type="plane" pos="0 0.6 0" size="0.4 0.2 0.5"
@@ -243,7 +244,7 @@
                    damping="0" armature="0" />
             <geom name="hand-goal-marker" type="sphere" pos="0 0 0" size="0.02"
                   rgba=".9 .9 .1 0" contype="0" conaffinity="8"/>
-            <site name="hand-goal-site" pos="0 0 0" size="0.01" />
+            <site name="hand-goal-site" pos="0 0 0" size="0.01" rgba="0 0 0 0" />
         </body>
 
         <body name="puck-goal" pos="0 0 0">
@@ -252,7 +253,7 @@
                    damping="0" armature="0" />
             <geom name="puck-goal-marker" type="sphere" pos="0 0 0" size="0.02"
                   rgba=".9 .1 .1 0" contype="0" conaffinity="8"/>
-            <site name="puck-goal-site" pos="0 0 0" size="0.01" />
+            <site name="puck-goal-site" pos="0 0 0" size="0.01" rgba="0 0 0 0" />
         </body>
 
     </worldbody>

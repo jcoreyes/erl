@@ -51,6 +51,7 @@ def generate_vae_dataset(
                 env.wrapped_env.step(action)
             img = env.step(env.action_space.sample())[0]
             dataset[i, :] = img
+            print(i)
             if show:
                 cv2.imshow('img', img.reshape(3, 84, 84).transpose())
                 cv2.waitKey(1)
@@ -65,8 +66,7 @@ def generate_vae_dataset(
 
 if __name__ == "__main__":
     generate_vae_dataset(
-        10,
+        10000,
         use_cached=False,
-        # show=True,
         init_camera=sawyer_init_camera_zoomed_in,
     )

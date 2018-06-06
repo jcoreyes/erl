@@ -1,8 +1,9 @@
+import torch
 import mujoco_py
 import numpy as np
 import gym.spaces
 import itertools
-from gym import Env
+from gym import Env, spaces
 from gym.spaces import Box
 from gym.spaces import Discrete
 from PIL import Image
@@ -13,6 +14,7 @@ from railrl.core.serializable import Serializable
 import mujoco_py
 import torch
 import cv2
+
 
 class ProxyEnv(Serializable, Env):
     def __init__(self, wrapped_env):
@@ -50,6 +52,41 @@ class ProxyEnv(Serializable, Env):
         if attrname == '_serializable_initialized':
             return None
         return getattr(self._wrapped_env, attrname)
+
+class HistoryEnv(ProxyEnv, Env):
+    def __init__(self, wrapped_env, history_len):
+        self.quick_init(locals())
+        super().__init__(wrapped_env)
+        self.history_len = history_len
+
+        high = np.inf * np.ones(self.history_len*self.obs_dim)
+        low = -high
+        self.observation_space = Box(low=low,
+                                     high=high,
+                                     )
+        self.history = deque(maxlen=self.history_len)
+
+    def step(self, action):
+        state, reward, done, info = super().step(action)
+        self.history.append(state)
+        flattened_history = self._get_history().flatten()
+        return flattened_history, reward, done, info
+
+    def reset(self, **kwargs):
+        state = super().reset()
+        self.history = deque(maxlen=self.history_len)
+        self.history.append(state)
+        flattened_history = self._get_history().flatten()
+        return flattened_history
+
+    def _get_history(self):
+        observations = list(self.history)
+
+        obs_count = len(observations)
+        for _ in range(self.history_len - obs_count):
+            dummy = np.zeros(self._wrapped_env.observation_space.low.size)
+            observations.append(dummy)
+        return np.c_[observations]
 
 
 class ImageMujocoEnv(ProxyEnv, Env):
@@ -246,7 +283,7 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         self._obs_mean = obs_mean
         self._obs_std = obs_std
         ub = np.ones(self._wrapped_env.action_space.shape)
-        self.action_space = Box(-1 * ub, ub, dtype=np.float32)
+        self.action_space = Box(-1 * ub, ub)
 
     def estimate_obs_stats(self, obs_batch, override_values=False):
         if self._obs_mean is not None and not override_values:

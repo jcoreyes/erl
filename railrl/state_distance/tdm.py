@@ -17,7 +17,6 @@ from railrl.state_distance.tdm_networks import TdmNormalizer
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.core import np_to_pytorch_batch
 
-
 class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
@@ -171,7 +170,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
     def get_batch(self):
         batch = self.replay_buffer.random_batch(self.batch_size)
-
         """
         Update the goal states/rewards
         """
@@ -479,7 +477,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             if self.normalize_distance:
                 self.tdm_normalizer.distance_normalizer.set_mean(distance_mean)
                 self.tdm_normalizer.distance_normalizer.set_std(distance_std)
-
 
 class RandomUniveralPolicy(UniversalPolicy, SerializablePolicy):
     """

@@ -46,6 +46,7 @@
     </equality>
 
     <worldbody>
+        <camera pos="0 0 3.2" name="topview" />
         <!-- <light directional="true" cutoff="40" exponent="10" diffuse=".4 .4 .4" specular=".7 .7 .7" pos="0 0 1.5" dir="0 0 -1"/> -->
 
         <geom name="tableTop" type="plane" pos="0 0.6 0" size="0.4 0.2 0.5"

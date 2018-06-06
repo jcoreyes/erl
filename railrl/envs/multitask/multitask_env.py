@@ -1,10 +1,10 @@
+from railrl.envs.wrappers import ProxyEnv, HistoryEnv
 import abc
 from collections import OrderedDict
 
 import numpy as np
 from gym.spaces import Box
 
-from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core.serializable import Serializable
 from railrl.core import logger as default_logger
@@ -93,9 +93,9 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
                 ob.unsqueeze(0)
             )[0]
 
-    def compute_reward(self, ob, action, next_ob, goal):
+    def compute_reward(self, ob, action, next_ob, goal, env_info=None):
         return self.compute_rewards(
-            ob[None], action[None], next_ob[None], goal[None]
+            ob[None], action[None], next_ob[None], goal[None], env_info=env_info,
         )
 
     def get_goal(self):
@@ -113,7 +113,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     def set_goal(self, goal):
         self.multitask_goal = goal
 
-    def compute_rewards(self, obs, actions, next_obs, goals):
+    def compute_rewards(self, obs, actions, next_obs, goals, env_info=None):
         return - np.linalg.norm(
             self.convert_obs_to_goals(next_obs) - goals,
             axis=1,
@@ -371,8 +371,8 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
         ProxyEnv.__init__(self, env)
 
     def reset(self):
-        self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
-
+        goal = self._wrapped_env.sample_goal_for_rollout()
+        self._wrapped_env.set_goal(goal)
         if self.pause_on_goal:
             for i in range(100):
                 self.render()
@@ -407,3 +407,28 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
 
     def joints_to_full_state(self, *args, **kwargs):
         return self._wrapped_env.joints_to_full_state(*args, **kwargs)
+
+class MultiTaskHistoryEnv(HistoryEnv, MultitaskEnv):
+    @property
+    def goal_dim(self) -> int:
+        return self._wrapped_env.goal_dim
+
+    def sample_goal_for_rollout(self):
+        return self._wrapped_env.sample_goal_for_rollout()
+
+    def set_goal(self, goal):
+        self._wrapped_env.set_goal(goal)
+
+    def get_goal(self):
+        return self._wrapped_env.get_goal()
+
+    def convert_obs_to_goals(self, obs):
+        obs_dim = int(obs.shape[1]/self.history_len)
+        obs = obs[:, (self.history_len - 1) * obs_dim:]
+        return self._wrapped_env.convert_obs_to_goals(obs)
+
+    def sample_goals(self, batch_size):
+        raise self._wrapped_env.sample_goals(batch_size)
+
+    def set_to_goal(self, goal):
+        self._wrapped_env.set_to_goal(goal)

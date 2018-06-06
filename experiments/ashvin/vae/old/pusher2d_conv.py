@@ -29,7 +29,8 @@ def experiment(variant):
 
 if __name__ == "__main__":
     variants = []
-
+    train_data, test_data = get_data(100)
+    import ipdb; ipdb.set_trace()
     for representation_size in [2, 4, 8, 16]:
         for beta in [0.5, 5.0, 50]:
             variant = dict(
