@@ -51,12 +51,12 @@
         <geom name="tableTop" type="plane" pos="0 0.6 0" size="0.4 0.2 0.5"
               rgba=".6 .6 .5 1" contype="15" conaffinity="15" />
         <!--<geom name="plane"-->
-        <!--type="plane"-->
-        <!--pos="0 0.6 0"-->
-        <!--size="0.4 0.2 0.5"-->
-        <!--rgba=".6 .6 .5 1"-->
-        <!--contype="15"-->
-        <!--conaffinity="15" />-->
+              <!--type="plane"-->
+              <!--pos="0 0.6 0"-->
+              <!--size="0.4 0.2 0.5"-->
+              <!--rgba=".6 .6 .5 1"-->
+              <!--contype="15"-->
+              <!--conaffinity="15" />-->
 
         <body name="base" pos="0 0 0">
             <site name="basesite" pos="0 0 0" size="0.01" />
@@ -156,7 +156,7 @@
                                                 <inertial pos="1e-08 1e-08 1e-08" quat="0.820473 0.339851 -0.17592 0.424708" mass="1e-08" diaginertia="1e-08 1e-08 1e-08" />
                                                 <geom size="0.035 0.015" pos="0 0 0.02" type="cylinder" rgba="0.2 0.2 0.2 0"/>
 
-                                                <!--  ================= BEGIN GRIPPER ================= /-->
+<!--  ================= BEGIN GRIPPER ================= /-->
                                                 <body name="claw" pos="0 0 0" quat="-1 0 1 0">
                                                     <geom class="1" name="Geomclaw" type="box" size="0.01 0.04 0.01" />
 
@@ -169,12 +169,12 @@
                                                         <geom name="leftclaw_it" class="1" type="box" pos="0 0 0" size="0.05 0.005 0.005" friction="0.001 0.005 0.0001" rgba="0.0 1.0 0.0 1.0"/>
                                                         <site name="endeffector" pos="0 0 0" size="0.01" />
                                                         <!-- <body name="endeff" pos=".01 .02 0"> -->
-                                                        <!-- <geom name="leftclaw_it" class="1" type="capsule" fromto="0 0 0 .05 0.0 0.0"    size="0.005" /> -->
-                                                        <!-- <site name="endeffector" pos="0 0 0" size="0.01" /> -->
+                                                            <!-- <geom name="leftclaw_it" class="1" type="capsule" fromto="0 0 0 .05 0.0 0.0"    size="0.005" /> -->
+                                                            <!-- <site name="endeffector" pos="0 0 0" size="0.01" /> -->
                                                         <!-- </body> -->
                                                     </body>
                                                 </body>
-                                                <!--  ================= END GRIPPER ================= /-->
+<!--  ================= END GRIPPER ================= /-->
 
                                             </body>
                                         </body>
@@ -214,11 +214,11 @@
 
         <body name="puck" pos="0 0 0.02">
             <joint name="puckjoint-x" type="slide" limited='true' pos="0 0 0"
-                   range="-0.05 0.05"
+                   range="-0.1 0.1"
                    axis="1 0 0"
-            />
+                   />
             <joint name="puckjoint-y" type="slide" limited='true' pos="0 0 0"
-                   range="0.55 0.65"
+                   range="0.5 0.65"
                    axis="0 1 0"
             />
             <inertial pos="0 0 0" mass="0.1" diaginertia="1 1 1"/>
@@ -232,7 +232,7 @@
                   contype="2"
                   conaffinity="4"
             />
-            <site name="puck" pos="0 0 0" size="0.01" />
+            <site name="puck" pos="0 0 0" size="0.01"/>
         </body>
 
         <body name="hand-goal" pos="0 0 0">

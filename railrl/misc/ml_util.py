@@ -68,6 +68,11 @@ class PiecewiseLinearSchedule(ScalarSchedule):
         return np.interp(t, self._x_values, self._y_values)
 
 
+class IntPiecewiseLinearSchedule(PiecewiseLinearSchedule):
+    def get_value(self, t):
+        return int(super().get_value(t))
+
+
 def none_to_infty(bounds):
     if bounds is None:
         bounds = -math.inf, math.inf

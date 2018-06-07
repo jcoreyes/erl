@@ -16,10 +16,13 @@ def generate_vae_dataset(
         N=10000, test_p=0.9, use_cached=True, imsize=84, show=False,
         init_camera=sawyer_init_camera_zoomed_in,
         dataset_path=None,
+        env_kwargs=None,
 ):
     """
     Oracle means that we use `set_to_goal` rather than doing random rollouts.
     """
+    if env_kwargs is None:
+        env_kwargs = {}
     filename = "/tmp/sawyer_reset_free_push{}_{}.npy".format(
         str(N),
         init_camera.__name__,
@@ -34,7 +37,7 @@ def generate_vae_dataset(
         print("loaded data from saved file", filename)
     else:
         now = time.time()
-        env = SawyerResetFreePushEnv(hide_goal=True)
+        env = SawyerResetFreePushEnv(hide_goal=True, **env_kwargs)
         env = ImageMujocoEnv(
             env, imsize,
             transpose=True,
@@ -46,13 +49,13 @@ def generate_vae_dataset(
         dataset = np.zeros((N, imsize * imsize * 3))
         for i in range(N):
             goal = env.sample_goal_for_rollout()
-            hand_pos = env.sample_hand_xy()
             env.set_to_goal(goal)
-            env.set_hand_xy(hand_pos)
             img = env.reset()
             dataset[i, :] = img
             if show:
-                cv2.imshow('img', img.reshape(3, 84, 84).transpose())
+                img = img.reshape(3, 84, 84).transpose()
+                img = img[::-1, :, ::-1]
+                cv2.imshow('img', img)
                 cv2.waitKey(1)
         print("done making training data", filename, time.time() - now)
         np.save(filename, dataset)

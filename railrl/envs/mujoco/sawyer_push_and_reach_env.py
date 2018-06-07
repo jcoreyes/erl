@@ -101,7 +101,7 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
         u = np.zeros(7)
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
-        reward = self.compute_reward(obs, u, obs, self._goal_xyxy)
+        reward = self.compute_her_reward_np(obs, u, obs, self._goal_xyxy)
         done = False
 
         hand_distance = np.linalg.norm(
@@ -259,15 +259,12 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
             r = - puck_dist
         elif self.reward_info["type"] == "sparse":
             t = self.reward_info["threshold"]
-            r = float(
+            r = ((
                 hand_dist + puck_dist < t
-            ) - 1
+            ) - 1).astype(float)
         else:
             raise NotImplementedError("Invalid/no reward type.")
         return r
-
-    def compute_her_reward_np(self, ob, action, next_ob, goal, env_info=None):
-        return self.compute_reward(ob, action, next_ob, goal, env_info=env_info)
 
     # @property
     # def init_angles(self):
@@ -357,8 +354,8 @@ class SawyerPushAndReachXYEasyEnv(SawyerPushAndReachXYEnv):
     """
     Always start the block in the same position
     """
-    PUCK_GOAL_LOW = np.array([-0.15, 0.5])
-    PUCK_GOAL_HIGH = np.array([0.15, 0.7])
+    PUCK_GOAL_LOW = np.array([-0.2, 0.5])
+    PUCK_GOAL_HIGH = np.array([0.2, 0.7])
 
     def sample_puck_xy(self):
         return np.array([0, 0.6])

@@ -1,6 +1,4 @@
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, MultitaskEnvToSilentMultitaskEnv
-from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
-from railrl.envs.mujoco.pusher2d import Pusher2DEnv
+from railrl.envs.multitask.multitask_env import MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
@@ -8,20 +6,14 @@ from railrl.exploration_strategies.base import (
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy
 from railrl.state_distance.tdm_td3 import TdmTd3
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 import railrl.torch.pytorch_util as ptu
-from railrl.torch.td3.td3 import TD3
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
+from railrl.misc.ml_util import IntPiecewiseLinearSchedule
 
 from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
-from railrl.torch.her.relabeled_td3 import RelabeledTd3
-import torch
 import pickle
 
 from railrl.core import logger
@@ -45,7 +37,7 @@ def tdm_td3_vae_experiment(variant):
 
         init_camera = variant.get("init_camera", None)
         if init_camera is None:
-            camera_name= "topview"
+            camera_name = "topview"
         else:
             camera_name = None
 
@@ -64,7 +56,6 @@ def tdm_td3_vae_experiment(variant):
             use_vae_reward=True, use_vae_goals=use_vae_goals,
             decode_goals=render,
             render_goals=render, render_rollouts=render,
-            render_decoded=render,
             reward_params=reward_params,
             **variant.get('vae_wrapped_env_kwargs', {})
         )
@@ -98,14 +89,15 @@ def tdm_td3_vae_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
+    vectorized = variant['algo_kwargs']['tdm_kwargs'].get('vectorized', True)
     qf1 = TdmQf(
         env=env,
-        vectorized=True,
+        vectorized=vectorized,
         **variant['qf_kwargs']
     )
     qf2 = TdmQf(
         env=env,
-        vectorized=True,
+        vectorized=vectorized,
         **variant['qf_kwargs']
     )
     policy = TdmPolicy(
@@ -134,6 +126,7 @@ def tdm_td3_vae_experiment(variant):
         relabeling_env.mode(training_mode)
         # save time by not resetting relabel env
         relabeling_env.reset_on_sample_goal_for_rollout = False
+        relabeling_env.disable_render()
 
         video_vae_env = pickle.loads(pickle.dumps(env))
         video_vae_env.mode("video_vae")
@@ -141,7 +134,6 @@ def tdm_td3_vae_experiment(variant):
         video_goal_env.mode("video_env")
 
     replay_buffer = RelabelingReplayBuffer(
-        max_size=100000,
         env=relabeling_env,
         **variant['replay_kwargs']
     )
@@ -150,6 +142,11 @@ def tdm_td3_vae_experiment(variant):
     algo_kwargs['td3_kwargs']['qf_criterion'] = qf_criterion
     algo_kwargs['tdm_kwargs']['env_samples_goal_on_reset'] = True
     algo_kwargs['td3_kwargs']['training_env'] = training_env
+    if 'tau_schedule_kwargs' in variant:
+        tau_schedule = IntPiecewiseLinearSchedule(**variant['tau_schedule_kwargs'])
+    else:
+        tau_schedule = None
+    algo_kwargs['tdm_kwargs']['epoch_max_tau_schedule'] = tau_schedule
     algorithm = TdmTd3(
         testing_env,
         qf1=qf1,
@@ -194,47 +191,3 @@ def tdm_td3_vae_experiment(variant):
         filename = osp.join(logdir, 'video_final_vae.mp4')
         dump_video(video_vae_env, policy, filename,
                    rollout_function=rollout_function)
-
-
-if __name__ == "__main__":
-    # noinspection PyTypeChecker
-    variant = dict(
-        algo_kwargs=dict(
-            num_epochs=100,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
-            tau=1e-2,
-            batch_size=128,
-            max_path_length=100,
-            discount=0.99,
-            # qf_learning_rate=1e-3,
-            # policy_learning_rate=1e-4,
-        ),
-        env_kwargs=dict(
-            render_onscreen=False,
-            render_size=84,
-            ignore_multitask_goal=True,
-            ball_radius=1,
-        ),
-        algorithm='TD3',
-        multitask=True,
-        normalize=False,
-        rdim=4,
-        render=False,
-        save_video=True,
-    )
-
-    n_seeds = 3
-
-    search_space = {
-        'exploration_type': [
-            'ou',
-        ],
-        'algo_kwargs.reward_scale': [0.01, 0.1, 1],
-        'rdim': [2, 4, 8, 16],
-        'seedid': range(n_seeds),
-    }
-    sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
-    )
-    run_variants(experiment, sweeper.iterate_hyperparameters(), run_id=0)

@@ -236,8 +236,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
         else:
             goal = self._wrapped_env.sample_goal_for_rollout()
             self._wrapped_env.set_goal(goal)
+            state = self._wrapped_env.get_nongoal_state()
             self._wrapped_env.set_to_goal(goal)
             observation = self._wrapped_env.get_image()
+            self._wrapped_env.set_nongoal_state(state)
 
             if self.image_env:
                 ob = self.image_env.get_image()

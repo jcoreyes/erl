@@ -1,15 +1,13 @@
 
 import railrl.misc.hyperparameter as hyp
 from railrl.images.camera import (
-    # sawyer_init_camera_zoomed_in,
-    # sawyer_init_camera,
-    # sawyer_init_camera_zoomed_in_fixed,
-    sawyer_init_camera_zoomed_out_fixed,
-    sawyer_init_camera_zoomed_in_fixed)
+    sawyer_init_camera_zoomed_in,
+    sawyer_init_camera,
+)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
+from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, AutoEncoder
+from railrl.torch.vae.sawyer2d_push_new_easy_data import generate_vae_dataset
 
 
 def experiment(variant):
@@ -18,7 +16,7 @@ def experiment(variant):
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     train_data, test_data, info = generate_vae_dataset(
-        **variant['generate_vae_dataset_kwargs']
+        **variant['get_data_kwargs']
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
@@ -26,7 +24,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = ConvVAE(representation_size, input_channels=3)
+    m = AutoEncoder(representation_size, input_channels=3)
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -44,66 +42,55 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev-sawyer-push-new-vae'
+    exp_prefix = 'dev'
     use_gpu = True
 
     # n_seeds = 1
     # mode = 'ec2'
-    # exp_prefix = 'vae-sawyer-variable-zoomed-out-sweep'
+    # exp_prefix = 'vae-sawyer-new-push-easy-zoomed-in-1000'
+    exp_prefix = 'ae-sawyer-push-lre-2'
 
     variant = dict(
-        beta=5.0,
-        num_epochs=500,
-        generate_vae_dataset_kwargs=dict(
-            N=1000,
-            env_kwargs=dict(
-                init_goal_low=(-0.15, 0.5),
-                init_goal_high=(0.15, 0.7),
-            ),
+        beta=0,
+        num_epochs=100,
+        get_data_kwargs=dict(
+            # N=1000,
+            # init_camera=sawyer_init_camera_zoomed_in,
+            dataset_path='05-22-sawyer_push_dataset'
+                         # '/sawyer_push_new_easy1000_sawyer_init_camera.npy',
+                         '/sawyer_push_new_easy1000_sawyer_init_camera_zoomed_in.npy',
         ),
         algo_kwargs=dict(
             do_scatterplot=False,
-            lr=1e-3,
+            lr=1e-2,
         ),
-        # TODO: automate this process
         beta_schedule_kwargs=dict(
-            x_values=[0, 100, 200, 300, 400, 500],
+            x_values=[0, 30, 100],
             # y_values=[0, 0, 0.1, 0.5],
-            y_values=[0, 0, 5, 5, 5, 5],
+            y_values=[0, 5, 5],
         ),
-        save_period=10,
+        save_period=5,
     )
 
     search_space = {
         'representation_size': [16],
-        'beta_schedule_kwargs.y_values': [
-            [0, 0, 0, 0.1, 0.5, 1],
-            [0, 0, 0, 1, 1, 1],
-            [0, 0, 1, 1, 5, 5],
-            [0, 0, 0.5, 1, 1, 5],
-        ],
+        # 'beta_schedule_kwargs.y_values': [
+        #     [0, 0, 0.1, 0.5],
+        #     [0, 0, 0.1, 0.1],
+        #     [0, 0, 5, 5],
+        # ],
         # 'algo_kwargs.lr': [1e-3, 1e-2],
-        'generate_vae_dataset_kwargs.init_camera': [
-            # sawyer_init_camera_zoomed_in,
-            # sawyer_init_camera,
-            # sawyer_init_camera_zoomed_in_fixed,
-            sawyer_init_camera_zoomed_out_fixed,
-        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for _ in range(n_seeds):
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-            suffix = "nImg-{}--cam-{}".format(
-                variant['generate_vae_dataset_kwargs']['N'],
-                variant['generate_vae_dataset_kwargs']['init_camera'].__name__,
-            )
             run_experiment(
                 experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
                 use_gpu=use_gpu,
-                trial_dir_suffix=suffix,
+                trial_dir_suffix='r'+str(variant.get('representation_size', 0)),
             )

@@ -97,3 +97,32 @@ def sawyer_init_camera_zoomed_in(camera):
     camera.elevation = cam_pos[4]
     camera.azimuth = cam_pos[5]
     camera.trackbodyid = -1
+
+
+def sawyer_init_camera_zoomed_in_fixed(camera):
+    """
+    Do not get so close that the arm crossed the camera plane
+    """
+    camera.trackbodyid = 0
+    camera.distance = 1.0
+    camera.lookat[0] = 0
+    camera.lookat[1] = 0.85
+    camera.lookat[2] = 0.3
+    camera.distance = 0.3
+    camera.elevation = -35
+    camera.azimuth = 270
+    camera.trackbodyid = -1
+
+def sawyer_init_camera_zoomed_out_fixed(camera):
+    """
+    Do not get so close that the arm crossed the camera plane
+    """
+    camera.trackbodyid = 0
+    camera.distance = 1.0
+    camera.lookat[0] = 0
+    camera.lookat[1] = 0.5
+    camera.lookat[2] = 0.3
+    camera.distance = 1
+    camera.elevation = -45
+    camera.azimuth = 270
+    camera.trackbodyid = -1

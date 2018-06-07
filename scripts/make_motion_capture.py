@@ -128,14 +128,25 @@ def rollout(env, agent, frames, max_path_length=np.inf, animated=False, image_en
     )
 
 
-def dump_video(env, policy, filename, ROWS=3, COLUMNS=6, do_timer=True, horizon=100, image_env=None, dirname=None):
+def dump_video(
+        env,
+        policy,
+        filename,
+        ROWS=3,
+        COLUMNS=6,
+        do_timer=True,
+        horizon=100,
+        image_env=None,
+        dirname=None,
+        subdirname="rollouts",
+):
     policy.train(False) # is this right/necessary?
     paths = []
     num_channels = env.vae.input_channels
     frames = []
     N = ROWS * COLUMNS
     for i in range(N):
-        rollout_dir = osp.join(dirname, "rollouts/"+str(i))
+        rollout_dir = osp.join(dirname, subdirname, str(i))
         os.makedirs(rollout_dir, exist_ok=True)
         start = time.time()
         paths.append(rollout(
@@ -167,6 +178,7 @@ def dump_video(env, policy, filename, ROWS=3, COLUMNS=6, do_timer=True, horizon=
         f1.append(np.concatenate(f2, axis=1))
     outputdata = np.concatenate(f1, axis=2)
     skvideo.io.vwrite(filename, outputdata)
+    print("Saved video to ", filename)
 
     return paths
 
@@ -232,8 +244,18 @@ def simulate_policy(args):
     ROWS = 3
     COLUMNS = 6
     dirname = osp.dirname(args.file)
-    filename = osp.join(dirname, "image.mp4")
-    paths = dump_video(env, policy, filename, ROWS=ROWS, COLUMNS=COLUMNS, horizon=args.H, image_env=image_env, dirname=dirname)
+    input_file_name = os.path.splitext(
+        os.path.basename(args.file)
+    )[0]
+    filename = osp.join(
+        dirname, "video_{}.mp4".format(input_file_name)
+    )
+    paths = dump_video(
+        env, policy, filename,
+        ROWS=ROWS, COLUMNS=COLUMNS, horizon=args.H, image_env=image_env,
+        dirname=dirname,
+        subdirname="rollouts_" + input_file_name,
+    )
 
     if hasattr(env, "log_diagnostics"):
         env.log_diagnostics(paths)

@@ -5,7 +5,12 @@ import os.path as osp
 
 from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYVariableEnv
 from railrl.envs.wrappers import ImageMujocoEnv
-from railrl.images.camera import sawyer_init_camera_zoomed_in, sawyer_init_camera
+from railrl.images.camera import (
+    sawyer_init_camera_zoomed_in,
+    sawyer_init_camera,
+    sawyer_init_camera_zoomed_in_fixed,
+    sawyer_init_camera_zoomed_out_fixed,
+)
 import cv2
 
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
@@ -52,8 +57,11 @@ def generate_vae_dataset(
             img = env.step(env.action_space.sample())[0]
             dataset[i, :] = img
             if show:
-                cv2.imshow('img', img.reshape(3, 84, 84).transpose())
+                img = img.reshape(3, 84, 84).transpose()
+                img = img[::-1, :, ::-1]
+                cv2.imshow('img', img)
                 cv2.waitKey(1)
+                # radius = input('waiting...')
         print("done making training data", filename, time.time() - now)
         np.save(filename, dataset)
 
@@ -69,5 +77,7 @@ if __name__ == "__main__":
         use_cached=False,
         show=True,
         # init_camera=sawyer_init_camera_zoomed_in,
-        init_camera=sawyer_init_camera,
+        # init_camera=sawyer_init_camera,
+        init_camera=sawyer_init_camera_zoomed_in_fixed,
+        # init_camera=sawyer_init_camera_zoomed_out_fixed,
     )

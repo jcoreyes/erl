@@ -1,6 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.envs.mujoco.sawyer_push_and_reach_env import \
-    SawyerPushAndReachXYEasyEnv
+from railrl.envs.mujoco.sawyer_reset_free_push_env import SawyerResetFreePushEnv
 from railrl.images.camera import sawyer_init_camera_zoomed_in_fixed
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.modules import HuberLoss
@@ -13,23 +12,12 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'grill-tdm-td3-does-structure-or-vectorization-matter'
+    exp_prefix = 'grill-tdm-td3-sawyer-push-reset-free-small-joint-limits-sweep-tau'
 
     vae_paths = {
-        # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #      "-reacher-recreate-results_2018_05_11_01_18_09_0000--s-33239-r2"
-        #      "/params.pkl",
-        # "4": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #      "-reacher-recreate-results_2018_05_11_01_21_47_0000--s-74741-r4"
-        #      "/params.pkl",
-        # "8": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #      "-reacher-recreate-results_2018_05_11_01_25_22_0000--s-82322-r8"
-        #      "/params.pkl",
-        # "16": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
-        #       "-reacher-recreate-results_2018_05_11_01_28_52_0000--s-570-r16"
-        #       "/params.pkl",
-        "16": "05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable"
-              "-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
+        "16": "05-22-vae-sawyer-reset-free-zoomed-in/05-22-vae-sawyer-reset"
+              "-free-zoomed-in_2018_05_22_17_08_31_0000--s-51746-r16/params.pkl"
+        # "16": "05-23-vae-sawyer-pusher-reset-free-large-joint-limts/05-23-vae-sawyer-pusher-reset-free-large-joint-limts_2018_05_23_16_30_36_0000--s-5828-r16/params.pkl",
     }
 
     variant = dict(
@@ -38,7 +26,7 @@ if __name__ == "__main__":
                 num_epochs=101,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                max_path_length=16,
+                max_path_length=100,
                 num_updates_per_env_step=1,
                 batch_size=128,
                 discount=1,
@@ -55,9 +43,8 @@ if __name__ == "__main__":
         ),
         env_kwargs=dict(
             hide_goal=True,
-            # reward_info=dict(
-            #     type="shaped",
-            # ),
+            # puck_limit='large',
+            puck_limit='normal',
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -72,11 +59,11 @@ if __name__ == "__main__":
             fraction_goals_are_rollout_goals=0.2,
             fraction_resampled_goals_are_env_goals=0.5,
         ),
-        algorithm='GRiLL-TDM-TD3',
+        algorithm='HER-TD3',
         normalize=False,
         rdim=32,
         render=False,
-        env=SawyerPushAndReachXYEasyEnv,
+        env=SawyerResetFreePushEnv,
         use_env_goals=True,
         vae_paths=vae_paths,
         wrap_mujoco_env=True,
@@ -89,6 +76,9 @@ if __name__ == "__main__":
         ),
         es_kwargs=dict(
         ),
+        tau_schedule_kwargs=dict(
+            x_values=[0, 20, 40, 60, 80, 100],
+        ),
     )
 
     search_space = {
@@ -97,12 +87,17 @@ if __name__ == "__main__":
             # 'gaussian',
             'ou',
         ],
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1],
-        'algo_kwargs.td3_kwargs.tau': [0.001, 0.05, 1],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [5],
+        'tau_schedule_kwargs.y_values': [
+            [0, 3, 6, 9, 12, 15],
+            [15, 15, 15, 15, 15, 15],
+            [0, 5, 10, 15, 25, 30],
+            [30, 30, 30, 30, 30, 30],
+            [0, 10, 20, 30, 40, 50],
+            [50, 50, 50, 50, 50, 50],
+        ],
         'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.5],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
-        'algo_kwargs.tdm_kwargs.vectorized': [True, False],
-        'qf_kwargs.structure': ['none', 'norm_difference'],
         'exploration_noise': [0.2],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
@@ -120,12 +115,6 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if (
-                variant['replay_kwargs']['fraction_goals_are_rollout_goals'] == 1.0
-                and variant['replay_kwargs']['fraction_resampled_goals_are_env_goals'] == 0.5
-        ):
-            # redundant setting
-            continue
         for _ in range(n_seeds):
             run_experiment(
                 tdm_td3_vae_experiment,

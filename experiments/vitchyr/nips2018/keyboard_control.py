@@ -14,9 +14,10 @@ import numpy as np
 print("making env")
 # env = SawyerPushAndReachXYEasyEnv()
 env = SawyerResetFreePushEnv(
-    hide_goal=True,
+    hide_goal=False,
+    puck_limit='large',
 )
-env = MultitaskToFlatEnv(env)
+# env = MultitaskToFlatEnv(env)
 
 policy = ZeroPolicy(env.action_space.low.size)
 es = OUStrategy(
@@ -65,6 +66,11 @@ H = 100000
 
 lock_action = False
 while True:
+    goal = env.sample_goal_for_rollout()
+    env.set_goal(goal)
+    state = env.get_nongoal_state()
+    env.set_to_goal(goal)
+    env.set_nongoal_state(state)
     obs = env.reset()
     last_reward_t = 0
     returns = 0
@@ -86,7 +92,7 @@ while True:
                     elif new_action == 'reset':
                         done = True
                     elif new_action is not None:
-                        action = new_action
+                        action = new_action / 10
                     else:
                         action = np.array([0 , 0 , 0 , 0])
                     print("got char:", char)
