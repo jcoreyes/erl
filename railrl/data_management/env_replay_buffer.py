@@ -10,6 +10,7 @@ class EnvReplayBuffer(SimpleReplayBuffer):
             self,
             max_replay_buffer_size,
             env,
+            env_info_sizes=None
     ):
         """
         :param max_replay_buffer_size:
@@ -18,10 +19,18 @@ class EnvReplayBuffer(SimpleReplayBuffer):
         self.env = env
         self._ob_space = env.observation_space
         self._action_space = env.action_space
+
+        if env_info_sizes is None:
+            if hasattr(env, 'info_sizes'):
+                env_info_sizes = env.info_sizes
+            else:
+                env_info_sizes = dict()
+
         super().__init__(
             max_replay_buffer_size=max_replay_buffer_size,
             observation_dim=get_dim(self._ob_space),
             action_dim=get_dim(self._action_space),
+            env_info_sizes=env_info_sizes
         )
 
     def add_sample(self, observation, action, reward, terminal,
@@ -35,61 +44,6 @@ class EnvReplayBuffer(SimpleReplayBuffer):
             observation, new_action, reward, terminal,
             next_observation, **kwargs
         )
-
-class AEEnvReplayBuffer(EnvReplayBuffer):
-    def __init__(
-            self,
-            max_replay_buffer_size,
-            env,
-            imsize,
-            history_length,
-            downsampled_size,
-    ):
-        super().__init__(max_replay_buffer_size, env)
-        self._downsampled = np.zeros((max_replay_buffer_size, history_length * downsampled_size * downsampled_size))
-        self.imsize = imsize
-        self.history_length = history_length
-        self.downsampled_size = downsampled_size
-
-
-    def add_sample(self, observation, action, reward, terminal,
-                   next_observation, **kwargs):
-        history = observation[:self.history_length*self.imsize**2]
-        history = history.reshape(-1, self.imsize, self.imsize)
-        downsampled = []
-        for image in history:
-            image_obs = Image.fromarray(np.uint8(255*image), "L")
-            downsampled_obs = image_obs.resize((self.downsampled_size, self.downsampled_size))
-            downsampled_obs = np.array(downsampled_obs).flatten() / 255.0
-            downsampled.append(downsampled_obs)
-        downsampled = np.concatenate(downsampled)
-
-        self._downsampled[self._top] = downsampled
-        return super().add_sample(observation, action, reward, terminal, next_observation, **kwargs)
-
-    def random_batch(self, batch_size):
-        indices = np.random.randint(0, self._size, batch_size)
-        return dict(
-            observations=self._observations[indices],
-            actions=self._actions[indices],
-            rewards=self._rewards[indices],
-            terminals=self._terminals[indices],
-            next_observations=self._next_obs[indices],
-            downsampled=self._downsampled[indices],
-        )
-
-
-    def empty_buffer(self):
-        self._observations = np.zeros(self._observations.shape)
-        self._next_obs = np.zeros(self._next_obs.shape)
-        self._actions = np.zeros(self._actions.shape)
-        self._rewards = np.zeros(self._rewards.shape)
-        self._terminals = np.zeros(self._terminals.shape, dtype='uint8')
-        self._downsampled = np.zeros(self._downsampled.shape)
-        self._size = 0
-        self._top = 0
-        self._bottom = 0
-
 
 class VPGEnvReplayBuffer(EnvReplayBuffer):
     def __init__(
