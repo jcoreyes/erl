@@ -277,7 +277,6 @@ def plot_trials(
         plt.plot(x_values, mean, label=name)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
-    plt.legend()
 
 def ma_filter(N):
     return lambda x: moving_average(x, N)
