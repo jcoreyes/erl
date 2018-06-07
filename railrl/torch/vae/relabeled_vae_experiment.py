@@ -60,7 +60,7 @@ def experiment(variant):
             decode_goals=render,
             render_goals=render, render_rollouts=render,
             reward_params=reward_params,
-            history_size=variant['history_size'],
+            history_size=variant.get('history_size', 1),
             **variant.get('vae_wrapped_env_kwargs', {})
         )
 
@@ -150,7 +150,6 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         render=do_state_based_exp and variant.get("render", False),
         render_during_eval=do_state_based_exp and variant.get("render", False),
-        min_num_steps_before_training=variant['algo_kwargs']['batch_size'],
         **variant['algo_kwargs']
     )
 
