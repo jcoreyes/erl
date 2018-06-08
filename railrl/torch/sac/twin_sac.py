@@ -31,8 +31,11 @@ class TwinSAC(TorchRLAlgorithm):
             policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
 
+            train_policy_with_reparameterization=False,
             soft_target_tau=1e-2,
-            policy_and_target_update_period=2,
+            policy_update_period=1,
+            target_update_period=1,
+            policy_update_minq=True,
             plotter=None,
             render_eval_paths=False,
             eval_deterministic=True,
@@ -57,17 +60,23 @@ class TwinSAC(TorchRLAlgorithm):
         self.qf2 = qf2
         self.vf = vf
         self.soft_target_tau = soft_target_tau
-        self.policy_and_target_update_period = policy_and_target_update_period
+        self.policy_update_period = policy_update_period
+        self.target_update_period = target_update_period
         self.policy_mean_reg_weight = policy_mean_reg_weight
         self.policy_std_reg_weight = policy_std_reg_weight
         self.policy_pre_activation_weight = policy_pre_activation_weight
+        self.train_policy_with_reparameterization = (
+            train_policy_with_reparameterization
+        )
+
+        self.policy_update_minq = policy_update_minq
+
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
 
         self.target_vf = vf.copy()
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
-        self.eval_statistics = None
 
         self.policy_optimizer = optimizer_class(
             self.policy.parameters(),
@@ -97,7 +106,9 @@ class TwinSAC(TorchRLAlgorithm):
         q1_pred = self.qf1(obs, actions)
         q2_pred = self.qf2(obs, actions)
         # Make sure policy accounts for squashing functions like tanh correctly!
-        policy_outputs = self.policy(obs, return_log_prob=True)
+        policy_outputs = self.policy(obs,
+                                     reparameterize=self.train_policy_with_reparameterization,
+                                     return_log_prob=True)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         """
@@ -129,22 +140,31 @@ class TwinSAC(TorchRLAlgorithm):
 
         self.qf2_optimizer.zero_grad()
         qf2_loss.backward()
-        self.qf1_optimizer.step()
+        self.qf2_optimizer.step()
 
         self.vf_optimizer.zero_grad()
         vf_loss.backward()
         self.vf_optimizer.step()
 
         policy_loss = None
-        if self._n_train_steps_total % self.policy_and_target_update_period == 0:
+        if self._n_train_steps_total % self.policy_update_period == 0:
             """
             Policy Loss
             """
             # paper says to do + but apparently that's a typo. Do Q - V.
-            log_policy_target = q1_new_actions - v_pred
-            policy_loss = (
-                log_pi * (log_pi - log_policy_target).detach()
-            ).mean()
+            if self.train_policy_with_reparameterization:
+                if self.policy_update_minq is True:
+                    policy_loss = (log_pi - q_new_actions).mean()
+                else:
+                    policy_loss = (log_pi - q1_new_actions).mean()
+            else:
+                if self.policy_update_minq is True:
+                    log_policy_target = q_new_actions - v_pred
+                else:
+                    log_policy_target = q1_new_actions - v_pred
+                policy_loss = (
+                    log_pi * (log_pi - log_policy_target).detach()
+                ).mean()
             mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
             std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
             pre_tanh_value = policy_outputs[-1]
@@ -158,6 +178,7 @@ class TwinSAC(TorchRLAlgorithm):
             policy_loss.backward()
             self.policy_optimizer.step()
 
+        if self._n_train_steps_total % self.target_update_period == 0:
             ptu.soft_update_from_to(
                 self.vf, self.target_vf, self.soft_target_tau
             )
@@ -172,10 +193,20 @@ class TwinSAC(TorchRLAlgorithm):
             This way, these statistics are only computed for one batch.
             """
             if policy_loss is None:
-                log_policy_target = q_new_actions - v_pred
-                policy_loss = (
-                    log_pi * (log_pi - log_policy_target).detach()
-                ).mean()
+                if self.train_policy_with_reparameterization:
+                    if self.policy_update_minq is True:
+                        policy_loss = (log_pi - q_new_actions).mean()
+                    else:
+                        policy_loss = (log_pi - q1_new_actions).mean()
+                else:
+                    if self.policy_update_minq is True:
+                        log_policy_target = q_new_actions - v_pred
+                    else:
+                        log_policy_target = q1_new_actions - v_pred
+                    policy_loss = (
+                        log_pi * (log_pi - log_policy_target).detach()
+                    ).mean()
+
                 mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
                 std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
                 pre_tanh_value = policy_outputs[-1]
@@ -221,7 +252,7 @@ class TwinSAC(TorchRLAlgorithm):
         return [
             self.policy,
             self.qf1,
-            self.qf1,
+            self.qf2,
             self.vf,
             self.target_vf,
         ]
