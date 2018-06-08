@@ -48,6 +48,7 @@ class SoftActorCritic(TorchRLAlgorithm):
 
             train_policy_with_reparameterization=False,
             soft_target_tau=1e-2,
+            target_update_period=1,
             eval_deterministic=True,
             target_hard_update_period=1,
             eval_policy=None,
@@ -69,6 +70,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.qf = qf
         self.vf = vf
         self.soft_target_tau = soft_target_tau
+        self.target_update_period = target_update_period
         self.policy_mean_reg_weight = policy_mean_reg_weight
         self.policy_std_reg_weight = policy_std_reg_weight
         self.policy_pre_activation_weight = policy_pre_activation_weight
@@ -105,7 +107,9 @@ class SoftActorCritic(TorchRLAlgorithm):
         q_pred = self.qf(obs, actions)
         v_pred = self.vf(obs)
         # Make sure policy accounts for squashing functions like tanh correctly!
-        policy_outputs = self.policy(obs, return_log_prob=True)
+        policy_outputs = self.policy(obs,
+                                     reparameterize=self.train_policy_with_reparameterization,
+                                     return_log_prob=True)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         """
@@ -156,7 +160,8 @@ class SoftActorCritic(TorchRLAlgorithm):
         policy_loss.backward()
         self.policy_optimizer.step()
 
-        self._update_target_network()
+        if self._n_train_steps_total % self.target_update_period == 0:
+            self._update_target_network()
 
         """
         Save some statistics for eval
