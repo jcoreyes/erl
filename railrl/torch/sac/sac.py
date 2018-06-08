@@ -107,7 +107,9 @@ class SoftActorCritic(TorchRLAlgorithm):
         q_pred = self.qf(obs, actions)
         v_pred = self.vf(obs)
         # Make sure policy accounts for squashing functions like tanh correctly!
-        policy_outputs = self.policy(obs, return_log_prob=True)
+        policy_outputs = self.policy(obs,
+                                     reparameterize=self.train_policy_with_reparameterization,
+                                     return_log_prob=True)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         """
