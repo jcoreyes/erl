@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'grill-her-td3-sawyer-push-zoomed-in-fixed'
+    exp_prefix = 'grill-her-td3-sawyer-push-zoomed-in-fixed-softtau-sweep-2'
 
     # zoomed_in_path = "05-22-vae-sawyer-new-push-easy-zoomed-in-1000_2018_05_22_13_09_28_0000--s-98682-r16/params.pkl"
     # zoomed_out_path = "05-22-vae-sawyer-new-push-easy-no-zoom-1000_2018_05_22_13_10_43_0000--s-30039-r16/params.pkl"
@@ -90,7 +90,8 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [1, 4],
+        'algo_kwargs.num_updates_per_env_step': [1, 4, 8],
+        'algo_kwargs.tau': [1, 1e-1, 1e-2, 1e-3],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1],
         'reward_params.type': [
