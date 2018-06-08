@@ -51,6 +51,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             sim_throttle=False,
             normalize_env=True,
             parallel_step_to_train_ratio=20,
+
+            env_info_sizes=None,
     ):
         """
         Base class for RL Algorithms
@@ -130,6 +132,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self.replay_buffer = EnvReplayBuffer(
                 self.replay_buffer_size,
                 self.env,
+                env_info_sizes=env_info_sizes,
             )
         else:
             self.replay_buffer = replay_buffer

@@ -101,7 +101,7 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
         u = np.zeros(7)
         self.do_simulation(u, self.frame_skip)
         obs = self._get_obs()
-        reward = self.compute_her_reward_np(obs, u, obs, self._goal_xyxy)
+        reward = self.compute_reward(obs, u, obs, self._goal_xyxy)
         done = False
 
         hand_distance = np.linalg.norm(

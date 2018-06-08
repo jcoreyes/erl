@@ -3,7 +3,7 @@ Add custom distributions in addition to th existing ones
 """
 import torch
 from torch.distributions import Distribution, Normal
-
+import railrl.torch.pytorch_util as ptu
 
 class TanhNormal(Distribution):
     """
@@ -19,6 +19,8 @@ class TanhNormal(Distribution):
         :param normal_std: Std of the normal distribution
         :param epsilon: Numerical stability epsilon when computing log-prob.
         """
+        self.normal_mean = normal_mean
+        self.normal_std = normal_std
         self.normal = Normal(normal_mean, normal_std)
         self.epsilon = epsilon
 
@@ -51,6 +53,22 @@ class TanhNormal(Distribution):
         See https://github.com/pytorch/pytorch/issues/4620 for discussion.
         """
         z = self.normal.sample().detach()
+
+        if return_pretanh_value:
+            return torch.tanh(z), z
+        else:
+            return torch.tanh(z)
+
+    def rsample(self, return_pretanh_value=False):
+        """
+        Sampling in the reparameterization case.
+        """
+        z = self.normal_mean + \
+            self.normal_std * \
+            ptu.Variable(
+                Normal(torch.zeros(self.normal_mean.size()), torch.ones(self.normal_std.size())).sample(),
+                requires_grad=False)
+
         if return_pretanh_value:
             return torch.tanh(z), z
         else:
