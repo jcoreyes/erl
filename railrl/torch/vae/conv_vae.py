@@ -176,6 +176,7 @@ class ConvVAETrainer():
             epoch,
             save_reconstruction=True,
             save_scatterplot=True,
+            save_vae=True,
     ):
         self.model.eval()
         losses = []
@@ -246,9 +247,10 @@ class ConvVAETrainer():
         logger.dump_tabular()
 
 
-        logger.save_itr_params(epoch, self.model) # slow...
-        logdir = logger.get_snapshot_dir()
-        filename = osp.join(logdir, 'params.pkl')
+        if save_vae:
+            logger.save_itr_params(epoch, self.model)  # slow...
+        # logdir = logger.get_snapshot_dir()
+        # filename = osp.join(logdir, 'params.pkl')
         # torch.save(self.model, filename)
 
     def debug_statistics(self):
@@ -280,6 +282,7 @@ class ConvVAETrainer():
             'debug/MSE improvement over random',
             mse_improvement,
         )
+        stats['debug/MSE of random reconstruction'] = recon_mse
         return stats
 
     def dump_samples(self, epoch):
