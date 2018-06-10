@@ -53,13 +53,14 @@ class ProxyEnv(Serializable, Env):
             return None
         return getattr(self._wrapped_env, attrname)
 
+
 class HistoryEnv(ProxyEnv, Env):
     def __init__(self, wrapped_env, history_len):
         self.quick_init(locals())
         super().__init__(wrapped_env)
         self.history_len = history_len
 
-        high = np.inf * np.ones(self.history_len*self.obs_dim)
+        high = np.inf * np.ones(self.history_len*self.observation_space.low.size)
         low = -high
         self.observation_space = Box(low=low,
                                      high=high,

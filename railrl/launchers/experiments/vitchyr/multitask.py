@@ -76,31 +76,34 @@ def td3_experiment(variant):
 
 def her_td3_experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
-    history_len = variant.get('history_len', 1)
-    env = MultiTaskHistoryEnv(env, history_len=history_len)
+    if 'history_len' in variant:
+        history_len = variant['history_len']
+        env = MultiTaskHistoryEnv(env, history_len=history_len)
     if variant.get('make_silent_env', True):
         env = MultitaskEnvToSilentMultitaskEnv(env)
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
     if exploration_type == 'ou':
-        es = OUStrategy(action_space=env.action_space)
+        es = OUStrategy(
+            action_space=env.action_space,
+            **variant['es_kwargs']
+        )
     elif exploration_type == 'gaussian':
         es = GaussianStrategy(
             action_space=env.action_space,
-            max_sigma=0.1,
-            min_sigma=0.1,  # Constant sigma
+            **variant['es_kwargs'],
         )
     elif exploration_type == 'epsilon':
         es = EpsilonGreedy(
             action_space=env.action_space,
-            prob_random_action=0.1,
+            **variant['es_kwargs'],
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    goal_dim = env.goal_dim
+    goal_dim = env.goal_space.low.size
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,

@@ -63,7 +63,7 @@ class HER(TorchRLAlgorithm):
         batch = super().get_batch()
         obs = batch['observations']
         next_obs = batch['next_observations']
-        goals = batch['goals']
+        goals = batch['resampled_goals']
         batch['observations'] = torch.cat((
             obs,
             goals

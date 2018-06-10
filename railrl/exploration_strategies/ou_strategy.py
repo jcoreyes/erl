@@ -22,7 +22,7 @@ class OUStrategy(RawExplorationStrategy, Serializable):
             mu=0,
             theta=0.15,
             max_sigma=0.3,
-            min_sigma=0.3,
+            min_sigma=None,
             decay_period=100000,
     ):
         Serializable.quick_init(self, locals())

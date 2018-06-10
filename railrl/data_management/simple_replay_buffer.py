@@ -76,5 +76,11 @@ class SimpleReplayBuffer(ReplayBuffer):
             for key in self._env_info_keys
         }
 
+    def batch_env_info_dict(self, indices):
+        return {
+            key: self._env_infos[key][indices]
+            for key in self._env_info_keys
+        }
+
     def num_steps_can_sample(self):
         return self._size
