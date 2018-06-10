@@ -1,6 +1,8 @@
 import railrl.misc.hyperparameter as hyp
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import \
+    SawyerPushAndReachXYEnv, SawyerPushAndReachXYZEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import (
-    SawyerReachXYEnv)
+    SawyerReachXYEnv, SawyerReachXYZEnv)
 from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
 from railrl.launchers.experiments.vitchyr.multiworld import her_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
@@ -10,12 +12,11 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             num_epochs=100,
-            num_steps_per_epoch=100,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             max_path_length=100,
             batch_size=128,
             discount=0.99,
-            # render_during_eval=True,
 
             replay_buffer_size=int(1E6),
         ),
@@ -39,20 +40,22 @@ if __name__ == "__main__":
         version="normal",
         env_kwargs=dict(
             fix_goal=False,
-            fixed_goal=(0, 0.7),
+            # fixed_goal=(0, 0.7),
         ),
         normalize=False,
     )
     search_space = {
         'env_class': [
-            # HalfCheetahEnv,
-            # AntEnv,
-            # HopperEnv,
-            # Walker2dEnv,
-            # HumanoidEnv,
+            # SawyerPushAndReachXYZEnv,
             # SawyerPushAndReachXYEnv,
-            # SawyerReachXYZEnv,
-            SawyerReachXYEnv,
+            SawyerReachXYZEnv,
+            # SawyerReachXYEnv,
+        ],
+        'env_kwargs.reward_type': [
+            # 'hand_and_puck_distance',
+            # 'hand_and_puck_success',
+            'hand_distance',
+            'hand_success',
         ],
         'algo_kwargs.discount': [0.98],
     }
@@ -65,9 +68,9 @@ if __name__ == "__main__":
     mode = 'here_no_doodad'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'multiworld-sawyer-reacher-xy-td3-check'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'multiworld-her-td3-test'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(

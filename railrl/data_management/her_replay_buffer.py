@@ -727,7 +727,6 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             new_obs,
             new_actions,
             new_next_obs,
-            None,
             batch_env_info,
         ).reshape(-1, 1)
 
