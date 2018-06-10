@@ -108,7 +108,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
         if min_num_steps_before_training is None:
-            min_num_steps_before_training = self.batch_size
+            min_num_steps_before_training = self.num_env_steps_per_epoch
         self.min_num_steps_before_training = min_num_steps_before_training
         if eval_sampler is None:
             if eval_policy is None:
@@ -434,6 +434,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             ))
         if hasattr(self.env, "log_diagnostics"):
             self.env.log_diagnostics(test_paths, logger=logger)
+        if hasattr(self.env, "get_diagnostics"):
+            statistics.update(self.env.get_diagnostics(test_paths))
 
         average_returns = eval_util.get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
