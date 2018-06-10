@@ -20,9 +20,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 2
+    n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'grill-sawyer-push-zoomed-out-camera'
+    exp_prefix = 'grill-her-td3-sawyer-push-zoomed-in-fixed-softtau-sweep-2'
 
     # zoomed_in_path = "05-22-vae-sawyer-new-push-easy-zoomed-in-1000_2018_05_22_13_09_28_0000--s-98682-r16/params.pkl"
     # zoomed_out_path = "05-22-vae-sawyer-new-push-easy-no-zoom-1000_2018_05_22_13_10_43_0000--s-30039-r16/params.pkl"
@@ -44,7 +44,9 @@ if __name__ == "__main__":
         # "16": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
               # "-easy-3_2018_05_12_02_33_54_0000--s-1937-r16/params.pkl",
         # "16": "05-23-vae-sawyer-variable-zoomed-out-sweep/05-23-vae-sawyer-variable-zoomed-out-sweep-id0-s31952-nImg-1000--cam-sawyer_init_camera_zoomed_out_fixed/params.pkl",
-        "16": "05-23-vae-sawyer-variable-zoomed-out-sweep/05-23-vae-sawyer-variable-zoomed-out-sweep-id0-s52951-nImg-1000--cam-sawyer_init_camera_zoomed_out_fixed/params.pkl",
+        # "16": "05-23-vae-sawyer-variable-zoomed-out-sweep/05-23-vae-sawyer-variable-zoomed-out-sweep-id0-s52951-nImg-1000--cam-sawyer_init_camera_zoomed_out_fixed/params.pkl",
+        "16": "05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable"
+              "-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
         # "16b": zoomed_in_path,
         # "64": "05-12-vae-sawyer-new-push-easy-3/05-12-vae-sawyer-new-push"
         #       "-easy-3_2018_05_12_03_06_20_0000--s-33176-r64/params.pkl",
@@ -52,7 +54,7 @@ if __name__ == "__main__":
 
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=500,
+            num_epochs=250,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             tau=1e-2,
@@ -88,22 +90,23 @@ if __name__ == "__main__":
         'exploration_type': [
             'ou',
         ],
-        'algo_kwargs.num_updates_per_env_step': [1],
+        'algo_kwargs.num_updates_per_env_step': [1, 4, 8],
+        'algo_kwargs.tau': [1, 1e-1, 1e-2, 1e-3],
         'exploration_noise': [0.2],
         'algo_kwargs.reward_scale': [1],
         'reward_params.type': [
-            'mahalanobis_distance',
-            'log_prob',
+            # 'mahalanobis_distance',
+            # 'log_prob',
             'latent_distance',
         ],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
         # 'rdim': ['16b', '4', '16', '64'],
         'rdim': ['16'],
-        'init_camera': [
-            # sawyer_init_camera,
-            sawyer_init_camera_zoomed_out_fixed,
-        ],
+        # 'init_camera': [
+            # # sawyer_init_camera,
+            # sawyer_init_camera_zoomed_out_fixed,
+        # ],
         # 'vae_paths.16': [
             # '05-23-vae-sawyer-variable-fixed-2/'
             # '05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_02_0000--s-27304-nImg-100--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl',

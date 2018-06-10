@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'grill-tdm-td3-does-structure-or-vectorization-matter'
+    exp_prefix = 'grill-tdm-td3-push-range-0.2'
 
     vae_paths = {
         # "2": "05-11-sawyer-vae-reacher-recreate-results/05-11-sawyer-vae"
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=101,
+                num_epochs=250,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=16,
@@ -97,12 +97,13 @@ if __name__ == "__main__":
             # 'gaussian',
             'ou',
         ],
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
         'algo_kwargs.td3_kwargs.tau': [0.001, 0.05, 1],
+        'algo_kwargs.tdm_kwargs.max_tau': [5, 50, 99],
         'replay_kwargs.fraction_resampled_goals_are_env_goals': [0.5],
         'replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
-        'algo_kwargs.tdm_kwargs.vectorized': [True, False],
-        'qf_kwargs.structure': ['none', 'norm_difference'],
+        'algo_kwargs.tdm_kwargs.vectorized': [False],
+        'qf_kwargs.structure': ['none'],
         'exploration_noise': [0.2],
         'training_mode': ['train'],
         'testing_mode': ['test', ],
