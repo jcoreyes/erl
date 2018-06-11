@@ -181,6 +181,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
 
         new_obs_dict = self._batch_obs_dict(indices)
         new_next_obs_dict = self._batch_next_obs_dict(indices)
+        new_obs_dict[self.desired_goal_key] = resampled_goals
+        new_next_obs_dict[self.desired_goal_key] = resampled_goals
         new_actions = self._actions[indices]
         new_rewards = self.env.compute_rewards(
             new_obs_dict,
