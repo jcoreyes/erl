@@ -81,11 +81,15 @@ def remove_text_output(file_name):
     _remove_output(file_name, _text_outputs, _text_fds)
 
 
-def add_tabular_output(file_name):
+def add_tabular_output(file_name, relative_to_snapshot_dir=False):
+    if relative_to_snapshot_dir:
+        file_name = osp.join(_snapshot_dir, file_name)
     _add_output(file_name, _tabular_outputs, _tabular_fds, mode='w')
 
 
-def remove_tabular_output(file_name):
+def remove_tabular_output(file_name, relative_to_snapshot_dir=False):
+    if relative_to_snapshot_dir:
+        file_name = osp.join(_snapshot_dir, file_name)
     if _tabular_fds[file_name] in _tabular_header_written:
         _tabular_header_written.remove(_tabular_fds[file_name])
     _remove_output(file_name, _tabular_outputs, _tabular_fds)
@@ -160,15 +164,21 @@ def pop_tabular_prefix():
     _tabular_prefix_str = ''.join(_tabular_prefixes)
 
 
-def save_extra_data(data, file_name='extra_data.pkl'):
+def save_extra_data(data, file_name='extra_data.pkl', mode='joblib'):
     """
     Data saved here will always override the last entry
 
     :param data: Something pickle'able.
     """
-    import joblib
     file_name = osp.join(_snapshot_dir, file_name)
-    joblib.dump(data, file_name, compress=3)
+    if mode == 'joblib':
+        import joblib
+        joblib.dump(data, file_name, compress=3)
+    elif mode == 'pickle':
+        pickle.dump(data, open(file_name, "wb"))
+    else:
+        raise ValueError("Invalid mode: {}".format(mode))
+    return file_name
 
 
 def get_table_dict():
