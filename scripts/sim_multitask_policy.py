@@ -103,6 +103,9 @@ def simulate_policy(args):
         ))
         if hasattr(env, "log_diagnostics"):
             env.log_diagnostics(paths)
+        if hasattr(env, "get_diagnostics"):
+            for k, v in env.get_diagnostics(paths).items():
+                logger.record_tabular(k, v)
         logger.dump_tabular()
 
 
