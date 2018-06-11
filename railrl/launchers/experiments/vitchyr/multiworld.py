@@ -17,11 +17,12 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 def her_td3_experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
+    observation_key = variant.get('observation_key', 'observation')
     replay_buffer = ObsDictRelabelingBuffer(
         env=env,
+        observation_key=observation_key,
         **variant['replay_buffer_kwargs']
     )
-    # env = FlatGoalEnv(env)
     obs_dim = env.observation_space.spaces['observation'].low.size
     action_dim = env.action_space.low.size
     goal_dim = env.observation_space.spaces['desired_goal'].low.size
@@ -64,11 +65,6 @@ def her_td3_experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    env_info_sizes = {
-        'desired_goal': goal_dim,
-        'achieved_goal': goal_dim,
-    }
-    # replay_buffer = variant['replay_buffer_class'](
     algorithm = HerTd3(
         env,
         qf1=qf1,
@@ -76,6 +72,7 @@ def her_td3_experiment(variant):
         policy=policy,
         exploration_policy=exploration_policy,
         replay_buffer=replay_buffer,
+        observation_key=observation_key,
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
