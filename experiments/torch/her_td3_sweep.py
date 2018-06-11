@@ -14,7 +14,7 @@ if __name__ == "__main__":
             num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            max_path_length=100,
+            max_path_length=500,
             batch_size=128,
             discount=0.99,
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
             fraction_goals_are_rollout_goals=0.2,
             fraction_resampled_goals_are_env_goals=0.5,
         ),
-        algorithm="HER_TD3",
+        algorithm="HER-TD3",
         version="normal",
         env_kwargs=dict(
             fix_goal=False,
@@ -59,7 +59,7 @@ if __name__ == "__main__":
             # 'hand_distance',
             # 'hand_success',
         ],
-        'algo_kwargs.discount': [0.98],
+        'algo_kwargs.discount': [0.98, 0.99],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
