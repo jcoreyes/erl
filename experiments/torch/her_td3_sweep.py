@@ -11,7 +11,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=100,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             max_path_length=100,
@@ -47,15 +47,17 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # SawyerPushAndReachXYZEnv,
-            # SawyerPushAndReachXYEnv,
-            SawyerReachXYZEnv,
+            SawyerPushAndReachXYEnv,
+            # SawyerReachXYZEnv,
             # SawyerReachXYEnv,
         ],
         'env_kwargs.reward_type': [
             # 'hand_and_puck_distance',
             # 'hand_and_puck_success',
-            'hand_distance',
-            'hand_success',
+            'puck_distance',
+            # 'puck_success',
+            # 'hand_distance',
+            # 'hand_success',
         ],
         'algo_kwargs.discount': [0.98],
     }
