@@ -1,4 +1,7 @@
 import railrl.torch.pytorch_util as ptu
+from multiworld.core.flat_goal_env import FlatGoalEnv
+from railrl.data_management.obs_dict_replay_buffer import \
+    ObsDictRelabelingBuffer
 from railrl.envs.multitask.multitask_env import \
     MultitaskEnvToSilentMultitaskEnv, MultiTaskHistoryEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
@@ -14,6 +17,14 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 def her_td3_experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
+    replay_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        **variant['replay_buffer_kwargs']
+    )
+    # env = FlatGoalEnv(env)
+    obs_dim = env.observation_space.spaces['observation'].low.size
+    action_dim = env.action_space.low.size
+    goal_dim = env.observation_space.spaces['desired_goal'].low.size
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
@@ -34,9 +45,6 @@ def her_td3_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
-    obs_dim = env.observation_space.low.size
-    action_dim = env.action_space.low.size
-    goal_dim = env.goal_space.low.size
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
@@ -60,11 +68,7 @@ def her_td3_experiment(variant):
         'desired_goal': goal_dim,
         'achieved_goal': goal_dim,
     }
-    replay_buffer = variant['replay_buffer_class'](
-        env=env,
-        env_info_sizes=env_info_sizes,
-        **variant['replay_buffer_kwargs']
-    )
+    # replay_buffer = variant['replay_buffer_class'](
     algorithm = HerTd3(
         env,
         qf1=qf1,

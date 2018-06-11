@@ -26,6 +26,7 @@ def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
         env.render()
     while path_length < max_path_length:
         goal = env.get_goal()
+        o = o['observation']
         new_o = np.hstack((o, goal))
         a, agent_info = agent.get_action(new_o)
         a = a + np.random.normal(a.shape) / 10
@@ -50,12 +51,13 @@ def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
     if len(observations.shape) == 1:
         observations = np.expand_dims(observations, 1)
         next_o = np.array([next_o])
-    next_observations = np.vstack(
-        (
-            observations[1:, :],
-            np.expand_dims(next_o, 0)
-        )
-    )
+    # next_observations = np.vstack(
+    #     (
+    #         observations[1:, :],
+    #         np.expand_dims(next_o, 0)
+    #     )
+    # )
+    next_observations = None
     return dict(
         observations=observations,
         actions=actions,

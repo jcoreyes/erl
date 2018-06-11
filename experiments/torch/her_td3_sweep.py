@@ -12,8 +12,10 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             num_epochs=1000,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            # num_steps_per_epoch=1000,
+            # num_steps_per_eval=1000,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=100,
             max_path_length=100,
             batch_size=128,
             discount=0.99,
@@ -34,12 +36,15 @@ if __name__ == "__main__":
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_goals_are_rollout_goals=0.2,
-            fraction_resampled_goals_are_env_goals=0.5,
+            # fraction_goals_are_rollout_goals=1,
+            # fraction_resampled_goals_are_env_goals=0.5,
+            fraction_resampled_goals_are_env_goals=0,
         ),
         algorithm="HER_TD3",
         version="normal",
         env_kwargs=dict(
             fix_goal=False,
+            # fix_goal=True,
             # fixed_goal=(0, 0.7),
         ),
         normalize=False,
@@ -47,16 +52,16 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # SawyerPushAndReachXYZEnv,
-            SawyerPushAndReachXYEnv,
+            # SawyerPushAndReachXYEnv,
             # SawyerReachXYZEnv,
-            # SawyerReachXYEnv,
+            SawyerReachXYEnv,
         ],
         'env_kwargs.reward_type': [
             # 'hand_and_puck_distance',
             # 'hand_and_puck_success',
-            'puck_distance',
+            # 'puck_distance',
             # 'puck_success',
-            # 'hand_distance',
+            'hand_distance',
             # 'hand_success',
         ],
         'algo_kwargs.discount': [0.98],
@@ -70,9 +75,9 @@ if __name__ == "__main__":
     mode = 'here_no_doodad'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'multiworld-her-td3-test'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'multiworld-her-td3-test'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(

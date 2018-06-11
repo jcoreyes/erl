@@ -89,6 +89,7 @@ class HER(TorchRLAlgorithm):
         :return:
         """
         self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
+        observation = observation['observation']
         new_obs = np.hstack((observation, self._rollout_goal))
         return self.exploration_policy.get_action(new_obs)
 
@@ -102,6 +103,7 @@ class HER(TorchRLAlgorithm):
         return paths
 
     def get_eval_action(self, observation, goal):
+        observation = observation['observation']
         new_obs = np.hstack((observation, goal))
         return self.policy.get_action(new_obs)
 
