@@ -31,6 +31,10 @@ class HER(TorchRLAlgorithm):
     ```
     for each function defined below.
     """
+
+    def __init__(self, observation_key=None):
+        self.observation_key = observation_key
+
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
         # Note: we assume we're using a silent env.
@@ -89,6 +93,8 @@ class HER(TorchRLAlgorithm):
         :return:
         """
         self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
+        if self.observation_key:
+            observation = observation[self.observation_key]
         new_obs = np.hstack((observation, self._rollout_goal))
         return self.exploration_policy.get_action(new_obs)
 
@@ -102,6 +108,8 @@ class HER(TorchRLAlgorithm):
         return paths
 
     def get_eval_action(self, observation, goal):
+        if self.observation_key:
+            observation = observation[self.observation_key]
         new_obs = np.hstack((observation, goal))
         return self.policy.get_action(new_obs)
 

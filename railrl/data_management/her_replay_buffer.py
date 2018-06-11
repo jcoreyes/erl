@@ -746,9 +746,11 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             batch[key] = self._env_infos[key][indices]
         return batch
 
+
 def flatten_n(xs):
     xs = np.asarray(xs)
     return xs.reshape((xs.shape[0], -1))
+
 
 def flatten_env_info(env_infos, env_info_keys):
 # Turns list of env_info dicts into env_info dict of 2D np arrays
