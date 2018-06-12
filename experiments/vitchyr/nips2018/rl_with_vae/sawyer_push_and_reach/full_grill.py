@@ -23,13 +23,12 @@ if __name__ == "__main__":
     # mode = 'ec2'
     # exp_prefix = 'full-grill-her-td3-sawyer-push-camera-toggle'
 
-    init_camera = sawyer_init_camera_zoomed_in_fixed
-    # init_camera = sawyer_init_camera_zoomed_in
     variant = dict(
         env_class=SawyerReachXYEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
         ),
+        init_camera=init_sawyer_camera_v1,
         grill_variant=dict(
             algo_kwargs=dict(
                 num_epochs=500,
@@ -53,11 +52,7 @@ if __name__ == "__main__":
             algorithm='GRILL-HER-TD3',
             normalize=False,
             render=False,
-            use_env_goals=True,
-            wrap_mujoco_env=True,
-            do_state_based_exp=False,
             exploration_noise=0.2,
-            init_camera=init_camera,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -70,14 +65,10 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             representation_size=16,
             beta=5.0,
-            # num_epochs=1000,
-            num_epochs=1,
+            num_epochs=100,
             generate_vae_dataset_kwargs=dict(
-                N=50,
-                # init_camera=init_camera,
-                init_camera=init_sawyer_camera_v1,
-                # show=True,
-                # use_cached=False,
+                N=1000,
+                oracle_dataset=True,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,

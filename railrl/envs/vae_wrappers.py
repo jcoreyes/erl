@@ -1,31 +1,15 @@
-import mujoco_py
-import numpy as np
-import gym.spaces
-import itertools
-from gym import Env
-from gym.spaces import Box, Dict
-from scipy.misc import imresize
-
-from railrl.core.serializable import Serializable
-from gym.spaces import Discrete
-
-from gym import Env
-
-from railrl.envs.multitask.multitask_env import MultitaskEnv
-from railrl.envs.wrappers import ProxyEnv
-import railrl.torch.pytorch_util as ptu
-from torch.autograd import Variable
-
-from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
-from railrl.core import logger as default_logger
-from collections import OrderedDict, deque
-
-from railrl.misc.asset_loader import sync_down
+import pickle
+from collections import deque
 
 import cv2
-import torch
-import joblib
-import pickle
+import numpy as np
+from gym import Env
+from gym.spaces import Box, Dict
+
+import railrl.torch.pytorch_util as ptu
+from railrl.envs.wrappers import ProxyEnv
+from railrl.misc.asset_loader import sync_down
+
 
 def load_vae(vae_file):
     if vae_file[0] == "/":
@@ -36,6 +20,7 @@ def load_vae(vae_file):
     # vae = torch.load(local_path, map_location=lambda storage, loc: storage)
     print("loaded", local_path)
     return vae
+
 
 class VAEWrappedEnv(ProxyEnv, Env):
     """This class wraps an image-based environment with a VAE.
@@ -49,15 +34,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
         wrapped_env,
         vae,
         observation_key='latent_observation',
-        use_vae_obs=True,
-        use_vae_reward=True,
         use_vae_goals=True,
         sample_from_true_prior=False,
         decode_goals=False,
         render_goals=False,
         render_rollouts=False,
         reset_on_sample_goal_for_rollout = True,
-        history_size=1,
         reward_params=None,
         mode="train",
         imsize=84,
@@ -73,8 +55,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self.use_vae_goals = use_vae_goals
-        self.use_vae_reward = use_vae_reward
-        self.use_vae_obs = use_vae_obs
         self.sample_from_true_prior = sample_from_true_prior
         self.decode_goals = decode_goals
         self.render_goals = render_goals
@@ -88,12 +68,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.epsilon = self.reward_params.get("epsilon", 20)
         self.reward_min_variance = self.reward_params.get("min_variance", 0)
 
-        self.history_size = history_size
-        self.history = deque(maxlen=self.history_size)
-
         latent_space = Box(
-            -10 * np.ones(self.representation_size * self.history_size),
-            10 * np.ones(self.representation_size * self.history_size)
+            -10 * np.ones(self.representation_size),
+            10 * np.ones(self.representation_size),
         )
         spaces = self.wrapped_env.observation_space.spaces
         spaces['observation'] = latent_space
@@ -126,13 +103,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.render_decoded = False
         else:
             raise ValueError("Invalid mode: {}".format(name))
-
-    def _get_history(self, observation):
-        observations = list(self.history)
-        obs_count = len(observations)
-        for _ in range(self.history_size - obs_count):
-            observations.append(observation)
-        return np.c_[observations]
 
     @property
     def goal_dim(self):
@@ -222,8 +192,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return goal
 
     def sample_goals(self, batch_size):
-        goals = self.wrapped_env.sample_goals()
         if self.use_vae_goals:
+            goals = {}
             latent_goals = self._sample_vae_prior(batch_size)
             if self.decode_goals:
                 goal_imgs = self._decode(latent_goals)
@@ -232,6 +202,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             goals['image_desired_goal'] = goal_imgs
             goals['state_desired_goal'] = None
         else:
+            goals = self.wrapped_env.sample_goals()
             latent_goals = self._encode(goals['image_desired_goals'])
         goals['desired_goal'] = latent_goals
         goals['latent_desired_goal'] = latent_goals
@@ -247,20 +218,20 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return goals
 
     def get_diagnostics(self, paths, **kwargs):
-        statistics = super().get_diagnostics(paths, **kwargs)
-        for stat_name_in_paths in ["vae_mdist", "vae_success"]:
-            stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
-            statistics.update(create_stats_ordered_dict(
-                stat_name_in_paths,
-                stats,
-                always_show_all_stats=True,
-            ))
-            final_stats = [s[-1] for s in stats]
-            statistics.update(create_stats_ordered_dict(
-                "Final " + stat_name_in_paths,
-                final_stats,
-                always_show_all_stats=True,
-            ))
+        statistics = self.wrapped_env.get_diagnostics(paths, **kwargs)
+        # for stat_name_in_paths in ["vae_mdist", "vae_success"]:
+        #     stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
+        #     statistics.update(create_stats_ordered_dict(
+        #         stat_name_in_paths,
+        #         stats,
+        #         always_show_all_stats=True,
+        #     ))
+        #     final_stats = [s[-1] for s in stats]
+        #     statistics.update(create_stats_ordered_dict(
+        #         "Final " + stat_name_in_paths,
+        #         final_stats,
+        #         always_show_all_stats=True,
+        #     ))
         return statistics
 
     def compute_rewards(self, achieved_goals, desired_goals, info):
@@ -294,34 +265,5 @@ class VAEWrappedEnv(ProxyEnv, Env):
             actions,
             next_observations,
     ):
-        # TODO to support changing this easily
+        # TODO implement to support changing this easily
         raise NotImplementedError
-        next_observation = next_observation[(self.history_size - 1) * self.representation_size:]
-        if self.reward_type == 'latent_distance':
-            reached_goal = next_observation
-            dist = np.linalg.norm(reached_goal - goal)
-            reward = -dist
-            return reward
-        elif self.reward_type == 'latent_sparse':
-            reached_goal = next_observation
-            dist = np.linalg.norm(reached_goal - goal)
-            reward = 0 if dist < self.epsilon else -1
-            return reward
-        if not self.use_vae_obs:
-            raise NotImplementedError
-        if not self.use_vae_reward:
-            raise NotImplementedError
-        var = env_info['var']
-        dist = goal - next_observation
-        var = np.maximum(var, self.reward_min_variance)
-        err = dist * dist / 2 / var
-        mdist = np.sum(err) # mahalanobis distance
-        if self.reward_type == "log_prob":
-            reward = -mdist
-        elif self.reward_type == "mahalanobis_distance":
-            reward = -np.sqrt(mdist)
-        elif self.reward_type == "sparse":
-            reward = 0 if mdist < self.epsilon else -1
-        else:
-            raise NotImplementedError
-        return reward

@@ -65,10 +65,13 @@ def grill_her_td3_full_experiment(variant):
     grill_variant = variant['grill_variant']
     env_class = variant['env_class']
     env_kwargs = variant['env_kwargs']
+    init_camera = variant['init_camera']
     train_vae_variant['generate_vae_dataset_kwargs']['env_class'] = env_class
     train_vae_variant['generate_vae_dataset_kwargs']['env_kwargs'] = env_kwargs
+    train_vae_variant['generate_vae_dataset_kwargs']['init_camera'] = init_camera
     grill_variant['env_class'] = env_class
     grill_variant['env_kwargs'] = env_kwargs
+    grill_variant['init_camera'] = init_camera
     if 'vae_path' not in grill_variant:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
@@ -139,13 +142,16 @@ def generate_vae_dataset(
         init_camera=sawyer_init_camera_zoomed_in,
         dataset_path=None,
         env_kwargs=None,
+        oracle_dataset=False,
+        n_random_steps=100,
 ):
     if env_kwargs is None:
         env_kwargs = {}
-    filename = "/tmp/{}_{}_{}.npy".format(
+    filename = "/tmp/{}_{}_{}_oracle{}.npy".format(
         env_class.__name__,
         str(N),
         init_camera.__name__,
+        oracle_dataset,
     )
     info = {}
     if dataset_path is not None:
@@ -170,8 +176,13 @@ def generate_vae_dataset(
 
         dataset = np.zeros((N, imsize * imsize * 3))
         for i in range(N):
-            goal = env.sample_goal()
-            env.set_to_goal(goal)
+            if oracle_dataset:
+                goal = env.sample_goal()
+                env.set_to_goal(goal)
+            else:
+                for _ in range(n_random_steps):
+                    env.reset()
+                    obs = env.step(env.action_space.sample())[0]
             obs = env.step(env.action_space.sample())[0]
             img = obs['image_observation']
             dataset[i, :] = img
@@ -196,7 +207,6 @@ def grill_her_td3_experiment(variant):
     render = variant["render"]
 
     rdim = variant["rdim"]
-    use_env_goals = variant["use_env_goals"]
     vae_path = variant["vae_paths"][str(rdim)]
     reward_params = variant.get("reward_params", dict())
 
@@ -215,18 +225,13 @@ def grill_her_td3_experiment(variant):
         normalize=True,
     )
 
-    use_vae_goals = not use_env_goals
     env = VAEWrappedEnv(
         env,
         vae_path,
-        use_vae_obs=True,
-        use_vae_reward=variant.get('use_vae_reward', True),
-        use_vae_goals=use_vae_goals,
         decode_goals=render,
         render_goals=render,
         render_rollouts=render,
         reward_params=reward_params,
-        history_size=variant.get('history_size', 1),
         **variant.get('vae_wrapped_env_kwargs', {})
     )
 
