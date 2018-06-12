@@ -282,7 +282,9 @@ class ConvVAETrainer():
             'debug/MSE improvement over random',
             mse_improvement,
         )
-        stats['debug/MSE of random reconstruction'] = recon_mse
+        stats['debug/MSE of random reconstruction'] = ptu.get_numpy(
+            recon_mse
+        )[0]
         return stats
 
     def dump_samples(self, epoch):

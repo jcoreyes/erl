@@ -3,7 +3,7 @@ import numpy as np
 import gym.spaces
 import itertools
 from gym import Env
-from gym.spaces import Box
+from gym.spaces import Box, Dict
 from scipy.misc import imresize
 
 from railrl.core.serializable import Serializable
@@ -44,10 +44,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
     This class adheres to the "Silent Multitask Env" semantics: on reset,
     it resamples a goal.
     """
-    def __init__(self, wrapped_env, vae,
+    def __init__(
+        self,
+        wrapped_env,
+        vae,
+        observation_key='latent_observation',
         use_vae_obs=True,
         use_vae_reward=True,
-        use_vae_goals=True, # whether you use goals from VAE or rendered from environment state
+        use_vae_goals=True,
         sample_from_true_prior=False,
         decode_goals=False,
         render_goals=False,
@@ -56,11 +60,11 @@ class VAEWrappedEnv(ProxyEnv, Env):
         history_size=1,
         reward_params=None,
         mode="train",
-        image_env=None,
+        imsize=84,
     ):
+        self.quick_init(locals())
         if reward_params is None:
             reward_params = dict()
-        self.quick_init(locals())
         super().__init__(wrapped_env)
         if type(vae) is str:
             self.vae = load_vae(vae)
@@ -75,6 +79,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.decode_goals = decode_goals
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
+        self.imsize = imsize
 
         self.reset_on_sample_goal_for_rollout = reset_on_sample_goal_for_rollout
 
@@ -86,20 +91,22 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.history_size = history_size
         self.history = deque(maxlen=self.history_size)
 
-        self.observation_space = Box(
+        latent_space = Box(
             -10 * np.ones(self.representation_size * self.history_size),
             10 * np.ones(self.representation_size * self.history_size)
         )
-        self.goal_space = Box(
-            -10 * np.ones(self.representation_size),
-            10 * np.ones(self.representation_size)
-        )
-        self.image_env = image_env
-
+        spaces = self.wrapped_env.observation_space.spaces
+        spaces['observation'] = latent_space
+        spaces['desired_goal'] = latent_space
+        spaces['achieved_goal'] = latent_space
+        spaces['latent_observation'] = latent_space
+        spaces['latent_desired_goal'] = latent_space
+        spaces['latent_achieved_goal'] = latent_space
+        self.observation_space = Dict(spaces)
+        self._latent_goal = None
         self.mode(mode)
 
     def mode(self, name):
-        self.current_mode = name
         if name == "train":
             self.use_vae_goals = True
         elif name == "train_env_goals":
@@ -118,7 +125,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.render_rollouts = False
             self.render_decoded = False
         else:
-            error
+            raise ValueError("Invalid mode: {}".format(name))
 
     def _get_history(self, observation):
         observations = list(self.history)
@@ -132,60 +139,34 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return self.representation_size
 
     def step(self, action):
-        observation, reward, done, info = self._wrapped_env.step(action)
-        done = False # no early termination
-        self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
-        if self.image_env:
-            ob = self.image_env.get_image()
-            self.image_env.cur_obs = ob.reshape(self.input_channels, 84, 84).transpose()
+        obs, reward, done, info = self.wrapped_env.step(action)
+        new_obs = self._update_obs(obs)
         if self.render_rollouts:
-            cv2.imshow('env', self.cur_obs)
+            img = obs['image_observation'].reshape(
+                self.input_channels,
+                self.imsize,
+                self.imsize,
+            ).transpose()
+            cv2.imshow('env', img)
             cv2.waitKey(1)
-        if self.use_vae_obs:
-            img = Variable(ptu.from_numpy(observation))
-            mu, logvar = self.vae.encode(img)
-            observation = ptu.get_numpy(mu).flatten()
-
-        if self.use_vae_reward:
-            # replace reward with Euclidean distance in VAE latent space
-            # currently assumes obs and goals are also from VAE
-            dist = self.vae_goal - observation
-            var = np.exp(ptu.get_numpy(logvar).flatten())
-            var = np.maximum(var, self.reward_min_variance)
-            err = dist * dist / 2 / var
-            mdist = np.sum(err) # mahalanobis distance
-            info["vae_mdist"] = mdist
-            info["vae_success"] = 1 if mdist < self.epsilon else 0
-            info["var"] = var
-            self.history.append(observation)
-            observation = self._get_history(observation).flatten()
-            reward = self.compute_her_reward_np(
-                None,
-                action,
-                observation,
-                self.vae_goal,
-                env_info=info,
-            )
-        return observation, reward, done, info
+        return new_obs, reward, done, info
 
     def reset(self):
-        self.vae_goal = self.sample_goal_for_rollout()
-        observation = self._wrapped_env.reset()
-        self.cur_obs = observation.reshape(self.input_channels, 84, 84).transpose()
-        if self.image_env:
-            ob = self.image_env.get_image()
-            self.image_env.cur_obs = ob.reshape(self.input_channels, 84, 84).transpose()
-        if self.render_rollouts:
-            cv2.imshow('env', self.cur_obs)
-            cv2.waitKey(1)
-        if self.use_vae_obs:
-            img = Variable(ptu.from_numpy(observation))
-            e = self.vae.encode(img)[0]
-            observation = ptu.get_numpy(e).flatten()
-        self.history = deque(maxlen=self.history_size)
-        self.history.append(observation)
-        observation = self._get_history(observation).flatten()
-        return observation
+        obs = self.wrapped_env.reset()
+        if self.use_vae_goals:
+            latent_goals = self._sample_vae_prior(1)
+            if self.decode_goals:
+                goal_imgs = self._decode(latent_goals)[0]
+            else:
+                goal_imgs = None
+            obs['image_desired_goal'] = goal_imgs
+            obs['state_desired_goal'] = None
+            self._latent_goal = latent_goals[0]
+        else:
+            self._latent_goal = self._encode_one(obs['image_desired_goal'])
+        obs['desired_goal'] = self._latent_goal
+        obs['latent_desired_goal'] = self._latent_goal
+        return self._update_obs(obs)
 
     def enable_render(self):
         self.use_vae_goals = False
@@ -198,71 +179,62 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.render_goals = False
         self.render_rollouts = False
 
+    def _update_obs(self, obs):
+        latent_obs = self._encode_one(obs['image_observation'])
+        obs['latent_observation'] = latent_obs
+        obs['latent_desired_goal'] = self._latent_goal
+        obs['latent_achieved_goal'] = latent_obs
+        obs['observation'] = latent_obs
+        obs['desired_goal'] = self._latent_goal
+        obs['achieved_goal'] = latent_obs
+        return obs
+
+    def _sample_vae_prior(self, batch_size):
+        if self.sample_from_true_prior:
+            mu, sigma = 0, 1  # sample from prior
+        else:
+            mu, sigma = self.vae.dist_mu, self.vae.dist_std
+        n = np.random.randn(batch_size, self.representation_size)
+        return sigma * n + mu
+
+    def _decode(self, latents):
+        batch_size = latents.shape[0]
+        imgs = ptu.get_numpy(self.vae.decode(ptu.np_to_var(latents)))
+        # TODO: why do we need this tranpose? Can we eliminate it?
+        imgs = imgs.reshape(
+            batch_size, self.input_channels, 84, 84
+        ).transpose([0, 3, 2, 1])
+        return imgs
+
+    def _encode_one(self, img):
+        return self._encode(img[None])[0]
+
+    def _encode(self, imgs):
+        return ptu.get_numpy(self.vae.encode(ptu.np_to_var(imgs))[0])
+
     """
     Multitask functions
     """
-
-    def convert_obs_to_goals(self, obs):
-        '''
-        returns latest observation of each history
-        :param obs:
-        :return:
-        '''
-        return obs[:, (self.history_size - 1) * self.representation_size:]
-        # return obs
-        # return ptu.get_numpy(
-            # self.vae.encode(ptu.np_to_var(obs))
-        # )
+    def get_goal(self):
+        goal = self.wrapped_env.get_goal()
+        goal['desired_goal'] = self._latent_goal
+        goal['latent_desired_goal'] = self._latent_goal
+        return goal
 
     def sample_goals(self, batch_size):
-        goals = np.zeros((batch_size, self.representation_size))
-        for i in range(batch_size):
-            goals[i, :] = self.sample_goal_for_rollout()
-        return goals
-
-    def sample_goal_for_rollout(self):
-        """
-        These goals are fed to a policy when the policy wants to actually
-        do rollouts.
-        :return:
-        """
+        goals = self.wrapped_env.sample_goals()
         if self.use_vae_goals:
-            if self.sample_from_true_prior:
-                mu, sigma = 0, 1 # sample from prior
-            else:
-                mu, sigma = self.vae.dist_mu, self.vae.dist_std
-            n = np.random.randn(self.representation_size)
-            goal = sigma * n + mu
-        else:
-            goal = self._wrapped_env.sample_goal_for_rollout()
-            self._wrapped_env.set_goal(goal)
-            state = self._wrapped_env.get_nongoal_state()
-            self._wrapped_env.set_to_goal(goal)
-            observation = self._wrapped_env.get_image()
-            self._wrapped_env.set_nongoal_state(state)
-
-            if self.image_env:
-                ob = self.image_env.get_image()
-                self.image_env.goal_obs = ob.reshape(self.input_channels, 84, 84).transpose()
-
-            self.true_goal_obs = observation.reshape(self.input_channels, 84, 84).transpose()
-            img = Variable(ptu.from_numpy(observation))
-            e = self.vae.encode(img)[0]
-            goal = ptu.get_numpy(e).flatten()
-
-        if self.reset_on_sample_goal_for_rollout:
-            self._wrapped_env.reset()
-
-        if self.decode_goals:
-            observation = self.vae.decode(Variable(ptu.from_numpy(goal))).data.view(1, self.input_channels, 84, 84)
-            observation = ptu.get_numpy(observation)
-            self.goal_decoded = observation.reshape(self.input_channels, 84, 84).transpose()
-
-        if self.use_vae_goals:
+            latent_goals = self._sample_vae_prior(batch_size)
             if self.decode_goals:
-                self.goal_obs = self.goal_decoded
+                goal_imgs = self._decode(latent_goals)
+            else:
+                goal_imgs = None
+            goals['image_desired_goal'] = goal_imgs
+            goals['state_desired_goal'] = None
         else:
-            self.goal_obs = self.true_goal_obs
+            latent_goals = self._encode(goals['image_desired_goals'])
+        goals['desired_goal'] = latent_goals
+        goals['latent_desired_goal'] = latent_goals
 
         if self.render_goals and not self.use_vae_goals:
             cv2.imshow('goal', self.goal_obs)
@@ -272,12 +244,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.imshow('decoded', self.goal_decoded)
             cv2.waitKey(1)
 
-        return goal
+        return goals
 
-    def log_diagnostics(self, paths, logger=default_logger, **kwargs):
-        super().log_diagnostics(paths, logger=logger, **kwargs)
-
-        statistics = OrderedDict()
+    def get_diagnostics(self, paths, **kwargs):
+        statistics = super().get_diagnostics(paths, **kwargs)
         for stat_name_in_paths in ["vae_mdist", "vae_success"]:
             stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
             statistics.update(create_stats_ordered_dict(
@@ -291,20 +261,41 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 final_stats,
                 always_show_all_stats=True,
             ))
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
+        return statistics
 
-    def get_goal(self):
-        return self.vae_goal.copy()
+    def compute_rewards(self, achieved_goals, desired_goals, info):
+        # TODO: implement log_prob/mdist
+        if self.reward_type == 'latent_distance':
+            dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
+            return -dist
+        elif self.reward_type == 'latent_sparse':
+            dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
+            reward = 0 if dist < self.epsilon else -1
+            return reward
+        else:
+            raise NotImplementedError
 
-    def compute_her_reward_np(
+        # var = env_info['var']
+        # dist = goal - next_observation
+        # var = np.maximum(var, self.reward_min_variance)
+        # err = dist * dist / 2 / var
+        # mdist = np.sum(err) # mahalanobis distance
+        # if self.reward_type == "log_prob":
+        #     reward = -mdist
+        # elif self.reward_type == "mahalanobis_distance":
+        #     reward = -np.sqrt(mdist)
+        # elif self.reward_type == "sparse":
+        #     reward = 0 if mdist < self.epsilon else -1
+        # return reward
+
+    def compute_rewards_v2(
             self,
-            observation,
-            action,
-            next_observation,
-            goal,
-            env_info=None,
+            observations,
+            actions,
+            next_observations,
     ):
+        # TODO to support changing this easily
+        raise NotImplementedError
         next_observation = next_observation[(self.history_size - 1) * self.representation_size:]
         if self.reward_type == 'latent_distance':
             reached_goal = next_observation

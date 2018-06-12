@@ -11,14 +11,14 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1000,
+            num_epochs=500,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             max_path_length=100,
             batch_size=128,
             discount=0.99,
-
             replay_buffer_size=int(1E6),
+            num_updates_per_env_step=4,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -57,11 +57,11 @@ if __name__ == "__main__":
             # 'hand_and_puck_distance',
             # 'hand_and_puck_success',
             'puck_distance',
-            'puck_success',
+            # 'puck_success',
             # 'hand_distance',
             # 'hand_success',
         ],
-        'algo_kwargs.discount': [0.99],
+        'algo_kwargs.discount': [0.98],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'multiworld-goal-env-her-td3'
+    exp_prefix = 'multiworld-goal-env-her-td3-new-gripper'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(

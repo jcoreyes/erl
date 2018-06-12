@@ -165,7 +165,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         num_future_goals = batch_size - (num_env_goals + num_rollout_goals)
         if num_env_goals > 0:
             resampled_goals[num_rollout_goals:-num_future_goals] = (
-                self.env.sample_goals(num_env_goals)
+                self.env.sample_goals(num_env_goals)[self.desired_goal_key]
             )
 
         if num_future_goals > 0:

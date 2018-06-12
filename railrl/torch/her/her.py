@@ -32,8 +32,13 @@ class HER(TorchRLAlgorithm):
     for each function defined below.
     """
 
-    def __init__(self, observation_key=None):
+    def __init__(
+            self,
+            observation_key=None,
+            desired_goal_key=None,
+    ):
         self.observation_key = observation_key
+        self.desired_goal_key = desired_goal_key
 
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
@@ -93,9 +98,12 @@ class HER(TorchRLAlgorithm):
         :return:
         """
         self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
+        goal = self._rollout_goal
         if self.observation_key:
             observation = observation[self.observation_key]
-        new_obs = np.hstack((observation, self._rollout_goal))
+        if self.desired_goal_key:
+            goal = self._rollout_goal[self.desired_goal_key]
+        new_obs = np.hstack((observation, goal))
         return self.exploration_policy.get_action(new_obs)
 
     def get_eval_paths(self):
@@ -110,6 +118,8 @@ class HER(TorchRLAlgorithm):
     def get_eval_action(self, observation, goal):
         if self.observation_key:
             observation = observation[self.observation_key]
+        if self.desired_goal_key:
+            goal = goal[self.desired_goal_key]
         new_obs = np.hstack((observation, goal))
         return self.policy.get_action(new_obs)
 
@@ -158,5 +168,5 @@ class HER(TorchRLAlgorithm):
             terminals=np.array(terminals).reshape(-1, 1),
             agent_infos=agent_infos,
             env_infos=env_infos,
-            goals=np.repeat(goal[None], path_length, 0),
+            # goals=np.repeat(goal[None], path_length, 0),
         )
