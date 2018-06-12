@@ -105,11 +105,6 @@ def experiment(variant):
         output_size=1,
         hidden_sizes=[400, 300],
     )
-    vf = FlattenMlp(
-        input_size=obs_dim + goal_dim,
-        output_size=1,
-        hidden_sizes=[400, 300],
-    )
     policy = TanhMlpPolicy(
         input_size=obs_dim + goal_dim,
         output_size=action_dim,
@@ -151,7 +146,6 @@ def experiment(variant):
     if ptu.gpu_enabled():
         qf1.cuda()
         qf2.cuda()
-        vf.cuda()
         policy.cuda()
         algorithm.cuda()
     algorithm.train()
