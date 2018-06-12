@@ -115,7 +115,7 @@ class TwinSAC(TorchRLAlgorithm):
         QF Loss
         """
         target_v_values = self.target_vf(next_obs)
-        q_target = rewards + (1. - terminals) * self.discount * target_v_values
+        q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_v_values
         qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
         qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
 

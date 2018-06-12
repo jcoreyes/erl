@@ -205,11 +205,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 if self.render:
                     self.training_env.render()
 
-                next_ob, raw_reward, terminal, env_info = (
+                next_ob, reward, terminal, env_info = (
                     self.training_env.step(action)
                 )
                 self._n_env_steps_total += 1
-                reward = raw_reward * self.reward_scale
                 terminal = np.array([terminal])
                 reward = np.array([reward])
                 self._handle_step(
@@ -253,11 +252,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 )
                 if self.render:
                     self.training_env.render()
-                next_ob, raw_reward, terminal, env_info = (
+                next_ob, reward, terminal, env_info = (
                     self.training_env.step(action)
                 )
                 self._n_env_steps_total += 1
-                reward = raw_reward * self.reward_scale
                 terminal = np.array([terminal])
                 reward = np.array([reward])
                 self._handle_step(
@@ -316,7 +314,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     n_eval_steps += path_length
                     eval_end = n_eval_steps >= self.num_steps_per_eval + self.max_path_length
 
-                path['rewards'] = path['rewards'] * self.reward_scale
                 path_length = len(path['observations'])
                 self._n_env_steps_total += path_length
                 n_steps_current_epoch += path_length

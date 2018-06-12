@@ -119,7 +119,7 @@ class FeatPointDDPG(DDPG):
             next_obs,
             next_actions,
         )
-        q_target = rewards + (1. - terminals) * self.discount * target_q_values
+        q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
         q_target = torch.clamp(q_target, self.min_q_value, self.max_q_value)
         # Hack for ICLR rebuttal
@@ -139,7 +139,7 @@ class FeatPointDDPG(DDPG):
                 residual_next_actions,
             )
             residual_q_target = (
-                rewards
+                self.reward_scale * rewards
                 + (1. - terminals) * self.discount * residual_target_q_values
             )
             residual_bellman_errors = (q_pred - residual_q_target) ** 2

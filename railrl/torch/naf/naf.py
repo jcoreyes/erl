@@ -61,7 +61,7 @@ class NAF(TorchRLAlgorithm):
         next_obs = batch['next_observations']
 
         _, _, v_pred = self.target_policy(next_obs, None)
-        y_target = rewards + (1. - terminals) * self.discount * v_pred
+        y_target = self.reward_scale * rewards + (1. - terminals) * self.discount * v_pred
         y_target = y_target.detach()
         mu, y_pred, v = self.policy(obs, actions)
         policy_loss = self.policy_criterion(y_pred, y_target)

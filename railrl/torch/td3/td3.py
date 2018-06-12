@@ -98,7 +98,7 @@ class TD3(TorchRLAlgorithm):
         target_q1_values = self.target_qf1(next_obs, noisy_next_actions)
         target_q2_values = self.target_qf2(next_obs, noisy_next_actions)
         target_q_values = torch.min(target_q1_values, target_q2_values)
-        q_target = rewards + (1. - terminals) * self.discount * target_q_values
+        q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
 
         q1_pred = self.qf1(obs, actions)
