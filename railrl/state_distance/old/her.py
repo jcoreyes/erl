@@ -131,7 +131,7 @@ class HER(DDPG):
             next_actions,
             goals,
         )
-        q_target = rewards + (1. - terminals) * self.discount * target_q_values
+        q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
         q_target = torch.clamp(q_target, -1./(1-self.discount), 0)
         q_pred = self.qf(obs, actions, goals)

@@ -36,7 +36,7 @@ class BpttDdpgRecurrentQ(BpttDdpg):
             next_actions,
             next_writes
         )
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        y_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_predicted = self.qf(obs, memories, actions, writes)
@@ -103,7 +103,7 @@ class BpttDdpgRecurrentQ(BpttDdpg):
             next_writes
         )
         y_target = (
-            rewards
+            self.reward_scale * rewards
             + (1. - terminals) * self.discount * target_q_values
         )
         # noinspection PyUnresolvedReferences
