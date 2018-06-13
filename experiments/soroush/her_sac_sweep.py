@@ -3,6 +3,10 @@ import argparse
 from railrl.envs.mujoco.sawyer_reach_env import (
     SawyerReachXYEnv,
 )
+from railrl.envs.mujoco.sawyer_push_env import (
+    SawyerPushXYEasyEnv,
+    SawyerMultiPushEnv
+)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
@@ -21,9 +25,9 @@ COMMON_PARAMS = dict(
     # min_num_steps_before_training=1000, #check
     batch_size=128,
     discount=0.99,
-    soft_target_tau=1e-2,
-    target_update_period=1,  #check
-    train_policy_with_reparameterization=True,
+    soft_target_tau=1.0, #1e-2
+    target_update_period=1000,  #1
+    train_policy_with_reparameterization=[True],
     algorithm="SAC",
     version="normal",
     env_class=SawyerReachXYEnv,
@@ -40,8 +44,17 @@ ENV_PARAMS = {
     'sawyer-reach-xy': { # 6 DoF
         'env_class': SawyerReachXYEnv,
         'num_epochs': 75,
-        'reward_scale': [0.1, 1, 10, 100, 1000],
-        # 'train_policy_with_reparameterization': [True, False]
+        'reward_scale': [1e3, 1e4, 1e5] #[0.01, 0.1, 1, 10, 100],
+    },
+    'sawyer-push-xy-easy': {  # 6 DoF
+        'env_class': SawyerPushXYEasyEnv,
+        'num_epochs': 300,
+        'reward_scale': [1e-1, 1e0, 1e1, 1e2, 1e3, 1e4]  # [0.01, 0.1, 1, 10, 100],
+    },
+    'sawyer-multi-push': {  # 6 DoF
+        'env_class': SawyerMultiPushEnv,
+        'num_epochs': 300,
+        'reward_scale': [1e-1, 1e0, 1e1, 1e2, 1e3, 1e4]  # [0.01, 0.1, 1, 10, 100],
     },
 }
 
