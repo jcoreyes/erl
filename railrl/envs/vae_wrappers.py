@@ -83,6 +83,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self._latent_goal = None
         self.mode(mode)
 
+        self._vw_goal_img = None
+        self._vw_goal_img_decoded = None
+
     def mode(self, name):
         if name == "train":
             self.use_vae_goals = True
@@ -119,6 +122,19 @@ class VAEWrappedEnv(ProxyEnv, Env):
             ).transpose()
             cv2.imshow('env', img)
             cv2.waitKey(1)
+        if self.render_goals and not self.use_vae_goals:
+            goal = self._vw_goal_img.reshape(
+                self.input_channels,
+                self.imsize,
+                self.imsize,
+            ).transpose()
+            cv2.imshow('goal', goal)
+            cv2.waitKey(1)
+
+        if self.render_goals:
+            cv2.imshow('decoded', self._vw_goal_img_decoded)
+            cv2.waitKey(1)
+
         return new_obs, reward, done, info
 
     def reset(self):
@@ -126,14 +142,19 @@ class VAEWrappedEnv(ProxyEnv, Env):
         if self.use_vae_goals:
             latent_goals = self._sample_vae_prior(1)
             if self.decode_goals:
-                goal_imgs = self._decode(latent_goals)[0]
+                goal_img = self._decode(latent_goals)[0]
             else:
-                goal_imgs = None
-            obs['image_desired_goal'] = goal_imgs
+                goal_img = None
+            obs['image_desired_goal'] = goal_img
             obs['state_desired_goal'] = None
             self._latent_goal = latent_goals[0]
+            self._vw_goal_img = goal_img
+            self._vw_goal_img_decoded = goal_img
         else:
             self._latent_goal = self._encode_one(obs['image_desired_goal'])
+            if self.decode_goals:
+                self._vw_goal_img_decoded = self._decode(self._latent_goal[None])[0]
+        self._vw_goal_img = obs['image_desired_goal']
         obs['desired_goal'] = self._latent_goal
         obs['latent_desired_goal'] = self._latent_goal
         return self._update_obs(obs)
@@ -206,14 +227,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             latent_goals = self._encode(goals['image_desired_goals'])
         goals['desired_goal'] = latent_goals
         goals['latent_desired_goal'] = latent_goals
-
-        if self.render_goals and not self.use_vae_goals:
-            cv2.imshow('goal', self.goal_obs)
-            cv2.waitKey(1)
-
-        if self.render_goals:
-            cv2.imshow('decoded', self.goal_decoded)
-            cv2.waitKey(1)
 
         return goals
 

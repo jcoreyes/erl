@@ -72,7 +72,7 @@ def grill_her_td3_full_experiment(variant):
     grill_variant['env_class'] = env_class
     grill_variant['env_kwargs'] = env_kwargs
     grill_variant['init_camera'] = init_camera
-    if 'vae_path' not in grill_variant:
+    if 'vae_paths' not in grill_variant:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
         )
@@ -82,19 +82,18 @@ def grill_her_td3_full_experiment(variant):
         vae = train_vae(train_vae_variant)
         rdim = train_vae_variant['representation_size']
         vae_file = logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
+        logger.remove_tabular_output(
+            'vae_progress.csv',
+            relative_to_snapshot_dir=True,
+        )
+        logger.add_tabular_output(
+            'progress.csv',
+            relative_to_snapshot_dir=True,
+        )
         grill_variant['vae_paths'] = {
             str(rdim): vae_file,
         }
         grill_variant['rdim'] = str(rdim)
-
-    logger.remove_tabular_output(
-        'vae_progress.csv',
-        relative_to_snapshot_dir=True,
-    )
-    logger.add_tabular_output(
-        'progress.csv',
-        relative_to_snapshot_dir=True,
-    )
     grill_her_td3_experiment(variant['grill_variant'])
 
 
@@ -256,6 +255,7 @@ def grill_her_td3_experiment(variant):
         raise Exception("Invalid type: " + exploration_type)
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     obs_dim = (
         env.observation_space.spaces[observation_key].low.size
         + env.observation_space.spaces[desired_goal_key].low.size
@@ -304,6 +304,7 @@ def grill_her_td3_experiment(variant):
         env=relabeling_env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
         **variant['replay_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer

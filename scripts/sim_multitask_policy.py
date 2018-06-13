@@ -28,6 +28,8 @@ def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
         goal = env.get_goal()
         if isinstance(o, dict):
             o = o['observation']
+        if isinstance(goal, dict):
+            goal = goal['desired_goal']
         new_o = np.hstack((o, goal))
         a, agent_info = agent.get_action(new_o)
         a = a + np.random.normal(a.shape) / 10
@@ -51,17 +53,17 @@ def multitask_rollout(env, agent, max_path_length=np.inf, animated=False):
     observations = np.array(observations)
     if len(observations.shape) == 1:
         observations = np.expand_dims(observations, 1)
-        if isinstance(next_o, dict):
-            next_o = next_o['observation']
         next_o = np.array([next_o])
     if isinstance(next_o, dict):
-        next_o = next_o['observation']
-    next_observations = np.vstack(
-        (
-            observations[1:, :],
-            np.expand_dims(next_o, 0)
+        # TODO: implement
+        next_observations = None
+    else:
+        next_observations = np.vstack(
+            (
+                observations[1:, :],
+                np.expand_dims(next_o, 0)
+            )
         )
-    )
     return dict(
         observations=observations,
         actions=actions,
@@ -101,6 +103,7 @@ def simulate_policy(args):
         policy.train(False)
     paths = []
     while True:
+        paths = []
         paths.append(multitask_rollout(
             env,
             policy,

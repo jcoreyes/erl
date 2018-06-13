@@ -10,6 +10,9 @@ from railrl.images.camera import (
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import (
     SawyerReachXYEnv, SawyerReachXYZEnv
 )
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
+    SawyerPushAndReachXYEnv
+)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
@@ -22,18 +25,20 @@ if __name__ == "__main__":
     # n_seeds = 3
     # mode = 'ec2'
     # exp_prefix = 'full-grill-her-td3-sawyer-push-camera-toggle'
+    exp_prefix = 'multiworld-sawyer-push-oracle-n1000-vae'
 
     variant = dict(
-        env_class=SawyerReachXYEnv,
+        # env_class=SawyerReachXYEnv,
+        env_class=SawyerPushAndReachXYEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
         ),
         init_camera=init_sawyer_camera_v1,
         grill_variant=dict(
             algo_kwargs=dict(
-                num_epochs=500,
-                num_steps_per_epoch=1000,
-                num_steps_per_eval=1000,
+                num_epochs=1,
+                num_steps_per_epoch=100,
+                num_steps_per_eval=100,
                 # num_epochs=50,
                 # num_steps_per_epoch=100,
                 # num_steps_per_eval=100,
@@ -41,8 +46,8 @@ if __name__ == "__main__":
                 batch_size=128,
                 max_path_length=100,
                 discount=0.99,
-                min_num_steps_before_training=1000,
-                num_updates_per_env_step=4,
+                min_num_steps_before_training=400,
+                num_updates_per_env_step=1,
             ),
             replay_kwargs=dict(
                 max_size=int(1e6),
@@ -65,7 +70,7 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             representation_size=16,
             beta=5.0,
-            num_epochs=100,
+            num_epochs=500,
             generate_vae_dataset_kwargs=dict(
                 N=1000,
                 oracle_dataset=True,
@@ -75,14 +80,25 @@ if __name__ == "__main__":
                 lr=1e-3,
             ),
             beta_schedule_kwargs=dict(
-                x_values=[0, 30, 100],
-                y_values=[0, 5, 5],
+                x_values=[0, 100, 200, 500],
+                y_values=[0, 0, 5, 5],
             ),
             save_period=5,
         ),
     )
 
     search_space = {
+        # 'grill_variant.training_mode': ['test'],
+        # 'grill_variant.observation_key': ['latent_observation'],
+        # 'grill_variant.desired_goal_key': ['state_desired_goal'],
+        # 'grill_variant.observation_key': ['state_observation'],
+        # 'grill_variant.desired_goal_key': ['latent_desired_goal'],
+        # 'grill_variant.vae_paths': [
+        #     {"16": "/home/vitchyr/git/railrl/data/doodads3/06-12-dev/06-12"
+        #            "-dev_2018_06_12_18_57_14_0000--s-28051/vae.pkl",
+        #      }
+        # ],
+        # 'grill_variant.rdim': ["16"],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
