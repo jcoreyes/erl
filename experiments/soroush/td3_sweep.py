@@ -10,15 +10,21 @@ from gym.envs.mujoco import (
 from gym.envs.classic_control import PendulumEnv
 
 from railrl.envs.wrappers import NormalizedBoxEnv
+from railrl.exploration_strategies.base import (
+    PolicyWrappedWithExplorationStrategy
+)
+from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.variant_generator import VariantGenerator
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.sac import SoftActorCritic
+from railrl.torch.td3.td3 import TD3
 
 COMMON_PARAMS = dict(
-    num_epochs=10000,
+    num_epochs=3000,
     num_steps_per_epoch=1000,
     num_steps_per_eval=1000, #check
     max_path_length=1000, #check
@@ -26,17 +32,11 @@ COMMON_PARAMS = dict(
     batch_size=256,
     discount=0.99,
     replay_buffer_size=int(1E6),
-    soft_target_tau=1.0,
-    policy_update_period=1, #check
-    target_update_period=1000,  #check
-    train_policy_with_reparameterization=False,
-    policy_lr=3E-4,
-    qf_lr=3E-4,
-    vf_lr=3E-4,
-    layer_size=[256, 512],
-    algorithm="SAC",
-    version="SAC",
+    layer_size=256, # [256, 512]
+    algorithm="TD3",
+    version="normal",
     env_class=HalfCheetahEnv,
+    exploration_type=['epsilon', 'ou', 'gaussian'],
 )
 
 ENV_PARAMS = {
@@ -44,36 +44,21 @@ ENV_PARAMS = {
         'env_class': HalfCheetahEnv,
         'num_epochs': 3000, #4000
         'reward_scale': [0.1, 1, 100], # [0.1, 1, 3, 5, 10, 100], #[3,5]
-        'train_policy_with_reparameterization': [True, False]
     },
     'inv-double-pendulum': {  # 2 DoF
         'env_class': InvertedDoublePendulumEnv,
         'num_epochs': 50, #50
         'reward_scale': [0.001, 0.01, 0.1, 1.0, 10.0, 100.0], # [0.001, 0.01, 0.1, 1.0, 10.0, 100.0],
-        'train_policy_with_reparameterization': [True, False]
-    },
-    'pendulum': { # 2 DoF
-        'env_class': PendulumEnv,
-        'num_epochs': 50,
-        'num_steps_per_epoch': 200,
-        'num_steps_per_eval': 200,
-        'max_path_length': 200,
-        'min_num_steps_before_training': 200,
-        'target_update_period': 200,
-        'reward_scale': 0.5, # [0.1, 0.5, 1.0] # 0.5
-        'train_policy_with_reparameterization': False #[True, False]
     },
     'ant': {  # 6 DoF
         'env_class': AntEnv,
         'num_epochs': 3000,  # 4000
         'reward_scale': [0.1, 1, 100], # [0.1, 1, 5, 10, 100],  # [5,10],
-        'train_policy_with_reparameterization': [True, False]
     },
     'walker': {  # 6 DoF
         'env_class': Walker2dEnv,
         'num_epochs': 3000,  # 4000
         'reward_scale': [0.1, 1, 3, 5, 10, 100],  # [3,5,10],
-        'train_policy_with_reparameterization': [True, False]
     },
 }
 
@@ -118,44 +103,59 @@ def experiment(variant):
         batch_size=variant['batch_size'],
         discount=variant['discount'],
         replay_buffer_size=variant['replay_buffer_size'],
-        soft_target_tau=variant['soft_target_tau'],
-        target_update_period=variant['target_update_period'],
-        train_policy_with_reparameterization=variant['train_policy_with_reparameterization'],
-        policy_lr=variant['policy_lr'],
-        qf_lr=variant['qf_lr'],
-        vf_lr=variant['vf_lr'],
         reward_scale=variant['reward_scale'],
     )
 
     M = variant['layer_size']
-    qf = FlattenMlp(
+    qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
         # **variant['qf_kwargs']
     )
-    vf = FlattenMlp(
-        input_size=obs_dim,
+    qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
-        # **variant['vf_kwargs']
+        # **variant['qf_kwargs']
     )
-    policy = TanhGaussianPolicy(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
+    policy = TanhMlpPolicy(
+        input_size=obs_dim,
+        output_size=action_dim,
         hidden_sizes=[M, M],
         # **variant['policy_kwargs']
     )
-    algorithm = SoftActorCritic(
-        env,
+    exploration_type = variant['exploration_type']
+    if exploration_type == 'ou':
+        es = OUStrategy(action_space=env.action_space)
+    elif exploration_type == 'gaussian':
+        es = GaussianStrategy(
+            action_space=env.action_space,
+            max_sigma=0.1,
+            min_sigma=0.1,  # Constant sigma
+        )
+    elif exploration_type == 'epsilon':
+        es = EpsilonGreedy(
+            action_space=env.action_space,
+            prob_random_action=0.1,
+        )
+    else:
+        raise Exception("Invalid type: " + exploration_type)
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
         policy=policy,
-        qf=qf,
-        vf=vf,
+    )
+    algorithm = TD3(
+        env,
+        qf1=qf1,
+        qf2=qf2,
+        policy=policy,
+        exploration_policy=exploration_policy,
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
-        qf.cuda()
-        vf.cuda()
+        qf1.cuda()
+        qf2.cuda()
         policy.cuda()
         algorithm.cuda()
     algorithm.train()
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     args = parse_args()
     variant_generator = get_variants(args)
     variants = variant_generator.variants()
-    exp_prefix = "sac-" + args.env
+    exp_prefix = "td3" + args.env
     if len(args.label) > 0:
         exp_prefix = exp_prefix + "-" + args.label
 
