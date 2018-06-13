@@ -168,7 +168,7 @@ class SupervisedLearning(object):
         actions = batch['actions']
         goal_states = batch['goal_states']
 
-        y_target = rewards
+        y_target = self.reward_scale * rewards
 
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()

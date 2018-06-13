@@ -49,7 +49,7 @@ class TdmDqn(TemporalDifferenceModel, DQN):
         ).detach().max(
             1, keepdim=False
         )[0]
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        y_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
         y_target = y_target.detach()
         # actions is a one-hot vector
         y_pred = torch.sum(

@@ -83,7 +83,7 @@ class TdmTd3(TemporalDifferenceModel, TD3):
             num_steps_left=num_steps_left-1,
         )
         target_q_values = torch.min(target_q1_values, target_q2_values)
-        q_target = rewards + (1. - terminals) * self.discount * target_q_values
+        q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
 
         q1_pred = self.qf1(
