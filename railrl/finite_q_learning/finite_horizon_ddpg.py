@@ -58,14 +58,14 @@ class FiniteHorizonDDPG(TorchRLAlgorithm):
         policy_losses = []
         for t in range(self.max_horizon):
             if t == self.max_horizon - 1:
-                q_target = rewards
+                q_target = self.reward_scale * rewards
             else:
                 target_q_values = self.qfs[t+1](
                     next_obs,
                     self.policies[t+1](next_obs),
                 )
                 q_target = (
-                    rewards
+                    self.reward_scale * rewards
                     + (1. - terminals) * self.discount * target_q_values
                 )
             q_pred = self.qfs[t](obs, actions)

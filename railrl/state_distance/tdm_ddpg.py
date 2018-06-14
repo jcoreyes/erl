@@ -83,7 +83,7 @@ class TdmDdpg(TemporalDifferenceModel, DDPG):
             goals=goals,
             num_steps_left=num_steps_left-1,
         )
-        q_target = rewards + (1. - terminals) * self.discount * target_q_values
+        q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
         if self.reward_type == 'indicator':
             q_target = torch.clamp(

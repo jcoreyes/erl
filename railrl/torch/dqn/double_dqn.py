@@ -27,7 +27,7 @@ class DoubleDQN(DQN):
         target_q_values = self.target_qf(next_obs).gather(
             1, best_action_idxs
         ).detach()
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        y_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
         y_target = y_target.detach()
         # actions is a one-hot vector
         y_pred = torch.sum(self.qf(obs) * actions, dim=1, keepdim=True)
