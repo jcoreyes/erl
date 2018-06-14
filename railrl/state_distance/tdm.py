@@ -179,7 +179,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         next_obs = batch['next_observations']
         goals = self._sample_goals_for_training(batch)
         env_infos = batch.get('env_infos', None)
-        rewards = self._compute_scaled_rewards_np(
+        rewards = self._compute_rewards_np(
             batch, obs, actions, next_obs, goals, env_infos
         )
         terminals = batch['terminals']
@@ -218,8 +218,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
         return np_to_pytorch_batch(batch)
 
-    def _compute_scaled_rewards_np(self, batch, obs, actions, next_obs,
-                                   goals, env_infos):
+    def _compute_rewards_np(self, batch, obs, actions, next_obs,
+                            goals, env_infos):
         """
         Rewards should be already multiplied by the reward scale and/or other
         factors. In other words, the rewards returned here should be
@@ -228,16 +228,16 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if self.reward_type == 'indicator':
             diff = self.env.convert_obs_to_goals(next_obs) - goals
             if self.vectorized:
-                return -self.reward_scale * (diff > self.goal_reached_epsilon)
+                return -1 * (diff > self.goal_reached_epsilon)
             else:
-                return -self.reward_scale * (
+                return -1 * (
                         np.linalg.norm(diff, axis=1, keepdims=True)
                         > self.goal_reached_epsilon
                 )
         elif self.reward_type == 'distance':
             neg_distances = self._compute_unscaled_neg_distances(next_obs,
                                                                  goals)
-            return neg_distances * self.reward_scale
+            return neg_distances
         elif self.reward_type == 'env':
             rewards = batch['rewards']
             # Hacky/inefficient for NIPS 2018

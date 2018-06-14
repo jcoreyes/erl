@@ -1,79 +1,68 @@
 import argparse
 
-from gym.envs.mujoco import (
-    HalfCheetahEnv,
-    AntEnv,
-    HopperEnv,
-    Walker2dEnv,
-    InvertedDoublePendulumEnv,
+from railrl.envs.mujoco.sawyer_reach_env import (
+    SawyerReachXYEnv,
 )
-from gym.envs.classic_control import PendulumEnv
-
+from railrl.envs.mujoco.sawyer_push_env import (
+    SawyerPushXYEasyEnv,
+    SawyerMultiPushEnv
+)
+from railrl.envs.mujoco.sawyer_push_and_reach_env import (
+    SawyerPushAndReachXYEasyEnv,
+)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
+from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer, \
+    RelabelingReplayBuffer
 from railrl.misc.variant_generator import VariantGenerator
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.sac import SoftActorCritic
+from railrl.torch.her.her_sac import HerSac
 
 COMMON_PARAMS = dict(
-    num_epochs=10000,
+    num_epochs=300,
     num_steps_per_epoch=1000,
     num_steps_per_eval=1000, #check
-    max_path_length=1000, #check
-    min_num_steps_before_training=1000, #check
-    batch_size=256,
+    max_path_length=100, #check
+    # min_num_steps_before_training=1000, #check
+    batch_size=128,
     discount=0.99,
-    replay_buffer_size=int(1E6),
-    soft_target_tau=1.0,
-    policy_update_period=1, #check
-    target_update_period=1000,  #check
-    train_policy_with_reparameterization=False,
-    policy_lr=3E-4,
-    qf_lr=3E-4,
-    vf_lr=3E-4,
-    layer_size=[256, 512],
-    algorithm="SAC",
-    version="SAC",
-    env_class=HalfCheetahEnv,
+    soft_target_tau=1.0, #1e-2
+    target_update_period=1000,  #1
+    train_policy_with_reparameterization=[True],
+    algorithm="HER-SAC",
+    version="normal",
+    env_class=SawyerReachXYEnv,
+    normalize=True,
+    replay_buffer_class=RelabelingReplayBuffer,
+    replay_buffer_kwargs=dict(
+        max_size=int(1E6),
+        fraction_goals_are_rollout_goals=0.2,
+        fraction_resampled_goals_are_env_goals=0.5,
+    ),
 )
 
 ENV_PARAMS = {
-    'half-cheetah': { # 6 DoF
-        'env_class': HalfCheetahEnv,
-        'num_epochs': 3000, #4000
-        'reward_scale': [0.1, 1, 100], # [0.1, 1, 3, 5, 10, 100], #[3,5]
-        'train_policy_with_reparameterization': [True, False]
-    },
-    'inv-double-pendulum': {  # 2 DoF
-        'env_class': InvertedDoublePendulumEnv,
-        'num_epochs': 50, #50
-        'reward_scale': [0.001, 0.01, 0.1, 1.0, 10.0, 100.0], # [0.001, 0.01, 0.1, 1.0, 10.0, 100.0],
-        'train_policy_with_reparameterization': [True, False]
-    },
-    'pendulum': { # 2 DoF
-        'env_class': PendulumEnv,
+    'sawyer-reach-xy': { # 6 DoF
+        'env_class': SawyerReachXYEnv,
         'num_epochs': 50,
-        'num_steps_per_epoch': 200,
-        'num_steps_per_eval': 200,
-        'max_path_length': 200,
-        'min_num_steps_before_training': 200,
-        'target_update_period': 200,
-        'reward_scale': 0.5, # [0.1, 0.5, 1.0] # 0.5
-        'train_policy_with_reparameterization': False #[True, False]
+        'reward_scale': [1e3, 1e4, 1e5] #[0.01, 0.1, 1, 10, 100],
     },
-    'ant': {  # 6 DoF
-        'env_class': AntEnv,
-        'num_epochs': 3000,  # 4000
-        'reward_scale': [0.1, 1, 100], # [0.1, 1, 5, 10, 100],  # [5,10],
-        'train_policy_with_reparameterization': [True, False]
+    'sawyer-push-xy-easy': {  # 6 DoF
+        'env_class': SawyerPushXYEasyEnv,
+        'num_epochs': 300,
+        'reward_scale': [1e-1, 1e0, 1e1, 1e2, 1e3, 1e4]  # [0.01, 0.1, 1, 10, 100],
     },
-    'walker': {  # 6 DoF
-        'env_class': Walker2dEnv,
-        'num_epochs': 3000,  # 4000
-        'reward_scale': [0.1, 1, 3, 5, 10, 100],  # [3,5,10],
-        'train_policy_with_reparameterization': [True, False]
+    'sawyer-multi-push': {  # 6 DoF
+        'env_class': SawyerMultiPushEnv,
+        'num_epochs': 300,
+        'reward_scale': [1e-1, 1e0, 1e1, 1e2, 1e3, 1e4]  # [0.01, 0.1, 1, 10, 100],
+    },
+    'sawyer-push-and-reach-xy-easy': {  # 6 DoF
+        'env_class': SawyerPushAndReachXYEasyEnv,
+        'num_epochs': 300,
+        'reward_scale': [1e-1, 1e0, 1e1, 1e2, 1e3, 1e4],  # [0.01, 0.1, 1, 10, 100],
     },
 }
 
@@ -81,7 +70,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--env',
                         type=str,
-                        default='inv-double-pendulum')
+                        default='sawyer-push-and-reach-xy-easy')
     parser.add_argument('--mode', type=str, default='local')
     parser.add_argument('--label', type=str, default='')
     parser.add_argument('--num_seeds', type=int, default=3)
@@ -105,52 +94,51 @@ def get_variants(args):
     return vg
 
 def experiment(variant):
-    env = NormalizedBoxEnv(variant['env_class']())
+    if variant['normalize']:
+        env = NormalizedBoxEnv(variant['env_class']())
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-
+    goal_dim = env.goal_dim
     variant['algo_kwargs'] = dict(
         num_epochs=variant['num_epochs'],
         num_steps_per_epoch=variant['num_steps_per_epoch'],
         num_steps_per_eval=variant['num_steps_per_eval'],
         max_path_length=variant['max_path_length'],
-        min_num_steps_before_training=variant['min_num_steps_before_training'],
+        # min_num_steps_before_training=variant['min_num_steps_before_training'],
         batch_size=variant['batch_size'],
         discount=variant['discount'],
-        replay_buffer_size=variant['replay_buffer_size'],
+        # replay_buffer_size=variant['replay_buffer_size'],
         soft_target_tau=variant['soft_target_tau'],
         target_update_period=variant['target_update_period'],
         train_policy_with_reparameterization=variant['train_policy_with_reparameterization'],
-        policy_lr=variant['policy_lr'],
-        qf_lr=variant['qf_lr'],
-        vf_lr=variant['vf_lr'],
         reward_scale=variant['reward_scale'],
     )
 
-    M = variant['layer_size']
     qf = FlattenMlp(
-        input_size=obs_dim + action_dim,
+        input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
-        hidden_sizes=[M, M],
-        # **variant['qf_kwargs']
+        hidden_sizes=[400, 300],
     )
     vf = FlattenMlp(
-        input_size=obs_dim,
+        input_size=obs_dim + goal_dim,
         output_size=1,
-        hidden_sizes=[M, M],
-        # **variant['vf_kwargs']
+        hidden_sizes=[400, 300],
     )
     policy = TanhGaussianPolicy(
-        obs_dim=obs_dim,
+        obs_dim=obs_dim + goal_dim,
         action_dim=action_dim,
-        hidden_sizes=[M, M],
-        # **variant['policy_kwargs']
+        hidden_sizes=[400, 300],
     )
-    algorithm = SoftActorCritic(
+    replay_buffer = variant['replay_buffer_class'](
+        env=env,
+        **variant['replay_buffer_kwargs']
+    )
+    algorithm = HerSac(
         env,
         policy=policy,
         qf=qf,
         vf=vf,
+        replay_buffer=replay_buffer,
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
@@ -166,7 +154,7 @@ if __name__ == "__main__":
     args = parse_args()
     variant_generator = get_variants(args)
     variants = variant_generator.variants()
-    exp_prefix = "sac-" + args.env
+    exp_prefix = "her-sac-" + args.env
     if len(args.label) > 0:
         exp_prefix = exp_prefix + "-" + args.label
 
@@ -179,4 +167,6 @@ if __name__ == "__main__":
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=args.gpu,
+                snapshot_gap=int(variant['num_epochs'] / 10),
+                snapshot_mode='gap_and_last',
             )

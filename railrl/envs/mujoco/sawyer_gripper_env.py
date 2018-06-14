@@ -349,7 +349,7 @@ class SawyerPickAndPlaceEnv(SawyerXYZEnv):
         else:
             return - hand_to_block - block_to_goal
 
-    def compute_her_reward_np(self, ob, action, next_ob, goal):
+    def compute_her_reward_np(self, ob, action, next_ob, goal, env_info=None):
         hand = next_ob[-6:-3]
         block = next_ob[-3:]
         block_goal = goal

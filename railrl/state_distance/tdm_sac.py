@@ -83,7 +83,7 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
             goals=goals,
             num_steps_left=num_steps_left-1,
         )
-        q_target = rewards + (1. - terminals) * self.discount * target_v_values
+        q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_v_values
         if self.give_terminal_reward:
             terminal_rewards = self.terminal_bonus * num_steps_left
             q_target = q_target + terminals * terminal_rewards
