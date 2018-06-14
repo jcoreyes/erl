@@ -1,5 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place import \
+    SawyerPickAndPlaceEnv
 from railrl.envs.mujoco.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEasyEnv
 )
@@ -18,40 +20,32 @@ from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'dev'
-
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'full-grill-her-td3-sawyer-push-camera-toggle'
-    exp_prefix = 'multiworld-sawyer-push-oracle-n1000-vae'
-
     variant = dict(
         # env_class=SawyerReachXYEnv,
-        env_class=SawyerPushAndReachXYEnv,
+        # env_class=SawyerPushAndReachXYEnv,
+        env_class=SawyerPickAndPlaceEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
         ),
         init_camera=init_sawyer_camera_v1,
         grill_variant=dict(
             algo_kwargs=dict(
-                num_epochs=1,
-                num_steps_per_epoch=100,
-                num_steps_per_eval=100,
-                # num_epochs=50,
+                num_epochs=0,
                 # num_steps_per_epoch=100,
                 # num_steps_per_eval=100,
+                # num_epochs=500,
+                num_steps_per_epoch=1000,
+                num_steps_per_eval=1000,
                 tau=1e-2,
                 batch_size=128,
                 max_path_length=100,
                 discount=0.99,
                 min_num_steps_before_training=400,
-                num_updates_per_env_step=1,
+                num_updates_per_env_step=4,
             ),
             replay_kwargs=dict(
                 max_size=int(1e6),
-                # fraction_goals_are_rollout_goals=0.2,
+                fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
             algorithm='GRILL-HER-TD3',
@@ -74,6 +68,8 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 N=1000,
                 oracle_dataset=True,
+                show=True,
+                use_cached=False,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -103,6 +99,14 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
+
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'dev'
+
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'multiworld-goalenv-full-grill-her-td3'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
