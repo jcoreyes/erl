@@ -21,27 +21,26 @@ from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
 
 if __name__ == "__main__":
     variant = dict(
-        # env_class=SawyerReachXYEnv,
+        env_class=SawyerReachXYEnv,
         # env_class=SawyerPushAndReachXYEnv,
-        env_class=SawyerPickAndPlaceEnv,
+        # env_class=SawyerPickAndPlaceEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
         ),
         init_camera=init_sawyer_camera_v1,
         grill_variant=dict(
             algo_kwargs=dict(
-                num_epochs=0,
+                num_epochs=100,
                 # num_steps_per_epoch=100,
                 # num_steps_per_eval=100,
                 # num_epochs=500,
-                num_steps_per_epoch=1000,
+                num_steps_per_epoch=100,
                 num_steps_per_eval=1000,
                 tau=1e-2,
                 batch_size=128,
                 max_path_length=100,
                 discount=0.99,
-                min_num_steps_before_training=400,
-                num_updates_per_env_step=4,
+                num_updates_per_env_step=1,
             ),
             replay_kwargs=dict(
                 max_size=int(1e6),
@@ -68,8 +67,8 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 N=1000,
                 oracle_dataset=True,
-                show=True,
-                use_cached=False,
+                # show=True,
+                # use_cached=False,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -94,7 +93,9 @@ if __name__ == "__main__":
         #            "-dev_2018_06_12_18_57_14_0000--s-28051/vae.pkl",
         #      }
         # ],
-        # 'grill_variant.rdim': ["16"],
+        # 'grill_variant.vae_path': [
+        #     "/home/vitchyr/git/railrl/data/doodads3/06-14-dev/06-14-dev_2018_06_14_15_21_20_0000--s-69980/vae.pkl",
+        # ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
