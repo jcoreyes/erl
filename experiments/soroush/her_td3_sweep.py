@@ -7,6 +7,9 @@ from railrl.envs.mujoco.sawyer_push_env import (
     SawyerPushXYEasyEnv,
     SawyerMultiPushEnv
 )
+from railrl.envs.mujoco.sawyer_push_and_reach_env import (
+    SawyerPushAndReachXYEasyEnv,
+)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
@@ -48,7 +51,7 @@ COMMON_PARAMS = dict(
 ENV_PARAMS = {
     'sawyer-reach-xy': { # 6 DoF
         'env_class': SawyerReachXYEnv,
-        'num_epochs': 75,
+        'num_epochs': 50,
         'reward_scale': [1e3, 1e4, 1e5] #[0.01, 0.1, 1, 10, 100],
     },
     'sawyer-push-xy-easy': {  # 6 DoF
@@ -61,13 +64,18 @@ ENV_PARAMS = {
         'num_epochs': 300,
         'reward_scale': [1e-1, 1e0, 1e1, 1e2, 1e3, 1e4]  # [0.01, 0.1, 1, 10, 100],
     },
+    'sawyer-push-and-reach-xy-easy': {  # 6 DoF
+        'env_class': SawyerPushAndReachXYEasyEnv,
+        'num_epochs': 300,
+        'reward_scale': [1e-1, 1e0, 1e1, 1e2, 1e3, 1e4],  # [0.01, 0.1, 1, 10, 100],
+    },
 }
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--env',
                         type=str,
-                        default='sawyer-reach-xy')
+                        default='sawyer-push-and-reach-xy-easy')
     parser.add_argument('--mode', type=str, default='local')
     parser.add_argument('--label', type=str, default='')
     parser.add_argument('--num_seeds', type=int, default=3)
@@ -173,7 +181,6 @@ if __name__ == "__main__":
     exp_prefix = "her-td3-" + args.env
     if len(args.label) > 0:
         exp_prefix = exp_prefix + "-" + args.label
-
     for _ in range(args.num_seeds):
         for exp_id, variant in enumerate(variants):
             run_experiment(
@@ -183,4 +190,6 @@ if __name__ == "__main__":
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=args.gpu,
+                snapshot_gap=int(variant['num_epochs'] / 10),
+                snapshot_mode='gap_and_last',
             )

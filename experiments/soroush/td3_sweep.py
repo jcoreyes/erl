@@ -166,7 +166,7 @@ if __name__ == "__main__":
     args = parse_args()
     variant_generator = get_variants(args)
     variants = variant_generator.variants()
-    exp_prefix = "td3" + args.env
+    exp_prefix = "td3-" + args.env
     if len(args.label) > 0:
         exp_prefix = exp_prefix + "-" + args.label
 
