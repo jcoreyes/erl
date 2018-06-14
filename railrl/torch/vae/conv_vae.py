@@ -124,14 +124,14 @@ class ConvVAETrainer():
         output = self.model.fc6(F.relu(self.model.fc5(encoded_x)))
         return torch.norm(output-states)**2 / self.batch_size
 
-    def train_epoch(self, epoch):
+    def train_epoch(self, epoch, sample_batch=None, batches=100):
         self.model.train()
         losses = []
         bces = []
         kles = []
         mses = []
         beta = self.beta_schedule.get_value(epoch)
-        for batch_idx in range(100):
+        for batch_idx in range(batches):
             if self.state_sim_debug:
                 X, Y = self.get_debug_batch()
                 self.optimizer.zero_grad()
@@ -143,6 +143,8 @@ class ConvVAETrainer():
                 loss.backward()
             else:
                 data = self.get_batch()
+                if sample_batch is not None:
+                    data = sample_batch(self.batch_size)
                 self.optimizer.zero_grad()
                 recon_batch, mu, logvar = self.model(data)
                 bce = self.logprob(recon_batch, data, mu, logvar)
@@ -177,6 +179,7 @@ class ConvVAETrainer():
             save_reconstruction=True,
             save_scatterplot=True,
             save_vae=True,
+            from_rl=False,
     ):
         self.model.eval()
         losses = []
@@ -244,11 +247,11 @@ class ConvVAETrainer():
         logger.record_tabular("beta", beta)
         if self.state_sim_debug:
             logger.record_tabular("test/MSE", np.mean(mses))
-        logger.dump_tabular()
 
-
-        if save_vae:
-            logger.save_itr_params(epoch, self.model)  # slow...
+        if not from_rl:
+            logger.dump_tabular()
+            if save_vae:
+                logger.save_itr_params(epoch, self.model)  # slow...
         # logdir = logger.get_snapshot_dir()
         # filename = osp.join(logdir, 'params.pkl')
         # torch.save(self.model, filename)

@@ -178,6 +178,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         obs['observation'] = latent_obs
         obs['desired_goal'] = self._latent_goal
         obs['achieved_goal'] = latent_obs
+        obs['image_desired_goal'] = self._vw_goal_img
         return obs
 
     def _sample_vae_prior(self, batch_size):

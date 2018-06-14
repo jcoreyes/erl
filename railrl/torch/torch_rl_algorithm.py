@@ -22,3 +22,6 @@ class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def cuda(self):
         for net in self.networks:
             net.cuda()
+
+    def post_process_batch(self, batch):
+        return batch
