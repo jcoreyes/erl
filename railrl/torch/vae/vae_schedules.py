@@ -3,7 +3,7 @@
 #alternate_train = lambda epoch : epoch % 2 == 0
 
 def always_train(epoch):
-    return True, 300
+    return True, 1000
 
 def every_other(epoch):
     return epoch % 2 == 0, 400
@@ -15,13 +15,7 @@ def every_six(epoch):
     return epoch % 6 == 0, 1800
 
 def every_ten(epoch):
-    return epoch % 10 == 0, 2000
-
-def alternate_train(epoch):
-    return epoch % 15 == 0
+    return epoch % 10 == 0, 3000
 
 def never_train(epoch):
     return False, 0
-
-def train_every_six(epoch):
-    return (epoch + 1) % 6 == 0

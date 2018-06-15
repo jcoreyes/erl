@@ -15,6 +15,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.vae_trainer.model = self.vae
         self.vae_save_period = vae_save_period
         self.vae_training_schedule = vae_training_schedule
+        self.epoch = 0
 
     def _post_epoch(self, epoch):
         should_train, amount_to_train = self.vae_training_schedule(epoch)
@@ -24,13 +25,20 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
             self.vae.eval()
             self.replay_buffer.refresh_latents(epoch)
         self._test_vae(epoch)
+        # very hacky
+        self.epoch = epoch + 1
 
     def _post_step(self, step):
         pass
 
     def _train_vae(self, epoch, batches=50):
         batch_sampler = self.replay_buffer.random_vae_training_data
-        self.vae_trainer.train_epoch(epoch, sample_batch=batch_sampler, batches=batches)
+        self.vae_trainer.train_epoch(
+            epoch,
+            sample_batch=batch_sampler,
+            batches=batches,
+            from_rl=True,
+        )
 
     def _test_vae(self, epoch):
 #        batch_sampler = self.replay_buffer.random_vae_training_data

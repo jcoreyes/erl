@@ -29,7 +29,9 @@ from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.her.online_vae_her_td3 import OnlineVaeHerTd3
+from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.td3.td3 import TD3
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 from railrl.torch.vae.tdm_td3_vae_experiment import tdm_td3_vae_experiment
 
@@ -131,7 +133,10 @@ def grill_her_td3_online_vae_full_experiment(variant):
             str(rdim): vae_file,
         }
         grill_variant['rdim'] = str(rdim)
-    grill_her_td3_experiment_online_vae(variant['grill_variant'])
+    if variant['double_algo']:
+        grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
+    else:
+        grill_her_td3_experiment_online_vae(variant['grill_variant'])
 
 
 
@@ -364,8 +369,8 @@ def grill_her_td3_experiment(variant):
     if ptu.gpu_enabled():
         print("using GPU")
         algorithm.cuda()
-        for e in [testing_env, training_env, video_vae_env, video_goal_env]:
-            e.vae.cuda()
+    for e in [testing_env, training_env, video_vae_env, video_goal_env]:
+        e.vae.cuda()
 
     save_video = variant.get("save_video", True)
     if save_video:
@@ -491,6 +496,7 @@ def grill_her_td3_experiment_online_vae(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
+        exploration_rewards_type=variant.get('vae_exploration_rewards_type', 'None'),
         **variant['replay_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
@@ -512,7 +518,208 @@ def grill_her_td3_experiment_online_vae(variant):
         render_during_eval=render,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        vae_training_schedule=variant['vae_training_schedule'],
         **variant['algo_kwargs']
+    )
+
+    if ptu.gpu_enabled():
+        print("using GPU")
+        algorithm.cuda()
+        vae.cuda()
+    for e in [testing_env, training_env, video_vae_env, video_goal_env, relabeling_env]:
+        e.vae = vae
+        e.decode_goals = True
+
+    save_video = variant.get("save_video", True)
+    if save_video:
+        from railrl.torch.vae.sim_vae_policy import dump_video
+        logdir = logger.get_snapshot_dir()
+        # Don't dump initial video any more, its uninformative
+        # filename = osp.join(logdir, 'video_0_env.mp4')
+        # dump_video(video_goal_env, policy, filename)
+        # filename = osp.join(logdir, 'video_0_vae.mp4')
+        # dump_video(video_vae_env, policy, filename)
+    algorithm.train()
+
+    if save_video:
+        filename = osp.join(logdir, 'video_final_env.mp4')
+        dump_video(video_goal_env, policy, filename)
+        filename = osp.join(logdir, 'video_final_vae.mp4')
+        dump_video(video_vae_env, policy, filename)
+
+def grill_her_td3_experiment_online_vae_exploring(variant):
+    env = variant["env_class"](**variant['env_kwargs'])
+
+    render = variant["render"]
+
+    rdim = variant["rdim"]
+    vae_path = variant["vae_paths"][str(rdim)]
+    reward_params = variant.get("reward_params", dict())
+    vae = load_vae(vae_path)
+
+    init_camera = variant.get("init_camera", None)
+    if init_camera is None:
+        camera_name = "topview"
+    else:
+        camera_name = None
+
+    env = ImageEnv(
+        env,
+        84,
+        init_camera=init_camera,
+        camera_name=camera_name,
+        transpose=True,
+        normalize=True,
+    )
+
+    env = VAEWrappedEnv(
+        env,
+        vae,
+        decode_goals=render,
+        render_goals=render,
+        render_rollouts=render,
+        reward_params=reward_params,
+        **variant.get('vae_wrapped_env_kwargs', {})
+    )
+
+    if variant['normalize']:
+        env = NormalizedBoxEnv(env)
+    exploration_type = variant['exploration_type']
+    exploration_noise = variant.get('exploration_noise', 0.1)
+    if exploration_type == 'ou':
+        es = OUStrategy(action_space=env.action_space)
+    elif exploration_type == 'gaussian':
+        es = GaussianStrategy(
+            action_space=env.action_space,
+            max_sigma=exploration_noise,
+            min_sigma=exploration_noise,  # Constant sigma
+        )
+    elif exploration_type == 'epsilon':
+        es = EpsilonGreedy(
+            action_space=env.action_space,
+            prob_random_action=exploration_noise,
+        )
+    else:
+        raise Exception("Invalid type: " + exploration_type)
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    obs_dim = (
+        env.observation_space.spaces[observation_key].low.size
+        + env.observation_space.spaces[desired_goal_key].low.size
+    )
+    action_dim = env.action_space.low.size
+    hidden_sizes = variant.get('hidden_sizes', [400, 300])
+    qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    policy = TanhMlpPolicy(
+        input_size=obs_dim,
+        output_size=action_dim,
+        hidden_sizes=hidden_sizes,
+    )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+
+    exploring_qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    exploring_qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    exploring_policy = TanhMlpPolicy(
+        input_size=obs_dim,
+        output_size=action_dim,
+        hidden_sizes=hidden_sizes,
+    )
+    exploring_exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=exploring_policy,
+    )
+
+
+    training_mode = variant.get("training_mode", "train")
+    testing_mode = variant.get("testing_mode", "test")
+
+    testing_env = pickle.loads(pickle.dumps(env))
+    testing_env.mode(testing_mode)
+
+    training_env = pickle.loads(pickle.dumps(env))
+    training_env.mode(training_mode)
+
+    relabeling_env = pickle.loads(pickle.dumps(env))
+    relabeling_env.mode(training_mode)
+    relabeling_env.disable_render()
+
+    video_vae_env = pickle.loads(pickle.dumps(env))
+    video_vae_env.mode("video_vae")
+    video_goal_env = pickle.loads(pickle.dumps(env))
+    video_goal_env.mode("video_env")
+
+    replay_buffer = OnlineVaeRelabelingBuffer(
+        vae=vae,
+        env=relabeling_env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        exploration_rewards_type=variant['vae_exploration_rewards_type'],
+        **variant['replay_kwargs']
+    )
+    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+
+    t = ConvVAETrainer(variant['vae_train_data'],
+                       variant['vae_test_data'],
+                       vae,
+                       beta=variant['online_vae_beta'])
+
+    control_algorithm = TD3(
+        env=testing_env,
+        training_env=training_env,
+        qf1=qf1,
+        qf2=qf2,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        **variant['algo_kwargs']
+    )
+    exploring_algorithm = TD3(
+        env=testing_env,
+        training_env=training_env,
+        qf1=exploring_qf1,
+        qf2=exploring_qf2,
+        policy=exploring_policy,
+        exploration_policy=exploring_exploration_policy,
+        **variant['algo_kwargs']
+    )
+
+    algorithm = OnlineVaeHerJointAlgo(
+        vae=vae,
+        vae_trainer=t,
+        env=testing_env,
+        training_env=training_env,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        replay_buffer=replay_buffer,
+        algo1=control_algorithm,
+        algo2=exploring_algorithm,
+        algo1_prefix="Control_",
+        algo2_prefix="VAE_Exploration_",
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        vae_training_schedule=variant['vae_training_schedule'],
+        **variant['joint_algo_kwargs']
     )
 
     if ptu.gpu_enabled():

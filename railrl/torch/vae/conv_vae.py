@@ -124,7 +124,7 @@ class ConvVAETrainer():
         output = self.model.fc6(F.relu(self.model.fc5(encoded_x)))
         return torch.norm(output-states)**2 / self.batch_size
 
-    def train_epoch(self, epoch, sample_batch=None, batches=100):
+    def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
         self.model.train()
         losses = []
         bces = []
@@ -165,12 +165,13 @@ class ConvVAETrainer():
                     100. * batch_idx / len(self.train_loader),
                     loss.data[0] / len(data)))
 
-        """logger.record_tabular("train/epoch", epoch)
-        logger.record_tabular("train/BCE", np.mean(bces))
-        logger.record_tabular("train/KL", np.mean(kles))
-        if self.state_sim_debug:
-            logger.record_tabular("train/mse", np.mean(mses))
-        logger.record_tabular("train/loss", np.mean(losses))"""
+        if not from_rl:
+            logger.record_tabular("train/epoch", epoch)
+            logger.record_tabular("train/BCE", np.mean(bces))
+            logger.record_tabular("train/KL", np.mean(kles))
+            if self.state_sim_debug:
+                logger.record_tabular("train/mse", np.mean(mses))
+            logger.record_tabular("train/loss", np.mean(losses))
 
 
     def test_epoch(
@@ -359,8 +360,8 @@ class ConvVAE(PyTorchModule):
             self.log_min_variance = None
         else:
             self.log_min_variance = float(np.log(min_variance))
-        self.dist_mu = 0
-        self.dist_std = 1 
+        self.dist_mu = np.zeros(self.representation_size)
+        self.dist_std = np.ones(self.representation_size)
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
         self.added_fc_size = added_fc_size

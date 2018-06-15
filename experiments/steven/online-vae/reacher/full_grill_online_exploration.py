@@ -22,7 +22,7 @@ import railrl.torch.vae.vae_schedules as vae_schedules
 
 if __name__ == "__main__":
     variant = dict(
-        double_algo=False,
+        double_algo=True,
         env_class=SawyerReachXYEnv,
 #         env_class=SawyerPushAndReachXYEnv,
         # env_class=SawyerPickAndPlaceEnv,
@@ -31,10 +31,12 @@ if __name__ == "__main__":
         ),
         init_camera=init_sawyer_camera_v1,
         grill_variant=dict(
+            vae_exploration_rewards_type='reconstruction_error',
+            vae_training_schedule=vae_schedules.always_train,
             online_vae_beta=5,
             algo_kwargs=dict(
                 num_epochs=1000,
-                num_steps_per_epoch=100,
+                num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 min_num_steps_before_training=100,
                 tau=1e-2,
@@ -42,7 +44,16 @@ if __name__ == "__main__":
                 max_path_length=50,
                 discount=0.99,
                 num_updates_per_env_step=1,
-                vae_training_schedule=vae_schedules.always_train,
+            ),
+            joint_algo_kwargs=dict(
+                num_epochs=1000,
+                num_steps_per_epoch=100,
+                num_steps_per_eval=1000,
+                min_num_steps_before_training=100,
+                batch_size=128,
+                max_path_length=50,
+                discount=0.99,
+                num_updates_per_env_step=1,
             ),
             replay_kwargs=dict(
                 max_size=int(1e4),
@@ -53,7 +64,7 @@ if __name__ == "__main__":
             normalize=False,
             render=False,
             exploration_noise=0.3,
-            exploration_type='ou',
+            exploration_type='gaussian',
             training_mode='train',
             testing_mode='test',
             reward_params=dict(

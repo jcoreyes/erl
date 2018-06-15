@@ -57,7 +57,6 @@ def debug(env, obs, agent_info):
         import matplotlib.pyplot as plt
     except ImportError as e:
         print("could not import matplotlib")
-
     global ax1
     global ax2
     if ax1 is None:

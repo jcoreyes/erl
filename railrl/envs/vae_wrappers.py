@@ -224,8 +224,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
             goals['image_desired_goal'] = goal_imgs
             goals['state_desired_goal'] = None
         else:
-            goals = self.wrapped_env.sample_goals()
-            latent_goals = self._encode(goals['image_desired_goals'])
+            goals = self.wrapped_env.sample_goals(batch_size)
+            latent_goals = self._encode(goals['image_desired_goal'])
         goals['desired_goal'] = latent_goals
         goals['latent_desired_goal'] = latent_goals
 
