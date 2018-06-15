@@ -48,15 +48,16 @@ class MultigoalSimplePathSampler(object):
             paths.append(path)
         return paths
 
-try:
-    import matplotlib.pyplot as plt
-except ImportError as e:
-    print("could not import matplotlib")
 ax1 = None
 ax2 = None
 
 
 def debug(env, obs, agent_info):
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as e:
+        print("could not import matplotlib")
+
     global ax1
     global ax2
     if ax1 is None:

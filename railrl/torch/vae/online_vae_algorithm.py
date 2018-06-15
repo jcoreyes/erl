@@ -12,6 +12,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
     ):
         self.vae = vae
         self.vae_trainer = vae_trainer
+        self.vae_trainer.model = self.vae
         self.vae_save_period = vae_save_period
         self.vae_training_schedule = vae_training_schedule
 

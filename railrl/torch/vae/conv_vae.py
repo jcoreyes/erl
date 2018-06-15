@@ -165,12 +165,12 @@ class ConvVAETrainer():
                     100. * batch_idx / len(self.train_loader),
                     loss.data[0] / len(data)))
 
-        logger.record_tabular("train/epoch", epoch)
+        """logger.record_tabular("train/epoch", epoch)
         logger.record_tabular("train/BCE", np.mean(bces))
         logger.record_tabular("train/KL", np.mean(kles))
         if self.state_sim_debug:
             logger.record_tabular("train/mse", np.mean(mses))
-        logger.record_tabular("train/loss", np.mean(losses))
+        logger.record_tabular("train/loss", np.mean(losses))"""
 
 
     def test_epoch(
@@ -238,17 +238,18 @@ class ConvVAETrainer():
             self.plot_scattered(np.array(zs), epoch)
 
 
-        for key, value in self.debug_statistics().items():
-            logger.record_tabular(key, value)
-
-        logger.record_tabular("test/BCE", np.mean(bces))
-        logger.record_tabular("test/KL", np.mean(kles))
-        logger.record_tabular("test/loss", np.mean(losses))
-        logger.record_tabular("beta", beta)
-        if self.state_sim_debug:
-            logger.record_tabular("test/MSE", np.mean(mses))
 
         if not from_rl:
+            for key, value in self.debug_statistics().items():
+                logger.record_tabular(key, value)
+
+            logger.record_tabular("test/BCE", np.mean(bces))
+            logger.record_tabular("test/KL", np.mean(kles))
+            logger.record_tabular("test/loss", np.mean(losses))
+            logger.record_tabular("beta", beta)
+            if self.state_sim_debug:
+                logger.record_tabular("test/MSE", np.mean(mses))
+
             logger.dump_tabular()
             if save_vae:
                 logger.save_itr_params(epoch, self.model)  # slow...
@@ -358,8 +359,8 @@ class ConvVAE(PyTorchModule):
             self.log_min_variance = None
         else:
             self.log_min_variance = float(np.log(min_variance))
-        self.dist_mu = None
-        self.dist_std = None
+        self.dist_mu = 0
+        self.dist_std = 1 
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
         self.added_fc_size = added_fc_size

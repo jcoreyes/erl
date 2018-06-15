@@ -40,6 +40,8 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             idxs = np.arange(cur_idx, next_idx)
             self._obs[self.observation_key][idxs] = \
                     self.env._encode(self._obs[self.vae_obs_key][idxs])
+            self._obs[self.desired_goal_key][idxs] = \
+                    self.env._encode(self._obs[self.vae_goal_key][idxs])
             self._next_obs[self.observation_key][idxs] = \
                     self.env._encode(self._next_obs[self.vae_obs_key][idxs])
             self._next_obs[self.desired_goal_key][idxs] = \

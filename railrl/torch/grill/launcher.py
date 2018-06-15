@@ -75,7 +75,7 @@ def grill_her_td3_full_experiment(variant):
     grill_variant['env_class'] = env_class
     grill_variant['env_kwargs'] = env_kwargs
     grill_variant['init_camera'] = init_camera
-    if 'vae_paths' not in grill_variant:
+    if 'vae_path' not in grill_variant:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
         )
@@ -83,7 +83,6 @@ def grill_her_td3_full_experiment(variant):
             'vae_progress.csv', relative_to_snapshot_dir=True
         )
         vae = train_vae(train_vae_variant)
-        rdim = train_vae_variant['representation_size']
         vae_file = logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
         logger.remove_tabular_output(
             'vae_progress.csv',
@@ -93,10 +92,7 @@ def grill_her_td3_full_experiment(variant):
             'progress.csv',
             relative_to_snapshot_dir=True,
         )
-        grill_variant['vae_paths'] = {
-            str(rdim): vae_file,
-        }
-        grill_variant['rdim'] = str(rdim)
+        grill_variant['vae_path'] = vae_file
     grill_her_td3_experiment(variant['grill_variant'])
 
 def grill_her_td3_online_vae_full_experiment(variant):
@@ -118,8 +114,9 @@ def grill_her_td3_online_vae_full_experiment(variant):
         logger.add_tabular_output(
             'vae_progress.csv', relative_to_snapshot_dir=True
         )
-        vae, vae_trainer = train_vae(train_vae_variant, return_trainer=True)
-        grill_variant['vae_trainer'] = vae_trainer
+        vae, vae_train_data, vae_test_data = train_vae(train_vae_variant, return_data=True)
+        grill_variant['vae_train_data'] = vae_train_data
+        grill_variant['vae_test_data'] = vae_test_data
         rdim = train_vae_variant['representation_size']
         vae_file = logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
         logger.remove_tabular_output(
@@ -138,7 +135,7 @@ def grill_her_td3_online_vae_full_experiment(variant):
 
 
 
-def train_vae(variant, return_trainer=False):
+def train_vae(variant, return_data=False):
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
     beta = variant["beta"]
@@ -169,8 +166,8 @@ def train_vae(variant, return_trainer=False):
         )
         if should_save_imgs:
             t.dump_samples(epoch)
-    if return_trainer:
-        return m, t
+    if return_data:
+        return m, train_data, test_data
     return m
 
 
@@ -248,8 +245,7 @@ def grill_her_td3_experiment(variant):
 
     render = variant["render"]
 
-    rdim = variant["rdim"]
-    vae_path = variant["vae_paths"][str(rdim)]
+    vae_path = variant["vae_path"]
     reward_params = variant.get("reward_params", dict())
 
     init_camera = variant.get("init_camera", None)
@@ -498,9 +494,14 @@ def grill_her_td3_experiment_online_vae(variant):
         **variant['replay_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+
+    t = ConvVAETrainer(variant['vae_train_data'],
+                       variant['vae_test_data'],
+                       vae,
+                       beta=variant['online_vae_beta'])
     algorithm = OnlineVaeHerTd3(
         vae=vae,
-        vae_trainer=variant['vae_trainer'],
+        vae_trainer=t,
         env=testing_env,
         training_env=training_env,
         qf1=qf1,
@@ -538,3 +539,5 @@ def grill_her_td3_experiment_online_vae(variant):
         dump_video(video_goal_env, policy, filename)
         filename = osp.join(logdir, 'video_final_vae.mp4')
         dump_video(video_vae_env, policy, filename)
+
+
