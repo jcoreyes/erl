@@ -17,17 +17,19 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 def her_td3_experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
-    observation_key = variant.get('observation_key', 'observation')
+    observation_key = variant['observation_key']
+    desired_goal_key = variant['desired_goal_key']
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     replay_buffer = ObsDictRelabelingBuffer(
         env=env,
         observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
     obs_dim = env.observation_space.spaces['observation'].low.size
     action_dim = env.action_space.low.size
     goal_dim = env.observation_space.spaces['desired_goal'].low.size
-    if variant['normalize']:
-        env = NormalizedBoxEnv(env)
     exploration_type = variant['exploration_type']
     if exploration_type == 'ou':
         es = OUStrategy(
@@ -73,6 +75,7 @@ def her_td3_experiment(variant):
         exploration_policy=exploration_policy,
         replay_buffer=replay_buffer,
         observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():

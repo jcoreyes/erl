@@ -61,6 +61,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         self._next_obs = {}
         self.ob_spaces = self.env.observation_space.spaces
         for key in [observation_key, desired_goal_key, achieved_goal_key]:
+            assert key in self.ob_spaces
             if key not in ob_keys_to_save:
                 ob_keys_to_save.append(key)
         for key in ob_keys_to_save:

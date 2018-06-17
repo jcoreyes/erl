@@ -1,5 +1,6 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1
+from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, \
+    init_sawyer_camera_v2, init_sawyer_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place import \
     SawyerPickAndPlaceEnv
 from railrl.envs.mujoco.sawyer_push_and_reach_env import (
@@ -21,26 +22,28 @@ from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
 
 if __name__ == "__main__":
     variant = dict(
-        env_class=SawyerReachXYEnv,
-        # env_class=SawyerPushAndReachXYEnv,
+        # env_class=SawyerReachXYEnv,
+        env_class=SawyerPushAndReachXYEnv,
         # env_class=SawyerPickAndPlaceEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
+            puck_low=(-0.05, 0.6),
+            puck_high=(0.05, 0.7),
         ),
-        init_camera=init_sawyer_camera_v1,
+        init_camera=init_sawyer_camera_v3,
         grill_variant=dict(
             algo_kwargs=dict(
-                num_epochs=100,
+                num_epochs=500,
                 # num_steps_per_epoch=100,
                 # num_steps_per_eval=100,
                 # num_epochs=500,
-                num_steps_per_epoch=100,
+                num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 tau=1e-2,
                 batch_size=128,
                 max_path_length=100,
                 discount=0.99,
-                num_updates_per_env_step=1,
+                num_updates_per_env_step=4,
             ),
             replay_kwargs=dict(
                 max_size=int(1e6),
@@ -105,9 +108,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'multiworld-goalenv-full-grill-her-td3'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'multiworld-goalenv-full-grill-her-td3-push-easy-cam-v3'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
