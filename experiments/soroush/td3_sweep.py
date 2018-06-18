@@ -43,7 +43,7 @@ ENV_PARAMS = {
     'half-cheetah': { # 6 DoF
         'env_class': HalfCheetahEnv,
         'num_epochs': 3000, #4000
-        'reward_scale': [0.1, 1, 100], # [0.1, 1, 3, 5, 10, 100], #[3,5]
+        'reward_scale': [10], #[0.1, 1, 100], # [0.1, 1, 3, 5, 10, 100], #[3,5]
     },
     'inv-double-pendulum': {  # 2 DoF
         'env_class': InvertedDoublePendulumEnv,
@@ -53,12 +53,12 @@ ENV_PARAMS = {
     'ant': {  # 6 DoF
         'env_class': AntEnv,
         'num_epochs': 3000,  # 4000
-        'reward_scale': [0.1, 1, 100], # [0.1, 1, 5, 10, 100],  # [5,10],
+        'reward_scale': [10], #[0.1, 1, 100], # [0.1, 1, 5, 10, 100],  # [5,10],
     },
     'walker': {  # 6 DoF
         'env_class': Walker2dEnv,
         'num_epochs': 3000,  # 4000
-        'reward_scale': [0.1, 1, 3, 5, 10, 100],  # [3,5,10],
+        'reward_scale': [0.1, 1, 10, 100] #[0.1, 1, 3, 5, 10, 100],  # [3,5,10],
     },
 }
 

@@ -217,11 +217,13 @@ def run_experiment(
     if use_gpu:
         image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
         if region == 'us-east-1':
+            avail_zone = config.REGION_TO_GPU_AWS_AVAIL_ZONE.get(region, "us-east-1b")
             mode_kwargs['extra_ec2_instance_kwargs'] = dict(
                 Placement=dict(
-                    AvailabilityZone='us-east-1b',
+                    AvailabilityZone=avail_zone,
                 ),
             )
+        exit(0)
     else:
         image_id = None
     if hasattr(config, "AWS_S3_PATH"):

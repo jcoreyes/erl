@@ -3,7 +3,7 @@ import argparse
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.experiments.soroush.multiworld import her_sac_experiment
+from railrl.launchers.experiments.soroush.multiworld import her_twin_sac_experiment
 import railrl.misc.hyperparameter as hyp
 
 variant = dict(
@@ -15,8 +15,10 @@ variant = dict(
         batch_size=128,
         discount=0.99,
         num_updates_per_env_step=1,
-        soft_target_tau=1.0,  # 1e-2
-        target_update_period=1000,  # 1
+        soft_target_tau=1e-3,  # 1e-2
+        policy_update_period=1,
+        target_update_period=1,  # 1
+        policy_update_minq=True,
         train_policy_with_reparameterization=True,
     ),
     qf_kwargs=dict(
@@ -33,7 +35,7 @@ variant = dict(
         fraction_goals_are_rollout_goals=0.2,
         fraction_resampled_goals_are_env_goals=0.5,
     ),
-    algorithm="HER-SAC",
+    algorithm="HER-Twin-SAC",
     version="normal",
     env_kwargs=dict(
         fix_goal=False,
@@ -57,7 +59,9 @@ env_params = {
     'sawyer-push-and-reach-xy': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEnv],
         'env_kwargs.reward_type': ['puck_distance'],
-        'algo_kwargs.num_epochs': [750],
+        'algo_kwargs.discount': [0.98, 0.99],
+        'algo_kwargs.num_updates_per_env_step': [4],
+        'algo_kwargs.num_epochs': [1000],
         'algo_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],
     },
 }
@@ -79,7 +83,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     args = parse_args()
 
-    exp_prefix = "her-sac-" + args.env
+    exp_prefix = "her-twin-sac-" + args.env
     if len(args.label) > 0:
         exp_prefix = exp_prefix + "-" + args.label
 
@@ -91,7 +95,7 @@ if __name__ == "__main__":
     for _ in range(args.num_seeds):
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             run_experiment(
-                her_sac_experiment,
+                her_twin_sac_experiment,
                 exp_prefix=exp_prefix,
                 mode=args.mode,
                 exp_id=exp_id,
