@@ -4,6 +4,8 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import \
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import (
     SawyerReachXYEnv, SawyerReachXYZEnv)
 from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
+from railrl.data_management.obs_dict_replay_buffer import \
+    ObsDictRelabelingBuffer
 from railrl.launchers.experiments.vitchyr.multiworld import her_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
 
@@ -11,7 +13,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=500,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             max_path_length=100,
@@ -31,7 +33,7 @@ if __name__ == "__main__":
         es_kwargs=dict(
             max_sigma=0.1,
         ),
-        replay_buffer_class=RelabelingReplayBuffer,
+        replay_buffer_class=ObsDictRelabelingBuffer,
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_goals_are_rollout_goals=0.2,
@@ -46,6 +48,8 @@ if __name__ == "__main__":
             # fixed_goal=(0, 0.7),
         ),
         normalize=False,
+        observation_key='observation',
+        desired_goal_key='desired_goal',
     )
     search_space = {
         'env_class': [
@@ -62,20 +66,20 @@ if __name__ == "__main__":
             # 'hand_distance',
             # 'hand_success',
         ],
-        'algo_kwargs.discount': [0.98],
+        'algo_kwargs.discount': [0.98, 0.99],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
     n_seeds = 1
-    # mode = 'local'
-    mode = 'here_no_doodad'
+    mode = 'local'
+    # mode = 'here_no_doodad'
     exp_prefix = 'dev'
 
     n_seeds = 3
-    # mode = 'ec2'
-    exp_prefix = 'multiworld-goal-env-her-td3-new-gripper'
+    mode = 'ec2'
+    exp_prefix = 'multiworld-goal-env-her-td3-new-gripper-sweep-discount'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(

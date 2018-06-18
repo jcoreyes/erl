@@ -103,7 +103,6 @@ def simulate_policy(args):
         policy.train(False)
     paths = []
     while True:
-        paths = []
         paths.append(multitask_rollout(
             env,
             policy,

@@ -72,7 +72,7 @@ def grill_her_td3_full_experiment(variant):
     grill_variant['env_class'] = env_class
     grill_variant['env_kwargs'] = env_kwargs
     grill_variant['init_camera'] = init_camera
-    if 'vae_paths' not in grill_variant:
+    if 'vae_path' not in grill_variant:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
         )
@@ -80,7 +80,6 @@ def grill_her_td3_full_experiment(variant):
             'vae_progress.csv', relative_to_snapshot_dir=True
         )
         vae = train_vae(train_vae_variant)
-        rdim = train_vae_variant['representation_size']
         vae_file = logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
         logger.remove_tabular_output(
             'vae_progress.csv',
@@ -90,10 +89,7 @@ def grill_her_td3_full_experiment(variant):
             'progress.csv',
             relative_to_snapshot_dir=True,
         )
-        grill_variant['vae_paths'] = {
-            str(rdim): vae_file,
-        }
-        grill_variant['rdim'] = str(rdim)
+        grill_variant['vae_path'] = vae_file
     grill_her_td3_experiment(variant['grill_variant'])
 
 
@@ -205,8 +201,7 @@ def grill_her_td3_experiment(variant):
 
     render = variant["render"]
 
-    rdim = variant["rdim"]
-    vae_path = variant["vae_paths"][str(rdim)]
+    vae_path = variant["vae_path"]
     reward_params = variant.get("reward_params", dict())
 
     init_camera = variant.get("init_camera", None)
