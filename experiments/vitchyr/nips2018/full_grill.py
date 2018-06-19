@@ -23,14 +23,14 @@ from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
 if __name__ == "__main__":
     variant = dict(
         # env_class=SawyerReachXYEnv,
-        env_class=SawyerPushAndReachXYEnv,
-        # env_class=SawyerPickAndPlaceEnv,
+        # env_class=SawyerPushAndReachXYEnv,
+        env_class=SawyerPickAndPlaceEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
-            puck_low=(-0.05, 0.6),
-            puck_high=(0.05, 0.7),
+            # puck_low=(-0.05, 0.6),
+            # puck_high=(0.05, 0.7),
         ),
-        init_camera=init_sawyer_camera_v3,
+        init_camera=init_sawyer_camera_v1,
         grill_variant=dict(
             algo_kwargs=dict(
                 num_epochs=500,
@@ -108,9 +108,10 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'multiworld-goalenv-full-grill-her-td3-push-easy-cam-v3'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'multiworld-goalenv-full-grill-her-td3-push-easy-cam-v3'
+    exp_prefix = 'pick-n-place-train-vae'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
