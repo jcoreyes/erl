@@ -47,7 +47,7 @@ class EasyVQLearning(DDPG):
             next_obs,
             next_actions,
         )
-        y_target = rewards + (1. - terminals) * self.discount * v_target
+        y_target = self.reward_scale * rewards + (1. - terminals) * self.discount * v_target
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         v_pred, a_pred = self.qf(obs, actions)

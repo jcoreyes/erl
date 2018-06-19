@@ -113,7 +113,7 @@ class DeepStochasticPolicyGradient(TorchRLAlgorithm):
         Qf operations.
         """
         target_q_values = self.target_vf(next_obs)
-        q_target = rewards + (1. - terminals) * self.discount * target_q_values
+        q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
         q_pred = self.qf(obs, actions)
         bellman_errors = (q_pred - q_target) ** 2

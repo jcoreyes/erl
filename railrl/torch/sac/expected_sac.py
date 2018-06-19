@@ -78,7 +78,7 @@ class ExpectedSAC(SoftActorCritic):
         QF Loss
         """
         target_v_values = self.target_vf(next_obs)
-        q_target = rewards + (1. - terminals) * self.discount * target_v_values
+        q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_v_values
         qf_loss = self.qf_criterion(q_pred, q_target.detach())
 
         """
