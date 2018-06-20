@@ -15,6 +15,7 @@ from railrl.misc import eval_util
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
 
+import copy
 
 class RLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
@@ -152,7 +153,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         if self.collection_mode == 'online-parallel':
             '''
             The caller must have run ray.init() before running this line of code.
-            Not the ideal scenario, but if the caller wants to run multiple experiments 
+            Not the ideal scenario, but if the caller wants to run multiple experiments
             in a loop, the ray.init() call must be place outside the loop in order to
             ensure that the init does not get called more than once (which would result
             in an error)
@@ -177,7 +178,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         if self.collection_mode == 'online':
             self.train_online(start_epoch=start_epoch)
         elif self.collection_mode == 'online-parallel':
-            self.train_parallel(start_epoch=start_epoch)
+            self.train_parallel_2(start_epoch=start_epoch)
         elif self.collection_mode == 'batch':
             self.train_batch(start_epoch=start_epoch)
         elif self.collection_mode == 'offline':
@@ -284,6 +285,61 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             gt.stamp('eval')
             self._end_epoch()
 
+    def train_parallel_2(self, start_epoch=0):
+        assert isinstance(self.training_env, RemoteRolloutEnv), (
+            "Did the sub-class accidentally override the RemoteRolloutEnv?"
+        )
+        self.training_mode(False)
+        n_steps_current_epoch = 0
+        epoch = start_epoch
+        self._start_epoch(epoch)
+        n_eval_steps = 0
+        self._eval_paths = []
+        should_train = True
+        should_eval = False
+        last_policy = None
+        for epoch in range(start_epoch, self.num_epochs):
+            while should_train or \
+                self._n_train_steps_total < self.num_env_steps_per_epoch * epoch:
+                # eval previous epoch
+                """if should_eval:
+                    path = self.training_env.rollout(
+                        last_policy,
+                        use_exploration_strategy=False,
+                        epoch=epoch, # labeled as epoch but evaluating previous epoch
+                    )
+                    if path is not None:
+                        self._eval_paths.append(dict(path))
+                        n_eval_steps += path_length"""
+                if should_train:
+                    path = self.training_env.rollout(
+                        self.exploration_policy,
+                        use_exploration_strategy=True,
+                        epoch=epoch,
+                    )
+                    if path is not None:
+                        path_length = len(path['observations'])
+                        self._handle_path(path)
+                        self.exploration_policy.reset()
+                        n_steps_current_epoch += path_length
+                        self._n_env_steps_total += path_length
+                self._try_to_train()
+                should_eval = should_eval and n_eval_steps < self.num_steps_per_eval
+                should_train = should_train and n_steps_current_epoch < self.num_env_steps_per_epoch
+            if epoch != start_epoch:
+#                print(epoch, start_epoch)
+                self._try_to_eval(epoch)
+            self._end_epoch()
+            self._start_epoch(epoch)
+            should_eval = True
+            should_train = True
+            self._eval_paths = []
+            last_policy = copy.deepcopy(self.exploration_policy)
+#            print(n_eval_steps, n_steps_current_epoch)
+            n_eval_steps = 0
+            n_steps_current_epoch = 0
+            # train current epoch
+
     def train_parallel(self, start_epoch=0):
         assert isinstance(self.training_env, RemoteRolloutEnv), (
             "Did the sub-class accidentally override the RemoteRolloutEnv?"
@@ -295,7 +351,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         n_eval_steps = 0
         self._eval_paths = []
         eval_end = False
-        while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
+#        while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
+        while epoch < self.num_epochs:
             in_eval = n_steps_current_epoch >= self.num_env_steps_per_epoch
             if self.sim_throttle:
                 if epoch == 0 or self._n_env_steps_total // (
@@ -310,16 +367,15 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     use_exploration_strategy=not in_eval,
                 )
             if path is not None:
+                path_length = len(path['observations'])
                 if in_eval:
-                    path_length = len(path['observations'])
                     self._eval_paths.append(dict(path))
                     n_eval_steps += path_length
                     eval_end = n_eval_steps >= self.num_steps_per_eval + self.max_path_length
-
+                else:
+                    self._n_env_steps_total += path_length
+                    n_steps_current_epoch += path_length
                 path['rewards'] = path['rewards'] * self.reward_scale
-                path_length = len(path['observations'])
-                self._n_env_steps_total += path_length
-                n_steps_current_epoch += path_length
                 self._handle_path(path)
                 self.exploration_policy.reset()
             gt.stamp('sample')
@@ -332,7 +388,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._end_epoch()
                 epoch += 1
                 n_steps_current_epoch = 0
-                self._start_epoch(epoch)
+                if epoch < self.num_epochs:
+                    self._start_epoch(epoch)
                 eval_end = False
                 n_eval_steps = 0
                 self._eval_paths = []
@@ -421,7 +478,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics.update(self.eval_statistics)
 
         logger.log("Collecting samples for evaluation")
-        if self.collection_mode == 'online-parallel':
+        if False and self.collection_mode == 'online-parallel':
             test_paths = self._eval_paths
         else:
             test_paths = self.get_eval_paths()

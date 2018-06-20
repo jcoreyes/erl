@@ -5,8 +5,9 @@ from railrl.envs.wrappers import NormalizedBoxEnv, ProxyEnv
 from railrl.samplers.util import rollout
 from railrl.core.serializable import Serializable
 import numpy as np
+import os
 
-@ray.remote
+@ray.remote(num_cpus=1)
 class RayEnv(object):
     """
     Perform rollouts asynchronously using ray.
@@ -20,6 +21,7 @@ class RayEnv(object):
             normalize_env,
             rollout_function,
     ):
+        os.environ["MKL_NUM_THREADS"] = "1"
         self._env = env
         if normalize_env:
             # TODO: support more than just box envs
@@ -138,38 +140,69 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             max_path_length,
             normalize_env,
             rollout_function=rollout,
+            instances=6,
+            dedicated_train=4,
+
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
         ray.register_custom_serializer(type(env), use_pickle=True)
         ray.register_custom_serializer(type(policy), use_pickle=True)
         ray.register_custom_serializer(type(exploration_policy), use_pickle=True)
-        self._ray_env = RayEnv.remote(
+        self._ray_envs = [RayEnv.remote(
             env,
             policy,
             exploration_policy,
             max_path_length,
             normalize_env,
             rollout_function,
-        )
-        self._rollout_promise = None
-    def rollout(self, policy, use_exploration_strategy):
-        if self._rollout_promise is None:
-            policy_params = policy.get_param_values_np()
-            self._rollout_promise = self._ray_env.rollout.remote(
-                policy_params,
-                use_exploration_strategy,
-            )
-            return None
+        ) for _ in range(instances)]
+        self._eval_promises = []
+        self._train_promises = []
 
+        self.free_envs = set(self._ray_envs)
+        self.promise_to_env = {}
+        self.num_instances = instances
+
+    def rollout(self, policy, use_exploration_strategy, epoch):
+        if len(self._eval_promises) + len(self._train_promises) < self.num_instances:
+            self._create_promise(policy, use_exploration_strategy, epoch)
         # Check if remote path has been collected.
-        paths, _ = ray.wait([self._rollout_promise], timeout=0)
-        if len(paths):
-            policy_params = policy.get_param_values_np()
-            self._rollout_promise = self._ray_env.rollout.remote(
-                policy_params,
-                use_exploration_strategy,
-            )
-            return ray.get(paths[0])
-
+        paths, _ = ray.wait(self.promise_list(use_exploration_strategy), timeout=0)
+        for path in paths:
+            _, path_epoch, path_exploration = self.promise_to_env[path]
+            self._free(path)
+            if path_epoch != epoch:
+                continue
+            self._create_promise(policy, use_exploration_strategy, epoch)
+            return ray.get(path)
         return None
+
+    def _create_promise(self, policy, use_exploration_strategy, epoch):
+        if len(self.promise_list(use_exploration_strategy)) > 1:
+            return
+        policy_params = policy.get_param_values_np()
+
+        free_env = self._get_free_env()
+        promise = free_env.rollout.remote(
+            policy_params,
+            use_exploration_strategy,
+        )
+        self.promise_to_env[promise] = (free_env, epoch, use_exploration_strategy)
+        self.promise_list(use_exploration_strategy).append(promise)
+        return promise
+
+    def _get_free_env(self):
+        return self.free_envs.pop()
+
+    def _free(self, promise_id):
+        env_id, _, explore = self.promise_to_env[promise_id]
+        assert env_id not in self.free_envs
+        self.free_envs.add(env_id)
+        del self.promise_to_env[promise_id]
+        self.promise_list(explore).remove(promise_id)
+
+    def promise_list(self, train_type):
+        if train_type:
+            return self._train_promises
+        return self._eval_promises
