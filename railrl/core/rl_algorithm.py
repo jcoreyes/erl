@@ -299,10 +299,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         should_eval = False
         last_policy = None
         for epoch in range(start_epoch, self.num_epochs):
-            while should_train or \
-                self._n_train_steps_total < self.num_env_steps_per_epoch * epoch:
+            while should_train or should_eval:
                 # eval previous epoch
-                """if should_eval:
+                if should_eval:
                     path = self.training_env.rollout(
                         last_policy,
                         use_exploration_strategy=False,
@@ -310,7 +309,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     )
                     if path is not None:
                         self._eval_paths.append(dict(path))
-                        n_eval_steps += path_length"""
+                        n_eval_steps += path_length
                 if should_train:
                     path = self.training_env.rollout(
                         self.exploration_policy,
@@ -327,7 +326,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 should_eval = should_eval and n_eval_steps < self.num_steps_per_eval
                 should_train = should_train and n_steps_current_epoch < self.num_env_steps_per_epoch
             if epoch != start_epoch:
-#                print(epoch, start_epoch)
                 self._try_to_eval(epoch)
             self._end_epoch()
             self._start_epoch(epoch)
@@ -478,7 +476,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics.update(self.eval_statistics)
 
         logger.log("Collecting samples for evaluation")
-        if False and self.collection_mode == 'online-parallel':
+        if self.collection_mode == 'online-parallel':
             test_paths = self._eval_paths
         else:
             test_paths = self.get_eval_paths()
