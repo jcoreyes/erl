@@ -198,7 +198,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 save_itrs=True,
         ):
             self._start_epoch(epoch)
-            for _ in range(self.num_env_steps_per_epoch):
+            for step in range(self.num_env_steps_per_epoch):
                 action, agent_info = self._get_action_and_info(
                     observation,
                 )
@@ -220,6 +220,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     agent_info=agent_info,
                     env_info=env_info,
                 )
+                self._post_step(step)
                 if terminal or len(
                         self._current_path_builder) >= self.max_path_length:
                     self._handle_rollout_ending()
@@ -236,6 +237,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
             self._try_to_eval(epoch)
             gt.stamp('eval')
+            self._post_epoch(epoch)
             self._end_epoch()
 
     def train_batch(self, start_epoch):
@@ -492,6 +494,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         ))
         logger.log("Started Training: {0}".format(self._can_train()))
         logger.pop_prefix()
+
+    def _post_epoch(self, epoch):
+        pass
+
+    def _post_step(self, step):
+        pass
 
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()

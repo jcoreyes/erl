@@ -82,6 +82,13 @@ class HER(TorchRLAlgorithm):
             goals
         ), dim=1)
         return batch
+        # Assume that images are normalized in get_batch rather than in the
+        # replay buffer to save memory. Everything starting with 'image' is
+        # assumed to be an image.
+        for key, val in batch.items():
+            if key.startswith('image'):
+                batch[key] = normalize_image(val)
+        return batch
 
     def _handle_rollout_ending(self):
         self._n_rollouts_total += 1

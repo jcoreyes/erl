@@ -78,7 +78,23 @@ class TD3(TorchRLAlgorithm):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
+        self._train_given_data(
+            rewards,
+            terminals,
+            obs,
+            actions,
+            next_obs,
+        )
 
+    def _train_given_data(
+        self,
+        rewards,
+        terminals,
+        obs,
+        actions,
+        next_obs,
+        logger_prefix="",
+    ):
         """
         Critic operations.
         """
@@ -141,38 +157,42 @@ class TD3(TorchRLAlgorithm):
                 q_output = self.qf1(obs, policy_actions)
                 policy_loss = - q_output.mean()
 
-            self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
-            self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
-            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
+            self.eval_statistics[logger_prefix + 'QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
+            self.eval_statistics[logger_prefix + 'QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
+            self.eval_statistics[logger_prefix + 'Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                'Q1 Predictions',
+                logger_prefix + 'Q1 Predictions',
                 ptu.get_numpy(q1_pred),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                'Q2 Predictions',
+                logger_prefix + 'Q2 Predictions',
                 ptu.get_numpy(q2_pred),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                'Q Targets',
+                logger_prefix + 'Q Targets',
                 ptu.get_numpy(q_target),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                'Bellman Errors 1',
+                logger_prefix + 'Bellman Errors 1',
                 ptu.get_numpy(bellman_errors_1),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                'Bellman Errors 2',
+                logger_prefix + 'Bellman Errors 2',
                 ptu.get_numpy(bellman_errors_2),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                'Policy Action',
+                logger_prefix + 'Policy Action',
                 ptu.get_numpy(policy_actions),
             ))
 
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)
+        self.update_epoch_snapshot(snapshot)
+        return snapshot
+
+    def update_epoch_snapshot(self, snapshot):
         snapshot.update(
             qf1=self.qf1,
             qf2=self.qf2,
@@ -181,7 +201,6 @@ class TD3(TorchRLAlgorithm):
             target_policy=self.target_policy,
             exploration_policy=self.exploration_policy,
         )
-        return snapshot
 
     @property
     def networks(self):
