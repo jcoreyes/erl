@@ -2,7 +2,8 @@ import argparse
 import math
 
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1
+from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, \
+    init_sawyer_camera_v2, init_sawyer_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import (
     SawyerReachXYEnv, SawyerReachXYZEnv
 )
@@ -15,8 +16,10 @@ from railrl.launchers.experiments.soroush.multiworld_grill import grill_her_twin
 variant = dict(
     env_kwargs=dict(
         hide_goal_markers=True,
+        puck_low=(-0.05, 0.6),
+        puck_high=(0.05, 0.7),
     ),
-    init_camera=init_sawyer_camera_v1,
+    init_camera=init_sawyer_camera_v3,
     grill_variant=dict(
         algo_kwargs=dict(
             num_epochs=500,
@@ -28,7 +31,6 @@ variant = dict(
             batch_size=128,
             max_path_length=100,
             discount=0.99,
-            min_num_steps_before_training=4000,
             num_updates_per_env_step=4, #4
             soft_target_tau=1e-3,
             target_update_period=1,
@@ -87,7 +89,7 @@ env_params = {
     'sawyer-push-and-reach-xy': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEnv],
         # 'env_kwargs.reward_type': ['puck_distance'],
-        'grill_variant.algo_kwargs.discount': [0.98, 0.99],
+        'grill_variant.algo_kwargs.discount': [0.98],
         'grill_variant.algo_kwargs.num_epochs': [1000],
         'grill_variant.algo_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],
     },

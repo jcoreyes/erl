@@ -53,8 +53,9 @@ env_params = {
     },
     'sawyer-push-and-reach-xy': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEnv],
-        'env_kwargs.reward_type': ['puck_distance'],
-        'algo_kwargs.discount': [0.98, 0.99],
+        'env_kwargs.reward_type': ['hand_and_puck_distance'],
+        'exploration_type': ['epsilon', 'ou', 'gaussian'],
+        'algo_kwargs.discount': [0.98],
         'algo_kwargs.num_updates_per_env_step': [4],
         'algo_kwargs.num_epochs': [1000],
         'algo_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],

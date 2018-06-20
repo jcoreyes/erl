@@ -223,7 +223,6 @@ def run_experiment(
                     AvailabilityZone=avail_zone,
                 ),
             )
-        exit(0)
     else:
         image_id = None
     if hasattr(config, "AWS_S3_PATH"):
