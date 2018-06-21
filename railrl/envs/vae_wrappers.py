@@ -248,7 +248,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         #     ))
         return statistics
 
-    def compute_rewards(self, achieved_goals, desired_goals, info):
+    def compute_rewards(self, actions, obs):
+        achieved_goals = obs['latent_achieved_goal']
+        desired_goals = obs['latent_desired_goal']
         # TODO: implement log_prob/mdist
         if self.reward_type == 'latent_distance':
             dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
@@ -272,12 +274,3 @@ class VAEWrappedEnv(ProxyEnv, Env):
         # elif self.reward_type == "sparse":
         #     reward = 0 if mdist < self.epsilon else -1
         # return reward
-
-    def compute_rewards_v2(
-            self,
-            observations,
-            actions,
-            next_observations,
-    ):
-        # TODO implement to support changing this easily
-        raise NotImplementedError

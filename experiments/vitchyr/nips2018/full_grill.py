@@ -3,6 +3,7 @@ from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, \
     init_sawyer_camera_v2, init_sawyer_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place import \
     SawyerPickAndPlaceEnv
+from multiworld.envs.pygame.point2d import Point2DEnv
 from railrl.envs.mujoco.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEasyEnv
 )
@@ -25,6 +26,7 @@ if __name__ == "__main__":
         # env_class=SawyerReachXYEnv,
         # env_class=SawyerPushAndReachXYEnv,
         env_class=SawyerPickAndPlaceEnv,
+        # env_class=Point2DEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
             # puck_low=(-0.05, 0.6),
@@ -66,16 +68,20 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             representation_size=16,
             beta=5.0,
-            num_epochs=500,
+            num_epochs=1,
             generate_vae_dataset_kwargs=dict(
-                N=1000,
+                N=100,
                 oracle_dataset=True,
+                num_channels=3,
                 # show=True,
                 # use_cached=False,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
                 lr=1e-3,
+            ),
+            vae_kwargs=dict(
+                input_channels=3,
             ),
             beta_schedule_kwargs=dict(
                 x_values=[0, 100, 200, 500],
