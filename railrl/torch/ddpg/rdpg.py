@@ -61,7 +61,7 @@ class Rdpg(DDPG):
 
         next_actions, _ = self.target_policy(next_obs)
         target_q_values = self.target_qf(next_obs, next_actions)
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        y_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_predicted = self.qf(obs, actions)

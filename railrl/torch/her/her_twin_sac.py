@@ -4,10 +4,10 @@ from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer, \
 from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
 from railrl.torch.her.her import HER
-from railrl.torch.sac.sac import SoftActorCritic
+from railrl.torch.sac.twin_sac import TwinSAC
 
 
-class HerSac(HER, SoftActorCritic):
+class HerTwinSac(HER, TwinSAC):
     def __init__(
             self,
             *args,
@@ -20,7 +20,7 @@ class HerSac(HER, SoftActorCritic):
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
         )
-        SoftActorCritic.__init__(self, *args, **kwargs)
+        TwinSAC.__init__(self, *args, **kwargs)
         assert isinstance(
             self.replay_buffer, SimpleHerReplayBuffer
         ) or isinstance(

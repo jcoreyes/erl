@@ -66,7 +66,7 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
         actions = batch['actions']
         next_obs = batch['next_observations']
         goals = batch['training_goals']
-        rewards = self._compute_scaled_rewards_np(
+        rewards = self._compute_rewards_np(
             batch, obs, actions, next_obs, goals
         )
         terminals = batch['terminals']

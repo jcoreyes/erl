@@ -467,6 +467,7 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
             action,
             next_observation,
             goal,
+            env_info=None
     ):
         hand_pos = next_observation[6:8]
         cylinder_pos = next_observation[8:10]
@@ -647,6 +648,7 @@ class FullPusher2DEnv(MultitaskPusher2DEnv):
             action,
             next_observation,
             goal,
+            env_info=None
     ):
         reached_goal = next_observation[self.goal_slice]
         dist = np.linalg.norm(reached_goal - goal)

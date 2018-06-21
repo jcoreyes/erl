@@ -21,6 +21,7 @@ if __name__ == "__main__":
             discount=0.99,
             replay_buffer_size=int(1E6),
             num_updates_per_env_step=4,
+            desired_goal_key='desired_goal'
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -53,9 +54,9 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # SawyerPushAndReachXYZEnv,
-            SawyerPushAndReachXYEnv,
+            # SawyerPushAndReachXYEnv,
             # SawyerReachXYZEnv,
-            # SawyerReachXYEnv,
+            SawyerReachXYEnv,
         ],
         'env_kwargs.reward_type': [
             # 'hand_and_puck_distance',

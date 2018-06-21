@@ -121,7 +121,7 @@ class DistributionalDDPG(DDPG):
         rewards_batch = rewards.repeat(1, self.num_bins)
         terminals_batch = terminals.repeat(1, self.num_bins)
         projected_returns = (
-            rewards_batch
+            self.reward_scale * rewards_batch
             + (1. - terminals_batch) * self.discount *
             self.create_atom_values(batch_size)
         )
@@ -156,7 +156,7 @@ class DistributionalDDPG(DDPG):
         # for j in range(self.num_bins):
         #     import ipdb; ipdb.set_trace()
         #     atom_value = self.atom_values_batch[:, j:j+1]
-        #     projected_returns = rewards + (1. - terminals) * self.discount * (
+        #     projected_returns = self.reward_scale * rewards + (1. - terminals) * self.discount * (
         #         atom_value
         #     )
         #     bin_values = (projected_returns - self.returns_min) / self.bin_width

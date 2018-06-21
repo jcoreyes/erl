@@ -55,6 +55,7 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
             action,
             next_observation,
             goal,
+            env_info=None
     ):
         dist = np.linalg.norm(next_observation - goal)
         if self.use_sparse_rewards:

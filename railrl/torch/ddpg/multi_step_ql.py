@@ -77,12 +77,12 @@ class MultiStepDdpg(DDPG):
             next_obs,
             next_actions,
         )
-        # y_target = rewards + (1. - terminals) * self.discount * v_target
+        # y_target = self.reward_scale * rewards + (1. - terminals) * self.discount * v_target
         batch_size = q_target.size()[0]
         discount_factors = self.discount_factors.repeat(
             batch_size // self.subtraj_length, 1,
         )
-        y_target = returns + (1. - terminals) * discount_factors * q_target
+        y_target = self.reward_scale * returns + (1. - terminals) * discount_factors * q_target
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions)
