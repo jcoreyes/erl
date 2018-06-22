@@ -166,8 +166,8 @@ def generate_vae_dataset(
                 goal = env.sample_goal()
                 env.set_to_goal(goal)
             else:
+                env.reset()
                 for _ in range(n_random_steps):
-                    env.reset()
                     obs = env.step(env.action_space.sample())[0]
             obs = env.step(env.action_space.sample())[0]
             img = obs['image_observation']

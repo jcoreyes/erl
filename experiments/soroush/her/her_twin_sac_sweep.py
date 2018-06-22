@@ -3,7 +3,7 @@ import argparse
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.experiments.soroush.multiworld import her_twin_sac_experiment
+from railrl.launchers.experiments.soroush.multiworld_her import her_twin_sac_experiment
 import railrl.misc.hyperparameter as hyp
 
 variant = dict(
