@@ -70,7 +70,7 @@ def grill_her_td3_full_experiment(variant):
     grill_variant = variant['grill_variant']
     env_class = variant['env_class']
     env_kwargs = variant['env_kwargs']
-    init_camera = variant['init_camera']
+    init_camera = variant.get('init_camera', None)
     train_vae_variant['generate_vae_dataset_kwargs']['env_class'] = env_class
     train_vae_variant['generate_vae_dataset_kwargs']['env_kwargs'] = env_kwargs
     train_vae_variant['generate_vae_dataset_kwargs']['init_camera'] = init_camera
@@ -94,8 +94,9 @@ def grill_her_td3_full_experiment(variant):
             'progress.csv',
             relative_to_snapshot_dir=True,
         )
-        grill_variant['vae_path'] = vae_file
+        grill_variant['vae_path'] = vae  # just pass the VAE directly
     grill_her_td3_experiment(variant['grill_variant'])
+
 
 def grill_her_td3_online_vae_full_experiment(variant):
     train_vae_variant = variant['train_vae_variant']
@@ -139,7 +140,6 @@ def grill_her_td3_online_vae_full_experiment(variant):
         grill_her_td3_experiment_online_vae(variant['grill_variant'])
 
 
-
 def train_vae(variant, return_data=False):
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
@@ -154,7 +154,7 @@ def train_vae(variant, return_data=False):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = ConvVAE(representation_size, input_channels=3)
+    m = ConvVAE(representation_size, **variant['vae_kwargs'])
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -182,8 +182,9 @@ def generate_vae_dataset(
         test_p=0.9,
         use_cached=True,
         imsize=84,
+        num_channels=1,
         show=False,
-        init_camera=sawyer_init_camera_zoomed_in,
+        init_camera=None,
         dataset_path=None,
         env_kwargs=None,
         oracle_dataset=False,
@@ -194,7 +195,7 @@ def generate_vae_dataset(
     filename = "/tmp/{}_{}_{}_oracle{}.npy".format(
         env_class.__name__,
         str(N),
-        init_camera.__name__,
+        init_camera.__name__ if init_camera else '',
         oracle_dataset,
     )
     info = {}
@@ -218,7 +219,7 @@ def generate_vae_dataset(
         env.reset()
         info['env'] = env
 
-        dataset = np.zeros((N, imsize * imsize * 3))
+        dataset = np.zeros((N, imsize * imsize * num_channels))
         for i in range(N):
             if oracle_dataset:
                 goal = env.sample_goal()
@@ -254,16 +255,11 @@ def grill_her_td3_experiment(variant):
     reward_params = variant.get("reward_params", dict())
 
     init_camera = variant.get("init_camera", None)
-    if init_camera is None:
-        camera_name = "topview"
-    else:
-        camera_name = None
 
     env = ImageEnv(
         env,
         84,
         init_camera=init_camera,
-        camera_name=camera_name,
         transpose=True,
         normalize=True,
     )
@@ -400,16 +396,11 @@ def grill_her_td3_experiment_online_vae(variant):
     vae = load_vae(vae_path)
 
     init_camera = variant.get("init_camera", None)
-    if init_camera is None:
-        camera_name = "topview"
-    else:
-        camera_name = None
 
     env = ImageEnv(
         env,
         84,
         init_camera=init_camera,
-        camera_name=camera_name,
         transpose=True,
         normalize=True,
     )
@@ -558,16 +549,11 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
     vae = load_vae(vae_path)
 
     init_camera = variant.get("init_camera", None)
-    if init_camera is None:
-        camera_name = "topview"
-    else:
-        camera_name = None
 
     env = ImageEnv(
         env,
         84,
         init_camera=init_camera,
-        camera_name=camera_name,
         transpose=True,
         normalize=True,
     )
