@@ -15,6 +15,8 @@ class MultigoalSimplePathSampler(object):
             cycle_taus_for_rollout=True,
             render=False,
             env_samples_goal_on_reset=False,
+            observation_key=None,
+            desired_goal_key=None,
     ):
         self.env = env
         self.policy = policy
@@ -25,6 +27,8 @@ class MultigoalSimplePathSampler(object):
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
         self.render = render
         self.env_samples_goal_on_reset = env_samples_goal_on_reset
+        self.observation_key = observation_key
+        self.desired_goal_key = desired_goal_key
 
     def obtain_samples(self):
         paths = []
@@ -44,6 +48,8 @@ class MultigoalSimplePathSampler(object):
                 cycle_tau=self.cycle_taus_for_rollout,
                 animated=self.render,
                 env_samples_goal_on_reset=self.env_samples_goal_on_reset,
+                observation_key=self.observation_key,
+                desired_goal_key=self.desired_goal_key,
             )
             paths.append(path)
         return paths
@@ -86,7 +92,6 @@ def debug(env, obs, agent_info):
     plt.draw()
     plt.pause(0.001)
 
-
 def multitask_rollout(
         env,
         agent: UniversalPolicy,
@@ -98,6 +103,8 @@ def multitask_rollout(
         cycle_tau=False,
         get_action_kwargs=None,
         env_samples_goal_on_reset=False,
+        observation_key=None,
+        desired_goal_key=None,
 ):
     if get_action_kwargs is None:
         get_action_kwargs = {}
@@ -109,7 +116,6 @@ def multitask_rollout(
     agent_infos = []
     env_infos = []
     taus = []
-
     agent.reset()
     path_length = 0
     if animated:
@@ -124,9 +130,16 @@ def multitask_rollout(
             goal = env.sample_goal_for_rollout()
         env.set_goal(goal)
         o = env.reset()
-    assert (env.get_goal() == goal).all()
+    # assert (env.get_goal() == goal).all()
     while path_length < max_path_length:
-        a, agent_info = agent.get_action(o, goal, tau, **get_action_kwargs)
+        agent_o = o
+        agent_goal = goal
+        if observation_key:
+            agent_o = agent_o[observation_key]
+        if desired_goal_key:
+            agent_goal = agent_goal[desired_goal_key]
+
+        a, agent_info = agent.get_action(agent_o, agent_goal, tau, **get_action_kwargs)
         if animated:
             env.render()
         next_o, r, d, env_info = env.step(a)

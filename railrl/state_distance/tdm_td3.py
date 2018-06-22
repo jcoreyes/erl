@@ -99,16 +99,16 @@ class TdmTd3(TemporalDifferenceModel, TD3):
             num_steps_left=num_steps_left,
         )
 
-        if self.reward_type == 'distance' and self.tdm_normalizer:
-            q1_pred = self.tdm_normalizer.distance_normalizer.normalize_scale(
-                q1_pred
-            )
-            q2_pred = self.tdm_normalizer.distance_normalizer.normalize_scale(
-                q1_pred
-            )
-            q_target = self.tdm_normalizer.distance_normalizer.normalize_scale(
-                q_target
-            )
+        # if self.reward_type == 'distance' and self.tdm_normalizer:
+        #     q1_pred = self.tdm_normalizer.distance_normalizer.normalize_scale(
+        #         q1_pred
+        #     )
+        #     q2_pred = self.tdm_normalizer.distance_normalizer.normalize_scale(
+        #         q1_pred
+        #     )
+        #     q_target = self.tdm_normalizer.distance_normalizer.normalize_scale(
+        #         q_target
+        #     )
         bellman_errors_1 = (q1_pred - q_target) ** 2
         bellman_errors_2 = (q2_pred - q_target) ** 2
         qf1_loss = bellman_errors_1.mean()
@@ -193,7 +193,7 @@ class TdmTd3(TemporalDifferenceModel, TD3):
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)
         snapshot.update(
-            qf=self.qf1,
+            qf1=self.qf1,
             qf2=self.qf2,
             policy=self.eval_policy,
             trained_policy=self.policy,
