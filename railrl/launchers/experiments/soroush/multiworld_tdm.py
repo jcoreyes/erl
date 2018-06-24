@@ -4,6 +4,7 @@ import railrl.torch.pytorch_util as ptu
 from multiworld.core.flat_goal_env import FlatGoalEnv
 from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
+from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
 from railrl.envs.multitask.multitask_env import \
     MultitaskEnvToSilentMultitaskEnv, MultiTaskHistoryEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
@@ -56,9 +57,13 @@ def tdm_td3_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
-    obs_dim = env.observation_space.spaces['observation'].low.size
-    action_dim = env.action_space.low.size
-    goal_dim = env.observation_space.spaces['desired_goal'].low.size
+    multiworld_env = variant.get('multiworld_env', True)
+    if multiworld_env is True:
+        obs_dim = env.observation_space.spaces['observation'].low.size
+        action_dim = env.action_space.low.size
+        goal_dim = env.observation_space.spaces['desired_goal'].low.size
+    else:
+        obs_dim = action_dim = goal_dim = None
     vectorized = variant['algo_kwargs']['tdm_kwargs'].get('vectorized', True)
     qf1 = TdmQf(
         env=env,
@@ -90,17 +95,26 @@ def tdm_td3_experiment(variant):
 
     relabeling_env = pickle.loads(pickle.dumps(env))
 
-    observation_key = variant.get('observation_key', 'observation')
-    desired_goal_key = variant.get('desired_goal_key', 'desired_goal')
-    replay_buffer = ObsDictRelabelingBuffer(
-        env=relabeling_env,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        **variant['replay_buffer_kwargs']
-    )
+    algo_kwargs = variant['algo_kwargs']
+
+    if multiworld_env is True:
+        observation_key = variant.get('observation_key', 'observation')
+        desired_goal_key = variant.get('desired_goal_key', 'desired_goal')
+        replay_buffer = ObsDictRelabelingBuffer(
+            env=relabeling_env,
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+            **variant['replay_buffer_kwargs']
+        )
+        algo_kwargs['tdm_kwargs']['observation_key'] = observation_key
+        algo_kwargs['tdm_kwargs']['desired_goal_key'] = desired_goal_key
+    else:
+        replay_buffer = RelabelingReplayBuffer(
+            env=relabeling_env,
+            **variant['replay_buffer_kwargs']
+        )
 
     # qf_criterion = variant['qf_criterion_class']()
-    algo_kwargs = variant['algo_kwargs']
     # algo_kwargs['td3_kwargs']['qf_criterion'] = qf_criterion
     algo_kwargs['tdm_kwargs']['env_samples_goal_on_reset'] = True
     algo_kwargs['td3_kwargs']['training_env'] = env
@@ -109,9 +123,6 @@ def tdm_td3_experiment(variant):
     else:
         tau_schedule = None
     algo_kwargs['tdm_kwargs']['epoch_max_tau_schedule'] = tau_schedule
-
-    algo_kwargs['tdm_kwargs']['observation_key'] = observation_key
-    algo_kwargs['tdm_kwargs']['desired_goal_key'] = desired_goal_key
 
     algorithm = TdmTd3(
         env,

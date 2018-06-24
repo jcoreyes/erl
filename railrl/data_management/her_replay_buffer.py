@@ -551,11 +551,205 @@ class SimpleHerReplayBuffer(EnvReplayBuffer):
 
 
 
+# class RelabelingReplayBuffer(EnvReplayBuffer):
+#     """
+#     Save goals from the same trajectory into the replay buffer.
+#     Only add_path is implemented.
+#
+#     Implementation details:
+#      - Every sample from [0, self._size] will be valid.
+#     """
+#     def __init__(
+#             self,
+#             max_size,
+#             env,
+#             fraction_goals_are_rollout_goals=1.0, # default, no HER
+#             fraction_resampled_goals_are_env_goals=0.0, # this many goals are just sampled from environment directly
+#             resampling_strategy='uniform', # 'uniform' is the HER 'future' strategy
+#             truncated_geom_factor=1.,
+#             desired_goal_key='desired_goal',
+#             achieved_goal_key='achieved_goal',
+#             **kwargs
+#     ):
+#         """
+#         :param resampling_strategy: How to resample states from the rest of
+#         the trajectory?
+#         - 'uniform': Sample them uniformly
+#         - 'truncated_geometric': Used a truncated geometric distribution
+#         """
+#         assert resampling_strategy in [
+#             'uniform',
+#             'truncated_geometric',
+#         ]
+#         super().__init__(max_size, env, **kwargs)
+#         self._goals = np.zeros((max_size, self.env.goal_space.low.size))
+#         self._num_steps_left = np.zeros((max_size, 1))
+#         self.fraction_goals_are_rollout_goals = fraction_goals_are_rollout_goals
+#         self.fraction_resampled_goals_are_env_goals = fraction_resampled_goals_are_env_goals
+#         self.truncated_geom_factor = float(truncated_geom_factor)
+#         self.resampling_strategy = resampling_strategy
+#         self.desired_goal_key = desired_goal_key
+#         self.achieved_goal_key = achieved_goal_key
+#
+#         # Let j be any index in self._idx_to_future_obs_idx[i]
+#         # Then self._next_obs[j] is a valid next observation for observation i
+#         self._idx_to_future_obs_idx = [None] * max_size
+#
+#     def add_sample(self, observation, action, reward, terminal,
+#                    next_observation, **kwargs):
+#         raise NotImplementedError("Only use add_path")
+#
+#     def add_path(self, path):
+#         obs = path["observations"]
+#         actions = path["actions"]
+#         rewards = path["rewards"]
+#         next_obs = path["next_observations"]
+#         terminals = path["terminals"]
+#         goals = path["goals"]
+#         num_steps_left = path["rewards"].copy() # path["num_steps_left"] # irrelevant for non-TDM
+#         env_infos = np.array(path["env_infos"])
+#         path_len = len(rewards)
+#
+#         actions = flatten_n(actions)
+#         obs = flatten_n(obs)
+#         next_obs = flatten_n(next_obs)
+#         env_infos = flatten_env_info(env_infos, self._env_info_keys)
+#
+#         if self._top + path_len >= self._max_replay_buffer_size:
+#             num_pre_wrap_steps = self._max_replay_buffer_size - self._top
+#             # numpy slice
+#             pre_wrap_buffer_slice = np.s_[
+#                 self._top:self._top + num_pre_wrap_steps, :
+#             ]
+#             pre_wrap_path_slice = np.s_[0:num_pre_wrap_steps, :]
+#
+#             num_post_wrap_steps = path_len - num_pre_wrap_steps
+#             post_wrap_buffer_slice = slice(0, num_post_wrap_steps)
+#             post_wrap_path_slice = slice(num_pre_wrap_steps, path_len)
+#             for buffer_slice, path_slice in [
+#                 (pre_wrap_buffer_slice, pre_wrap_path_slice),
+#                 (post_wrap_buffer_slice, post_wrap_path_slice),
+#             ]:
+#                 self._observations[buffer_slice] = obs[path_slice]
+#                 self._actions[buffer_slice] = actions[path_slice]
+#                 self._rewards[buffer_slice] = rewards[path_slice]
+#                 self._next_obs[buffer_slice] = next_obs[path_slice]
+#                 self._terminals[buffer_slice] = terminals[path_slice]
+#                 self._goals[buffer_slice] = goals[path_slice]
+#                 self._num_steps_left[buffer_slice] = num_steps_left[path_slice]
+#                 for key in self._env_info_keys:
+#                     self._env_infos[key][buffer_slice] = env_infos[key][path_slice]
+#             # Pointers from before the wrap
+#             for i in range(self._top, self._max_replay_buffer_size):
+#                 self._idx_to_future_obs_idx[i] = np.hstack((
+#                     # Pre-wrap indices
+#                     np.arange(i, self._max_replay_buffer_size),
+#                     # Post-wrap indices
+#                     np.arange(0, num_post_wrap_steps)
+#                 ))
+#             # Pointers after the wrap
+#             for i in range(0, num_post_wrap_steps):
+#                 self._idx_to_future_obs_idx[i] = np.arange(
+#                     i,
+#                     num_post_wrap_steps,
+#                 )
+#         else:
+#             slc = np.s_[self._top:self._top + path_len, :]
+#             self._observations[slc] = obs
+#             self._actions[slc] = actions
+#             self._rewards[slc] = rewards
+#             self._next_obs[slc] = next_obs
+#             self._terminals[slc] = terminals
+#             self._goals[slc] = goals
+#             self._num_steps_left[slc] = num_steps_left
+#             for key in self._env_info_keys:
+#                 self._env_infos[key][slc] = env_infos[key]
+#             for i in range(self._top, self._top + path_len):
+#                 self._idx_to_future_obs_idx[i] = np.arange(
+#                     i, self._top + path_len
+#                 )
+#         self._top = (self._top + path_len) % self._max_replay_buffer_size
+#         self._size = min(self._size + path_len, self._max_replay_buffer_size)
+#
+#     def _sample_indices(self, batch_size):
+#         return np.random.randint(0, self._size, batch_size)
+#
+#     def random_batch(self, batch_size):
+#         indices = self._sample_indices(batch_size)
+#         future_obs_idxs = []
+#         for i in indices:
+#             possible_future_obs_idxs = self._idx_to_future_obs_idx[i]
+#             # This is generally faster than random.choice. Makes you wonder what
+#             # random.choice is doing
+#             num_options = len(possible_future_obs_idxs)
+#             if num_options == 1:
+#                 next_obs_i = 0
+#             else:
+#                 if self.resampling_strategy == 'uniform':
+#                     next_obs_i = int(np.random.randint(0, num_options))
+#                 elif self.resampling_strategy == 'truncated_geometric':
+#                     next_obs_i = int(truncated_geometric(
+#                         p=self.truncated_geom_factor/num_options,
+#                         truncate_threshold=num_options-1,
+#                         size=1,
+#                         new_value=0
+#                     ))
+#                 else:
+#                     raise ValueError("Invalid resampling strategy: {}".format(
+#                         self.resampling_strategy
+#                     ))
+#             future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
+#         future_obs_idxs = np.array(future_obs_idxs)
+#         resampled_goals = self._env_infos[self.achieved_goal_key][
+#             future_obs_idxs]
+#         num_goals_are_from_rollout = int(
+#             batch_size * self.fraction_goals_are_rollout_goals
+#         )
+#         if num_goals_are_from_rollout > 0:
+#             resampled_goals[:num_goals_are_from_rollout] = self._goals[
+#                 indices[:num_goals_are_from_rollout]
+#             ]
+#         num_goals_are_env_resampled = int(
+#             batch_size * (1 - self.fraction_goals_are_rollout_goals)
+#             * self.fraction_resampled_goals_are_env_goals
+#         )
+#         if num_goals_are_env_resampled > 0:
+#             resampled_goals[
+#                 num_goals_are_from_rollout:
+#                 num_goals_are_env_resampled+num_goals_are_from_rollout
+#             ] = self.env.sample_goals(num_goals_are_env_resampled)
+#         new_obs = self._observations[indices]
+#         new_next_obs = self._next_obs[indices]
+#         new_actions = self._actions[indices]
+#         batch_env_info = self.batch_env_info_dict(indices)
+#         batch_env_info[self.desired_goal_key] = resampled_goals
+#         new_rewards = self.env.compute_rewards(
+#             new_obs,
+#             new_actions,
+#             new_next_obs,
+#             batch_env_info,
+#         ).reshape(-1, 1)
+#
+#         batch = {
+#             'observations': new_obs,
+#             'actions': new_actions,
+#             'rewards': new_rewards,
+#             'terminals': self._terminals[indices],
+#             'next_observations': new_next_obs,
+#             'goals_used_for_rollout': self._goals[indices],
+#             'resampled_goals': resampled_goals,
+#             'num_steps_left': self._num_steps_left[indices],
+#             'indices': np.array(indices).reshape(-1, 1),
+#         }
+#         for key in self._env_info_keys:
+#             assert key not in batch.keys()
+#             batch[key] = self._env_infos[key][indices]
+#         return batch
+
 class RelabelingReplayBuffer(EnvReplayBuffer):
     """
     Save goals from the same trajectory into the replay buffer.
     Only add_path is implemented.
-
     Implementation details:
      - Every sample from [0, self._size] will be valid.
     """
@@ -567,8 +761,7 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             fraction_resampled_goals_are_env_goals=0.0, # this many goals are just sampled from environment directly
             resampling_strategy='uniform', # 'uniform' is the HER 'future' strategy
             truncated_geom_factor=1.,
-            desired_goal_key='desired_goal',
-            achieved_goal_key='achieved_goal',
+            reward_scale=1.0,
             **kwargs
     ):
         """
@@ -582,14 +775,13 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             'truncated_geometric',
         ]
         super().__init__(max_size, env, **kwargs)
-        self._goals = np.zeros((max_size, self.env.goal_space.low.size))
+        self._goals = np.zeros((max_size, self.env.goal_dim))
         self._num_steps_left = np.zeros((max_size, 1))
         self.fraction_goals_are_rollout_goals = fraction_goals_are_rollout_goals
         self.fraction_resampled_goals_are_env_goals = fraction_resampled_goals_are_env_goals
+        self.reward_scale = reward_scale
         self.truncated_geom_factor = float(truncated_geom_factor)
         self.resampling_strategy = resampling_strategy
-        self.desired_goal_key = desired_goal_key
-        self.achieved_goal_key = achieved_goal_key
 
         # Let j be any index in self._idx_to_future_obs_idx[i]
         # Then self._next_obs[j] is a valid next observation for observation i
@@ -676,12 +868,12 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
 
     def random_batch(self, batch_size):
         indices = self._sample_indices(batch_size)
-        future_obs_idxs = []
+        next_obs_idxs = []
         for i in indices:
-            possible_future_obs_idxs = self._idx_to_future_obs_idx[i]
+            possible_next_obs_idxs = self._idx_to_future_obs_idx[i]
             # This is generally faster than random.choice. Makes you wonder what
             # random.choice is doing
-            num_options = len(possible_future_obs_idxs)
+            num_options = len(possible_next_obs_idxs)
             if num_options == 1:
                 next_obs_i = 0
             else:
@@ -698,10 +890,11 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
                     raise ValueError("Invalid resampling strategy: {}".format(
                         self.resampling_strategy
                     ))
-            future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
-        future_obs_idxs = np.array(future_obs_idxs)
-        resampled_goals = self._env_infos[self.achieved_goal_key][
-            future_obs_idxs]
+            next_obs_idxs.append(possible_next_obs_idxs[next_obs_i])
+        next_obs_idxs = np.array(next_obs_idxs)
+        resampled_goals = self.env.convert_obs_to_goals(
+            self._next_obs[next_obs_idxs]
+        )
         num_goals_are_from_rollout = int(
             batch_size * self.fraction_goals_are_rollout_goals
         )
@@ -709,38 +902,45 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             resampled_goals[:num_goals_are_from_rollout] = self._goals[
                 indices[:num_goals_are_from_rollout]
             ]
-        num_goals_are_env_resampled = int(
-            batch_size * (1 - self.fraction_goals_are_rollout_goals)
-            * self.fraction_resampled_goals_are_env_goals
-        )
-        if num_goals_are_env_resampled > 0:
-            resampled_goals[
-                num_goals_are_from_rollout:
-                num_goals_are_env_resampled+num_goals_are_from_rollout
-            ] = self.env.sample_goals(num_goals_are_env_resampled)
+        # recompute rewards
         new_obs = self._observations[indices]
         new_next_obs = self._next_obs[indices]
         new_actions = self._actions[indices]
-        batch_env_info = self.batch_env_info_dict(indices)
-        batch_env_info[self.desired_goal_key] = resampled_goals
-        new_rewards = self.env.compute_rewards(
-            new_obs,
-            new_actions,
-            new_next_obs,
-            batch_env_info,
-        ).reshape(-1, 1)
+        new_rewards = self._rewards[indices].copy() # needs to be recomputed
+        env_info_dicts = [self.rebuild_env_info_dict(idx) for idx in indices]
+        random_numbers = np.random.rand(batch_size)
+        for i in range(batch_size):
+            if random_numbers[i] < self.fraction_resampled_goals_are_env_goals:
+                resampled_goals[i, :] = self.env.sample_goal_for_rollout() # env_goals[i, :]
 
-        batch = {
-            'observations': new_obs,
-            'actions': new_actions,
-            'rewards': new_rewards,
-            'terminals': self._terminals[indices],
-            'next_observations': new_next_obs,
-            'goals_used_for_rollout': self._goals[indices],
-            'resampled_goals': resampled_goals,
-            'num_steps_left': self._num_steps_left[indices],
-            'indices': np.array(indices).reshape(-1, 1),
-        }
+            new_reward = self.reward_scale * self.env.compute_her_reward_np(
+                new_obs[i, :],
+                new_actions[i, :],
+                new_next_obs[i, :],
+                resampled_goals[i, :],
+                env_info_dicts[i],
+            )
+            new_rewards[i] = new_reward
+        # new_rewards = self.env.computer_her_reward_np_batch(
+        #     new_obs,
+        #     new_actions,
+        #     new_next_obs,
+        #     resampled_goals,
+        #     env_infos,
+        # )
+
+        batch = dict(
+            observations=new_obs,
+            actions=new_actions,
+            rewards=new_rewards,
+            terminals=self._terminals[indices],
+            next_observations=new_next_obs,
+            goals_used_for_rollout=self._goals[indices],
+            resampled_goals=resampled_goals,
+            num_steps_left=self._num_steps_left[indices],
+            indices=np.array(indices).reshape(-1, 1),
+            goals=resampled_goals,
+        )
         for key in self._env_info_keys:
             assert key not in batch.keys()
             batch[key] = self._env_infos[key][indices]

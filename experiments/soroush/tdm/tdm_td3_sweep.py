@@ -1,7 +1,10 @@
 import argparse
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
+
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
+from railrl.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv as SawyerReachXYEnvOld
+
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.experiments.soroush.multiworld_tdm import tdm_td3_experiment
 import railrl.misc.hyperparameter as hyp
@@ -45,12 +48,13 @@ variant = dict(
     algorithm="TDM-TD3",
     version="normal",
     env_kwargs=dict(
-        fix_goal=False,
-        # fix_goal=True,
-        # fixed_goal=(0, 0.7),
+        # fix_goal=False,
+        # # fix_goal=True,
+        # # fixed_goal=(0, 0.7),
     ),
     normalize=False,
     render=False,
+    multiworld_env=True,
 )
 
 common_params = {
@@ -74,6 +78,14 @@ env_params = {
         'env_kwargs.reward_type': ['hand_distance'],
         'algo_kwargs.base_kwargs.num_epochs': [50],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3] #[0.01, 0.1, 1, 10, 100],
+    },
+    'sawyer-reach-xy-old': {  # 6 DoF
+        'env_class': [SawyerReachXYEnvOld],
+        'exploration_type': ['epsilon'],
+        # 'env_kwargs.reward_type': ['hand_distance'],
+        'multiworld_env': [False],
+        'algo_kwargs.base_kwargs.num_epochs': [50],
+        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3]  # [0.01, 0.1, 1, 10, 100],
     },
     'sawyer-push-and-reach-xy': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEnv],
