@@ -291,6 +291,11 @@ class VAEWrappedEnv(ProxyEnv, Env):
             achieved_goals = obs['state_achieved_goal']
             desired_goals = obs['state_desired_goal']
             return - np.linalg.norm(desired_goals - achieved_goals, axis=1)
+        elif self.reward_type == 'state_puck_distance':
+            # hard-coded for now
+            achieved_goals = obs['state_achieved_goal'][:, -2:]
+            desired_goals = obs['state_desired_goal'][:, -2:]
+            return - np.linalg.norm(desired_goals - achieved_goals, axis=1)
         else:
             raise NotImplementedError
 

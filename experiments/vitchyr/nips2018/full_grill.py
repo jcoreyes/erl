@@ -29,8 +29,8 @@ if __name__ == "__main__":
         # env_class=Point2DEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
-            puck_low=(-0.05, 0.6),
-            puck_high=(0.05, 0.7),
+            # puck_low=(-0.05, 0.6),
+            # puck_high=(0.05, 0.7),
         ),
         init_camera=init_sawyer_camera_v1,
         grill_variant=dict(
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             representation_size=16,
             beta=1.0,
-            num_epochs=500,
+            num_epochs=1000,
             generate_vae_dataset_kwargs=dict(
                 N=1000,
                 oracle_dataset=True,
@@ -90,7 +90,7 @@ if __name__ == "__main__":
             ),
             beta_schedule_kwargs=dict(
                 x_values=[0, 100, 200, 500],
-                y_values=[0, 0, 5, 5],
+                y_values=[0, 0, 1, 1],
             ),
             save_period=5,
         ),
@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'pusher-state-reward-cached-goals'
+    exp_prefix = 'pusher-state-puck-reward-cached-goals-hard-2'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
