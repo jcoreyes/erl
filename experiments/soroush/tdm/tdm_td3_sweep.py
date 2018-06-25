@@ -1,6 +1,7 @@
 import argparse
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
+from railrl.envs.mujoco.sawyer_push_and_reach_env import SawyerPushAndReachXYEasyEnv
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 from railrl.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv as SawyerReachXYEnvOld
@@ -77,14 +78,16 @@ env_params = {
         'exploration_type': ['epsilon'],
         'env_kwargs.reward_type': ['hand_distance'],
         'algo_kwargs.base_kwargs.num_epochs': [50],
+        'algo_kwargs.tdm_kwargs.max_tau': [1, 5, 10, 15, 20, 25, 50, 99],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3] #[0.01, 0.1, 1, 10, 100],
     },
-    'sawyer-reach-xy-old': {  # 6 DoF
+    'sawyer-reach-xy-railrl': {  # 6 DoF
         'env_class': [SawyerReachXYEnvOld],
         'exploration_type': ['epsilon'],
         # 'env_kwargs.reward_type': ['hand_distance'],
         'multiworld_env': [False],
         'algo_kwargs.base_kwargs.num_epochs': [50],
+        'algo_kwargs.tdm_kwargs.max_tau': [1, 5, 10, 15, 20, 25, 50, 99],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3]  # [0.01, 0.1, 1, 10, 100],
     },
     'sawyer-push-and-reach-xy': {  # 6 DoF
@@ -92,6 +95,15 @@ env_params = {
         'exploration_type': ['epsilon', 'gaussian'],
         'env_kwargs.reward_type': ['hand_and_puck_distance'],
         # 'algo_kwargs.discount': [0.98],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
+        'algo_kwargs.base_kwargs.num_epochs': [1000],
+        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],
+    },
+    'sawyer-push-and-reach-xy-railrl': {  # 6 DoF
+        'env_class': [SawyerPushAndReachXYEasyEnv],
+        'exploration_type': ['epsilon', 'gaussian'],
+        # 'algo_kwargs.discount': [0.98],
+        'multiworld_env': [False],
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
         'algo_kwargs.base_kwargs.num_epochs': [1000],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],

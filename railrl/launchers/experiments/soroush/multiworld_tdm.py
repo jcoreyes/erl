@@ -27,10 +27,12 @@ from railrl.misc.ml_util import IntPiecewiseLinearSchedule
 def tdm_td3_experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
 
-    render = variant["render"]
-    # env = MultitaskEnvToSilentMultitaskEnv(env)
-    if render:
-        env.pause_on_goal = True
+    multiworld_env = variant.get('multiworld_env', True)
+
+    if multiworld_env is not True:
+        env = MultitaskEnvToSilentMultitaskEnv(env)
+        if variant["render"]:
+            env.pause_on_goal = True
 
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
