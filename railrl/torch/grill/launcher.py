@@ -365,8 +365,9 @@ def grill_her_td3_experiment(variant):
     if ptu.gpu_enabled():
         print("using GPU")
         algorithm.cuda()
-    for e in [testing_env, training_env, video_vae_env, video_goal_env]:
-        e.vae.cuda()
+        for e in [testing_env, training_env, video_vae_env, video_goal_env,
+                  relabeling_env]:
+            e.vae.cuda()
 
     save_video = variant.get("save_video", True)
     if save_video:

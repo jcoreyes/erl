@@ -39,6 +39,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         """
         if ob_keys_to_save is None:
             ob_keys_to_save = ['observation', 'desired_goal', 'achieved_goal']
+        else:  # in case it's a tuple
+            ob_keys_to_save = list(ob_keys_to_save)
         assert isinstance(env.observation_space, Dict)
         self.max_size = max_size
         self.env = env
