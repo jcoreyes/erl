@@ -53,6 +53,9 @@ if __name__ == "__main__":
                 fraction_resampled_goals_are_env_goals=0.5,
                 ob_keys_to_save=('state_achieved_goal', 'state_desired_goal'),
             ),
+            vae_wrapped_env_kwargs=dict(
+                num_goals_presampled=100,
+            ),
             algorithm='GRILL-HER-TD3',
             normalize=False,
             render=False,
@@ -119,7 +122,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'pusher-state-reward'
+    exp_prefix = 'pusher-state-reward-cached-goals'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(

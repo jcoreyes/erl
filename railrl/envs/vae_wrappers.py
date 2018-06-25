@@ -41,6 +41,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         reward_params=None,
         mode="train",
         imsize=84,
+        num_goals_presampled=0,
     ):
         self.quick_init(locals())
         if reward_params is None:
@@ -58,6 +59,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
         self.imsize = imsize
+        self.num_goals_presampled = num_goals_presampled
 
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", 'latent_distance')
@@ -81,6 +83,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
         self._vw_goal_img = None
         self._vw_goal_img_decoded = None
+
+        self._presampled_goals = None
 
     @property
     def use_vae_goals(self):
@@ -213,7 +217,31 @@ class VAEWrappedEnv(ProxyEnv, Env):
         goal['latent_desired_goal'] = self._latent_goal
         return goal
 
-    def sample_goals(self, batch_size):
+    def sample_goals(self, batch_size, force_resample=False):
+        if (
+            not force_resample
+            and batch_size > 1
+            and self.num_goals_presampled > 0
+            and not self.use_vae_goals
+        ):
+            if (
+                self._presampled_goals is None
+                    or self.num_goals_presampled < batch_size
+            ):
+                self.num_goals_presampled = max(
+                    self.num_goals_presampled,
+                    batch_size,
+                )
+                self._presampled_goals = self.sample_goals(
+                    self.num_goals_presampled,
+                    force_resample=True,
+                )
+
+            idx = np.random.randint(0, self.num_goals_presampled, batch_size)
+            sampled_goals = {
+                k: v[idx] for k, v in self._presampled_goals.items()
+            }
+            return sampled_goals
         if self.use_vae_goals:
             goals = {}
             latent_goals = self._sample_vae_prior(batch_size)
