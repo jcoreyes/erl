@@ -67,6 +67,7 @@ def run_experiment(
         verbose=False,
         trial_dir_suffix=None,
         time_in_mins=60,
+        num_exps_per_instance=1,
 ):
     """
     Usage:
@@ -315,6 +316,8 @@ def run_experiment(
     if mode == 'ec2':
         # Ignored since I'm setting the snapshot dir directly
         base_log_dir_for_script = None
+        mode_specific_kwargs['num_exps'] = num_exps_per_instance
+        run_experiment_kwargs['randomize_seed'] = True
         # The snapshot dir needs to be specified for S3 because S3 will
         # automatically create the experiment director and sub-directory.
         snapshot_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
@@ -348,6 +351,7 @@ def run_experiment(
             'output_dir': snapshot_dir_for_script,
             'run_experiment_kwargs': run_experiment_kwargs,
             'mode': mode,
+            's3_log_name': s3_log_name,
         },
         use_cloudpickle=True,
         target_mount=target_mount,
@@ -513,6 +517,7 @@ def run_experiment_here(
         log_dir=None,
         logger=default_logger,
         trial_dir_suffix=None,
+        randomize_seed=False,
 ):
     """
     Run an experiment locally without any serialization.
@@ -533,7 +538,7 @@ def run_experiment_here(
         variant = {}
     variant['exp_id'] = str(exp_id)
 
-    if seed is None and 'seed' not in variant:
+    if randomize_seed or (seed is None and 'seed' not in variant):
         seed = random.randint(0, 100000)
         variant['seed'] = str(seed)
     reset_execution_environment(logger=logger)
