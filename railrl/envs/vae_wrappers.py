@@ -1,5 +1,4 @@
 import pickle
-from collections import deque
 
 import cv2
 import numpy as np
@@ -39,7 +38,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         decode_goals=False,
         render_goals=False,
         render_rollouts=False,
-        reset_on_sample_goal_for_rollout = True,
         reward_params=None,
         mode="train",
         imsize=84,
@@ -54,14 +52,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = vae
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
-        self.use_vae_goals = use_vae_goals
+        self._use_vae_goals = use_vae_goals
         self.sample_from_true_prior = sample_from_true_prior
         self.decode_goals = decode_goals
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
         self.imsize = imsize
-
-        self.reset_on_sample_goal_for_rollout = reset_on_sample_goal_for_rollout
 
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", 'latent_distance')
@@ -86,20 +82,24 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self._vw_goal_img = None
         self._vw_goal_img_decoded = None
 
+    @property
+    def use_vae_goals(self):
+        return self._use_vae_goals and not self.reward_type.startswith('state')
+
     def mode(self, name):
         if name == "train":
-            self.use_vae_goals = True
+            self._use_vae_goals = True
         elif name == "train_env_goals":
-            self.use_vae_goals = False
+            self._use_vae_goals = False
         elif name == "test":
-            self.use_vae_goals = False
+            self._use_vae_goals = False
         elif name == "video_vae":
-            self.use_vae_goals = True
+            self._use_vae_goals = True
             self.decode_goals = True
             self.render_goals = False
             self.render_rollouts = False
         elif name == "video_env":
-            self.use_vae_goals = False
+            self._use_vae_goals = False
             self.decode_goals = False
             self.render_goals = False
             self.render_rollouts = False
@@ -160,7 +160,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return self._update_obs(obs)
 
     def enable_render(self):
-        self.use_vae_goals = False
+        self._use_vae_goals = False
         self.decode_goals = True
         self.render_goals = True
         self.render_rollouts = True
@@ -259,6 +259,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
             dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
             reward = 0 if dist < self.epsilon else -1
             return reward
+        elif self.reward_type == 'state_distance':
+            achieved_goals = obs['state_achieved_goal']
+            desired_goals = obs['state_desired_goal']
+            return - np.linalg.norm(desired_goals - achieved_goals, axis=1)
         else:
             raise NotImplementedError
 

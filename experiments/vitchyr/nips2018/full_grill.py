@@ -24,13 +24,13 @@ from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
 if __name__ == "__main__":
     variant = dict(
         # env_class=SawyerReachXYEnv,
-        # env_class=SawyerPushAndReachXYEnv,
-        env_class=SawyerPickAndPlaceEnv,
+        env_class=SawyerPushAndReachXYEnv,
+        # env_class=SawyerPickAndPlaceEnv,
         # env_class=Point2DEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
-            # puck_low=(-0.05, 0.6),
-            # puck_high=(0.05, 0.7),
+            puck_low=(-0.05, 0.6),
+            puck_high=(0.05, 0.7),
         ),
         init_camera=init_sawyer_camera_v1,
         grill_variant=dict(
@@ -51,6 +51,7 @@ if __name__ == "__main__":
                 max_size=int(1e6),
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
+                ob_keys_to_save=('state_achieved_goal', 'state_desired_goal'),
             ),
             algorithm='GRILL-HER-TD3',
             normalize=False,
@@ -60,17 +61,18 @@ if __name__ == "__main__":
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
-                type='latent_distance',
+                # type='latent_distance',
+                type='state_distance',
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
         ),
         train_vae_variant=dict(
             representation_size=16,
-            beta=5.0,
-            num_epochs=1,
+            beta=1.0,
+            num_epochs=500,
             generate_vae_dataset_kwargs=dict(
-                N=100,
+                N=1000,
                 oracle_dataset=True,
                 num_channels=3,
                 # show=True,
@@ -92,6 +94,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'init_camera': [init_sawyer_camera_v1, init_sawyer_camera_v3],
         # 'grill_variant.training_mode': ['test'],
         # 'grill_variant.observation_key': ['latent_observation'],
         # 'grill_variant.desired_goal_key': ['state_desired_goal'],
@@ -114,10 +117,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'multiworld-goalenv-full-grill-her-td3-push-easy-cam-v3'
-    exp_prefix = 'pick-n-place-train-vae'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'pusher-state-reward'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
