@@ -101,11 +101,12 @@ env_params = {
     },
     'sawyer-push-and-reach-xy-railrl': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEasyEnv],
-        'exploration_type': ['epsilon', 'gaussian'],
+        'exploration_type': ['epsilon'],
         # 'algo_kwargs.discount': [0.98],
         'multiworld_env': [False],
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
         'algo_kwargs.base_kwargs.num_epochs': [1000],
+        'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 20, 40, 99],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],
     },
 }
