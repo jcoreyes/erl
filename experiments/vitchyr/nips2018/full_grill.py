@@ -69,6 +69,7 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
+            # vae_path='06-24-proprio-comparison-push-and-reach-hard-train-vae-longer/06-24-proprio-comparison-push-and-reach-hard-train-vae-longer-id2-s40318/vae.pkl',
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -97,7 +98,6 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'init_camera': [init_sawyer_camera_v1, init_sawyer_camera_v3],
         # 'grill_variant.training_mode': ['test'],
         # 'grill_variant.observation_key': ['latent_observation'],
         # 'grill_variant.desired_goal_key': ['state_desired_goal'],
@@ -120,9 +120,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'pusher-state-puck-reward-cached-goals-hard-2'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'pusher-state-puck-reward-cached-goals-easy'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
