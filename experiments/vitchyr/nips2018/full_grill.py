@@ -65,7 +65,7 @@ if __name__ == "__main__":
             testing_mode='test',
             reward_params=dict(
                 # type='latent_distance',
-                type='state_distance',
+                type='state_puck_distance',
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
