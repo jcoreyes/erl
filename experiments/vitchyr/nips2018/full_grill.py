@@ -90,7 +90,7 @@ if __name__ == "__main__":
             ),
             save_period=5,
         ),
-        version='old-low-friction',
+        version='old-low-friction-murtaza-settings',
     )
 
     search_space = {
