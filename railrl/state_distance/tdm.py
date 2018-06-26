@@ -35,7 +35,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goal_weights=None,
             tdm_normalizer: TdmNormalizer = None,
             normalize_distance=False,
-            env_samples_goal_on_reset=False,
             observation_key=None,
             desired_goal_key=None,
     ):
@@ -103,7 +102,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             assert self.goal_weights.size == self.env.goal_dim
         self.tdm_normalizer = tdm_normalizer
         self.normalize_distance = normalize_distance
-        self.env_samples_goal_on_reset = env_samples_goal_on_reset
 
         self.observation_key = observation_key
         self.desired_goal_key = desired_goal_key
@@ -114,10 +112,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             max_samples=self.num_steps_per_eval,
             max_path_length=self.max_path_length,
             tau_sampling_function=self._sample_max_tau_for_rollout,
-            goal_sampling_function=self._sample_goal_for_rollout,
             cycle_taus_for_rollout=self.cycle_taus_for_rollout,
             render=self.render_during_eval,
-            env_samples_goal_on_reset=env_samples_goal_on_reset,
             observation_key=self.observation_key,
             desired_goal_key=self.desired_goal_key,
         )
@@ -214,10 +210,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             num_steps_left = np.zeros((self.batch_size, 1))
         return num_steps_left
 
-    def _sample_goal_for_rollout(self):
-        self.env.reset()
-        return self.env.get_goal()
-
     def _sample_max_tau_for_rollout(self):
         if self.finite_horizon:
             return self.max_tau
@@ -230,14 +222,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
         self._rollout_tau = np.array([self.max_tau])
-        if self.env_samples_goal_on_reset:
-            obs = self.training_env.reset()
-            self._current_path_goal = self.training_env.get_goal()
-        else:
-            self._current_path_goal = self._sample_goal_for_rollout()
-            self.training_env.set_goal(self._current_path_goal)
-            obs = self.training_env.reset()
-            assert (self.training_env.get_goal() == self._current_path_goal).all()
+        obs = self.training_env.reset()
+        self._current_path_goal = self.training_env.get_goal()
         return obs
 
     def _handle_step(
@@ -299,6 +285,3 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def evaluate(self, epoch):
         self.eval_statistics['Max Tau'] = self.max_tau
         super().evaluate(epoch)
-
-    def pretrain(self):
-        return

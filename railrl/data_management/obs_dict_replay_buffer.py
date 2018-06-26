@@ -38,8 +38,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         :param ob_keys_to_save: List of keys to save
         """
         if ob_keys_to_save is None:
-            ob_keys_to_save = ['observation', 'desired_goal', 'achieved_goal',
-                               'state_observation', 'state_desired_goal', 'state_achieved_goal']
+            ob_keys_to_save = ['observation', 'desired_goal', 'achieved_goal']
         else:  # in case it's a tuple
             ob_keys_to_save = list(ob_keys_to_save)
         assert isinstance(env.observation_space, Dict)
