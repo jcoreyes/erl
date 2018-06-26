@@ -282,7 +282,7 @@ def run_experiment(
             **kwargs
         )
     elif mode == 'ec2':
-        # Do this separately in case some one does not have EC2 configured
+        # Do this separately in case someone does not have EC2 configured
         dmode = doodad.mode.EC2AutoconfigDocker(
             image=docker_image,
             image_id=image_id,
@@ -290,7 +290,10 @@ def run_experiment(
             instance_type=instance_type,
             spot_price=spot_price,
             s3_log_prefix=exp_prefix,
-            s3_log_name=s3_log_name,
+            # Ask Vitchyr or Steven from an explanation, but basically we
+            # will start just making the sub-directories within railrl rather
+            # than relying on doodad to do that.
+            s3_log_name="",
             gpu=use_gpu,
             aws_s3_path=aws_s3_path,
             **mode_kwargs
@@ -351,7 +354,6 @@ def run_experiment(
             'output_dir': snapshot_dir_for_script,
             'run_experiment_kwargs': run_experiment_kwargs,
             'mode': mode,
-            's3_log_name': s3_log_name,
         },
         use_cloudpickle=True,
         target_mount=target_mount,
