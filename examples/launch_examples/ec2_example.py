@@ -48,8 +48,9 @@ if __name__ == "__main__":
     )
     run_experiment(
         example,
-        exp_prefix="ec2-gpu-test-mj-and-torch",
+        exp_prefix="ec2-gpu-test-multi-instance",
         mode='ec2',
         variant=variant,
         use_gpu=True,
+        num_exps_per_instance=2,
     )
