@@ -16,9 +16,11 @@ if run_mode and run_mode == 'ec2':
     except Exception as e:
         print("Could not get instance ID. Error was...")
         print(e)
+    # Do this in case base_log_dir was already set
+    run_experiment_kwargs['base_log_dir'] = output_dir
     run_experiment_here(
         method_call,
-        base_log_dir=output_dir,
+        include_exp_prefix_sub_dir=False,
         **run_experiment_kwargs
     )
 else:
