@@ -24,8 +24,8 @@ from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
 if __name__ == "__main__":
     variant = dict(
         # env_class=SawyerReachXYEnv,
-        # env_class=SawyerPushAndReachXYEnv,
-        env_class=SawyerPickAndPlaceEnv,
+        env_class=SawyerPushAndReachXYEnv,
+        # env_class=SawyerPickAndPlaceEnv,
         # env_class=Point2DEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
@@ -64,6 +64,7 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
+            vae_path='06-25-pusher-state-puck-reward-cached-goals-hard-2/06-25-pusher-state-puck-reward-cached-goals-hard-2-id0-s48265/vae.pkl',
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -89,6 +90,7 @@ if __name__ == "__main__":
             ),
             save_period=5,
         ),
+        version='old-low-friction',
     )
 
     search_space = {
@@ -114,10 +116,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'multiworld-goalenv-full-grill-her-td3-push-easy-cam-v3'
-    exp_prefix = 'pick-n-place-train-vae'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'mw-push-friction-test'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
@@ -129,4 +130,5 @@ if __name__ == "__main__":
                 # trial_dir_suffix='n1000-{}--zoomed-{}'.format(n1000, zoomed),
                 snapshot_gap=50,
                 snapshot_mode='gap_and_last',
+                num_exps_per_instance=3,
             )
