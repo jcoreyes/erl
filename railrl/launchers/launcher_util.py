@@ -515,11 +515,10 @@ def run_experiment_here(
         snapshot_gap=1,
         git_infos=None,
         script_name=None,
-        base_log_dir=None,
-        log_dir=None,
         logger=default_logger,
         trial_dir_suffix=None,
         randomize_seed=False,
+        **setup_logger_kwargs
 ):
     """
     Run an experiment locally without any serialization.
@@ -552,12 +551,11 @@ def run_experiment_here(
         seed=seed,
         snapshot_mode=snapshot_mode,
         snapshot_gap=snapshot_gap,
-        base_log_dir=base_log_dir,
-        log_dir=log_dir,
         git_infos=git_infos,
         script_name=script_name,
         logger=logger,
         trial_dir_suffix=trial_dir_suffix,
+        **setup_logger_kwargs
     )
 
     set_seed(seed)
@@ -574,7 +572,7 @@ def run_experiment_here(
         snapshot_gap=snapshot_gap,
         git_infos=git_infos,
         script_name=script_name,
-        base_log_dir=base_log_dir,
+        **setup_logger_kwargs
     )
     save_experiment_data(
         dict(
@@ -604,6 +602,7 @@ def create_log_dir(
         base_log_dir=None,
         variant=None,
         trial_dir_suffix=None,
+        include_exp_prefix_sub_dir=True,
 ):
     """
     Creates and returns a unique log directory.
@@ -622,7 +621,10 @@ def create_log_dir(
         trial_name = "{}-{}".format(trial_name, trial_dir_suffix)
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
-    log_dir = osp.join(base_log_dir, exp_prefix.replace("_", "-"), trial_name)
+    if include_exp_prefix_sub_dir:
+        log_dir = osp.join(base_log_dir, exp_prefix.replace("_", "-"), trial_name)
+    else:
+        log_dir = osp.join(base_log_dir, trial_name)
     if osp.exists(log_dir):
         print("WARNING: Log directory already exists {}".format(log_dir))
     os.makedirs(log_dir, exist_ok=True)
@@ -631,10 +633,7 @@ def create_log_dir(
 
 def setup_logger(
         exp_prefix="default",
-        exp_id=0,
-        seed=0,
         variant=None,
-        base_log_dir=None,
         text_log_file="debug.log",
         variant_log_file="variant.json",
         tabular_log_file="progress.csv",
@@ -645,7 +644,7 @@ def setup_logger(
         git_infos=None,
         script_name=None,
         logger=default_logger,
-        trial_dir_suffix=None,
+        **create_log_dir_kwargs
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -673,11 +672,8 @@ def setup_logger(
     if first_time:
         log_dir = create_log_dir(
             exp_prefix,
-            exp_id=exp_id,
-            seed=seed,
-            base_log_dir=base_log_dir,
             variant=variant,
-            trial_dir_suffix=trial_dir_suffix,
+            **create_log_dir_kwargs
         )
 
     if variant is not None:
