@@ -39,6 +39,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         """
         if ob_keys_to_save is None:
             ob_keys_to_save = ['observation', 'desired_goal', 'achieved_goal']
+        else:  # in case it's a tuple
+            ob_keys_to_save = list(ob_keys_to_save)
         assert isinstance(env.observation_space, Dict)
         self.max_size = max_size
         self.env = env
@@ -189,9 +191,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         new_next_obs_dict[self.desired_goal_key] = resampled_goals
         new_actions = self._actions[indices]
         new_rewards = self.env.compute_rewards(
-            new_obs_dict[self.achieved_goal_key],
-            resampled_goals,
-            None,
+            new_actions,
+            new_obs_dict,
         ).reshape(-1, 1)
 
         new_obs = new_obs_dict[self.observation_key]

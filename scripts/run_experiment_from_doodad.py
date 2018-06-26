@@ -16,9 +16,14 @@ if run_mode and run_mode == 'ec2':
     except Exception as e:
         print("Could not get instance ID. Error was...")
         print(e)
-
-run_experiment_here(
-    method_call,
-    log_dir=output_dir,
-    **run_experiment_kwargs
-)
+    run_experiment_here(
+        method_call,
+        base_log_dir=output_dir,
+        **run_experiment_kwargs
+    )
+else:
+    run_experiment_here(
+        method_call,
+        log_dir=output_dir,
+        **run_experiment_kwargs
+    )

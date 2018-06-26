@@ -287,6 +287,10 @@ class ConvVAETrainer():
             'debug/MSE improvement over random',
             mse_improvement,
         )
+        stats.update(create_stats_ordered_dict(
+            'debug/MSE random decoding',
+            mse_improvement,
+        ))
         stats['debug/MSE of random reconstruction'] = ptu.get_numpy(
             recon_mse
         )[0]

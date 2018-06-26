@@ -17,7 +17,10 @@ import railrl.pythonplusplus as ppp
 from railrl.core import logger as default_logger
 from railrl.launchers import config
 
-GitInfo = namedtuple('GitInfo', ['code_diff', 'commit_hash', 'branch_name'])
+GitInfo = namedtuple(
+    'GitInfo',
+    ['directory', 'code_diff', 'commit_hash', 'branch_name'],
+)
 
 
 ec2_okayed = False
@@ -64,6 +67,7 @@ def run_experiment(
         verbose=False,
         trial_dir_suffix=None,
         time_in_mins=60,
+        num_exps_per_instance=1,
 ):
     """
     Usage:
@@ -142,18 +146,31 @@ def run_experiment(
 
     try:
         import git
-        repo = git.Repo(os.getcwd())
-        try:
-            branch_name = repo.active_branch.name
-        except TypeError:
-            branch_name = '[DETACHED]'
-        git_info = GitInfo(
-            code_diff=repo.git.diff(None),
-            commit_hash=repo.head.commit.hexsha,
-            branch_name=branch_name,
-        )
+        doodad_path = osp.abspath(osp.join(
+            osp.dirname(doodad.__file__),
+            os.pardir
+        ))
+        dirs = config.CODE_DIRS_TO_MOUNT + [doodad_path]
+
+        git_infos = []
+        for directory in dirs:
+            # Idk how to query these things, so I'm just doing try-catch
+            try:
+                repo = git.Repo(directory)
+                try:
+                    branch_name = repo.active_branch.name
+                except TypeError:
+                    branch_name = '[DETACHED]'
+                git_infos.append(GitInfo(
+                    directory=directory,
+                    code_diff=repo.git.diff(None),
+                    commit_hash=repo.head.commit.hexsha,
+                    branch_name=branch_name,
+                ))
+            except git.exc.InvalidGitRepositoryError:
+                pass
     except ImportError:
-        git_info = None
+        git_infos = None
     run_experiment_kwargs = dict(
         exp_prefix=exp_prefix,
         variant=variant,
@@ -162,7 +179,7 @@ def run_experiment(
         use_gpu=use_gpu,
         snapshot_mode=snapshot_mode,
         snapshot_gap=snapshot_gap,
-        git_info=git_info,
+        git_infos=git_infos,
         script_name=main.__file__,
         logger=logger,
         trial_dir_suffix=trial_dir_suffix,
@@ -265,7 +282,7 @@ def run_experiment(
             **kwargs
         )
     elif mode == 'ec2':
-        # Do this separately in case some one does not have EC2 configured
+        # Do this separately in case someone does not have EC2 configured
         dmode = doodad.mode.EC2AutoconfigDocker(
             image=docker_image,
             image_id=image_id,
@@ -273,7 +290,10 @@ def run_experiment(
             instance_type=instance_type,
             spot_price=spot_price,
             s3_log_prefix=exp_prefix,
-            s3_log_name=s3_log_name,
+            # Ask Vitchyr or Steven from an explanation, but basically we
+            # will start just making the sub-directories within railrl rather
+            # than relying on doodad to do that.
+            s3_log_name="",
             gpu=use_gpu,
             aws_s3_path=aws_s3_path,
             **mode_kwargs
@@ -299,6 +319,8 @@ def run_experiment(
     if mode == 'ec2':
         # Ignored since I'm setting the snapshot dir directly
         base_log_dir_for_script = None
+        mode_specific_kwargs['num_exps'] = num_exps_per_instance
+        run_experiment_kwargs['randomize_seed'] = True
         # The snapshot dir needs to be specified for S3 because S3 will
         # automatically create the experiment director and sub-directory.
         snapshot_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
@@ -370,7 +392,9 @@ def create_mounts(
             mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
             output=True,
             sync_interval=sync_interval,
-            include_types=('*.txt', '*.csv', '*.json', '*.gz', '*.tar', '*.log', '*.pkl', '*.mp4')
+            include_types=('*.txt', '*.csv', '*.json', '*.gz', '*.tar',
+                           '*.log', '*.pkl', '*.mp4', '*.png', '*.jpg',
+                           '*.jpeg'),
         )
     elif (
         mode == 'local'
@@ -489,12 +513,13 @@ def run_experiment_here(
         exp_prefix="default",
         snapshot_mode='last',
         snapshot_gap=1,
-        git_info=None,
+        git_infos=None,
         script_name=None,
         base_log_dir=None,
         log_dir=None,
         logger=default_logger,
         trial_dir_suffix=None,
+        randomize_seed=False,
 ):
     """
     Run an experiment locally without any serialization.
@@ -515,7 +540,7 @@ def run_experiment_here(
         variant = {}
     variant['exp_id'] = str(exp_id)
 
-    if seed is None and 'seed' not in variant:
+    if randomize_seed or (seed is None and 'seed' not in variant):
         seed = random.randint(0, 100000)
         variant['seed'] = str(seed)
     reset_execution_environment(logger=logger)
@@ -529,7 +554,7 @@ def run_experiment_here(
         snapshot_gap=snapshot_gap,
         base_log_dir=base_log_dir,
         log_dir=log_dir,
-        git_info=git_info,
+        git_infos=git_infos,
         script_name=script_name,
         logger=logger,
         trial_dir_suffix=trial_dir_suffix,
@@ -547,7 +572,7 @@ def run_experiment_here(
         exp_prefix=exp_prefix,
         snapshot_mode=snapshot_mode,
         snapshot_gap=snapshot_gap,
-        git_info=git_info,
+        git_infos=git_infos,
         script_name=script_name,
         base_log_dir=base_log_dir,
     )
@@ -617,7 +642,7 @@ def setup_logger(
         snapshot_gap=1,
         log_tabular_only=False,
         log_dir=None,
-        git_info=None,
+        git_infos=None,
         script_name=None,
         logger=default_logger,
         trial_dir_suffix=None,
@@ -640,7 +665,7 @@ def setup_logger(
     :param log_tabular_only:
     :param snapshot_gap:
     :param log_dir:
-    :param git_info:
+    :param git_infos:
     :param script_name: If set, save the script name to this.
     :return:
     """
@@ -679,15 +704,22 @@ def setup_logger(
     exp_name = log_dir.split("/")[-1]
     logger.push_prefix("[%s] " % exp_name)
 
-    if git_info is not None:
-        code_diff, commit_hash, branch_name = git_info
-        if code_diff is not None:
-            with open(osp.join(log_dir, "code.diff"), "w") as f:
-                f.write(code_diff)
-        with open(osp.join(log_dir, "git_info.txt"), "w") as f:
-            f.write("git hash: {}".format(commit_hash))
-            f.write('\n')
-            f.write("git branch name: {}".format(branch_name))
+    if git_infos is not None:
+        for directory, code_diff, commit_hash, branch_name in git_infos:
+            if directory[-1] == '/':
+                diff_file_name = directory[1:-1].replace("/", "-") + ".diff"
+            else:
+                diff_file_name = directory[1:].replace("/", "-") + ".diff"
+            if code_diff is not None and len(code_diff) > 0:
+                with open(osp.join(log_dir, diff_file_name), "w") as f:
+                    f.write(code_diff)
+            with open(osp.join(log_dir, "git_infos.txt"), "a") as f:
+                f.write("directory: {}".format(directory))
+                f.write('\n')
+                f.write("git hash: {}".format(commit_hash))
+                f.write('\n')
+                f.write("git branch name: {}".format(branch_name))
+                f.write('\n\n')
     if script_name is not None:
         with open(osp.join(log_dir, "script_name.txt"), "w") as f:
             f.write(script_name)
