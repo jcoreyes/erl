@@ -33,8 +33,8 @@ if __name__ == "__main__":
             hide_goal_markers=True,
             puck_low=(-0.2, 0.5),
             puck_high=(0.2, 0.7),
-            hand_low=(-0.1, 0.5, 0.),
-            hand_high=(0.1, 0.7, 0.5),
+            hand_low=(-0.2, 0.5, 0.),
+            hand_high=(0.2, 0.7, 0.5),
         ),
         init_camera=init_sawyer_camera_v4,
         grill_variant=dict(
@@ -57,7 +57,7 @@ if __name__ == "__main__":
             ),
             replay_kwargs=dict(
                 max_size=int(1e6),
-                fraction_goals_are_rollout_goals=0.2,
+                fraction_goals_are_rollout_goals=0.4,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
             algorithm='GRILL-TDM-TD3',
@@ -80,18 +80,18 @@ if __name__ == "__main__":
             ),
             qf_criterion_class=HuberLoss,
             # vae_path='06-25-pusher-state-puck-reward-cached-goals-hard-2/06-25-pusher-state-puck-reward-cached-goals-hard-2-id0-s48265/vae.pkl',
-            # vae_path="05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
+            vae_path="05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
         ),
         train_vae_variant=dict(
             representation_size=16,
             beta=1.0,
             num_epochs=1000,
             generate_vae_dataset_kwargs=dict(
-                N=1000,
+                N=100,
                 oracle_dataset=True,
                 num_channels=3,
-                show=True,
-                use_cached=False,
+                # show=True,
+                # use_cached=False,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -134,8 +134,8 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # mode = 'ec2'
-    # exp_prefix = 'mw-full-grill-tdm-vitchyr-old-settings-1-seed'
+    mode = 'ec2'
+    exp_prefix = 'mw-full-grill-tdm-is-it-the-floor-sweep-her-resample-frac'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             grill_tdm_td3_full_experiment,
@@ -147,5 +147,5 @@ if __name__ == "__main__":
             snapshot_gap=50,
             snapshot_mode='gap_and_last',
             exp_id=exp_id,
-            num_exps_per_instance=1,
+            num_exps_per_instance=3,
         )
