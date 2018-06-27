@@ -550,12 +550,10 @@ class SimpleHerReplayBuffer(EnvReplayBuffer):
         return batch
 
 
-
 class RelabelingReplayBuffer(EnvReplayBuffer):
     """
     Save goals from the same trajectory into the replay buffer.
     Only add_path is implemented.
-
     Implementation details:
      - Every sample from [0, self._size] will be valid.
     """
@@ -567,8 +565,6 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             fraction_resampled_goals_are_env_goals=0.0, # this many goals are just sampled from environment directly
             resampling_strategy='uniform', # 'uniform' is the HER 'future' strategy
             truncated_geom_factor=1.,
-            desired_goal_key='desired_goal',
-            achieved_goal_key='achieved_goal',
             **kwargs
     ):
         """
@@ -582,14 +578,12 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             'truncated_geometric',
         ]
         super().__init__(max_size, env, **kwargs)
-        self._goals = np.zeros((max_size, self.env.goal_space.low.size))
+        self._goals = np.zeros((max_size, self.env.goal_dim))
         self._num_steps_left = np.zeros((max_size, 1))
         self.fraction_goals_are_rollout_goals = fraction_goals_are_rollout_goals
         self.fraction_resampled_goals_are_env_goals = fraction_resampled_goals_are_env_goals
         self.truncated_geom_factor = float(truncated_geom_factor)
         self.resampling_strategy = resampling_strategy
-        self.desired_goal_key = desired_goal_key
-        self.achieved_goal_key = achieved_goal_key
 
         # Let j be any index in self._idx_to_future_obs_idx[i]
         # Then self._next_obs[j] is a valid next observation for observation i
@@ -676,12 +670,12 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
 
     def random_batch(self, batch_size):
         indices = self._sample_indices(batch_size)
-        future_obs_idxs = []
+        next_obs_idxs = []
         for i in indices:
-            possible_future_obs_idxs = self._idx_to_future_obs_idx[i]
+            possible_next_obs_idxs = self._idx_to_future_obs_idx[i]
             # This is generally faster than random.choice. Makes you wonder what
             # random.choice is doing
-            num_options = len(possible_future_obs_idxs)
+            num_options = len(possible_next_obs_idxs)
             if num_options == 1:
                 next_obs_i = 0
             else:
@@ -698,10 +692,11 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
                     raise ValueError("Invalid resampling strategy: {}".format(
                         self.resampling_strategy
                     ))
-            future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
-        future_obs_idxs = np.array(future_obs_idxs)
-        resampled_goals = self._env_infos[self.achieved_goal_key][
-            future_obs_idxs]
+            next_obs_idxs.append(possible_next_obs_idxs[next_obs_i])
+        next_obs_idxs = np.array(next_obs_idxs)
+        resampled_goals = self.env.convert_obs_to_goals(
+            self._next_obs[next_obs_idxs]
+        )
         num_goals_are_from_rollout = int(
             batch_size * self.fraction_goals_are_rollout_goals
         )
@@ -709,38 +704,45 @@ class RelabelingReplayBuffer(EnvReplayBuffer):
             resampled_goals[:num_goals_are_from_rollout] = self._goals[
                 indices[:num_goals_are_from_rollout]
             ]
-        num_goals_are_env_resampled = int(
-            batch_size * (1 - self.fraction_goals_are_rollout_goals)
-            * self.fraction_resampled_goals_are_env_goals
-        )
-        if num_goals_are_env_resampled > 0:
-            resampled_goals[
-                num_goals_are_from_rollout:
-                num_goals_are_env_resampled+num_goals_are_from_rollout
-            ] = self.env.sample_goals(num_goals_are_env_resampled)
+        # recompute rewards
         new_obs = self._observations[indices]
         new_next_obs = self._next_obs[indices]
         new_actions = self._actions[indices]
-        batch_env_info = self.batch_env_info_dict(indices)
-        batch_env_info[self.desired_goal_key] = resampled_goals
-        new_rewards = self.env.compute_rewards(
-            new_obs,
-            new_actions,
-            new_next_obs,
-            batch_env_info,
-        ).reshape(-1, 1)
+        new_rewards = self._rewards[indices].copy() # needs to be recomputed
+        env_info_dicts = [self.rebuild_env_info_dict(idx) for idx in indices]
+        random_numbers = np.random.rand(batch_size)
+        for i in range(batch_size):
+            if random_numbers[i] < self.fraction_resampled_goals_are_env_goals:
+                resampled_goals[i, :] = self.env.sample_goal_for_rollout() # env_goals[i, :]
 
-        batch = {
-            'observations': new_obs,
-            'actions': new_actions,
-            'rewards': new_rewards,
-            'terminals': self._terminals[indices],
-            'next_observations': new_next_obs,
-            'goals_used_for_rollout': self._goals[indices],
-            'resampled_goals': resampled_goals,
-            'num_steps_left': self._num_steps_left[indices],
-            'indices': np.array(indices).reshape(-1, 1),
-        }
+            new_reward = self.env.compute_her_reward_np(
+                new_obs[i, :],
+                new_actions[i, :],
+                new_next_obs[i, :],
+                resampled_goals[i, :],
+                env_info_dicts[i],
+            )
+            new_rewards[i] = new_reward
+        # new_rewards = self.env.computer_her_reward_np_batch(
+        #     new_obs,
+        #     new_actions,
+        #     new_next_obs,
+        #     resampled_goals,
+        #     env_infos,
+        # )
+
+        batch = dict(
+            observations=new_obs,
+            actions=new_actions,
+            rewards=new_rewards,
+            terminals=self._terminals[indices],
+            next_observations=new_next_obs,
+            goals_used_for_rollout=self._goals[indices],
+            resampled_goals=resampled_goals,
+            num_steps_left=self._num_steps_left[indices],
+            indices=np.array(indices).reshape(-1, 1),
+            goals=resampled_goals,
+        )
         for key in self._env_info_keys:
             assert key not in batch.keys()
             batch[key] = self._env_infos[key][indices]
