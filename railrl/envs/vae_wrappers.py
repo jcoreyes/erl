@@ -1,12 +1,10 @@
 import pickle
-from collections import deque
-
 import cv2
 import numpy as np
 from gym import Env
 from gym.spaces import Box, Dict
-
 import railrl.torch.pytorch_util as ptu
+from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
 from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.asset_loader import sync_down
 
@@ -25,7 +23,6 @@ def load_vae(vae_file):
 class VAEWrappedEnv(ProxyEnv, Env):
     """This class wraps an image-based environment with a VAE.
     Assumes you get flattened (channels,84,84) observations from wrapped_env.
-
     This class adheres to the "Silent Multitask Env" semantics: on reset,
     it resamples a goal.
     """
@@ -39,7 +36,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         decode_goals=False,
         render_goals=False,
         render_rollouts=False,
-        reset_on_sample_goal_for_rollout = True,
         reward_params=None,
         mode="train",
         imsize=84,
@@ -52,6 +48,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_vae(vae)
         else:
             self.vae = vae
+        if ptu.gpu_enabled():
+            vae.cuda()
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self.use_vae_goals = use_vae_goals
@@ -61,13 +59,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.render_rollouts = render_rollouts
         self.imsize = imsize
 
-        self.reset_on_sample_goal_for_rollout = reset_on_sample_goal_for_rollout
-
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", 'latent_distance')
         self.epsilon = self.reward_params.get("epsilon", 20)
         self.reward_min_variance = self.reward_params.get("min_variance", 0)
-
         latent_space = Box(
             -10 * np.ones(self.representation_size),
             10 * np.ones(self.representation_size),
@@ -81,10 +76,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         spaces['latent_achieved_goal'] = latent_space
         self.observation_space = Dict(spaces)
         self._latent_goal = None
-        self.mode(mode)
-
         self._vw_goal_img = None
         self._vw_goal_img_decoded = None
+        self.mode(mode)
 
     def mode(self, name):
         if name == "train":
@@ -114,6 +108,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
     def step(self, action):
         obs, reward, done, info = self.wrapped_env.step(action)
         new_obs = self._update_obs(obs)
+        self._update_info(info, obs)
         if self.render_rollouts:
             img = obs['image_observation'].reshape(
                 self.input_channels,
@@ -134,26 +129,40 @@ class VAEWrappedEnv(ProxyEnv, Env):
         if self.render_goals:
             cv2.imshow('decoded', self._vw_goal_img_decoded)
             cv2.waitKey(1)
-
         return new_obs, reward, done, info
 
-    def reset(self):
-        obs = self.wrapped_env.reset()
-        if self.use_vae_goals:
-            latent_goals = self._sample_vae_prior(1)
-            if self.decode_goals:
-                goal_img = self._decode(latent_goals)[0]
+    def _update_info(self, info, obs):
+        latent_obs, logvar = self.vae.encode(ptu.np_to_var(obs['image_observation']))
+        latent_obs, logvar = ptu.get_numpy(latent_obs), ptu.get_numpy(logvar)
+        assert (latent_obs == obs['latent_observation']).all()
+        latent_goal = self._latent_goal
+        dist = latent_goal - latent_obs
+        var = np.exp(logvar.flatten())
+        var = np.maximum(var, self.reward_min_variance)
+        err = dist * dist / 2 / var
+        mdist = np.sum(err)  # mahalanobis distance
+        info["vae_mdist"] = mdist
+        info["vae_success"] = 1 if mdist < self.epsilon else 0
+        info["vae_dist"] = np.linalg.norm(dist)
+
+    def reset(self, _resample_on_reset=True):
+        obs = self.wrapped_env.reset(_resample_on_reset=_resample_on_reset)
+        if _resample_on_reset:
+            if self.use_vae_goals:
+                latent_goals = self._sample_vae_prior(1)
+                if self.decode_goals:
+                    goal_img = self._decode(latent_goals)[0].transpose()
+                else:
+                    goal_img = None
+                obs['image_desired_goal'] = goal_img
+                obs['state_desired_goal'] = None
+                self._latent_goal = latent_goals[0]
+                self._vw_goal_img = goal_img
+                self._vw_goal_img_decoded = goal_img
             else:
-                goal_img = None
-            obs['image_desired_goal'] = goal_img
-            obs['state_desired_goal'] = None
-            self._latent_goal = latent_goals[0]
-            self._vw_goal_img = goal_img
-            self._vw_goal_img_decoded = goal_img
-        else:
-            self._latent_goal = self._encode_one(obs['image_desired_goal'])
-            if self.decode_goals:
-                self._vw_goal_img_decoded = self._decode(self._latent_goal[None])[0]
+                self._latent_goal = self._encode_one(obs['image_desired_goal'])
+                if self.decode_goals:
+                    self._vw_goal_img_decoded = self._decode(self._latent_goal[None])[0]
         self._vw_goal_img = obs['image_desired_goal']
         obs['desired_goal'] = self._latent_goal
         obs['latent_desired_goal'] = self._latent_goal
@@ -228,24 +237,23 @@ class VAEWrappedEnv(ProxyEnv, Env):
             latent_goals = self._encode(goals['image_desired_goal'])
         goals['desired_goal'] = latent_goals
         goals['latent_desired_goal'] = latent_goals
-
         return goals
 
     def get_diagnostics(self, paths, **kwargs):
         statistics = self.wrapped_env.get_diagnostics(paths, **kwargs)
-        # for stat_name_in_paths in ["vae_mdist", "vae_success"]:
-        #     stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
-        #     statistics.update(create_stats_ordered_dict(
-        #         stat_name_in_paths,
-        #         stats,
-        #         always_show_all_stats=True,
-        #     ))
-        #     final_stats = [s[-1] for s in stats]
-        #     statistics.update(create_stats_ordered_dict(
-        #         "Final " + stat_name_in_paths,
-        #         final_stats,
-        #         always_show_all_stats=True,
-        #     ))
+        for stat_name_in_paths in ["vae_mdist", "vae_success", "vae_dist"]:
+            stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
+            statistics.update(create_stats_ordered_dict(
+                stat_name_in_paths,
+                stats,
+                always_show_all_stats=True,
+            ))
+            final_stats = [s[-1] for s in stats]
+            statistics.update(create_stats_ordered_dict(
+                "Final " + stat_name_in_paths,
+                final_stats,
+                always_show_all_stats=True,
+            ))
         return statistics
 
     def compute_rewards(self, actions, obs):
