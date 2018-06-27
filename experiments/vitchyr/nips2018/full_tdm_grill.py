@@ -90,8 +90,8 @@ if __name__ == "__main__":
                 N=1000,
                 oracle_dataset=True,
                 num_channels=3,
-                # show=True,
-                # use_cached=False,
+                show=True,
+                use_cached=False,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     search_space = {
         # 'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [15, 30, 50],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [
-            # 0.0001,
+            0.0001,
             1,
         ],
         # 'grill_variant.observation_key': ['latent_observation'],
@@ -134,8 +134,8 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    mode = 'ec2'
-    exp_prefix = 'mw-full-grill-tdm-vitchyr-old-settings-1-seed'
+    # mode = 'ec2'
+    # exp_prefix = 'mw-full-grill-tdm-vitchyr-old-settings-1-seed'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             grill_tdm_td3_full_experiment,
