@@ -291,7 +291,7 @@ class ConvVAETrainer():
             'debug/MSE random decoding',
             mse_improvement,
         ))
-        stats['debug/MSE of random reconstruction'] = ptu.get_numpy(
+        stats['debug/MSE of reconstruction'] = ptu.get_numpy(
             recon_mse
         )[0]
         return stats
@@ -387,6 +387,7 @@ class ConvVAE(PyTorchModule):
         self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
 
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
+        # self.fc4 = nn.Linear(self.conv_output_dim, imsize*imsize)
 
         self.conv4 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)

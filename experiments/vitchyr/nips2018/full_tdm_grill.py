@@ -31,10 +31,12 @@ if __name__ == "__main__":
         # env_class=Point2DEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
-            puck_low=(-0.2, 0.5),
-            puck_high=(0.2, 0.7),
+            puck_low=(-0.15, 0.5),
+            puck_high=(0.15, 0.7),
             hand_low=(-0.2, 0.5, 0.),
             hand_high=(0.2, 0.7, 0.5),
+            mocap_low=(-0.1, 0.5, 0.),
+            mocap_high=(0.1, 0.7, 0.5),
         ),
         init_camera=init_sawyer_camera_v4,
         grill_variant=dict(
@@ -109,12 +111,17 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        # 'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [15, 30, 50],
+        'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [15],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [
             # 0.0001,
             1,
         ],
-        # 'grill_variant.observation_key': ['latent_observation'],
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [
+            1,
+        ],
+        'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.1,
+                                                                         0.2,
+                                                                         0.4],
         # 'grill_variant.desired_goal_key': ['state_desired_goal'],
         # 'grill_variant.observation_key': ['state_observation'],
         # 'grill_variant.desired_goal_key': ['latent_desired_goal'],
@@ -134,8 +141,8 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # mode = 'ec2'
-    # exp_prefix = 'mw-full-grill-tdm-is-it-action-scale'
+    mode = 'ec2'
+    exp_prefix = 'tdm-grill-reproduce-pushing-307163e'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             grill_tdm_td3_full_experiment,
