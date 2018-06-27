@@ -64,15 +64,15 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
-            vae_path='06-25-pusher-state-puck-reward-cached-goals-hard-2/06-25-pusher-state-puck-reward-cached-goals-hard-2-id0-s48265/vae.pkl',
+            # vae_path='06-25-pusher-state-puck-reward-cached-goals-hard-2/06-25-pusher-state-puck-reward-cached-goals-hard-2-id0-s48265/vae.pkl',
         ),
         train_vae_variant=dict(
             representation_size=16,
-            beta=5.0,
-            num_epochs=1,
+            beta=1.0,
+            num_epochs=1000,
             generate_vae_dataset_kwargs=dict(
-                N=100,
-                oracle_dataset=True,
+                N=1000,
+                oracle_dataset=False,
                 num_channels=3,
                 # show=True,
                 # use_cached=False,
@@ -86,11 +86,11 @@ if __name__ == "__main__":
             ),
             beta_schedule_kwargs=dict(
                 x_values=[0, 100, 200, 500],
-                y_values=[0, 0, 5, 5],
+                y_values=[0, 0, 1, 1],
             ),
             save_period=5,
         ),
-        version='old-low-friction-murtaza-settings',
+        version='old-gripper',
     )
 
     search_space = {
@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'mw-push-friction-test'
+    exp_prefix = 'mw-push-friction-test-old-gripper'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
