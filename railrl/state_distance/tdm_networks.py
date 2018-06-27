@@ -84,6 +84,9 @@ class TdmQf(FlattenMlp):
             structure='norm_difference',
             tdm_normalizer: TdmNormalizer=None,
             learn_offset=False,
+            observation_dim=None,
+            action_dim=None,
+            goal_dim=None,
             **flatten_mlp_kwargs
     ):
         """
@@ -105,9 +108,22 @@ class TdmQf(FlattenMlp):
             'none',
         ]
         self.save_init_params(locals())
-        self.observation_dim = env.observation_space.low.size
-        self.action_dim = env.action_space.low.size
-        self.goal_dim = env.goal_dim
+
+        if observation_dim is None:
+            self.observation_dim = env.observation_space.low.size
+        else:
+            self.observation_dim = observation_dim
+
+        if action_dim is None:
+            self.action_dim = env.action_space.low.size
+        else:
+            self.action_dim = action_dim
+
+        if goal_dim is None:
+            self.goal_dim = env.goal_dim
+        else:
+            self.goal_dim = goal_dim
+
         super().__init__(
             input_size=(
                     self.observation_dim + self.action_dim + self.goal_dim + 1
@@ -182,12 +198,28 @@ class TdmPolicy(TanhMlpPolicy):
             self,
             env,
             tdm_normalizer: TdmNormalizer=None,
+            observation_dim=None,
+            action_dim=None,
+            goal_dim=None,
             **kwargs
     ):
         self.save_init_params(locals())
-        self.observation_dim = env.observation_space.low.size
-        self.action_dim = env.action_space.low.size
-        self.goal_dim = env.goal_dim
+
+        if observation_dim is None:
+            self.observation_dim = env.observation_space.low.size
+        else:
+            self.observation_dim = observation_dim
+
+        if action_dim is None:
+            self.action_dim = env.action_space.low.size
+        else:
+            self.action_dim = action_dim
+
+        if goal_dim is None:
+            self.goal_dim = env.goal_dim
+        else:
+            self.goal_dim = goal_dim
+
         super().__init__(
             input_size=self.observation_dim + self.goal_dim + 1,
             output_size=self.action_dim,
@@ -232,6 +264,9 @@ class TdmVf(FlattenMlp):
             vectorized,
             structure='none',
             tdm_normalizer: TdmNormalizer=None,
+            observation_dim=None,
+            action_dim=None,
+            goal_dim=None,
             **kwargs
     ):
         assert structure in [
