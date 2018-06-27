@@ -1,6 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, \
-    init_sawyer_camera_v2, init_sawyer_camera_v3
+    init_sawyer_camera_v2, init_sawyer_camera_v3, init_sawyer_camera_v4
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place import \
     SawyerPickAndPlaceEnv
 from multiworld.envs.pygame.point2d import Point2DEnv
@@ -31,11 +31,15 @@ if __name__ == "__main__":
             hide_goal_markers=True,
             # puck_low=(-0.05, 0.6),
             # puck_high=(0.05, 0.7),
+            puck_low=(-0.2, 0.5),
+            puck_high=(0.2, 0.7),
+            hand_low=(-0.2, 0.5, 0.),
+            hand_high=(0.2, 0.7, 0.5),
         ),
-        init_camera=init_sawyer_camera_v1,
+        init_camera=init_sawyer_camera_v4,
         grill_variant=dict(
             algo_kwargs=dict(
-                num_epochs=500,
+                num_epochs=100,
                 # num_steps_per_epoch=100,
                 # num_steps_per_eval=100,
                 # num_epochs=500,
@@ -65,6 +69,7 @@ if __name__ == "__main__":
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
             # vae_path='06-25-pusher-state-puck-reward-cached-goals-hard-2/06-25-pusher-state-puck-reward-cached-goals-hard-2-id0-s48265/vae.pkl',
+            vae_path="05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -115,8 +120,10 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # mode = 'ec2'
+    mode = 'ec2'
     # exp_prefix = 'dev'
+    # exp_prefix = 'mw-full-grill-her-is-it-the-floor'
+    exp_prefix = 'mw-full-grill-tdm-is-it-action-scale'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             grill_her_td3_full_experiment,

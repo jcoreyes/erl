@@ -57,7 +57,7 @@ if __name__ == "__main__":
             ),
             replay_kwargs=dict(
                 max_size=int(1e6),
-                fraction_goals_are_rollout_goals=0.4,
+                fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
             algorithm='GRILL-TDM-TD3',
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     search_space = {
         # 'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [15, 30, 50],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [
-            0.0001,
+            # 0.0001,
             1,
         ],
         # 'grill_variant.observation_key': ['latent_observation'],
@@ -134,8 +134,8 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    mode = 'ec2'
-    exp_prefix = 'mw-full-grill-tdm-is-it-the-floor-sweep-her-resample-frac'
+    # mode = 'ec2'
+    # exp_prefix = 'mw-full-grill-tdm-is-it-action-scale'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             grill_tdm_td3_full_experiment,
