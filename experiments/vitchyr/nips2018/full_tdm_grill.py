@@ -31,8 +31,10 @@ if __name__ == "__main__":
         # env_class=Point2DEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
-            puck_low=(-0.15, 0.5),
-            puck_high=(0.15, 0.7),
+            # puck_low=(-0.15, 0.5),
+            # puck_high=(0.15, 0.7),
+            puck_low=(-0.2, 0.5),
+            puck_high=(0.2, 0.7),
             hand_low=(-0.2, 0.5, 0.),
             hand_high=(0.2, 0.7, 0.5),
             mocap_low=(-0.1, 0.5, 0.),
@@ -46,9 +48,10 @@ if __name__ == "__main__":
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     max_path_length=16,
-                    num_updates_per_env_step=1,
+                    num_updates_per_env_step=4,
                     batch_size=128,
                     discount=1,
+                    min_num_steps_before_training=1000,
                 ),
                 tdm_kwargs=dict(
                     max_tau=15,
@@ -142,7 +145,8 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     mode = 'ec2'
-    exp_prefix = 'tdm-grill-reproduce-pushing-307163e'
+    # exp_prefix = 'tdm-grill-reproduce-pushing-307163e-smaller-puck-range-2'
+    exp_prefix = 'is-it-nupo4-plus-fraction-sweep'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             grill_tdm_td3_full_experiment,
