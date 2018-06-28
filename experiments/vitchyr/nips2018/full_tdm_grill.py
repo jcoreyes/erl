@@ -47,7 +47,7 @@ if __name__ == "__main__":
                     num_epochs=100,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
-                    max_path_length=16,
+                    max_path_length=97,
                     num_updates_per_env_step=4,
                     batch_size=128,
                     discount=1,
@@ -85,7 +85,7 @@ if __name__ == "__main__":
             ),
             qf_criterion_class=HuberLoss,
             # vae_path='06-25-pusher-state-puck-reward-cached-goals-hard-2/06-25-pusher-state-puck-reward-cached-goals-hard-2-id0-s48265/vae.pkl',
-            vae_path="05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
+            # vae_path="05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -116,16 +116,18 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [15],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [
-            # 0.0001,
             1,
+        ],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [
+            16,
         ],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            4,
         ],
-        'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.1,
-                                                                         0.2,
-                                                                         0.4],
-        # 'grill_variant.desired_goal_key': ['state_desired_goal'],
+        'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [
+            0.2, 0.4,
+        ],
+        'train_vae_variant.generate_vae_dataset_kwargs.N': [100, 1000]
         # 'grill_variant.observation_key': ['state_observation'],
         # 'grill_variant.desired_goal_key': ['latent_desired_goal'],
         # 'grill_variant.vae_paths': [
@@ -146,7 +148,7 @@ if __name__ == "__main__":
 
     mode = 'ec2'
     # exp_prefix = 'tdm-grill-reproduce-pushing-307163e-smaller-puck-range-2'
-    exp_prefix = 'is-it-nupo4-plus-fraction-sweep'
+    exp_prefix = 'new-vae-push-and-reach-tdm'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             grill_tdm_td3_full_experiment,
