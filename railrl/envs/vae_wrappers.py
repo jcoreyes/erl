@@ -143,24 +143,23 @@ class VAEWrappedEnv(ProxyEnv, Env):
         info["vae_success"] = 1 if mdist < self.epsilon else 0
         info["vae_dist"] = np.linalg.norm(dist)
 
-    def reset(self, _resample_on_reset=True):
-        obs = self.wrapped_env.reset(_resample_on_reset=_resample_on_reset)
-        if _resample_on_reset:
-            if self.use_vae_goals:
-                latent_goals = self._sample_vae_prior(1)
-                if self.decode_goals:
-                    goal_img = self._decode(latent_goals)[0].transpose()
-                else:
-                    goal_img = None
-                obs['image_desired_goal'] = goal_img
-                obs['state_desired_goal'] = None
-                self._latent_goal = latent_goals[0]
-                self._vw_goal_img = goal_img
-                self._vw_goal_img_decoded = goal_img
+    def reset(self):
+        obs = self.wrapped_env.reset()
+        if self.use_vae_goals:
+            latent_goals = self._sample_vae_prior(1)
+            if self.decode_goals:
+                goal_img = self._decode(latent_goals)[0].transpose()
             else:
-                self._latent_goal = self._encode_one(obs['image_desired_goal'])
-                if self.decode_goals:
-                    self._vw_goal_img_decoded = self._decode(self._latent_goal[None])[0]
+                goal_img = None
+            obs['image_desired_goal'] = goal_img
+            obs['state_desired_goal'] = None
+            self._latent_goal = latent_goals[0]
+            self._vw_goal_img = goal_img
+            self._vw_goal_img_decoded = goal_img
+        else:
+            self._latent_goal = self._encode_one(obs['image_desired_goal'])
+            if self.decode_goals:
+                self._vw_goal_img_decoded = self._decode(self._latent_goal[None])[0]
         self._vw_goal_img = obs['image_desired_goal']
         obs['desired_goal'] = self._latent_goal
         obs['latent_desired_goal'] = self._latent_goal
