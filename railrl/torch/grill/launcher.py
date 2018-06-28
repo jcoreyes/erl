@@ -173,10 +173,11 @@ def train_vae(variant, return_data=False):
             epoch,
             save_reconstruction=should_save_imgs,
             save_scatterplot=should_save_imgs,
-            save_vae=False,
+            # save_vae=False,
         )
         if should_save_imgs:
             t.dump_samples(epoch)
+    logger.save_extra_data(m, 'vae.pkl', mode='pickle')
     if return_data:
         return m, train_data, test_data
     return m
