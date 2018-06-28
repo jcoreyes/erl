@@ -79,17 +79,32 @@ def rollout(env, agent, frames, max_path_length=np.inf, animated=False):
     o = env.reset()
     goal = env.get_goal()
     agent.reset()
-    # obs, goal = env.goal_obs, env.cur_obs
-    frames.append(get_image(env.goal_obs, env.cur_obs))
+    frames.append(get_image(o['image_desired_goal'].reshape(
+                3,
+                84,
+                84,
+            ).transpose(), o['image_achieved_goal'].reshape(
+                3,
+                84,
+                84,
+            ).transpose()))
     next_o = None
     path_length = 0
     if animated:
         env.render()
     while path_length < max_path_length:
-        obs = np.hstack((o, goal))
+        obs = np.hstack((o['observation'], goal['desired_goal']))
         a, agent_info = agent.get_action(obs)
         next_o, r, d, env_info = env.step(a)
-        frames.append(get_image(env.goal_obs, env.cur_obs))
+        frames.append(get_image(next_o['image_desired_goal'].reshape(
+                3,
+                84,
+                84,
+            ).transpose(), next_o['image_achieved_goal'].reshape(
+                3,
+                84,
+                84,
+            ).transpose()))
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -143,16 +158,32 @@ def create_multitask_rollout_function(
         goal = env.get_goal()
         agent.reset()
         # obs, goal = env.goal_obs, env.cur_obs
-        frames.append(get_image(env.goal_obs, env.cur_obs))
+        frames.append(get_image(o['image_desired_goal'].reshape(
+            3,
+            84,
+            84,
+        ).transpose(), o['image_achieved_goal'].reshape(
+            3,
+            84,
+            84,
+        ).transpose()))
         next_o = None
         path_length = 0
         if animated:
             env.render()
         tau = np.array([max_tau])
         while path_length < max_path_length:
-            a, agent_info = agent.get_action(o, goal, tau)
+            a, agent_info = agent.get_action(o['observation'], goal['desired_goal'], tau)
             next_o, r, d, env_info = env.step(a)
-            frames.append(get_image(env.goal_obs, env.cur_obs))
+            frames.append(get_image(next_o['image_desired_goal'].reshape(
+                3,
+                84,
+                84,
+            ).transpose(), next_o['image_achieved_goal'].reshape(
+                3,
+                84,
+                84,
+            ).transpose()))
             observations.append(o)
             rewards.append(r)
             terminals.append(d)
