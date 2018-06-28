@@ -48,11 +48,11 @@ variant = dict(
     ),
     algorithm="TDM-TD3",
     version="normal",
-    env_kwargs=dict(
-        # fix_goal=False,
-        # # fix_goal=True,
-        # # fixed_goal=(0, 0.7),
-    ),
+    # env_kwargs=dict(
+    #     # fix_goal=False,
+    #     # # fix_goal=True,
+    #     # # fixed_goal=(0, 0.7),
+    # ),
     normalize=False,
     render=False,
     multiworld_env=True,
@@ -60,7 +60,7 @@ variant = dict(
 
 common_params = {
     'exploration_type': ['epsilon', 'ou'], # ['epsilon', 'ou'], #['epsilon', 'ou', 'gaussian'],
-    'algo_kwargs.tdm_kwargs.max_tau': [1, 5, 10, 20, 40, 99], #[10, 20, 50, 99],
+    'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 20, 40, 99], #[10, 20, 50, 99],
     # 'algo_kwargs.tdm_kwargs.max_tau': [5, 50, 99],
     'algo_kwargs.tdm_kwargs.vectorized': [False],
     # 'qf_kwargs.structure': ['none'],
@@ -92,11 +92,22 @@ env_params = {
     },
     'sawyer-push-and-reach-xy': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEnv],
+        'env_kwargs': [
+            dict(
+                hide_goal_markers=True,
+                puck_low=(-0.2, 0.5),
+                puck_high=(0.2, 0.7),
+                hand_low=(-0.2, 0.5, 0.),
+                hand_high=(0.2, 0.7, 0.5),
+                mocap_low=(-0.1, 0.5, 0.),
+                mocap_high=(0.1, 0.7, 0.5),
+                reward_type='hand_and_puck_distance',
+            ),
+        ],
         'exploration_type': ['epsilon', 'gaussian'],
-        'env_kwargs.reward_type': ['hand_and_puck_distance'],
-        # 'algo_kwargs.discount': [0.98],
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
-        'algo_kwargs.base_kwargs.num_epochs': [1000],
+        'algo_kwargs.base_kwargs.num_epochs': [500],
+        'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 20, 40, 99],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],
     },
     'sawyer-push-and-reach-xy-railrl': {  # 6 DoF
@@ -138,7 +149,14 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for _ in range(args.num_seeds):
+    if args.mode == 'ec2':
+        num_exps_per_instance = args.num_seeds
+        num_outer_loops = 1
+    else:
+        num_exps_per_instance = 1
+        num_outer_loops = args.num_seeds
+
+    for _ in range(num_outer_loops):
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             run_experiment(
                 tdm_td3_experiment,
@@ -147,6 +165,7 @@ if __name__ == "__main__":
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=args.gpu,
+                num_exps_per_instance=num_exps_per_instance,
                 snapshot_gap=int(variant['algo_kwargs']['base_kwargs']['num_epochs'] / 10),
                 snapshot_mode='gap_and_last',
             )

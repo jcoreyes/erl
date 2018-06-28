@@ -100,12 +100,15 @@ def tdm_td3_experiment(variant):
     algo_kwargs = variant['algo_kwargs']
 
     if multiworld_env is True:
-        observation_key = variant.get('observation_key', 'observation')
-        desired_goal_key = variant.get('desired_goal_key', 'desired_goal')
+        observation_key = variant.get('observation_key', 'state_observation')
+        desired_goal_key = variant.get('desired_goal_key', 'state_desired_goal')
+        achieved_goal_key = variant.get('achieved_goal_key', 'state_achieved_goal')
         replay_buffer = ObsDictRelabelingBuffer(
             env=relabeling_env,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
+            achieved_goal_key=achieved_goal_key,
+            # ob_keys_to_save=['state_observation', 'state_desired_goal', 'state_achieved_goal'],
             **variant['replay_buffer_kwargs']
         )
         algo_kwargs['tdm_kwargs']['observation_key'] = observation_key
@@ -118,7 +121,6 @@ def tdm_td3_experiment(variant):
 
     # qf_criterion = variant['qf_criterion_class']()
     # algo_kwargs['td3_kwargs']['qf_criterion'] = qf_criterion
-    algo_kwargs['tdm_kwargs']['env_samples_goal_on_reset'] = True
     algo_kwargs['td3_kwargs']['training_env'] = env
     if 'tau_schedule_kwargs' in variant:
         tau_schedule = IntPiecewiseLinearSchedule(**variant['tau_schedule_kwargs'])
