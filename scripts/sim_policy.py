@@ -64,7 +64,7 @@ def simulate_policy(args):
             animated=not args.hide,
         ))
         if hasattr(env, "log_diagnostics"):
-            env.log_diagnostics(paths, logger)
+            env.log_diagnostics(paths, logger=logger)
         logger.dump_tabular()
 
 

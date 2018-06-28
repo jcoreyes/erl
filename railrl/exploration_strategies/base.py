@@ -25,6 +25,7 @@ class RawExplorationStrategy(ExplorationStrategy, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     def get_action(self, t, policy, *args, **kwargs):
+        print(*args, **kwargs)
         action, agent_info = policy.get_action(*args, **kwargs)
         return self.get_action_from_raw_action(action, t=t), agent_info
 

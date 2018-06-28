@@ -5,8 +5,24 @@ from railrl.envs.wrappers import NormalizedBoxEnv, ProxyEnv
 from railrl.samplers.util import rollout
 from railrl.core.serializable import Serializable
 import numpy as np
+import os
+import redis
 
-@ray.remote
+called_ray_init = False
+def try_init_ray():
+    global called_ray_init
+    if not called_ray_init:
+        try:
+            ray.init(redis_address="127.0.0.1:6379")
+        except (redis.exceptions.ConnectionError, AssertionError):
+            raise AssertionError(
+                "Make sure to call \
+                'ray start --head --node-ip-address 127.0.0.1 --redis-port 6379 --redis-shard-ports 6380' \
+                beforehand"
+            )
+        called_ray_init = True
+
+@ray.remote(num_cpus=1)
 class RayEnv(object):
     """
     Perform rollouts asynchronously using ray.
@@ -20,6 +36,7 @@ class RayEnv(object):
             normalize_env,
             rollout_function,
     ):
+        os.environ["MKL_NUM_THREADS"] = "1"
         self._env = env
         if normalize_env:
             # TODO: support more than just box envs
@@ -30,57 +47,14 @@ class RayEnv(object):
         self.rollout_function = rollout_function
 
     def rollout(self, policy_params, use_exploration_strategy):
-        self._policy.set_param_values_np(policy_params)
         if use_exploration_strategy:
+            self._exploration_policy.set_param_values_np(policy_params)
             policy = self._exploration_policy
         else:
+            self._policy.set_param_values_np(policy_params)
             policy = self._policy
         # return self.multitask_rollout(self._env, policy, self._max_path_length)
         return self.rollout_function(self._env, policy, self._max_path_length)
-
-    #HACK FOR COMPUTING MULITASK ROLLOUTS FOR PARALLEL
-    def multitask_rollout(self, env, policy, max_path_length):
-        observations = []
-        actions = []
-        rewards = []
-        terminals = []
-        agent_infos = []
-        env_infos = []
-        next_observations = []
-        path_length = 0
-        o = env.reset()
-        goal = env.get_goal()
-        while path_length < max_path_length:
-            new_obs = np.hstack((o, goal))
-            a, agent_info = policy.get_action(new_obs)
-            next_o, r, d, env_info = env.step(a)
-            observations.append(o)
-            rewards.append(r)
-            terminals.append(d)
-            actions.append(a)
-            next_observations.append(next_o)
-            agent_infos.append(agent_info)
-            env_infos.append(env_info)
-            path_length += 1
-            if d:
-                break
-            o = next_o
-
-        actions = np.array(actions)
-        if len(actions.shape) == 1:
-            actions = np.expand_dims(actions, 1)
-        observations = np.array(observations)
-        next_observations = np.array(next_observations)
-        return dict(
-            observations=observations,
-            actions=actions,
-            rewards=np.array(rewards).reshape(-1, 1),
-            next_observations=next_observations,
-            terminals=np.array(terminals).reshape(-1, 1),
-            agent_infos=agent_infos,
-            env_infos=env_infos,
-            goals=np.repeat(goal[None], path_length, 0),
-        )
 
 class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     """
@@ -138,38 +112,77 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             max_path_length,
             normalize_env,
             rollout_function=rollout,
+            workers=4,
+            dedicated_train=1,
+
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
         ray.register_custom_serializer(type(env), use_pickle=True)
         ray.register_custom_serializer(type(policy), use_pickle=True)
         ray.register_custom_serializer(type(exploration_policy), use_pickle=True)
-        self._ray_env = RayEnv.remote(
-            env,
-            policy,
-            exploration_policy,
-            max_path_length,
-            normalize_env,
-            rollout_function,
-        )
-        self._rollout_promise = None
-    def rollout(self, policy, use_exploration_strategy):
-        if self._rollout_promise is None:
-            policy_params = policy.get_param_values_np()
-            self._rollout_promise = self._ray_env.rollout.remote(
-                policy_params,
-                use_exploration_strategy,
+
+        self._ray_envs = [
+            RayEnv.remote(
+                env,
+                policy,
+                exploration_policy,
+                max_path_length,
+                normalize_env,
+                rollout_function,
             )
-            return None
+        for _ in range(workers)]
+
+        self.free_envs = set(self._ray_envs)
+        self.promise_info = {}
+        # Let self.promise_list[True] be the promises for training
+        # and self.promise_list[False] be the promises for eval.
+        self.promise_list = {
+            True: [],
+            False: [],
+        }
+
+        self.num_workers = workers
+        # Let self.worker_limits[True] be the max number of workers for training
+        # and self.worker_limits[False] be the max number of workers for eval.
+        self.worker_limits = {
+            True: dedicated_train,
+            False: self.num_workers - dedicated_train,
+        }
+
+    def rollout(self, policy, train, epoch):
+        if len(self.promise_list[train]) < self.worker_limits[train]:
+            self._alloc_promise(policy, train, epoch)
 
         # Check if remote path has been collected.
-        paths, _ = ray.wait([self._rollout_promise], timeout=0)
-        if len(paths):
-            policy_params = policy.get_param_values_np()
-            self._rollout_promise = self._ray_env.rollout.remote(
-                policy_params,
-                use_exploration_strategy,
-            )
-            return ray.get(paths[0])
-
+        ready_promises, _ = ray.wait(self.promise_list[train], timeout=0)
+        for promise in ready_promises:
+            _, path_epoch, path_type = self.promise_info[promise]
+            if path_type != train:
+                continue
+            self._free_promise(promise)
+            # Throw away eval paths from previous epochs
+            if path_epoch != epoch and not train:
+                continue
+            self._alloc_promise(policy, train, epoch)
+            return ray.get(promise)
         return None
+
+    def _alloc_promise(self, policy, train, epoch):
+        policy_params = policy.get_param_values_np()
+
+        free_env = self.free_envs.pop()
+        promise = free_env.rollout.remote(
+            policy_params,
+            train,
+        )
+        self.promise_info[promise] = (free_env, epoch, train)
+        self.promise_list[train].append(promise)
+        return promise
+
+    def _free_promise(self, promise_id):
+        env_id, _, train = self.promise_info[promise_id]
+        assert env_id not in self.free_envs
+        self.free_envs.add(env_id)
+        del self.promise_info[promise_id]
+        self.promise_list[train].remove(promise_id)
