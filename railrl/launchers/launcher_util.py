@@ -394,7 +394,7 @@ def create_mounts(
             sync_interval=sync_interval,
             include_types=('*.txt', '*.csv', '*.json', '*.gz', '*.tar',
                            '*.log', '*.pkl', '*.mp4', '*.png', '*.jpg',
-                           '*.jpeg'),
+                           '*.jpeg', '*.diff'),
         )
     elif (
         mode == 'local'
