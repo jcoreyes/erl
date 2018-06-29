@@ -88,21 +88,16 @@ if __name__ == "__main__":
     env_samples_goal_on_reset = args.silent or is_mj_env
     while True:
         for _ in range(args.nrolls):
-            if env_samples_goal_on_reset:
-                goal = None
-            else:
-                goal = env.sample_goal_for_rollout()
             path = multitask_rollout(
                 env,
                 policy,
                 init_tau=max_tau,
-                goal=goal,
                 max_path_length=args.H,
                 animated=not args.hide and not is_mj_env,
                 cycle_tau=not args.ncycle,
                 decrement_tau=not args.ndt,
-                env_samples_goal_on_reset=env_samples_goal_on_reset,
-                # get_action_kwargs={'deterministic': True},
+                observation_key='observation',
+                desired_goal_key='desired_goal',
             )
             print("last state", path['next_observations'][-1])
             paths.append(path)
