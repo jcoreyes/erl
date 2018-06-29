@@ -59,7 +59,6 @@ def tdm_td3_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
-    multiworld_env = variant.get('multiworld_env', True)
     if multiworld_env is True:
         obs_dim = env.observation_space.spaces['observation'].low.size
         action_dim = env.action_space.low.size
@@ -108,7 +107,6 @@ def tdm_td3_experiment(variant):
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
             achieved_goal_key=achieved_goal_key,
-            # ob_keys_to_save=['state_observation', 'state_desired_goal', 'state_achieved_goal'],
             **variant['replay_buffer_kwargs']
         )
         algo_kwargs['tdm_kwargs']['observation_key'] = observation_key

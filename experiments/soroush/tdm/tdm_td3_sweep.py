@@ -2,6 +2,7 @@ import argparse
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from railrl.envs.mujoco.sawyer_push_and_reach_env import SawyerPushAndReachXYEasyEnv
+from railrl.envs.mujoco.sawyer_push_and_reach_env import SawyerPushAndReachXYEasyMultiworldEnv
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 from railrl.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv as SawyerReachXYEnvOld
@@ -48,11 +49,11 @@ variant = dict(
     ),
     algorithm="TDM-TD3",
     version="normal",
-    # env_kwargs=dict(
-    #     # fix_goal=False,
-    #     # # fix_goal=True,
-    #     # # fixed_goal=(0, 0.7),
-    # ),
+    env_kwargs=dict(
+        # fix_goal=False,
+        # # fix_goal=True,
+        # # fixed_goal=(0, 0.7),
+    ),
     normalize=False,
     render=False,
     multiworld_env=True,
@@ -87,7 +88,7 @@ env_params = {
         # 'env_kwargs.reward_type': ['hand_distance'],
         'multiworld_env': [False],
         'algo_kwargs.base_kwargs.num_epochs': [50],
-        'algo_kwargs.tdm_kwargs.max_tau': [1, 5, 10, 15, 20, 25, 50, 99],
+        'algo_kwargs.tdm_kwargs.max_tau': [10, 20, 40],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3]  # [0.01, 0.1, 1, 10, 100],
     },
     'sawyer-push-and-reach-xy': {  # 6 DoF
@@ -112,12 +113,20 @@ env_params = {
     },
     'sawyer-push-and-reach-xy-railrl': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEasyEnv],
-        'exploration_type': ['epsilon'],
-        # 'algo_kwargs.discount': [0.98],
+        'exploration_type': ['epsilon', 'gaussian'],
         'multiworld_env': [False],
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
-        'algo_kwargs.base_kwargs.num_epochs': [1000],
-        'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 20, 40, 99],
+        'algo_kwargs.base_kwargs.num_epochs': [400], #[1000],
+        'algo_kwargs.tdm_kwargs.max_tau': [10, 20, 40],
+        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],
+    },
+    'sawyer-push-and-reach-xy-railrl-for-gm': {  # 6 DoF
+        'env_class': [SawyerPushAndReachXYEasyMultiworldEnv],
+        'exploration_type': ['epsilon', 'gaussian'],
+        'multiworld_env': [True],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
+        'algo_kwargs.base_kwargs.num_epochs': [400],  # [1000],
+        'algo_kwargs.tdm_kwargs.max_tau': [10, 20, 40],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],
     },
 }
@@ -149,7 +158,7 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    if args.mode == 'ec2':
+    if args.mode == 'ec2' and args.gpu:
         num_exps_per_instance = args.num_seeds
         num_outer_loops = 1
     else:
