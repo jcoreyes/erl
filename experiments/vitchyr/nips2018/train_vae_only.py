@@ -13,14 +13,15 @@ if __name__ == "__main__":
     variant = dict(
         representation_size=64,
         beta=1.0,
-        num_epochs=5000,
+        num_epochs=500,
         generate_vae_dataset_kwargs=dict(
-            dataset_path='manual-upload/SawyerPushAndReachXYEnv_1000_init_sawyer_camera_v5_oracleTrue.npy',
+            # dataset_path='manual-upload/SawyerPushAndReachXYEnv_1000_init_sawyer_camera_v5_oracleTrue.npy',
+            dataset_path='manual-upload/SawyerPushAndReachXYEnv_1000_init_sawyer_camera_v4_oracleTrue.npy',
             env_class=SawyerPushAndReachXYEnv,
             env_kwargs=dict(
                 hide_goal_markers=True,
-                puck_low=(-0.2, 0.5),
-                puck_high=(0.2, 0.7),
+                puck_low=(-0.15, 0.5),
+                puck_high=(0.15, 0.7),
                 hand_low=(-0.2, 0.5, 0.),
                 hand_high=(0.2, 0.7, 0.5),
             ),
@@ -40,13 +41,13 @@ if __name__ == "__main__":
         ),
         beta_schedule_kwargs=dict(
             x_values=[0, 100, 200, 500],
-            y_values=[0, 0, 1, 1],
+            y_values=[0, 0, 5, 5],
         ),
         save_period=10,
     )
 
     search_space = {
-        'representation_size': [4, 32, 64, 128],
+        'representation_size': [16],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -55,8 +56,8 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    mode = 'ec2'
-    exp_prefix = 'train-vae-zoomed-out-5k'
+    # mode = 'ec2'
+    exp_prefix = 'train-vae-beta-5-push-and-reach-cam4-y15-range'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             train_vae,

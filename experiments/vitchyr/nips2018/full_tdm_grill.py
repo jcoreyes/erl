@@ -31,10 +31,14 @@ if __name__ == "__main__":
         # env_class=Point2DEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
+            # puck_low=(-0.15, 0.5),
+            # puck_high=(0.15, 0.7),
             puck_low=(-0.2, 0.5),
             puck_high=(0.2, 0.7),
-            hand_low=(-0.1, 0.5, 0.),
-            hand_high=(0.1, 0.7, 0.5),
+            hand_low=(-0.2, 0.5, 0.),
+            hand_high=(0.2, 0.7, 0.5),
+            mocap_low=(-0.1, 0.5, 0.),
+            mocap_high=(0.1, 0.7, 0.5),
         ),
         init_camera=init_sawyer_camera_v4,
         grill_variant=dict(
@@ -43,10 +47,11 @@ if __name__ == "__main__":
                     num_epochs=100,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
-                    max_path_length=16,
-                    num_updates_per_env_step=1,
+                    max_path_length=97,
+                    num_updates_per_env_step=4,
                     batch_size=128,
                     discount=1,
+                    min_num_steps_before_training=1000,
                 ),
                 tdm_kwargs=dict(
                     max_tau=15,
@@ -81,13 +86,16 @@ if __name__ == "__main__":
             qf_criterion_class=HuberLoss,
             # vae_path='06-25-pusher-state-puck-reward-cached-goals-hard-2/06-25-pusher-state-puck-reward-cached-goals-hard-2-id0-s48265/vae.pkl',
             # vae_path="05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
+            # vae_path="/home/vitchyr/git/railrl/data/doodads3/06-28-train-vae-beta-5-push-and-reach-cam4-2/06-28-train-vae-beta-5-push-and-reach-cam4-2_2018_06_28_11_47_21_0000--s-11654/params.pkl",
+            vae_path="/home/vitchyr/git/railrl/data/doodads3/06-28-train-vae-beta-5-push-and-reach-cam4-p15-range/06-28-train-vae-beta-5-push-and-reach-cam4-p15-range_2018_06_28_11_48_04_0000--s-80805/params.pkl",
         ),
         train_vae_variant=dict(
             representation_size=16,
             beta=1.0,
-            num_epochs=1000,
+            num_epochs=500,
             generate_vae_dataset_kwargs=dict(
-                N=1000,
+                dataset_path='manual-upload/SawyerPushAndReachXYEnv_1000_init_sawyer_camera_v4_oracleTrue.npy',
+                N=100,
                 oracle_dataset=True,
                 num_channels=3,
                 # show=True,
@@ -102,20 +110,27 @@ if __name__ == "__main__":
             ),
             beta_schedule_kwargs=dict(
                 x_values=[0, 100, 200, 500],
-                y_values=[0, 0, 1, 1],
+                y_values=[0, 0, 5, 5],
             ),
             save_period=5,
         ),
     )
 
     search_space = {
-        # 'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [15, 30, 50],
+        'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [15],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [
-            # 0.0001,
-            1,
+            1, 100, 10000
         ],
-        # 'grill_variant.observation_key': ['latent_observation'],
-        # 'grill_variant.desired_goal_key': ['state_desired_goal'],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [
+            16,
+        ],
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [
+            1, 4,
+        ],
+        'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [
+            0.2, 0.4, 1
+        ],
+        # 'train_vae_variant.generate_vae_dataset_kwargs.N': [100, 1000]
         # 'grill_variant.observation_key': ['state_observation'],
         # 'grill_variant.desired_goal_key': ['latent_desired_goal'],
         # 'grill_variant.vae_paths': [
@@ -135,7 +150,7 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     mode = 'ec2'
-    exp_prefix = 'mw-full-grill-tdm-vitchyr-old-settings-1-seed'
+    exp_prefix = 'new-vae-push-and-reach-tdm-vae-trained-with-p15-puck'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             grill_tdm_td3_full_experiment,
@@ -143,9 +158,8 @@ if __name__ == "__main__":
             mode=mode,
             variant=variant,
             use_gpu=True,
-            # trial_dir_suffix='n1000-{}--zoomed-{}'.format(n1000, zoomed),
-            snapshot_gap=50,
-            snapshot_mode='gap_and_last',
+            # snapshot_gap=50,
+            snapshot_mode='last',
             exp_id=exp_id,
-            num_exps_per_instance=1,
+            num_exps_per_instance=3,
         )
