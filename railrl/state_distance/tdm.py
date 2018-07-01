@@ -13,7 +13,6 @@ from railrl.policies.base import SerializablePolicy
 from railrl.state_distance.policies import UniversalPolicy
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
     multitask_rollout
-from railrl.state_distance.tdm_networks import TdmNormalizer
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.core import np_to_pytorch_batch
 
@@ -22,7 +21,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             self,
             max_tau=10,
             epoch_max_tau_schedule=None,
-            vectorized=True,
+            vectorized=False,
             cycle_taus_for_rollout=True,
             dense_rewards=False,
             finite_horizon=True,
@@ -33,7 +32,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             norm_order=1,
             square_distance=False,
             goal_weights=None,
-            tdm_normalizer: TdmNormalizer = None,
             normalize_distance=False,
             observation_key=None,
             desired_goal_key=None,
@@ -100,7 +98,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             # In case they were passed in as (e.g.) tuples or list
             self.goal_weights = np.array(self.goal_weights)
             assert self.goal_weights.size == self.env.goal_dim
-        self.tdm_normalizer = tdm_normalizer
         self.normalize_distance = normalize_distance
 
         self.observation_key = observation_key
@@ -236,6 +233,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             agent_info,
             env_info,
     ):
+        if self.vectorized:
+            reward = reward[0]
         self._current_path_builder.add_all(
             observations=observation,
             actions=action,

@@ -26,8 +26,6 @@ variant = dict(
         ),
         tdm_kwargs=dict(
             max_tau=15,
-            # num_pretrain_paths=0,
-            # reward_type='env',
         ),
         td3_kwargs=dict(
         ),
@@ -54,6 +52,7 @@ variant = dict(
         # # fix_goal=True,
         # # fixed_goal=(0, 0.7),
     ),
+	reward_params=dict(),
     normalize=False,
     render=False,
     multiworld_env=True,
@@ -63,7 +62,6 @@ common_params = {
     'exploration_type': ['epsilon', 'ou'], # ['epsilon', 'ou'], #['epsilon', 'ou', 'gaussian'],
     'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 20, 40, 99], #[10, 20, 50, 99],
     # 'algo_kwargs.tdm_kwargs.max_tau': [5, 50, 99],
-    'algo_kwargs.tdm_kwargs.vectorized': [False],
     # 'qf_kwargs.structure': ['none'],
     # 'reward_params.type': [
     #     # 'latent_distance',
@@ -104,13 +102,16 @@ env_params = {
                 goal_high=(0.05, 0.65, 0.02, 0.2, 0.7),
                 mocap_low=(-0.1, 0.5, 0.),
                 mocap_high=(0.1, 0.7, 0.5),
-                reward_type='hand_and_puck_distance',
             ),
         ],
-        'exploration_type': ['epsilon', 'gaussian'],
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
-        'algo_kwargs.base_kwargs.num_epochs': [500],
-        'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 20, 40, 99],
+		# 'reward_params.reward_type': ['state_distance'],
+		'reward_params.reward_type': ['state_distance', 'vectorized_state_distance'],
+		'reward_params.norm_order': [1, 2], #[1, 2], #[1], [2]
+        'qf_kwargs.structure': ['norm_difference', 'none'],
+        'exploration_type': ['epsilon'], #['epsilon', 'gaussian'],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4], #4
+        'algo_kwargs.base_kwargs.num_epochs': [600],
+        'algo_kwargs.tdm_kwargs.max_tau': [10, 20, 40], #[1, 10, 20, 40, 99],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],
     },
     'sawyer-push-and-reach-xy-railrl': {  # 6 DoF

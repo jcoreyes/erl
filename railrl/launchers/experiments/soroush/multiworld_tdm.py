@@ -25,6 +25,7 @@ from railrl.misc.ml_util import IntPiecewiseLinearSchedule
 
 
 def tdm_td3_experiment(variant):
+    variant['env_kwargs'].update(variant['reward_params'])
     env = variant['env_class'](**variant['env_kwargs'])
 
     multiworld_env = variant.get('multiworld_env', True)
@@ -65,13 +66,19 @@ def tdm_td3_experiment(variant):
         goal_dim = env.observation_space.spaces['desired_goal'].low.size
     else:
         obs_dim = action_dim = goal_dim = None
-    vectorized = variant['algo_kwargs']['tdm_kwargs'].get('vectorized', True)
+    vectorized = 'vectorized' in env.reward_type
+    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+
+    norm_order = env.norm_order
+    variant['algo_kwargs']['tdm_kwargs']['norm_order'] = norm_order
+
     qf1 = TdmQf(
         env=env,
         observation_dim=obs_dim,
         action_dim=action_dim,
         goal_dim=goal_dim,
         vectorized=vectorized,
+        norm_order=norm_order,
         **variant['qf_kwargs']
     )
     qf2 = TdmQf(
@@ -80,6 +87,7 @@ def tdm_td3_experiment(variant):
         action_dim=action_dim,
         goal_dim=goal_dim,
         vectorized=vectorized,
+        norm_order=norm_order,
         **variant['qf_kwargs']
     )
     policy = TdmPolicy(
@@ -107,6 +115,7 @@ def tdm_td3_experiment(variant):
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
             achieved_goal_key=achieved_goal_key,
+            vectorized=vectorized,
             **variant['replay_buffer_kwargs']
         )
         algo_kwargs['tdm_kwargs']['observation_key'] = observation_key
@@ -138,107 +147,6 @@ def tdm_td3_experiment(variant):
     if ptu.gpu_enabled():
         qf1.cuda()
         qf2.cuda()
-        policy.cuda()
-        algorithm.cuda()
-    algorithm.train()
-
-def tdm_twin_sac_experiment(variant):
-    env = variant['env_class'](**variant['env_kwargs'])
-    observation_key = variant.get('observation_key', 'observation')
-    desired_goal_key = variant.get('desired_goal_key', 'desired_goal')
-    replay_buffer = ObsDictRelabelingBuffer(
-        env=env,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        **variant['replay_buffer_kwargs']
-    )
-    obs_dim = env.observation_space.spaces['observation'].low.size
-    action_dim = env.action_space.low.size
-    goal_dim = env.observation_space.spaces['desired_goal'].low.size
-    if variant['normalize']:
-        env = NormalizedBoxEnv(env)
-    qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim + goal_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim + goal_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    vf = FlattenMlp(
-        input_size=obs_dim + goal_dim,
-        output_size=1,
-        **variant['vf_kwargs']
-    )
-    policy = TanhGaussianPolicy(
-        obs_dim=obs_dim + goal_dim,
-        action_dim=action_dim,
-        **variant['policy_kwargs']
-    )
-    algorithm = HerTwinSac(
-        env,
-        qf1=qf1,
-        qf2=qf2,
-        vf=vf,
-        policy=policy,
-        replay_buffer=replay_buffer,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        **variant['algo_kwargs']
-    )
-    if ptu.gpu_enabled():
-        qf1.cuda()
-        qf2.cuda()
-        vf.cuda()
-        policy.cuda()
-        algorithm.cuda()
-    algorithm.train()
-
-def tdm_sac_experiment(variant):
-    env = variant['env_class'](**variant['env_kwargs'])
-    observation_key = variant.get('observation_key', 'observation')
-    desired_goal_key = variant.get('desired_goal_key', 'desired_goal')
-    replay_buffer = ObsDictRelabelingBuffer(
-        env=env,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        **variant['replay_buffer_kwargs']
-    )
-    obs_dim = env.observation_space.spaces['observation'].low.size
-    action_dim = env.action_space.low.size
-    goal_dim = env.observation_space.spaces['desired_goal'].low.size
-    if variant['normalize']:
-        env = NormalizedBoxEnv(env)
-    qf = FlattenMlp(
-        input_size=obs_dim + action_dim + goal_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    vf = FlattenMlp(
-        input_size=obs_dim + goal_dim,
-        output_size=1,
-        **variant['vf_kwargs']
-    )
-    policy = TanhGaussianPolicy(
-        obs_dim=obs_dim + goal_dim,
-        action_dim=action_dim,
-        **variant['policy_kwargs']
-    )
-    algorithm = HerSac(
-        env,
-        qf=qf,
-        vf=vf,
-        policy=policy,
-        replay_buffer=replay_buffer,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        **variant['algo_kwargs']
-    )
-    if ptu.gpu_enabled():
-        qf.cuda()
-        vf.cuda()
         policy.cuda()
         algorithm.cuda()
     algorithm.train()

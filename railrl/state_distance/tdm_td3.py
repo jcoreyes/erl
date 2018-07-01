@@ -99,16 +99,6 @@ class TdmTd3(TemporalDifferenceModel, TD3):
             num_steps_left=num_steps_left,
         )
 
-        # if self.reward_type == 'distance' and self.tdm_normalizer:
-        #     q1_pred = self.tdm_normalizer.distance_normalizer.normalize_scale(
-        #         q1_pred
-        #     )
-        #     q2_pred = self.tdm_normalizer.distance_normalizer.normalize_scale(
-        #         q1_pred
-        #     )
-        #     q_target = self.tdm_normalizer.distance_normalizer.normalize_scale(
-        #         q_target
-        #     )
         bellman_errors_1 = (q1_pred - q_target) ** 2
         bellman_errors_2 = (q2_pred - q_target) ** 2
         qf1_loss = bellman_errors_1.mean()
@@ -134,7 +124,7 @@ class TdmTd3(TemporalDifferenceModel, TD3):
             num_steps_left=num_steps_left,
             goals=goals,
         )
-        policy_loss = - q_output.mean()
+        policy_loss = - torch.norm(q_output, p=self.norm_order, dim=1).mean()
         if self._n_train_steps_total % self.policy_and_target_update_period == 0:
             self.policy_optimizer.zero_grad()
             policy_loss.backward()
@@ -179,16 +169,6 @@ class TdmTd3(TemporalDifferenceModel, TD3):
 
     def pretrain(self):
         super().pretrain()
-        if self.qf1.tdm_normalizer is not None:
-            self.target_qf1.tdm_normalizer.copy_stats(
-                self.qf1.tdm_normalizer
-            )
-            self.target_qf2.tdm_normalizer.copy_stats(
-                self.qf1.tdm_normalizer
-            )
-            self.target_policy.tdm_normalizer.copy_stats(
-                self.qf1.tdm_normalizer
-            )
 
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)
