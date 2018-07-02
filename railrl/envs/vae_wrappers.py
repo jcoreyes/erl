@@ -254,16 +254,20 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return statistics
 
     def compute_rewards(self, actions, obs):
-        achieved_goals = obs['latent_achieved_goal']
-        desired_goals = obs['latent_desired_goal']
         # TODO: implement log_prob/mdist
         if self.reward_type == 'latent_distance':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
             dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
             return -dist
         elif self.reward_type == 'latent_sparse':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
             dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
             reward = 0 if dist < self.epsilon else -1
             return reward
+        elif self.reward_type == 'wrapped_env':
+            return self.wrapped_env.compute_rewards(actions, obs)
         else:
             raise NotImplementedError
 
