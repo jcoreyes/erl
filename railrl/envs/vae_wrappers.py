@@ -286,13 +286,15 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return statistics
 
     def compute_rewards(self, actions, obs):
-        achieved_goals = obs['latent_achieved_goal']
-        desired_goals = obs['latent_desired_goal']
         # TODO: implement log_prob/mdist
         if self.reward_type == 'latent_distance':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
             dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
             return -dist
         elif self.reward_type == 'latent_sparse':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
             dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
             reward = 0 if dist < self.epsilon else -1
             return reward
@@ -305,18 +307,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             achieved_goals = obs['state_achieved_goal'][:, -2:]
             desired_goals = obs['state_desired_goal'][:, -2:]
             return - np.linalg.norm(desired_goals - achieved_goals, axis=1)
+        elif self.reward_type == 'wrapped_env':
+            return self.wrapped_env.compute_rewards(actions, obs)
         else:
             raise NotImplementedError
-
-        # var = env_info['var']
-        # dist = goal - next_observation
-        # var = np.maximum(var, self.reward_min_variance)
-        # err = dist * dist / 2 / var
-        # mdist = np.sum(err) # mahalanobis distance
-        # if self.reward_type == "log_prob":
-        #     reward = -mdist
-        # elif self.reward_type == "mahalanobis_distance":
-        #     reward = -np.sqrt(mdist)
-        # elif self.reward_type == "sparse":
-        #     reward = 0 if mdist < self.epsilon else -1
-        # return reward

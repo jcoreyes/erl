@@ -74,8 +74,10 @@ if __name__ == "__main__":
             reward_params=dict(
                 type='latent_distance',
             ),
-            observation_key='latent_observation',
-            desired_goal_key='latent_desired_goal',
+            # observation_key='latent_observation',
+            # desired_goal_key='latent_desired_goal',
+            observation_key='state_observation',
+            desired_goal_key='state_desired_goal',
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
                 structure='none',
@@ -149,8 +151,8 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    mode = 'ec2'
-    exp_prefix = 'new-vae-push-and-reach-tdm-vae-trained-with-p15-puck'
+    # mode = 'ec2'
+    # exp_prefix = 'new-vae-push-and-reach-tdm-vae-trained-with-p15-puck'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             grill_tdm_td3_full_experiment,
