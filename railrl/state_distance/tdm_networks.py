@@ -11,12 +11,12 @@ class TdmQf(FlattenMlp):
     def __init__(
             self,
             env,
+            vectorized,
             structure='norm_difference',
             learn_offset=False,
             observation_dim=None,
             action_dim=None,
             goal_dim=None,
-            vectorized=False,
             norm_order=1,
             **flatten_mlp_kwargs
     ):
@@ -24,6 +24,7 @@ class TdmQf(FlattenMlp):
 
         :param env:
         :param hidden_sizes:
+        :param vectorized: Boolean. Vectorized or not?
         :param structure: String defining output structure of network:
             - 'norm_difference': Q = -||g - f(inputs)||
             - 'squared_difference': Q = -(g - f(inputs))^2
@@ -171,11 +172,11 @@ class TdmVf(FlattenMlp):
     def __init__(
             self,
             env,
+            vectorized,
             structure='norm_difference',
             observation_dim=None,
             action_dim=None,
             goal_dim=None,
-            vectorized=False,
             norm_order=1,
             **kwargs
     ):

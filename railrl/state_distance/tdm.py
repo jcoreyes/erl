@@ -21,7 +21,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             self,
             max_tau=10,
             epoch_max_tau_schedule=None,
-            vectorized=False,
+            vectorized=True,
             cycle_taus_for_rollout=True,
             dense_rewards=False,
             finite_horizon=True,
@@ -234,6 +234,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             env_info,
     ):
         if self.vectorized:
+            # since rl_algorithm wraps scalar rews with an extra dim, we want to undo this for vectorized rews
             reward = reward[0]
         self._current_path_builder.add_all(
             observations=observation,

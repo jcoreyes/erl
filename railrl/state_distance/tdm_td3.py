@@ -167,9 +167,6 @@ class TdmTd3(TemporalDifferenceModel, TD3):
                 ptu.get_numpy(policy_actions),
             ))
 
-    def pretrain(self):
-        super().pretrain()
-
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)
         snapshot.update(

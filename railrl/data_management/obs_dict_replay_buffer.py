@@ -199,10 +199,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             new_actions,
             new_obs_dict,
         )
-        if self.vectorized:
-            new_rewards = new_rewards.\
-                reshape(-1, self.env.observation_space.spaces[self.observation_key].low.size)
-        else:
+        if not self.vectorized:
             new_rewards = new_rewards.reshape(-1, 1)
 
         new_obs = new_obs_dict[self.observation_key]
