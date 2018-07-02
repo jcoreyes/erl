@@ -11,39 +11,35 @@ class MultigoalSimplePathSampler(object):
             max_samples,
             max_path_length,
             tau_sampling_function,
-            goal_sampling_function,
             cycle_taus_for_rollout=True,
             render=False,
-            env_samples_goal_on_reset=False,
+            observation_key=None,
+            desired_goal_key=None,
     ):
         self.env = env
         self.policy = policy
         self.max_samples = max_samples
         self.max_path_length = max_path_length
         self.tau_sampling_function = tau_sampling_function
-        self.goal_sampling_function = goal_sampling_function
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
         self.render = render
-        self.env_samples_goal_on_reset = env_samples_goal_on_reset
+        self.observation_key = observation_key
+        self.desired_goal_key = desired_goal_key
 
     def obtain_samples(self):
         paths = []
         for i in range(self.max_samples // self.max_path_length):
             tau = self.tau_sampling_function()
-            if self.env_samples_goal_on_reset:
-                goal = None
-            else:
-                goal = self.goal_sampling_function()
             path = multitask_rollout(
                 self.env,
                 self.policy,
                 tau,
-                goal=goal,
                 max_path_length=self.max_path_length,
                 decrement_tau=self.cycle_taus_for_rollout,
                 cycle_tau=self.cycle_taus_for_rollout,
                 animated=self.render,
-                env_samples_goal_on_reset=self.env_samples_goal_on_reset,
+                observation_key=self.observation_key,
+                desired_goal_key=self.desired_goal_key,
             )
             paths.append(path)
         return paths
@@ -86,18 +82,17 @@ def debug(env, obs, agent_info):
     plt.draw()
     plt.pause(0.001)
 
-
 def multitask_rollout(
         env,
         agent: UniversalPolicy,
         init_tau,
         max_path_length=np.inf,
-        goal=None,
         animated=False,
         decrement_tau=False,
         cycle_tau=False,
         get_action_kwargs=None,
-        env_samples_goal_on_reset=False,
+        observation_key=None,
+        desired_goal_key=None,
 ):
     if get_action_kwargs is None:
         get_action_kwargs = {}
@@ -109,24 +104,23 @@ def multitask_rollout(
     agent_infos = []
     env_infos = []
     taus = []
-
     agent.reset()
     path_length = 0
     if animated:
         env.render()
 
     tau = np.array([init_tau])
-    if goal is None and env_samples_goal_on_reset:
-        o = env.reset()
-        goal = env.get_goal()
-    else:
-        if goal is None:
-            goal = env.sample_goal_for_rollout()
-        env.set_goal(goal)
-        o = env.reset()
-    assert (env.get_goal() == goal).all()
+    o = env.reset()
+    goal = env.get_goal()
+    agent_goal = goal
+    if desired_goal_key:
+        agent_goal = agent_goal[desired_goal_key]
     while path_length < max_path_length:
-        a, agent_info = agent.get_action(o, goal, tau, **get_action_kwargs)
+        agent_o = o
+        if observation_key:
+            agent_o = agent_o[observation_key]
+
+        a, agent_info = agent.get_action(agent_o, agent_goal, tau, **get_action_kwargs)
         if animated:
             env.render()
         next_o, r, d, env_info = env.step(a)
@@ -165,7 +159,7 @@ def multitask_rollout(
         agent_infos=np.array(agent_infos),
         env_infos=np.array(env_infos),
         num_steps_left=np.array(taus),
-        goals=_expand_goal(goal, len(terminals))
+        goals=_expand_goal(agent_goal, len(terminals))
     )
 
 

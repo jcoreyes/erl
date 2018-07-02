@@ -16,8 +16,6 @@ from railrl.launchers.experiments.soroush.multiworld_grill import grill_her_td3_
 variant = dict(
     env_kwargs=dict(
         hide_goal_markers=True,
-        puck_low=(-0.05, 0.6),
-        puck_high=(0.05, 0.7),
     ),
     init_camera=init_sawyer_camera_v3,
     grill_variant=dict(
@@ -81,12 +79,20 @@ common_params = {
 env_params = {
     'sawyer-reach-xy': { # 6 DoF
         'env_class': [SawyerReachXYEnv],
-        # 'env_kwargs.reward_type': ['hand_distance'],
+        'init_camera': [init_sawyer_camera_v1, init_sawyer_camera_v3],
+        'train_vae_variant.generate_vae_dataset_kwargs.oracle_dataset': [False, True],
         'grill_variant.algo_kwargs.num_epochs': [50],
         'grill_variant.algo_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3] #[0.01, 0.1, 1, 10, 100],
     },
     'sawyer-push-and-reach-xy': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEnv],
+        'env_kwargs': [
+            dict(
+                hide_goal_markers=True,
+                puck_low=(-0.05, 0.6),
+                puck_high=(0.05, 0.7),
+            ),
+        ],
         # 'env_kwargs.reward_type': ['puck_distance'],
         'grill_variant.algo_kwargs.discount': [0.98],
         'grill_variant.algo_kwargs.num_epochs': [1000],
