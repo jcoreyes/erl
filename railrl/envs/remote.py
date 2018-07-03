@@ -2,11 +2,11 @@ import ray
 
 from railrl.envs.base import RolloutEnv
 from railrl.envs.wrappers import NormalizedBoxEnv, ProxyEnv
-from railrl.samplers.util import rollout
 from railrl.core.serializable import Serializable
 import numpy as np
 import os
 import redis
+import torch
 
 called_ray_init = False
 def try_init_ray():
@@ -37,6 +37,7 @@ class RayEnv(object):
             rollout_function,
     ):
         os.environ["MKL_NUM_THREADS"] = "1"
+        torch.set_num_threads(1)
         self._env = env
         if normalize_env:
             # TODO: support more than just box envs
@@ -53,7 +54,6 @@ class RayEnv(object):
         else:
             self._policy.set_param_values_np(policy_params)
             policy = self._policy
-        # return self.multitask_rollout(self._env, policy, self._max_path_length)
         return self.rollout_function(self._env, policy, self._max_path_length)
 
 class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
@@ -111,8 +111,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             exploration_policy,
             max_path_length,
             normalize_env,
-            rollout_function=rollout,
-            workers=4,
+            rollout_function,
+            workers=2,
             dedicated_train=1,
 
     ):
@@ -155,7 +155,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             self._alloc_promise(policy, train, epoch)
 
         # Check if remote path has been collected.
-        ready_promises, _ = ray.wait(self.promise_list[train], timeout=0)
+        ready_promises, waiting = ray.wait(self.promise_list[train], timeout=0)
         for promise in ready_promises:
             _, path_epoch, path_type = self.promise_info[promise]
             if path_type != train:

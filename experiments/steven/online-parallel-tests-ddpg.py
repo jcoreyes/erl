@@ -74,6 +74,7 @@ if __name__ == "__main__":
             replay_buffer_size=int(1E5),
             num_updates_per_epoch=1,
             reward_scale=.1,
+            sim_throttle=True,
         ),
 
         algo_class=DDPG,

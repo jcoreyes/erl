@@ -1,7 +1,6 @@
 import numpy as np
 
-from railrl.state_distance.policies import UniversalPolicy
-
+from railrl.samplers.rollout_functions import tdm_rollout
 
 class MultigoalSimplePathSampler(object):
     def __init__(
@@ -82,86 +81,8 @@ def debug(env, obs, agent_info):
     plt.draw()
     plt.pause(0.001)
 
-def multitask_rollout(
-        env,
-        agent: UniversalPolicy,
-        init_tau,
-        max_path_length=np.inf,
-        animated=False,
-        decrement_tau=False,
-        cycle_tau=False,
-        get_action_kwargs=None,
-        observation_key=None,
-        desired_goal_key=None,
-):
-    if get_action_kwargs is None:
-        get_action_kwargs = {}
-    observations = []
-    next_observations = []
-    actions = []
-    rewards = []
-    terminals = []
-    agent_infos = []
-    env_infos = []
-    taus = []
-    agent.reset()
-    path_length = 0
-    if animated:
-        env.render()
-
-    tau = np.array([init_tau])
-    o = env.reset()
-    goal = env.get_goal()
-    agent_goal = goal
-    if desired_goal_key:
-        agent_goal = agent_goal[desired_goal_key]
-    while path_length < max_path_length:
-        agent_o = o
-        if observation_key:
-            agent_o = agent_o[observation_key]
-
-        a, agent_info = agent.get_action(agent_o, agent_goal, tau, **get_action_kwargs)
-        if animated:
-            env.render()
-        next_o, r, d, env_info = env.step(a)
-        next_observations.append(next_o)
-        observations.append(o)
-        rewards.append(r)
-        terminals.append(d)
-        actions.append(a)
-        agent_infos.append(agent_info)
-        env_infos.append(env_info)
-        taus.append(tau.copy())
-        path_length += 1
-        if decrement_tau:
-            tau -= 1
-        if tau < 0:
-            if cycle_tau:
-                tau = np.array([init_tau])
-            else:
-                tau = np.array([0])
-        if d:
-            break
-        o = next_o
-
-    actions = np.array(actions)
-    if len(actions.shape) == 1:
-        actions = np.expand_dims(actions, 1)
-    observations = np.array(observations)
-    next_observations = np.array(next_observations)
-
-    return dict(
-        observations=observations,
-        actions=actions,
-        rewards=np.array(rewards).reshape(-1, 1),
-        next_observations=next_observations,
-        terminals=np.array(terminals).reshape(-1, 1),
-        agent_infos=np.array(agent_infos),
-        env_infos=np.array(env_infos),
-        num_steps_left=np.array(taus),
-        goals=_expand_goal(agent_goal, len(terminals))
-    )
-
+def multitask_rollout(*args, **kwargs):
+    return tdm_rollout_function(*args, **kwargs)
 
 def _expand_goal(goal, path_length):
     return np.repeat(

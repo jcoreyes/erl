@@ -150,15 +150,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.train_on_eval_paths = train_on_eval_paths
         self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
         self.sim_throttle = sim_throttle
-        if self.collection_mode == 'online-parallel':
-            try_init_ray()
-            self.training_env = RemoteRolloutEnv(
-                env=env,
-                policy=eval_policy,
-                exploration_policy=exploration_policy,
-                max_path_length=self.max_path_length,
-                normalize_env=self.normalize_env,
-            )
+        self.init_rollout_function()
 
     def train(self, start_epoch=0):
         self.pretrain()
@@ -279,9 +271,19 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             gt.stamp('eval')
             self._end_epoch()
 
+    def init_rollout_function(self):
+        from railrl.samplers.rollout_functions import rollout
+        self.rollout_function = rollout
+
     def train_parallel(self, start_epoch=0):
-        assert isinstance(self.training_env, RemoteRolloutEnv), (
-            "Did the sub-class accidentally override the RemoteRolloutEnv?"
+        try_init_ray()
+        self.parallel_env = RemoteRolloutEnv(
+            env=self.env,
+            rollout_function=self.rollout_function,
+            policy=self.eval_policy,
+            exploration_policy=self.exploration_policy,
+            max_path_length=self.max_path_length,
+            normalize_env=self.normalize_env,
         )
         self.training_mode(False)
         last_epoch_policy = None
@@ -299,13 +301,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 # eval previous epoch
                 if should_eval:
                     # label as epoch but actually evaluating previous epoch
-                    path = self.training_env.rollout(last_epoch_policy, False, epoch=epoch)
+                    path = self.parallel_env.rollout(last_epoch_policy, False, epoch=epoch)
                     if path is not None:
                         self.eval_paths.append(dict(path))
                         n_eval_steps += len(path['observations'])
 
                 if gather_data:
-                    path = self.training_env.rollout(self.exploration_policy, True, epoch)
+                    path = self.parallel_env.rollout(self.exploration_policy, True, epoch)
                     if path is not None:
                         path_length = len(path['observations'])
                         self._handle_path(path)
@@ -319,13 +321,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
                 should_eval &= n_eval_steps < self.num_steps_per_eval
                 gather_data &= n_steps_current_epoch < self.num_env_steps_per_epoch
+                should_train &= (should_eval or gather_data)
 
                 if self.sim_throttle:
                     should_train &= self.parallel_step_to_train_ratio * n_train_steps < \
                         self.num_env_steps_per_epoch
-                else:
-                    should_train &= (should_eval or gather_data)
-
             if epoch != start_epoch:
                 self._try_to_eval(epoch)
             self._end_epoch()
@@ -415,7 +415,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics.update(self.eval_statistics)
 
         logger.log("Collecting samples for evaluation")
-        if self.collection_mode == 'online-parallel':
+        if False or self.collection_mode == 'online-parallel':
             test_paths = self.eval_paths
         else:
             test_paths = self.get_eval_paths()
