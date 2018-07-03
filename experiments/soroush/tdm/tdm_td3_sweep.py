@@ -11,8 +11,6 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.experiments.soroush.multiworld_tdm import tdm_td3_experiment
 import railrl.misc.hyperparameter as hyp
 
-from railrl.torch.modules import HuberLoss
-
 variant = dict(
     algo_kwargs=dict(
         base_kwargs=dict(
@@ -75,9 +73,11 @@ env_params = {
     'sawyer-reach-xy': { # 6 DoF
         'env_class': [SawyerReachXYEnv],
         'exploration_type': ['epsilon'],
-        'env_kwargs.reward_type': ['hand_distance'],
+        'reward_params.reward_type': ['hand_distance', 'vectorized_hand_distance'],
+		'reward_params.norm_order': [1, 2],
+        'qf_kwargs.structure': ['norm_difference', 'none'],
         'algo_kwargs.base_kwargs.num_epochs': [50],
-        'algo_kwargs.tdm_kwargs.max_tau': [1, 5, 10, 15, 20, 25, 50, 99],
+        'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 25],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3] #[0.01, 0.1, 1, 10, 100],
     },
     'sawyer-reach-xy-railrl': {  # 6 DoF
@@ -112,7 +112,8 @@ env_params = {
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [4], #4
         'algo_kwargs.base_kwargs.num_epochs': [600],
         'algo_kwargs.tdm_kwargs.max_tau': [10, 20, 40], #[1, 10, 20, 40, 99],
-        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],
+        'algo_kwargs.tdm_kwargs.policy_loss_criterion': ['norm', 'mean'], #['norm', 'mean'],
+        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e2, 1e3],  # [0.01, 0.1, 1, 10, 100],
     },
     'sawyer-push-and-reach-xy-railrl': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEasyEnv],

@@ -99,7 +99,7 @@ class TdmQf(FlattenMlp):
         else:
             raise TypeError("Invalid structure: {}".format(self.structure))
         if not self.vectorized:
-            output = torch.norm(output, p=self.norm_order, dim=1, keepdim=True)
+            output = - torch.norm(output, p=self.norm_order, dim=1, keepdim=True)
 
         if self.learn_offset:
             offset = self.offset_network(
@@ -218,7 +218,7 @@ class TdmVf(FlattenMlp):
         else:
             raise TypeError("Invalid structure: {}".format(self.structure))
         if not self.vectorized:
-            output = torch.norm(output, p=self.norm_order, dim=1, keepdim=True)
+            output = - torch.norm(output, p=self.norm_order, dim=1, keepdim=True)
 
         return output
 
