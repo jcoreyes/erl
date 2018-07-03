@@ -40,6 +40,15 @@ class HER(TorchRLAlgorithm):
         self.observation_key = observation_key
         self.desired_goal_key = desired_goal_key
 
+    def init_rollout_function(self):
+        from railrl.samplers.rollout_functions \
+                import multitask_rollout, create_rollout_function
+        self.rollout_function = create_rollout_function(
+            multitask_rollout,
+            observation_key=self.observation_key,
+            desired_goal_key=self.desired_goal_key
+        )
+
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
         # Note: we assume we're using a silent env.
@@ -56,6 +65,7 @@ class HER(TorchRLAlgorithm):
             terminal,
             agent_info,
             env_info,
+            goal=None,
     ):
         self._current_path_builder.add_all(
             observations=observation,
@@ -65,8 +75,46 @@ class HER(TorchRLAlgorithm):
             terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
-            goals=self._rollout_goal,
+            goals=goal if goal is not None else self._rollout_goal,
         )
+
+    def _handle_path(self, path):
+        """
+        Naive implementation: just loop through each transition.
+        :param path:
+        :return:
+        """
+        for (
+                ob,
+                action,
+                reward,
+                next_ob,
+                goal,
+                terminal,
+                agent_info,
+                env_info
+        ) in zip(
+            path["observations"],
+            path["actions"],
+            path["rewards"],
+            path["next_observations"],
+            path["goals"],
+            path["terminals"],
+            path["agent_infos"],
+            path["env_infos"],
+        ):
+            self._handle_step(
+                ob,
+                action,
+                reward,
+                next_ob,
+                terminal,
+                agent_info=agent_info,
+                env_info=env_info,
+                goal=goal,
+            )
+        self._handle_rollout_ending()
+
 
     def get_batch(self):
         batch = super().get_batch()
@@ -122,58 +170,12 @@ class HER(TorchRLAlgorithm):
             n_steps_total += len(path['observations'])
         return paths
 
-    def get_eval_action(self, observation, goal):
-        if self.observation_key:
-            observation = observation[self.observation_key]
-        if self.desired_goal_key:
-            goal = goal[self.desired_goal_key]
-        new_obs = np.hstack((observation, goal))
-        return self.policy.get_action(new_obs)
-
     def eval_multitask_rollout(self):
-        observations = []
-        actions = []
-        rewards = []
-        terminals = []
-        agent_infos = []
-        env_infos = []
-        next_observations = []
-        path_length = 0
-        # goal = self.env.sample_goal_for_rollout()
-        # self.env.set_goal(goal)
-        o = self.env.reset()
-        if self.render_during_eval:
-            self.env.render()
-        goal = self.env.get_goal()
-        while path_length < self.max_path_length:
-            a, agent_info = self.get_eval_action(o, goal)
-            next_o, r, d, env_info = self.env.step(a)
-            if self.render_during_eval:
-                self.env.render()
-            observations.append(o)
-            rewards.append(r)
-            terminals.append(d)
-            actions.append(a)
-            next_observations.append(next_o)
-            agent_infos.append(agent_info)
-            env_infos.append(env_info)
-            path_length += 1
-            if d:
-                break
-            o = next_o
-
-        actions = np.array(actions)
-        if len(actions.shape) == 1:
-            actions = np.expand_dims(actions, 1)
-        observations = np.array(observations)
-        next_observations = np.array(next_observations)
-        return dict(
-            observations=observations,
-            actions=actions,
-            rewards=np.array(rewards).reshape(-1, 1),
-            next_observations=next_observations,
-            terminals=np.array(terminals).reshape(-1, 1),
-            agent_infos=agent_infos,
-            env_infos=env_infos,
-            # goals=np.repeat(goal[None], path_length, 0),
+        # TODO Steven: remove pointer
+        return self.rollout_function(
+            self.env,
+            self.policy,
+            self.max_path_length,
+            animated=self.render_during_eval
         )
+
