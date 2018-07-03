@@ -148,7 +148,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         if self.use_vae_goals:
             latent_goals = self._sample_vae_prior(1)
             if self.decode_goals:
-                goal_img = self._decode(latent_goals)[0].transpose()
+                goal_img = self._decode(latent_goals)[0].transpose().flatten()
             else:
                 goal_img = None
             obs['image_desired_goal'] = goal_img
@@ -224,7 +224,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
             goals = {}
             latent_goals = self._sample_vae_prior(batch_size)
             if self.decode_goals:
-                goal_imgs = self._decode(latent_goals)
+                raise NotImplementedError(
+                    'I think we should change _decode to not transpose...'
+                )
+                goal_imgs = self._decode(latent_goals).transpose().flatten()
             else:
                 goal_imgs = None
             goals['image_desired_goal'] = goal_imgs
