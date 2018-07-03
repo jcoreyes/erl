@@ -8,18 +8,9 @@ import railrl.torch.pytorch_util as ptu
 from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.misc.eval_util import get_generic_path_information
-from railrl.state_distance.rollout_util import multitask_rollout
+from railrl.pythonplusplus import find_key_recursive
+from railrl.samplers.rollout_functions import tdm_rollout
 from railrl.core import logger
-
-
-def find_key_recursive(obj, key):
-    if key in obj:
-        return obj[key]
-    for k, v in obj.items():
-        if isinstance(v, dict):
-            result = find_key_recursive(v, key)
-            if result is not None:
-                return result
 
 
 if __name__ == "__main__":
@@ -88,7 +79,7 @@ if __name__ == "__main__":
     env_samples_goal_on_reset = args.silent or is_mj_env
     while True:
         for _ in range(args.nrolls):
-            path = multitask_rollout(
+            path = tdm_rollout(
                 env,
                 policy,
                 init_tau=max_tau,
@@ -96,8 +87,10 @@ if __name__ == "__main__":
                 animated=not args.hide and not is_mj_env,
                 cycle_tau=not args.ncycle,
                 decrement_tau=not args.ndt,
-                observation_key='observation',
-                desired_goal_key='desired_goal',
+                # observation_key='state_observation',
+                # desired_goal_key='state_desired_goal',
+                observation_key='latent_observation',
+                desired_goal_key='latent_desired_goal',
             )
             print("last state", path['next_observations'][-1])
             paths.append(path)
