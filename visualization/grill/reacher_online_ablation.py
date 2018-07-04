@@ -22,6 +22,7 @@ offline_reacher = dp.get_trials(
     }
 )
 
+plt.figure(figsize=(6, 5))
 plot.plot_trials(
     {"Online": online_reacher, "Offline": offline_reacher},
     y_keys="Final  distance Mean",

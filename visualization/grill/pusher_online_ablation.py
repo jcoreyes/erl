@@ -24,6 +24,7 @@ offline_pusher = dp.get_trials(
         'algo_kwargs.should_train_vae.$function': 'railrl.torch.vae.vae_schedules.never_train',
     }
 )
+plt.figure(figsize=(6, 5))
 plot.plot_trials(
     {"Online": online_pusher, "Offline": offline_pusher},
     y_keys="Final  sum_distance Mean",

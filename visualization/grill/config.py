@@ -10,15 +10,18 @@ sudo sshfs -o allow_other vitchyr@gauss1.banatao.berkeley.edu:/home/ashvin/data/
 """
 import matplotlib.pyplot as plt
 import matplotlib
+import os
 
 matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
 matplotlib.rcParams.update({'font.size': 15})
 plt.style.use("ggplot")
 
-output_dir = '/home/vitchyr/git/railrl/data/papers/nips2018/script-output/'
+output_dir = '/home/vitchyr/git/railrl/data/papers/nips2018/script-output-2/'
 ashvin_base_dir = '/mnt/gauss1/ashvin-all-data/'
 vitchyr_base_dir = '/home/vitchyr/git/railrl/data/'
+
+our_method_name = 'GRiLL'
 
 
 def format_func(value, tick_number):
@@ -28,3 +31,6 @@ def format_func(value, tick_number):
 assert output_dir[-1] == '/', 'Please add trailing slash'
 assert ashvin_base_dir[-1] == '/', 'Please add trailing slash'
 assert vitchyr_base_dir[-1] == '/', 'Please add trailing slash'
+
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
