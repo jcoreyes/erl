@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import os.path as osp
 
+import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
 from multiworld.core.image_env import ImageEnv
 from railrl.core import logger
@@ -25,6 +26,7 @@ from railrl.images.camera import (
 )
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 from railrl.misc.ml_util import PiecewiseLinearSchedule
+from railrl.torch.grill.video_gen import dump_video
 from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
@@ -316,22 +318,21 @@ def grill_her_td3_experiment(variant):
         for e in [testing_env, training_env, video_vae_env, video_goal_env]:
             e.vae.cuda()
 
-    save_video = variant.get("save_video", True)
-    if save_video:
-        from railrl.torch.vae.sim_vae_policy import dump_video
-        logdir = logger.get_snapshot_dir()
-        # Don't dump initial video any more, its uninformative
-        # filename = osp.join(logdir, 'video_0_env.mp4')
-        # dump_video(video_goal_env, policy, filename)
-        # filename = osp.join(logdir, 'video_0_vae.mp4')
-        # dump_video(video_vae_env, policy, filename)
     algorithm.train()
 
-    if save_video:
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        policy.train(False)
         filename = osp.join(logdir, 'video_final_env.mp4')
-        dump_video(video_goal_env, policy, filename)
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename)
+        dump_video(video_vae_env, policy, filename, rollout_function)
 
 def grill_her_twin_sac_experiment(variant):
     env = variant["env_class"](**variant['env_kwargs'])
@@ -450,22 +451,21 @@ def grill_her_twin_sac_experiment(variant):
         for e in [testing_env, training_env, video_vae_env, video_goal_env]:
             e.vae.cuda()
 
-    save_video = variant.get("save_video", True)
-    if save_video:
-        from railrl.torch.vae.sim_vae_policy import dump_video
-        logdir = logger.get_snapshot_dir()
-        # Don't dump initial video any more, its uninformative
-        # filename = osp.join(logdir, 'video_0_env.mp4')
-        # dump_video(video_goal_env, policy, filename)
-        # filename = osp.join(logdir, 'video_0_vae.mp4')
-        # dump_video(video_vae_env, policy, filename)
     algorithm.train()
 
-    if save_video:
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        policy.train(False)
         filename = osp.join(logdir, 'video_final_env.mp4')
-        dump_video(video_goal_env, policy, filename)
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename)
+        dump_video(video_vae_env, policy, filename, rollout_function)
 
 def grill_her_sac_experiment(variant):
     env = variant["env_class"](**variant['env_kwargs'])
@@ -577,19 +577,18 @@ def grill_her_sac_experiment(variant):
         for e in [testing_env, training_env, video_vae_env, video_goal_env]:
             e.vae.cuda()
 
-    save_video = variant.get("save_video", True)
-    if save_video:
-        from railrl.torch.vae.sim_vae_policy import dump_video
-        logdir = logger.get_snapshot_dir()
-        # Don't dump initial video any more, its uninformative
-        # filename = osp.join(logdir, 'video_0_env.mp4')
-        # dump_video(video_goal_env, policy, filename)
-        # filename = osp.join(logdir, 'video_0_vae.mp4')
-        # dump_video(video_vae_env, policy, filename)
     algorithm.train()
 
-    if save_video:
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        policy.train(False)
         filename = osp.join(logdir, 'video_final_env.mp4')
-        dump_video(video_goal_env, policy, filename)
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename)
+        dump_video(video_vae_env, policy, filename, rollout_function)

@@ -1,10 +1,11 @@
+import os.path as osp
 import pickle
 import time
 
 import cv2
 import numpy as np
-import os.path as osp
 
+import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
 from multiworld.core.image_env import ImageEnv
 from railrl.core import logger
@@ -12,9 +13,7 @@ from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
 from railrl.data_management.online_vae_replay_buffer import \
     OnlineVaeRelabelingBuffer
-from railrl.envs.multitask.multitask_env import MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.vae_wrappers import VAEWrappedEnv, load_vae
-from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
@@ -22,13 +21,8 @@ from railrl.exploration_strategies.base import (
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.images.camera import (
-    sawyer_init_camera_zoomed_in,
-)
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-import railrl.samplers.rollout_functions as rf
-
 from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy
 from railrl.state_distance.tdm_td3 import TdmTd3
 from railrl.torch.grill.video_gen import dump_video
@@ -38,7 +32,6 @@ from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.td3.td3 import TD3
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-from railrl.torch.vae.tdm_td3_vae_experiment import tdm_td3_vae_experiment
 
 
 def grill_tdm_td3_full_experiment(variant):
@@ -696,9 +689,15 @@ def grill_her_td3_experiment_online_vae(variant):
         logdir = logger.get_snapshot_dir()
         policy.train(False)
         filename = osp.join(logdir, 'video_final_env.mp4')
-        dump_video(video_goal_env, policy, filename)
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename)
+        dump_video(video_vae_env, policy, filename, rollout_function)
 
 
 def grill_her_td3_experiment_online_vae_exploring(variant):
@@ -885,7 +884,12 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         logdir = logger.get_snapshot_dir()
         policy.train(False)
         filename = osp.join(logdir, 'video_final_env.mp4')
-        dump_video(video_goal_env, policy, filename)
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename)
-
+        dump_video(video_vae_env, policy, filename, rollout_function)
