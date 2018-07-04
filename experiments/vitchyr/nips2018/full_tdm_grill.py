@@ -124,7 +124,7 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [15],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [
-            1, 100,
+            100,
         ],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [
             100,
@@ -136,7 +136,8 @@ if __name__ == "__main__":
             0.2,
         ],
         'hand-goal-space': ['easy', 'hard'],
-        'force-full-state': [True, False],
+        'mocap-x-range': ['0.1', '0.2'],
+        'grill_variant.do_state_exp': [True, False],
         # 'train_vae_variant.generate_vae_dataset_kwargs.N': [100, 1000]
         # 'grill_variant.observation_key': ['state_observation'],
         # 'grill_variant.desired_goal_key': ['latent_desired_goal'],
@@ -157,7 +158,7 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     mode = 'ec2'
- t 5AM isn't'   exp_prefix = 'push-and-reach-check-hard-easy-state-no-state'
+    exp_prefix = 'p-and-r-check-new-state-code-and-mocap-range'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['hand-goal-space'] == 'easy':
             variant['env_kwargs']['goal_low'] = (-0.05, 0.55, 0.02, -0.2, 0.5)
@@ -165,13 +166,12 @@ if __name__ == "__main__":
         else:
             variant['env_kwargs']['goal_low'] = (-0.2, 0.5, 0.02, -0.2, 0.5)
             variant['env_kwargs']['goal_high'] = (0.2, 0.7, 0.02, 0.2, 0.7)
-        if variant['force-full-state']:
-            variant['grill_variant']['training_mode'] = 'test'
-            variant['grill_variant']['observation_key'] = 'state_observation'
-            variant['grill_variant']['desired_goal_key'] = 'state_desired_goal'
-            variant['grill_variant']['reward_params']['type'] = (
-                'wrapped_env'
-            )
+        if variant['mocap-x-range'] == '0.1':
+            variant['env_kwargs']['mocap_low'] = (-0.1, 0.5, 0.)
+            variant['env_kwargs']['mocap_high'] = (0.1, 0.7, 0.5)
+        else:
+            variant['env_kwargs']['mocap_low'] = (-0.2, 0.5, 0.)
+            variant['env_kwargs']['mocap_high'] = (0.2, 0.7, 0.5)
         run_experiment(
             grill_tdm_td3_full_experiment,
             exp_prefix=exp_prefix,
