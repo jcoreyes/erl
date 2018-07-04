@@ -99,12 +99,12 @@ if __name__ == "__main__":
             beta=5.0,
             num_epochs=1000,
             generate_vae_dataset_kwargs=dict(
-                dataset_path='manual-upload/SawyerPushAndReachXYEnv_1000_init_sawyer_camera_v4_oracleTrue.npy',
-                N=100,
+                # dataset_path='manual-upload/SawyerPushAndReachXYEnv_1000_init_sawyer_camera_v4_oracleTrue.npy',
+                N=1000,
                 oracle_dataset=True,
                 num_channels=3,
-                # show=True,
-                # use_cached=False,
+                show=True,
+                use_cached=False,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -133,9 +133,9 @@ if __name__ == "__main__":
         'mocap-x-range': ['0.1'],
         'grill_variant.do_state_exp': [False],
         'grill_variant.vae_path': [
-            None,
-            "06-28-train-vae-beta-5-push-and-reach-cam4-2/06-28-train-vae-beta-5-push-and-reach-cam4-2_2018_06_28_11_47_21_0000--s-11654/params.pkl",
-            # "05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
+            # None,
+            # "06-28-train-vae-beta-5-push-and-reach-cam4-2/06-28-train-vae-beta-5-push-and-reach-cam4-2_2018_06_28_11_47_21_0000--s-11654/params.pkl",
+            "05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
         ],
         # 'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [
         #     0.2,
@@ -148,8 +148,8 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # mode = 'ec2'
-    # exp_prefix = 'new-vae-push-and-reach-tdm-vae-trained-with-p15-puck'
+    mode = 'ec2'
+    exp_prefix = 'try-merging-old-pusher-code'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['hand-goal-space'] == 'easy':
             variant['env_kwargs']['goal_low'] = (-0.05, 0.55, 0.02, -0.2, 0.5)
