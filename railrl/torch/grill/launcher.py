@@ -37,8 +37,22 @@ from railrl.torch.td3.td3 import TD3
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 from railrl.torch.vae.tdm_td3_vae_experiment import tdm_td3_vae_experiment
 
-
 def grill_tdm_td3_full_experiment(variant):
+    generate_and_train_vae(variant)
+    grill_tdm_td3_experiment(variant['grill_variant'])
+
+def grill_her_td3_full_experiment(variant):
+    generate_and_train_vae(variant)
+    grill_her_td3_experiment(variant['grill_variant'])
+
+def grill_her_td3_online_vae_full_experiment(variant):
+    generate_and_train_online_vae(variant)
+    if variant['double_algo']:
+        grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
+    else:
+        grill_her_td3_experiment_online_vae(variant['grill_variant'])
+
+def generate_and_train_vae(variant):
     train_vae_variant = variant['train_vae_variant']
     grill_variant = variant['grill_variant']
     env_class = variant['env_class']
@@ -68,43 +82,8 @@ def grill_tdm_td3_full_experiment(variant):
             relative_to_snapshot_dir=True,
         )
         grill_variant['vae_path'] = vae  # just pass the VAE directly
-    grill_tdm_td3_experiment(variant['grill_variant'])
 
-
-def grill_her_td3_full_experiment(variant):
-    train_vae_variant = variant['train_vae_variant']
-    grill_variant = variant['grill_variant']
-    env_class = variant['env_class']
-    env_kwargs = variant['env_kwargs']
-    init_camera = variant.get('init_camera', None)
-    train_vae_variant['generate_vae_dataset_kwargs']['env_class'] = env_class
-    train_vae_variant['generate_vae_dataset_kwargs']['env_kwargs'] = env_kwargs
-    train_vae_variant['generate_vae_dataset_kwargs']['init_camera'] = init_camera
-    grill_variant['env_class'] = env_class
-    grill_variant['env_kwargs'] = env_kwargs
-    grill_variant['init_camera'] = init_camera
-    if 'vae_path' not in grill_variant:
-        logger.remove_tabular_output(
-            'progress.csv', relative_to_snapshot_dir=True
-        )
-        logger.add_tabular_output(
-            'vae_progress.csv', relative_to_snapshot_dir=True
-        )
-        vae = train_vae(train_vae_variant)
-        vae_file = logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
-        logger.remove_tabular_output(
-            'vae_progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        logger.add_tabular_output(
-            'progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        grill_variant['vae_path'] = vae  # just pass the VAE directly
-    grill_her_td3_experiment(variant['grill_variant'])
-
-
-def grill_her_td3_online_vae_full_experiment(variant):
+def generate_and_train_online_vae(variant):
     train_vae_variant = variant['train_vae_variant']
     grill_variant = variant['grill_variant']
     env_class = variant['env_class']
@@ -140,11 +119,6 @@ def grill_her_td3_online_vae_full_experiment(variant):
             str(rdim): vae_file,
         }
         grill_variant['rdim'] = str(rdim)
-    if variant['double_algo']:
-        grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
-    else:
-        grill_her_td3_experiment_online_vae(variant['grill_variant'])
-
 
 def train_vae(variant, return_data=False):
     from railrl.core import logger
@@ -181,7 +155,6 @@ def train_vae(variant, return_data=False):
     if return_data:
         return m, train_data, test_data
     return m
-
 
 def generate_vae_dataset(
         env_class,
@@ -251,7 +224,6 @@ def generate_vae_dataset(
     train_dataset = dataset[:n, :]
     test_dataset = dataset[n:, :]
     return train_dataset, test_dataset, info
-
 
 def grill_her_td3_experiment(variant):
     env = variant["env_class"](**variant['env_kwargs'])
@@ -393,34 +365,37 @@ def grill_her_td3_experiment(variant):
         filename = osp.join(logdir, 'video_final_vae.mp4')
         dump_video(video_vae_env, policy, filename)
 
-
 def grill_tdm_td3_experiment(variant):
+    reward_params = variant.get("reward_params", dict())
+    # variant['env_kwargs']['reward_params'] = reward_params
     env = variant["env_class"](**variant['env_kwargs'])
+
+    full_state_exp = variant.get("full_state_exp", False)
 
     render = variant["render"]
 
-    vae_path = variant["vae_path"]
-    reward_params = variant.get("reward_params", dict())
+    if not full_state_exp:
+        vae_path = variant["vae_path"]
 
-    init_camera = variant.get("init_camera", None)
+        init_camera = variant.get("init_camera", None)
 
-    env = ImageEnv(
-        env,
-        84,
-        init_camera=init_camera,
-        transpose=True,
-        normalize=True,
-    )
+        env = ImageEnv(
+            env,
+            84,
+            init_camera=init_camera,
+            transpose=True,
+            normalize=True,
+        )
 
-    env = VAEWrappedEnv(
-        env,
-        vae_path,
-        decode_goals=render,
-        render_goals=render,
-        render_rollouts=render,
-        reward_params=reward_params,
-        **variant.get('vae_wrapped_env_kwargs', {})
-    )
+        env = VAEWrappedEnv(
+            env,
+            vae_path,
+            decode_goals=render,
+            render_goals=render,
+            render_rollouts=render,
+            reward_params=reward_params,
+            **variant.get('vae_wrapped_env_kwargs', {})
+        )
 
     exploration_type = variant['exploration_type']
     exploration_noise = variant.get('exploration_noise', 0.1)
@@ -439,9 +414,14 @@ def grill_tdm_td3_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
-    observation_key = variant.get('observation_key', 'latent_observation')
-    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
-    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    if not full_state_exp:
+        observation_key = variant.get('observation_key', 'latent_observation')
+        desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+        achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    else:
+        observation_key = variant.get('observation_key', 'state_observation')
+        desired_goal_key = variant.get('desired_goal_key', 'state_desired_goal')
+        achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     obs_dim = (
             env.observation_space.spaces[observation_key].low.size
     )
@@ -449,22 +429,29 @@ def grill_tdm_td3_experiment(variant):
         env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = env.action_space.low.size
-    vectorized = variant['algo_kwargs']['tdm_kwargs'].get('vectorized', False)
-    assert not vectorized
+
+    vectorized = 'vectorized' in env.reward_type
+    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+
+    norm_order = env.norm_order
+    variant['algo_kwargs']['tdm_kwargs']['norm_order'] = norm_order
+
     qf1 = TdmQf(
         env=env,
-        vectorized=vectorized,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
+        vectorized=vectorized,
+        norm_order=norm_order,
         **variant['qf_kwargs']
     )
     qf2 = TdmQf(
         env=env,
-        vectorized=vectorized,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
+        vectorized=vectorized,
+        norm_order=norm_order,
         **variant['qf_kwargs']
     )
     policy = TdmPolicy(
@@ -479,32 +466,31 @@ def grill_tdm_td3_experiment(variant):
         policy=policy,
     )
 
-    training_mode = variant.get("training_mode", "train")
-    testing_mode = variant.get("testing_mode", "test")
-
     testing_env = pickle.loads(pickle.dumps(env))
-    testing_env.mode(testing_mode)
-
     training_env = pickle.loads(pickle.dumps(env))
-    training_env.mode(training_mode)
-
     relabeling_env = pickle.loads(pickle.dumps(env))
-    relabeling_env.mode(training_mode)
-    relabeling_env.disable_render()
 
-    video_vae_env = pickle.loads(pickle.dumps(env))
-    video_vae_env.mode("video_vae")
-    video_goal_env = pickle.loads(pickle.dumps(env))
-    video_goal_env.mode("video_env")
+    if not full_state_exp:
+        training_mode = variant.get("training_mode", "train")
+        testing_mode = variant.get("testing_mode", "test")
+        testing_env.mode(testing_mode)
+        training_env.mode(training_mode)
+        relabeling_env.mode(training_mode)
+        relabeling_env.disable_render()
+
+        video_vae_env = pickle.loads(pickle.dumps(env))
+        video_vae_env.mode("video_vae")
+        video_goal_env = pickle.loads(pickle.dumps(env))
+        video_goal_env.mode("video_env")
 
     replay_buffer = ObsDictRelabelingBuffer(
         env=relabeling_env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
+        vectorized=vectorized,
         **variant['replay_kwargs']
     )
-    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     algo_kwargs = variant['algo_kwargs']
     td3_kwargs = algo_kwargs['td3_kwargs']
@@ -533,7 +519,7 @@ def grill_tdm_td3_experiment(variant):
             e.vae.cuda()
 
     save_video = variant.get("save_video", True)
-    if save_video:
+    if not full_state_exp and save_video:
         from railrl.torch.vae.sim_vae_policy import dump_video
         logdir = logger.get_snapshot_dir()
         # Don't dump initial video any more, its uninformative
@@ -543,12 +529,11 @@ def grill_tdm_td3_experiment(variant):
         # dump_video(video_vae_env, policy, filename)
     algorithm.train()
 
-    if save_video:
+    if not full_state_exp and save_video:
         filename = osp.join(logdir, 'video_final_env.mp4')
         dump_video(video_goal_env, policy, filename)
         filename = osp.join(logdir, 'video_final_vae.mp4')
         dump_video(video_vae_env, policy, filename)
-
 
 def grill_her_td3_experiment_online_vae(variant):
     env = variant["env_class"](**variant['env_kwargs'])

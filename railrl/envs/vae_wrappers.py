@@ -59,6 +59,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", 'latent_distance')
+        self.norm_order = self.reward_params.get("norm_order", 1)
         self.epsilon = self.reward_params.get("epsilon", 20)
         self.reward_min_variance = self.reward_params.get("min_variance", 0)
         latent_space = Box(
@@ -107,6 +108,11 @@ class VAEWrappedEnv(ProxyEnv, Env):
         obs, reward, done, info = self.wrapped_env.step(action)
         new_obs = self._update_obs(obs)
         self._update_info(info, obs)
+        reward = self.compute_reward(
+            action,
+            {'latent_achieved_goal': new_obs['latent_achieved_goal'],
+             'latent_desired_goal': new_obs['latent_desired_goal']}
+        )
         if self.render_rollouts:
             img = obs['image_observation'].reshape(
                 self.input_channels,
@@ -141,7 +147,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         mdist = np.sum(err)  # mahalanobis distance
         info["vae_mdist"] = mdist
         info["vae_success"] = 1 if mdist < self.epsilon else 0
-        info["vae_dist"] = np.linalg.norm(dist)
+        info["vae_dist"] = np.linalg.norm(dist, ord=self.norm_order)
+        info["vae_dist_l1"] = np.linalg.norm(dist, ord=1)
+        info["vae_dist_l2"] = np.linalg.norm(dist, ord=2)
 
     def reset(self):
         obs = self.wrapped_env.reset()
@@ -253,15 +261,24 @@ class VAEWrappedEnv(ProxyEnv, Env):
             ))
         return statistics
 
+    def compute_reward(self, action, obs):
+        actions = action[None]
+        next_obs = {
+            k: v[None] for k, v in obs.items()
+        }
+        return self.compute_rewards(actions, next_obs)[0]
+
     def compute_rewards(self, actions, obs):
         achieved_goals = obs['latent_achieved_goal']
         desired_goals = obs['latent_desired_goal']
         # TODO: implement log_prob/mdist
         if self.reward_type == 'latent_distance':
-            dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
+            dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
             return -dist
+        elif self.reward_type == 'vectorized_latent_distance':
+            return -np.abs(desired_goals - achieved_goals)
         elif self.reward_type == 'latent_sparse':
-            dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
+            dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
             reward = 0 if dist < self.epsilon else -1
             return reward
         else:

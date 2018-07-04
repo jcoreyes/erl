@@ -58,7 +58,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         # reason about the shape of the data
         self.vectorized = vectorized
         if self.vectorized:
-            self._rewards = np.zeros((max_size, env.observation_space.spaces[observation_key].low.size))
+            self._rewards = np.zeros(
+                (max_size, env.observation_space.spaces[observation_key].low.size))
         else:
             self._rewards = np.zeros((max_size, 1))
         # self._terminals[i] = a terminal was received at time i
