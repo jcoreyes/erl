@@ -34,7 +34,7 @@ from railrl.torch.td3.td3 import TD3
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 
 
-def grill_tdm_td3_full_experiment(variant):
+def full_experiment_variant_preprocess(variant):
     train_vae_variant = variant['train_vae_variant']
     grill_variant = variant['grill_variant']
     env_class = variant['env_class']
@@ -46,7 +46,12 @@ def grill_tdm_td3_full_experiment(variant):
     grill_variant['env_class'] = env_class
     grill_variant['env_kwargs'] = env_kwargs
     grill_variant['init_camera'] = init_camera
-    if 'vae_path' not in grill_variant:
+
+
+def grill_tdm_td3_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    grill_variant = variant['grill_variant']
+    if grill_variant.get('vae_path', None) is None:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
         )
@@ -68,18 +73,9 @@ def grill_tdm_td3_full_experiment(variant):
 
 
 def grill_her_td3_full_experiment(variant):
-    train_vae_variant = variant['train_vae_variant']
+    full_experiment_variant_preprocess(variant)
     grill_variant = variant['grill_variant']
-    env_class = variant['env_class']
-    env_kwargs = variant['env_kwargs']
-    init_camera = variant.get('init_camera', None)
-    train_vae_variant['generate_vae_dataset_kwargs']['env_class'] = env_class
-    train_vae_variant['generate_vae_dataset_kwargs']['env_kwargs'] = env_kwargs
-    train_vae_variant['generate_vae_dataset_kwargs']['init_camera'] = init_camera
-    grill_variant['env_class'] = env_class
-    grill_variant['env_kwargs'] = env_kwargs
-    grill_variant['init_camera'] = init_camera
-    if 'vae_path' not in grill_variant:
+    if grill_variant.get('vae_path', None) is None:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
         )
@@ -87,7 +83,7 @@ def grill_her_td3_full_experiment(variant):
             'vae_progress.csv', relative_to_snapshot_dir=True
         )
         vae = train_vae(train_vae_variant)
-        vae_file = logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
+        logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
         logger.remove_tabular_output(
             'vae_progress.csv',
             relative_to_snapshot_dir=True,
@@ -101,18 +97,9 @@ def grill_her_td3_full_experiment(variant):
 
 
 def grill_her_td3_online_vae_full_experiment(variant):
-    train_vae_variant = variant['train_vae_variant']
+    full_experiment_variant_preprocess(variant)
     grill_variant = variant['grill_variant']
-    env_class = variant['env_class']
-    env_kwargs = variant['env_kwargs']
-    init_camera = variant['init_camera']
-    train_vae_variant['generate_vae_dataset_kwargs']['env_class'] = env_class
-    train_vae_variant['generate_vae_dataset_kwargs']['env_kwargs'] = env_kwargs
-    train_vae_variant['generate_vae_dataset_kwargs']['init_camera'] = init_camera
-    grill_variant['env_class'] = env_class
-    grill_variant['env_kwargs'] = env_kwargs
-    grill_variant['init_camera'] = init_camera
-    if 'vae_paths' not in grill_variant:
+    if grill_variant.get('vae_path', None) is None:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
         )
@@ -122,8 +109,7 @@ def grill_her_td3_online_vae_full_experiment(variant):
         vae, vae_train_data, vae_test_data = train_vae(train_vae_variant, return_data=True)
         grill_variant['vae_train_data'] = vae_train_data
         grill_variant['vae_test_data'] = vae_test_data
-        rdim = train_vae_variant['representation_size']
-        vae_file = logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
+        logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
         logger.remove_tabular_output(
             'vae_progress.csv',
             relative_to_snapshot_dir=True,
@@ -132,10 +118,7 @@ def grill_her_td3_online_vae_full_experiment(variant):
             'progress.csv',
             relative_to_snapshot_dir=True,
         )
-        grill_variant['vae_paths'] = {
-            str(rdim): vae_file,
-        }
-        grill_variant['rdim'] = str(rdim)
+        grill_variant['vae_path'] = vae  # just pass the VAE directly
     if variant['double_algo']:
         grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
     else:
