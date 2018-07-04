@@ -2,7 +2,6 @@ import argparse
 import json
 import os
 import os.path as osp
-import uuid
 from pathlib import Path
 
 import joblib
@@ -14,10 +13,6 @@ from railrl.samplers.rollout_functions import tdm_rollout, \
 from railrl.torch.core import PyTorchModule
 from railrl.torch.grill.video_gen import dump_video
 from railrl.torch.pytorch_util import set_gpu_mode
-
-filename = str(uuid.uuid4())
-
-import numpy as np
 
 
 def get_max_tau(args):
@@ -86,8 +81,8 @@ def simulate_policy(args):
     rollout_function = create_rollout_function(
         tdm_rollout,
         init_tau=max_tau,
-        observation_key='latent_observation',
-        desired_goal_key='latent_desired_goal',
+        observation_key='observation',
+        desired_goal_key='desired_goal',
     )
     paths = dump_video(
         env,
