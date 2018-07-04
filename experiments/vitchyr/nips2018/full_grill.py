@@ -39,7 +39,7 @@ if __name__ == "__main__":
         init_camera=init_sawyer_camera_v4,
         grill_variant=dict(
             algo_kwargs=dict(
-                num_epochs=100,
+                num_epochs=0,
                 # num_steps_per_epoch=100,
                 # num_steps_per_eval=100,
                 # num_epochs=500,
@@ -69,7 +69,8 @@ if __name__ == "__main__":
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
             # vae_path='06-25-pusher-state-puck-reward-cached-goals-hard-2/06-25-pusher-state-puck-reward-cached-goals-hard-2-id0-s48265/vae.pkl',
-            vae_path="05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
+            # vae_path="05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
+            vae_path="06-28-train-vae-beta-5-push-and-reach-cam4-p15-range/06-28-train-vae-beta-5-push-and-reach-cam4-p15-range_2018_06_28_11_48_04_0000--s-80805/params.pkl",
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -120,10 +121,10 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    mode = 'ec2'
+    # mode = 'ec2'
     # exp_prefix = 'dev'
     # exp_prefix = 'mw-full-grill-her-is-it-the-floor'
-    exp_prefix = 'mw-full-grill-tdm-is-it-action-scale'
+    # exp_prefix = 'mw-full-grill-tdm-is-it-action-scale'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             grill_her_td3_full_experiment,

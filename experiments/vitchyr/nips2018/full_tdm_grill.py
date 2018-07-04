@@ -44,7 +44,7 @@ if __name__ == "__main__":
         grill_variant=dict(
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=100,
+                    num_epochs=0,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     max_path_length=97,
@@ -87,7 +87,7 @@ if __name__ == "__main__":
             # vae_path='06-25-pusher-state-puck-reward-cached-goals-hard-2/06-25-pusher-state-puck-reward-cached-goals-hard-2-id0-s48265/vae.pkl',
             # vae_path="05-23-vae-sawyer-variable-fixed-2/05-23-vae-sawyer-variable-fixed-2_2018_05_23_16_19_33_0000--s-293-nImg-1000--cam-sawyer_init_camera_zoomed_in_fixed/params.pkl",
             # vae_path="/home/vitchyr/git/railrl/data/doodads3/06-28-train-vae-beta-5-push-and-reach-cam4-2/06-28-train-vae-beta-5-push-and-reach-cam4-2_2018_06_28_11_47_21_0000--s-11654/params.pkl",
-            vae_path="/home/vitchyr/git/railrl/data/doodads3/06-28-train-vae-beta-5-push-and-reach-cam4-p15-range/06-28-train-vae-beta-5-push-and-reach-cam4-p15-range_2018_06_28_11_48_04_0000--s-80805/params.pkl",
+            vae_path="06-28-train-vae-beta-5-push-and-reach-cam4-p15-range/06-28-train-vae-beta-5-push-and-reach-cam4-p15-range_2018_06_28_11_48_04_0000--s-80805/params.pkl",
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -119,17 +119,17 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [15],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [
-            1, 100, 10000
+            1,
         ],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [
-            16,
-        ],
-        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 4,
-        ],
-        'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [
-            0.2, 0.4, 1
-        ],
+        # 'grill_variant.algo_kwargs.base_kwargs.max_path_length': [
+        #     16,
+        # ],
+        # 'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [
+        #     1, 4,
+        # ],
+        # 'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [
+        #     0.2, 0.4, 1
+        # ],
         # 'train_vae_variant.generate_vae_dataset_kwargs.N': [100, 1000]
         # 'grill_variant.observation_key': ['state_observation'],
         # 'grill_variant.desired_goal_key': ['latent_desired_goal'],
@@ -149,8 +149,8 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    mode = 'ec2'
-    exp_prefix = 'new-vae-push-and-reach-tdm-vae-trained-with-p15-puck'
+    # mode = 'ec2'
+    # exp_prefix = 'new-vae-push-and-reach-tdm-vae-trained-with-p15-puck'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             grill_tdm_td3_full_experiment,
