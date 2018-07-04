@@ -148,8 +148,8 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    mode = 'ec2'
-    exp_prefix = 'is-the-vae-THAT-magical'
+    # mode = 'ec2'
+    # exp_prefix = 'new-vae-push-and-reach-tdm-vae-trained-with-p15-puck'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['hand-goal-space'] == 'easy':
             variant['env_kwargs']['goal_low'] = (-0.05, 0.55, 0.02, -0.2, 0.5)
