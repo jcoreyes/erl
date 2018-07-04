@@ -49,6 +49,7 @@ def full_experiment_variant_preprocess(variant):
 def grill_tdm_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
     grill_variant = variant['grill_variant']
+    train_vae_variant = variant['train_vae_variant']
     if grill_variant.get('vae_path', None) is None:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
@@ -73,6 +74,7 @@ def grill_tdm_td3_full_experiment(variant):
 def grill_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
     grill_variant = variant['grill_variant']
+    train_vae_variant = variant['train_vae_variant']
     if grill_variant.get('vae_path', None) is None:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
@@ -97,6 +99,7 @@ def grill_her_td3_full_experiment(variant):
 def grill_her_td3_online_vae_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
     grill_variant = variant['grill_variant']
+    train_vae_variant = variant['train_vae_variant']
     if grill_variant.get('vae_path', None) is None:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
