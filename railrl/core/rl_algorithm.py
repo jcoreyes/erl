@@ -164,6 +164,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 max_path_length=self.max_path_length,
                 normalize_env=self.normalize_env,
             )
+        self.init_rollout_function()
 
     def train(self, start_epoch=0):
         self.pretrain()
@@ -283,6 +284,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._try_to_eval(epoch)
             gt.stamp('eval')
             self._end_epoch()
+
+    def init_rollout_function(self):
+        from railrl.samplers.rollout_functions import rollout
+        self.rollout_function = rollout
 
     def train_parallel(self, start_epoch=0):
         assert isinstance(self.training_env, RemoteRolloutEnv), (
