@@ -13,7 +13,6 @@ from railrl.data_management.obs_dict_replay_buffer import \
 from railrl.data_management.online_vae_replay_buffer import \
     OnlineVaeRelabelingBuffer
 from railrl.envs.vae_wrappers import VAEWrappedEnv, load_vae
-from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
@@ -233,36 +232,50 @@ def generate_vae_dataset(
     return train_dataset, test_dataset, info
 
 
-def grill_her_td3_experiment(variant):
+def get_envs(variant):
     env = variant["env_class"](**variant['env_kwargs'])
-
     render = variant["render"]
-
     vae_path = variant["vae_path"]
     reward_params = variant.get("reward_params", dict())
-
     init_camera = variant.get("init_camera", None)
+    do_state_exp = variant.get("do_state_exp", False)
+    if not do_state_exp:
+        env = ImageEnv(
+            env,
+            84,
+            init_camera=init_camera,
+            transpose=True,
+            normalize=True,
+        )
 
-    env = ImageEnv(
-        env,
-        84,
-        init_camera=init_camera,
-        transpose=True,
-        normalize=True,
-    )
+        env = VAEWrappedEnv(
+            env,
+            vae_path,
+            decode_goals=render,
+            render_goals=render,
+            render_rollouts=render,
+            reward_params=reward_params,
+            **variant.get('vae_wrapped_env_kwargs', {})
+        )
+    testing_env = pickle.loads(pickle.dumps(env))
+    training_env = pickle.loads(pickle.dumps(env))
+    relabeling_env = pickle.loads(pickle.dumps(env))
+    video_vae_env = pickle.loads(pickle.dumps(env))
+    video_goal_env = pickle.loads(pickle.dumps(env))
+    if not do_state_exp:
+        training_mode = variant.get("training_mode", "train")
+        testing_mode = variant.get("testing_mode", "test")
+        testing_env.mode(testing_mode)
+        training_env.mode(training_mode)
+        relabeling_env.mode(training_mode)
+        relabeling_env.disable_render()
+        video_vae_env.mode("video_vae")
+        video_goal_env.mode("video_env")
+    return testing_env, training_env, relabeling_env, video_vae_env, \
+           video_goal_env
 
-    env = VAEWrappedEnv(
-        env,
-        vae_path,
-        decode_goals=render,
-        render_goals=render,
-        render_rollouts=render,
-        reward_params=reward_params,
-        **variant.get('vae_wrapped_env_kwargs', {})
-    )
 
-    if variant['normalize']:
-        env = NormalizedBoxEnv(env)
+def get_exploration_strategy(variant, env):
     exploration_type = variant['exploration_type']
     exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
@@ -280,14 +293,31 @@ def grill_her_td3_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
+    return es
+
+
+def grill_preprocess_variant(variant):
+    if variant.get("do_state_exp", False):
+        variant['observation_key'] = 'state_observation'
+        variant['desired_goal_key'] = 'state_desired_goal'
+        variant['achieved_goal_key'] = 'state_acheived_goal'
+
+
+def grill_her_td3_experiment(variant):
+    grill_preprocess_variant(variant)
+    testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
+        get_envs(variant)
+    )
+    es = get_exploration_strategy(variant, training_env)
+
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     obs_dim = (
-        env.observation_space.spaces[observation_key].low.size
-        + env.observation_space.spaces[desired_goal_key].low.size
+        training_env.observation_space.spaces[observation_key].low.size
+        + training_env.observation_space.spaces[desired_goal_key].low.size
     )
-    action_dim = env.action_space.low.size
+    action_dim = training_env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
@@ -309,24 +339,6 @@ def grill_her_td3_experiment(variant):
         policy=policy,
     )
 
-    training_mode = variant.get("training_mode", "train")
-    testing_mode = variant.get("testing_mode", "test")
-
-    testing_env = pickle.loads(pickle.dumps(env))
-    testing_env.mode(testing_mode)
-
-    training_env = pickle.loads(pickle.dumps(env))
-    training_env.mode(training_mode)
-
-    relabeling_env = pickle.loads(pickle.dumps(env))
-    relabeling_env.mode(training_mode)
-    relabeling_env.disable_render()
-
-    video_vae_env = pickle.loads(pickle.dumps(env))
-    video_vae_env.mode("video_vae")
-    video_goal_env = pickle.loads(pickle.dumps(env))
-    video_goal_env.mode("video_env")
-
     replay_buffer = ObsDictRelabelingBuffer(
         env=relabeling_env,
         observation_key=observation_key,
@@ -335,6 +347,7 @@ def grill_her_td3_experiment(variant):
         **variant['replay_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+    render = variant["render"]
     algorithm = HerTd3(
         testing_env,
         training_env=training_env,
@@ -352,9 +365,10 @@ def grill_her_td3_experiment(variant):
     if ptu.gpu_enabled():
         print("using GPU")
         algorithm.cuda()
-        for e in [testing_env, training_env, video_vae_env, video_goal_env,
-                  relabeling_env]:
-            e.vae.cuda()
+        if not variant.get("do_state_exp", False):
+            for e in [testing_env, training_env, video_vae_env, video_goal_env,
+                      relabeling_env]:
+                e.vae.cuda()
 
     save_video = variant.get("save_video", True)
     if save_video:
@@ -375,64 +389,25 @@ def grill_her_td3_experiment(variant):
 
 
 def grill_tdm_td3_experiment(variant):
-    env = variant["env_class"](**variant['env_kwargs'])
-
-    render = variant["render"]
-
-    vae_path = variant["vae_path"]
-    reward_params = variant.get("reward_params", dict())
-
-    init_camera = variant.get("init_camera", None)
-
-    env = ImageEnv(
-        env,
-        84,
-        init_camera=init_camera,
-        transpose=True,
-        normalize=True,
+    grill_preprocess_variant(variant)
+    testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
+        get_envs(variant)
     )
-
-    env = VAEWrappedEnv(
-        env,
-        vae_path,
-        decode_goals=render,
-        render_goals=render,
-        render_rollouts=render,
-        reward_params=reward_params,
-        **variant.get('vae_wrapped_env_kwargs', {})
-    )
-
-    exploration_type = variant['exploration_type']
-    exploration_noise = variant.get('exploration_noise', 0.1)
-    if exploration_type == 'ou':
-        es = OUStrategy(action_space=env.action_space)
-    elif exploration_type == 'gaussian':
-        es = GaussianStrategy(
-            action_space=env.action_space,
-            max_sigma=exploration_noise,
-            min_sigma=exploration_noise,  # Constant sigma
-        )
-    elif exploration_type == 'epsilon':
-        es = EpsilonGreedy(
-            action_space=env.action_space,
-            prob_random_action=exploration_noise,
-        )
-    else:
-        raise Exception("Invalid type: " + exploration_type)
+    es = get_exploration_strategy(variant, training_env)
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     obs_dim = (
-            env.observation_space.spaces[observation_key].low.size
+        training_env.observation_space.spaces[observation_key].low.size
     )
     goal_dim = (
-        env.observation_space.spaces[desired_goal_key].low.size
+        training_env.observation_space.spaces[desired_goal_key].low.size
     )
-    action_dim = env.action_space.low.size
+    action_dim = training_env.action_space.low.size
     vectorized = variant['algo_kwargs']['tdm_kwargs'].get('vectorized', False)
     assert not vectorized
     qf1 = TdmQf(
-        env=env,
+        env=training_env,
         vectorized=vectorized,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
@@ -440,7 +415,7 @@ def grill_tdm_td3_experiment(variant):
         **variant['qf_kwargs']
     )
     qf2 = TdmQf(
-        env=env,
+        env=training_env,
         vectorized=vectorized,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
@@ -448,7 +423,7 @@ def grill_tdm_td3_experiment(variant):
         **variant['qf_kwargs']
     )
     policy = TdmPolicy(
-        env=env,
+        env=training_env,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -459,24 +434,6 @@ def grill_tdm_td3_experiment(variant):
         policy=policy,
     )
 
-    training_mode = variant.get("training_mode", "train")
-    testing_mode = variant.get("testing_mode", "test")
-
-    testing_env = pickle.loads(pickle.dumps(env))
-    testing_env.mode(testing_mode)
-
-    training_env = pickle.loads(pickle.dumps(env))
-    training_env.mode(training_mode)
-
-    relabeling_env = pickle.loads(pickle.dumps(env))
-    relabeling_env.mode(training_mode)
-    relabeling_env.disable_render()
-
-    video_vae_env = pickle.loads(pickle.dumps(env))
-    video_vae_env.mode("video_vae")
-    video_goal_env = pickle.loads(pickle.dumps(env))
-    video_goal_env.mode("video_env")
-
     replay_buffer = ObsDictRelabelingBuffer(
         env=relabeling_env,
         observation_key=observation_key,
@@ -484,6 +441,7 @@ def grill_tdm_td3_experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_kwargs']
     )
+    render = variant["render"]
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     algo_kwargs = variant['algo_kwargs']
@@ -508,9 +466,10 @@ def grill_tdm_td3_experiment(variant):
     if ptu.gpu_enabled():
         print("using GPU")
         algorithm.cuda()
-        for e in [testing_env, training_env, video_vae_env, video_goal_env,
-                  relabeling_env]:
-            e.vae.cuda()
+        if not variant.get("do_state_exp", False):
+            for e in [testing_env, training_env, video_vae_env, video_goal_env,
+                      relabeling_env]:
+                e.vae.cuda()
 
     save_video = variant.get("save_video", True)
     if save_video:
@@ -531,62 +490,19 @@ def grill_tdm_td3_experiment(variant):
 
 
 def grill_her_td3_experiment_online_vae(variant):
-    env = variant["env_class"](**variant['env_kwargs'])
-
-    render = variant["render"]
-
-    rdim = variant["rdim"]
-    vae_path = variant["vae_paths"][str(rdim)]
-    reward_params = variant.get("reward_params", dict())
-    vae = load_vae(vae_path)
-
-    init_camera = variant.get("init_camera", None)
-
-    env = ImageEnv(
-        env,
-        84,
-        init_camera=init_camera,
-        transpose=True,
-        normalize=True,
+    grill_preprocess_variant(variant)
+    testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
+        get_envs(variant)
     )
-
-    env = VAEWrappedEnv(
-        env,
-        vae,
-        decode_goals=render,
-        render_goals=render,
-        render_rollouts=render,
-        reward_params=reward_params,
-        **variant.get('vae_wrapped_env_kwargs', {})
-    )
-
-    if variant['normalize']:
-        env = NormalizedBoxEnv(env)
-    exploration_type = variant['exploration_type']
-    exploration_noise = variant.get('exploration_noise', 0.1)
-    if exploration_type == 'ou':
-        es = OUStrategy(action_space=env.action_space)
-    elif exploration_type == 'gaussian':
-        es = GaussianStrategy(
-            action_space=env.action_space,
-            max_sigma=exploration_noise,
-            min_sigma=exploration_noise,  # Constant sigma
-        )
-    elif exploration_type == 'epsilon':
-        es = EpsilonGreedy(
-            action_space=env.action_space,
-            prob_random_action=exploration_noise,
-        )
-    else:
-        raise Exception("Invalid type: " + exploration_type)
+    es = get_exploration_strategy(variant, training_env)
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     obs_dim = (
-        env.observation_space.spaces[observation_key].low.size
-        + env.observation_space.spaces[desired_goal_key].low.size
+        training_env.observation_space.spaces[observation_key].low.size
+        + training_env.observation_space.spaces[desired_goal_key].low.size
     )
-    action_dim = env.action_space.low.size
+    action_dim = training_env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
@@ -608,23 +524,8 @@ def grill_her_td3_experiment_online_vae(variant):
         policy=policy,
     )
 
-    training_mode = variant.get("training_mode", "train")
-    testing_mode = variant.get("testing_mode", "test")
-
-    testing_env = pickle.loads(pickle.dumps(env))
-    testing_env.mode(testing_mode)
-
-    training_env = pickle.loads(pickle.dumps(env))
-    training_env.mode(training_mode)
-
-    relabeling_env = pickle.loads(pickle.dumps(env))
-    relabeling_env.mode(training_mode)
-    relabeling_env.disable_render()
-
-    video_vae_env = pickle.loads(pickle.dumps(env))
-    video_vae_env.mode("video_vae")
-    video_goal_env = pickle.loads(pickle.dumps(env))
-    video_goal_env.mode("video_env")
+    vae_path = variant["vae_path"]
+    vae = load_vae(vae_path)
 
     replay_buffer = OnlineVaeRelabelingBuffer(
         vae=vae,
@@ -641,6 +542,7 @@ def grill_her_td3_experiment_online_vae(variant):
                        variant['vae_test_data'],
                        vae,
                        beta=variant['online_vae_beta'])
+    render = variant["render"]
     algorithm = OnlineVaeHerTd3(
         vae=vae,
         vae_trainer=t,
@@ -683,63 +585,21 @@ def grill_her_td3_experiment_online_vae(variant):
         filename = osp.join(logdir, 'video_final_vae.mp4')
         dump_video(video_vae_env, policy, filename)
 
+
 def grill_her_td3_experiment_online_vae_exploring(variant):
-    env = variant["env_class"](**variant['env_kwargs'])
-
-    render = variant["render"]
-
-    rdim = variant["rdim"]
-    vae_path = variant["vae_paths"][str(rdim)]
-    reward_params = variant.get("reward_params", dict())
-    vae = load_vae(vae_path)
-
-    init_camera = variant.get("init_camera", None)
-
-    env = ImageEnv(
-        env,
-        84,
-        init_camera=init_camera,
-        transpose=True,
-        normalize=True,
+    grill_preprocess_variant(variant)
+    testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
+        get_envs(variant)
     )
-
-    env = VAEWrappedEnv(
-        env,
-        vae,
-        decode_goals=render,
-        render_goals=render,
-        render_rollouts=render,
-        reward_params=reward_params,
-        **variant.get('vae_wrapped_env_kwargs', {})
-    )
-
-    if variant['normalize']:
-        env = NormalizedBoxEnv(env)
-    exploration_type = variant['exploration_type']
-    exploration_noise = variant.get('exploration_noise', 0.1)
-    if exploration_type == 'ou':
-        es = OUStrategy(action_space=env.action_space)
-    elif exploration_type == 'gaussian':
-        es = GaussianStrategy(
-            action_space=env.action_space,
-            max_sigma=exploration_noise,
-            min_sigma=exploration_noise,  # Constant sigma
-        )
-    elif exploration_type == 'epsilon':
-        es = EpsilonGreedy(
-            action_space=env.action_space,
-            prob_random_action=exploration_noise,
-        )
-    else:
-        raise Exception("Invalid type: " + exploration_type)
+    es = get_exploration_strategy(variant, training_env)
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     obs_dim = (
-        env.observation_space.spaces[observation_key].low.size
-        + env.observation_space.spaces[desired_goal_key].low.size
+        training_env.observation_space.spaces[observation_key].low.size
+        + training_env.observation_space.spaces[desired_goal_key].low.size
     )
-    action_dim = env.action_space.low.size
+    action_dim = training_env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
@@ -781,25 +641,8 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         policy=exploring_policy,
     )
 
-
-    training_mode = variant.get("training_mode", "train")
-    testing_mode = variant.get("testing_mode", "test")
-
-    testing_env = pickle.loads(pickle.dumps(env))
-    testing_env.mode(testing_mode)
-
-    training_env = pickle.loads(pickle.dumps(env))
-    training_env.mode(training_mode)
-
-    relabeling_env = pickle.loads(pickle.dumps(env))
-    relabeling_env.mode(training_mode)
-    relabeling_env.disable_render()
-
-    video_vae_env = pickle.loads(pickle.dumps(env))
-    video_vae_env.mode("video_vae")
-    video_goal_env = pickle.loads(pickle.dumps(env))
-    video_goal_env.mode("video_env")
-
+    vae_path = variant["vae_path"]
+    vae = load_vae(vae_path)
     replay_buffer = OnlineVaeRelabelingBuffer(
         vae=vae,
         env=relabeling_env,

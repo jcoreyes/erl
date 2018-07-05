@@ -55,6 +55,10 @@ if __name__ == "__main__":
                 max_size=int(1e6),
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
+                ob_keys_to_save=('state_achieved_goal', 'state_desired_goal'),
+            ),
+            vae_wrapped_env_kwargs=dict(
+                num_goals_presampled=100,
             ),
             algorithm='GRILL-HER-TD3',
             normalize=False,
@@ -64,7 +68,8 @@ if __name__ == "__main__":
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
-                type='latent_distance',
+                # type='latent_distance',
+                type='state_puck_distance',
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
@@ -77,7 +82,7 @@ if __name__ == "__main__":
             num_epochs=1000,
             generate_vae_dataset_kwargs=dict(
                 N=1000,
-                oracle_dataset=False,
+                oracle_dataset=True,
                 num_channels=3,
                 # show=True,
                 # use_cached=False,
