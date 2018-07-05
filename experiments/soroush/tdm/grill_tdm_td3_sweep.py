@@ -1,4 +1,5 @@
 import argparse
+import math
 import torch
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
@@ -38,6 +39,7 @@ variant = dict(
         algorithm="GRILL-TDM-TD3",
         # version="normal",
         render=False,
+        save_video=False,
         exploration_noise=0.2,
         exploration_type='ou',
         training_mode='train',
@@ -120,18 +122,21 @@ env_params = {
             ),
         ],
         # 'grill_variant.reward_params.type': ['latent_distance'],
-        'grill_variant.reward_params.type': ['vectorized_latent_distance'], #['state_distance', 'vectorized_state_distance'],
-        'grill_variant.reward_params.norm_order': [1, 2],
+        'grill_variant.reward_params.type': ['latent_distance', 'vectorized_latent_distance'],
+        'grill_variant.reward_params.norm_order': [1, 2], #[1, 2], #[1, 2],
         'grill_variant.qf_kwargs.structure': ['norm_difference'], #['norm_difference', 'none'],
         'grill_variant.exploration_type': ['epsilon'], #['epsilon', 'gaussian'],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
-        'grill_variant.algo_kwargs.base_kwargs.num_epochs': [500],
+        'grill_variant.algo_kwargs.base_kwargs.num_epochs': [300],
         'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [10, 20, 40], #[10, 20, 40], #[1, 10, 20, 40, 99],
         'grill_variant.algo_kwargs.tdm_kwargs.policy_loss_criterion': ['mean'], #['norm', 'mean'],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3], #[1e0, 1e2],
-        'train_vae_variant.num_epochs': [1], #[500],
-        'train_vae_variant.generate_vae_dataset_kwargs.N': [100], #[10000],
+        'train_vae_variant.num_epochs': [500],
+        'train_vae_variant.generate_vae_dataset_kwargs.N': [10000],
         'train_vae_variant.save_period': [20],
+        'grill_variant.vae_path': [
+            "07-04-grill-tdm-td3-sawyer-push-and-reach-xy-first-attempt/07-04-grill-tdm-td3-sawyer-push-and-reach-xy-first-attempt_2018_07_04_07_18_11_0006--s-20444/vae.pkl"
+        ],
     },
 }
 
@@ -179,6 +184,6 @@ if __name__ == "__main__":
                 variant=variant,
                 use_gpu=(not args.no_gpu),
                 num_exps_per_instance=num_exps_per_instance,
-                snapshot_gap=int(variant['grill_variant']['algo_kwargs']['base_kwargs']['num_epochs'] / 10),
+                snapshot_gap=int(math.ceil(variant['grill_variant']['algo_kwargs']['base_kwargs']['num_epochs'] / 10)),
                 snapshot_mode='gap_and_last',
             )
