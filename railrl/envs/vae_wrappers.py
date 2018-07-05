@@ -39,6 +39,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         reward_params=None,
         mode="train",
         imsize=84,
+        num_goals_presampled=0,
     ):
         self.quick_init(locals())
         if reward_params is None:
@@ -50,12 +51,13 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = vae
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
-        self.use_vae_goals = use_vae_goals
+        self._use_vae_goals = use_vae_goals
         self.sample_from_true_prior = sample_from_true_prior
         self.decode_goals = decode_goals
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
         self.imsize = imsize
+        self.num_goals_presampled = num_goals_presampled
 
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", 'latent_distance')
@@ -79,20 +81,26 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self._vw_goal_img_decoded = None
         self.mode(mode)
 
+        self._presampled_goals = None
+
+    @property
+    def use_vae_goals(self):
+        return self._use_vae_goals and not self.reward_type.startswith('state')
+
     def mode(self, name):
         if name == "train":
-            self.use_vae_goals = True
+            self._use_vae_goals = True
         elif name == "train_env_goals":
-            self.use_vae_goals = False
+            self._use_vae_goals = False
         elif name == "test":
-            self.use_vae_goals = False
+            self._use_vae_goals = False
         elif name == "video_vae":
-            self.use_vae_goals = True
+            self._use_vae_goals = True
             self.decode_goals = True
             self.render_goals = False
             self.render_rollouts = False
         elif name == "video_env":
-            self.use_vae_goals = False
+            self._use_vae_goals = False
             self.decode_goals = False
             self.render_goals = False
             self.render_rollouts = False
@@ -174,7 +182,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return self._update_obs(obs)
 
     def enable_render(self):
-        self.use_vae_goals = False
+        self._use_vae_goals = False
         self.decode_goals = True
         self.render_goals = True
         self.render_rollouts = True
@@ -227,7 +235,31 @@ class VAEWrappedEnv(ProxyEnv, Env):
         goal['latent_desired_goal'] = self._latent_goal
         return goal
 
-    def sample_goals(self, batch_size):
+    def sample_goals(self, batch_size, force_resample=False):
+        if (
+            not force_resample
+            and batch_size > 1
+            and self.num_goals_presampled > 0
+            and not self.use_vae_goals
+        ):
+            if (
+                self._presampled_goals is None
+                    or self.num_goals_presampled < batch_size
+            ):
+                self.num_goals_presampled = max(
+                    self.num_goals_presampled,
+                    batch_size,
+                )
+                self._presampled_goals = self.sample_goals(
+                    self.num_goals_presampled,
+                    force_resample=True,
+                )
+
+            idx = np.random.randint(0, self.num_goals_presampled, batch_size)
+            sampled_goals = {
+                k: v[idx] for k, v in self._presampled_goals.items()
+            }
+            return sampled_goals
         if self.use_vae_goals:
             goals = {}
             latent_goals = self._sample_vae_prior(batch_size)
@@ -269,30 +301,27 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return self.compute_rewards(actions, next_obs)[0]
 
     def compute_rewards(self, actions, obs):
-        achieved_goals = obs['latent_achieved_goal']
-        desired_goals = obs['latent_desired_goal']
         # TODO: implement log_prob/mdist
         if self.reward_type == 'latent_distance':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
             dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
             return -dist
         elif self.reward_type == 'vectorized_latent_distance':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
             return -np.abs(desired_goals - achieved_goals)
         elif self.reward_type == 'latent_sparse':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
             dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
             reward = 0 if dist < self.epsilon else -1
             return reward
+        elif self.reward_type == 'state_distance':
+            achieved_goals = obs['state_achieved_goal']
+            desired_goals = obs['state_desired_goal']
+            return - np.linalg.norm(desired_goals - achieved_goals, axis=1)
+        elif self.reward_type == 'wrapped_env':
+            return self.wrapped_env.compute_rewards(actions, obs)
         else:
             raise NotImplementedError
-
-        # var = env_info['var']
-        # dist = goal - next_observation
-        # var = np.maximum(var, self.reward_min_variance)
-        # err = dist * dist / 2 / var
-        # mdist = np.sum(err) # mahalanobis distance
-        # if self.reward_type == "log_prob":
-        #     reward = -mdist
-        # elif self.reward_type == "mahalanobis_distance":
-        #     reward = -np.sqrt(mdist)
-        # elif self.reward_type == "sparse":
-        #     reward = 0 if mdist < self.epsilon else -1
-        # return reward
