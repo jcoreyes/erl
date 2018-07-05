@@ -320,7 +320,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         elif self.reward_type == 'state_distance':
             achieved_goals = obs['state_achieved_goal']
             desired_goals = obs['state_desired_goal']
-            return - np.linalg.norm(desired_goals - achieved_goals, axis=1)
+            return - np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
         elif self.reward_type == 'wrapped_env':
             return self.wrapped_env.compute_rewards(actions, obs)
         else:

@@ -123,7 +123,7 @@ env_params = {
         ],
         # 'grill_variant.reward_params.type': ['latent_distance'],
         'grill_variant.reward_params.type': ['latent_distance', 'vectorized_latent_distance'],
-        'grill_variant.reward_params.norm_order': [1, 2], #[1, 2], #[1, 2],
+        'grill_variant.reward_params.norm_order': [1, 2],
         'grill_variant.qf_kwargs.structure': ['norm_difference'], #['norm_difference', 'none'],
         'grill_variant.exploration_type': ['epsilon'], #['epsilon', 'gaussian'],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [4],

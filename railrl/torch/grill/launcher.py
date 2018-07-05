@@ -69,6 +69,7 @@ def grill_tdm_td3_full_experiment(variant):
         grill_variant['vae_path'] = vae  # just pass the VAE directly
     grill_tdm_td3_experiment(variant['grill_variant'])
 
+
 def grill_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
     grill_variant = variant['grill_variant']
@@ -158,6 +159,7 @@ def train_vae(variant, return_data=False):
     if return_data:
         return m, train_data, test_data
     return m
+
 
 def generate_vae_dataset(
         env_class,
@@ -384,6 +386,7 @@ def grill_her_td3_experiment(variant):
         filename = osp.join(logdir, 'video_final_vae.mp4')
         dump_video(video_vae_env, policy, filename)
 
+
 def grill_tdm_td3_experiment(variant):
     grill_preprocess_variant(variant)
     testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
@@ -400,11 +403,17 @@ def grill_tdm_td3_experiment(variant):
         training_env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = training_env.action_space.low.size
-    vectorized = variant['algo_kwargs']['tdm_kwargs'].get('vectorized', False)
-    assert not vectorized
+
+    vectorized = 'vectorized' in training_env.reward_type
+    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+
+    norm_order = training_env.norm_order
+    variant['algo_kwargs']['tdm_kwargs']['norm_order'] = norm_order
+
     qf1 = TdmQf(
         env=training_env,
         vectorized=vectorized,
+        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -413,6 +422,7 @@ def grill_tdm_td3_experiment(variant):
     qf2 = TdmQf(
         env=training_env,
         vectorized=vectorized,
+        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -483,6 +493,7 @@ def grill_tdm_td3_experiment(variant):
         dump_video(video_goal_env, policy, filename)
         filename = osp.join(logdir, 'video_final_vae.mp4')
         dump_video(video_vae_env, policy, filename)
+
 
 def grill_her_td3_experiment_online_vae(variant):
     grill_preprocess_variant(variant)
