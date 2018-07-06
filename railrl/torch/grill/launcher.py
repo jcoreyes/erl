@@ -229,7 +229,7 @@ def generate_vae_dataset(
 def get_envs(variant):
     env = variant["env_class"](**variant['env_kwargs'])
     render = variant["render"]
-    vae_path = variant["vae_path"]
+    vae_path = variant.get("vae_path", None)
     reward_params = variant.get("reward_params", dict())
     init_camera = variant.get("init_camera", None)
     do_state_exp = variant.get("do_state_exp", False)
@@ -405,10 +405,12 @@ def grill_tdm_td3_experiment(variant):
     norm_order = training_env.norm_order
     variant['algo_kwargs']['tdm_kwargs']['norm_order'] = norm_order
 
+    vectorized_qf = variant['qf_kwargs'].get('vectorized', False)
+    variant['qf_kwargs']['vectorized'] = vectorized or vectorized_qf
+    variant['qf_kwargs']['norm_order'] = norm_order
+
     qf1 = TdmQf(
         env=training_env,
-        vectorized=vectorized,
-        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -416,8 +418,6 @@ def grill_tdm_td3_experiment(variant):
     )
     qf2 = TdmQf(
         env=training_env,
-        vectorized=vectorized,
-        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,

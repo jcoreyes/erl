@@ -1,6 +1,5 @@
 import argparse
 import math
-import math
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
@@ -40,7 +39,7 @@ variant = dict(
         # version="normal",
         render=False,
         save_video=False,
-        exploration_noise=0.2,
+        exploration_noise=0.1,
         exploration_type='ou',
         training_mode='train',
         testing_mode='test',
@@ -122,11 +121,11 @@ env_params = {
         ],
         # 'grill_variant.reward_params.type': ['latent_distance'],
         'grill_variant.reward_params.type': ['latent_distance', 'vectorized_latent_distance'],
-        'grill_variant.reward_params.norm_order': [1, 2],
+        'grill_variant.reward_params.norm_order': [1],
         'grill_variant.qf_kwargs.structure': ['norm_difference'], #['norm_difference', 'none'],
-        'grill_variant.exploration_type': ['epsilon'], #['epsilon', 'gaussian'],
+        'grill_variant.exploration_type': ['epsilon', 'gaussian'], #['epsilon', 'gaussian'],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
-        'grill_variant.algo_kwargs.base_kwargs.num_epochs': [300],
+        'grill_variant.algo_kwargs.base_kwargs.num_epochs': [250],
         'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [10, 20, 40], #[10, 20, 40], #[1, 10, 20, 40, 99],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3], #[1e0, 1e2],
         'train_vae_variant.num_epochs': [500],
