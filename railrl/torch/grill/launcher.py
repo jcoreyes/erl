@@ -21,7 +21,7 @@ from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.state_distance.tdm_networks import TdmQf, TdmVf, TdmPolicy
+from railrl.state_distance.tdm_networks import TdmQf, TdmVf, TdmPolicy, StochasticTdmPolicy
 from railrl.state_distance.tdm_td3 import TdmTd3
 from railrl.state_distance.tdm_twin_sac import TdmTwinSAC
 from railrl.torch.her.her_td3 import HerTd3
@@ -37,10 +37,12 @@ def grill_tdm_td3_full_experiment(variant):
     generate_and_train_vae(variant)
     grill_tdm_td3_experiment(variant['grill_variant'])
 
+
 def grill_tdm_twin_sac_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
     generate_and_train_vae(variant)
     grill_tdm_twin_sac_experiment(variant['grill_variant'])
+
 
 def grill_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
@@ -446,10 +448,10 @@ def grill_tdm_td3_experiment(variant):
     render = variant["render"]
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     algo_kwargs = variant['algo_kwargs']
-    td3_kwargs = algo_kwargs['td3_kwargs']
-    td3_kwargs['training_env'] = training_env
-    td3_kwargs['render'] = render
-    td3_kwargs['render_during_eval'] = render
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = training_env
+    base_kwargs['render'] = render
+    base_kwargs['render_during_eval'] = render
     tdm_kwargs = algo_kwargs['tdm_kwargs']
     tdm_kwargs['observation_key'] = observation_key
     tdm_kwargs['desired_goal_key'] = desired_goal_key
@@ -510,10 +512,14 @@ def grill_tdm_twin_sac_experiment(variant):
     norm_order = training_env.norm_order
     variant['algo_kwargs']['tdm_kwargs']['norm_order'] = norm_order
 
+    # vectorized_qf = variant['qf_kwargs'].get('vectorized', False)
+    variant['qf_kwargs']['vectorized'] = vectorized # vectorized or vectorized_qf
+    variant['vf_kwargs']['vectorized'] = vectorized # vectorized or vectorized_qf
+    variant['qf_kwargs']['norm_order'] = norm_order
+    variant['vf_kwargs']['norm_order'] = norm_order
+
     qf1 = TdmQf(
         env=training_env,
-        vectorized=vectorized,
-        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -521,8 +527,6 @@ def grill_tdm_twin_sac_experiment(variant):
     )
     qf2 = TdmQf(
         env=training_env,
-        vectorized=vectorized,
-        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -530,14 +534,12 @@ def grill_tdm_twin_sac_experiment(variant):
     )
     vf = TdmVf(
         env=training_env,
-        vectorized=vectorized,
-        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
         **variant['vf_kwargs']
     )
-    policy = TdmPolicy(
+    policy = StochasticTdmPolicy(
         env=training_env,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
@@ -556,15 +558,13 @@ def grill_tdm_twin_sac_experiment(variant):
     render = variant["render"]
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     algo_kwargs = variant['algo_kwargs']
-    twin_sac_kwargs = algo_kwargs['twin_sac_kwargs']
-    twin_sac_kwargs['training_env'] = training_env
-    twin_sac_kwargs['render'] = render
-    twin_sac_kwargs['render_during_eval'] = render
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = training_env
+    base_kwargs['render'] = render
+    base_kwargs['render_during_eval'] = render
     tdm_kwargs = algo_kwargs['tdm_kwargs']
     tdm_kwargs['observation_key'] = observation_key
     tdm_kwargs['desired_goal_key'] = desired_goal_key
-    qf_criterion = variant['qf_criterion_class']()
-    twin_sac_kwargs['qf_criterion'] = qf_criterion
     algorithm = TdmTwinSAC(
         testing_env,
         qf1=qf1,
