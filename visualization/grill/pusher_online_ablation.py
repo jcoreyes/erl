@@ -24,6 +24,7 @@ offline_pusher = dp.get_trials(
         'algo_kwargs.should_train_vae.$function': 'railrl.torch.vae.vae_schedules.never_train',
     }
 )
+plt.figure(figsize=(6, 5))
 plot.plot_trials(
     {"Online": online_pusher, "Offline": offline_pusher},
     y_keys="Final  sum_distance Mean",
@@ -36,5 +37,5 @@ plt.ylabel("Final Distance to Goal")
 plt.title("Visual Pusher, Online Ablation")
 lgnd = plt.legend(["Online", "Offline"], bbox_to_anchor=(0.49, -0.2), loc="upper center", ncol=4, handlelength=1)
 plt.tight_layout()
-plt.savefig(output_dir + "pusher_online_ablation.pdf", bbox_inches='tight')
+plt.savefig(output_dir + "pusher_online_ablation.pdf")
 print("File saved to", output_dir + "pusher_online_ablation.pdf")

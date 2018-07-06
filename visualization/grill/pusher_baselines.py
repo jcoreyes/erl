@@ -70,12 +70,13 @@ plot.comparison(
     method_order=[4, 0, 1, 3, 2],
     ylim=(0.1, 0.28),
     xlim=(0, 250000),
+    figsize=(6, 5),
 )
 plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 plt.xlabel("Timesteps")
 plt.ylabel("Final Distance to Goal")
 plt.title("Visual Pusher Baselines")
-plt.legend([]) # ["GRiLL", "DSAE", "HER", "Oracle", "L&R", ])
+plt.legend([]) # [our_method_name, "DSAE", "HER", "Oracle", "L&R", ])
 
 plt.tight_layout()
 plt.savefig(output_dir + "pusher_baselines.pdf")
