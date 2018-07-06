@@ -453,8 +453,6 @@ def grill_tdm_td3_experiment(variant):
     tdm_kwargs = algo_kwargs['tdm_kwargs']
     tdm_kwargs['observation_key'] = observation_key
     tdm_kwargs['desired_goal_key'] = desired_goal_key
-    qf_criterion = variant['qf_criterion_class']()
-    td3_kwargs['qf_criterion'] = qf_criterion
     algorithm = TdmTd3(
         testing_env,
         qf1=qf1,

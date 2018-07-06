@@ -1,6 +1,6 @@
 import argparse
 import math
-import torch
+import math
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
@@ -54,7 +54,6 @@ variant = dict(
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
-        qf_criterion_class=torch.nn.MSELoss,
     ),
     train_vae_variant=dict(
         representation_size=16,
@@ -129,7 +128,6 @@ env_params = {
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
         'grill_variant.algo_kwargs.base_kwargs.num_epochs': [300],
         'grill_variant.algo_kwargs.tdm_kwargs.max_tau': [10, 20, 40], #[10, 20, 40], #[1, 10, 20, 40, 99],
-        'grill_variant.algo_kwargs.tdm_kwargs.policy_loss_criterion': ['mean'], #['norm', 'mean'],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3], #[1e0, 1e2],
         'train_vae_variant.num_epochs': [500],
         'train_vae_variant.generate_vae_dataset_kwargs.N': [10000],
