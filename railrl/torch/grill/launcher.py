@@ -12,7 +12,7 @@ from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
 from railrl.data_management.online_vae_replay_buffer import \
     OnlineVaeRelabelingBuffer
-from railrl.envs.vae_wrappers import VAEWrappedEnv, load_vae
+from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
@@ -495,8 +495,7 @@ def grill_her_td3_experiment_online_vae(variant):
         policy=policy,
     )
 
-    vae_path = variant["vae_path"]
-    vae = load_vae(vae_path)
+    vae = training_env.vae
 
     replay_buffer = OnlineVaeRelabelingBuffer(
         vae=vae,
@@ -514,6 +513,7 @@ def grill_her_td3_experiment_online_vae(variant):
                        vae,
                        beta=variant['online_vae_beta'])
     render = variant["render"]
+    assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     algorithm = OnlineVaeHerTd3(
         vae=vae,
         vae_trainer=t,
@@ -527,7 +527,6 @@ def grill_her_td3_experiment_online_vae(variant):
         render_during_eval=render,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
-        vae_training_schedule=variant['vae_training_schedule'],
         **variant['algo_kwargs']
     )
 
@@ -612,8 +611,7 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         policy=exploring_policy,
     )
 
-    vae_path = variant["vae_path"]
-    vae = load_vae(vae_path)
+    vae = training_env.vae
     replay_buffer = OnlineVaeRelabelingBuffer(
         vae=vae,
         env=relabeling_env,
@@ -649,6 +647,7 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         **variant['algo_kwargs']
     )
 
+    assert 'vae_training_schedule' not in variant, "Just put it in joint_algo_kwargs"
     algorithm = OnlineVaeHerJointAlgo(
         vae=vae,
         vae_trainer=t,
@@ -663,7 +662,6 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         algo2_prefix="VAE_Exploration_",
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
-        vae_training_schedule=variant['vae_training_schedule'],
         **variant['joint_algo_kwargs']
     )
 
