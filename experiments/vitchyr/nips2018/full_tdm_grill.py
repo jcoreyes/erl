@@ -149,7 +149,7 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     mode = 'ec2'
-    exp_prefix = 'gw-vitchyr'
+    exp_prefix = 'gw-vitchyr-check'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['hand-goal-space'] == 'easy':
             variant['env_kwargs']['goal_low'] = (-0.05, 0.55, 0.02, -0.2, 0.5)
