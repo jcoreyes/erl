@@ -21,14 +21,40 @@ from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy
+from railrl.state_distance.tdm_networks import TdmQf, TdmVf, TdmPolicy
 from railrl.state_distance.tdm_td3 import TdmTd3
+from railrl.state_distance.tdm_twin_sac import TdmTwinSAC
 from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.her.online_vae_her_td3 import OnlineVaeHerTd3
 from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.td3.td3 import TD3
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
+
+
+def grill_tdm_td3_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    generate_and_train_vae(variant)
+    grill_tdm_td3_experiment(variant['grill_variant'])
+
+def grill_tdm_twin_sac_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    generate_and_train_vae(variant)
+    grill_tdm_twin_sac_experiment(variant['grill_variant'])
+
+def grill_her_td3_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    generate_and_train_vae(variant)
+    grill_her_td3_experiment(variant['grill_variant'])
+
+
+def grill_her_td3_online_vae_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    generate_and_train_online_vae(variant)
+    if variant['double_algo']:
+        grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
+    else:
+        grill_her_td3_experiment_online_vae(variant['grill_variant'])
 
 
 def full_experiment_variant_preprocess(variant):
@@ -45,33 +71,7 @@ def full_experiment_variant_preprocess(variant):
     grill_variant['init_camera'] = init_camera
 
 
-def grill_tdm_td3_full_experiment(variant):
-    full_experiment_variant_preprocess(variant)
-    grill_variant = variant['grill_variant']
-    train_vae_variant = variant['train_vae_variant']
-    if grill_variant.get('vae_path', None) is None:
-        logger.remove_tabular_output(
-            'progress.csv', relative_to_snapshot_dir=True
-        )
-        logger.add_tabular_output(
-            'vae_progress.csv', relative_to_snapshot_dir=True
-        )
-        vae = train_vae(train_vae_variant)
-        logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
-        logger.remove_tabular_output(
-            'vae_progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        logger.add_tabular_output(
-            'progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        grill_variant['vae_path'] = vae  # just pass the VAE directly
-    grill_tdm_td3_experiment(variant['grill_variant'])
-
-
-def grill_her_td3_full_experiment(variant):
-    full_experiment_variant_preprocess(variant)
+def generate_and_train_vae(variant):
     grill_variant = variant['grill_variant']
     train_vae_variant = variant['train_vae_variant']
     if grill_variant.get('vae_path', None) is None:
@@ -94,8 +94,7 @@ def grill_her_td3_full_experiment(variant):
         grill_variant['vae_path'] = vae  # just pass the VAE directly
 
 
-def grill_her_td3_online_vae_full_experiment(variant):
-    full_experiment_variant_preprocess(variant)
+def generate_and_train_online_vae(variant):
     grill_variant = variant['grill_variant']
     train_vae_variant = variant['train_vae_variant']
     if grill_variant.get('vae_path', None) is None:
@@ -118,10 +117,6 @@ def grill_her_td3_online_vae_full_experiment(variant):
             relative_to_snapshot_dir=True,
         )
         grill_variant['vae_path'] = vae  # just pass the VAE directly
-    if variant['double_algo']:
-        grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
-    else:
-        grill_her_td3_experiment_online_vae(variant['grill_variant'])
 
 
 def train_vae(variant, return_data=False):
@@ -466,6 +461,118 @@ def grill_tdm_td3_experiment(variant):
         qf2=qf2,
         policy=policy,
         exploration_policy=exploration_policy,
+        **variant['algo_kwargs']
+    )
+
+    if ptu.gpu_enabled():
+        print("using GPU")
+        algorithm.cuda()
+        if not variant.get("do_state_exp", False):
+            for e in [testing_env, training_env, video_vae_env, video_goal_env,
+                      relabeling_env]:
+                e.vae.cuda()
+
+    save_video = variant.get("save_video", True)
+    if save_video:
+        from railrl.torch.vae.sim_vae_policy import dump_video
+        logdir = logger.get_snapshot_dir()
+        # Don't dump initial video any more, its uninformative
+        # filename = osp.join(logdir, 'video_0_env.mp4')
+        # dump_video(video_goal_env, policy, filename)
+        # filename = osp.join(logdir, 'video_0_vae.mp4')
+        # dump_video(video_vae_env, policy, filename)
+    algorithm.train()
+
+    if save_video:
+        filename = osp.join(logdir, 'video_final_env.mp4')
+        dump_video(video_goal_env, policy, filename)
+        filename = osp.join(logdir, 'video_final_vae.mp4')
+        dump_video(video_vae_env, policy, filename)
+
+
+def grill_tdm_twin_sac_experiment(variant):
+    grill_preprocess_variant(variant)
+    testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
+        get_envs(variant)
+    )
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    obs_dim = (
+        training_env.observation_space.spaces[observation_key].low.size
+    )
+    goal_dim = (
+        training_env.observation_space.spaces[desired_goal_key].low.size
+    )
+    action_dim = training_env.action_space.low.size
+
+    vectorized = 'vectorized' in training_env.reward_type
+    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+
+    norm_order = training_env.norm_order
+    variant['algo_kwargs']['tdm_kwargs']['norm_order'] = norm_order
+
+    qf1 = TdmQf(
+        env=training_env,
+        vectorized=vectorized,
+        norm_order=norm_order,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        action_dim=action_dim,
+        **variant['qf_kwargs']
+    )
+    qf2 = TdmQf(
+        env=training_env,
+        vectorized=vectorized,
+        norm_order=norm_order,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        action_dim=action_dim,
+        **variant['qf_kwargs']
+    )
+    vf = TdmVf(
+        env=training_env,
+        vectorized=vectorized,
+        norm_order=norm_order,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        action_dim=action_dim,
+        **variant['vf_kwargs']
+    )
+    policy = TdmPolicy(
+        env=training_env,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        action_dim=action_dim,
+        **variant['policy_kwargs']
+    )
+
+    replay_buffer = ObsDictRelabelingBuffer(
+        env=relabeling_env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        vectorized=vectorized,
+        **variant['replay_kwargs']
+    )
+    render = variant["render"]
+    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+    algo_kwargs = variant['algo_kwargs']
+    twin_sac_kwargs = algo_kwargs['twin_sac_kwargs']
+    twin_sac_kwargs['training_env'] = training_env
+    twin_sac_kwargs['render'] = render
+    twin_sac_kwargs['render_during_eval'] = render
+    tdm_kwargs = algo_kwargs['tdm_kwargs']
+    tdm_kwargs['observation_key'] = observation_key
+    tdm_kwargs['desired_goal_key'] = desired_goal_key
+    qf_criterion = variant['qf_criterion_class']()
+    twin_sac_kwargs['qf_criterion'] = qf_criterion
+    algorithm = TdmTwinSAC(
+        testing_env,
+        qf1=qf1,
+        qf2=qf2,
+        vf=vf,
+        policy=policy,
         **variant['algo_kwargs']
     )
 

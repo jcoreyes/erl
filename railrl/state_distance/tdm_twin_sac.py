@@ -1,97 +1,43 @@
 from collections import OrderedDict
 
-import torch
 import numpy as np
-import torch.optim as optim
-from torch import nn as nn
+import torch
+from torch import optim
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.state_distance.tdm import TemporalDifferenceModel
+from railrl.torch.sac.twin_sac import TwinSAC
 
 
-class TwinSAC(TorchRLAlgorithm):
-    """
-    TD3 + SAC
-    """
+class TdmTwinSAC(TemporalDifferenceModel, TwinSAC):
     def __init__(
             self,
             env,
-            policy,
             qf1,
             qf2,
-            vf,
-
-            policy_lr=1e-3,
-            qf_lr=1e-3,
-            vf_lr=1e-3,
-            policy_mean_reg_weight=1e-3,
-            policy_std_reg_weight=1e-3,
-            policy_pre_activation_weight=0.,
-            optimizer_class=optim.Adam,
-
-            train_policy_with_reparameterization=False,
-            soft_target_tau=1e-2,
-            policy_update_period=1,
-            target_update_period=1,
-            plotter=None,
-            render_eval_paths=False,
-            eval_deterministic=True,
-
+            twin_sac_kwargs,
+            tdm_kwargs,
+            base_kwargs,
+            policy=None,
             eval_policy=None,
-            exploration_policy=None,
-            **kwargs
+            replay_buffer=None,
+
+            optimizer_class=optim.Adam,
     ):
-        if eval_policy is None:
-            if eval_deterministic:
-                eval_policy = MakeDeterministic(policy)
-            else:
-                eval_policy = policy
-        super().__init__(
+        TwinSAC.__init__(
+            self,
             env=env,
-            exploration_policy=exploration_policy or policy,
+            qf1=qf1,
+            qf2=qf2,
+            policy=policy,
+            replay_buffer=replay_buffer,
             eval_policy=eval_policy,
-            **kwargs
+            optimizer_class=optimizer_class,
+            **twin_sac_kwargs,
+            **base_kwargs
         )
-        self.policy = policy
-        self.qf1 = qf1
-        self.qf2 = qf2
-        self.vf = vf
-        self.soft_target_tau = soft_target_tau
-        self.policy_update_period = policy_update_period
-        self.target_update_period = target_update_period
-        self.policy_mean_reg_weight = policy_mean_reg_weight
-        self.policy_std_reg_weight = policy_std_reg_weight
-        self.policy_pre_activation_weight = policy_pre_activation_weight
-        self.train_policy_with_reparameterization = (
-            train_policy_with_reparameterization
-        )
-
-
-        self.plotter = plotter
-        self.render_eval_paths = render_eval_paths
-
-        self.target_vf = vf.copy()
-        self.qf_criterion = nn.MSELoss()
-        self.vf_criterion = nn.MSELoss()
-
-        self.policy_optimizer = optimizer_class(
-            self.policy.parameters(),
-            lr=policy_lr,
-        )
-        self.qf1_optimizer = optimizer_class(
-            self.qf1.parameters(),
-            lr=qf_lr,
-        )
-        self.qf2_optimizer = optimizer_class(
-            self.qf2.parameters(),
-            lr=qf_lr,
-        )
-        self.vf_optimizer = optimizer_class(
-            self.vf.parameters(),
-            lr=vf_lr,
-        )
+        super().__init__(**tdm_kwargs)
 
     def _do_training(self):
         batch = self.get_batch()
@@ -100,9 +46,21 @@ class TwinSAC(TorchRLAlgorithm):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
+        goals = batch['goals']
+        num_steps_left = batch['num_steps_left']
 
-        q1_pred = self.qf1(obs, actions)
-        q2_pred = self.qf2(obs, actions)
+        q1_pred = self.qf1(
+            observations=obs,
+            actions=actions,
+            goals=goals,
+            num_steps_left=num_steps_left,
+        )
+        q2_pred = self.qf2(
+            observations=obs,
+            actions=actions,
+            goals=goals,
+            num_steps_left=num_steps_left,
+        )
         # Make sure policy accounts for squashing functions like tanh correctly!
         policy_outputs = self.policy(obs,
                                      reparameterize=self.train_policy_with_reparameterization,
@@ -112,7 +70,11 @@ class TwinSAC(TorchRLAlgorithm):
         """
         QF Loss
         """
-        target_v_values = self.target_vf(next_obs)
+        target_v_values = self.target_vf(
+            observations=next_obs,
+            goals=goals,
+            num_steps_left=num_steps_left,
+        )
         q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_v_values
         qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
         qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
@@ -233,21 +195,25 @@ class TwinSAC(TorchRLAlgorithm):
                 ptu.get_numpy(policy_log_std),
             ))
 
+    def get_epoch_snapshot(self, epoch):
+        snapshot = super().get_epoch_snapshot(epoch)
+        snapshot.update(
+            qf1=self.qf1,
+            qf2=self.qf2,
+            policy=self.eval_policy,
+            trained_policy=self.policy,
+            target_policy=self.target_policy,
+            exploration_policy=self.exploration_policy,
+        )
+        return snapshot
+
     @property
     def networks(self):
         return [
             self.policy,
             self.qf1,
             self.qf2,
-            self.vf,
-            self.target_vf,
+            self.target_policy,
+            self.target_qf1,
+            self.target_qf2,
         ]
-
-    def get_epoch_snapshot(self, epoch):
-        snapshot = super().get_epoch_snapshot(epoch)
-        snapshot['qf1'] = self.qf1
-        snapshot['qf2'] = self.qf2
-        snapshot['policy'] = self.policy
-        snapshot['vf'] = self.vf
-        snapshot['target_vf'] = self.target_vf
-        return snapshot

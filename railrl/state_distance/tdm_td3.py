@@ -125,12 +125,7 @@ class TdmTd3(TemporalDifferenceModel, TD3):
             goals=goals,
         )
 
-        if self.policy_loss_criterion == 'norm':
-            policy_loss = torch.norm(q_output, p=self.norm_order, dim=1).mean()
-        elif self.policy_loss_criterion == 'mean':
-            policy_loss = - q_output.mean()
-        else:
-            raise Exception("Invalid type: " + self.policy_loss_criterion)
+        policy_loss = - q_output.mean()
 
         if self._n_train_steps_total % self.policy_and_target_update_period == 0:
             self.policy_optimizer.zero_grad()
@@ -173,26 +168,3 @@ class TdmTd3(TemporalDifferenceModel, TD3):
                 'Policy Action',
                 ptu.get_numpy(policy_actions),
             ))
-
-    def get_epoch_snapshot(self, epoch):
-        snapshot = super().get_epoch_snapshot(epoch)
-        snapshot.update(
-            qf1=self.qf1,
-            qf2=self.qf2,
-            policy=self.eval_policy,
-            trained_policy=self.policy,
-            target_policy=self.target_policy,
-            exploration_policy=self.exploration_policy,
-        )
-        return snapshot
-
-    @property
-    def networks(self):
-        return [
-            self.policy,
-            self.qf1,
-            self.qf2,
-            self.target_policy,
-            self.target_qf1,
-            self.target_qf2,
-        ]
