@@ -82,7 +82,8 @@ def debug(env, obs, agent_info):
     plt.pause(0.001)
 
 def multitask_rollout(*args, **kwargs):
-    return tdm_rollout_function(*args, **kwargs)
+    # TODO Steven: remove pointer
+    return tdm_rollout(*args, **kwargs)
 
 def _expand_goal(goal, path_length):
     return np.repeat(

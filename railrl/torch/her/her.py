@@ -45,10 +45,8 @@ class HER(TorchRLAlgorithm):
                 import multitask_rollout, create_rollout_function
         self.rollout_function = create_rollout_function(
             multitask_rollout,
-            **dict(
-                observation_key=self.observation_key,
-                desired_goal_key=self.desired_goal_key
-            )
+            observation_key=self.observation_key,
+            desired_goal_key=self.desired_goal_key
         )
 
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
@@ -132,13 +130,6 @@ class HER(TorchRLAlgorithm):
             goals
         ), dim=1)
         return batch
-        # Assume that images are normalized in get_batch rather than in the
-        # replay buffer to save memory. Everything starting with 'image' is
-        # assumed to be an image.
-        for key, val in batch.items():
-            if key.startswith('image'):
-                batch[key] = normalize_image(val)
-        return batch
 
     def _handle_rollout_ending(self):
         self._n_rollouts_total += 1
@@ -173,6 +164,7 @@ class HER(TorchRLAlgorithm):
         return paths
 
     def eval_multitask_rollout(self):
+        # TODO Steven: remove pointer
         return self.rollout_function(
             self.env,
             self.policy,

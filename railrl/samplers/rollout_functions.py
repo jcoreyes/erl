@@ -167,6 +167,7 @@ def tdm_rollout(
         observation_key=None,
         desired_goal_key=None,
 ):
+    from railrl.state_distance.rollout_util import _expand_goal
     if get_action_kwargs is None:
         get_action_kwargs = {}
     observations = []

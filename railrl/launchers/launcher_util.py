@@ -19,7 +19,13 @@ from railrl.launchers import config
 
 GitInfo = namedtuple(
     'GitInfo',
-    ['directory', 'code_diff', 'commit_hash', 'branch_name'],
+    [
+        'directory',
+        'code_diff',
+        'code_diff_staged',
+        'commit_hash',
+        'branch_name',
+    ],
 )
 
 
@@ -164,6 +170,7 @@ def run_experiment(
                 git_infos.append(GitInfo(
                     directory=directory,
                     code_diff=repo.git.diff(None),
+                    code_diff_staged=repo.git.diff('--staged'),
                     commit_hash=repo.head.commit.hexsha,
                     branch_name=branch_name,
                 ))
@@ -394,7 +401,7 @@ def create_mounts(
             sync_interval=sync_interval,
             include_types=('*.txt', '*.csv', '*.json', '*.gz', '*.tar',
                            '*.log', '*.pkl', '*.mp4', '*.png', '*.jpg',
-                           '*.jpeg'),
+                           '*.jpeg', '*.patch'),
         )
     elif (
         mode == 'local'
@@ -701,14 +708,25 @@ def setup_logger(
     logger.push_prefix("[%s] " % exp_name)
 
     if git_infos is not None:
-        for directory, code_diff, commit_hash, branch_name in git_infos:
+        for (
+            directory, code_diff, code_diff_staged, commit_hash, branch_name
+        ) in git_infos:
             if directory[-1] == '/':
-                diff_file_name = directory[1:-1].replace("/", "-") + ".diff"
+                diff_file_name = directory[1:-1].replace("/", "-") + ".patch"
+                diff_staged_file_name = (
+                    directory[1:-1].replace("/", "-") + "_staged.patch"
+                )
             else:
-                diff_file_name = directory[1:].replace("/", "-") + ".diff"
+                diff_file_name = directory[1:].replace("/", "-") + ".patch"
+                diff_staged_file_name = (
+                    directory[1:].replace("/", "-") + "_staged.patch"
+                )
             if code_diff is not None and len(code_diff) > 0:
                 with open(osp.join(log_dir, diff_file_name), "w") as f:
-                    f.write(code_diff)
+                    f.write(code_diff + '\n')
+            if code_diff_staged is not None and len(code_diff_staged) > 0:
+                with open(osp.join(log_dir, diff_staged_file_name), "w") as f:
+                    f.write(code_diff_staged + '\n')
             with open(osp.join(log_dir, "git_infos.txt"), "a") as f:
                 f.write("directory: {}".format(directory))
                 f.write('\n')

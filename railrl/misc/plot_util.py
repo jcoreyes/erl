@@ -287,17 +287,20 @@ def moving_average(a, n=3) :
     return ret[n - 1:] / n
 
 
-def padded_ma_filter(N):
-    return lambda x: padded_moving_average(x, N)
+def padded_ma_filter(N, **kwargs):
+    return lambda x: padded_moving_average(x, N, **kwargs)
 
 
-def padded_moving_average(data_array, window=5):
+def padded_moving_average(data_array, window=5, avg_only_from_left=True):
     """Does not affect the length"""
     data_array = np.array(data_array)
     new_list = []
     for i in range(len(data_array)):
-        indices = list(range(max(i - window + 1, 0),
-                             min(i + window + 1, len(data_array))))
+        if avg_only_from_left:
+            indices = list(range(max(i - window + 1, 0), i+1))
+        else:
+            indices = list(range(max(i - window + 1, 0),
+                                 min(i + window + 1, len(data_array))))
         avg = 0
         for j in indices:
             avg += data_array[j]

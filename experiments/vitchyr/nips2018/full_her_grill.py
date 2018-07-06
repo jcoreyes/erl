@@ -35,11 +35,15 @@ if __name__ == "__main__":
             puck_high=(0.2, 0.7),
             hand_low=(-0.2, 0.5, 0.),
             hand_high=(0.2, 0.7, 0.5),
+            mocap_low=(-0.1, 0.5, 0.),
+            mocap_high=(0.1, 0.7, 0.5),
+            goal_low=(-0.05, 0.55, 0.02, -0.2, 0.5),
+            goal_high=(0.05, 0.65, 0.02, 0.2, 0.7),
         ),
         init_camera=init_sawyer_camera_v4,
         grill_variant=dict(
             algo_kwargs=dict(
-                num_epochs=100,
+                num_epochs=250,
                 # num_steps_per_epoch=100,
                 # num_steps_per_eval=100,
                 # num_epochs=500,
@@ -55,6 +59,9 @@ if __name__ == "__main__":
                 max_size=int(1e6),
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
+            ),
+            vae_wrapped_env_kwargs=dict(
+                num_goals_presampled=100,
             ),
             algorithm='GRILL-HER-TD3',
             normalize=False,
@@ -77,7 +84,7 @@ if __name__ == "__main__":
             num_epochs=1000,
             generate_vae_dataset_kwargs=dict(
                 N=1000,
-                oracle_dataset=False,
+                oracle_dataset=True,
                 num_channels=3,
                 # show=True,
                 # use_cached=False,
@@ -99,6 +106,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'hand-goal-space': ['easy', 'hard'],
+        'mocap-x-range': ['0.1', '0.2'],
         # 'grill_variant.training_mode': ['test'],
         # 'grill_variant.observation_key': ['latent_observation'],
         # 'grill_variant.desired_goal_key': ['state_desired_goal'],
@@ -121,18 +130,28 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     mode = 'ec2'
-    # exp_prefix = 'dev'
-    # exp_prefix = 'mw-full-grill-her-is-it-the-floor'
-    exp_prefix = 'mw-full-grill-tdm-is-it-action-scale'
+    exp_prefix = 'full-her-grill-test'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['hand-goal-space'] == 'easy':
+            variant['env_kwargs']['goal_low'] = (-0.05, 0.55, 0.02, -0.2, 0.5)
+            variant['env_kwargs']['goal_high'] = (0.05, 0.65, 0.02, 0.2, 0.7)
+        else:
+            variant['env_kwargs']['goal_low'] = (-0.2, 0.5, 0.02, -0.2, 0.5)
+            variant['env_kwargs']['goal_high'] = (0.2, 0.7, 0.02, 0.2, 0.7)
+        if variant['mocap-x-range'] == '0.1':
+            variant['env_kwargs']['mocap_low'] = (-0.1, 0.5, 0.)
+            variant['env_kwargs']['mocap_high'] = (0.1, 0.7, 0.5)
+        else:
+            variant['env_kwargs']['mocap_low'] = (-0.2, 0.5, 0.)
+            variant['env_kwargs']['mocap_high'] = (0.2, 0.7, 0.5)
         run_experiment(
             grill_her_td3_full_experiment,
             exp_prefix=exp_prefix,
             mode=mode,
             variant=variant,
             use_gpu=True,
-            # trial_dir_suffix='n1000-{}--zoomed-{}'.format(n1000, zoomed),
-            snapshot_gap=50,
-            snapshot_mode='gap_and_last',
+            # snapshot_gap=50,
+            snapshot_mode='last',
+            exp_id=exp_id,
             num_exps_per_instance=3,
         )

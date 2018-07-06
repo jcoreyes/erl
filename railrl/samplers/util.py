@@ -2,6 +2,7 @@ import numpy as np
 from railrl.samplers.rollout_functions import rollout as normal_rollout
 
 def rollout(*args, **kwargs):
+    # TODO Steven: remove pointer
     return normal_rollout(*args, **kwargs)
 
 def split_paths(paths):
