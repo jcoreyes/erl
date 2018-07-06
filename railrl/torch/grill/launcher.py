@@ -14,7 +14,6 @@ from railrl.data_management.obs_dict_replay_buffer import \
 from railrl.data_management.online_vae_replay_buffer import \
     OnlineVaeRelabelingBuffer
 from railrl.envs.vae_wrappers import VAEWrappedEnv, load_vae
-from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
@@ -274,11 +273,6 @@ def get_envs(variant):
         relabeling_env.disable_render()
         video_vae_env.mode("video_vae")
         video_goal_env.mode("video_env")
-    testing_env = pickle.loads(pickle.dumps(env))
-    training_env = pickle.loads(pickle.dumps(env))
-    relabeling_env = pickle.loads(pickle.dumps(env))
-    video_vae_env = pickle.loads(pickle.dumps(env))
-    video_goal_env = pickle.loads(pickle.dumps(env))
     return testing_env, training_env, relabeling_env, video_vae_env, \
            video_goal_env
 
@@ -304,16 +298,15 @@ def get_exploration_strategy(variant, env):
     return es
 
 
-def preprocess_variant(variant):
+def grill_preprocess_variant(variant):
     if variant.get("do_state_exp", False):
         variant['observation_key'] = 'state_observation'
         variant['desired_goal_key'] = 'state_desired_goal'
         variant['achieved_goal_key'] = 'state_acheived_goal'
-    return variant
 
 
 def grill_her_td3_experiment(variant):
-    variant = preprocess_variant(variant)
+    grill_preprocess_variant(variant)
     testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
         get_envs(variant)
     )
@@ -397,7 +390,7 @@ def grill_her_td3_experiment(variant):
 
 
 def grill_tdm_td3_experiment(variant):
-    variant = preprocess_variant(variant)
+    grill_preprocess_variant(variant)
     testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
         get_envs(variant)
     )
@@ -412,11 +405,17 @@ def grill_tdm_td3_experiment(variant):
         training_env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = training_env.action_space.low.size
-    vectorized = variant['algo_kwargs']['tdm_kwargs'].get('vectorized', False)
-    assert not vectorized
+
+    vectorized = 'vectorized' in training_env.reward_type
+    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+
+    norm_order = training_env.norm_order
+    variant['algo_kwargs']['tdm_kwargs']['norm_order'] = norm_order
+
     qf1 = TdmQf(
         env=training_env,
         vectorized=vectorized,
+        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -425,6 +424,7 @@ def grill_tdm_td3_experiment(variant):
     qf2 = TdmQf(
         env=training_env,
         vectorized=vectorized,
+        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -447,10 +447,10 @@ def grill_tdm_td3_experiment(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
+        vectorized=vectorized,
         **variant['replay_kwargs']
     )
     render = variant["render"]
-    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     algo_kwargs = variant['algo_kwargs']
     td3_kwargs = algo_kwargs['td3_kwargs']
@@ -460,8 +460,6 @@ def grill_tdm_td3_experiment(variant):
     tdm_kwargs = algo_kwargs['tdm_kwargs']
     tdm_kwargs['observation_key'] = observation_key
     tdm_kwargs['desired_goal_key'] = desired_goal_key
-    qf_criterion = variant['qf_criterion_class']()
-    td3_kwargs['qf_criterion'] = qf_criterion
     algorithm = TdmTd3(
         testing_env,
         qf1=qf1,
@@ -500,7 +498,7 @@ def grill_tdm_td3_experiment(variant):
 
 
 def grill_her_td3_experiment_online_vae(variant):
-    variant = preprocess_variant(variant)
+    grill_preprocess_variant(variant)
     testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
         get_envs(variant)
     )
@@ -597,7 +595,7 @@ def grill_her_td3_experiment_online_vae(variant):
 
 
 def grill_her_td3_experiment_online_vae_exploring(variant):
-    variant = preprocess_variant(variant)
+    grill_preprocess_variant(variant)
     testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
         get_envs(variant)
     )
