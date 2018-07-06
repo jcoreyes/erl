@@ -92,6 +92,7 @@ def grill_her_td3_full_experiment(variant):
             relative_to_snapshot_dir=True,
         )
         grill_variant['vae_path'] = vae  # just pass the VAE directly
+    grill_her_td3_experiment(variant['grill_variant'])
 
 
 def grill_her_td3_online_vae_full_experiment(variant):
