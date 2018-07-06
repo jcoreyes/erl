@@ -13,7 +13,7 @@ from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
 from railrl.data_management.online_vae_replay_buffer import \
     OnlineVaeRelabelingBuffer
-from railrl.envs.vae_wrappers import VAEWrappedEnv, load_vae
+from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
@@ -49,56 +49,26 @@ def full_experiment_variant_preprocess(variant):
 
 def grill_tdm_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    grill_variant = variant['grill_variant']
-    train_vae_variant = variant['train_vae_variant']
-    if grill_variant.get('vae_path', None) is None:
-        logger.remove_tabular_output(
-            'progress.csv', relative_to_snapshot_dir=True
-        )
-        logger.add_tabular_output(
-            'vae_progress.csv', relative_to_snapshot_dir=True
-        )
-        vae = train_vae(train_vae_variant)
-        logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
-        logger.remove_tabular_output(
-            'vae_progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        logger.add_tabular_output(
-            'progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        grill_variant['vae_path'] = vae  # just pass the VAE directly
+    train_vae_and_update_variant(variant)
     grill_tdm_td3_experiment(variant['grill_variant'])
 
 
 def grill_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    grill_variant = variant['grill_variant']
-    train_vae_variant = variant['train_vae_variant']
-    if grill_variant.get('vae_path', None) is None:
-        logger.remove_tabular_output(
-            'progress.csv', relative_to_snapshot_dir=True
-        )
-        logger.add_tabular_output(
-            'vae_progress.csv', relative_to_snapshot_dir=True
-        )
-        vae = train_vae(train_vae_variant)
-        logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
-        logger.remove_tabular_output(
-            'vae_progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        logger.add_tabular_output(
-            'progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        grill_variant['vae_path'] = vae  # just pass the VAE directly
+    train_vae_and_update_variant(variant)
     grill_her_td3_experiment(variant['grill_variant'])
 
 
 def grill_her_td3_online_vae_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
+    train_vae_and_update_variant(variant)
+    if variant['double_algo']:
+        grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
+    else:
+        grill_her_td3_experiment_online_vae(variant['grill_variant'])
+
+
+def train_vae_and_update_variant(variant):
     grill_variant = variant['grill_variant']
     train_vae_variant = variant['train_vae_variant']
     if grill_variant.get('vae_path', None) is None:
@@ -121,10 +91,6 @@ def grill_her_td3_online_vae_full_experiment(variant):
             relative_to_snapshot_dir=True,
         )
         grill_variant['vae_path'] = vae  # just pass the VAE directly
-    if variant['double_algo']:
-        grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
-    else:
-        grill_her_td3_experiment_online_vae(variant['grill_variant'])
 
 
 def train_vae(variant, return_data=False):
@@ -532,8 +498,7 @@ def grill_her_td3_experiment_online_vae(variant):
         policy=policy,
     )
 
-    vae_path = variant["vae_path"]
-    vae = load_vae(vae_path)
+    vae = training_env.vae
 
     replay_buffer = OnlineVaeRelabelingBuffer(
         vae=vae,
@@ -551,6 +516,7 @@ def grill_her_td3_experiment_online_vae(variant):
                        vae,
                        beta=variant['online_vae_beta'])
     render = variant["render"]
+    assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     algorithm = OnlineVaeHerTd3(
         vae=vae,
         vae_trainer=t,
@@ -564,7 +530,6 @@ def grill_her_td3_experiment_online_vae(variant):
         render_during_eval=render,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
-        vae_training_schedule=variant['vae_training_schedule'],
         **variant['algo_kwargs']
     )
 
@@ -649,8 +614,7 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         policy=exploring_policy,
     )
 
-    vae_path = variant["vae_path"]
-    vae = load_vae(vae_path)
+    vae = training_env.vae
     replay_buffer = OnlineVaeRelabelingBuffer(
         vae=vae,
         env=relabeling_env,
@@ -686,6 +650,7 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         **variant['algo_kwargs']
     )
 
+    assert 'vae_training_schedule' not in variant, "Just put it in joint_algo_kwargs"
     algorithm = OnlineVaeHerJointAlgo(
         vae=vae,
         vae_trainer=t,
@@ -700,7 +665,6 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         algo2_prefix="VAE_Exploration_",
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
-        vae_training_schedule=variant['vae_training_schedule'],
         **variant['joint_algo_kwargs']
     )
 
