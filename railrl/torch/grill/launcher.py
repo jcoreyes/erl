@@ -47,56 +47,26 @@ def full_experiment_variant_preprocess(variant):
 
 def grill_tdm_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    grill_variant = variant['grill_variant']
-    train_vae_variant = variant['train_vae_variant']
-    if grill_variant.get('vae_path', None) is None:
-        logger.remove_tabular_output(
-            'progress.csv', relative_to_snapshot_dir=True
-        )
-        logger.add_tabular_output(
-            'vae_progress.csv', relative_to_snapshot_dir=True
-        )
-        vae = train_vae(train_vae_variant)
-        logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
-        logger.remove_tabular_output(
-            'vae_progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        logger.add_tabular_output(
-            'progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        grill_variant['vae_path'] = vae  # just pass the VAE directly
+    train_vae_and_update_variant(variant)
     grill_tdm_td3_experiment(variant['grill_variant'])
 
 
 def grill_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    grill_variant = variant['grill_variant']
-    train_vae_variant = variant['train_vae_variant']
-    if grill_variant.get('vae_path', None) is None:
-        logger.remove_tabular_output(
-            'progress.csv', relative_to_snapshot_dir=True
-        )
-        logger.add_tabular_output(
-            'vae_progress.csv', relative_to_snapshot_dir=True
-        )
-        vae = train_vae(train_vae_variant)
-        logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
-        logger.remove_tabular_output(
-            'vae_progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        logger.add_tabular_output(
-            'progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        grill_variant['vae_path'] = vae  # just pass the VAE directly
+    train_vae_and_update_variant(variant)
     grill_her_td3_experiment(variant['grill_variant'])
 
 
 def grill_her_td3_online_vae_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
+    train_vae_and_update_variant(variant)
+    if variant['double_algo']:
+        grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
+    else:
+        grill_her_td3_experiment_online_vae(variant['grill_variant'])
+
+
+def train_vae_and_update_variant(variant):
     grill_variant = variant['grill_variant']
     train_vae_variant = variant['train_vae_variant']
     if grill_variant.get('vae_path', None) is None:
@@ -119,10 +89,6 @@ def grill_her_td3_online_vae_full_experiment(variant):
             relative_to_snapshot_dir=True,
         )
         grill_variant['vae_path'] = vae  # just pass the VAE directly
-    if variant['double_algo']:
-        grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
-    else:
-        grill_her_td3_experiment_online_vae(variant['grill_variant'])
 
 
 def train_vae(variant, return_data=False):
