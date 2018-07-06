@@ -404,11 +404,17 @@ def grill_tdm_td3_experiment(variant):
         training_env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = training_env.action_space.low.size
-    vectorized = variant['algo_kwargs']['tdm_kwargs'].get('vectorized', False)
-    assert not vectorized
+
+    vectorized = 'vectorized' in training_env.reward_type
+    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+
+    norm_order = training_env.norm_order
+    variant['algo_kwargs']['tdm_kwargs']['norm_order'] = norm_order
+
     qf1 = TdmQf(
         env=training_env,
         vectorized=vectorized,
+        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -417,6 +423,7 @@ def grill_tdm_td3_experiment(variant):
     qf2 = TdmQf(
         env=training_env,
         vectorized=vectorized,
+        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -439,10 +446,10 @@ def grill_tdm_td3_experiment(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
+        vectorized=vectorized,
         **variant['replay_kwargs']
     )
     render = variant["render"]
-    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     algo_kwargs = variant['algo_kwargs']
     td3_kwargs = algo_kwargs['td3_kwargs']
@@ -452,8 +459,6 @@ def grill_tdm_td3_experiment(variant):
     tdm_kwargs = algo_kwargs['tdm_kwargs']
     tdm_kwargs['observation_key'] = observation_key
     tdm_kwargs['desired_goal_key'] = desired_goal_key
-    qf_criterion = variant['qf_criterion_class']()
-    td3_kwargs['qf_criterion'] = qf_criterion
     algorithm = TdmTd3(
         testing_env,
         qf1=qf1,
