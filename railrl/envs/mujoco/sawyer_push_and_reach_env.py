@@ -1,7 +1,6 @@
 from collections import OrderedDict
 import numpy as np
-from multiworld.envs.mujoco.mujoco_env import MujocoEnv
-
+from gym.envs.mujoco import MujocoEnv
 from gym.spaces import Box
 import mujoco_py
 
@@ -31,7 +30,6 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
             pos_action_scale=2. / 100,
             randomize_goals=True,
             hide_goal=False,
-            multiworld_env=False,
     ):
         self.quick_init(locals())
         self.reward_info = reward_info
@@ -40,10 +38,7 @@ class SawyerPushAndReachXYEnv(MujocoEnv, Serializable, MultitaskEnv):
         self.hide_goal = hide_goal
         self._goal_xyxy = self.sample_goal_xyxy()
         MultitaskEnv.__init__(self, distance_metric_order=2)
-        MujocoEnv.__init__(self,
-                           self.model_name,
-                           frame_skip=frame_skip,
-                           automatically_set_spaces=not multiworld_env)
+        MujocoEnv.__init__(self, self.model_name, frame_skip=frame_skip)
 
         self.action_space = Box(
             np.array([-1, -1]),
@@ -362,119 +357,12 @@ class SawyerPushAndReachXYEasyEnv(SawyerPushAndReachXYEnv):
     """
     Always start the block in the same position
     """
-
     PUCK_GOAL_LOW = np.array([-0.2, 0.5])
     PUCK_GOAL_HIGH = np.array([0.2, 0.7])
-
-    HAND_GOAL_LOW = np.array([-0.2, 0.5])
-    HAND_GOAL_HIGH = np.array([0.2, 0.7])
 
     def sample_puck_xy(self):
         return np.array([0, 0.6])
 
-class SawyerPushAndReachXYEasyMultiworldEnv(SawyerPushAndReachXYEasyEnv):
-    """
-    Always start the block in the same position
-    """
-    def __init__(self, *args, **kwargs):
-        self.quick_init(locals())
-        SawyerPushAndReachXYEasyEnv.__init__(self, *args, **kwargs, multiworld_env=True)
-        from gym.spaces import Dict
-        old_ob_space = self.observation_space
-
-        self.observation_space = Dict([
-                    ('observation', old_ob_space),
-                    ('desired_goal', old_ob_space),
-                    ('achieved_goal', old_ob_space),
-                    ('state_observation', old_ob_space),
-                    ('state_desired_goal', old_ob_space),
-                    ('state_achieved_goal', old_ob_space),
-                ])
-
-    def _get_obs(self):
-        e = self.get_endeff_pos()[:2]
-        b = self.get_puck_pos()[:2]
-        flat_obs = np.concatenate((e, b))
-
-        return dict(
-            observation=flat_obs,
-            desired_goal=self._goal_xyxy,
-            achieved_goal=flat_obs,
-            state_observation=flat_obs,
-            state_desired_goal=self._goal_xyxy,
-            state_achieved_goal=flat_obs,
-        )
-
-    def compute_rewards(self, actions, obs):
-        achieved_goals = obs['state_achieved_goal']
-        desired_goals = obs['state_desired_goal']
-        hand_xy = achieved_goals[:, :2]
-        puck_xy = achieved_goals[:, -2:]
-        hand_goal_xy = desired_goals[:, :2]
-        puck_goal_xy = desired_goals[:, -2:]
-        hand_dist = np.linalg.norm(hand_xy - hand_goal_xy, axis=1)
-        puck_dist = np.linalg.norm(puck_xy - puck_goal_xy, axis=1)
-        if not self.reward_info or self.reward_info["type"] == "euclidean":
-            r = - hand_dist - puck_dist
-        elif self.reward_info["type"] == "hand_only":
-            r = - hand_dist
-        elif self.reward_info["type"] == "puck_only":
-            r = - puck_dist
-        elif self.reward_info["type"] == "sparse":
-            t = self.reward_info["threshold"]
-            r = ((
-                hand_dist + puck_dist < t
-            ) - 1).astype(float)
-        else:
-            raise NotImplementedError("Invalid/no reward type.")
-        return r
-
-    def compute_reward(self, ob, action, next_ob, goal, env_info=None):
-        actions = action[None]
-        next_obs = {
-            k: v[None] for k, v in next_ob.items()
-        }
-        return self.compute_rewards(actions, next_obs)[0]
-
-    def get_goal(self):
-        return {
-            'desired_goal': self._goal_xyxy,
-            'state_desired_goal': self._goal_xyxy,
-        }
-
-    def sample_goals(self, batch_size):
-        if self.randomize_goals:
-            hands = np.random.uniform(
-                self.HAND_GOAL_LOW,
-                self.HAND_GOAL_HIGH,
-                size=(batch_size, self.HAND_GOAL_LOW.size),
-            )
-            pucks = np.random.uniform(
-                self.PUCK_GOAL_LOW,
-                self.PUCK_GOAL_HIGH,
-                size = (batch_size, self.PUCK_GOAL_HIGH.size),
-            )
-        else:
-            hands = np.repeat(
-                self.FIXED_HAND_GOAL.copy()[None],
-                batch_size,
-                0
-            )
-            pucks = np.repeat(
-                self.FIXED_PUCK_GOAL.copy()[None],
-                batch_size,
-                0
-            )
-        goals = np.hstack((hands, pucks))
-        return {
-            'desired_goal': goals,
-            'state_desired_goal': goals,
-        }
-
-    def reset(self):
-        goal = self.sample_goal_for_rollout()
-        self.set_goal(goal)
-        return super().reset()
 
 class SawyerMultiPushAndReachEasyEnv(SawyerPushAndReachXYEnv):
     """

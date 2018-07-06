@@ -57,11 +57,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         # Make everything a 2D np array to make it easier for other code to
         # reason about the shape of the data
         self.vectorized = vectorized
-        if self.vectorized:
-            self._rewards = np.zeros(
-                (max_size, env.observation_space.spaces[observation_key].low.size))
-        else:
-            self._rewards = np.zeros((max_size, 1))
         # self._terminals[i] = a terminal was received at time i
         self._terminals = np.zeros((max_size, 1), dtype='uint8')
         # self._obs[key][i] is the value of observation[key] at time i
@@ -123,7 +118,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 (post_wrap_buffer_slice, post_wrap_path_slice),
             ]:
                 self._actions[buffer_slice] = actions[path_slice]
-                self._rewards[buffer_slice] = rewards[path_slice]
                 self._terminals[buffer_slice] = terminals[path_slice]
                 for key in self.ob_keys_to_save:
                     self._obs[key][buffer_slice] = obs[key][path_slice]
@@ -145,7 +139,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         else:
             slc = np.s_[self._top:self._top + path_len, :]
             self._actions[slc] = actions
-            self._rewards[slc] = rewards
             self._terminals[slc] = terminals
             for key in self.ob_keys_to_save:
                 self._obs[key][slc] = obs[key]
