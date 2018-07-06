@@ -415,3 +415,13 @@ class _Logger(object):
 
 
 line_logger = _Logger()
+
+
+def find_key_recursive(obj, key):
+    if key in obj:
+        return obj[key]
+    for k, v in obj.items():
+        if isinstance(v, dict):
+            result = find_key_recursive(v, key)
+            if result is not None:
+                return result
