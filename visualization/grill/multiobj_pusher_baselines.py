@@ -3,6 +3,7 @@ from visualization.grill.config import (
     ashvin_base_dir,
     vitchyr_base_dir,
     format_func,
+    our_method_name,
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
@@ -60,15 +61,15 @@ plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 plt.xlabel("Timesteps")
 plt.ylabel("Final Distance to Goal")
 plt.title("Visual Multi-object Pusher Baselines")
-plt.legend(["GRiLL", "DSAE", "HER", "Oracle", "L&R", ],
-           # bbox_to_anchor=(0.49, -0.2), loc="upper center", ncol=5, handlelength=1)
-           bbox_to_anchor=(1.0, 0.5), loc="center left")
-# plt.legend([])
+# plt.legend([our_method_name, "DSAE", "HER", "Oracle", "L&R", ],
+#            # bbox_to_anchor=(0.49, -0.2), loc="upper center", ncol=5, handlelength=1)
+#            bbox_to_anchor=(1.0, 0.5), loc="center left")
+plt.legend([])
 plt.tight_layout()
 # plt.savefig(output_dir + "multiobj_pusher_baselines.pdf")
 # print("File saved to", output_dir + "multiobj_pusher_baselines.pdf")
-# plt.savefig(output_dir + "multiobj_pusher_baselines_no_legend.pdf")
-# print("File saved to", output_dir + "multiobj_pusher_baselines_no_legend.pdf")
-plt.savefig(output_dir + "multiobj_pusher_baselines_legend_right.pdf")
-print("File saved to", output_dir +
-      "multiobj_pusher_baselines_legend_right.pdf")
+plt.savefig(output_dir + "multiobj_pusher_baselines_no_legend.pdf")
+print("File saved to", output_dir + "multiobj_pusher_baselines_no_legend.pdf")
+# plt.savefig(output_dir + "multiobj_pusher_baselines_legend_right.pdf")
+# print("File saved to", output_dir +
+#       "multiobj_pusher_baselines_legend_right.pdf")

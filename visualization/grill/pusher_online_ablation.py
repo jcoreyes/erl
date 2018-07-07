@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
@@ -26,7 +27,10 @@ offline_pusher = dp.get_trials(
 )
 plt.figure(figsize=(6, 5))
 plot.plot_trials(
-    {"Online": online_pusher, "Offline": offline_pusher},
+    OrderedDict([
+        ("Online", online_pusher),
+        ("Offline", offline_pusher),
+    ]),
     y_keys="Final  sum_distance Mean",
     x_key="Number of env steps total",
     process_time_series=plot.padded_ma_filter(100),

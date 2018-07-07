@@ -40,8 +40,6 @@ def multitask_rollout(
     env_infos = []
     next_observations = []
     path_length = 0
-    # goal = self.env.sample_goal_for_rollout()
-    # self.env.set_goal(goal)
     agent.reset()
     o = env.reset()
     if animated:
