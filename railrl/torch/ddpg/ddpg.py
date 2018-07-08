@@ -258,7 +258,7 @@ class DDPG(TorchRLAlgorithm):
                 ptu.copy_model_params_from_to(self.qf, self.target_qf)
                 ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
-    def evaluate(self, epoch):
+    def evaluate(self, epoch, eval_paths=None):
         statistics = OrderedDict()
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
             table_dict = logger.get_table_dict()
@@ -273,7 +273,7 @@ class DDPG(TorchRLAlgorithm):
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
-        super().evaluate(epoch)
+        super().evaluate(epoch, eval_paths=eval_paths)
 
     def offline_evaluate(self, epoch):
         statistics = OrderedDict()

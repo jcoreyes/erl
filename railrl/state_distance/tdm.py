@@ -115,17 +115,18 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             desired_goal_key=self.desired_goal_key,
         )
         self.pretrain_obs = None
-        if self.collection_mode == 'online-parallel':
-            # TODO(murtaza): What happens to the eval env?
-            # see `eval_sampler` definition above.
-            self.training_env = RemoteRolloutEnv(
-                env=self.env,
-                policy=self.eval_policy,
-                exploration_policy=self.exploration_policy,
-                max_path_length=self.max_path_length,
-                normalize_env=self.normalize_env,
-                rollout_function=self.rollout,
-            )
+        self.init_rollout_function()
+
+        # the rl_algorithm constructor is called before the tdm's, so
+        # initializing the rollout function must be done here instead of
+        # overriding the function
+        from railrl.samplers.rollout_functions import \
+                create_rollout_function, multitask_rollout
+        self.rollout_function = create_rollout_function(
+            multitask_rollout,
+            observation_key=self.observation_key,
+            desired_goal_key=self.desired_goal_key,
+        )
 
     def _start_epoch(self, epoch):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)

@@ -301,6 +301,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             n_env_steps_current_epoch = 0
             n_eval_steps = 0
             n_train_steps = 0
+            import pdb; pdb.set_trace()
 
             while should_gather_data or should_eval  or should_train:
                 if should_gather_data:
