@@ -47,11 +47,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=True,
+            normalize_env=True,
 
             # Remove env parameters
             sim_throttle=False,
-            normalize_env=True,
-            parallel_step_to_train_ratio=1,
+            parallel_step_ratio=1,
+            parallel_eval=True,
+            parallel_env_params=None,
 
             env_info_sizes=None,
     ):
@@ -148,8 +150,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
         self.train_on_eval_paths = train_on_eval_paths
-        self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
+
+        self.parallel_step_ratio = parallel_step_ratio
         self.sim_throttle = sim_throttle
+        self.parallel_eval = parallel_eval
+        self.parallel_env_params = parallel_env_params or {}
         self.init_rollout_function()
 
     def train(self, start_epoch=0):
@@ -221,7 +226,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 gt.stamp('sample')
                 self._try_to_train()
                 gt.stamp('train')
-
             self._try_to_eval(epoch)
             gt.stamp('eval')
             self._post_epoch(epoch)
@@ -284,52 +288,62 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             exploration_policy=self.exploration_policy,
             max_path_length=self.max_path_length,
             normalize_env=self.normalize_env,
+            **self.parallel_env_params,
         )
         self.training_mode(False)
-        last_epoch_policy = None
         for epoch in range(start_epoch, self.num_epochs):
             self._start_epoch(epoch)
-            self.eval_paths = []
+            should_gather_data = True
+            should_eval = self.parallel_eval
             should_train = True
-            should_eval = (epoch != start_epoch)
-            gather_data = True
-            n_steps_current_epoch = 0
+            last_epoch_policy = copy.deepcopy(self.policy)
+            eval_paths = []
+            n_env_steps_current_epoch = 0
             n_eval_steps = 0
             n_train_steps = 0
 
-            while should_eval or gather_data or should_train:
-                # eval previous epoch
-                if should_eval:
-                    # label as epoch but actually evaluating previous epoch
-                    path = self.parallel_env.rollout(last_epoch_policy, False, epoch=epoch)
-                    if path is not None:
-                        self.eval_paths.append(dict(path))
-                        n_eval_steps += len(path['observations'])
-
-                if gather_data:
-                    path = self.parallel_env.rollout(self.exploration_policy, True, epoch)
-                    if path is not None:
+            while should_gather_data or should_eval  or should_train:
+                if should_gather_data:
+                    path = self.parallel_env.rollout(
+                        self.exploration_policy,
+                        train=True,
+                        epoch=epoch,
+                    )
+                    if path:
                         path_length = len(path['observations'])
                         self._handle_path(path)
-                        self.exploration_policy.reset()
-                        n_steps_current_epoch += path_length
+                        n_env_steps_current_epoch += path_length
                         self._n_env_steps_total += path_length
 
-                if should_train:
-                    self._try_to_train()
-                    n_train_steps += 1
+                if should_eval:
+                    # label as epoch but actually evaluating previous epoch
+                    path = self.parallel_env.rollout(
+                        last_epoch_policy,
+                        train=False,
+                        epoch=epoch,
+                    )
+                    if path:
+                        eval_paths.append(dict(path))
+                        n_eval_steps += len(path['observations'])
 
+                if should_train:
+                    if self._n_env_steps_total > 0:
+                        self._try_to_train()
+                        n_train_steps += 1
+
+                should_gather_data &= \
+                        n_env_steps_current_epoch < self.num_env_steps_per_epoch
                 should_eval &= n_eval_steps < self.num_steps_per_eval
-                gather_data &= n_steps_current_epoch < self.num_env_steps_per_epoch
-                should_train &= (should_eval or gather_data)
 
                 if self.sim_throttle:
-                    should_train &= self.parallel_step_to_train_ratio * n_train_steps < \
+                    should_train &= self.parallel_step_ratio * n_train_steps < \
                         self.num_env_steps_per_epoch
-            if epoch != start_epoch:
-                self._try_to_eval(epoch)
+                else:
+                    should_train &= (should_eval or should_gather_data)
+
+            self._try_to_eval(epoch, eval_paths=eval_paths)
             self._end_epoch()
-            last_epoch_policy = copy.deepcopy(self.exploration_policy)
+            self._post_epoch(epoch)
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)
@@ -349,10 +363,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._n_train_steps_total += 1
             self.training_mode(False)
 
-    def _try_to_eval(self, epoch):
+    def _try_to_eval(self, epoch, eval_paths):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
-            self.evaluate(epoch)
+            self.evaluate(epoch, eval_paths)
 
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
@@ -410,13 +424,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
         logger.log("Eval Time: {0}".format(time.time() - start_time))
 
-    def evaluate(self, epoch):
+    def evaluate(self, epoch, eval_paths=None):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
 
         logger.log("Collecting samples for evaluation")
-        if False or self.collection_mode == 'online-parallel':
-            test_paths = self.eval_paths
+        if eval_paths:
+            test_paths = eval_paths
         else:
             test_paths = self.get_eval_paths()
         statistics.update(eval_util.get_generic_path_information(

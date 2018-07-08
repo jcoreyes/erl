@@ -108,6 +108,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
         else:
             raise ValueError("Invalid mode: {}".format(name))
 
+    def train(self):
+        self.mode('train')
+
+    def eval(self):
+        self.mode('test')
+
     @property
     def goal_dim(self):
         return self.representation_size

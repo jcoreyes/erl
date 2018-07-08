@@ -46,14 +46,19 @@ class RayEnv(object):
         self._exploration_policy = exploration_policy
         self._max_path_length = max_path_length
         self.rollout_function = rollout_function
+        self.i = 0
 
     def rollout(self, policy_params, use_exploration_strategy):
         if use_exploration_strategy:
             self._exploration_policy.set_param_values_np(policy_params)
             policy = self._exploration_policy
+            if hasattr(self._env, 'train'):
+                self._env.train()
         else:
             self._policy.set_param_values_np(policy_params)
             policy = self._policy
+            if hasattr(self._env, 'eval'):
+                self._env.eval()
         return self.rollout_function(self._env, policy, self._max_path_length)
 
 class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
@@ -112,16 +117,15 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             max_path_length,
             normalize_env,
             rollout_function,
-            workers=2,
+            num_workers=2,
             dedicated_train=1,
-
+            use_dedicated=False,
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
         ray.register_custom_serializer(type(env), use_pickle=True)
         ray.register_custom_serializer(type(policy), use_pickle=True)
         ray.register_custom_serializer(type(exploration_policy), use_pickle=True)
-
         self._ray_envs = [
             RayEnv.remote(
                 env,
@@ -131,7 +135,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
                 normalize_env,
                 rollout_function,
             )
-        for _ in range(workers)]
+        for _ in range(num_workers)]
 
         self.free_envs = set(self._ray_envs)
         self.promise_info = {}
@@ -142,7 +146,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             False: [],
         }
 
-        self.num_workers = workers
+        self.num_workers = num_workers
         # Let self.worker_limits[True] be the max number of workers for training
         # and self.worker_limits[False] be the max number of workers for eval.
         self.worker_limits = {
@@ -155,11 +159,9 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             self._alloc_promise(policy, train, epoch)
 
         # Check if remote path has been collected.
-        ready_promises, waiting = ray.wait(self.promise_list[train], timeout=0)
+        ready_promises, _ = ray.wait(self.promise_list[train], timeout=0)
         for promise in ready_promises:
             _, path_epoch, path_type = self.promise_info[promise]
-            if path_type != train:
-                continue
             self._free_promise(promise)
             # Throw away eval paths from previous epochs
             if path_epoch != epoch and not train:
