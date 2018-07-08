@@ -282,6 +282,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self._n_rollouts_total += 1
         self.replay_buffer.add_path(path)
 
-    def evaluate(self, epoch):
+    def evaluate(self, epoch, eval_paths=None):
         self.eval_statistics['Max Tau'] = self.max_tau
-        super().evaluate(epoch)
+        super().evaluate(epoch, eval_paths=eval_paths)

@@ -22,6 +22,7 @@ def try_init_ray():
             )
         called_ray_init = True
 
+@ray.remote
 class RayEnv(object):
     """
     Perform rollouts asynchronously using ray.

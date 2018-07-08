@@ -3,7 +3,7 @@ from typing import Iterable
 
 from railrl.core.rl_algorithm import RLAlgorithm
 from railrl.torch.core import PyTorchModule, np_to_pytorch_batch
-import ray
+
 
 class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def get_batch(self):

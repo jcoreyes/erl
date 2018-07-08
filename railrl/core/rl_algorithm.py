@@ -1,4 +1,5 @@
 import abc
+import copy
 import pickle
 import time
 from collections import OrderedDict
@@ -15,7 +16,6 @@ from railrl.misc import eval_util
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
 
-import copy
 
 class RLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
@@ -363,10 +363,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._n_train_steps_total += 1
             self.training_mode(False)
 
-    def _try_to_eval(self, epoch, eval_paths):
+    def _try_to_eval(self, epoch, eval_paths=None):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
-            self.evaluate(epoch, eval_paths)
+            self.evaluate(epoch, eval_paths=eval_paths)
 
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
