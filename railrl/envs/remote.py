@@ -22,7 +22,6 @@ def try_init_ray():
             )
         called_ray_init = True
 
-@ray.remote(num_cpus=1)
 class RayEnv(object):
     """
     Perform rollouts asynchronously using ray.
@@ -46,7 +45,6 @@ class RayEnv(object):
         self._exploration_policy = exploration_policy
         self._max_path_length = max_path_length
         self.rollout_function = rollout_function
-        self.i = 0
 
     def rollout(self, policy_params, use_exploration_strategy):
         if use_exploration_strategy:
@@ -59,7 +57,15 @@ class RayEnv(object):
             policy = self._policy
             if hasattr(self._env, 'eval'):
                 self._env.eval()
-        return self.rollout_function(self._env, policy, self._max_path_length)
+
+        rollout = self.rollout_function(
+            self._env,
+            policy,
+            self._max_path_length
+        )
+        if 'full_observations' in rollout:
+            rollout['observations'] = rollout['full_observations'][:-1]
+        return rollout
 
 class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     """
@@ -119,7 +125,6 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             rollout_function,
             num_workers=2,
             dedicated_train=1,
-            use_dedicated=False,
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
