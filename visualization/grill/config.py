@@ -21,7 +21,7 @@ output_dir = '/home/vitchyr/git/railrl/data/papers/nips2018/script-output-2/'
 ashvin_base_dir = '/mnt/gauss1/ashvin-all-data/'
 vitchyr_base_dir = '/home/vitchyr/git/railrl/data/'
 
-our_method_name = 'GRiLL'
+our_method_name = 'GRILL'
 
 
 def format_func(value, tick_number):

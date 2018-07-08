@@ -31,6 +31,7 @@ def multitask_rollout(
     observation_key=None,
     desired_goal_key=None,
 ):
+    full_observations = []
     observations = []
     actions = []
     rewards = []
@@ -39,8 +40,6 @@ def multitask_rollout(
     env_infos = []
     next_observations = []
     path_length = 0
-    # goal = self.env.sample_goal_for_rollout()
-    # self.env.set_goal(goal)
     agent.reset()
     o = env.reset()
     if animated:
@@ -49,9 +48,10 @@ def multitask_rollout(
     if desired_goal_key:
         goal = goal[desired_goal_key]
     while path_length < max_path_length:
+        full_observations.append(o)
         if observation_key:
-            observation = o[observation_key]
-        new_obs = np.hstack((observation, goal))
+            o = o[observation_key]
+        new_obs = np.hstack((o, goal))
         a, agent_info = agent.get_action(new_obs)
         next_o, r, d, env_info = env.step(a)
         if animated:
@@ -67,6 +67,7 @@ def multitask_rollout(
         if d:
             break
         o = next_o
+    full_observations.append(o)
     actions = np.array(actions)
     if len(actions.shape) == 1:
         actions = np.expand_dims(actions, 1)
@@ -81,6 +82,7 @@ def multitask_rollout(
         agent_infos=agent_infos,
         env_infos=env_infos,
         goals=np.repeat(goal[None], path_length, 0),
+        full_observations=full_observations,
     )
 
 def rollout(env, agent, max_path_length=np.inf, animated=False):
@@ -155,6 +157,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         env_infos=env_infos,
     )
 
+
 def tdm_rollout(
         env,
         agent: UniversalPolicy,
@@ -167,6 +170,7 @@ def tdm_rollout(
         observation_key=None,
         desired_goal_key=None,
 ):
+    full_observations = []
     from railrl.state_distance.rollout_util import _expand_goal
     if get_action_kwargs is None:
         get_action_kwargs = {}
@@ -190,6 +194,7 @@ def tdm_rollout(
     if desired_goal_key:
         agent_goal = agent_goal[desired_goal_key]
     while path_length < max_path_length:
+        full_observations.append(o)
         agent_o = o
         if observation_key:
             agent_o = agent_o[observation_key]
@@ -217,6 +222,7 @@ def tdm_rollout(
         if d:
             break
         o = next_o
+    full_observations.append(o)
 
     actions = np.array(actions)
     if len(actions.shape) == 1:
@@ -233,6 +239,7 @@ def tdm_rollout(
         agent_infos=np.array(agent_infos),
         env_infos=np.array(env_infos),
         num_steps_left=np.array(taus),
-        goals=_expand_goal(agent_goal, len(terminals))
+        goals=_expand_goal(agent_goal, len(terminals)),
+        full_observations=full_observations,
     )
 

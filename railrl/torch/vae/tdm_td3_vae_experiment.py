@@ -1,3 +1,4 @@
+import railrl.samplers.rollout_functions as rf
 from railrl.envs.multitask.multitask_env import MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -8,6 +9,7 @@ from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy
 from railrl.state_distance.tdm_td3 import TdmTd3
+from railrl.torch.grill.video_gen import dump_video
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.ml_util import IntPiecewiseLinearSchedule
 
@@ -18,8 +20,6 @@ import pickle
 
 from railrl.core import logger
 import os.path as osp
-
-from railrl.torch.vae.sim_vae_policy import create_multitask_rollout_function
 
 
 def tdm_td3_vae_experiment(variant):
@@ -169,25 +169,19 @@ def tdm_td3_vae_experiment(variant):
             for e in [testing_env, training_env, video_vae_env, video_goal_env]:
                 e.vae.cuda()
 
-    save_video = variant.get("save_video", True)
-    max_tau = algorithm.max_tau
-    rollout_function = create_multitask_rollout_function(max_tau)
-    if not do_state_based_exp and save_video:
-        from railrl.torch.vae.sim_vae_policy import dump_video
-        logdir = logger.get_snapshot_dir()
-        filename = osp.join(logdir, 'video_0_env.mp4')
-        dump_video(video_goal_env, policy, filename,
-                   rollout_function=rollout_function)
-        filename = osp.join(logdir, 'video_0_vae.mp4')
-        dump_video(video_vae_env, policy, filename,
-                   rollout_function=rollout_function)
-
     algorithm.train()
 
-    if not do_state_based_exp and save_video:
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        policy.train(False)
+
+        rollout_function = rf.create_rollout_function(
+            rf.tdm_rollout,
+            init_tau=algorithm.max_tau,
+            max_path_length=algorithm.max_path_length,
+        )
+
         filename = osp.join(logdir, 'video_final_env.mp4')
-        dump_video(video_goal_env, policy, filename,
-                   rollout_function=rollout_function)
+        dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename,
-                   rollout_function=rollout_function)
+        dump_video(video_vae_env, policy, filename, rollout_function)
