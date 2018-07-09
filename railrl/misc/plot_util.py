@@ -99,7 +99,9 @@ def filter_by_flat_params(d):
 def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3.5),
     xlabel="Number of env steps total", default_vary=False, xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True,
-    reduce_op=sum, method_order=None, remap_keys={}):
+    reduce_op=sum, method_order=None, remap_keys={},
+    label_to_color=None,
+):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
     vary is (what we might think is) the causal variable
@@ -165,7 +167,12 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
         s = np.nanstd(ys, axis=0) / (len(ys) ** 0.5)
         if print_plot:
             plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2)
-            line, = plt.plot(x, y, label=str(label))
+            if label_to_color is None:
+                line, = plt.plot(x, y, label=str(label))
+            else:
+                label_without_vary_prefix = label.split(":")[-1]
+                color = label_to_color[label_without_vary_prefix]
+                line, = plt.plot(x, y, label=str(label), color=color)
             lines.append(line)
 
         if print_final:

@@ -1,11 +1,16 @@
+import matplotlib
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
     vitchyr_base_dir,
     format_func,
+    configure_matplotlib,
+    our_method_name,
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
+
+configure_matplotlib(matplotlib)
 
 f = plot.filter_by_flat_params({
     'algo_kwargs.num_updates_per_env_step': 4,
@@ -44,7 +49,8 @@ plot.comparison(
     ours + oracle + her + lr + dsae,
     "Final  distance Mean",
     vary=["name"],
-    figsize=(6, 5),
+    # figsize=(6, 4),
+    figsize=(7.5, 4),
     method_order=[4, 0, 1, 3, 2],
     ylim=(0.0, 0.25),
     xlim=(0, 10000),
@@ -53,8 +59,23 @@ plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 plt.xlabel("Timesteps")
 plt.ylabel("Final Distance to Goal")
 plt.title("Visual Reacher Baselines")
-plt.legend([])  # ["GRiLL", "DSAE", "HER", "Oracle", "L&R", ])
 
+# plt.legend([])
+# plt.tight_layout()
+# plt.savefig(output_dir + "reacher_baselines.pdf")
+# print("File saved to", output_dir + "reacher_baselines.pdf")
+
+plt.legend(
+    [
+        our_method_name,
+        "HER",
+        "DSAE",
+        "Oracle",
+        "L&R",
+    ],
+           # bbox_to_anchor=(0.49, -0.2), loc="upper center", ncol=5, handlelength=1)
+    bbox_to_anchor=(1.0, 0.5), loc="center left",
+)
 plt.tight_layout()
-plt.savefig(output_dir + "reacher_baselines.pdf")
-print("File saved to", output_dir + "reacher_baselines.pdf")
+plt.savefig(output_dir + "reacher_baselines_legend_right.pdf")
+print("File saved to", output_dir + "reacher_baselines_legend_right.pdf")
