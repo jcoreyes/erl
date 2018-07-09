@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import matplotlib
 from visualization.grill.config import (
     output_dir,
@@ -29,7 +31,10 @@ offline_reacher = dp.get_trials(
 
 plt.figure(figsize=(6, 5))
 plot.plot_trials(
-    {"Online": online_reacher, "Offline": offline_reacher},
+    OrderedDict([
+        ("Online", online_reacher),
+        ("Offline", offline_reacher),
+    ]),
     y_keys="Final  distance Mean",
     x_key="Number of env steps total",
     process_time_series=plot.padded_ma_filter(10, avg_only_from_left=True),
