@@ -277,13 +277,15 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def init_rollout_function(self):
         from railrl.samplers.rollout_functions import rollout
-        self.rollout_function = rollout
+        self.train_rollout_function = rollout
+        self.eval_rollout_function = self.train_rollout_function
 
     def train_parallel(self, start_epoch=0):
         try_init_ray()
         self.parallel_env = RemoteRolloutEnv(
             env=self.env,
-            rollout_function=self.rollout_function,
+            train_rollout_function=self.train_rollout_function,
+            eval_rollout_function=self.eval_rollout_function,
             policy=self.eval_policy,
             exploration_policy=self.exploration_policy,
             max_path_length=self.max_path_length,
@@ -291,17 +293,17 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             **self.parallel_env_params,
         )
         self.training_mode(False)
+        last_epoch_policy = copy.deepcopy(self.policy)
         for epoch in range(start_epoch, self.num_epochs):
             self._start_epoch(epoch)
             should_gather_data = True
             should_eval = self.parallel_eval
             should_train = True
-            last_epoch_policy = copy.deepcopy(self.policy)
+            last_epoch_policy.load_state_dict(self.policy.state_dict())
             eval_paths = []
             n_env_steps_current_epoch = 0
             n_eval_steps = 0
             n_train_steps = 0
-            import pdb; pdb.set_trace()
 
             while should_gather_data or should_eval  or should_train:
                 if should_gather_data:
@@ -315,7 +317,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                         self._handle_path(path)
                         n_env_steps_current_epoch += path_length
                         self._n_env_steps_total += path_length
-
                 if should_eval:
                     # label as epoch but actually evaluating previous epoch
                     path = self.parallel_env.rollout(
@@ -326,7 +327,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     if path:
                         eval_paths.append(dict(path))
                         n_eval_steps += len(path['observations'])
-
                 if should_train:
                     if self._n_env_steps_total > 0:
                         self._try_to_train()
@@ -335,7 +335,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 should_gather_data &= \
                         n_env_steps_current_epoch < self.num_env_steps_per_epoch
                 should_eval &= n_eval_steps < self.num_steps_per_eval
-
                 if self.sim_throttle:
                     should_train &= self.parallel_step_ratio * n_train_steps < \
                         self.num_env_steps_per_epoch

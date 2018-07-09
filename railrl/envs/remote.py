@@ -7,6 +7,7 @@ import numpy as np
 import os
 import redis
 import torch
+import railrl.torch.pytorch_util as ptu
 
 called_ray_init = False
 def try_init_ray():
@@ -22,7 +23,7 @@ def try_init_ray():
             )
         called_ray_init = True
 
-@ray.remote
+@ray.remote(num_cpus=1)
 class RayEnv(object):
     """
     Perform rollouts asynchronously using ray.
@@ -34,9 +35,9 @@ class RayEnv(object):
             exploration_policy,
             max_path_length,
             normalize_env,
-            rollout_function,
+            train_rollout_function,
+            eval_rollout_function,
     ):
-        os.environ["MKL_NUM_THREADS"] = "1"
         torch.set_num_threads(1)
         self._env = env
         if normalize_env:
@@ -45,21 +46,24 @@ class RayEnv(object):
         self._policy = policy
         self._exploration_policy = exploration_policy
         self._max_path_length = max_path_length
-        self.rollout_function = rollout_function
+        self.train_rollout_function = train_rollout_function
+        self.eval_rollout_function = eval_rollout_function
 
     def rollout(self, policy_params, use_exploration_strategy):
         if use_exploration_strategy:
             self._exploration_policy.set_param_values_np(policy_params)
             policy = self._exploration_policy
+            rollout_function = self.train_rollout_function
             if hasattr(self._env, 'train'):
                 self._env.train()
         else:
             self._policy.set_param_values_np(policy_params)
             policy = self._policy
+            rollout_function = self.eval_rollout_function
             if hasattr(self._env, 'eval'):
                 self._env.eval()
 
-        rollout = self.rollout_function(
+        rollout = rollout_function(
             self._env,
             policy,
             self._max_path_length
@@ -123,7 +127,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             exploration_policy,
             max_path_length,
             normalize_env,
-            rollout_function,
+            train_rollout_function,
+            eval_rollout_function,
             num_workers=2,
             dedicated_train=1,
     ):
@@ -133,13 +138,15 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         ray.register_custom_serializer(type(policy), use_pickle=True)
         ray.register_custom_serializer(type(exploration_policy), use_pickle=True)
         self._ray_envs = [
+            #ray.remote(num_gpus=1 if ptu.gpu_enabled() else 0)(RayEnv).remote(
             RayEnv.remote(
                 env,
                 policy,
                 exploration_policy,
                 max_path_length,
                 normalize_env,
-                rollout_function,
+                train_rollout_function,
+                eval_rollout_function,
             )
         for _ in range(num_workers)]
 

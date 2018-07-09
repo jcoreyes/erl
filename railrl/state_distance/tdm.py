@@ -115,15 +115,29 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             desired_goal_key=self.desired_goal_key,
         )
         self.pretrain_obs = None
-        self.init_rollout_function()
 
         # the rl_algorithm constructor is called before the tdm's, so
         # initializing the rollout function must be done here instead of
         # overriding the function
         from railrl.samplers.rollout_functions import \
-                create_rollout_function, multitask_rollout
-        self.rollout_function = create_rollout_function(
-            multitask_rollout,
+                create_rollout_function, tdm_rollout, tau_sampling_tdm_rollout
+
+        self.train_rollout_function = create_rollout_function(
+            tdm_rollout,
+            init_tau=self.max_tau,
+            cycle_tau=self.cycle_taus_for_rollout,
+            decrement_tau=self.cycle_taus_for_rollout,
+            observation_key=self.observation_key,
+            desired_goal_key=self.desired_goal_key,
+        )
+        self.eval_rollout_function = self.train_rollout_function
+        # TODO Steven: can't seem to use a tau sampler function instead of a
+        # fixed init_tau without getting a cuda initialization for some reason
+        self.eval_rollout_function = create_rollout_function(
+            tdm_rollout,
+            init_tau=self._sample_max_tau_for_rollout(),
+            cycle_tau=self.cycle_taus_for_rollout,
+            decrement_tau=self.cycle_taus_for_rollout,
             observation_key=self.observation_key,
             desired_goal_key=self.desired_goal_key,
         )
@@ -246,7 +260,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             agent_infos=agent_info,
             env_infos=env_info,
             num_steps_left=self._rollout_tau,
-            goals=self._current_path_goal,
         )
         if self.cycle_taus_for_rollout:
             self._rollout_tau -= 1
@@ -282,6 +295,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def _handle_path(self, path):
         self._n_rollouts_total += 1
         self.replay_buffer.add_path(path)
+        self._exploration_paths.append(path)
 
     def evaluate(self, epoch, eval_paths=None):
         self.eval_statistics['Max Tau'] = self.max_tau

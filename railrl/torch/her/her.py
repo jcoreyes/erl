@@ -43,11 +43,12 @@ class HER(TorchRLAlgorithm):
     def init_rollout_function(self):
         from railrl.samplers.rollout_functions \
                 import multitask_rollout, create_rollout_function
-        self.rollout_function = create_rollout_function(
+        self.train_rollout_function = create_rollout_function(
             multitask_rollout,
             observation_key=self.observation_key,
             desired_goal_key=self.desired_goal_key
         )
+        self.eval_rollout_function = self.train_rollout_function
 
     def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
         self.exploration_policy.reset()
@@ -65,7 +66,6 @@ class HER(TorchRLAlgorithm):
             terminal,
             agent_info,
             env_info,
-            goal=None,
     ):
         self._current_path_builder.add_all(
             observations=observation,
@@ -75,46 +75,13 @@ class HER(TorchRLAlgorithm):
             terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
-            goals=goal if goal is not None else self._rollout_goal,
+            goals=self._rollout_goal,
         )
 
     def _handle_path(self, path):
-        """
-        Naive implementation: just loop through each transition.
-        :param path:
-        :return:
-        """
-        for (
-                ob,
-                action,
-                reward,
-                next_ob,
-                goal,
-                terminal,
-                agent_info,
-                env_info
-        ) in zip(
-            path["observations"],
-            path["actions"],
-            path["rewards"],
-            path["next_observations"],
-            path["goals"],
-            path["terminals"],
-            path["agent_infos"],
-            path["env_infos"],
-        ):
-            self._handle_step(
-                ob,
-                action,
-                reward,
-                next_ob,
-                terminal,
-                agent_info=agent_info,
-                env_info=env_info,
-                goal=goal,
-            )
-        self._handle_rollout_ending()
-
+        self._n_rollouts_total += 1
+        self.replay_buffer.add_path(path)
+        self._exploration_paths.append(path)
 
     def get_batch(self):
         batch = super().get_batch()
@@ -165,7 +132,7 @@ class HER(TorchRLAlgorithm):
 
     def eval_multitask_rollout(self):
         # TODO Steven: remove pointer
-        return self.rollout_function(
+        return self.eval_rollout_function(
             self.env,
             self.policy,
             self.max_path_length,
