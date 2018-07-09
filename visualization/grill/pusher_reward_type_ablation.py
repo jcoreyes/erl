@@ -30,7 +30,7 @@ plot.comparison(exps,
 plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 plt.xlabel("Timesteps")
 plt.ylabel("Final Distance to Goal")
-plt.title("Visual Pusher, Reward Type Ablation")
+plt.title("Visual Pusher")
 plt.legend(
     [our_method_name, "Log Prob.", "Pixel MSE", ],
     bbox_to_anchor=(0.49, -0.2),
