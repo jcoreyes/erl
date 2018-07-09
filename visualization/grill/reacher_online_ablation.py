@@ -1,12 +1,17 @@
+import matplotlib
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
     vitchyr_base_dir,
-    format_func
+    format_func,
+    our_method_name,
+    configure_matplotlib,
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
 from railrl.misc import data_processing as dp
+
+configure_matplotlib(matplotlib)
 
 reacher_dir = vitchyr_base_dir + 'papers/nips2018/reacher_online_vae'
 online_reacher = dp.get_trials(

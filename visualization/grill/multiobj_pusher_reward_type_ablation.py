@@ -1,13 +1,17 @@
+import matplotlib
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
     vitchyr_base_dir,
     format_func,
     our_method_name,
+    configure_matplotlib,
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
 from railrl.misc import data_processing as dp
+
+configure_matplotlib(matplotlib)
 
 dirs = [
     ashvin_base_dir + 's3doodad/ashvin/vae/fixed3/sawyer-pusher/vae-dense-multi-logprob/run1', ]

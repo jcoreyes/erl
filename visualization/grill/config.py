@@ -7,6 +7,12 @@ For exmaple, I (Vitchyr) run these commands
 
 sudo mkdir -p /mnt/gauss1/ashvin-all-data
 sudo sshfs -o allow_other vitchyr@gauss1.banatao.berkeley.edu:/home/ashvin/data/ /mnt/gauss1/ashvin-all-data
+
+
+For reference
+
+Vitchyr data directory: ari.banatao.berkeley.edu:/home/vitchyr/git/railrl/data
+Ashvin data directory: gauss1.banatao.berkeley.edu:/home/ashvin/data/
 """
 import matplotlib.pyplot as plt
 # import matplotlib

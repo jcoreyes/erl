@@ -9,6 +9,7 @@ from visualization.grill.config import (
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
+from railrl.misc import data_processing as dp
 
 configure_matplotlib(matplotlib)
 
