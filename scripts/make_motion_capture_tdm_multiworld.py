@@ -1,15 +1,33 @@
 import argparse
+import json
 import os
 import os.path as osp
+from pathlib import Path
 
 import joblib
 
 from railrl.core import logger
-from railrl.samplers.rollout_functions import multitask_rollout, \
+from railrl.pythonplusplus import find_key_recursive
+from railrl.samplers.rollout_functions import tdm_rollout, \
     create_rollout_function
 from railrl.torch.core import PyTorchModule
 from railrl.torch.grill.video_gen import dump_video
 from railrl.torch.pytorch_util import set_gpu_mode
+
+
+def get_max_tau(args):
+    if args.mtau is None:
+        variant_path = Path(args.file).parents[0] / 'variant.json'
+        variant = json.load(variant_path.open())
+        max_tau = find_key_recursive(variant, 'max_tau')
+        if max_tau is None:
+            print("Defaulting max tau to 0.")
+            max_tau = 0
+        else:
+            print("Max tau read from variant: {}".format(max_tau))
+    else:
+        max_tau = args.mtau
+    return max_tau
 
 
 def simulate_policy(args):
@@ -24,6 +42,7 @@ def simulate_policy(args):
         raise Exception("No policy found in loaded dict. Keys: {}".format(
             data.keys()
         ))
+    max_tau = get_max_tau(args)
 
     env = data['env']
 
@@ -60,7 +79,8 @@ def simulate_policy(args):
         dirname, "video_{}.mp4".format(input_file_name)
     )
     rollout_function = create_rollout_function(
-        multitask_rollout,
+        tdm_rollout,
+        init_tau=max_tau,
         observation_key='observation',
         desired_goal_key='desired_goal',
     )
@@ -91,6 +111,7 @@ if __name__ == "__main__":
     parser.add_argument('--speedup', type=float, default=10,
                         help='Speedup')
     parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--mtau', type=int)
     parser.add_argument('--pause', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--enable_render', action='store_true')

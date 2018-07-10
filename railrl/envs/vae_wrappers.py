@@ -129,6 +129,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
             ).transpose()
             cv2.imshow('env', img)
             cv2.waitKey(1)
+            reconstruction = self._reconstruct_img(obs['image_observation'])
+            cv2.imshow('env_reconstruction', reconstruction)
+            cv2.waitKey(1)
         if self.render_goals and not self.use_vae_goals:
             goal = self._vw_goal_img.reshape(
                 self.input_channels,
@@ -142,6 +145,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.imshow('decoded', self._vw_goal_img_decoded)
             cv2.waitKey(1)
         return new_obs, reward, done, info
+
+    def _reconstruct_img(self, flat_img):
+        zs = self.vae.encode(ptu.np_to_var(flat_img[None]))[0]
+        imgs = ptu.get_numpy(self.vae.decode(zs))
+        imgs = imgs.reshape(
+            1, self.input_channels, 84, 84
+        ).transpose([0, 3, 2, 1])
+        return imgs[0]
 
     def _update_info(self, info, obs):
         latent_obs, logvar = self.vae.encode(ptu.np_to_var(obs['image_observation']))
@@ -164,7 +175,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         if self.use_vae_goals:
             latent_goals = self._sample_vae_prior(1)
             if self.decode_goals:
-                goal_img = self._decode(latent_goals)[0].transpose()
+                goal_img = self._decode(latent_goals)[0].transpose().flatten()
             else:
                 goal_img = None
             obs['image_desired_goal'] = goal_img
@@ -264,7 +275,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
             goals = {}
             latent_goals = self._sample_vae_prior(batch_size)
             if self.decode_goals:
-                goal_imgs = self._decode(latent_goals)
+                raise NotImplementedError(
+                    'I think we should change _decode to not transpose...'
+                )
+                goal_imgs = self._decode(latent_goals).transpose().flatten()
             else:
                 goal_imgs = None
             goals['image_desired_goal'] = goal_imgs

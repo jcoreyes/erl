@@ -1,13 +1,17 @@
+import matplotlib
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
     vitchyr_base_dir,
     format_func,
     our_method_name,
+    configure_matplotlib,
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
 from railrl.misc import data_processing as dp
+
+configure_matplotlib(matplotlib)
 
 dirs = [
     ashvin_base_dir + 's3doodad/ashvin/vae/fixed3/sawyer-pusher/vae-dense-wider3/run1',
@@ -35,7 +39,7 @@ plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 # plt.ylabel("")
 plt.xlabel("Timesteps")
 plt.ylabel("Final Distance to Goal")
-plt.title("Visual Pusher, Relabeling Ablation")
+plt.title("Visual Pusher")
 plt.legend(
     [our_method_name, "None", "HER", "VAE", ],
     bbox_to_anchor=(0.49, -0.2),

@@ -5,6 +5,7 @@ import time
 import cv2
 import numpy as np
 
+import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
 from multiworld.core.image_env import ImageEnv
 from railrl.core import logger
@@ -12,7 +13,7 @@ from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
 from railrl.data_management.online_vae_replay_buffer import \
     OnlineVaeRelabelingBuffer
-from railrl.envs.vae_wrappers import VAEWrappedEnv, load_vae
+from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
@@ -24,6 +25,7 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.state_distance.tdm_networks import TdmQf, TdmVf, TdmPolicy, StochasticTdmPolicy
 from railrl.state_distance.tdm_td3 import TdmTd3
 from railrl.state_distance.tdm_twin_sac import TdmTwinSAC
+from railrl.torch.grill.video_gen import dump_video
 from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.her.online_vae_her_td3 import OnlineVaeHerTd3
 from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
@@ -52,7 +54,7 @@ def grill_her_td3_full_experiment(variant):
 
 def grill_her_td3_online_vae_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    generate_and_train_online_vae(variant)
+    generate_and_train_vae(variant)
     if variant['double_algo']:
         grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
     else:
@@ -74,29 +76,6 @@ def full_experiment_variant_preprocess(variant):
 
 
 def generate_and_train_vae(variant):
-    grill_variant = variant['grill_variant']
-    train_vae_variant = variant['train_vae_variant']
-    if grill_variant.get('vae_path', None) is None:
-        logger.remove_tabular_output(
-            'progress.csv', relative_to_snapshot_dir=True
-        )
-        logger.add_tabular_output(
-            'vae_progress.csv', relative_to_snapshot_dir=True
-        )
-        vae = train_vae(train_vae_variant)
-        logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
-        logger.remove_tabular_output(
-            'vae_progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        logger.add_tabular_output(
-            'progress.csv',
-            relative_to_snapshot_dir=True,
-        )
-        grill_variant['vae_path'] = vae  # just pass the VAE directly
-
-
-def generate_and_train_online_vae(variant):
     grill_variant = variant['grill_variant']
     train_vae_variant = variant['train_vae_variant']
     if grill_variant.get('vae_path', None) is None:
@@ -366,22 +345,21 @@ def grill_her_td3_experiment(variant):
                       relabeling_env]:
                 e.vae.cuda()
 
-    save_video = variant.get("save_video", True)
-    if save_video:
-        from railrl.torch.vae.sim_vae_policy import dump_video
-        logdir = logger.get_snapshot_dir()
-        # Don't dump initial video any more, its uninformative
-        # filename = osp.join(logdir, 'video_0_env.mp4')
-        # dump_video(video_goal_env, policy, filename)
-        # filename = osp.join(logdir, 'video_0_vae.mp4')
-        # dump_video(video_vae_env, policy, filename)
     algorithm.train()
 
-    if save_video:
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        policy.train(False)
         filename = osp.join(logdir, 'video_final_env.mp4')
-        dump_video(video_goal_env, policy, filename)
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename)
+        dump_video(video_vae_env, policy, filename, rollout_function)
 
 
 def grill_tdm_td3_experiment(variant):
@@ -472,22 +450,24 @@ def grill_tdm_td3_experiment(variant):
                       relabeling_env]:
                 e.vae.cuda()
 
-    save_video = variant.get("save_video", True)
-    if save_video:
-        from railrl.torch.vae.sim_vae_policy import dump_video
-        logdir = logger.get_snapshot_dir()
-        # Don't dump initial video any more, its uninformative
-        # filename = osp.join(logdir, 'video_0_env.mp4')
-        # dump_video(video_goal_env, policy, filename)
-        # filename = osp.join(logdir, 'video_0_vae.mp4')
-        # dump_video(video_vae_env, policy, filename)
     algorithm.train()
 
-    if save_video:
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        policy.train(False)
+
+        rollout_function = rf.create_rollout_function(
+            rf.tdm_rollout,
+            init_tau=algorithm.max_tau,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+
         filename = osp.join(logdir, 'video_final_env.mp4')
-        dump_video(video_goal_env, policy, filename)
+        dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename)
+        dump_video(video_vae_env, policy, filename, rollout_function)
 
 
 def grill_tdm_twin_sac_experiment(variant):
@@ -635,8 +615,7 @@ def grill_her_td3_experiment_online_vae(variant):
         policy=policy,
     )
 
-    vae_path = variant["vae_path"]
-    vae = load_vae(vae_path)
+    vae = training_env.vae
 
     replay_buffer = OnlineVaeRelabelingBuffer(
         vae=vae,
@@ -654,6 +633,7 @@ def grill_her_td3_experiment_online_vae(variant):
                        vae,
                        beta=variant['online_vae_beta'])
     render = variant["render"]
+    assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     algorithm = OnlineVaeHerTd3(
         vae=vae,
         vae_trainer=t,
@@ -667,7 +647,6 @@ def grill_her_td3_experiment_online_vae(variant):
         render_during_eval=render,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
-        vae_training_schedule=variant['vae_training_schedule'],
         **variant['algo_kwargs']
     )
 
@@ -679,22 +658,22 @@ def grill_her_td3_experiment_online_vae(variant):
         e.vae = vae
         e.decode_goals = True
 
-    save_video = variant.get("save_video", True)
-    if save_video:
-        from railrl.torch.vae.sim_vae_policy import dump_video
-        logdir = logger.get_snapshot_dir()
-        # Don't dump initial video any more, its uninformative
-        # filename = osp.join(logdir, 'video_0_env.mp4')
-        # dump_video(video_goal_env, policy, filename)
-        # filename = osp.join(logdir, 'video_0_vae.mp4')
-        # dump_video(video_vae_env, policy, filename)
     algorithm.train()
 
-    if save_video:
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        policy.train(False)
         filename = osp.join(logdir, 'video_final_env.mp4')
-        dump_video(video_goal_env, policy, filename)
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename)
+        dump_video(video_vae_env, policy, filename, rollout_function)
+
 
 
 def grill_her_td3_experiment_online_vae_exploring(variant):
@@ -752,8 +731,7 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         policy=exploring_policy,
     )
 
-    vae_path = variant["vae_path"]
-    vae = load_vae(vae_path)
+    vae = training_env.vae
     replay_buffer = OnlineVaeRelabelingBuffer(
         vae=vae,
         env=relabeling_env,
@@ -789,6 +767,7 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         **variant['algo_kwargs']
     )
 
+    assert 'vae_training_schedule' not in variant, "Just put it in joint_algo_kwargs"
     algorithm = OnlineVaeHerJointAlgo(
         vae=vae,
         vae_trainer=t,
@@ -803,7 +782,6 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         algo2_prefix="VAE_Exploration_",
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
-        vae_training_schedule=variant['vae_training_schedule'],
         **variant['joint_algo_kwargs']
     )
 
@@ -815,21 +793,18 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
             e.vae = vae
             e.decode_goals = True
 
-    save_video = variant.get("save_video", True)
-    if save_video:
-        from railrl.torch.vae.sim_vae_policy import dump_video
-        logdir = logger.get_snapshot_dir()
-        # Don't dump initial video any more, its uninformative
-        # filename = osp.join(logdir, 'video_0_env.mp4')
-        # dump_video(video_goal_env, policy, filename)
-        # filename = osp.join(logdir, 'video_0_vae.mp4')
-        # dump_video(video_vae_env, policy, filename)
     algorithm.train()
 
-    if save_video:
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        policy.train(False)
         filename = osp.join(logdir, 'video_final_env.mp4')
-        dump_video(video_goal_env, policy, filename)
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename)
-
-
+        dump_video(video_vae_env, policy, filename, rollout_function)

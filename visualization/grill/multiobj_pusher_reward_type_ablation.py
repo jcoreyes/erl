@@ -1,13 +1,17 @@
+import matplotlib
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
     vitchyr_base_dir,
     format_func,
     our_method_name,
+    configure_matplotlib,
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
 from railrl.misc import data_processing as dp
+
+configure_matplotlib(matplotlib)
 
 dirs = [
     ashvin_base_dir + 's3doodad/ashvin/vae/fixed3/sawyer-pusher/vae-dense-multi-logprob/run1', ]
@@ -44,7 +48,7 @@ plot.comparison(
 plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 plt.xlabel("Timesteps")
 plt.ylabel("Final Distance to Goal")
-plt.title("Visual Multi-object Pusher, Reward Type Ablation")
+plt.title("Visual Multi-object Pusher")
 plt.legend([our_method_name, "Log Prob.", "Pixel MSE", ], bbox_to_anchor=(0.49,
                                                                      -0.2),
            loc="upper center", ncol=4, handlelength=1)

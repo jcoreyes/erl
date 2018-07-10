@@ -1,12 +1,17 @@
+import matplotlib
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
     vitchyr_base_dir,
-    format_func
+    format_func,
+    our_method_name,
+    configure_matplotlib,
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
+from railrl.misc import data_processing as dp
 
+configure_matplotlib(matplotlib)
 
 dirs = [
     ashvin_base_dir + 's3doodad/ashvin/vae/fixed3/sawyer-pusher/state-dense-wider2/run1',
@@ -69,8 +74,9 @@ plot.comparison(
     smooth=plot.padded_ma_filter(10),
     method_order=[4, 0, 1, 3, 2],
     ylim=(0.1, 0.28),
-    xlim=(0, 250000),
-    figsize=(6, 5),
+    # xlim=(0, 250000),
+    xlim=(0, 500000),
+    figsize=(6, 4),
 )
 plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 plt.xlabel("Timesteps")

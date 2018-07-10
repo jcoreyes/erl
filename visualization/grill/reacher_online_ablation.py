@@ -1,12 +1,19 @@
+from collections import OrderedDict
+
+import matplotlib
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
     vitchyr_base_dir,
-    format_func
+    format_func,
+    our_method_name,
+    configure_matplotlib,
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
 from railrl.misc import data_processing as dp
+
+configure_matplotlib(matplotlib)
 
 reacher_dir = vitchyr_base_dir + 'papers/nips2018/reacher_online_vae'
 online_reacher = dp.get_trials(
@@ -24,7 +31,10 @@ offline_reacher = dp.get_trials(
 
 plt.figure(figsize=(6, 5))
 plot.plot_trials(
-    {"Online": online_reacher, "Offline": offline_reacher},
+    OrderedDict([
+        ("Online", online_reacher),
+        ("Offline", offline_reacher),
+    ]),
     y_keys="Final  distance Mean",
     x_key="Number of env steps total",
     process_time_series=plot.padded_ma_filter(10, avg_only_from_left=True),

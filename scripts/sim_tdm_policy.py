@@ -6,20 +6,24 @@ from pathlib import Path
 
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.vae_wrappers import VAEWrappedEnv
-from railrl.envs.wrappers import ImageMujocoEnv
-from railrl.misc.eval_util import get_generic_path_information
-from railrl.state_distance.rollout_util import multitask_rollout
+from railrl.pythonplusplus import find_key_recursive
+from railrl.samplers.rollout_functions import tdm_rollout
 from railrl.core import logger
 
 
-def find_key_recursive(obj, key):
-    if key in obj:
-        return obj[key]
-    for k, v in obj.items():
-        if isinstance(v, dict):
-            result = find_key_recursive(v, key)
-            if result is not None:
-                return result
+def get_max_tau(args):
+    if args.mtau is None:
+        variant_path = Path(args.file).parents[0] / 'variant.json'
+        variant = json.load(variant_path.open())
+        max_tau = find_key_recursive(variant, 'max_tau')
+        if max_tau is None:
+            print("Defaulting max tau to 0.")
+            max_tau = 0
+        else:
+            print("Max tau read from variant: {}".format(max_tau))
+    else:
+        max_tau = args.mtau
+    return max_tau
 
 
 if __name__ == "__main__":
@@ -47,22 +51,10 @@ if __name__ == "__main__":
     parser.add_argument('--ncycle', help='no cycle tau', action='store_true')
     args = parser.parse_args()
 
+    max_tau = get_max_tau(args)
     data = joblib.load(args.file)
-    if args.mtau is None:
-        variant_path = Path(args.file).parents[0] / 'variant.json'
-        variant = json.load(variant_path.open())
-        max_tau = find_key_recursive(variant, 'max_tau')
-        if max_tau is None:
-            print("Defaulting max tau to 0.")
-            max_tau = 0
-        else:
-            print("Max tau read from variant: {}".format(max_tau))
-    else:
-        max_tau = args.mtau
 
     env = data['env']
-    num_samples = 1000
-    resolution = 10
     if 'policy' in data:
         policy = data['policy']
     else:
@@ -74,26 +66,21 @@ if __name__ == "__main__":
     if args.gpu:
         ptu.set_gpu_mode(True)
         policy.cuda()
-    is_mj_env = (
-            isinstance(env, VAEWrappedEnv) and
-            isinstance(env.wrapped_env, ImageMujocoEnv)
-    )
     if isinstance(env, VAEWrappedEnv):
         env.mode(args.mode)
-    if args.enable_render or is_mj_env:
+    if args.enable_render or hasattr(env, 'enable_render'):
         # some environments need to be reconfigured for visualization
         env.enable_render()
 
     paths = []
-    env_samples_goal_on_reset = args.silent or is_mj_env
     while True:
         for _ in range(args.nrolls):
-            path = multitask_rollout(
+            path = tdm_rollout(
                 env,
                 policy,
                 init_tau=max_tau,
                 max_path_length=args.H,
-                animated=not args.hide and not is_mj_env,
+                animated=not args.hide,
                 cycle_tau=not args.ncycle,
                 decrement_tau=not args.ndt,
                 observation_key='observation',
@@ -101,7 +88,9 @@ if __name__ == "__main__":
             )
             print("last state", path['next_observations'][-1])
             paths.append(path)
-        env.log_diagnostics(paths)
-        for key, value in get_generic_path_information(paths).items():
-            logger.record_tabular(key, value)
+        if hasattr(env, "log_diagnostics"):
+            env.log_diagnostics(paths)
+        if hasattr(env, "get_diagnostics"):
+            for k, v in env.get_diagnostics(paths).items():
+                logger.record_tabular(k, v)
         logger.dump_tabular()
