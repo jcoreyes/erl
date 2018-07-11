@@ -293,21 +293,20 @@ def grill_her_td3_experiment(variant):
         + training_env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = training_env.action_space.low.size
-    hidden_sizes = variant.get('hidden_sizes', [400, 300])
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=hidden_sizes,
+        **variant['qf_kwargs']
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=hidden_sizes,
+        **variant['qf_kwargs']
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=hidden_sizes,
+        **variant['policy_kwargs']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -321,19 +320,22 @@ def grill_her_td3_experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_kwargs']
     )
-    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
-    render = variant["render"]
+
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['replay_buffer'] = replay_buffer
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = training_env
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
+    her_kwargs = algo_kwargs['her_kwargs']
+    her_kwargs['observation_key'] = observation_key
+    her_kwargs['desired_goal_key'] = desired_goal_key
     algorithm = HerTd3(
         testing_env,
-        training_env=training_env,
         qf1=qf1,
         qf2=qf2,
         policy=policy,
         exploration_policy=exploration_policy,
-        render=render,
-        render_during_eval=render,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
         **variant['algo_kwargs']
     )
 
@@ -350,13 +352,15 @@ def grill_her_td3_experiment(variant):
     if variant.get("save_video", True):
         logdir = logger.get_snapshot_dir()
         policy.train(False)
-        filename = osp.join(logdir, 'video_final_env.mp4')
+
         rollout_function = rf.create_rollout_function(
             rf.multitask_rollout,
             max_path_length=algorithm.max_path_length,
             observation_key=algorithm.observation_key,
             desired_goal_key=algorithm.desired_goal_key,
         )
+
+        filename = osp.join(logdir, 'video_final_env.mp4')
         dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
         dump_video(video_vae_env, policy, filename, rollout_function)
@@ -380,13 +384,9 @@ def grill_tdm_td3_experiment(variant):
     action_dim = training_env.action_space.low.size
 
     vectorized = 'vectorized' in training_env.reward_type
-    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
-
     norm_order = training_env.norm_order
-    variant['algo_kwargs']['tdm_kwargs']['norm_order'] = norm_order
-
-    vectorized_qf = variant['qf_kwargs'].get('vectorized', False)
-    variant['qf_kwargs']['vectorized'] = vectorized or vectorized_qf
+    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+    variant['qf_kwargs']['vectorized'] = vectorized
     variant['qf_kwargs']['norm_order'] = norm_order
 
     qf1 = TdmQf(
@@ -414,22 +414,20 @@ def grill_tdm_td3_experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-
+    variant['replay_kwargs']['vectorized'] = vectorized
     replay_buffer = ObsDictRelabelingBuffer(
         env=relabeling_env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        vectorized=vectorized,
         **variant['replay_kwargs']
     )
-    render = variant["render"]
-    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['replay_buffer'] = replay_buffer
     base_kwargs = algo_kwargs['base_kwargs']
     base_kwargs['training_env'] = training_env
-    base_kwargs['render'] = render
-    base_kwargs['render_during_eval'] = render
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
     tdm_kwargs = algo_kwargs['tdm_kwargs']
     tdm_kwargs['observation_key'] = observation_key
     tdm_kwargs['desired_goal_key'] = desired_goal_key
@@ -487,14 +485,10 @@ def grill_tdm_twin_sac_experiment(variant):
     action_dim = training_env.action_space.low.size
 
     vectorized = 'vectorized' in training_env.reward_type
-    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
-
     norm_order = training_env.norm_order
-    variant['algo_kwargs']['tdm_kwargs']['norm_order'] = norm_order
-
-    # vectorized_qf = variant['qf_kwargs'].get('vectorized', False)
-    variant['qf_kwargs']['vectorized'] = vectorized # vectorized or vectorized_qf
-    variant['vf_kwargs']['vectorized'] = vectorized # vectorized or vectorized_qf
+    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+    variant['qf_kwargs']['vectorized'] = vectorized
+    variant['vf_kwargs']['vectorized'] = vectorized
     variant['qf_kwargs']['norm_order'] = norm_order
     variant['vf_kwargs']['norm_order'] = norm_order
 
@@ -516,7 +510,6 @@ def grill_tdm_twin_sac_experiment(variant):
         env=training_env,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
-        action_dim=action_dim,
         **variant['vf_kwargs']
     )
     policy = StochasticTdmPolicy(
@@ -526,22 +519,20 @@ def grill_tdm_twin_sac_experiment(variant):
         action_dim=action_dim,
         **variant['policy_kwargs']
     )
-
+    variant['replay_kwargs']['vectorized'] = vectorized
     replay_buffer = ObsDictRelabelingBuffer(
         env=relabeling_env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        vectorized=vectorized,
         **variant['replay_kwargs']
     )
-    render = variant["render"]
-    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['replay_buffer'] = replay_buffer
     base_kwargs = algo_kwargs['base_kwargs']
     base_kwargs['training_env'] = training_env
-    base_kwargs['render'] = render
-    base_kwargs['render_during_eval'] = render
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
     tdm_kwargs = algo_kwargs['tdm_kwargs']
     tdm_kwargs['observation_key'] = observation_key
     tdm_kwargs['desired_goal_key'] = desired_goal_key
@@ -562,22 +553,24 @@ def grill_tdm_twin_sac_experiment(variant):
                       relabeling_env]:
                 e.vae.cuda()
 
-    save_video = variant.get("save_video", True)
-    if save_video:
-        from railrl.torch.vae.sim_vae_policy import dump_video
-        logdir = logger.get_snapshot_dir()
-        # Don't dump initial video any more, its uninformative
-        # filename = osp.join(logdir, 'video_0_env.mp4')
-        # dump_video(video_goal_env, policy, filename)
-        # filename = osp.join(logdir, 'video_0_vae.mp4')
-        # dump_video(video_vae_env, policy, filename)
     algorithm.train()
 
-    if save_video:
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        policy.train(False)
+
+        rollout_function = rf.create_rollout_function(
+            rf.tdm_rollout,
+            init_tau=algorithm.max_tau,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+
         filename = osp.join(logdir, 'video_final_env.mp4')
-        dump_video(video_goal_env, policy, filename)
+        dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename)
+        dump_video(video_vae_env, policy, filename, rollout_function)
 
 
 def grill_her_td3_experiment_online_vae(variant):
@@ -673,7 +666,6 @@ def grill_her_td3_experiment_online_vae(variant):
         dump_video(video_goal_env, policy, filename, rollout_function)
         filename = osp.join(logdir, 'video_final_vae.mp4')
         dump_video(video_vae_env, policy, filename, rollout_function)
-
 
 
 def grill_her_td3_experiment_online_vae_exploring(variant):

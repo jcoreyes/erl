@@ -31,11 +31,9 @@ variant = dict(
     ),
     qf_kwargs=dict(
         hidden_sizes=[400, 300],
-        structure='norm_difference',
     ),
     vf_kwargs=dict(
         hidden_sizes=[400, 300],
-        structure='norm_difference',
     ),
     policy_kwargs=dict(
         hidden_sizes=[400, 300],
@@ -66,8 +64,8 @@ env_params = {
         'exploration_type': ['epsilon'],
         'env_kwargs.reward_type': ['vectorized_hand_distance'], # ['hand_distance', 'vectorized_hand_distance'],
         'env_kwargs.norm_order': [1],
-        'algo_kwargs.base_kwargs.num_epochs': [30],
-        'algo_kwargs.tdm_kwargs.max_tau': [1, 10],
+        'algo_kwargs.base_kwargs.num_epochs': [50],
+        'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 25],
         'algo_kwargs.base_kwargs.reward_scale': [1e1, 1e2, 1e3] # [1e0, 1e1, 1e2, 1e3] #[0.01, 0.1, 1, 10, 100],
     },
     'sawyer-push-and-reach-xy': {  # 6 DoF
@@ -84,10 +82,11 @@ env_params = {
         'env_kwargs.reward_type': ['vectorized_state_distance'], #['state_distance', 'vectorized_state_distance'],
         'env_kwargs.norm_order': [1], #[1, 2],
         'exploration_type': ['epsilon'], #['epsilon', 'gaussian'],
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 4],
         'algo_kwargs.base_kwargs.num_epochs': [300],
         'algo_kwargs.tdm_kwargs.max_tau': [10, 20, 40], #[10, 20, 40], #[1, 10, 20, 40, 99],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3, 1e4], #[1e0, 1e2],
+        'algo_kwargs.twin_sac_kwargs.soft_target_tau': [5e-3, 1e-2],
     },
 }
 

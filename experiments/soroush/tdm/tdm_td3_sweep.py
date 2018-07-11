@@ -27,7 +27,6 @@ variant = dict(
     ),
     qf_kwargs=dict(
         hidden_sizes=[400, 300],
-        structure='norm_difference',
     ),
     policy_kwargs=dict(
         hidden_sizes=[400, 300],
@@ -58,7 +57,6 @@ env_params = {
         'exploration_type': ['epsilon'],
         'env_kwargs.reward_type': ['hand_distance', 'vectorized_hand_distance'],
         'env_kwargs.norm_order': [1, 2],
-        'qf_kwargs.structure': ['norm_difference', 'none'],
         'algo_kwargs.base_kwargs.num_epochs': [50],
         'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 25],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3] #[0.01, 0.1, 1, 10, 100],
@@ -74,14 +72,13 @@ env_params = {
         'env_kwargs.goal_high': [(0.05, 0.65, 0.02, 0.2, 0.7)],
         'env_kwargs.mocap_low': [(-0.1, 0.5, 0.)],
         'env_kwargs.mocap_high': [(0.1, 0.7, 0.5)],
-        'env_kwargs.reward_type': ['state_distance'], #['state_distance', 'vectorized_state_distance'],
+        'env_kwargs.reward_type': ['vectorized_state_distance'], #['state_distance', 'vectorized_state_distance'],
         'env_kwargs.norm_order': [1], #[1, 2],
-        'qf_kwargs.structure': ['norm_difference'], #['norm_difference', 'none'],
         'exploration_type': ['epsilon'], #['epsilon', 'gaussian'],
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
-        'algo_kwargs.base_kwargs.num_epochs': [300],
-        'algo_kwargs.tdm_kwargs.max_tau': [10, 20, 40], #[10, 20, 40], #[1, 10, 20, 40, 99],
-        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3], #[1e0, 1e2],
+        'algo_kwargs.base_kwargs.num_epochs': [200],
+        'algo_kwargs.tdm_kwargs.max_tau': [20], #[10, 20, 40], #[1, 10, 20, 40, 99],
+        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e2, 1e3], #[1e0, 1e2],
     },
 }
 

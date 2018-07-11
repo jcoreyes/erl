@@ -117,7 +117,6 @@ class TdmVf(FlattenMlp):
             vectorized,
             structure='norm_difference',
             observation_dim=None,
-            action_dim=None,
             goal_dim=None,
             norm_order=1,
             **kwargs
@@ -133,11 +132,6 @@ class TdmVf(FlattenMlp):
             self.observation_dim = env.observation_space.low.size
         else:
             self.observation_dim = observation_dim
-
-        if action_dim is None:
-            self.action_dim = env.action_space.low.size
-        else:
-            self.action_dim = action_dim
 
         if goal_dim is None:
             self.goal_dim = env.goal_dim

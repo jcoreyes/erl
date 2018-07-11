@@ -31,7 +31,7 @@ class TwinSAC(TorchRLAlgorithm):
             policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
 
-            train_policy_with_reparameterization=False,
+            train_policy_with_reparameterization=True,
             soft_target_tau=1e-2,
             policy_update_period=1,
             target_update_period=1,
