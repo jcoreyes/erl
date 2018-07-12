@@ -8,6 +8,7 @@ import os
 import redis
 import torch
 import railrl.torch.pytorch_util as ptu
+import math
 
 called_ray_init = False
 def try_init_ray():
@@ -130,7 +131,6 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             train_rollout_function,
             eval_rollout_function,
             num_workers=2,
-            dedicated_train=1,
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
@@ -163,14 +163,18 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         # Let self.worker_limits[True] be the max number of workers for training
         # and self.worker_limits[False] be the max number of workers for eval.
         self.worker_limits = {
-            True: dedicated_train,
-            False: self.num_workers - dedicated_train,
+            True: math.ceil(self.num_workers / 2),
+            False: math.ceil(self.num_workers / 2),
         }
 
-    def rollout(self, policy, train, epoch):
-        if len(self.promise_list[train]) < self.worker_limits[train]:
-            self._alloc_promise(policy, train, epoch)
+    def rollout(self, policy, train, epoch, discard_other=False):
+        # prevent starvation
+        if discard_other:
+            ready_promises, _ = ray.wait(self.promise_list[not train], timeout=0)
+            for promise in ready_promises:
+                self._free_promise(promise)
 
+        self._alloc_promise(policy, train, epoch)
         # Check if remote path has been collected.
         ready_promises, _ = ray.wait(self.promise_list[train], timeout=0)
         for promise in ready_promises:
@@ -184,6 +188,9 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         return None
 
     def _alloc_promise(self, policy, train, epoch):
+        if len(self.free_envs) == 0 or \
+           len(self.promise_list[train]) >= self.worker_limits[train]:
+            return
         policy_params = policy.get_param_values_np()
 
         free_env = self.free_envs.pop()

@@ -52,7 +52,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             # Remove env parameters
             sim_throttle=False,
             parallel_step_ratio=1,
-            parallel_eval=True,
             parallel_env_params=None,
 
             env_info_sizes=None,
@@ -153,7 +152,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
         self.parallel_step_ratio = parallel_step_ratio
         self.sim_throttle = sim_throttle
-        self.parallel_eval = parallel_eval
         self.parallel_env_params = parallel_env_params or {}
         self.init_rollout_function()
 
@@ -282,7 +280,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def train_parallel(self, start_epoch=0):
         try_init_ray()
-        self.parallel_env = RemoteRolloutEnv(
+        parallel_env = RemoteRolloutEnv(
             env=self.env,
             train_rollout_function=self.train_rollout_function,
             eval_rollout_function=self.eval_rollout_function,
@@ -297,7 +295,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         for epoch in range(start_epoch, self.num_epochs):
             self._start_epoch(epoch)
             should_gather_data = True
-            should_eval = self.parallel_eval
+            should_eval = True
             should_train = True
             last_epoch_policy.load_state_dict(self.policy.state_dict())
             eval_paths = []
@@ -307,9 +305,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
             while should_gather_data or should_eval  or should_train:
                 if should_gather_data:
-                    path = self.parallel_env.rollout(
+                    path = parallel_env.rollout(
                         self.exploration_policy,
                         train=True,
+                        discard_other=not should_eval,
                         epoch=epoch,
                     )
                     if path:
@@ -319,9 +318,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                         self._n_env_steps_total += path_length
                 if should_eval:
                     # label as epoch but actually evaluating previous epoch
-                    path = self.parallel_env.rollout(
+                    path = parallel_env.rollout(
                         last_epoch_policy,
                         train=False,
+                        discard_other=not should_gather_data,
                         epoch=epoch,
                     )
                     if path:
@@ -335,6 +335,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 should_gather_data &= \
                         n_env_steps_current_epoch < self.num_env_steps_per_epoch
                 should_eval &= n_eval_steps < self.num_steps_per_eval
+
                 if self.sim_throttle:
                     should_train &= self.parallel_step_ratio * n_train_steps < \
                         self.num_env_steps_per_epoch
