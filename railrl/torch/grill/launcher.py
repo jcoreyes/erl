@@ -7,7 +7,7 @@ import numpy as np
 
 import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
-from multiworld.core.image_env import ImageEnv
+from multiworld.core.image_env import ImageEnv, unormalize_image
 from railrl.core import logger
 from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
@@ -31,7 +31,6 @@ from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.td3.td3 import TD3
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-
 
 def full_experiment_variant_preprocess(variant):
     train_vae_variant = variant['train_vae_variant']
@@ -62,6 +61,7 @@ def grill_her_td3_full_experiment(variant):
 def grill_her_td3_online_vae_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
     train_vae_and_update_variant(variant)
+    variant['grill_variant']['save_vae_data'] = True
     if variant['double_algo']:
         grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
     else:
@@ -79,8 +79,9 @@ def train_vae_and_update_variant(variant):
             'vae_progress.csv', relative_to_snapshot_dir=True
         )
         vae, vae_train_data, vae_test_data = train_vae(train_vae_variant, return_data=True)
-        grill_variant['vae_train_data'] = vae_train_data
-        grill_variant['vae_test_data'] = vae_test_data
+        if grill_variant.get('save_vae_data', False):
+            grill_variant['vae_train_data'] = vae_train_data
+            grill_variant['vae_test_data'] = vae_test_data
         logger.save_extra_data(vae, 'vae.pkl', mode='pickle')
         logger.remove_tabular_output(
             'vae_progress.csv',
@@ -173,7 +174,7 @@ def generate_vae_dataset(
         env.reset()
         info['env'] = env
 
-        dataset = np.zeros((N, imsize * imsize * num_channels))
+        dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
         for i in range(N):
             if oracle_dataset:
                 goal = env.sample_goal()
@@ -184,7 +185,7 @@ def generate_vae_dataset(
                     obs = env.step(env.action_space.sample())[0]
             obs = env.step(env.action_space.sample())[0]
             img = obs['image_observation']
-            dataset[i, :] = img
+            dataset[i, :] = unormalize_image(img)
             if show:
                 img = img.reshape(3, 84, 84).transpose()
                 img = img[::-1, :, ::-1]
@@ -201,35 +202,40 @@ def generate_vae_dataset(
 
 
 def get_envs(variant):
-    env = variant["env_class"](**variant['env_kwargs'])
     render = variant["render"]
     vae_path = variant["vae_path"]
     reward_params = variant.get("reward_params", dict())
     init_camera = variant.get("init_camera", None)
     do_state_exp = variant.get("do_state_exp", False)
-    if not do_state_exp:
-        env = ImageEnv(
-            env,
-            84,
-            init_camera=init_camera,
-            transpose=True,
-            normalize=True,
-        )
 
-        env = VAEWrappedEnv(
-            env,
-            vae_path,
-            decode_goals=render,
-            render_goals=render,
-            render_rollouts=render,
-            reward_params=reward_params,
-            **variant.get('vae_wrapped_env_kwargs', {})
-        )
-    testing_env = pickle.loads(pickle.dumps(env))
-    training_env = pickle.loads(pickle.dumps(env))
-    relabeling_env = pickle.loads(pickle.dumps(env))
-    video_vae_env = pickle.loads(pickle.dumps(env))
-    video_goal_env = pickle.loads(pickle.dumps(env))
+    from railrl.envs.vae_wrappers import load_vae
+    vae = load_vae(vae_path) if type(vae_path) is str else vae_path
+    def create_env():
+        env = variant["env_class"](**variant['env_kwargs'])
+        if not do_state_exp:
+            env = ImageEnv(
+                env,
+                84,
+                init_camera=init_camera,
+                transpose=True,
+                normalize=True,
+            )
+
+            env = VAEWrappedEnv(
+                env,
+                vae,
+                decode_goals=render,
+                render_goals=render,
+                render_rollouts=render,
+                reward_params=reward_params,
+                **variant.get('vae_wrapped_env_kwargs', {})
+            )
+        return env
+    testing_env = create_env()
+    training_env = create_env()
+    relabeling_env = create_env()
+    video_vae_env = create_env()
+    video_goal_env = create_env()
     if not do_state_exp:
         training_mode = variant.get("training_mode", "train")
         testing_mode = variant.get("testing_mode", "test")

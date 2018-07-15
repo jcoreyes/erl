@@ -29,6 +29,8 @@ from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 import numpy as np
 from railrl.torch.core import PyTorchModule
 
+from multiworld.core.image_env import normalize_image
+
 e = MultitaskImagePoint2DEnv(render_size=84, render_onscreen=False, ball_radius=1)
 
 class ConvVAETrainer():
@@ -80,6 +82,9 @@ class ConvVAETrainer():
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
+        assert self.train_dataset.dtype == np.uint8
+        assert self.test_dataset.dtype == np.uint8
+
         self.normalize = normalize
         self.state_sim_debug = state_sim_debug
         self.mse_weight = mse_weight
@@ -92,7 +97,7 @@ class ConvVAETrainer():
     def get_batch(self, train=True):
         dataset = self.train_dataset if train else self.test_dataset
         ind = np.random.randint(0, len(dataset), self.batch_size)
-        samples = dataset[ind, :]
+        samples = normalize_image(dataset[ind, :])
         if self.normalize:
             samples = ((samples - self.train_data_mean) + 1) / 2
         return ptu.np_to_var(samples)
