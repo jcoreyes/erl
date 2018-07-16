@@ -70,6 +70,8 @@ class TdmTwinSAC(TemporalDifferenceModel, TwinSAC):
                                      reparameterize=self.train_policy_with_reparameterization,
                                      return_log_prob=True)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
+        if not self.dense_rewards:
+            log_pi = log_pi * terminals
 
         """
         QF Loss

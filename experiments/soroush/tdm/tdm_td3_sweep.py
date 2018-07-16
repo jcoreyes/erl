@@ -76,9 +76,10 @@ env_params = {
         'env_kwargs.norm_order': [1], #[1, 2],
         'exploration_type': ['epsilon'], #['epsilon', 'gaussian'],
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
-        'algo_kwargs.base_kwargs.num_epochs': [200],
-        'algo_kwargs.tdm_kwargs.max_tau': [20], #[10, 20, 40], #[1, 10, 20, 40, 99],
+        'algo_kwargs.base_kwargs.num_epochs': [250], #[300],
+        'algo_kwargs.tdm_kwargs.max_tau': [20], #[80, 99], #[1, 10, 20, 40, 99],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e2, 1e3], #[1e0, 1e2],
+        'algo_kwargs.tdm_kwargs.dense_rewards': [False],
     },
 }
 

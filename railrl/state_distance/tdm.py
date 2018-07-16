@@ -140,6 +140,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         rewards = batch['rewards']
         terminals = batch['terminals']
 
+
         if self.tau_sample_strategy == 'all_valid':
             obs = np.repeat(obs, self.max_tau + 1, 0)
             actions = np.repeat(actions, self.max_tau + 1, 0)

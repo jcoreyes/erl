@@ -27,9 +27,11 @@ from railrl.state_distance.tdm_td3 import TdmTd3
 from railrl.state_distance.tdm_twin_sac import TdmTwinSAC
 from railrl.torch.grill.video_gen import dump_video
 from railrl.torch.her.her_td3 import HerTd3
+from railrl.torch.her.her_twin_sac import HerTwinSAC
 from railrl.torch.her.online_vae_her_td3 import OnlineVaeHerTd3
 from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.td3.td3 import TD3
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 
@@ -336,6 +338,94 @@ def grill_her_td3_experiment(variant):
         qf2=qf2,
         policy=policy,
         exploration_policy=exploration_policy,
+        **variant['algo_kwargs']
+    )
+
+    if ptu.gpu_enabled():
+        print("using GPU")
+        algorithm.cuda()
+        if not variant.get("do_state_exp", False):
+            for e in [testing_env, training_env, video_vae_env, video_goal_env,
+                      relabeling_env]:
+                e.vae.cuda()
+
+    algorithm.train()
+
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        policy.train(False)
+
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+
+        filename = osp.join(logdir, 'video_final_env.mp4')
+        dump_video(video_goal_env, policy, filename, rollout_function)
+        filename = osp.join(logdir, 'video_final_vae.mp4')
+        dump_video(video_vae_env, policy, filename, rollout_function)
+
+
+def grill_her_twin_sac_experiment(variant):
+    grill_preprocess_variant(variant)
+    testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
+        get_envs(variant)
+    )
+
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    obs_dim = (
+        training_env.observation_space.spaces[observation_key].low.size
+        + training_env.observation_space.spaces[desired_goal_key].low.size
+    )
+    action_dim = training_env.action_space.low.size
+    qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    vf = FlattenMlp(
+        input_size=obs_dim,
+        output_size=1,
+        **variant['vf_kwargs']
+    )
+    policy = TanhGaussianPolicy(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        **variant['policy_kwargs']
+    )
+
+    replay_buffer = ObsDictRelabelingBuffer(
+        env=relabeling_env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_kwargs']
+    )
+
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['replay_buffer'] = replay_buffer
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = training_env
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
+    her_kwargs = algo_kwargs['her_kwargs']
+    her_kwargs['observation_key'] = observation_key
+    her_kwargs['desired_goal_key'] = desired_goal_key
+    algorithm = HerTwinSAC(
+        testing_env,
+        qf1=qf1,
+        qf2=qf2,
+        vf=vf,
+        policy=policy,
         **variant['algo_kwargs']
     )
 
