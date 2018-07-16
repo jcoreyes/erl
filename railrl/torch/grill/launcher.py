@@ -38,25 +38,25 @@ from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 
 def grill_tdm_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    generate_and_train_vae(variant)
+    train_vae_and_update_variant(variant)
     grill_tdm_td3_experiment(variant['grill_variant'])
 
 
 def grill_tdm_twin_sac_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    generate_and_train_vae(variant)
+    train_vae_and_update_variant(variant)
     grill_tdm_twin_sac_experiment(variant['grill_variant'])
 
 
 def grill_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    generate_and_train_vae(variant)
+    train_vae_and_update_variant(variant)
     grill_her_td3_experiment(variant['grill_variant'])
 
 
 def grill_her_td3_online_vae_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    generate_and_train_vae(variant)
+    train_vae_and_update_variant(variant)
     if variant['double_algo']:
         grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
     else:
@@ -77,7 +77,7 @@ def full_experiment_variant_preprocess(variant):
     grill_variant['init_camera'] = init_camera
 
 
-def generate_and_train_vae(variant):
+def train_vae_and_update_variant(variant):
     grill_variant = variant['grill_variant']
     train_vae_variant = variant['train_vae_variant']
     if grill_variant.get('vae_path', None) is None:
