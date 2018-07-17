@@ -13,7 +13,7 @@ from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
 from railrl.data_management.online_vae_replay_buffer import \
     OnlineVaeRelabelingBuffer
-from railrl.envs.vae_wrappers import VAEWrappedEnv
+from railrl.envs.vae_wrappers import VAEWrappedEnv, temporary_mode
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
@@ -231,22 +231,17 @@ def get_envs(variant):
                 **variant.get('vae_wrapped_env_kwargs', {})
             )
         return env
-    testing_env = create_env()
-    training_env = create_env()
-    relabeling_env = create_env()
-    video_vae_env = create_env()
-    video_goal_env = create_env()
+    env = create_env()
     if not do_state_exp:
         training_mode = variant.get("training_mode", "train")
         testing_mode = variant.get("testing_mode", "test")
-        testing_env.mode(testing_mode)
-        training_env.mode(training_mode)
-        relabeling_env.mode(training_mode)
-        relabeling_env.disable_render()
-        video_vae_env.mode("video_vae")
-        video_goal_env.mode("video_env")
-    return testing_env, training_env, relabeling_env, video_vae_env, \
-           video_goal_env
+        env.add_mode('eval', testing_mode)
+        env.add_mode('train', training_mode)
+        env.add_mode('relabeling', training_mode)
+        # relabeling_env.disable_render()
+        env.add_mode("video_vae", 'video_vae')
+        env.add_mode("video_env", 'video_env')
+    return env
 
 
 def get_exploration_strategy(variant, env):
@@ -279,19 +274,17 @@ def grill_preprocess_variant(variant):
 
 def grill_her_td3_experiment(variant):
     grill_preprocess_variant(variant)
-    testing_env, training_env, relabeling_env, video_vae_env, video_goal_env = (
-        get_envs(variant)
-    )
-    es = get_exploration_strategy(variant, training_env)
+    env = get_envs(variant)
+    es = get_exploration_strategy(variant, env)
 
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     obs_dim = (
-        training_env.observation_space.spaces[observation_key].low.size
-        + training_env.observation_space.spaces[desired_goal_key].low.size
+        env.observation_space.spaces[observation_key].low.size
+        + env.observation_space.spaces[desired_goal_key].low.size
     )
-    action_dim = training_env.action_space.low.size
+    action_dim = env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
@@ -314,7 +307,7 @@ def grill_her_td3_experiment(variant):
     )
 
     replay_buffer = ObsDictRelabelingBuffer(
-        env=relabeling_env,
+        env=env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
@@ -323,8 +316,8 @@ def grill_her_td3_experiment(variant):
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     render = variant["render"]
     algorithm = HerTd3(
-        testing_env,
-        training_env=training_env,
+        env,
+        training_env=env,
         qf1=qf1,
         qf2=qf2,
         policy=policy,
@@ -340,25 +333,27 @@ def grill_her_td3_experiment(variant):
         print("using GPU")
         algorithm.cuda()
         if not variant.get("do_state_exp", False):
-            for e in [testing_env, training_env, video_vae_env, video_goal_env,
-                      relabeling_env]:
-                e.vae.cuda()
+            env.vae.cuda()
 
     algorithm.train()
 
     if variant.get("save_video", True):
         logdir = logger.get_snapshot_dir()
         policy.train(False)
-        filename = osp.join(logdir, 'video_final_env.mp4')
         rollout_function = rf.create_rollout_function(
             rf.multitask_rollout,
             max_path_length=algorithm.max_path_length,
             observation_key=algorithm.observation_key,
             desired_goal_key=algorithm.desired_goal_key,
         )
-        dump_video(video_goal_env, policy, filename, rollout_function)
-        filename = osp.join(logdir, 'video_final_vae.mp4')
-        dump_video(video_vae_env, policy, filename, rollout_function)
+        def save_video(epoch):
+            filename = osp.join(logdir, 'video_{epoch}_env.mp4'.format(epoch=epoch))
+            temporary_mode(env, 'video_env', func=dump_video, args=(env, policy, filename, rollout_function))
+            # dump_video(video_goal_env, policy, filename, rollout_function)
+            filename = osp.join(logdir, 'video_{epoch}_vae.mp4'.format(epoch=epoch))
+            # dump_video(video_vae_env, policy, filename, rollout_function)
+            temporary_mode(env, 'video_vae', func=dump_video, args=(env, policy, filename, rollout_function))
+        algorithm.post_epoch_funcs.append(save_video)
 
 
 def grill_tdm_td3_experiment(variant):

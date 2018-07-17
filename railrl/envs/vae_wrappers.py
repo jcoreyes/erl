@@ -81,6 +81,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self._vw_goal_img_decoded = None
         self.mode(mode)
 
+        self._mode_map = {}
+
         self._presampled_goals = None
 
     @property
@@ -107,6 +109,27 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.render_decoded = False
         else:
             raise ValueError("Invalid mode: {}".format(name))
+        self.cur_mode = name
+
+    def add_mode(mode, name):
+        assert mode in ['train',
+                        'eval',
+                        'video_vae',
+                        'video_env',
+                        'relabeling']
+        assert name in ['train',
+                        'train_env_goals',
+                        'test',
+                        'video_vae',
+                        'video_env']
+        assert mode not in self._mode_map
+        self._mode_map[mode] = name
+
+    def train(self):
+        self.mode(self._mode_map['train'])
+
+    def test(self):
+        self.mode(self._mode_map['test'])
 
     @property
     def goal_dim(self):
@@ -339,3 +362,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
             return self.wrapped_env.compute_rewards(actions, obs)
         else:
             raise NotImplementedError
+
+def temporary_mode(env, type, func, *args, **kwargs):
+    cur_type = env.cur_mode
+    env.mode(env._mode_map[type])
+    env.func(*args, **kwargs)
+    env.mode(cur_type)

@@ -18,6 +18,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.epoch = 0
 
     def _post_epoch(self, epoch):
+        super._post_epoch(epoch)
         should_train, amount_to_train = self.vae_training_schedule(epoch)
         if should_train:
             self.vae.train()

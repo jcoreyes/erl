@@ -28,3 +28,7 @@ def gym_env(name):
                   record_video=False,
                   log_dir='/tmp/gym-test',  # Ignore gym log.
                   record_log=False)
+
+def mode(env, mode_type):
+    if env.hasattr(mode_type):
+        env.mode_type()
