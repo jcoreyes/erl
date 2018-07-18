@@ -2,7 +2,7 @@ import numpy as np
 from gym.spaces import Dict
 
 from railrl.data_management.replay_buffer import ReplayBuffer
-
+from multiworld.core.image_env import unormalize_image
 
 class ObsDictRelabelingBuffer(ReplayBuffer):
     """
@@ -69,9 +69,13 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 ob_keys_to_save.append(key)
         for key in ob_keys_to_save:
             assert key in self.ob_spaces
-            self._obs[key] = np.zeros((max_size, self.ob_spaces[key].low.size))
+            type = np.float64
+            if key.startswith('image'):
+                type = np.uint8
+            self._obs[key] = np.zeros(
+                (max_size, self.ob_spaces[key].low.size), dtype=type)
             self._next_obs[key] = np.zeros(
-                (max_size, self.ob_spaces[key].low.size))
+                (max_size, self.ob_spaces[key].low.size), dtype=type)
 
         self._top = 0
         self._size = 0
@@ -120,8 +124,15 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 self._actions[buffer_slice] = actions[path_slice]
                 self._terminals[buffer_slice] = terminals[path_slice]
                 for key in self.ob_keys_to_save:
-                    self._obs[key][buffer_slice] = obs[key][path_slice]
-                    self._next_obs[key][buffer_slice] = next_obs[key][path_slice]
+                    if key.startswith('image'):
+                        if key.endswith('observation'):
+                            self._obs[key][buffer_slice] = \
+                                    unormalize_image(obs[key][path_slice])
+                        self._next_obs[key][buffer_slice] = \
+                                unormalize_image(next_obs[key][path_slice])
+                    else:
+                        self._obs[key][buffer_slice] = obs[key][path_slice]
+                        self._next_obs[key][buffer_slice] = next_obs[key][path_slice]
             # Pointers from before the wrap
             for i in range(self._top, self.max_size):
                 self._idx_to_future_obs_idx[i] = np.hstack((
@@ -141,7 +152,14 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             self._actions[slc] = actions
             self._terminals[slc] = terminals
             for key in self.ob_keys_to_save:
-                self._obs[key][slc] = obs[key]
+                assign_obs = True
+                if key.startswith('image'):
+                    if not key.endswith('observation'):
+                        assign_obs = False
+                    obs[key] = unormalize_image(obs[key])
+                    next_obs[key] = unormalize_image(next_obs[key])
+                if assign_obs:
+                    self._obs[key][slc] = obs[key]
                 self._next_obs[key][slc] = next_obs[key]
             for i in range(self._top, self._top + path_len):
                 self._idx_to_future_obs_idx[i] = np.arange(
@@ -198,7 +216,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
 
         new_obs = new_obs_dict[self.observation_key]
         new_next_obs = new_next_obs_dict[self.observation_key]
-
+        # TODO: Normalize images again
         batch = {
             'observations': new_obs,
             'actions': new_actions,

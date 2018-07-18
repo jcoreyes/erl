@@ -13,6 +13,7 @@ class OnlineVaeHerTd3(OnlineVaeAlgorithm, HerTd3):
         *algo_args,
         vae_save_period=1,
         vae_training_schedule=vae_schedules.never_train,
+        oracle_data=False,
 
         **algo_kwargs
     ):
@@ -21,7 +22,8 @@ class OnlineVaeHerTd3(OnlineVaeAlgorithm, HerTd3):
             vae,
             vae_trainer,
             vae_save_period=vae_save_period,
-            vae_training_schedule=vae_training_schedule
+            vae_training_schedule=vae_training_schedule,
+            oracle_data=oracle_data,
         )
         HerTd3.__init__(self, *algo_args, **algo_kwargs)
 

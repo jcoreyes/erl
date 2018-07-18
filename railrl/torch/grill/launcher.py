@@ -59,9 +59,9 @@ def grill_her_td3_full_experiment(variant):
 
 
 def grill_her_td3_online_vae_full_experiment(variant):
+    variant['grill_variant']['save_vae_data'] = True
     full_experiment_variant_preprocess(variant)
     train_vae_and_update_variant(variant)
-    variant['grill_variant']['save_vae_data'] = True
     if variant['double_algo']:
         grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
     else:
@@ -92,16 +92,28 @@ def train_vae_and_update_variant(variant):
             relative_to_snapshot_dir=True,
         )
         grill_variant['vae_path'] = vae  # just pass the VAE directly
-
+    else:
+        if grill_variant.get('save_vae_data', False):
+            vae_train_data, vae_test_data, info = generate_vae_dataset(
+                    **train_vae_variant['generate_vae_dataset_kwargs']
+            )
+            grill_variant['vae_train_data'] = vae_train_data
+            grill_variant['vae_test_data'] = vae_test_data
 
 def train_vae(variant, return_data=False):
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
     beta = variant["beta"]
     representation_size = variant["representation_size"]
-    train_data, test_data, info = generate_vae_dataset(
-        **variant['generate_vae_dataset_kwargs']
-    )
+    if variant.get('generate_vae_data_fctn') is not None:
+        generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn', generate_vae_dataset)
+        train_data, test_data, info = generate_vae_dataset_fctn(
+            **variant['generate_vae_dataset_kwargs']
+        )
+    else:
+        train_data, test_data, info = generate_vae_dataset(
+            **variant['generate_vae_dataset_kwargs']
+        )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
     if 'beta_schedule_kwargs' in variant:
@@ -498,7 +510,6 @@ def grill_her_td3_experiment_online_vae(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        exploration_rewards_type=variant.get('vae_exploration_rewards_type', 'None'),
         **variant['replay_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
@@ -529,7 +540,6 @@ def grill_her_td3_experiment_online_vae(variant):
         print("using GPU")
         algorithm.cuda()
         vae.cuda()
-        env.decode_goals = True
     if variant.get("save_video", True):
         logdir = logger.get_snapshot_dir()
         rollout_function = rf.create_rollout_function(
@@ -608,7 +618,6 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        exploration_rewards_type=variant['vae_exploration_rewards_type'],
         **variant['replay_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
@@ -659,7 +668,6 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         print("using GPU")
         algorithm.cuda()
         vae.cuda()
-        env.decode_goals = True
     if variant.get("save_video", True):
         logdir = logger.get_snapshot_dir()
         policy.train(False)
