@@ -202,6 +202,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         ):
             self._start_epoch(epoch)
             env_utils.mode(self.training_env, 'train')
+            self.training_env.reset()
             for step in range(self.num_env_steps_per_epoch):
                 action, agent_info = self._get_action_and_info(
                     observation,
@@ -238,7 +239,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 gt.stamp('sample')
                 self._try_to_train()
                 gt.stamp('train')
-            env_utils.mode(self.testing_env, 'eval')
+            env_utils.mode(self.env, 'eval')
             self._try_to_eval(epoch)
             gt.stamp('eval')
             self._post_epoch(epoch)
@@ -505,7 +506,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def _post_epoch(self, epoch):
         for post_epoch_func in self.post_epoch_funcs:
-            self.post_epoch_func(epoch)
+            post_epoch_func(self, epoch)
 
     def _post_step(self, step):
         pass
