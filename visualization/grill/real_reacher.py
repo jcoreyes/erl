@@ -1,13 +1,17 @@
+import matplotlib
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
     vitchyr_base_dir,
     format_func,
     our_method_name,
+    configure_matplotlib,
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
 from railrl.misc import data_processing as dp
+
+configure_matplotlib(matplotlib)
 
 # f = plot.filter_by_flat_params({'algorithm': 'Ours'})
 ours = plot.load_exps([ashvin_base_dir + "s3doodad/share/real-reacher/ours"],
@@ -27,7 +31,7 @@ plot.comparison(
     ours + her + oracle,
     "Test Final End Effector Distance from Target Mean",
     vary=["name"],
-    ylim=(0.0, 0.5),
+    ylim=(0.0, 0.35),
     xlim=(0, 10000),
     method_order=[2, 0, 1],
     figsize=(6, 5),
@@ -35,7 +39,12 @@ plot.comparison(
 plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 plt.ylabel("Final Distance to Goal")
 plt.title("Real-World Visual Reacher")
-leg = plt.legend([our_method_name, "HER", "Oracle"])
+leg = plt.legend([our_method_name, "HER", "Oracle"],
+    bbox_to_anchor=(0.49, -0.2),
+    loc="upper center",
+    ncol=4,
+    handlelength=1,
+)
 leg.get_frame().set_alpha(0.9)
 plt.tight_layout()
 plt.savefig(output_dir + "real_reacher.pdf")
