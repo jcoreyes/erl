@@ -56,6 +56,11 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.decode_goals = decode_goals
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
+        self.default_kwargs=dict(
+            decode_goals=decode_goals,
+            render_goals=render_goals,
+            render_rollouts=render_rollouts,
+        )
         self.imsize = imsize
         self.num_goals_presampled = num_goals_presampled
 
@@ -80,10 +85,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self._vw_goal_img = None
         self._vw_goal_img_decoded = None
         self.mode(mode)
+        self._presampled_goals = None
 
         self._mode_map = {}
-
-        self._presampled_goals = None
 
     @property
     def use_vae_goals(self):
@@ -92,10 +96,19 @@ class VAEWrappedEnv(ProxyEnv, Env):
     def mode(self, name):
         if name == "train":
             self._use_vae_goals = True
+            self.decode_goals = self.default_kwargs['decode_goals']
+            self.render_goals = self.default_kwargs['render_goals']
+            self.render_rollouts = self.default_kwargs['render_rollouts']
         elif name == "train_env_goals":
             self._use_vae_goals = False
+            self.decode_goals = self.default_kwargs['decode_goals']
+            self.render_goals = self.default_kwargs['render_goals']
+            self.render_rollouts = self.default_kwargs['render_rollouts']
         elif name == "test":
             self._use_vae_goals = False
+            self.decode_goals = self.default_kwargs['decode_goals']
+            self.render_goals = self.default_kwargs['render_goals']
+            self.render_rollouts = self.default_kwargs['render_rollouts']
         elif name == "video_vae":
             self._use_vae_goals = True
             self.decode_goals = True
@@ -111,25 +124,25 @@ class VAEWrappedEnv(ProxyEnv, Env):
             raise ValueError("Invalid mode: {}".format(name))
         self.cur_mode = name
 
-    def add_mode(mode, name):
-        assert mode in ['train',
+    def add_mode(self, env_type, mode):
+        assert env_type in ['train',
                         'eval',
                         'video_vae',
                         'video_env',
                         'relabeling']
-        assert name in ['train',
+        assert mode in ['train',
                         'train_env_goals',
                         'test',
                         'video_vae',
                         'video_env']
-        assert mode not in self._mode_map
-        self._mode_map[mode] = name
+        assert env_type not in self._mode_map
+        self._mode_map[env_type] = mode
 
     def train(self):
         self.mode(self._mode_map['train'])
 
-    def test(self):
-        self.mode(self._mode_map['test'])
+    def eval(self):
+        self.mode(self._mode_map['eval'])
 
     @property
     def goal_dim(self):
@@ -363,8 +376,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
         else:
             raise NotImplementedError
 
-def temporary_mode(env, type, func, *args, **kwargs):
+def temporary_mode(env, mode, func, args=None, kwargs=None):
+    if args is None:
+        args = []
+    if kwargs is None:
+        kwargs = {}
     cur_type = env.cur_mode
-    env.mode(env._mode_map[type])
-    env.func(*args, **kwargs)
+    env.mode(env._mode_map[mode])
+    func(*args, **kwargs)
     env.mode(cur_type)

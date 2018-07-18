@@ -238,7 +238,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 gt.stamp('sample')
                 self._try_to_train()
                 gt.stamp('train')
-            env_utils.mode(self.testing_env, 'eval')
+            env_utils.mode(self.env, 'eval')
             self._try_to_eval(epoch)
             gt.stamp('eval')
             self._post_epoch(epoch)
@@ -505,7 +505,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def _post_epoch(self, epoch):
         for post_epoch_func in self.post_epoch_funcs:
-            self.post_epoch_func(epoch)
+            post_epoch_func(self, epoch)
 
     def _post_step(self, step):
         pass

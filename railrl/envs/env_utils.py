@@ -30,5 +30,7 @@ def gym_env(name):
                   record_log=False)
 
 def mode(env, mode_type):
-    if env.hasattr(mode_type):
-        env.mode_type()
+    try:
+        getattr(env, mode_type)()
+    except AttributeError:
+        pass

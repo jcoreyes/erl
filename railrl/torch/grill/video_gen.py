@@ -59,7 +59,8 @@ def dump_video(
         dirname_to_save_images=None,
         subdirname="rollouts",
 ):
-    num_channels = env.vae.input_channels
+    # num_channels = env.vae.input_channels
+    num_channels = 1 if env.grayscale else 3
     frames = []
     N = ROWS * COLUMNS
     for i in range(N):
