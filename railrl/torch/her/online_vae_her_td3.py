@@ -28,3 +28,8 @@ class OnlineVaeHerTd3(OnlineVaeAlgorithm, HerTd3):
         HerTd3.__init__(self, *algo_args, **algo_kwargs)
 
         assert isinstance(self.replay_buffer, OnlineVaeRelabelingBuffer)
+
+    @property
+    def networks(self):
+        return HerTd3.networks.fget(self) + \
+               OnlineVaeAlgorithm.networks.fget(self)

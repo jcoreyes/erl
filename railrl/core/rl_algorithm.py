@@ -47,6 +47,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=True,
+            save_networks=False,
 
             # Remove env parameters
             sim_throttle=False,
@@ -108,6 +109,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
+        self.save_networks = save_networks
         if min_num_steps_before_training is None:
             min_num_steps_before_training = self.num_env_steps_per_epoch
         self.min_num_steps_before_training = min_num_steps_before_training

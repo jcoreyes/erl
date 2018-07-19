@@ -22,3 +22,10 @@ class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def cuda(self):
         for net in self.networks:
             net.cuda()
+
+    def get_extra_data_to_save(self, epoch):
+        data_to_save = super().get_extra_data_to_save(epoch)
+        if self.save_networks:
+            data_to_save['networks'] = self.networks
+        return data_to_save
+

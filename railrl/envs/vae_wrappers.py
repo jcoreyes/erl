@@ -5,7 +5,6 @@ from gym import Env
 from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
 from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
-from multiworld.envs.mujoco.sawyer_reach_torque.generate_goal_data_set import generate_goal_data_set
 from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.asset_loader import sync_down
 
@@ -40,14 +39,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         reward_params=None,
         mode="train",
         imsize=84,
-        use_goal_caching=False,
-        cached_goal_generation_function=generate_goal_data_set,
-        num_cached_goals=100,
-        cached_goal_keys=None,
-        goal_sizes=None,
-        obs_to_goal_fctns=None,
-        observation_keys=None,
-        use_cached_dataset=False,
         num_goals_presampled=0,
     ):
         self.quick_init(locals())
@@ -58,8 +49,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_vae(vae)
         else:
             self.vae = vae
-        if ptu.gpu_enabled():
-            vae.cuda()
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self._use_vae_goals = use_vae_goals
@@ -92,27 +81,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         spaces['latent_desired_goal'] = latent_space
         spaces['latent_achieved_goal'] = latent_space
         self.observation_space = Dict(spaces)
-        self._latent_goal = np.random.uniform(0, 1, self.representation_size)
+        self._latent_goal = None
         self._vw_goal_img = None
         self._vw_goal_img_decoded = None
-        self.use_goal_caching = use_goal_caching
-        self.num_cached_goals = num_cached_goals
-        if self.use_goal_caching:
-            # hardcoded for torque control for now
-            self.wrapped_env._img_goal=np.random.uniform(0, 1, self.image_length)
-            cached_goal_keys = ['latent_desired_goal', 'image_desired_goal', 'state_desired_goal', 'joint_desired_goal']
-            goal_sizes = [self.representation_size, (self.imsize ** 2) * 3, 3, 7]
-            obs_to_goal_fctns = [lambda x: x, lambda x: x, lambda x: x[-3:], lambda x: x[:7]]
-            observation_keys = ['latent_observation', 'image_observation', 'state_observation', 'state_observation']
-            goal_generation_dict = dict()
-            for goal_key, goal_size, obs_to_goal_fctn, obs_key in zip(cached_goal_keys, goal_sizes, obs_to_goal_fctns,
-                                                                      observation_keys):
-                goal_generation_dict[goal_key] = [goal_size, obs_to_goal_fctn, obs_key]
-            self.goals = cached_goal_generation_function(self, goal_generation_dict=goal_generation_dict, num_goals=num_cached_goals, use_cached_dataset=use_cached_dataset)
-            self.goals['desired_goal'] = self.goals['latent_desired_goal']
-            self._wrapped_env._wrapped_env.goals = self.goals
-            self._wrapped_env._wrapped_env.use_goal_caching = True
-
         self.mode(mode)
         self._presampled_goals = None
 
@@ -249,16 +220,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self._vw_goal_img = goal_img
             self._vw_goal_img_decoded = goal_img
         else:
-            if self.use_goal_caching:
-                idx = np.random.randint(0, self.num_cached_goals)
-                self._latent_goal = self.goals['latent_desired_goal'][idx]
-                self._wrapped_env._wrapped_env._state_goal = self.goals['state_desired_goal'][idx]
-                self._wrapped_env._wrapped_env._goal_angles = self.goals['joint_desired_goal'][idx]
-                self._wrapped_env._img_goal = self.goals['image_desired_goal'][idx]
-                for key in self.goals.keys():
-                    obs[key] = self.goals[key][idx]
-            else:
-                self._latent_goal = self._encode_one(obs['image_desired_goal'])
+            self._latent_goal = self._encode_one(obs['image_desired_goal'])
             if self.decode_goals:
                 self._vw_goal_img_decoded = self._decode(self._latent_goal[None])[0]
         self._vw_goal_img = obs['image_desired_goal']
@@ -321,12 +283,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return goal
 
     def sample_goals(self, batch_size, force_resample=False):
-        if self.use_goal_caching and not self.use_vae_goals:
-            idxs = np.random.randint(0, self.num_cached_goals, batch_size)
-            goals = dict()
-            for key in self.goals.keys():
-                goals[key] = self.goals[key][idxs]
-        elif (
+        if (
             not force_resample
             and batch_size > 1
             and self.num_goals_presampled > 0
@@ -424,7 +381,8 @@ def temporary_mode(env, mode, func, args=None, kwargs=None):
         args = []
     if kwargs is None:
         kwargs = {}
-    cur_type = env.cur_mode
+    cur_mode = env.cur_mode
     env.mode(env._mode_map[mode])
-    func(*args, **kwargs)
-    env.mode(cur_type)
+    return_val = func(*args, **kwargs)
+    env.mode(cur_mode)
+    return return_val

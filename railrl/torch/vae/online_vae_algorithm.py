@@ -65,3 +65,6 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         if epoch % self.vae_save_period == 0:
             self.vae_trainer.dump_samples(epoch)
 
+    @property
+    def networks(self):
+        return [self.vae]
