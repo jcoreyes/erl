@@ -62,7 +62,6 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
 
     def random_batch(self, batch_size):
         batch = super().random_batch(batch_size)
-
         batch_idxs = batch['indices'].flatten()
         vae_obs = self._next_obs[self.vae_obs_key][batch_idxs]
         batch['exploration_rewards'] = self._exploration_rewards[batch_idxs]
@@ -110,7 +109,6 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         if np.sum(self.vae_probs) != 0.0:
             self.vae_probs /= np.sum(self.vae_probs)
         self.vae_probs = self.vae_probs.flatten()
-        print(self.vae_probs.mean(), self.vae_probs.max(), self.total_exploration_error)
 
     def random_vae_training_data(self, batch_size):
         indices = self._sample_indices(batch_size)

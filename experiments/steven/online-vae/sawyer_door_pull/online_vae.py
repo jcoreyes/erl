@@ -13,23 +13,24 @@ if __name__ == "__main__":
 #    mode = 'local'
 #    exp_prefix = 'test'
 
-    n_seeds = 2
+    n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'sawyer-door-pull-open-offline-pretrained'
+    exp_prefix = 'sawyer-door-pull-open-online-vae-oracle-sweep-fixed-schedule'
 
     grill_variant = dict(
         online_vae_beta=2.5,
         save_video=True,
         save_video_period=25,
         algo_kwargs=dict(
-            num_epochs=4000,
+            num_epochs=2000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
             max_path_length=200,
             discount=0.99,
             min_num_steps_before_training=5000,
-            # vae_training_schedule=vae_schedules.every_three,
+            num_updates_per_env_step=2,
+            vae_training_schedule=vae_schedules.every_three,
             # collection_mode='online-parallel',
             # parallel_env_params=dict(
                 # num_workers=2,
@@ -37,7 +38,7 @@ if __name__ == "__main__":
 
         ),
         replay_kwargs=dict(
-            max_size=int(25000),
+            max_size=int(40000),
             fraction_goals_are_rollout_goals=.2,
             fraction_resampled_goals_are_env_goals=.5,
             alpha=3,
@@ -64,7 +65,7 @@ if __name__ == "__main__":
     train_vae_variant = dict(
         generate_vae_data_fctn=generate_vae_dataset,
         beta=5,
-        num_epochs=500,
+        num_epochs=0,
         algo_kwargs=dict(
             batch_size=256,
         ),
@@ -103,12 +104,12 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        # 'grill_variant.algo_kwargs.oracle_data': [True, False],
-        # 'grill_variant.replay_kwargs.alpha': [0, 1, 10],
-        'train_vae_variant.representation_size': [6, 16],
+        'grill_variant.algo_kwargs.oracle_data': [True, False],
+        'grill_variant.replay_kwargs.alpha': [0, 1, 2],
+        'train_vae_variant.representation_size': [6],
         'grill_variant.training_mode': ['train'],
-        'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],
-        'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
+        # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],
+        # 'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
 
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

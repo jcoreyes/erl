@@ -14,9 +14,9 @@ if __name__ == "__main__":
 #    mode = 'local'
 #    exp_prefix = 'test'
 
-    n_seeds = 2
+    n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'sawyer-door-push-open-oracle-sweep'
+    exp_prefix = 'sawyer-door-push-open-online-vae-oracle-sweep-2'
 
     grill_variant = dict(
         online_vae_beta=2.5,
@@ -31,6 +31,7 @@ if __name__ == "__main__":
             discount=0.99,
             min_num_steps_before_training=5000,
             vae_training_schedule=vae_schedules.every_three,
+            num_updates_per_env_step=2,
             # collection_mode='online-parallel',
             # parallel_env_params=dict(
                 # num_workers=2,
@@ -38,7 +39,7 @@ if __name__ == "__main__":
 
         ),
         replay_kwargs=dict(
-            max_size=int(2e4),
+            max_size=40000,
             fraction_goals_are_rollout_goals=.2,
             fraction_resampled_goals_are_env_goals=.5,
             alpha=3,
@@ -80,8 +81,8 @@ if __name__ == "__main__":
             # show=False,
             # # test_p=.9,
             # num_channels=3,
-            N=2500,
-            test_p=.8,
+            N=5000,
+            # test_p=.8,
             use_cached=False,
             action_plus_random_sampling=True,
         ),
@@ -100,11 +101,11 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.algo_kwargs.oracle_data': [True, False],
-        'grill_variant.replay_kwargs.alpha': [0, 1, 10],
-        'train_vae_variant.representation_size': [16],
+        'grill_variant.replay_kwargs.alpha': [0, 1, 2],
+        'train_vae_variant.representation_size': [6],
         'grill_variant.training_mode': ['train'],
-        'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [0.0, .5, 1],
-        'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
+        # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [0.0, .5, 1],
+        # 'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         # 'grill_variant.replay_kwargs.alpha': [50, 10, 5, 3, 1],
         # 'grill_variant.algo_kwargs.hard_restart_period': [20000],
     }

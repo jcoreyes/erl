@@ -147,9 +147,10 @@ class ConvVAETrainer():
                 loss = bce + beta * kle + sim_loss*self.mse_weight
                 loss.backward()
             else:
-                data = self.get_batch()
                 if sample_batch is not None:
                     data = sample_batch(self.batch_size)
+                else:
+                    data = self.get_batch()
                 self.optimizer.zero_grad()
                 recon_batch, mu, logvar = self.model(data)
                 bce = self.logprob(recon_batch, data, mu, logvar)
