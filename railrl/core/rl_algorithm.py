@@ -204,6 +204,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         ):
             self._start_epoch(epoch)
             env_utils.mode(self.training_env, 'train')
+            self.training_env.reset()
             for step in range(self.num_env_steps_per_epoch):
                 action, agent_info = self._get_action_and_info(
                     observation,

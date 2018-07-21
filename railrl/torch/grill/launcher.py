@@ -362,7 +362,6 @@ def grill_her_td3_experiment(variant):
             desired_goal_key=algorithm.desired_goal_key,
         )
         video_func = get_video_save_func(
-            algorithm,
             rollout_function,
             env,
             policy,
@@ -462,7 +461,6 @@ def grill_tdm_td3_experiment(variant):
         algorithm.cuda()
         if not variant.get("do_state_exp", False):
             env.vae.cuda()
-
     if variant.get("save_video", True):
         logdir = logger.get_snapshot_dir()
         policy.train(False)
@@ -474,7 +472,6 @@ def grill_tdm_td3_experiment(variant):
             desired_goal_key=algorithm.desired_goal_key,
         )
         video_func = get_video_save_func(
-            algorithm,
             rollout_function,
             env,
             policy,
@@ -690,7 +687,6 @@ def grill_tdm_td3_experiment_online_vae(variant):
             desired_goal_key=algorithm.desired_goal_key,
         )
         video_func = get_video_save_func(
-            algorithm,
             rollout_function,
             env,
             policy,
@@ -780,7 +776,6 @@ def grill_her_td3_experiment_online_vae(variant):
             desired_goal_key=algorithm.desired_goal_key,
         )
         video_func = get_video_save_func(
-            algorithm,
             rollout_function,
             env,
             policy,
@@ -909,7 +904,6 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
             desired_goal_key=algorithm.desired_goal_key,
         )
         video_func = get_video_save_func(
-            algorithm,
             rollout_function,
             env,
             policy,
@@ -918,7 +912,7 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         algorithm.post_epoch_funcs.append(video_func)
     algorithm.train()
 
-def get_video_save_func(algorithm, rollout_function, env, policy, variant):
+def get_video_save_func(rollout_function, env, policy, variant):
     logdir = logger.get_snapshot_dir()
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)
