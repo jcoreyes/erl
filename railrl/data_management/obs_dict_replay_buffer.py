@@ -203,9 +203,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             ][future_obs_idxs]
 
         new_obs_dict = self._batch_obs_dict(indices)
-        for key, val in new_obs_dict.items():
-            if key.startswith('image'):
-                new_obs_dict[key] = normalize_image(val)
         new_next_obs_dict = self._batch_next_obs_dict(indices)
         new_obs_dict[self.desired_goal_key] = resampled_goals
         new_next_obs_dict[self.desired_goal_key] = resampled_goals
