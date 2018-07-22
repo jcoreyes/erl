@@ -12,7 +12,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         vae_save_period=1,
         vae_training_schedule=vae_schedules.never_train,
         oracle_data=False,
-        hard_restart_period=100000,
+        hard_restart_period=1000000,
     ):
         self.vae = vae
         self.vae_trainer = vae_trainer
@@ -36,8 +36,6 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
             self._train_vae(epoch, amount_to_train)
             self.vae.eval()
             self.replay_buffer.refresh_latents(epoch)
-
-
         self._test_vae(epoch)
         # very hacky
         self.epoch = epoch + 1

@@ -25,7 +25,7 @@ if __name__ == "__main__":
             hide_goal_markers=True,
             action_scale=.02,
             puck_low=[-0.2, .5],
-            puck_high=[.2, .7],
+            puck_high=[0.2, .7],
             mocap_low=[-0.1, 0.5, 0.],
             mocap_high=[0.1, 0.7, 0.5],
             goal_low=[-0.05, 0.55, 0.02, -0.2, 0.5],
@@ -38,7 +38,6 @@ if __name__ == "__main__":
             save_video_period=25,
             online_vae_beta=2.5,
             algo_kwargs=dict(
-                save_networks=True,
                 num_epochs=2000,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
@@ -101,21 +100,21 @@ if __name__ == "__main__":
         'grill_variant.training_mode': ['train'],
         # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
-        'grill_variant.replay_kwargs.alpha': [0, 1],
-        'grill_variant.algo_kwargs.num_updates_per_env_step': [1, 2, 4, 8],
+        'grill_variant.replay_kwargs.alpha': [0, 1, 2],
+        'grill_variant.algo_kwargs.num_updates_per_env_step': [2],
         'grill_variant.algo_kwargs.vae_training_schedule':
-        [vae_schedules.every_three, vae_schedules.every_ten],
+        [vae_schedules.every_three],
         # 'grill_variant.exploration_noise': [.1, .3, .4],
         # 'grill_variant.exploration_type': ['ou', 'gaussian', 'epsilon'],
-        'grill_variant.algo_kwargs.oracle_data': [False],
+        'grill_variant.algo_kwargs.oracle_data': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
     n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'pusher-online-vae-nupo'
+    mode = 'local'
+    exp_prefix = 'pusher-online-vae-confirm-post-merge-oracle-sweep'
 
     # n_seeds = 3
     # mode = 'ec2'

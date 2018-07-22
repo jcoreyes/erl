@@ -2,7 +2,7 @@ import numpy as np
 from gym.spaces import Dict
 
 from railrl.data_management.replay_buffer import ReplayBuffer
-from multiworld.core.image_env import unormalize_image
+from multiworld.core.image_env import unormalize_image, normalize_image
 
 class ObsDictRelabelingBuffer(ReplayBuffer):
     """
@@ -219,7 +219,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
 
         new_obs = new_obs_dict[self.observation_key]
         new_next_obs = new_next_obs_dict[self.observation_key]
-        # TODO: Normalize images again
         batch = {
             'observations': new_obs,
             'actions': new_actions,
