@@ -33,7 +33,7 @@ if __name__ == "__main__":
             goal_high=[0.05, 0.65, 0.02, 0.2, 0.7],
 
         ),
-        init_camera=init_sawyer_camera_v4,
+        init_camera=sawyer_init_camera_zoomed_in,
         grill_variant=dict(
             save_video=True,
             save_video_period=25,
@@ -126,11 +126,11 @@ if __name__ == "__main__":
         'grill_variant.replay_kwargs.alpha': [0, 1],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':
         [vae_schedules.every_three],
-        # 'grill_variant.exploration_noise': [.1, .3, .4],
+        # 'grill_variant.exploration_noise': [.1, .3, .5],
         # 'grill_variant.exploration_type': ['ou', 'gaussian', 'epsilon'],
-        'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [True, False],
-        'grill_variant.algo_kwargs.tdm_td3_kwargs.td3_kwargs.tau': [2],
-        'grill_variant.algo_kwargs.tdm_td3_kwargs.base_kwargs.num_updates_per_env_step': [3],
+        'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
+        'grill_variant.algo_kwargs.tdm_td3_kwargs.td3_kwargs.tau': [1],
+        'grill_variant.algo_kwargs.tdm_td3_kwargs.base_kwargs.num_updates_per_env_step': [1],
         'grill_variant.algo_kwargs.tdm_td3_kwargs.base_kwargs.reward_scale': [1, 10, 100],
         'grill_variant.algo_kwargs.tdm_td3_kwargs.tdm_kwargs.max_tau': [20],
         'grill_variant.algo_kwargs.tdm_td3_kwargs.tdm_kwargs.vectorized': [False],
@@ -142,8 +142,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'pusher-online-vae-tdm-post-bug-fix-2-harder-camera'
+    mode = 'local'
+    exp_prefix = 'pusher-online-vae-tdm-not-setting-tau-to-2'
 
     # n_seeds = 3
     # mode = 'ec2'

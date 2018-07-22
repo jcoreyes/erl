@@ -101,7 +101,7 @@ if __name__ == "__main__":
         # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'grill_variant.replay_kwargs.alpha': [0, 1, 2],
-        'grill_variant.algo_kwargs.num_updates_per_env_step': [2],
+        'grill_variant.algo_kwargs.num_updates_per_env_step': [2, 4, 16, 64],
         'grill_variant.algo_kwargs.vae_training_schedule':
         [vae_schedules.every_three],
         # 'grill_variant.exploration_noise': [.1, .3, .4],
@@ -112,9 +112,9 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 2
-    mode = 'local'
-    exp_prefix = 'pusher-online-vae-confirm-post-merge-oracle-sweep'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'pusher-online-vae-confirm-post-merge-nupo'
 
     # n_seeds = 3
     # mode = 'ec2'
