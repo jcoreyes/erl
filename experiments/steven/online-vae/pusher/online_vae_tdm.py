@@ -123,16 +123,16 @@ if __name__ == "__main__":
         'grill_variant.training_mode': ['train'],
         # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
-        'grill_variant.replay_kwargs.alpha': [0, 1],
+        'grill_variant.replay_kwargs.alpha': [0, 1, 5],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':
         [vae_schedules.every_three],
-        # 'grill_variant.exploration_noise': [.1, .3, .5],
+        'grill_variant.exploration_noise': [.2, .5],
         # 'grill_variant.exploration_type': ['ou', 'gaussian', 'epsilon'],
         'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
         'grill_variant.algo_kwargs.tdm_td3_kwargs.td3_kwargs.tau': [1],
-        'grill_variant.algo_kwargs.tdm_td3_kwargs.base_kwargs.num_updates_per_env_step': [1],
+        'grill_variant.algo_kwargs.tdm_td3_kwargs.base_kwargs.num_updates_per_env_step': [1, 4],
         'grill_variant.algo_kwargs.tdm_td3_kwargs.base_kwargs.reward_scale': [1, 10, 100],
-        'grill_variant.algo_kwargs.tdm_td3_kwargs.tdm_kwargs.max_tau': [20],
+        'grill_variant.algo_kwargs.tdm_td3_kwargs.tdm_kwargs.max_tau': [10, 20],
         'grill_variant.algo_kwargs.tdm_td3_kwargs.tdm_kwargs.vectorized': [False],
         'grill_variant.qf_kwargs.structure': ['none'],
 
@@ -142,8 +142,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'pusher-online-vae-tdm-not-setting-tau-to-2'
+    mode = 'ec2'
+    exp_prefix = 'pusher-online-vae-tdm-nupo-sweep-2'
 
     # n_seeds = 3
     # mode = 'ec2'
