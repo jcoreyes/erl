@@ -12,23 +12,17 @@ import math
 from torch.multiprocessing import Process, Pipe
 from multiprocessing.connection import wait
 import torch.multiprocessing as mp
+import dill
 
 def worker_loop(pipe, *args, **kwargs):
-    print('getting ready')
-    env = RayEnv(*args, **kwargs)
+    env = WorkerEnv(*args, **kwargs)
     while True:
         wait([pipe])
         rollout_args = pipe.recv()
         rollout = env.rollout(*rollout_args)
         pipe.send(rollout)
 
-def test():
-    print('from subprocess')
-
-class RayEnv(object):
-    """
-    Perform rollouts asynchronously using ray.
-    """
+class WorkerEnv(object):
     def __init__(
             self,
             env,
@@ -47,8 +41,8 @@ class RayEnv(object):
         self._policy = policy
         self._exploration_policy = exploration_policy
         self._max_path_length = max_path_length
-        self.train_rollout_function = train_rollout_function
-        self.eval_rollout_function = eval_rollout_function
+        self.train_rollout_function = dill.loads(train_rollout_function)
+        self.eval_rollout_function = dill.loads(eval_rollout_function)
 
     def rollout(self, policy_params, use_exploration_strategy):
         if use_exploration_strategy:
@@ -79,7 +73,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     asynchronously.
 
     This "environment" just talks to the remote environment. The advantage of
-    this environment over calling RayEnv directly is that rollout will return
+    this environment over calling WorkerEnv directly is that rollout will return
     `None` if a path is not ready, rather than returning a promise (an
     `ObjectID` in Ray-terminology).
 
@@ -102,24 +96,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     RemoteRolloutEnv will create its own instance of CarEnv with those
     parameters.
 
-    Note that you could use use RayEnv directly like this:
-    ```
-    env = CarEnv(foo=1)
-    ray_env = RayEnv(CarEnv, {'foo': 1})
-    path = ray_env.rollout.remote()
-
-    # Do some computation asyncronously, but eventually call
-    path = ray.get(path)  # blocks
-    # or
-    paths, _ = ray.wait([path])  # polls
-    ```
-    The main issue is that the caller then has to call `ray` directly, which is
-    breaks some abstractions around ray. Plus, then things like
-    `ray_env.action_space` wouldn't work
-
-    It's the responsibility of the caller to call ray.init() at some point before
-    initializing an instance of this class. (Okay, this breaks the
-    abstraction, but I can't think of a much cleaner alternative for now.)
+    This Env can be considered the master env, collecting and managing the
+    rollouts of worker envs under the hood.
     """
     def __init__(
             self,
@@ -136,6 +114,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         super().__init__(env)
         self.parent_pipes = []
         self.child_pipes = []
+
         for _ in range(num_workers):
             parent_conn, child_conn = Pipe()
             self.parent_pipes.append(parent_conn)
@@ -150,16 +129,14 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
                     exploration_policy,
                     max_path_length,
                     normalize_env,
-                    train_rollout_function,
-                    eval_rollout_function,
+                    dill.dumps(train_rollout_function),
+                    dill.dumps(eval_rollout_function),
                 )
             )
         for i in range(num_workers)]
 
         for env in self._parallel_envs:
-            print('on env ', len(self._parallel_envs))
             env.start()
-            print('finished join')
 
         self.free_envs = set(self.parent_pipes)
         self.promise_info = {}
@@ -179,7 +156,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         }
 
     def rollout(self, policy, train, epoch, discard_other=False):
-        # prevent starvation
+        # prevent starvation if only one worker
         if discard_other:
             ready_promises = wait(self.promise_list[not train], timeout=0)
             for promise in ready_promises:
@@ -214,6 +191,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     def _free_promise(self, env_id):
         _, train = self.promise_info[env_id]
         assert env_id not in self.free_envs
+        if wait([env_id], timeout=0):
+            env_id.recv()
         self.free_envs.add(env_id)
         del self.promise_info[env_id]
         self.promise_list[train].remove(env_id)

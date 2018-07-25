@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=2000,
+            num_epochs=3000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
@@ -85,9 +85,9 @@ if __name__ == "__main__":
             # 'Acrobot-v1',
            # 'CartPole-v0',
             'InvertedDoublePendulum-v2',
-#            'HalfCheetah-v2',
-            #'Reacher-v2',
-           # 'InvertedPendulum-v2',
+           'HalfCheetah-v2',
+            'Reacher-v2',
+           'InvertedPendulum-v2',
             # 'MountainCar-v0',
         ],
         'algo_class': [
@@ -109,8 +109,8 @@ if __name__ == "__main__":
                 experiment,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="DDPG-online-parallel-tests-fixed-eval-length",
-                mode='local',
+                exp_prefix="DDPG-online-parallel-tests-switch-to-multiprocessing-2",
+                mode='ec2',
                 use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',

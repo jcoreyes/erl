@@ -65,7 +65,7 @@ class PiecewiseLinearSchedule(ScalarSchedule):
         self._y_values = y_values
 
     def get_value(self, t):
-        return np.interp(t, self._x_values, self._y_values)
+        return float(np.interp(t, self._x_values, self._y_values))
 
 
 class IntPiecewiseLinearSchedule(PiecewiseLinearSchedule):

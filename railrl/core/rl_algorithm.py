@@ -226,8 +226,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 gt.stamp('train')
             self._try_to_eval(epoch)
             gt.stamp('eval')
-            self._post_epoch(epoch)
             self._end_epoch()
+            self._post_epoch(epoch)
 
     def train_batch(self, start_epoch):
         self._current_path_builder = PathBuilder()
@@ -340,10 +340,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                         self.num_env_steps_per_epoch
                 else:
                     should_train &= (should_eval or should_gather_data)
-
             self._try_to_eval(epoch, eval_paths=eval_paths)
-            self._end_epoch()
             self._post_epoch(epoch)
+            self._end_epoch()
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)
@@ -403,7 +402,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 logger.record_tabular('Sample Time (s)', sample_time)
                 logger.record_tabular('Epoch Time (s)', epoch_time)
                 logger.record_tabular('Total Train Time (s)', total_time)
-
+            else:
+                logger.record_tabular('Epoch Time (s)',
+                                      time.time() - self._epoch_start_time)
             logger.record_tabular("Epoch", epoch)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
         else:
