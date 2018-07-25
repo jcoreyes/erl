@@ -24,12 +24,12 @@ if __name__ == "__main__":
         env_kwargs=dict(
             hide_goal_markers=True,
             action_scale=.02,
-            puck_low=[-0.15, .5],
-            puck_high=[0.15, .7],
+            puck_low=[-0.2, .5],
+            puck_high=[0.2, .7],
             mocap_low=[-0.1, 0.5, 0.],
             mocap_high=[0.1, 0.7, 0.5],
-            goal_low=[-0.05, 0.55, 0.02, -0.15, 0.5],
-            goal_high=[0.05, 0.65, 0.02, 0.15, 0.7],
+            goal_low=[-0.05, 0.55, 0.02, -0.2, 0.5],
+            goal_high=[0.05, 0.65, 0.02, 0.2, 0.7],
 
         ),
         # init_camera=sawyer_init_camera_zoomed_in,
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_scale=0.0,
-                exploration_rewards_type='reconstruction_error',
+                exploration_rewards_type='inverse_model_error',
 
             ),
             algorithm='GRILL-HER-TD3',
@@ -75,7 +75,7 @@ if __name__ == "__main__":
             beta=5.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=1000,
+                N=100,
                 test_p=.9,
                 oracle_dataset=True,
                 use_cached=False,
@@ -100,22 +100,26 @@ if __name__ == "__main__":
         'grill_variant.training_mode': ['train'],
         # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
-        'grill_variant.replay_kwargs.alpha': [0, 1, 2],
-        'grill_variant.algo_kwargs.num_updates_per_env_step': [2, 4],
+
+        'grill_variant.replay_kwargs.exploration_rewards_type':
+                ['forward_model_error', 'inverse_model_error'],
+        'grill_variant.replay_kwargs.exploration_rewards_scale': [0.0, 1e-2, 1e-1, 1, 10, 100],
+        'grill_variant.replay_kwargs.alpha': [1],
+        'grill_variant.algo_kwargs.num_updates_per_env_step': [2],
         'grill_variant.algo_kwargs.vae_training_schedule':
-        [vae_schedules.every_three],
-        'init_camera': [init_sawyer_camera_v4, sawyer_init_camera_zoomed_in],
+                [vae_schedules.every_three],
+        'init_camera': [sawyer_init_camera_zoomed_in],
         # 'grill_variant.exploration_noise': [.1, .3, .4],
         # 'grill_variant.exploration_type': ['ou', 'gaussian', 'epsilon'],
-        'grill_variant.algo_kwargs.oracle_data': [True, False],
+        'grill_variant.algo_kwargs.oracle_data': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 2
+    n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'pusher-online-vae-old-pusher-env'
+    exp_prefix = 'pusher-online-vae-dynamics-model-curiorsity'
 
     # n_seeds = 3
     # mode = 'ec2'

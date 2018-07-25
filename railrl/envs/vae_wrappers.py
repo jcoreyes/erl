@@ -40,6 +40,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         mode="train",
         imsize=84,
         num_goals_presampled=0,
+        negative_log=False,
     ):
         self.quick_init(locals())
         if reward_params is None:
@@ -49,6 +50,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_vae(vae)
         else:
             self.vae = vae
+        self.negative_log = negative_log
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self._use_vae_goals = use_vae_goals
@@ -251,12 +253,22 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return obs
 
     def _sample_vae_prior(self, batch_size):
+        if self.negative_log:
+            old_batch_size = batch_size
+            batch_size *= 20
         if self.sample_from_true_prior:
             mu, sigma = 0, 1  # sample from prior
         else:
             mu, sigma = self.vae.dist_mu, self.vae.dist_std
         n = np.random.randn(batch_size, self.representation_size)
-        return sigma * n + mu
+        x = sigma * n + mu
+        if self.negative_log:
+            probs = ((x-mu)@np.linalg.inv(np.diag(sigma))*(x-mu)).sum(axis=1)
+            probs = 1/probs
+            probs /= np.sum(probs)
+            idxs = np.random.choice(batch_size, old_batch_size, p=probs)
+            x = x[idxs]
+        return x
 
     def _decode(self, latents):
         batch_size = latents.shape[0]

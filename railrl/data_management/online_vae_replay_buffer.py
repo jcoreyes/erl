@@ -4,6 +4,9 @@ from multiworld.core.image_env import normalize_image
 import railrl.torch.pytorch_util as ptu
 import numpy as np
 import torch
+from torch.optim import Adam
+from torch.nn import MSELoss
+from railrl.torch.networks import Mlp
 
 class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
 
@@ -43,6 +46,19 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
 
         self.total_exploration_error = 0.0
         self.alpha = alpha
+        self.use_dynamics_model = \
+                self.exploration_rewards_type == 'forward_model_error' or \
+                self.exploration_rewards_type == 'inverse_model_error'
+        if self.use_dynamics_model:
+            self.initialize_dynamics_model()
+
+        self.exploration_reward_func = {
+            'reconstruction_error': self.reconstruction_mse,
+            'latent_distance':      self.latent_novelty,
+            'forward_model_error':  self.forward_model_error,
+            'inverse_model_error':  self.inverse_model_error,
+            'None':                 self.no_reward,
+        }[self.exploration_rewards_type]
 
     def add_path(self, path):
         self.add_decoded_vae_to_path(path, 'observations')
@@ -92,13 +108,9 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
                 self.env._encode(
                     normalize_image(self._next_obs[self.vae_achieved_goal_key][idxs])
                 )
-
-            self._exploration_rewards[idxs] = {
-                'reconstruction_error': self.reconstruction_mse,
-                'latent_distance':      self.latent_novelty,
-                'None':                 self.no_reward,
-            }[self.exploration_rewards_type](
-                normalize_image(self._next_obs[self.vae_obs_key][idxs])
+            self._exploration_rewards[idxs] = self.exploration_reward_func(
+                normalize_image(self._next_obs[self.vae_obs_key][idxs]),
+                idxs,
             ).reshape(-1, 1)
 
             cur_idx += batch_size
@@ -121,18 +133,74 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         vae_data = normalize_image(self._next_obs[self.vae_obs_key][indices])
         return ptu.np_to_var(vae_data)
 
-    def reconstruction_mse(self, vae_obs):
-        n_samples = len(vae_obs)
-        torch_input = ptu.np_to_var(vae_obs)
-        recon_vae_obs, _, _ = self.vae(torch_input)
+    def reconstruction_mse(self, next_vae_obs, indices):
+        n_samples = len(next_vae_obs)
+        torch_input = ptu.np_to_var(next_vae_obs)
+        recon_next_vae_obs, _, _ = self.vae(torch_input)
 
-        error = torch_input - recon_vae_obs
+        error = torch_input - recon_next_vae_obs
         mse = torch.sum(error**2, dim=1) / n_samples
         return ptu.get_numpy(mse)
 
-    def latent_novelty(self, vae_obs):
+    def forward_model_error(self, next_vae_obs, indices):
+        obs = self._obs[self.observation_key][indices]
+        next_obs = self._next_obs[self.observation_key][indices]
+        actions = self._actions[indices]
+
+        state_action_pair = ptu.np_to_var(np.c_[obs, actions])
+        prediction = self.dynamics_model(state_action_pair)
+        mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
+        return ptu.get_numpy(mse)
+
+    def inverse_model_error(self, next_vae_obs, indices):
+        obs = self._obs[self.observation_key][indices]
+        next_obs = self._next_obs[self.observation_key][indices]
+        obs, next_obs = next_obs, obs
+        actions = self._actions[indices]
+
+        state_action_pair = ptu.np_to_var(np.c_[obs, actions])
+        prediction = self.dynamics_model(state_action_pair)
+        mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
+        return ptu.get_numpy(mse)
+
+
+    def latent_novelty(self, next_vae_obs, indices):
         distances = (self.env._encode(vae_obs) - self.vae.dist_mu / self.vae.dist_std)**2
         return distances.sum(axis=1)
 
-    def no_reward(self, vae_obs):
+    def no_reward(self, next_vae_obs, indices):
         return np.zeros((len(vae_obs), 1))
+
+    def initialize_dynamics_model(self):
+        self.dynamics_model = Mlp(
+            hidden_sizes=[128, 128],
+            output_size=self._obs[self.observation_key].shape[1],
+            input_size=self._obs[self.observation_key].shape[1] + self._action_dim,
+        )
+        if ptu.gpu_enabled():
+            self.dynamics_model.cuda()
+        self.dynamics_optimizer = Adam(self.dynamics_model.parameters())
+        self.dynamics_loss = MSELoss()
+        if self.exploration_rewards_type == 'forward_model_error':
+            self.dynamics_model_error = self.forward_model_error
+        else:
+            self.dynamics_model_error = self.inverse_model_error
+
+    def train_dynamics_model(self, batches=50, batch_size=100):
+        if not self.use_dynamics_model:
+            return
+        for _ in range(batches):
+            indices = self._sample_indices(batch_size)
+            self.dynamics_optimizer.zero_grad()
+            obs = self._obs[self.observation_key][indices]
+            next_obs = self._next_obs[self.observation_key][indices]
+            actions = self._actions[indices]
+            if self.exploration_rewards_type == 'inverse_model_error':
+                obs, next_obs = next_obs, obs
+
+            state_action_pair = ptu.np_to_var(np.c_[obs, actions])
+            prediction = self.dynamics_model(state_action_pair)
+            mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
+
+            mse.backward()
+            self.dynamics_optimizer.step()

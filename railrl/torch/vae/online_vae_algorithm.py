@@ -56,6 +56,10 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
             batches=batches,
             from_rl=True,
         )
+        import time
+        cur = time.time()
+        self.replay_buffer.train_dynamics_model(batches=3*batches)
+        print(time.time() - cur)
 
     def _test_vae(self, epoch):
         # batch_sampler = self.replay_buffer.random_vae_training_data
