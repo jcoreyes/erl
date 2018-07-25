@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
         'grill_variant.replay_kwargs.exploration_rewards_type':
                 ['forward_model_error', 'inverse_model_error'],
-        'grill_variant.replay_kwargs.exploration_rewards_scale': [0.0, 1e-2, 1e-1, 1, 10, 100],
+        'grill_variant.replay_kwargs.exploration_rewards_scale': [10],
         'grill_variant.replay_kwargs.alpha': [1],
         'grill_variant.algo_kwargs.num_updates_per_env_step': [2],
         'grill_variant.algo_kwargs.vae_training_schedule':
@@ -118,8 +118,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'pusher-online-vae-dynamics-model-curiorsity'
+    mode = 'local'
+    exp_prefix = 'pusher-online-vae-dynamics-model-curiorsity-dynamic-encode'
 
     # n_seeds = 3
     # mode = 'ec2'

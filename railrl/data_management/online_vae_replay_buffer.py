@@ -81,8 +81,14 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         batch_idxs = batch['indices'].flatten()
         vae_obs = self._next_obs[self.vae_obs_key][batch_idxs]
         batch['exploration_rewards'] = self._exploration_rewards[batch_idxs]
-        batch['rewards'] += \
-                self.exploration_rewards_scale * batch['exploration_rewards']
+        if self.use_dynamics_model:
+            print('before', max(batch['rewards']))
+            batch['rewards'] += self.exploration_rewards_scale * \
+                    self.dynamics_model_error(vae_obs, batch_idxs)
+            print('after', max(batch['rewards']))
+        else:
+            batch['rewards'] += \
+                    self.exploration_rewards_scale * batch['exploration_rewards']
         return batch
 
     def refresh_latents(self, epoch):
@@ -162,7 +168,6 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         prediction = self.dynamics_model(state_action_pair)
         mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
         return ptu.get_numpy(mse)
-
 
     def latent_novelty(self, next_vae_obs, indices):
         distances = (self.env._encode(vae_obs) - self.vae.dist_mu / self.vae.dist_std)**2
