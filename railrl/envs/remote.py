@@ -9,22 +9,22 @@ import redis
 import torch
 import railrl.torch.pytorch_util as ptu
 import math
+from torch.multiprocessing import Process, Pipe
+from multiprocessing.connection import wait
+import torch.multiprocessing as mp
 
-called_ray_init = False
-def try_init_ray():
-    global called_ray_init
-    if not called_ray_init:
-        try:
-            ray.init(redis_address="127.0.0.1:6379")
-        except (redis.exceptions.ConnectionError, AssertionError):
-            raise AssertionError(
-                "Make sure to call \
-                'ray start --head --node-ip-address 127.0.0.1 --redis-port 6379 --redis-shard-ports 6380' \
-                beforehand"
-            )
-        called_ray_init = True
+def worker_loop(pipe, *args, **kwargs):
+    print('getting ready')
+    env = RayEnv(*args, **kwargs)
+    while True:
+        wait([pipe])
+        rollout_args = pipe.recv()
+        rollout = env.rollout(*rollout_args)
+        pipe.send(rollout)
 
-@ray.remote(num_cpus=1)
+def test():
+    print('from subprocess')
+
 class RayEnv(object):
     """
     Perform rollouts asynchronously using ray.
@@ -134,23 +134,34 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
-        ray.register_custom_serializer(type(env), use_pickle=True)
-        ray.register_custom_serializer(type(policy), use_pickle=True)
-        ray.register_custom_serializer(type(exploration_policy), use_pickle=True)
-        self._ray_envs = [
-            #ray.remote(num_gpus=1 if ptu.gpu_enabled() else 0)(RayEnv).remote(
-            RayEnv.remote(
-                env,
-                policy,
-                exploration_policy,
-                max_path_length,
-                normalize_env,
-                train_rollout_function,
-                eval_rollout_function,
+        self.parent_pipes = []
+        self.child_pipes = []
+        for _ in range(num_workers):
+            parent_conn, child_conn = Pipe()
+            self.parent_pipes.append(parent_conn)
+            self.child_pipes.append(child_conn)
+        self._parallel_envs = [
+            Process(
+                target=worker_loop,
+                args=(
+                    self.child_pipes[i],
+                    env,
+                    policy,
+                    exploration_policy,
+                    max_path_length,
+                    normalize_env,
+                    train_rollout_function,
+                    eval_rollout_function,
+                )
             )
-        for _ in range(num_workers)]
+        for i in range(num_workers)]
 
-        self.free_envs = set(self._ray_envs)
+        for env in self._parallel_envs:
+            print('on env ', len(self._parallel_envs))
+            env.start()
+            print('finished join')
+
+        self.free_envs = set(self.parent_pipes)
         self.promise_info = {}
         # Let self.promise_list[True] be the promises for training
         # and self.promise_list[False] be the promises for eval.
@@ -170,21 +181,22 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     def rollout(self, policy, train, epoch, discard_other=False):
         # prevent starvation
         if discard_other:
-            ready_promises, _ = ray.wait(self.promise_list[not train], timeout=0)
+            ready_promises = wait(self.promise_list[not train], timeout=0)
             for promise in ready_promises:
                 self._free_promise(promise)
 
         self._alloc_promise(policy, train, epoch)
         # Check if remote path has been collected.
-        ready_promises, _ = ray.wait(self.promise_list[train], timeout=0)
+        ready_promises = wait(self.promise_list[train], timeout=0)
         for promise in ready_promises:
-            _, path_epoch, path_type = self.promise_info[promise]
+            rollout = promise.recv()
+            path_epoch, path_type = self.promise_info[promise]
             self._free_promise(promise)
             # Throw away eval paths from previous epochs
             if path_epoch != epoch and not train:
                 continue
             self._alloc_promise(policy, train, epoch)
-            return ray.get(promise)
+            return rollout
         return None
 
     def _alloc_promise(self, policy, train, epoch):
@@ -194,17 +206,14 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         policy_params = policy.get_param_values_np()
 
         free_env = self.free_envs.pop()
-        promise = free_env.rollout.remote(
-            policy_params,
-            train,
-        )
-        self.promise_info[promise] = (free_env, epoch, train)
-        self.promise_list[train].append(promise)
-        return promise
+        free_env.send((policy_params, train,))
+        self.promise_info[free_env] = (epoch, train)
+        self.promise_list[train].append(free_env)
+        return free_env
 
-    def _free_promise(self, promise_id):
-        env_id, _, train = self.promise_info[promise_id]
+    def _free_promise(self, env_id):
+        _, train = self.promise_info[env_id]
         assert env_id not in self.free_envs
         self.free_envs.add(env_id)
-        del self.promise_info[promise_id]
-        self.promise_list[train].remove(promise_id)
+        del self.promise_info[env_id]
+        self.promise_list[train].remove(env_id)

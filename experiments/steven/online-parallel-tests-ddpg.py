@@ -111,7 +111,7 @@ if __name__ == "__main__":
                 exp_id=exp_id,
                 exp_prefix="DDPG-online-parallel-tests-fixed-eval-length",
                 mode='local',
-                use_gpu=True,
+                use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',
                 # use_gpu=True,

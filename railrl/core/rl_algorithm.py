@@ -6,15 +6,15 @@ from collections import OrderedDict
 
 import gtimer as gt
 import numpy as np
-import ray
 
 from railrl.core import logger
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
-from railrl.envs.remote import RemoteRolloutEnv, try_init_ray
+from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc import eval_util
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
+import torch.multiprocessing as mp
 
 
 class RLAlgorithm(metaclass=abc.ABCMeta):
@@ -279,7 +279,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_rollout_function = self.train_rollout_function
 
     def train_parallel(self, start_epoch=0):
-        try_init_ray()
         parallel_env = RemoteRolloutEnv(
             env=self.env,
             train_rollout_function=self.train_rollout_function,
