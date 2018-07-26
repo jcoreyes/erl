@@ -131,7 +131,6 @@ class HER(TorchRLAlgorithm):
         return paths
 
     def eval_multitask_rollout(self):
-        # TODO Steven: remove pointer
         return self.eval_rollout_function(
             self.env,
             self.policy,

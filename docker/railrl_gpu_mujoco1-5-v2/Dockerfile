@@ -69,7 +69,7 @@ RUN pip install pygame
 RUN pip install awscli==1.11.179
 RUN pip install boto3==1.4.8
 RUN pip install dominate==2.3.1
-RUN pip install dill
+RUN pip install ray==0.2.2
 RUN pip install path.py==10.3.1
 
 RUN pip install http://download.pytorch.org/whl/cu80/torch-0.3.0.post4-cp35-cp35m-linux_x86_64.whl

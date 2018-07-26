@@ -49,8 +49,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             save_environment=True,
             normalize_env=True,
 
-            # Remove env parameters
-            sim_throttle=False,
+            # Remote env parameters
+            sim_throttle=True,
             parallel_step_ratio=1,
             parallel_env_params=None,
 
@@ -290,13 +290,17 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             policy=self.eval_policy,
             exploration_policy=self.exploration_policy,
             max_path_length=self.max_path_length,
-            normalize_env=self.normalize_env,
             **self.parallel_env_params,
         )
         self.training_mode(False)
         last_epoch_policy = copy.deepcopy(self.policy)
         for epoch in range(start_epoch, self.num_epochs):
             self._start_epoch(epoch)
+            if hasattr(self.env, "get_env_update"):
+                env_update = self.env.get_env_update()
+            else:
+                env_update = None
+            parallel_env.update_worker_envs(env_update)
             should_gather_data = True
             should_eval = True
             should_train = True
@@ -311,7 +315,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     path = parallel_env.rollout(
                         self.exploration_policy,
                         train=True,
-                        discard_other=not should_eval,
+                        discard_other_rollout_type=not should_eval,
                         epoch=epoch,
                     )
                     if path:
@@ -324,7 +328,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     path = parallel_env.rollout(
                         last_epoch_policy,
                         train=False,
-                        discard_other=not should_gather_data,
+                        discard_other_rollout_type=not should_gather_data,
                         epoch=epoch,
                     )
                     if path:
@@ -334,7 +338,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     if self._n_env_steps_total > 0:
                         self._try_to_train()
                         n_train_steps += 1
-
                 should_gather_data &= \
                         n_env_steps_current_epoch < self.num_env_steps_per_epoch
                 should_eval &= n_eval_steps < self.num_steps_per_eval
@@ -347,6 +350,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._try_to_eval(epoch, eval_paths=eval_paths)
             self._end_epoch()
             self._post_epoch(epoch)
+        parallel_env.shutdown()
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)
