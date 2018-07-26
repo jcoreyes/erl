@@ -69,6 +69,7 @@ if __name__ == "__main__":
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             collection_mode='online-parallel',
+            parallel_env_params=dict(num_workers=4),
 
             save_replay_buffer=False,
             replay_buffer_size=int(1E5),
@@ -110,7 +111,7 @@ if __name__ == "__main__":
                 variant=variant,
                 exp_id=exp_id,
                 exp_prefix="DDPG-online-parallel-tests-switch-to-multiprocessing-2",
-                mode='ec2',
+                mode='local',
                 use_gpu=False,
                 # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
                 # mode='local',

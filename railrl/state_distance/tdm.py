@@ -131,16 +131,19 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             desired_goal_key=self.desired_goal_key,
         )
         self.eval_rollout_function = self.train_rollout_function
-        # TODO Steven: can't seem to use a tau sampler function instead of a
-        # fixed init_tau without getting a cuda initialization for some reason
-        self.eval_rollout_function = create_rollout_function(
-            tdm_rollout,
-            init_tau=self._sample_max_tau_for_rollout(),
-            cycle_tau=self.cycle_taus_for_rollout,
-            decrement_tau=self.cycle_taus_for_rollout,
-            observation_key=self.observation_key,
-            desired_goal_key=self.desired_goal_key,
-        )
+
+        # Serializing this eval_rollout_function creates an infinite loop for
+        # some reason. Calling cloudpickle.dumps(self.eval_rollout_function) will
+        # literally fill your entire RAM/swap.
+        #
+        # self.eval_rollout_function = create_rollout_function(
+        #     tau_sampling_tdm_rollout,
+        #     tau_sampler=self._sample_max_tau_for_rollout(),
+        #     cycle_tau=self.cycle_taus_for_rollout,
+        #     decrement_tau=self.cycle_taus_for_rollout,
+        #     observation_key=self.observation_key,
+        #     desired_goal_key=self.desired_goal_key,
+        # )
 
     def _start_epoch(self, epoch):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)
