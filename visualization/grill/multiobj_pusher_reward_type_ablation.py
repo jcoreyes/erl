@@ -1,13 +1,17 @@
+import matplotlib
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
     vitchyr_base_dir,
     format_func,
     our_method_name,
+    configure_matplotlib,
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
 from railrl.misc import data_processing as dp
+
+configure_matplotlib(matplotlib)
 
 dirs = [
     ashvin_base_dir + 's3doodad/ashvin/vae/fixed3/sawyer-pusher/vae-dense-multi-logprob/run1', ]
@@ -34,7 +38,7 @@ plot.tag_exps(ours, "name", "ours")
 plot.comparison(
     ours + logprob + exps,
     "Final  total_distance Mean",
-    figsize=(6, 5),
+    figsize=(7.5, 4),
     vary=["name"],
     default_vary={"reward_params.type": "unknown"},
     smooth=plot.padded_ma_filter(10),
@@ -43,11 +47,10 @@ plot.comparison(
 )
 plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 plt.xlabel("Timesteps")
-plt.ylabel("Final Distance to Goal")
-plt.title("Visual Multi-object Pusher, Reward Type Ablation")
-plt.legend([our_method_name, "Log Prob.", "Pixel MSE", ], bbox_to_anchor=(0.49,
-                                                                     -0.2),
-           loc="upper center", ncol=4, handlelength=1)
+plt.ylabel("")
+plt.title("Visual Multi-object Pusher")
+plt.legend([our_method_name, "Log Prob.", "Pixel MSE", ],
+    bbox_to_anchor=(1.0, 0.5), loc="center left",)
 plt.tight_layout()
 plt.savefig(output_dir + "multiobj_pusher_reward_type_ablation.pdf")
 print("File saved to", output_dir + "multiobj_pusher_reward_type_ablation.pdf")

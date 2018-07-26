@@ -30,17 +30,23 @@ plot.comparison(
           "replay_kwargs.fraction_goals_are_rollout_goals"],
     default_vary={"replay_strategy": "future"},
     smooth=plot.padded_ma_filter(10),
-    xlim=(0, 250000),
-    ylim=(0.14, 0.24),
-    figsize=(6, 4),
+    xlim=(0, 500000),
+    ylim=(0.14, 0.26),
+    figsize=(6, 5),
     method_order=[2, 1, 0, 3],
 )
 plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 # plt.ylabel("")
 plt.xlabel("Timesteps")
-plt.ylabel("")
+plt.ylabel("Final Distance to Goal")
 plt.title("Visual Pusher")
-plt.legend([])
+plt.legend(
+    [our_method_name, "None", "Future", "VAE", ],
+    bbox_to_anchor=(0.49, -0.2),
+    loc="upper center",
+    ncol=4,
+    handlelength=1,
+)
 plt.tight_layout()
-plt.savefig(output_dir + "pusher_relabeling_ablation.pdf")
-print("File saved to", output_dir + "pusher_relabeling_ablation.pdf")
+plt.savefig(output_dir + "pusher_relabeling_ablation_main.pdf")
+print("File saved to", output_dir + "pusher_relabeling_ablation_main.pdf")

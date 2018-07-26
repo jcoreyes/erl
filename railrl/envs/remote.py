@@ -12,6 +12,7 @@ import math
 from torch.multiprocessing import Process, Pipe
 from multiprocessing.connection import wait
 import torch.multiprocessing as mp
+import railrl.envs.env_utils as env_utils
 import dill
 
 def worker_loop(pipe, *args, **kwargs):
@@ -49,14 +50,12 @@ class WorkerEnv(object):
             self._exploration_policy.set_param_values_np(policy_params)
             policy = self._exploration_policy
             rollout_function = self.train_rollout_function
-            if hasattr(self._env, 'train'):
-                self._env.train()
+            env_utils.mode(self._env, 'train')
         else:
             self._policy.set_param_values_np(policy_params)
             policy = self._policy
             rollout_function = self.eval_rollout_function
-            if hasattr(self._env, 'eval'):
-                self._env.eval()
+            env_utils.mode(self._env, 'eval')
 
         rollout = rollout_function(
             self._env,

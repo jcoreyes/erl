@@ -15,4 +15,7 @@ python visualization/grill/reacher_relabeling_ablation.py
 python visualization/grill/pusher_relabeling_ablation.py
 python visualization/grill/multiobj_pusher_relabeling_ablation.py
 
+python visualization/grill/pusher_relabeling_ablation_main.py
+python visualization/grill/pusher_reward_type_ablation_main.py
+
 python visualization/grill/real_reacher.py

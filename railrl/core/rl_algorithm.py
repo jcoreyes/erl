@@ -14,7 +14,7 @@ from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc import eval_util
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
-import torch.multiprocessing as mp
+import railrl.envs.env_utils as env_utils
 
 
 class RLAlgorithm(metaclass=abc.ABCMeta):
@@ -154,6 +154,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.sim_throttle = sim_throttle
         self.parallel_env_params = parallel_env_params or {}
         self.init_rollout_function()
+        self.post_epoch_funcs = []
 
     def train(self, start_epoch=0):
         self.pretrain()
@@ -188,6 +189,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 save_itrs=True,
         ):
             self._start_epoch(epoch)
+            env_utils.mode(self.training_env, 'train')
+            self.training_env.reset()
             for step in range(self.num_env_steps_per_epoch):
                 action, agent_info = self._get_action_and_info(
                     observation,
@@ -224,6 +227,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 gt.stamp('sample')
                 self._try_to_train()
                 gt.stamp('train')
+            env_utils.mode(self.env, 'eval')
             self._try_to_eval(epoch)
             gt.stamp('eval')
             self._end_epoch()
@@ -341,8 +345,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 else:
                     should_train &= (should_eval or should_gather_data)
             self._try_to_eval(epoch, eval_paths=eval_paths)
-            self._post_epoch(epoch)
             self._end_epoch()
+            self._post_epoch(epoch)
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)
@@ -506,7 +510,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.pop_prefix()
 
     def _post_epoch(self, epoch):
-        pass
+        for post_epoch_func in self.post_epoch_funcs:
+            post_epoch_func(self, epoch)
 
     def _post_step(self, step):
         pass
