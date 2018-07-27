@@ -24,6 +24,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             fraction_goals_are_rollout_goals=1.0,
             fraction_resampled_goals_are_env_goals=0.0,
             ob_keys_to_save=None,
+            goal_keys=None,
             observation_key='observation',
             desired_goal_key='desired_goal',
             achieved_goal_key='achieved_goal',
@@ -42,6 +43,11 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             ob_keys_to_save = ['observation', 'desired_goal', 'achieved_goal']
         else:  # in case it's a tuple
             ob_keys_to_save = list(ob_keys_to_save)
+        if goal_keys is None:
+            goal_keys = [desired_goal_key]
+        self.goal_keys = goal_keys
+        if desired_goal_key not in self.goal_keys:
+            self.goal_keys.append(desired_goal_key)
         assert isinstance(env.observation_space, Dict)
         self.max_size = max_size
         self.env = env
@@ -165,10 +171,20 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             * self.fraction_resampled_goals_env_goals
         )
         num_future_goals = batch_size - (num_env_goals + num_rollout_goals)
+        new_obs_dict = self._batch_obs_dict(indices)
+        new_next_obs_dict = self._batch_next_obs_dict(indices)
+
         if num_env_goals > 0:
+            goals = self.env.sample_goals(num_env_goals)
             resampled_goals[num_rollout_goals:-num_future_goals] = (
-                self.env.sample_goals(num_env_goals)[self.desired_goal_key]
+                goals[self.desired_goal_key]
             )
+            for goal_key in self.goal_keys:
+                new_obs_dict[goal_key][num_rollout_goals:-num_future_goals] = \
+                    goals[goal_key]
+                new_next_obs_dict[goal_key][num_rollout_goals:-num_future_goals] = \
+                    goals[goal_key]
+
 
         if num_future_goals > 0:
             future_obs_idxs = []
@@ -183,11 +199,17 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             resampled_goals[-num_future_goals:] = self._next_obs[
                 self.achieved_goal_key
             ][future_obs_idxs]
+            for goal_key in self.goal_keys:
+                new_obs_dict[goal_key][-num_future_goals:] = \
+                    self._next_obs[goal_key][future_obs_idxs]
+                new_next_obs_dict[goal_key][-num_future_goals:] = \
+                    self._next_obs[goal_key][future_obs_idxs]
 
-        new_obs_dict = self._batch_obs_dict(indices)
-        new_next_obs_dict = self._batch_next_obs_dict(indices)
+
         new_obs_dict[self.desired_goal_key] = resampled_goals
         new_next_obs_dict[self.desired_goal_key] = resampled_goals
+
+
         new_actions = self._actions[indices]
         new_rewards = self.env.compute_rewards(
             new_actions,

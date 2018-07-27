@@ -30,7 +30,10 @@ from railrl.torch.her.online_vae_her_td3 import OnlineVaeHerTd3
 from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.td3.td3 import TD3
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
+from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, AutoEncoder
+from railrl.misc.asset_loader import sync_down
+
+from multiworld.core.image_env import unormalize_image
 
 def full_experiment_variant_preprocess(variant):
     train_vae_variant = variant['train_vae_variant']
@@ -108,7 +111,10 @@ def train_vae(variant, return_data=False):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = ConvVAE(representation_size, **variant['vae_kwargs'])
+    if variant.get('autoencoder'):
+        m = AutoEncoder(representation_size, **variant['vae_kwargs'])
+    else:
+        m = ConvVAE(representation_size, **variant['vae_kwargs'])
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
