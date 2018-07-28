@@ -223,9 +223,11 @@ def FloatTensor(*args, **kwargs):
 
 def from_numpy(*args, **kwargs):
     if _use_gpu:
-        return torch.from_numpy(*args, **kwargs).float().cuda()
+        tensor = torch.from_numpy(*args, **kwargs).float().cuda()
     else:
-        return torch.from_numpy(*args, **kwargs).float()
+        tensor = torch.from_numpy(*args, **kwargs).float()
+    assert tensor.requires_grad == False
+    return tensor
 
 def get_numpy(tensor):
     tensor = tensor.detach()

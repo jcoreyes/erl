@@ -132,7 +132,7 @@ def _elem_or_tuple_to_variable(elem_or_tuple):
         return tuple(
             _elem_or_tuple_to_variable(e) for e in elem_or_tuple
         )
-    return Variable(ptu.from_numpy(elem_or_tuple).float(), requires_grad=False)
+    return ptu.from_numpy(elem_or_tuple).float()
 
 def _filter_batch(np_batch):
     for k, v in np_batch.items():
