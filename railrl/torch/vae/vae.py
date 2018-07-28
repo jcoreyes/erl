@@ -117,7 +117,7 @@ class VAE(nn.Module):
         for i, (data, _) in enumerate(self.test_loader):
             if self.use_cuda:
                 data = data.cuda()
-            data = Variable(data, volatile=True)
+            data = Variable(data, requires_grad=True)
             recon_batch, mu, logvar = self(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
             kle = self.kl_divergence(recon_batch, data, mu, logvar)
