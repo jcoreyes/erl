@@ -367,7 +367,7 @@ def test(epoch):
     for data, target in test_loader:
         if args.cuda:
             data, target = data.cuda(), target.cuda()
-        data, target = Variable(data, requires_grad=True), Variable(target)
+        data, target = Variable(data, requires_grad=False), Variable(target)
         output = model(data)
         test_loss += F.nll_loss(output, target).data[0]
         pred = output.data.max(1)[1]  # get the index of the max log-probability
