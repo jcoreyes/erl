@@ -36,6 +36,7 @@ dependencies:
     - catkin_pkg==0.3.9
     - ipdb==0.10.3
     - rospkg==1.1.4
+    - gtimer
     # Can't get this to work, but you should install this if you want to run
     # fanova analysis
     #- pyrfr
