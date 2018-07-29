@@ -70,3 +70,10 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
     @property
     def networks(self):
         return [self.vae]
+
+
+    def update_epoch_snapshot(self, snapshot):
+        snapshot.update(
+            vae=self.vae,
+        )
+

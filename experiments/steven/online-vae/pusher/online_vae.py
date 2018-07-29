@@ -54,7 +54,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_scale=0.0,
-                exploration_rewards_type='inverse_model_error',
+                exploration_rewards_type='reconstruction_error',
 
             ),
             algorithm='GRILL-HER-TD3',
@@ -101,11 +101,9 @@ if __name__ == "__main__":
         # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
 
-        'grill_variant.replay_kwargs.exploration_rewards_type':
-                ['forward_model_error', 'inverse_model_error'],
-        'grill_variant.replay_kwargs.exploration_rewards_scale': [10],
-        'grill_variant.replay_kwargs.alpha': [1],
-        'grill_variant.algo_kwargs.num_updates_per_env_step': [2],
+        'grill_variant.replay_kwargs.exploration_rewards_scale': [0],
+        'grill_variant.replay_kwargs.alpha': [0],
+        'grill_variant.algo_kwargs.num_updates_per_env_step': [4],
         'grill_variant.algo_kwargs.vae_training_schedule':
                 [vae_schedules.every_three],
         'init_camera': [sawyer_init_camera_zoomed_in],
@@ -119,7 +117,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'pusher-online-vae-dynamics-model-curiorsity-dynamic-encode'
+    exp_prefix = 'pusher-online-vae-get-vae'
 
     # n_seeds = 3
     # mode = 'ec2'

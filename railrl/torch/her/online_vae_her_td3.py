@@ -33,3 +33,10 @@ class OnlineVaeHerTd3(OnlineVaeAlgorithm, HerTd3):
     def networks(self):
         return HerTd3.networks.fget(self) + \
                OnlineVaeAlgorithm.networks.fget(self)
+
+    def get_epoch_snapshot(self, epoch):
+        snapshot = super().get_epoch_snapshot(epoch)
+        HerTd3.update_epoch_snapshot(self, snapshot)
+        OnlineVaeAlgorithm.update_epoch_snapshot(self, snapshot)
+        return snapshot
+
