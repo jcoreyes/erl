@@ -37,7 +37,7 @@ dependencies:
     - ipdb==0.10.3
     - rospkg==1.1.4
     - gtimer
-    - pygame 
+    - pygame
     - mujoco_py==1.50.1.56
     # Can't get this to work, but you should install this if you want to run
     # fanova analysis
