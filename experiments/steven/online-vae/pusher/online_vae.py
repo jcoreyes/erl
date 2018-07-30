@@ -60,7 +60,7 @@ if __name__ == "__main__":
             algorithm='GRILL-HER-TD3',
             normalize=False,
             render=False,
-            exploration_noise=0.3,
+            exploration_noise=0.8,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
 
         'grill_variant.replay_kwargs.exploration_rewards_scale': [0],
-        'grill_variant.replay_kwargs.alpha': [0, 1, 2],
+        'grill_variant.replay_kwargs.alpha': [1],
         'grill_variant.algo_kwargs.num_updates_per_env_step': [4],
         'grill_variant.algo_kwargs.vae_training_schedule':
                 [vae_schedules.every_three],
@@ -112,14 +112,15 @@ if __name__ == "__main__":
         # 'grill_variant.exploration_noise': [.1, .3, .4],
         # 'grill_variant.exploration_type': ['ou', 'gaussian', 'epsilon'],
         'grill_variant.algo_kwargs.oracle_data': [False],
+        'train_vae_variant.algo_kwargs.linearity_weight': [0, 1, 10, 100]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 3
-    mode = 'local'
-    exp_prefix = 'pusher-linear-dynamics-test-4'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'pusher-online-vaelinear-dynamics'
 
     # n_seeds = 3
     # mode = 'ec2'
