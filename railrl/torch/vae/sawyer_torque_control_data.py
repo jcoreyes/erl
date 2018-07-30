@@ -1,40 +1,52 @@
-import time
-
-import numpy as np
 import os.path as osp
-
-from railrl.envs.mujoco.sawyer_reach_torque_env import SawyerReachTorqueEnv
-from railrl.envs.wrappers import ImageMujocoEnv
+import time
+import cv2
+import numpy as np
+from multiworld.core.image_env import ImageEnv, unormalize_image
+from multiworld.envs.mujoco.cameras import sawyer_torque_reacher_camera
+from multiworld.envs.mujoco.sawyer_reach_torque.sawyer_reach_torque_env import SawyerReachTorqueEnv
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.images.camera import sawyer_torque_env_camera
-import cv2
-
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 from railrl.policies.simple import RandomPolicy
 
 
+def set_to_goal(env, policy, goal):
+    policy.reset()
+    o = env._wrapped_env.reset()
+    path_length = 0
+    env.set_goal(goal)
+    while path_length < 50:
+        new_o = np.hstack((o, goal))
+        a, _ = policy.get_action(new_o)
+        next_o, r, d, env_info = env._wrapped_env.step(a)
+        o = next_o
+        if d or np.linalg.norm(goal-env.get_endeff_pos())<.015:
+            break
+        path_length+=1
+
 def generate_vae_dataset(
-        N=10000, test_p=0.9, use_cached=True, imsize=84, show=False,
-        dataset_path=None,
+        N=10000, test_p=0.9, use_cached=False, imsize=84, show=False,
+        dataset_path=None, env_class = SawyerReachTorqueEnv, env_kwargs=None, init_camera=sawyer_torque_reacher_camera,
 ):
-    img_file = "/home/murtaza/vae_data/sawyer_torque_control_images" + str(N) +'.npy'
-    state_file = "/home/murtaza/vae_data/sawyer_torque_control_states" + str(N) + '.npy'
+
+    filename = "/tmp/sawyer_torque_data" + str(N) + ".npy"
     info = {}
     if dataset_path is not None:
-        img_file = local_path_from_s3_or_local_path(dataset_path)
-        dataset = np.load(img_file)
-    elif use_cached and osp.isfile(img_file):
-        dataset = np.load(img_file)
-        print("loaded data from saved file", img_file)
+        filename = local_path_from_s3_or_local_path(dataset_path)
+        dataset = np.load(filename)
+    elif use_cached and osp.isfile(filename):
+        dataset = np.load(filename)
+        print("loaded data from saved file", filename)
     else:
         now = time.time()
-        env = SawyerReachTorqueEnv(keep_vel_in_obs=False, hide_goal=True)
-        obs_dim = env.observation_space.low.size
-        env = ImageMujocoEnv(
+        if env_kwargs == None:
+            env_kwargs = dict()
+        env = env_class(**env_kwargs)
+        env = ImageEnv(
             env, imsize,
             transpose=True,
-            init_camera=sawyer_torque_env_camera,
+            init_camera=init_camera,
             normalize=True,
         )
         info['env'] = env
@@ -44,32 +56,25 @@ def generate_vae_dataset(
             exploration_strategy=es,
             policy=policy,
         )
-        dataset = np.zeros((single_set_size, imsize * imsize * 3))
-        states = np.zeros((single_set_size, obs_dim))
-        count = 1
+        dataset = np.zeros((N, imsize * imsize * 3), dtype=np.uint8)
         for i in range(N):
-            # Move the goal out of the image
-            env.wrapped_env.set_goal(np.array([100, 100, 100]))
             if i %50==0:
                 print('Reset')
-                env.reset()
+                env.reset_model()
                 exploration_policy.reset()
-            for _ in range(75):
-                action = exploration_policy.get_action()[0]*10
+            for _ in range(1):
+                action = exploration_policy.get_action()[0]*1/10
                 env.wrapped_env.step(
                     action
                 )
-            img = env.step(env.action_space.sample())[0]
-            states[i,:] = env._wrapped_env._get_obs()
-            dataset[i, :] = img
+            img = env._get_flat_img()
+            dataset[i, :] = unormalize_image(img)
             if show:
                 cv2.imshow('img', img.reshape(3, 84, 84).transpose())
                 cv2.waitKey(1)
             print(i)
-
         print("done making training data", time.time() - now)
-        np.save(img_file + '_' + str(count) + '.npy', dataset)
-        np.save(state_file + '_' + str(count) + '.npy', states)
+        np.save(filename, dataset)
     n = int(N * test_p)
     train_dataset = dataset[:n, :]
     test_dataset = dataset[n:, :]
@@ -77,4 +82,10 @@ def generate_vae_dataset(
 
 
 if __name__ == "__main__":
-    generate_vae_dataset(10000, use_cached=False, show=False)
+    generate_vae_dataset(1000, use_cached=False, show=True,
+                         env_kwargs=dict(
+                             keep_vel_in_obs=False,
+                             use_safety_box=True,
+                            ),
+                         init_camera=sawyer_torque_reacher_camera,
+                         )
