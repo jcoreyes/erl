@@ -33,9 +33,14 @@ f = plot.filter_by_flat_params({
     'replay_kwargs.fraction_goals_are_env_goals': 0.0,
     'vae_wrapped_env_kwargs.reward_params.type': 'latent_distance',
 })
+# her = plot.load_exps(
+#     [ashvin_base_dir + 's3doodad/share/steven/pushing-multipushing/pusher-reward-variants'],
+#     f,
+#     suppress_output=True,
+# )
 her = plot.load_exps(
-    [ashvin_base_dir + 's3doodad/share/steven/pushing-multipushing/pusher-reward-variants'],
-    f,
+    [ashvin_base_dir + 's3doodad/new-results/push-her'],
+    # f,
     suppress_output=True,
 )
 plot.tag_exps(her, "name", "her")
@@ -47,8 +52,13 @@ f = plot.filter_by_flat_params({
     'algo_kwargs.reward_scale': 0.01,
     'rdim': 4
 })
+# dsae = plot.load_exps(
+#     [ashvin_base_dir + 's3doodad/share/steven/pushing-multipushing/pusher-reward-variants-spatial/run1'],
+#     f,
+#     suppress_output=True,
+# )
 dsae = plot.load_exps(
-    [ashvin_base_dir + 's3doodad/share/steven/pushing-multipushing/pusher-reward-variants-spatial/run1'],
+    [ashvin_base_dir + 's3doodad/new-results/pusher-spatial'],
     f,
     suppress_output=True,
 )
@@ -80,7 +90,7 @@ plot.comparison(
 )
 plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 plt.xlabel("Timesteps")
-plt.ylabel("Final Distance to Goal")
+plt.ylabel("") # "Final Distance to Goal")
 plt.title("Visual Pusher Baselines")
 plt.legend([]) # [our_method_name, "DSAE", "HER", "Oracle", "L&R", ])
 

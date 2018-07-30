@@ -33,15 +33,25 @@ f = plot.filter_by_flat_params({
 oracle = plot.load_exps(dirs, f, suppress_output=True)
 plot.tag_exps(oracle, "name", "oracle")
 
+# dsae = plot.load_exps(
+#     [ashvin_base_dir + 's3doodad/share/steven/pushing-multipushing/multipusher-reward-variants-spatial'],
+#     plot.filter_by_flat_params({'training_mode': 'test'}),
+#     suppress_output=True,
+# )
 dsae = plot.load_exps(
-    [ashvin_base_dir + 's3doodad/share/steven/pushing-multipushing/multipusher-reward-variants-spatial'],
+    [ashvin_base_dir + 's3doodad/new-results/multipush-svae'],
     plot.filter_by_flat_params({'training_mode': 'test'}),
     suppress_output=True,
 )
 plot.tag_exps(dsae, "name", "dsae")
 
+# her = plot.load_exps(
+#     [ashvin_base_dir + 's3doodad/share/steven/multipush-her-images'],
+#     plot.filter_by_flat_params({'algo': 'ddpg', }),
+#     suppress_output=True,
+# )
 her = plot.load_exps(
-    [ashvin_base_dir + 's3doodad/share/steven/multipush-her-images'],
+    [ashvin_base_dir + 's3doodad/new-results/multipush-her'],
     plot.filter_by_flat_params({'algo': 'ddpg', }),
     suppress_output=True,
 )
@@ -59,7 +69,7 @@ label_to_color = {
     'l&r': colors[4],
 }
 plot.comparison(
-    ours + oracle + dsae + lr,
+    ours + oracle + dsae + lr + her,
     ["Final  total_distance Mean"],
     vary=["name"],
     # default_vary={"replay_strategy": "future"},
@@ -68,16 +78,26 @@ plot.comparison(
     xlim=(0, 500000),
     ylim=(0.15, 0.4),
     # figsize=(7, 3.5),
-    figsize=(6, 4),
-    # method_order=[4, 0, 1, 3, 2],
-    label_to_color=label_to_color,
+    figsize=(7.5, 4),
+    method_order=[4, 0, 1, 3, 2],
+    # label_to_color=label_to_color,
 )
 plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 # leg.get_frame().set_alpha(0.9)
 plt.xlabel("Timesteps")
-plt.ylabel("Final Distance to Goal")
+plt.ylabel("") # "Final Distance to Goal")
 plt.title("Visual Multi-object Pusher Baselines")
-plt.legend([])
+plt.legend(
+    [
+        our_method_name,
+        "DSAE",
+        "HER",
+        "Oracle",
+        "L&R",
+    ],
+           # bbox_to_anchor=(0.49, -0.2), loc="upper center", ncol=5, handlelength=1)
+    bbox_to_anchor=(1.0, 0.5), loc="center left",
+)
 plt.tight_layout()
 plt.savefig(output_dir + "multiobj_pusher_baselines.pdf")
 print("File saved to", output_dir + "multiobj_pusher_baselines.pdf")
