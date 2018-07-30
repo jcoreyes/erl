@@ -371,10 +371,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
             table_keys = logger.get_table_key_set()
-            if self._old_table_keys is not None:
-                assert table_keys == self._old_table_keys, (
-                    "Table keys cannot change from iteration to iteration."
-                )
+            # if self._old_table_keys is not None:
+                # assert table_keys == self._old_table_keys, (
+                    # "Table keys cannot change from iteration to iteration."
+                # )
             self._old_table_keys = table_keys
 
             logger.record_tabular(
@@ -405,9 +405,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 logger.record_tabular('Total Train Time (s)', total_time)
 
             logger.record_tabular("Epoch", epoch)
-            logger.dump_tabular(with_prefix=False, with_timestamp=False)
+            self.should_log = True
         else:
             logger.log("Skipping eval for now.")
+            self.should_log = False
 
     def _try_to_offline_eval(self, epoch):
         start_time = time.time()
@@ -498,6 +499,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.push_prefix('Iteration #%d | ' % epoch)
 
     def _end_epoch(self):
+        if self.should_log:
+            logger.dump_tabular(with_prefix=False, with_timestamp=False)
         logger.log("Epoch Duration: {0}".format(
             time.time() - self._epoch_start_time
         ))

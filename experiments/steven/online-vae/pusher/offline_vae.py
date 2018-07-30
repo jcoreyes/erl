@@ -31,14 +31,15 @@ if __name__ == "__main__":
             puck_high=[.2, .7],
             mocap_low=[-0.1, 0.5, 0.],
             mocap_high=[0.1, 0.7, 0.5],
-            goal_low=[-0.1, 0.5, 0.02, -0.2, 0.5],
-            goal_high=[0.1, 0.7, 0.02, 0.2, 0.7],
+            goal_low=[-0.05, 0.5, 0.02, -0.2, 0.5],
+            goal_high=[0.05, 0.7, 0.02, 0.2, 0.7],
             # fix_goal=True,
             # hide_arm=True,
             # reward_type="hand_distance",
         ),
         init_camera=sawyer_init_camera_zoomed_in,
         grill_variant=dict(
+            # vae_path='vae.pkl',
             save_video_period=25,
             algo_kwargs=dict(
                 num_epochs=2000,
@@ -51,7 +52,7 @@ if __name__ == "__main__":
                 batch_size=128,
                 max_path_length=100,
                 discount=0.99,
-                num_updates_per_env_step=2,
+                # num_updates_per_env_step=2,
                 # collection_mode='online-parallel',
                 # sim_throttle=True,
                 # parallel_env_params=dict(
@@ -74,17 +75,22 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             representation_size=4,
             beta=2.5,
-            num_epochs=500,
+            num_epochs=1000,
             generate_vae_dataset_kwargs=dict(
                 num_channels=3,
-                N=5000,
+                N=10000,
                 oracle_dataset=True,
                 show=False,
                 use_cached=False,
+                vae_dataset_specific_env_kwargs=dict(
+                    goal_low=[-0.06, 0.5, 0.02, -0.2, 0.5],
+                    goal_high=[0.06, 0.7, 0.02, 0.2, 0.7],
+                   
+                ),
             ),
              beta_schedule_kwargs=dict(
                  x_values=[0, 100, 200, 500, 1000],
-                 y_values=[0, 0, 0, 2.5, 5],
+                 y_values=[0, 0, 0, 1, 2],
              ),
 
             vae_kwargs=dict(
@@ -100,7 +106,7 @@ if __name__ == "__main__":
 
     search_space = {
         'env_kwargs.action_scale': [.02],
-        'grill_variant.num_updates_per_env_step': [ 2],
+        'grill_variant.num_updates_per_env_step': [ 4],
         'grill_variant.exploration_type': ['ou'],
 
         # 'grill_variant.training_mode': ['test'],
@@ -119,9 +125,9 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
+    n_seeds = 2
     mode = 'local'
-    exp_prefix = 'pusher-offline-2'
+    exp_prefix = 'pusher-offline-with-bigger-generated-goals-4'
 
     # n_seeds = 3
     # mode = 'ec2'
@@ -137,5 +143,5 @@ if __name__ == "__main__":
                 # trial_dir_suffix='n1000-{}--zoomed-{}'.format(n1000, zoomed),
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
-                num_exps_per_instance=1,
+                num_exps_per_instance=3,
             )

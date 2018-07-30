@@ -65,6 +65,8 @@ def grill_her_td3_online_vae_full_experiment(variant):
     variant['grill_variant']['save_vae_data'] = True
     full_experiment_variant_preprocess(variant)
     train_vae_and_update_variant(variant)
+    variant['grill_variant']['vae_trainer_kwargs'] = \
+            variant['train_vae_variant']['algo_kwargs']
     if variant['double_algo']:
         grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
     else:
@@ -171,6 +173,7 @@ def generate_vae_dataset(
         env_kwargs=None,
         oracle_dataset=False,
         n_random_steps=100,
+        vae_dataset_specific_env_kwargs=None,
 ):
     if env_kwargs is None:
         env_kwargs = {}
@@ -189,8 +192,14 @@ def generate_vae_dataset(
         dataset = np.load(filename)
         print("loaded data from saved file", filename)
     else:
+
+        if vae_dataset_specific_env_kwargs is None:
+            vae_dataset_specific_env_kwargs = {}
+        for key, val in env_kwargs.items():
+            if key not in vae_dataset_specific_env_kwargs:
+                vae_dataset_specific_env_kwargs[key] = val
         now = time.time()
-        env = env_class(**env_kwargs)
+        env = env_class(**vae_dataset_specific_env_kwargs)
         env = ImageEnv(
             env,
             imsize,
@@ -585,6 +594,7 @@ def grill_tdm_td3_experiment_online_vae(variant):
     grill_preprocess_variant(variant)
     env = get_envs(variant)
     es = get_exploration_strategy(variant, env)
+    vae_trainer_kwargs = variant,get('vae_trainer_kwargs')
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
@@ -653,7 +663,8 @@ def grill_tdm_td3_experiment_online_vae(variant):
     t = ConvVAETrainer(variant['vae_train_data'],
                        variant['vae_test_data'],
                        vae,
-                       beta=variant['online_vae_beta'])
+                       beta=variant['online_vae_beta'],
+                       **vae_trainer_kwargs)
     render = variant["render"]
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     algorithm = OnlineVaeTdmTd3(
@@ -741,10 +752,12 @@ def grill_her_td3_experiment_online_vae(variant):
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
 
+    vae_trainer_kwargs = variant.get('vae_trainer_kwargs')
     t = ConvVAETrainer(variant['vae_train_data'],
                        variant['vae_test_data'],
                        vae,
-                       beta=variant['online_vae_beta'])
+                       beta=variant['online_vae_beta'],
+                       **vae_trainer_kwargs)
     render = variant["render"]
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     algorithm = OnlineVaeHerTd3(

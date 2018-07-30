@@ -136,8 +136,14 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
                 batch_size,
                 p=self.vae_probs,
             )
-        vae_data = normalize_image(self._next_obs[self.vae_obs_key][indices])
-        return ptu.np_to_var(vae_data)
+        next_obs = normalize_image(self._next_obs[self.vae_obs_key][indices])
+        obs = normalize_image(self._obs[self.vae_obs_key][indices])
+        actions = self._actions[indices]
+        return dict(
+            obs=ptu.np_to_var(obs),
+            next_obs=ptu.np_to_var(next_obs),
+            actions=ptu.np_to_var(actions),
+        )
 
     def reconstruction_mse(self, next_vae_obs, indices):
         n_samples = len(next_vae_obs)

@@ -47,14 +47,14 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         pass
 
     def _train_vae(self, epoch, batches=50):
-        batch_sampler = None
-        if not self.oracle_data:
-            batch_sampler = self.replay_buffer.random_vae_training_data
+        batch_sampler = self.replay_buffer.random_vae_training_data
+        if self.oracle_data:
+            batch_sampler = None
         self.vae_trainer.train_epoch(
             epoch,
             sample_batch=batch_sampler,
             batches=batches,
-            from_rl=True,
+            from_rl=False,
         )
         import time
         cur = time.time()

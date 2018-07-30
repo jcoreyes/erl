@@ -50,6 +50,8 @@ class ConvVAETrainer():
             state_sim_debug=False,
             mse_weight=0.1,
             is_auto_encoder=False,
+            linearity_weight=0.0,
+            use_linear_dynamics=False,
     ):
         self.log_interval = log_interval
         self.batch_size = batch_size
@@ -93,6 +95,8 @@ class ConvVAETrainer():
             self.train_data_mean = np.mean(self.train_dataset, axis=0)
             # self.train_dataset = ((self.train_dataset - self.train_data_mean)) + 1 / 2
             # self.test_dataset = ((self.test_dataset - self.train_data_mean)) + 1 / 2
+        self.linearity_weight = linearity_weight
+        self.use_linear_dynamics = use_linear_dynamics
 
     def get_batch(self, train=True):
         dataset = self.train_dataset if train else self.test_dataset
@@ -129,12 +133,20 @@ class ConvVAETrainer():
         output = self.model.fc6(F.relu(self.model.fc5(encoded_x)))
         return torch.norm(output-states)**2 / self.batch_size
 
+    def state_linearity_loss(self, obs, next_obs, actions):
+        latent_obs = self.model.encode(obs)[0]
+        latent_next_obs = self.model.encode(next_obs)[0]
+        action_obs_pair = torch.cat([latent_obs, actions], dim=1)
+        prediction = self.model.linear_constraint_fc(action_obs_pair)
+        return torch.norm(prediction - latent_next_obs)**2 / self.batch_size
+
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
         self.model.train()
         losses = []
         bces = []
         kles = []
         mses = []
+        linear_losses = []
         beta = self.beta_schedule.get_value(epoch)
         for batch_idx in range(batches):
             if self.state_sim_debug:
@@ -149,13 +161,23 @@ class ConvVAETrainer():
             else:
                 if sample_batch is not None:
                     data = sample_batch(self.batch_size)
+                    obs = data['obs']
+                    next_obs = data['next_obs']
+                    actions = data['actions']
                 else:
-                    data = self.get_batch()
+                    next_obs = self.get_batch()
+                    obs = None
+                    actions = None
                 self.optimizer.zero_grad()
-                recon_batch, mu, logvar = self.model(data)
-                bce = self.logprob(recon_batch, data, mu, logvar)
-                kle = self.kl_divergence(recon_batch, data, mu, logvar)
-                loss = bce + beta * kle
+                recon_batch, mu, logvar = self.model(next_obs)
+                bce = self.logprob(recon_batch, next_obs, mu, logvar)
+                kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
+                if self.use_linear_dynamics:
+                    linear_dynamics_loss = self.state_linearity_loss(obs, next_obs, actions)
+                    loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
+                    linear_losses.append(linear_dynamics_loss.data[0])
+                else:
+                    loss = bce + beta * kle
                 loss.backward()
 
             losses.append(loss.data[0])
@@ -169,7 +191,7 @@ class ConvVAETrainer():
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
-                    loss.data[0] / len(data)))
+                    loss.data[0] / len(next_obs)))
 
         if not from_rl:
             logger.record_tabular("train/epoch", epoch)
@@ -178,6 +200,8 @@ class ConvVAETrainer():
             if self.state_sim_debug:
                 logger.record_tabular("train/mse", np.mean(mses))
             logger.record_tabular("train/loss", np.mean(losses))
+            if self.state_linearity_loss:
+                logger.record_tabular("train/linar_loss", np.mean(linear_losses))
 
 
     def test_epoch(
@@ -357,6 +381,7 @@ class ConvVAE(PyTorchModule):
             min_variance=1e-4,
             use_min_variance=True,
             state_size=0,
+            action_dim=None,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -399,6 +424,15 @@ class ConvVAE(PyTorchModule):
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
         self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6,
                                         stride=3)
+
+        if action_dim is not None:
+            self.linear_constraint_fc = \
+                    nn.Linear(
+                        self.representation_size + action_dim,
+                        self.representation_size
+                    )
+        else:
+            self.linear_constraint_fc = None
 
         self.init_weights(init_w)
 

@@ -28,8 +28,8 @@ if __name__ == "__main__":
             puck_high=[0.2, .7],
             mocap_low=[-0.1, 0.5, 0.],
             mocap_high=[0.1, 0.7, 0.5],
-            goal_low=[-0.05, 0.55, 0.02, -0.2, 0.5],
-            goal_high=[0.05, 0.65, 0.02, 0.2, 0.7],
+            goal_low=[-0.1, 0.55, 0.02, -0.2, 0.5],
+            goal_high=[0.1, 0.65, 0.02, 0.2, 0.7],
 
         ),
         # init_camera=sawyer_init_camera_zoomed_in,
@@ -75,17 +75,19 @@ if __name__ == "__main__":
             beta=5.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=100,
+                N=50,
                 test_p=.9,
                 oracle_dataset=True,
                 use_cached=False,
                 num_channels=3,
             ),
             vae_kwargs=dict(
+                action_dim=2,
                 input_channels=3,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
+                use_linear_dynamics=True,
                 lr=1e-3,
             ),
             #beta_schedule_kwargs=dict(
@@ -102,7 +104,7 @@ if __name__ == "__main__":
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
 
         'grill_variant.replay_kwargs.exploration_rewards_scale': [0],
-        'grill_variant.replay_kwargs.alpha': [0],
+        'grill_variant.replay_kwargs.alpha': [0, 1, 2],
         'grill_variant.algo_kwargs.num_updates_per_env_step': [4],
         'grill_variant.algo_kwargs.vae_training_schedule':
                 [vae_schedules.every_three],
@@ -115,9 +117,9 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
+    n_seeds = 3
     mode = 'local'
-    exp_prefix = 'pusher-online-vae-get-vae'
+    exp_prefix = 'pusher-linear-dynamics-test-4'
 
     # n_seeds = 3
     # mode = 'ec2'
