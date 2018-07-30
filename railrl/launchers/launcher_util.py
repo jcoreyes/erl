@@ -74,6 +74,9 @@ def run_experiment(
         trial_dir_suffix=None,
         time_in_mins=60,
         num_exps_per_instance=1,
+        #ssh settings
+        username=None,
+        hostname=None,
 ):
     """
     Usage:
@@ -132,6 +135,9 @@ def run_experiment(
         variant = {}
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
+    if mode == 'ssh' and (hostname is None or username is None):
+        raise EnvironmentError('Please provide the username and hostname of ssh host')
+
     for key, value in ppp.recursive_items(variant):
         # This check isn't really necessary, but it's to prevent myself from
         # forgetting to pass a variant through dot_map_dict_to_nested_dict.
@@ -272,6 +278,17 @@ def run_experiment(
             image=docker_image,
             gpu=use_gpu,
         )
+    elif mode == 'ssh':
+        credentials = doodad.ssh.credentials.SSHCredentials(
+            username=username,
+            hostname=hostname,
+            identity_file=config.SSL_PRIVATE_KEY
+        )
+        dmode = doodad.mode.SSHDocker(
+            credentials=credentials,
+            image=docker_image,
+            gpu=use_gpu,
+        )
     elif mode == 'local_singularity':
         dmode = doodad.mode.LocalSingularity(
             image=singularity_image,
@@ -336,6 +353,10 @@ def run_experiment(
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
     elif mode == 'local_docker':
+        base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
+        # The snapshot dir will be automatically created
+        snapshot_dir_for_script = None
+    elif mode == 'ssh':
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
