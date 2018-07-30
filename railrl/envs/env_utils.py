@@ -28,3 +28,9 @@ def gym_env(name):
                   record_video=False,
                   log_dir='/tmp/gym-test',  # Ignore gym log.
                   record_log=False)
+
+def mode(env, mode_type):
+    try:
+        getattr(env, mode_type)()
+    except AttributeError:
+        pass

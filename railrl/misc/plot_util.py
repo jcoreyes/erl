@@ -169,11 +169,13 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
             if label_to_color is None:
                 plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2)
                 line, = plt.plot(x, y, label=str(label))
+                plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2)
             else:
                 label_without_vary_prefix = label.split(":")[-1]
                 color = label_to_color[label_without_vary_prefix]
                 plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2, color=color)
                 line, = plt.plot(x, y, label=str(label), color=color)
+                plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2, color=color)
             lines.append(line)
 
         if print_final:
