@@ -38,8 +38,8 @@ def add_border(img):
 
 def get_image(goal, obs):
     if len(goal.shape) == 1:
-        goal = goal.reshape(3, 84, 84).transpose()
-        obs = obs.reshape(3, 84, 84).transpose()
+        goal = goal.reshape(-1, 84, 84).transpose()
+        obs = obs.reshape(-1, 84, 84).transpose()
     img = np.concatenate((goal, obs))
     img = np.uint8(255 * img)
     if PAD:

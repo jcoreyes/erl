@@ -3,6 +3,7 @@ import math
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
+from multiworld.envs.pygame.point2d import Point2DWallEnv
 
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_tdm_td3_experiment
@@ -47,7 +48,7 @@ variant = dict(
 )
 
 common_params = {
-    'exploration_type': ['epsilon', 'ou'], # ['epsilon', 'ou'], #['epsilon', 'ou', 'gaussian'],
+    'exploration_type': ['epsilon'], # ['epsilon', 'ou'], #['epsilon', 'ou', 'gaussian'],
     'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 20, 40, 99], #[10, 20, 50, 99],
 }
 
@@ -59,7 +60,9 @@ env_params = {
         'env_kwargs.norm_order': [1, 2],
         'algo_kwargs.base_kwargs.num_epochs': [50],
         'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 25],
-        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3] #[0.01, 0.1, 1, 10, 100],
+        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3], #[0.01, 0.1, 1, 10, 100],
+        'save_video': [True],
+        'save_video_period': [1],
     },
     'sawyer-push-and-reach-xy': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEnv],
@@ -80,6 +83,19 @@ env_params = {
         'algo_kwargs.tdm_kwargs.max_tau': [20], #[80, 99], #[1, 10, 20, 40, 99],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e2, 1e3], #[1e0, 1e2],
         'algo_kwargs.tdm_kwargs.dense_rewards': [False],
+    },
+	'point2d-wall': {
+		'env_class': [Point2DWallEnv],
+        'env_kwargs.wall_shape': ['u'], #['u', ''],
+		'env_kwargs.norm_order': [2],
+		'algo_kwargs.base_kwargs.num_epochs': [30], #[25],
+        'algo_kwargs.base_kwargs.reward_scale': [1e1], #[1e0, 1e2], #[1e2],
+        'algo_kwargs.tdm_kwargs.max_tau': [10],
+		'render_during_eval': [False],
+        'save_video': [True],
+        'save_video_period': [1],
+        # 'env_kwargs.fixed_goal': [(0.0, 0.0)],
+        # 'env_kwargs.render_dt_msec': [50],
     },
 }
 

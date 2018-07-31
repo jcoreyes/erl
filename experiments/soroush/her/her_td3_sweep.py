@@ -3,6 +3,8 @@ import math
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
+from multiworld.envs.pygame.point2d import Point2DWallEnv
+
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_experiment
 import railrl.misc.hyperparameter as hyp
@@ -46,7 +48,7 @@ variant = dict(
 
 common_params = {
     # 'normalize': [False, True],
-    'exploration_type': ['epsilon', 'ou'], #['epsilon', 'ou', 'gaussian'],
+    'exploration_type': ['epsilon'], #['epsilon', 'ou', 'gaussian'],
 }
 
 env_params = {
@@ -56,7 +58,9 @@ env_params = {
         'env_kwargs.reward_type': ['hand_distance'],
         'env_kwargs.norm_order': [1],
         'algo_kwargs.base_kwargs.num_epochs': [50],
-        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3] #[0.01, 0.1, 1, 10, 100],
+        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3], #[0.01, 0.1, 1, 10, 100],
+        'save_video': [True],
+        'save_video_period': [1],
     },
     'sawyer-push-and-reach-xy': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEnv],
@@ -76,6 +80,18 @@ env_params = {
         'algo_kwargs.base_kwargs.num_epochs': [500],
         'algo_kwargs.base_kwargs.discount': [0.98, 0.99],
         'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3], #[1e0, 1e2],
+    },
+	'point2d-wall': {
+		'env_class': [Point2DWallEnv],
+        'env_kwargs.wall_shape': ['u'], #['u', ''],
+		'env_kwargs.norm_order': [2],
+		'algo_kwargs.base_kwargs.num_epochs': [30], #[25],
+        'algo_kwargs.base_kwargs.reward_scale': [1e1], #[1e0, 1e2], #[1e2],
+		'render_during_eval': [False],
+        'save_video': [True],
+        'save_video_period': [1],
+        # 'env_kwargs.fixed_goal': [(0.0, 0.0)],
+        # 'env_kwargs.render_dt_msec': [50],
     },
 }
 
