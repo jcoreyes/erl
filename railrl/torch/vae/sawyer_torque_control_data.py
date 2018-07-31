@@ -10,21 +10,6 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 from railrl.policies.simple import RandomPolicy
 
-
-def set_to_goal(env, policy, goal):
-    policy.reset()
-    o = env._wrapped_env.reset()
-    path_length = 0
-    env.set_goal(goal)
-    while path_length < 50:
-        new_o = np.hstack((o, goal))
-        a, _ = policy.get_action(new_o)
-        next_o, r, d, env_info = env._wrapped_env.step(a)
-        o = next_o
-        if d or np.linalg.norm(goal-env.get_endeff_pos())<.015:
-            break
-        path_length+=1
-
 def generate_vae_dataset(
         N=10000, test_p=0.9, use_cached=False, imsize=84, show=False,
         dataset_path=None, env_class = SawyerReachTorqueEnv, env_kwargs=None, init_camera=sawyer_torque_reacher_camera,
