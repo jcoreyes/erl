@@ -75,8 +75,8 @@ def run_experiment(
         time_in_mins=60,
         num_exps_per_instance=1,
         #ssh settings
-        username=None,
-        hostname=None,
+        ssh_username=None,
+        ssh_hostname=None,
 ):
     """
     Usage:
@@ -114,6 +114,8 @@ def run_experiment(
     :param base_log_dir: Will over
     :param sync_interval: How often to sync s3 data (in seconds).
     :param local_input_dir_to_mount_point_dict: Dictionary for doodad.
+    :param ssh_username: username of ssh host
+    :param ssh_hostname: ip address/ hostname of ssh host
     :return:
     """
     try:
@@ -138,9 +140,9 @@ def run_experiment(
         base_log_dir = config.SSH_LOG_DIR
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
-    if username is None:
-        username = config.USERNAME
-        hostname = config.HOSTNAME
+    if ssh_username is None:
+        ssh_username = config.SSH_USERNAME
+        ssh_hostname = config.SSH_HOSTNAME
 
 
     for key, value in ppp.recursive_items(variant):
@@ -285,9 +287,9 @@ def run_experiment(
         )
     elif mode == 'ssh':
         credentials = doodad.ssh.credentials.SSHCredentials(
-            username=username,
-            hostname=hostname,
-            identity_file=config.SSL_PRIVATE_KEY
+            username=ssh_username,
+            hostname=ssh_hostname,
+            identity_file=config.SSH_PRIVATE_KEY
         )
         dmode = doodad.mode.SSHDocker(
             credentials=credentials,
