@@ -348,7 +348,7 @@ def grill_her_td3_experiment(variant):
         video_func = get_video_save_func(
             rollout_function,
             env,
-            policy,
+            algorithm.eval_policy,
             variant,
         )
         algorithm.post_epoch_funcs.append(video_func)
@@ -431,7 +431,7 @@ def grill_her_twin_sac_experiment(variant):
         video_func = get_video_save_func(
             rollout_function,
             env,
-            policy,
+            algorithm.eval_policy,
             variant,
         )
         algorithm.post_epoch_funcs.append(video_func)
@@ -525,7 +525,10 @@ def grill_tdm_td3_experiment(variant):
 
     if variant.get("save_video", True):
         rollout_function = rf.create_rollout_function(
-            rf.multitask_rollout,
+            rf.tdm_rollout,
+            init_tau=algorithm._sample_max_tau_for_rollout(),
+            decrement_tau=algorithm.cycle_taus_for_rollout,
+            cycle_tau=algorithm.cycle_taus_for_rollout,
             max_path_length=algorithm.max_path_length,
             observation_key=algorithm.observation_key,
             desired_goal_key=algorithm.desired_goal_key,
@@ -533,7 +536,7 @@ def grill_tdm_td3_experiment(variant):
         video_func = get_video_save_func(
             rollout_function,
             env,
-            policy,
+            algorithm.eval_policy,
             variant,
         )
         algorithm.post_epoch_funcs.append(video_func)
@@ -624,7 +627,10 @@ def grill_tdm_twin_sac_experiment(variant):
 
     if variant.get("save_video", True):
         rollout_function = rf.create_rollout_function(
-            rf.multitask_rollout,
+            rf.tdm_rollout,
+            init_tau=algorithm._sample_max_tau_for_rollout(),
+            decrement_tau=algorithm.cycle_taus_for_rollout,
+            cycle_tau=algorithm.cycle_taus_for_rollout,
             max_path_length=algorithm.max_path_length,
             observation_key=algorithm.observation_key,
             desired_goal_key=algorithm.desired_goal_key,
@@ -632,7 +638,7 @@ def grill_tdm_twin_sac_experiment(variant):
         video_func = get_video_save_func(
             rollout_function,
             env,
-            policy,
+            algorithm.eval_policy,
             variant,
         )
         algorithm.post_epoch_funcs.append(video_func)
@@ -729,7 +735,7 @@ def grill_her_td3_experiment_online_vae(variant):
         video_func = get_video_save_func(
             rollout_function,
             env,
-            policy,
+            algorithm.eval_policy,
             variant,
         )
         algorithm.post_epoch_funcs.append(video_func)
@@ -858,7 +864,7 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         video_func = get_video_save_func(
             rollout_function,
             env,
-            policy,
+            algorithm.eval_policy,
             variant,
         )
         algorithm.post_epoch_funcs.append(video_func)
