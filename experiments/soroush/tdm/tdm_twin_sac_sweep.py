@@ -5,7 +5,7 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPu
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_tdm_td3_experiment
+from railrl.torch.grill.launcher import grill_tdm_twin_sac_experiment
 import railrl.misc.hyperparameter as hyp
 
 variant = dict(
@@ -22,10 +22,17 @@ variant = dict(
         tdm_kwargs=dict(
             max_tau=15,
         ),
-        td3_kwargs=dict(
+        twin_sac_kwargs=dict(
+            train_policy_with_reparameterization=True,
+            soft_target_tau=1e-3,  # 1e-2
+            policy_update_period=1,
+            target_update_period=1,  # 1
         ),
     ),
     qf_kwargs=dict(
+        hidden_sizes=[400, 300],
+    ),
+    vf_kwargs=dict(
         hidden_sizes=[400, 300],
     ),
     policy_kwargs=dict(
@@ -38,7 +45,7 @@ variant = dict(
         fraction_goals_are_rollout_goals=0.2,
         fraction_resampled_goals_are_env_goals=0.5,
     ),
-    algorithm="TDM-TD3",
+    algorithm="TDM-TwinSAC",
     # version="normal",
     env_kwargs=dict(),
     render=False,
@@ -55,11 +62,11 @@ env_params = {
     'sawyer-reach-xy': { # 6 DoF
         'env_class': [SawyerReachXYEnv],
         'exploration_type': ['epsilon'],
-        'env_kwargs.reward_type': ['hand_distance', 'vectorized_hand_distance'],
-        'env_kwargs.norm_order': [1, 2],
+        'env_kwargs.reward_type': ['vectorized_hand_distance'], # ['hand_distance', 'vectorized_hand_distance'],
+        'env_kwargs.norm_order': [1],
         'algo_kwargs.base_kwargs.num_epochs': [50],
         'algo_kwargs.tdm_kwargs.max_tau': [1, 10, 25],
-        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3] #[0.01, 0.1, 1, 10, 100],
+        'algo_kwargs.base_kwargs.reward_scale': [1e1, 1e2, 1e3] # [1e0, 1e1, 1e2, 1e3] #[0.01, 0.1, 1, 10, 100],
     },
     'sawyer-push-and-reach-xy': {  # 6 DoF
         'env_class': [SawyerPushAndReachXYEnv],
@@ -75,11 +82,13 @@ env_params = {
         'env_kwargs.reward_type': ['vectorized_state_distance'], #['state_distance', 'vectorized_state_distance'],
         'env_kwargs.norm_order': [1], #[1, 2],
         'exploration_type': ['epsilon'], #['epsilon', 'gaussian'],
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
-        'algo_kwargs.base_kwargs.num_epochs': [250], #[300],
-        'algo_kwargs.tdm_kwargs.max_tau': [20], #[80, 99], #[1, 10, 20, 40, 99],
-        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e2, 1e3], #[1e0, 1e2],
-        'algo_kwargs.tdm_kwargs.dense_rewards': [False],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4], #[1, 4],
+        'algo_kwargs.base_kwargs.num_epochs': [200],
+        'algo_kwargs.tdm_kwargs.max_tau': [20, 40], #[10, 20, 40], #[1, 10, 20, 40, 99],
+        'algo_kwargs.base_kwargs.reward_scale': [1e0, 1e1, 1e2, 1e3], #[1e0, 1e2],
+        # 'algo_kwargs.twin_sac_kwargs.soft_target_tau': [5e-3, 1e-2],
+        'algo_kwargs.tdm_kwargs.dense_rewards': [True],
+
     },
 }
 
@@ -101,7 +110,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     args = parse_args()
 
-    exp_prefix = "tdm-td3-" + args.env
+    exp_prefix = "tdm-twin-sac-" + args.env
     if len(args.label) > 0:
         exp_prefix = exp_prefix + "-" + args.label
 
@@ -120,7 +129,7 @@ if __name__ == "__main__":
     for _ in range(num_outer_loops):
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             run_experiment(
-				grill_tdm_td3_experiment,
+                grill_tdm_twin_sac_experiment,
                 exp_prefix=exp_prefix,
                 mode=args.mode,
                 exp_id=exp_id,

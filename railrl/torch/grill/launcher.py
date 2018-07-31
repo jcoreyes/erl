@@ -22,13 +22,16 @@ from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy
+from railrl.state_distance.tdm_networks import TdmQf, TdmVf, TdmPolicy, StochasticTdmPolicy
 from railrl.state_distance.tdm_td3 import TdmTd3
+from railrl.state_distance.tdm_twin_sac import TdmTwinSAC
 from railrl.torch.grill.video_gen import dump_video
 from railrl.torch.her.her_td3 import HerTd3
+from railrl.torch.her.her_twin_sac import HerTwinSAC
 from railrl.torch.her.online_vae_her_td3 import OnlineVaeHerTd3
 from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.td3.td3 import TD3
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 
@@ -52,6 +55,12 @@ def grill_tdm_td3_full_experiment(variant):
     grill_tdm_td3_experiment(variant['grill_variant'])
 
 
+def grill_tdm_twin_sac_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    train_vae_and_update_variant(variant)
+    grill_tdm_twin_sac_experiment(variant['grill_variant'])
+
+
 def grill_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
     train_vae_and_update_variant(variant)
@@ -66,6 +75,20 @@ def grill_her_td3_online_vae_full_experiment(variant):
         grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
     else:
         grill_her_td3_experiment_online_vae(variant['grill_variant'])
+
+
+def full_experiment_variant_preprocess(variant):
+    train_vae_variant = variant['train_vae_variant']
+    grill_variant = variant['grill_variant']
+    env_class = variant['env_class']
+    env_kwargs = variant['env_kwargs']
+    init_camera = variant.get('init_camera', None)
+    train_vae_variant['generate_vae_dataset_kwargs']['env_class'] = env_class
+    train_vae_variant['generate_vae_dataset_kwargs']['env_kwargs'] = env_kwargs
+    train_vae_variant['generate_vae_dataset_kwargs']['init_camera'] = init_camera
+    grill_variant['env_class'] = env_class
+    grill_variant['env_kwargs'] = env_kwargs
+    grill_variant['init_camera'] = init_camera
 
 
 def train_vae_and_update_variant(variant):
@@ -203,7 +226,7 @@ def generate_vae_dataset(
 
 def get_envs(variant):
     render = variant["render"]
-    vae_path = variant["vae_path"]
+    vae_path = variant.get("vae_path", None)
     reward_params = variant.get("reward_params", dict())
     init_camera = variant.get("init_camera", None)
     do_state_exp = variant.get("do_state_exp", False)
@@ -282,21 +305,20 @@ def grill_her_td3_experiment(variant):
         + env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = env.action_space.low.size
-    hidden_sizes = variant.get('hidden_sizes', [400, 300])
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=hidden_sizes,
+        **variant['qf_kwargs']
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=hidden_sizes,
+        **variant['qf_kwargs']
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=hidden_sizes,
+        **variant['policy_kwargs']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -310,20 +332,105 @@ def grill_her_td3_experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_kwargs']
     )
-    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
 
-    render = variant["render"]
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['replay_buffer'] = replay_buffer
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = env
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
+    her_kwargs = algo_kwargs['her_kwargs']
+    her_kwargs['observation_key'] = observation_key
+    her_kwargs['desired_goal_key'] = desired_goal_key
     algorithm = HerTd3(
         env,
-        training_env=env,
         qf1=qf1,
         qf2=qf2,
         policy=policy,
         exploration_policy=exploration_policy,
-        render=render,
-        render_during_eval=render,
+        **variant['algo_kwargs']
+    )
+
+    if variant.get("save_video", True):
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        video_func = get_video_save_func(
+            rollout_function,
+            env,
+            policy,
+            variant,
+        )
+        algorithm.post_epoch_funcs.append(video_func)
+
+    if ptu.gpu_enabled():
+        print("using GPU")
+        algorithm.cuda()
+        if not variant.get("do_state_exp", False):
+            env.vae.cuda()
+
+    algorithm.train()
+
+
+def grill_her_twin_sac_experiment(variant):
+    grill_preprocess_variant(variant)
+    env = get_envs(variant)
+
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    obs_dim = (
+        env.observation_space.spaces[observation_key].low.size
+        + env.observation_space.spaces[desired_goal_key].low.size
+    )
+    action_dim = env.action_space.low.size
+    qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    vf = FlattenMlp(
+        input_size=obs_dim,
+        output_size=1,
+        **variant['vf_kwargs']
+    )
+    policy = TanhGaussianPolicy(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        **variant['policy_kwargs']
+    )
+
+    replay_buffer = ObsDictRelabelingBuffer(
+        env=env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_kwargs']
+    )
+
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['replay_buffer'] = replay_buffer
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = env
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
+    her_kwargs = algo_kwargs['her_kwargs']
+    her_kwargs['observation_key'] = observation_key
+    her_kwargs['desired_goal_key'] = desired_goal_key
+    algorithm = HerTwinSAC(
+        env,
+        qf1=qf1,
+        qf2=qf2,
+        vf=vf,
+        policy=policy,
         **variant['algo_kwargs']
     )
 
@@ -367,15 +474,13 @@ def grill_tdm_td3_experiment(variant):
     action_dim = env.action_space.low.size
 
     vectorized = 'vectorized' in env.reward_type
-    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
-
     norm_order = env.norm_order
-    variant['algo_kwargs']['tdm_kwargs']['norm_order'] = norm_order
+    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+    variant['qf_kwargs']['vectorized'] = vectorized
+    variant['qf_kwargs']['norm_order'] = norm_order
 
     qf1 = TdmQf(
         env=env,
-        vectorized=vectorized,
-        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -383,8 +488,6 @@ def grill_tdm_td3_experiment(variant):
     )
     qf2 = TdmQf(
         env=env,
-        vectorized=vectorized,
-        norm_order=norm_order,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
         action_dim=action_dim,
@@ -401,22 +504,20 @@ def grill_tdm_td3_experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-
+    variant['replay_kwargs']['vectorized'] = vectorized
     replay_buffer = ObsDictRelabelingBuffer(
         env=env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        vectorized=vectorized,
         **variant['replay_kwargs']
     )
-    render = variant["render"]
-    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     algo_kwargs = variant['algo_kwargs']
-    td3_kwargs = algo_kwargs['td3_kwargs']
-    td3_kwargs['training_env'] = env
-    td3_kwargs['render'] = render
-    td3_kwargs['render_during_eval'] = render
+    algo_kwargs['replay_buffer'] = replay_buffer
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = env
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
     tdm_kwargs = algo_kwargs['tdm_kwargs']
     tdm_kwargs['observation_key'] = observation_key
     tdm_kwargs['desired_goal_key'] = desired_goal_key
@@ -436,11 +537,8 @@ def grill_tdm_td3_experiment(variant):
             env.vae.cuda()
 
     if variant.get("save_video", True):
-        logdir = logger.get_snapshot_dir()
-        policy.train(False)
         rollout_function = rf.create_rollout_function(
-            rf.tdm_rollout,
-            init_tau=algorithm.max_tau,
+            rf.multitask_rollout,
             max_path_length=algorithm.max_path_length,
             observation_key=algorithm.observation_key,
             desired_goal_key=algorithm.desired_goal_key,
@@ -452,6 +550,112 @@ def grill_tdm_td3_experiment(variant):
             variant,
         )
         algorithm.post_epoch_funcs.append(video_func)
+
+    if ptu.gpu_enabled():
+        print("using GPU")
+        algorithm.cuda()
+        if not variant.get("do_state_exp", False):
+            env.vae.cuda()
+
+    algorithm.train()
+
+
+def grill_tdm_twin_sac_experiment(variant):
+    grill_preprocess_variant(variant)
+    env = get_envs(variant)
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    obs_dim = (
+        env.observation_space.spaces[observation_key].low.size
+    )
+    goal_dim = (
+        env.observation_space.spaces[desired_goal_key].low.size
+    )
+    action_dim = env.action_space.low.size
+
+    vectorized = 'vectorized' in env.reward_type
+    norm_order = env.norm_order
+    variant['algo_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+    variant['qf_kwargs']['vectorized'] = vectorized
+    variant['vf_kwargs']['vectorized'] = vectorized
+    variant['qf_kwargs']['norm_order'] = norm_order
+    variant['vf_kwargs']['norm_order'] = norm_order
+
+    qf1 = TdmQf(
+        env=env,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        action_dim=action_dim,
+        **variant['qf_kwargs']
+    )
+    qf2 = TdmQf(
+        env=env,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        action_dim=action_dim,
+        **variant['qf_kwargs']
+    )
+    vf = TdmVf(
+        env=env,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        **variant['vf_kwargs']
+    )
+    policy = StochasticTdmPolicy(
+        env=env,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        action_dim=action_dim,
+        **variant['policy_kwargs']
+    )
+    variant['replay_kwargs']['vectorized'] = vectorized
+    replay_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_kwargs']
+    )
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['replay_buffer'] = replay_buffer
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = env
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
+    tdm_kwargs = algo_kwargs['tdm_kwargs']
+    tdm_kwargs['observation_key'] = observation_key
+    tdm_kwargs['desired_goal_key'] = desired_goal_key
+    algorithm = TdmTwinSAC(
+        env,
+        qf1=qf1,
+        qf2=qf2,
+        vf=vf,
+        policy=policy,
+        **variant['algo_kwargs']
+    )
+
+    if variant.get("save_video", True):
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        video_func = get_video_save_func(
+            rollout_function,
+            env,
+            policy,
+            variant,
+        )
+        algorithm.post_epoch_funcs.append(video_func)
+
+    if ptu.gpu_enabled():
+        print("using GPU")
+        algorithm.cuda()
+        if not variant.get("do_state_exp", False):
+            env.vae.cuda()
+
     algorithm.train()
 
 
@@ -467,21 +671,20 @@ def grill_her_td3_experiment_online_vae(variant):
         + env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = env.action_space.low.size
-    hidden_sizes = variant.get('hidden_sizes', [400, 300])
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=hidden_sizes,
+        **variant['qf_kwargs'],
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=hidden_sizes,
+        **variant['qf_kwargs'],
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=hidden_sizes,
+        **variant['policy_kwargs'],
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -557,21 +760,20 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         + env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = env.action_space.low.size
-    hidden_sizes = variant.get('hidden_sizes', [400, 300])
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=hidden_sizes,
+        **variant['qf_kwargs'],
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=hidden_sizes,
+        **variant['qf_kwargs'],
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=hidden_sizes,
+        **variant['policy_kwargs'],
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -581,17 +783,17 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
     exploring_qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=hidden_sizes,
+        **variant['qf_kwargs'],
     )
     exploring_qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=hidden_sizes,
+        **variant['qf_kwargs'],
     )
     exploring_policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=hidden_sizes,
+        **variant['policy_kwargs'],
     )
     exploring_exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
