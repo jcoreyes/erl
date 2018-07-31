@@ -35,19 +35,6 @@ from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.td3.td3 import TD3
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
 
-def full_experiment_variant_preprocess(variant):
-    train_vae_variant = variant['train_vae_variant']
-    grill_variant = variant['grill_variant']
-    env_class = variant['env_class']
-    env_kwargs = variant['env_kwargs']
-    init_camera = variant.get('init_camera', None)
-    train_vae_variant['generate_vae_dataset_kwargs']['env_class'] = env_class
-    train_vae_variant['generate_vae_dataset_kwargs']['env_kwargs'] = env_kwargs
-    train_vae_variant['generate_vae_dataset_kwargs']['init_camera'] = init_camera
-    grill_variant['env_class'] = env_class
-    grill_variant['env_kwargs'] = env_kwargs
-    grill_variant['init_camera'] = init_camera
-
 
 def grill_tdm_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
