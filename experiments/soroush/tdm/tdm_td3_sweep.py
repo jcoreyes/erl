@@ -44,6 +44,7 @@ variant = dict(
     env_kwargs=dict(),
     render=False,
     save_video=False,
+    dump_video_kwargs=dict(),
 	do_state_exp=True,
 )
 
@@ -88,12 +89,22 @@ env_params = {
 		'env_class': [Point2DWallEnv],
         'env_kwargs.wall_shape': ['u'], #['u', ''],
 		'env_kwargs.norm_order': [2],
+        'env_kwargs.render_onscreen': [False],
+        'env_kwargs.grayscale': [False],
 		'algo_kwargs.base_kwargs.num_epochs': [30], #[25],
         'algo_kwargs.base_kwargs.reward_scale': [1e1], #[1e0, 1e2], #[1e2],
         'algo_kwargs.tdm_kwargs.max_tau': [10],
 		'render_during_eval': [False],
         'save_video': [True],
         'save_video_period': [1],
+        'dump_video_kwargs': [
+            dict(
+                rows=1,
+                columns=10,
+                pad_length=1,
+                pad_color=0,
+            ),
+        ]
         # 'env_kwargs.fixed_goal': [(0.0, 0.0)],
         # 'env_kwargs.render_dt_msec': [50],
     },
