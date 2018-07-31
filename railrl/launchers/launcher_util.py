@@ -134,6 +134,8 @@ def run_experiment(
         seed = random.randint(0, 100000)
     if variant is None:
         variant = {}
+    if mode == 'ssh' and base_log_dir is None:
+        base_log_dir = config.SSH_LOG_DIR
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
     if username is None:
