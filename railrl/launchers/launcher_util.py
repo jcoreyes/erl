@@ -119,6 +119,7 @@ def run_experiment(
     try:
         import doodad
         import doodad.mode
+        import doodad.ssh
     except ImportError:
         print("Doodad not set up! Running experiment here.")
         mode = 'here_no_doodad'
@@ -135,8 +136,10 @@ def run_experiment(
         variant = {}
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
-    if mode == 'ssh' and (hostname is None or username is None):
-        raise EnvironmentError('Please provide the username and hostname of ssh host')
+    if username is None:
+        username = config.USERNAME
+        hostname = config.HOSTNAME
+
 
     for key, value in ppp.recursive_items(variant):
         # This check isn't really necessary, but it's to prevent myself from
@@ -436,6 +439,12 @@ def create_mounts(
             output=True,
         )
     elif mode == 'local_docker':
+        output_mount = mount.MountLocal(
+            local_dir=base_log_dir,
+            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            output=True,
+        )
+    elif mode == 'ssh':
         output_mount = mount.MountLocal(
             local_dir=base_log_dir,
             mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
