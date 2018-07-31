@@ -7,6 +7,8 @@ import torch
 from torch.optim import Adam
 from torch.nn import MSELoss
 from railrl.torch.networks import Mlp
+from railrl.misc.ml_util import ConstantSchedule
+from railrl.misc.ml_util import PiecewiseLinearSchedule
 
 class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
 
@@ -21,6 +23,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         exploration_rewards_scale=1.0,
         alpha=1.0,
         ob_keys_to_save=None,
+        exploration_schedule_kwargs=None,
         **kwargs
     ):
         self.vae = vae
@@ -29,6 +32,11 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         self.vae_achieved_goal_key = vae_achieved_goal_key
         self.exploration_rewards_type = exploration_rewards_type
         self.exploration_rewards_scale = exploration_rewards_scale
+        if exploration_schedule_kwargs is None:
+            self.exploration_schedule = ConstantSchedule(self.exploration_rewards_scale)
+        else:
+            self.exploration_schedule = PiecewiseLinearSchedule(**exploration_schedule_kwargs)
+
 
         if ob_keys_to_save is None:
             ob_keys_to_save = ['observation', 'desired_goal', 'achieved_goal']
@@ -59,6 +67,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             'inverse_model_error':  self.inverse_model_error,
             'None':                 self.no_reward,
         }[self.exploration_rewards_type]
+        self.epoch = 0.0
 
     def add_path(self, path):
         self.add_decoded_vae_to_path(path, 'observations')
@@ -82,17 +91,15 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         vae_obs = self._next_obs[self.vae_obs_key][batch_idxs]
         batch['exploration_rewards'] = self._exploration_rewards[batch_idxs]
         if self.use_dynamics_model:
-            # print('before', max(batch['rewards']))
-            batch['rewards'] += self.exploration_rewards_scale * \
+            batch['rewards'] += float(self.exploration_schedule.get_value(self.epoch)) * \
                     self.dynamics_model_error(vae_obs, batch_idxs)
-            # print('after', max(batch['rewards']))
         else:
-            # print(batch['rewards'].max(), batch['exploration_rewards'].max())
-            batch['rewards'] += \
-                    self.exploration_rewards_scale * batch['exploration_rewards']
+            batch['rewards'] += float(self.exploration_schedule.get_value(self.epoch)) \
+                                    * batch['exploration_rewards']
         return batch
 
     def refresh_latents(self, epoch):
+        self.epoch = epoch
         batch_size = 1024
         next_idx = min(batch_size, self._size)
         cur_idx = 0
@@ -181,7 +188,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         return distances.sum(axis=1)
 
     def no_reward(self, next_vae_obs, indices):
-        return np.zeros((len(vae_obs), 1))
+        return np.zeros((len(next_vae_obs), 1))
 
     def initialize_dynamics_model(self):
         self.dynamics_model = Mlp(

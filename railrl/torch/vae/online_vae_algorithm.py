@@ -31,12 +31,19 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
             self.reset_vae()
             should_train = True
             amount_to_train = 1000
+        import time
         if should_train:
+            cur = time.time()
             self.vae.train()
             self._train_vae(epoch, amount_to_train)
             self.vae.eval()
+            next_time = time.time()
+            print('vae train time:' , next_time - cur)
             self.replay_buffer.refresh_latents(epoch)
+            print('vae refresh time:' , time.time() - next_time)
+        cur = time.time()
         self._test_vae(epoch)
+        print('vae test time: ', time.time() - cur)
         # very hacky
         self.epoch = epoch + 1
 

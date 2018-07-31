@@ -15,10 +15,13 @@ def every_three_a_lot(epoch):
     return epoch % 3 == 0, 1200
 
 def every_six(epoch):
-    return epoch % 6 == 0, 1800
+    return epoch % 6 == 0, 1200
 
 def every_ten(epoch):
-    return epoch % 10 == 0, 3000
+    return epoch % 10 == 0 or epoch == 5, 1000
+
+def every_twenty(epoch):
+    return epoch % 10 == 0 or epoch == 5 or epoch == 10, 1000
 
 def never_train(epoch):
     return False, 0

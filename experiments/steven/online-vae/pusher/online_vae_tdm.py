@@ -25,23 +25,22 @@ if __name__ == "__main__":
         env_kwargs=dict(
             hide_goal_markers=True,
             action_scale=.02,
-            puck_low=[-0.2, .5],
-            puck_high=[.2, .7],
-            mocap_low=[-0.1, 0.5, 0.],
-            mocap_high=[0.1, 0.7, 0.5],
-            goal_low=[-0.05, 0.55, 0.02, -0.2, 0.5],
-            goal_high=[0.05, 0.65, 0.02, 0.2, 0.7],
-
+            puck_low=[-0.25, .4],
+            puck_high=[0.25, .8],
+            mocap_low=[-0.2, 0.45, 0.],
+            mocap_high=[0.2, 0.75, 0.5],
+            goal_low=[-0.2, 0.45, 0.02, -0.25, 0.4],
+            goal_high=[0.2, 0.75, 0.02, 0.25, 0.8],
         ),
-        init_camera=sawyer_init_camera_zoomed_in,
+        init_camera=sawyer_init_camera_zoomed_in_fixed,
         grill_variant=dict(
             save_video=True,
             save_video_period=25,
-            online_vae_beta=2.5,
+            online_vae_beta=1.0,
             algo_kwargs=dict(
                 tdm_td3_kwargs=dict(
                     base_kwargs=dict(
-                        num_epochs=2000,
+                        num_epochs=3000,
                         num_steps_per_epoch=1000,
                         num_steps_per_eval=1000,
                         max_path_length=100,
@@ -66,7 +65,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_scale=0.0,
-                exploration_rewards_type='reconstruction_error',
+                exploration_rewards_type='None',
 
             ),
             qf_kwargs=dict(
@@ -94,7 +93,7 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
         ),
         train_vae_variant=dict(
-            representation_size=4,
+            representation_size=8,
             beta=5.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
@@ -123,16 +122,16 @@ if __name__ == "__main__":
         'grill_variant.training_mode': ['train'],
         # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
-        'grill_variant.replay_kwargs.alpha': [0, 1, 5],
+        'grill_variant.replay_kwargs.alpha': [0],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':
-        [vae_schedules.every_three],
-        'grill_variant.exploration_noise': [.2, .5],
+        [vae_schedules.every_six],
+        'grill_variant.exploration_noise': [.8],
         # 'grill_variant.exploration_type': ['ou', 'gaussian', 'epsilon'],
         'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
         'grill_variant.algo_kwargs.tdm_td3_kwargs.td3_kwargs.tau': [1],
-        'grill_variant.algo_kwargs.tdm_td3_kwargs.base_kwargs.num_updates_per_env_step': [1, 4],
+        'grill_variant.algo_kwargs.tdm_td3_kwargs.base_kwargs.num_updates_per_env_step': [ 4],
         'grill_variant.algo_kwargs.tdm_td3_kwargs.base_kwargs.reward_scale': [1, 10, 100],
-        'grill_variant.algo_kwargs.tdm_td3_kwargs.tdm_kwargs.max_tau': [10, 20],
+        'grill_variant.algo_kwargs.tdm_td3_kwargs.tdm_kwargs.max_tau': [ 20],
         'grill_variant.algo_kwargs.tdm_td3_kwargs.tdm_kwargs.vectorized': [False],
         'grill_variant.qf_kwargs.structure': ['none'],
 
@@ -141,9 +140,9 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'pusher-online-vae-tdm-nupo-sweep-2'
+    n_seeds = 2
+    mode = 'local'
+    exp_prefix = 'pusher-online-vae-tdm-larger-goal-sweep'
 
     # n_seeds = 3
     # mode = 'ec2'

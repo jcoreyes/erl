@@ -147,7 +147,7 @@ class ConvVAETrainer():
         kles = []
         mses = []
         linear_losses = []
-        beta = self.beta_schedule.get_value(epoch)
+        beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
             if self.state_sim_debug:
                 X, Y = self.get_debug_batch()
@@ -218,7 +218,7 @@ class ConvVAETrainer():
         kles = []
         zs = []
         mses = []
-        beta = self.beta_schedule.get_value(epoch)
+        beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(10):
             if self.state_sim_debug:
                 X, Y = self.get_debug_batch(train=False)
@@ -268,19 +268,19 @@ class ConvVAETrainer():
         if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
 
+        for key, value in self.debug_statistics().items():
+            logger.record_tabular(key, value)
+
+        logger.record_tabular("test/BCE", np.mean(bces))
+        logger.record_tabular("test/KL", np.mean(kles))
+        logger.record_tabular("test/loss", np.mean(losses))
+        if self.state_sim_debug:
+            logger.record_tabular("test/MSE", np.mean(mses))
+
 
 
         if not from_rl:
-            for key, value in self.debug_statistics().items():
-                logger.record_tabular(key, value)
-
-            logger.record_tabular("test/BCE", np.mean(bces))
-            logger.record_tabular("test/KL", np.mean(kles))
-            logger.record_tabular("test/loss", np.mean(losses))
             logger.record_tabular("beta", beta)
-            if self.state_sim_debug:
-                logger.record_tabular("test/MSE", np.mean(mses))
-
             logger.dump_tabular()
             if save_vae:
                 logger.save_itr_params(epoch, self.model)  # slow...

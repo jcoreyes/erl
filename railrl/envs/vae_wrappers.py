@@ -88,6 +88,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self._vw_goal_img_decoded = None
         self.mode(mode)
         self._presampled_goals = None
+        self.use_replay_buffer_goals = False
 
         self._mode_map = {}
 
@@ -145,6 +146,22 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
     def eval(self):
         self.mode(self._mode_map['eval'])
+
+    def get_env_update(self):
+        """
+        For online-parallel. Gets updates to the environment since the last time
+        the env was serialized.
+
+        subprocess_env.update_env(**env.get_env_update())
+        """
+        return dict(
+            mode_map=self._mode_map,
+            vae_state_dict=self.vae.state_dict(),
+        )
+
+    def update_env(self, mode_map, vae_state_dict):
+        self._mode_map = mode_map
+        self.vae.load_state_dict(vae_state_dict)
 
     @property
     def goal_dim(self):

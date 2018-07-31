@@ -126,7 +126,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'local'
-    exp_prefix = 'pusher-offline-with-bigger-generated-goals-4'
+    exp_prefix = 'pusher-offline-with-online-vae'
 
     # n_seeds = 3
     # mode = 'ec2'

@@ -30,7 +30,7 @@ if __name__ == "__main__":
             use_replay_buffer_goals=True,
             save_video=True,
             save_video_period=25,
-            online_vae_beta=1.0,
+            online_vae_beta=2.5,
             algo_kwargs=dict(
                 save_environment=False,
                 num_epochs=2000,
@@ -39,13 +39,14 @@ if __name__ == "__main__":
                 min_num_steps_before_training=4000,
                 tau=1e-2,
                 batch_size=128,
-                max_path_length=100,
+                max_path_length=200,
                 discount=0.99,
                 num_updates_per_env_step=2,
-                vae_training_schedule=vae_schedules.every_three,
+                vae_training_schedule=vae_schedules.every_six,
+                # collection_mode='online-parallel',
             ),
             replay_kwargs=dict(
-                max_size=int(40000),
+                max_size=int(30000),
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_scale=0.0,
@@ -95,16 +96,17 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'grill_variant.exploration_noise': [0.4],
         'grill_variant.use_replay_buffer_goals': [False],
         'grill_variant.training_mode': ['train'],
         # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
 
-        'grill_variant.replay_kwargs.exploration_rewards_scale': [.1, 1, 10],
-        'grill_variant.replay_kwargs.alpha': [0],
+        'grill_variant.replay_kwargs.exploration_rewards_scale': [0],
+        'grill_variant.replay_kwargs.alpha': [0, 1, 2],
         'grill_variant.algo_kwargs.num_updates_per_env_step': [4],
         'grill_variant.replay_kwargs.exploration_rewards_type':
-                ['forward_model_error'],
+                ['reconstruction_error'],
         'grill_variant.algo_kwargs.vae_training_schedule':
                 [vae_schedules.every_three],
         'init_camera': [sawyer_door_env_camera],
@@ -119,7 +121,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'pusher-online-vae-larger-space-exploration'
+    exp_prefix = 'online-sawyer-push-pull-not-parallel'
 
     # n_seeds = 3
     # mode = 'ec2'

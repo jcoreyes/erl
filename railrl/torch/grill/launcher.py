@@ -80,6 +80,9 @@ def grill_her_twin_sac_online_vae_full_experiment(variant):
 
 def grill_tdm_td3_online_vae_full_experiment(variant):
     variant['grill_variant']['save_vae_data'] = True
+    variant['grill_variant']['vae_trainer_kwargs'] = \
+            variant['train_vae_variant']['algo_kwargs']
+
     full_experiment_variant_preprocess(variant)
     train_vae_and_update_variant(variant)
     grill_tdm_td3_experiment_online_vae(variant['grill_variant'])
@@ -594,7 +597,7 @@ def grill_tdm_td3_experiment_online_vae(variant):
     grill_preprocess_variant(variant)
     env = get_envs(variant)
     es = get_exploration_strategy(variant, env)
-    vae_trainer_kwargs = variant,get('vae_trainer_kwargs')
+    vae_trainer_kwargs = variant.get('vae_trainer_kwargs')
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
