@@ -82,11 +82,12 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         vae_obs = self._next_obs[self.vae_obs_key][batch_idxs]
         batch['exploration_rewards'] = self._exploration_rewards[batch_idxs]
         if self.use_dynamics_model:
-            print('before', max(batch['rewards']))
+            # print('before', max(batch['rewards']))
             batch['rewards'] += self.exploration_rewards_scale * \
                     self.dynamics_model_error(vae_obs, batch_idxs)
-            print('after', max(batch['rewards']))
+            # print('after', max(batch['rewards']))
         else:
+            # print(batch['rewards'].max(), batch['exploration_rewards'].max())
             batch['rewards'] += \
                     self.exploration_rewards_scale * batch['exploration_rewards']
         return batch

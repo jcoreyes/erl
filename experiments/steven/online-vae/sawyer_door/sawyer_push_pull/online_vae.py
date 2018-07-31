@@ -1,5 +1,4 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, init_sawyer_camera_v4
 from railrl.envs.mujoco.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEasyEnv
 )
@@ -14,30 +13,17 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
 from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
 import railrl.torch.vae.vae_schedules as vae_schedules
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerPushAndPullDoorEnv
+from railrl.images.camera import (
+    sawyer_door_env_camera
+)
+
 
 if __name__ == "__main__":
     variant = dict(
         double_algo=False,
-        # env_class=SawyerReachXYEnv,
-        env_class=SawyerPushAndReachXYEnv,
-        # env_class=SawyerPickAndPlaceEnv,
+        env_class=SawyerPushAndPullDoorEnv,
         env_kwargs=dict(
-            hide_goal_markers=True,
-            action_scale=.02,
-            # puck_low=[-0.25, .4],
-            # puck_high=[0.25, .8],
-            # mocap_low=[-0.2, 0.45, 0.],
-            # mocap_high=[0.2, 0.75, 0.5],
-            # goal_low=[-0.2, 0.45, 0.02, -0.25, 0.4],
-            # goal_high=[0.2, 0.75, 0.02, 0.25, 0.8],
-
-            puck_low=[-0.2, .5],
-            puck_high=[0.2, .7],
-            mocap_low=[-0.1, 0.5, 0.],
-            mocap_high=[0.1, 0.7, 0.5],
-            goal_low=[-0.05, 0.55, 0.02, -0.2, 0.5],
-            goal_high=[0.05, 0.65, 0.02, 0.2, 0.7],
-
         ),
         # init_camera=sawyer_init_camera_zoomed_in,
         grill_variant=dict(
@@ -69,7 +55,7 @@ if __name__ == "__main__":
             algorithm='GRILL-HER-TD3',
             normalize=False,
             render=False,
-            exploration_noise=0.8,
+            exploration_noise=0.4,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -89,19 +75,15 @@ if __name__ == "__main__":
                 oracle_dataset=True,
                 use_cached=False,
                 num_channels=3,
-                vae_dataset_specific_env_kwargs=dict(
-                    goal_low=[-0.1, 0.5, 0.02, -0.2, 0.5],
-                    goal_high=[0.1, 0.7, 0.02, 0.2, 0.7],
-                ),
 
             ),
             vae_kwargs=dict(
-                action_dim=2,
+                action_dim=4,
                 input_channels=3,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
-                use_linear_dynamics=False,
+                use_linear_dynamics=True,
                 lr=1e-3,
             ),
             #beta_schedule_kwargs=dict(
@@ -113,22 +95,22 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.use_replay_buffer_goals': [True, False],
+        'grill_variant.use_replay_buffer_goals': [False],
         'grill_variant.training_mode': ['train'],
         # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
 
-        'grill_variant.replay_kwargs.exploration_rewards_scale': [0],
-        'grill_variant.replay_kwargs.alpha': [0, 1],
+        'grill_variant.replay_kwargs.exploration_rewards_scale': [.1, 1, 10],
+        'grill_variant.replay_kwargs.alpha': [0],
         'grill_variant.algo_kwargs.num_updates_per_env_step': [4],
         'grill_variant.replay_kwargs.exploration_rewards_type':
-                ['reconstruction_error'],
+                ['forward_model_error'],
         'grill_variant.algo_kwargs.vae_training_schedule':
                 [vae_schedules.every_three],
-        'init_camera': [sawyer_init_camera_zoomed_in_fixed],
+        'init_camera': [sawyer_door_env_camera],
         # 'grill_variant.exploration_noise': [.1, .3, .4],
         # 'grill_variant.exploration_type': ['ou', 'gaussian', 'epsilon'],
-        'grill_variant.algo_kwargs.oracle_data': [True],
+        'grill_variant.algo_kwargs.oracle_data': [False],
         'train_vae_variant.algo_kwargs.linearity_weight': [0]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -137,7 +119,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'pusher-oracle-on-policy'
+    exp_prefix = 'pusher-online-vae-larger-space-exploration'
 
     # n_seeds = 3
     # mode = 'ec2'

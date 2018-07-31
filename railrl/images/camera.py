@@ -108,7 +108,7 @@ def sawyer_init_camera_zoomed_in_fixed(camera):
     camera.lookat[0] = 0
     camera.lookat[1] = 0.85
     camera.lookat[2] = 0.3
-    camera.distance = 0.3
+    camera.distance = 0.35
     camera.elevation = -35
     camera.azimuth = 270
     camera.trackbodyid = -1
@@ -126,3 +126,48 @@ def sawyer_init_camera_zoomed_out_fixed(camera):
     camera.elevation = -45
     camera.azimuth = 270
     camera.trackbodyid = -1
+
+def sawyer_door_env_camera_closer(camera):
+    camera.trackbodyid = 0
+    camera.distance = 1.0
+    cam_dist = 0.1
+    rotation_angle = 0
+    cam_pos = np.array([0, 0.725, .9, cam_dist, -90, rotation_angle])
+
+    for i in range(3):
+        camera.lookat[i] = cam_pos[i]
+    camera.distance = cam_pos[3]
+    camera.elevation = cam_pos[4]
+    camera.azimuth = cam_pos[5]
+    camera.trackbodyid = -1
+
+def sawyer_door_env_camera(camera):
+    camera.trackbodyid = 0
+    camera.distance = 1.0
+
+    # robot view
+    #rotation_angle = 90
+    #cam_dist = 1
+    #cam_pos = np.array([0, 0.5, 0.2, cam_dist, -45, rotation_angle])
+
+    # 3rd person view
+    # cam_dist = 0.3
+    # rotation_angle = 270
+    # cam_pos = np.array([0, 1.0, 0.5, cam_dist, -45, rotation_angle])
+
+    # top down view
+    cam_dist = 0.1
+    rotation_angle = 0
+    cam_pos = np.array([0, 0.725, .9, cam_dist, -90, rotation_angle])
+
+    #side view:
+    # cam_dist = 1
+    # rotation_angle = 180
+    # cam_pos = np.array([1, .75, 0.4, cam_dist, -15, rotation_angle])
+
+    for i in range(3):
+        camera.lookat[i] = cam_pos[i]
+    camera.distance = cam_pos[3]
+    camera.elevation = cam_pos[4]
+    camera.azimuth = cam_pos[5]
+    camera.trackbodyid = -1 

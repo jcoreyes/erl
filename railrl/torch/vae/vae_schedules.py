@@ -11,6 +11,9 @@ def every_other(epoch):
 def every_three(epoch):
     return epoch % 3 == 0, 600
 
+def every_three_a_lot(epoch):
+    return epoch % 3 == 0, 1200
+
 def every_six(epoch):
     return epoch % 6 == 0, 1800
 

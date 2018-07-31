@@ -85,7 +85,6 @@ if __name__ == "__main__":
                 vae_dataset_specific_env_kwargs=dict(
                     goal_low=[-0.06, 0.5, 0.02, -0.2, 0.5],
                     goal_high=[0.06, 0.7, 0.02, 0.2, 0.7],
-                   
                 ),
             ),
              beta_schedule_kwargs=dict(

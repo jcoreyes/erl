@@ -200,7 +200,7 @@ class ConvVAETrainer():
             if self.state_sim_debug:
                 logger.record_tabular("train/mse", np.mean(mses))
             logger.record_tabular("train/loss", np.mean(losses))
-            if self.state_linearity_loss:
+            if self.use_linear_dynamics:
                 logger.record_tabular("train/linar_loss", np.mean(linear_losses))
 
 
