@@ -865,11 +865,15 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         **variant['replay_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+    env.replay_buffer = replay_buffer
+    env.use_replay_buffer_goals = variant['use_replay_buffer_goals']
 
+    vae_trainer_kwargs = variant.get('vae_trainer_kwargs')
     t = ConvVAETrainer(variant['vae_train_data'],
                        variant['vae_test_data'],
                        vae,
-                       beta=variant['online_vae_beta'])
+                       beta=variant['online_vae_beta'],
+                       **vae_trainer_kwargs)
 
     control_algorithm = TD3(
         env=env,

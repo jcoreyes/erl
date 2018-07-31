@@ -73,8 +73,7 @@ if __name__ == "__main__":
                 exploration_rewards_scale=0.0,
                 exploration_rewards_type='reconstruction_error',
                 exploration_schedule_kwargs=dict(
-                   x_values=[0, 300, 400, 10000],
-                   y_values=[10000, 10000, 0, 0],
+                   y_values=[200, 200, 0, 0],
                 ),
             ),
             algorithm='GRILL-HER-TD3',
@@ -129,12 +128,19 @@ if __name__ == "__main__":
         'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
 
-        'grill_variant.replay_kwargs.exploration_rewards_scale': [10000],
-        'grill_variant.exploration_noise': [0.7],
+        'grill_variant.replay_kwargs.exploration_rewards_scale': [200],
+        'grill_variant.replay_kwargs.exploration_schedule_kwargs.x_values':
+        [
+            [0, 100, 200, 10000],
+            [0, 200, 300, 10000],
+            [0, 300, 400, 10000],
+            [0, 400, 500, 10000],
+        ],
+        'grill_variant.exploration_noise': [0.8],
         'grill_variant.replay_kwargs.alpha': [1],
         'grill_variant.algo_kwargs.num_updates_per_env_step': [2],
         'grill_variant.replay_kwargs.exploration_rewards_type':
-                ['None'],
+                ['reconstruction_error'],
         'grill_variant.algo_kwargs.vae_training_schedule':
                 [
                  vae_schedules.every_six,
@@ -151,7 +157,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'pusher-large-online-exploration-schedule'
+    exp_prefix = 'pusher-large-online-exploration-schedule-2'
 
     # n_seeds = 3
     # mode = 'ec2'
