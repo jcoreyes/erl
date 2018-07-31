@@ -191,7 +191,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         new_actions = self._actions[indices]
         new_rewards = self.env.compute_rewards(
             new_actions,
-            new_obs_dict,
+            new_next_obs_dict,
         )
         if not self.vectorized:
             new_rewards = new_rewards.reshape(-1, 1)
