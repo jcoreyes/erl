@@ -85,12 +85,13 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.mode(mode)
         self._presampled_goals = presampled_goals
         if presampled_goals is not None:
-            self.num_goals_presampled = len(presampled_goals)
+            import random
+            self.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
         else:
             self.num_goals_presampled = 0
         self._mode_map = {}
         self.reset()
-        
+
     @property
     def use_vae_goals(self):
         return self._use_vae_goals and not self.reward_type.startswith('state')
@@ -290,6 +291,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 goal = self.sample_goal()
             self._latent_goal = goal['latent_desired_goal']
             self.wrapped_env.set_goal(obs, goal)
+            for key in goal:
+                obs[key] = goal[key]
         else:
             self._latent_goal=self._encode_one(obs['image_desired_goal'])
 
@@ -298,7 +301,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return self.unbatchify_dict(goals, 0)
 
     def sample_goals(self, batch_size):
-        if self.num_goals_presampled > 0:
+        if self.num_goals_presampled > 0 and not self.use_vae_goals:
             idx = np.random.randint(0, self.num_goals_presampled, batch_size)
             sampled_goals = {
                 k: v[idx] for k, v in self._presampled_goals.items()

@@ -7,18 +7,18 @@ from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 from railrl.torch.vae.sawyer_torque_control_data import generate_vae_dataset
 
 if __name__ == "__main__":
-    n_seeds = 1
+    n_seeds = 3
     mode = 'local'
-    exp_prefix = 'sawyer_torque_grill_her_td3_test'
+    exp_prefix = 'sawyer_torque_multiworld_her_td3_grill_presampled_goals_pr'
 
     # n_seeds = 1
     # mode = 'ec2'
-    # exp_prefix = 'sawyer_torque_multiworld_her_td3_grill_presampled_goals'
+    # exp_prefix = 'sawyer_torque_multiworld_her_td3_grill_presampled_goals_pr'
 
     grill_variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=1000,
+                num_epochs=201,
                 num_steps_per_epoch=100,
                 num_steps_per_eval=500,
                 max_path_length=50,
@@ -57,16 +57,18 @@ if __name__ == "__main__":
         vae_wrapped_env_kwargs=dict(
         ),
         generate_goal_dataset_fn=generate_goal_data_set,
-        goal_dataset_kwargs=dict(),
+        goal_dataset_kwargs=dict(num_goals=1000, use_cached_dataset=True,),
         presample_goals=True,
+        save_video_period=50,
+        save_video=True,
       )
     train_vae_variant = dict(
         generate_vae_data_fctn=generate_vae_dataset,
         beta=1,
-        num_epochs=1,
+        num_epochs=1000,
         generate_vae_dataset_kwargs=dict(
-            N=100,
-            use_cached=False,
+            N=20000,
+            use_cached=True ,
         ),
         algo_kwargs=dict(
             batch_size=64,
