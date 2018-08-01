@@ -75,8 +75,7 @@ def run_experiment(
         time_in_mins=60,
         num_exps_per_instance=1,
         #ssh settings
-        ssh_username=None,
-        ssh_hostname=None,
+        ssh_host='default',
 ):
     """
     Usage:
@@ -114,8 +113,14 @@ def run_experiment(
     :param base_log_dir: Will over
     :param sync_interval: How often to sync s3 data (in seconds).
     :param local_input_dir_to_mount_point_dict: Dictionary for doodad.
-    :param ssh_username: username of ssh host
-    :param ssh_hostname: ip address/ hostname of ssh host
+    :param ssh_host: the name of the host you want to ssh onto, should correspond to an entry in
+    config.py of the following form:
+    SSH_HOSTS=dict(
+    ssh_host=dict(
+        username='username',
+        hostname='hostname/ip address',
+    )
+    - if ssh_host is set to default, you will use ssh_host specified by config.SSH_DEFAULT_HOST
     :return:
     """
     try:
@@ -140,10 +145,10 @@ def run_experiment(
         base_log_dir = config.SSH_LOG_DIR
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
-    if ssh_username is None:
-        ssh_username = config.SSH_USERNAME
-        ssh_hostname = config.SSH_HOSTNAME
-
+    if ssh_host == 'default':
+        ssh_dict = config.SSH_HOSTS[config.SSH_DEFAULT_HOST]
+    else:
+        ssh_dict = config.SSH_HOSTS[ssh_host]
 
     for key, value in ppp.recursive_items(variant):
         # This check isn't really necessary, but it's to prevent myself from
@@ -287,8 +292,8 @@ def run_experiment(
         )
     elif mode == 'ssh':
         credentials = doodad.ssh.credentials.SSHCredentials(
-            username=ssh_username,
-            hostname=ssh_hostname,
+            username=ssh_dict['username'],
+            hostname=ssh_dict['hostname'],
             identity_file=config.SSH_PRIVATE_KEY
         )
         dmode = doodad.mode.SSHDocker(
