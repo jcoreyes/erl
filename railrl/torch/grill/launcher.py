@@ -276,7 +276,11 @@ def get_exploration_strategy(variant, env):
     exploration_type = variant['exploration_type']
     exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
-        es = OUStrategy(action_space=env.action_space)
+        es = OUStrategy(
+            action_space=env.action_space,
+            max_sigma=exploration_noise,
+            min_sigma=exploration_noise,  # Constant sigma
+        )
     elif exploration_type == 'gaussian':
         es = GaussianStrategy(
             action_space=env.action_space,
