@@ -192,9 +192,9 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 goals[self.desired_goal_key]
             )
             for goal_key in self.goal_keys:
-                new_obs_dict[goal_key][num_rollout_goals:last_env_goals_idx] = \
+                new_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = \
                     goals[goal_key]
-                new_next_obs_dict[goal_key][num_rollout_goals:last_env_goals_idx] = \
+                new_next_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = \
                     goals[goal_key]
         if num_future_goals > 0:
             future_obs_idxs = []
