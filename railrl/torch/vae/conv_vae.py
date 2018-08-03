@@ -135,7 +135,7 @@ class ConvVAETrainer():
         bces = []
         kles = []
         mses = []
-        beta = self.beta_schedule.get_value(epoch)
+        beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
             if self.state_sim_debug:
                 X, Y = self.get_debug_batch()
@@ -193,7 +193,7 @@ class ConvVAETrainer():
         kles = []
         zs = []
         mses = []
-        beta = self.beta_schedule.get_value(epoch)
+        beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(10):
             if self.state_sim_debug:
                 X, Y = self.get_debug_batch(train=False)
