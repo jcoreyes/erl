@@ -102,6 +102,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.decode_goals = self.default_kwargs['decode_goals']
             self.render_goals = self.default_kwargs['render_goals']
             self.render_rollouts = self.default_kwargs['render_rollouts']
+            self.decode_goals = True
         elif name == "train_env_goals":
             self._use_vae_goals = False
             self.decode_goals = self.default_kwargs['decode_goals']
@@ -173,8 +174,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self._update_info(info, obs)
         reward = self.compute_reward(
             action,
-            {'latent_achieved_goal': new_obs['latent_achieved_goal'],
-             'latent_desired_goal': new_obs['latent_desired_goal']}
+            new_obs,
+            # {'latent_achieved_goal': new_obs['latent_achieved_goal'],
+             # 'latent_desired_goal': new_obs['latent_desired_goal']}
         )
         if self.render_rollouts:
             img = obs['image_observation'].reshape(
@@ -233,7 +235,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             else:
                 latent_goals = self._sample_vae_prior(1)
             if self.decode_goals:
-                goal_img = self._decode(latent_goals)[0].transpose().flatten()
+                goal_img = self._decode(latent_goals)[0].flatten()
             else:
                 goal_img = None
             obs['image_desired_goal'] = goal_img
@@ -257,7 +259,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.render_rollouts = True
 
     def disable_render(self):
-        self.decode_goals = False
+        # self.decode_goals = False
         self.render_goals = False
         self.render_rollouts = False
 
@@ -353,10 +355,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             else:
                 latent_goals = self._sample_vae_prior(batch_size)
             if self.decode_goals:
-                raise NotImplementedError(
-                    'I think we should change _decode to not transpose...'
-                )
-                goal_imgs = self._decode(latent_goals).transpose().flatten()
+                goal_imgs = self._decode(latent_goals).reshape(batch_size, -1)
             else:
                 goal_imgs = None
             goals['image_desired_goal'] = goal_imgs
@@ -412,6 +411,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
         elif self.reward_type == 'state_distance':
             achieved_goals = obs['state_achieved_goal']
             desired_goals = obs['state_desired_goal']
+            return - np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
+        elif self.reward_type == 'image_distance':
+            achieved_goals = obs['image_achieved_goal']
+            desired_goals = obs['image_desired_goal']
             return - np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
         elif self.reward_type == 'wrapped_env':
             return self.wrapped_env.compute_rewards(actions, obs)
