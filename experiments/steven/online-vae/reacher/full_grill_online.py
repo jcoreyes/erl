@@ -44,11 +44,12 @@ if __name__ == "__main__":
                 max_path_length=50,
                 discount=0.99,
                 num_updates_per_env_step=1,
-                vae_training_schedule=vae_schedules.always_train,
+                vae_training_schedule=vae_schedules.every_six,
+                collection_mode='online-parallel',
             ),
             replay_kwargs=dict(
                 max_size=int(1e4),
-                fraction_goals_are_rollout_goals=0.2,
+                fraction_goals_are_rollout_goals=0.0,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
             algorithm='GRILL-HER-TD3',
@@ -69,7 +70,7 @@ if __name__ == "__main__":
             beta=5.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=1000,
+                N=100,
                 oracle_dataset=True,
                 use_cached=False,
                 num_channels=3,

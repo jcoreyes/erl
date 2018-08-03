@@ -754,8 +754,10 @@ def grill_her_td3_experiment_online_vae(variant):
         **variant['replay_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
-    env.replay_buffer = replay_buffer
-    env.use_replay_buffer_goals = variant['use_replay_buffer_goals']
+    if variant.get('use_replay_buffer_goals', False):
+        env.replay_buffer = replay_buffer
+        env.use_replay_buffer_goals = True
+
 
     vae_trainer_kwargs = variant.get('vae_trainer_kwargs')
     t = ConvVAETrainer(variant['vae_train_data'],
@@ -865,8 +867,9 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         **variant['replay_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
-    env.replay_buffer = replay_buffer
-    env.use_replay_buffer_goals = variant['use_replay_buffer_goals']
+    if variant.get('use_replay_buffer_goals', False):
+        env.replay_buffer = replay_buffer
+        env.use_replay_buffer_goals = True
 
     vae_trainer_kwargs = variant.get('vae_trainer_kwargs')
     t = ConvVAETrainer(variant['vae_train_data'],

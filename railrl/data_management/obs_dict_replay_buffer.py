@@ -24,6 +24,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             fraction_goals_are_rollout_goals=1.0,
             fraction_resampled_goals_are_env_goals=0.0,
             ob_keys_to_save=None,
+            internal_keys=None,
             observation_key='observation',
             desired_goal_key='desired_goal',
             achieved_goal_key='achieved_goal',
@@ -42,6 +43,10 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             ob_keys_to_save = ['observation', 'desired_goal', 'achieved_goal']
         else:  # in case it's a tuple
             ob_keys_to_save = list(ob_keys_to_save)
+
+        if internal_keys is None:
+            internal_keys = []
+        self.internal_keys = internal_keys
         assert isinstance(env.observation_space, Dict)
         self.max_size = max_size
         self.env = env
@@ -67,7 +72,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             assert key in self.ob_spaces
             if key not in ob_keys_to_save:
                 ob_keys_to_save.append(key)
-        for key in ob_keys_to_save:
+        for key in ob_keys_to_save + internal_keys:
             assert key in self.ob_spaces
             type = np.float64
             if key.startswith('image'):
@@ -103,8 +108,10 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         path_len = len(rewards)
 
         actions = flatten_n(actions)
-        obs = flatten_dict(obs, self.ob_keys_to_save)
-        next_obs = flatten_dict(next_obs, self.ob_keys_to_save)
+        obs = flatten_dict(obs, self.ob_keys_to_save + self.internal_keys)
+        next_obs = flatten_dict(next_obs, self.ob_keys_to_save + self.internal_keys)
+        obs = preprocess_obs_dict(obs)
+        next_obs = preprocess_obs_dict(next_obs)
 
         if self._top + path_len >= self.max_size:
             num_pre_wrap_steps = self.max_size - self._top
@@ -123,16 +130,9 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             ]:
                 self._actions[buffer_slice] = actions[path_slice]
                 self._terminals[buffer_slice] = terminals[path_slice]
-                for key in self.ob_keys_to_save:
-                    if key.startswith('image'):
-                        if key.endswith('observation'):
-                            self._obs[key][buffer_slice] = \
-                                    unormalize_image(obs[key][path_slice])
-                        self._next_obs[key][buffer_slice] = \
-                                unormalize_image(next_obs[key][path_slice])
-                    else:
-                        self._obs[key][buffer_slice] = obs[key][path_slice]
-                        self._next_obs[key][buffer_slice] = next_obs[key][path_slice]
+                for key in self.ob_keys_to_save + self.internal_keys:
+                    self._obs[key][buffer_slice] = obs[key][path_slice]
+                    self._next_obs[key][buffer_slice] = next_obs[key][path_slice]
             # Pointers from before the wrap
             for i in range(self._top, self.max_size):
                 self._idx_to_future_obs_idx[i] = np.hstack((
@@ -151,15 +151,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             slc = np.s_[self._top:self._top + path_len, :]
             self._actions[slc] = actions
             self._terminals[slc] = terminals
-            for key in self.ob_keys_to_save:
-                assign_obs = True
-                if key.startswith('image'):
-                    if not key.endswith('observation'):
-                        assign_obs = False
-                    obs[key] = unormalize_image(obs[key])
-                    next_obs[key] = unormalize_image(next_obs[key])
-                if assign_obs:
-                    self._obs[key][slc] = obs[key]
+            for key in self.ob_keys_to_save + self.internal_keys:
+                self._obs[key][slc] = obs[key]
                 self._next_obs[key][slc] = next_obs[key]
             for i in range(self._top, self._top + path_len):
                 self._idx_to_future_obs_idx[i] = np.arange(
@@ -202,8 +195,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 self.achieved_goal_key
             ][future_obs_idxs]
 
-        new_obs_dict = self._batch_obs_dict(indices)
-        new_next_obs_dict = self._batch_next_obs_dict(indices)
+        new_obs_dict = postprocess_obs_dict(self._batch_obs_dict(indices))
+        new_next_obs_dict = postprocess_obs_dict(self._batch_next_obs_dict(indices))
         new_obs_dict[self.desired_goal_key] = resampled_goals
         new_next_obs_dict[self.desired_goal_key] = resampled_goals
         new_actions = self._actions[indices]
@@ -253,3 +246,25 @@ def flatten_dict(dicts, keys):
         key: flatten_n([d[key] for d in dicts])
         for key in keys
     }
+
+def preprocess_obs_dict(obs_dict):
+    """
+    Apply internal replay buffer representation changes:
+    save images as bytes
+    """
+    for obs_key, obs in obs_dict.items():
+        if 'image' not in obs_key:
+            continue
+        obs_dict[obs_key] = unormalize_image(obs)
+    return obs_dict
+
+def postprocess_obs_dict(obs_dict):
+    """
+    Undo internal replay buffer representation changes:
+    save images as bytes
+    """
+    for obs_key, obs in obs_dict.items():
+        if 'image' not in obs_key:
+            continue
+        obs_dict[obs_key] = normalize_image(obs)
+    return obs_dict
