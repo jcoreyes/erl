@@ -110,6 +110,68 @@ class TdmQf(FlattenMlp):
         return output
 
 
+class TdmVf(FlattenMlp):
+    def __init__(
+            self,
+            env,
+            vectorized,
+            structure='norm_difference',
+            observation_dim=None,
+            goal_dim=None,
+            norm_order=1,
+            **kwargs
+    ):
+        assert structure in [
+            'norm_difference',
+            'squared_difference',
+            'none',
+        ]
+        self.save_init_params(locals())
+
+        if observation_dim is None:
+            self.observation_dim = env.observation_space.low.size
+        else:
+            self.observation_dim = observation_dim
+
+        if goal_dim is None:
+            self.goal_dim = env.goal_dim
+        else:
+            self.goal_dim = goal_dim
+
+        super().__init__(
+            input_size= self.observation_dim + self.goal_dim + 1,
+            output_size=self.goal_dim if vectorized else 1,
+            **kwargs
+        )
+        self.env = env
+        self.vectorized = vectorized
+        self.structure = structure
+        self.norm_order = norm_order
+
+    def forward(
+            self,
+            observations,
+            goals,
+            num_steps_left,
+    ):
+        predictions = super().forward(
+            observations, goals, num_steps_left
+        )
+
+        if self.structure == 'norm_difference':
+            output = - torch.abs(goals - predictions)
+        elif self.structure == 'squared_difference':
+            output = - (goals - predictions)**2
+        elif self.structure == 'none':
+            output = predictions
+        else:
+            raise TypeError("Invalid structure: {}".format(self.structure))
+        if not self.vectorized:
+            output = - torch.norm(output, p=self.norm_order, dim=1, keepdim=True)
+
+        return output
+
+
 class TdmPolicy(TanhMlpPolicy):
     """
     Rather than giving `g`, give `g - goalify(s)` as input.
@@ -168,71 +230,32 @@ class TdmPolicy(TanhMlpPolicy):
         return actions[0, :], {}
 
 
-class TdmVf(FlattenMlp):
-    def __init__(
-            self,
-            env,
-            vectorized,
-            structure='norm_difference',
-            observation_dim=None,
-            action_dim=None,
-            goal_dim=None,
-            norm_order=1,
-            **kwargs
-    ):
-        assert structure in [
-            'norm_difference',
-            'squared_difference',
-            'none',
-        ]
-        self.save_init_params(locals())
-        self.observation_dim = env.observation_space.low.size
-        self.goal_dim = env.goal_dim
-
-        super().__init__(
-            input_size= self.observation_dim + self.goal_dim + 1,
-            output_size=self.goal_dim if vectorized else 1,
-            **kwargs
-        )
-        self.env = env
-        self.vectorized = vectorized
-        self.structure = structure
-        self.norm_order = norm_order
-
-    def forward(
-            self,
-            observations,
-            goals,
-            num_steps_left,
-    ):
-        predictions = super().forward(
-            observations, goals, num_steps_left
-        )
-
-        if self.structure == 'norm_difference':
-            output = - torch.abs(goals - predictions)
-        elif self.structure == 'squared_difference':
-            output = - (goals - predictions)**2
-        elif self.structure == 'none':
-            output = predictions
-        else:
-            raise TypeError("Invalid structure: {}".format(self.structure))
-        if not self.vectorized:
-            output = - torch.norm(output, p=self.norm_order, dim=1, keepdim=True)
-
-        return output
-
-
 class StochasticTdmPolicy(TanhGaussianPolicy, UniversalPolicy):
     def __init__(
             self,
             env,
+            observation_dim=None,
+            action_dim=None,
+            goal_dim=None,
             **kwargs
     ):
         self.save_init_params(locals())
-        self.observation_dim = env.observation_space.low.size
-        self.action_dim = env.action_space.low.size
-        self.goal_dim = env.goal_dim
+
+        if observation_dim is None:
+            self.observation_dim = env.observation_space.low.size
+        else:
+            self.observation_dim = observation_dim
+
+        if action_dim is None:
+            self.action_dim = env.action_space.low.size
+        else:
+            self.action_dim = action_dim
+
+        if goal_dim is None:
+            self.goal_dim = env.goal_dim
+        else:
+            self.goal_dim = goal_dim
+
         super().__init__(
             obs_dim=self.observation_dim + self.goal_dim + 1,
             action_dim=self.action_dim,

@@ -1,10 +1,10 @@
-from railrl.torch.her.her_twin_sac import HerTwinSac
+from railrl.torch.her.her_twin_sac import HerTwinSAC
 from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
 import railrl.torch.vae.vae_schedules as vae_schedules
 from railrl.data_management.online_vae_replay_buffer \
         import OnlineVaeRelabelingBuffer
 
-class OnlineVaeHerTwinSac(OnlineVaeAlgorithm, HerTwinSac):
+class OnlineVaeHerTwinSac(OnlineVaeAlgorithm, HerTwinSAC):
 
     def __init__(
         self,
@@ -15,11 +15,11 @@ class OnlineVaeHerTwinSac(OnlineVaeAlgorithm, HerTwinSac):
             self,
             **online_vae_algo_kwargs,
         )
-        HerTwinSac.__init__(self, **algo_kwargs)
+        HerTwinSAC.__init__(self, **algo_kwargs)
 
         assert isinstance(self.replay_buffer, OnlineVaeRelabelingBuffer)
 
     @property
     def networks(self):
-        return HerTwinSac.networks.fget(self) + \
+        return HerTwinSAC.networks.fget(self) + \
                OnlineVaeAlgorithm.networks.fget(self)

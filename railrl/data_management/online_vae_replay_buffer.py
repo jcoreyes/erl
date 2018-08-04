@@ -33,9 +33,11 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         self.exploration_rewards_type = exploration_rewards_type
         self.exploration_rewards_scale = exploration_rewards_scale
         if exploration_schedule_kwargs is None:
-            self.exploration_schedule = ConstantSchedule(self.exploration_rewards_scale)
+            self.exploration_schedule = \
+                    ConstantSchedule(self.exploration_rewards_scale)
         else:
-            self.exploration_schedule = PiecewiseLinearSchedule(**exploration_schedule_kwargs)
+            self.exploration_schedule = \
+                    PiecewiseLinearSchedule(**exploration_schedule_kwargs)
 
         extra_keys = [
             self.decoded_obs_key,
@@ -132,18 +134,18 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             next_idx += batch_size
             next_idx = min(next_idx, self._size)
         self.total_exploration_error = np.sum(self._exploration_rewards[:self._size])
-        self.vae_probs = self._exploration_rewards[:self._size]**self.alpha
-        if np.sum(self.vae_probs) != 0.0:
-            self.vae_probs /= np.sum(self.vae_probs)
-        self.vae_probs = self.vae_probs.flatten()
+        self.vae_sample_probs = self._exploration_rewards[:self._size]**self.alpha
+        if np.sum(self.vae_sample_probs) != 0.0:
+            self.vae_sample_probs /= np.sum(self.vae_sample_probs)
+        self.vae_sample_probs = self.vae_sample_probs.flatten()
 
     def random_vae_training_data(self, batch_size):
         indices = self._sample_indices(batch_size)
         if self.total_exploration_error != 0.0:
             indices = np.random.choice(
-                len(self.vae_probs),
+                len(self.vae_sample_probs),
                 batch_size,
-                p=self.vae_probs,
+                p=self.vae_sample_probs,
             )
         next_obs = normalize_image(self._next_obs[self.decoded_obs_key][indices])
         obs = normalize_image(self._obs[self.decoded_obs_key][indices])
@@ -153,7 +155,6 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             next_obs=ptu.np_to_var(next_obs),
             actions=ptu.np_to_var(actions),
         )
-
 
 
     def reconstruction_mse(self, next_vae_obs, indices):
@@ -194,19 +195,16 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         return np.zeros((len(next_vae_obs), 1))
 
     def initialize_dynamics_model(self):
+        obs_dim = self._obs[self.observation_key].shape[1]
         self.dynamics_model = Mlp(
             hidden_sizes=[128, 128],
-            output_size=self._obs[self.observation_key].shape[1],
-            input_size=self._obs[self.observation_key].shape[1] + self._action_dim,
+            output_size=obs_dim,
+            input_size=obs_dim + self._action_dim,
         )
         if ptu.gpu_enabled():
             self.dynamics_model.cuda()
         self.dynamics_optimizer = Adam(self.dynamics_model.parameters())
         self.dynamics_loss = MSELoss()
-        if self.exploration_rewards_type == 'forward_model_error':
-            self.dynamics_model_error = self.forward_model_error
-        else:
-            self.dynamics_model_error = self.inverse_model_error
 
     def train_dynamics_model(self, batches=50, batch_size=100):
         if not self.use_dynamics_model:

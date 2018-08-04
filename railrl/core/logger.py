@@ -52,7 +52,6 @@ _snapshot_gap = 1
 _log_tabular_only = False
 _header_printed = False
 
-_previous_tabular_dict = {}
 
 def _add_output(file_name, arr, fds, mode='a'):
     if file_name not in arr:
@@ -240,28 +239,16 @@ def dump_tabular(*args, **kwargs):
             for line in tabulate(_tabular).split('\n'):
                 log(line, *args, **kwargs)
         tabular_dict = dict(_tabular)
-
-        global _previous_tabular_dict
-        for key, val in _previous_tabular_dict.items():
-            if key not in tabular_dict:
-                tabular_dict[key] = val
-        _previous_tabular_dict = tabular_dict.copy()
-        keys = sorted(tabular_dict.keys())
-        values = [tabular_dict[key] for key in keys]
-        new_dict = {}
-        for k, v in zip(keys, values):
-            new_dict[k] = v
         # Also write to the csv files
         # This assumes that the keys in each iteration won't change!
         for tabular_fd in list(_tabular_fds.values()):
             writer = csv.DictWriter(tabular_fd,
-                                    fieldnames=list(new_dict.keys()))
+                                    fieldnames=list(tabular_dict.keys()))
             if wh or (wh is None and tabular_fd not in _tabular_header_written):
                 writer.writeheader()
                 _tabular_header_written.add(tabular_fd)
-            writer.writerow(new_dict)
+            writer.writerow(tabular_dict)
             tabular_fd.flush()
-
         del _tabular[:]
 
 

@@ -217,7 +217,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
 
 
         new_obs_dict = postprocess_obs_dict(new_obs_dict)
-        new_next_obs_dict = postprocess_obs_dict(new_obs_dict)
+        new_next_obs_dict = postprocess_obs_dict(new_next_obs_dict)
         new_obs_dict[self.desired_goal_key] = resampled_goals
         new_next_obs_dict[self.desired_goal_key] = resampled_goals
 
@@ -272,22 +272,18 @@ def flatten_dict(dicts, keys):
 
 def preprocess_obs_dict(obs_dict):
     """
-    Apply internal replay buffer representation changes:
-    save images as bytes
+    Apply internal replay buffer representation changes: save images as bytes
     """
     for obs_key, obs in obs_dict.items():
-        if 'image' not in obs_key:
-            continue
-        obs_dict[obs_key] = unormalize_image(obs)
+        if 'image' in obs_key and obs is not None:
+            obs_dict[obs_key] = unormalize_image(obs)
     return obs_dict
 
 def postprocess_obs_dict(obs_dict):
     """
-    Undo internal replay buffer representation changes:
-    save images as bytes
+    Undo internal replay buffer representation changes: save images as bytes
     """
     for obs_key, obs in obs_dict.items():
-        if 'image' not in obs_key:
-            continue
-        obs_dict[obs_key] = normalize_image(obs)
+        if 'image' in obs_key and obs is not None:
+            obs_dict[obs_key] = normalize_image(obs)
     return obs_dict

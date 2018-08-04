@@ -56,48 +56,12 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             policy,
             exploration_policy,
             max_path_length,
-            normalize_env,
             train_rollout_function,
             eval_rollout_function,
             num_workers=2,
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
-        self.parent_pipes = []
-        self.child_pipes = []
-
-        for _ in range(num_workers):
-            parent_conn, child_conn = Pipe()
-            self.parent_pipes.append(parent_conn)
-            self.child_pipes.append(child_conn)
-
-        self._parallel_envs = [
-            Process(
-                target=RemoteRolloutEnv._worker_loop,
-                args=(
-                    self.child_pipes[i],
-                    env,
-                    policy,
-                    exploration_policy,
-                    max_path_length,
-                    normalize_env,
-                    cloudpickle.dumps(train_rollout_function),
-                    cloudpickle.dumps(eval_rollout_function),
-                )
-            )
-        for i in range(num_workers)]
-
-        for env in self._parallel_envs:
-            env.start()
-
-        self.free_envs = set(self.parent_pipes)
-        self.promise_info = {}
-        # Let self.promise_list[True] be the promises for training
-        # and self.promise_list[False] be the promises for eval.
-        self.promise_list = {
-            True: [],
-            False: [],
-        }
         self.num_workers = num_workers
         # Let self.worker_limits[True] be the max number of workers for training
         # and self.worker_limits[False] be the max number of workers for eval.
@@ -106,22 +70,58 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             False: math.ceil(self.num_workers / 2),
         }
 
-    def rollout(self, policy, train, epoch, discard_other=False):
-        # prevent starvation if only one worker
-        if discard_other:
-            self._discard_promises(not train)
+        self.parent_pipes = []
+        self.child_pipes = []
 
-        self._alloc_promise(policy, train, epoch)
+        for _ in range(num_workers):
+            parent_conn, child_conn = Pipe()
+            self.parent_pipes.append(parent_conn)
+            self.child_pipes.append(child_conn)
+
+        self._workers = [
+            Process(
+                target=RemoteRolloutEnv._worker_loop,
+                args=(
+                    self.child_pipes[i],
+                    env,
+                    policy,
+                    exploration_policy,
+                    max_path_length,
+                    cloudpickle.dumps(train_rollout_function),
+                    cloudpickle.dumps(eval_rollout_function),
+                )
+            )
+        for i in range(num_workers)]
+
+        for worker in self._workers:
+            worker.start()
+
+        self.free_pipes = set(self.parent_pipes)
+        # self.pipe_info[pipe] stores (epoch, train_type)
+        self.pipe_info = {}
+        # Let self.promise_list[True] be the promises for training
+        # and self.promise_list[False] be the promises for eval.
+        self.rollout_promise_list = {
+            True: [],
+            False: [],
+        }
+
+    def rollout(self, policy, train, epoch, discard_other_rollout_type=False):
+        # prevent starvation if only one worker
+        if discard_other_rollout_type:
+            self._discard_rollout_promises(not train)
+
+        self._alloc_rollout_promise(policy, train, epoch)
         # Check if remote path has been collected.
-        ready_promises = wait(self.promise_list[train], timeout=0)
-        for promise in ready_promises:
-            rollout = promise.recv()
-            path_epoch, _ = self.promise_info[promise]
-            self._free_promise(promise)
+        ready_promises = wait(self.rollout_promise_list[train], timeout=0)
+        for rollout_promise in ready_promises:
+            rollout = rollout_promise.recv()
+            path_epoch, _ = self.pipe_info[rollout_promise]
+            self._free_rollout_promise(rollout_promise)
             # Throw away eval paths from previous epochs
             if path_epoch != epoch and train == False:
                 continue
-            self._alloc_promise(policy, train, epoch)
+            self._alloc_rollout_promise(policy, train, epoch)
             return rollout
         return None
 
@@ -129,34 +129,34 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         self.env_update = update
 
     def shutdown(self):
-        for worker in self._parallel_envs:
+        for worker in self._workers:
             worker.terminate()
 
-    def _alloc_promise(self, policy, train, epoch):
-        if len(self.free_envs) == 0 or \
-           len(self.promise_list[train]) >= self.worker_limits[train]:
+    def _alloc_rollout_promise(self, policy, train, epoch):
+        if len(self.free_pipes) == 0 or \
+           len(self.rollout_promise_list[train]) >= self.worker_limits[train]:
             return
         policy_params = policy.get_param_values_np()
 
-        free_env = self.free_envs.pop()
-        free_env.send((self.env_update, (policy_params, train,)))
-        self.promise_info[free_env] = (epoch, train)
-        self.promise_list[train].append(free_env)
-        return free_env
+        free_pipe = self.free_pipes.pop()
+        free_pipe.send((self.env_update, (policy_params, train,)))
+        self.pipe_info[free_pipe] = (epoch, train)
+        self.rollout_promise_list[train].append(free_pipe)
+        return free_pipe
 
-    def _free_promise(self, env_id):
-        _, train = self.promise_info[env_id]
-        assert env_id not in self.free_envs
-        if wait([env_id], timeout=0):
-            env_id.recv()
-        self.free_envs.add(env_id)
-        del self.promise_info[env_id]
-        self.promise_list[train].remove(env_id)
+    def _free_rollout_promise(self, pipe):
+        _, train = self.pipe_info[pipe]
+        assert pipe not in self.free_pipes
+        if wait([pipe], timeout=0):
+            pipe.recv()
+        self.free_pipes.add(pipe)
+        del self.pipe_info[pipe]
+        self.rollout_promise_list[train].remove(pipe)
 
-    def _discard_promises(self, train_type):
-        ready_promises = wait(self.promise_list[train_type], timeout=0)
-        for promise in ready_promises:
-            self._free_promise(promise)
+    def _discard_rollout_promises(self, train_type):
+        ready_promises = wait(self.rollout_promise_list[train_type], timeout=0)
+        for rollout_promise in ready_promises:
+            self._free_rollout_promise(rollout_promise)
 
 
     def _worker_loop(pipe, *worker_env_args, **worker_env_kwargs):
@@ -176,15 +176,11 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
                 policy,
                 exploration_policy,
                 max_path_length,
-                normalize_env,
                 train_rollout_function,
                 eval_rollout_function,
         ):
             torch.set_num_threads(1)
             self._env = env
-            if normalize_env:
-                # TODO: support more than just box envs
-                self._env = NormalizedBoxEnv(self._env)
             self._policy = policy
             self._exploration_policy = exploration_policy
             self._max_path_length = max_path_length

@@ -24,28 +24,38 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         env_class=SawyerReachXYEnv,
-#         env_class=SawyerPushAndReachXYEnv,
-        # env_class=SawyerPickAndPlaceEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
         ),
-        init_camera=init_sawyer_camera_v1,
+        init_camera=sawyer_init_camera_zoomed_in,
         grill_variant=dict(
             save_video=True,
             save_video_period=5,
             online_vae_beta=5,
-            algo_kwargs=dict(
+            qf_kwargs=dict(
+                hidden_sizes=[400, 300],
+            ),
+            policy_kwargs=dict(
+                hidden_sizes=[400, 300],
+            ),
+
+            base_kwargs=dict(
                 num_epochs=1000,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 min_num_steps_before_training=100,
-                tau=1e-2,
                 batch_size=128,
                 max_path_length=50,
                 discount=0.99,
                 num_updates_per_env_step=1,
-                vae_training_schedule=vae_schedules.every_six,
                 collection_mode='online-parallel',
+            ),
+            td3_kwargs=dict(
+                tau=1e-2,
+            ),
+            online_vae_kwargs=dict(
+               vae_training_schedule=vae_schedules.every_six,
+                oracle_data=True,
             ),
             replay_kwargs=dict(
                 max_size=int(1e4),
@@ -70,9 +80,9 @@ if __name__ == "__main__":
             beta=5.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=100,
+                N=300,
                 oracle_dataset=True,
-                use_cached=False,
+                use_cached=True,
                 num_channels=3,
             ),
             vae_kwargs=dict(
@@ -91,19 +101,6 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        # 'grill_variant.training_mode': ['test'],
-        # 'grill_variant.observation_key': ['latent_observation'],
-        # 'grill_variant.desired_goal_key': ['state_desired_goal'],
-        # 'grill_variant.observation_key': ['state_observation'],
-        # 'grill_variant.desired_goal_key': ['latent_desired_goal'],
-        # 'grill_variant.vae_paths': [
-        #     {"16": "/home/vitchyr/git/railrl/data/doodads3/06-12-dev/06-12"
-        #            "-dev_2018_06_12_18_57_14_0000--s-28051/vae.pkl",
-        #      }
-        # ],
-        # 'grill_variant.vae_path': [
-        #     "/home/vitchyr/git/railrl/data/doodads3/06-14-dev/06-14-dev_2018_06_14_15_21_20_0000--s-69980/vae.pkl",
-        # ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

@@ -97,6 +97,8 @@ class ConvVAETrainer():
             # self.test_dataset = ((self.test_dataset - self.train_data_mean)) + 1 / 2
         self.linearity_weight = linearity_weight
         self.use_linear_dynamics = use_linear_dynamics
+        self.vae_logger_stats_for_rl = {}
+
 
     def get_batch(self, train=True):
         dataset = self.train_dataset if train else self.test_dataset
@@ -193,7 +195,15 @@ class ConvVAETrainer():
                     100. * batch_idx / len(self.train_loader),
                     loss.data[0] / len(next_obs)))
 
-        if not from_rl:
+        if from_rl:
+            self.vae_logger_stats_for_rl['Train VAE Epoch'] = epoch
+            self.vae_logger_stats_for_rl['Train VAE BCE'] = np.mean(bces)
+            self.vae_logger_stats_for_rl['Train VAE KL'] = np.mean(kles)
+            self.vae_logger_stats_for_rl['Train VAE Loss'] = np.mean(losses)
+            if self.use_linear_dynamics:
+                self.vae_logger_stats_for_rl['Train VAE Linear_loss'] = \
+                    np.mean(linear_losses)
+        else:
             logger.record_tabular("train/epoch", epoch)
             logger.record_tabular("train/BCE", np.mean(bces))
             logger.record_tabular("train/KL", np.mean(kles))
@@ -201,7 +211,8 @@ class ConvVAETrainer():
                 logger.record_tabular("train/mse", np.mean(mses))
             logger.record_tabular("train/loss", np.mean(losses))
             if self.use_linear_dynamics:
-                logger.record_tabular("train/linar_loss", np.mean(linear_losses))
+                logger.record_tabular("train/linear_loss", np.mean(linear_losses))
+
 
 
     def test_epoch(
@@ -268,19 +279,23 @@ class ConvVAETrainer():
         if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
 
-        for key, value in self.debug_statistics().items():
-            logger.record_tabular(key, value)
+        if from_rl:
+            self.vae_logger_stats_for_rl['Test VAE Epoch'] = epoch
+            self.vae_logger_stats_for_rl['Test VAE BCE'] = np.mean(bces)
+            self.vae_logger_stats_for_rl['Test VAE KL'] = np.mean(kles)
+            self.vae_logger_stats_for_rl['Test VAE loss'] = np.mean(losses)
+            self.vae_logger_stats_for_rl['VAE Beta'] = beta
+        else:
+            for key, value in self.debug_statistics().items():
+                logger.record_tabular(key, value)
 
-        logger.record_tabular("test/BCE", np.mean(bces))
-        logger.record_tabular("test/KL", np.mean(kles))
-        logger.record_tabular("test/loss", np.mean(losses))
-        if self.state_sim_debug:
-            logger.record_tabular("test/MSE", np.mean(mses))
-
-
-
-        if not from_rl:
+            logger.record_tabular("test/BCE", np.mean(bces))
+            logger.record_tabular("test/KL", np.mean(kles))
+            logger.record_tabular("test/loss", np.mean(losses))
             logger.record_tabular("beta", beta)
+            if self.state_sim_debug:
+                logger.record_tabular("test/MSE", np.mean(mses))
+
             logger.dump_tabular()
             if save_vae:
                 logger.save_itr_params(epoch, self.model)  # slow...

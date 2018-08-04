@@ -29,7 +29,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goal_reached_epsilon=1e-3,
             terminate_when_goal_reached=False,
             truncated_geom_factor=2.,
-            norm_order=1,
             square_distance=False,
             goal_weights=None,
             normalize_distance=False,
@@ -60,8 +59,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         `terminate_whe_goal_reached` is True.
         :param terminate_when_goal_reached: Do you terminate when you have
         reached the goal?
-        :param norm_order: If vectorized=False, do you use L1, L2,
-        etc. for distance?
         :param goal_weights: None or the weights for the different goal
         dimensions. These weights are used to compute the distances to the goal.
         """
@@ -88,7 +85,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.tau_sample_strategy = tau_sample_strategy
         self.goal_reached_epsilon = goal_reached_epsilon
         self.terminate_when_goal_reached = terminate_when_goal_reached
-        self.norm_order = norm_order
         self.square_distance = square_distance
         self._current_path_goal = None
         self._rollout_tau = np.array([self.max_tau])
@@ -161,6 +157,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         goals = batch['resampled_goals']
         rewards = batch['rewards']
         terminals = batch['terminals']
+
 
         if self.tau_sample_strategy == 'all_valid':
             obs = np.repeat(obs, self.max_tau + 1, 0)

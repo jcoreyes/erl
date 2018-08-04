@@ -38,28 +38,37 @@ if __name__ == "__main__":
         ),
         init_camera=init_sawyer_camera_v1,
         grill_variant=dict(
-            save_video_period=1,
+            save_video_period=5,
             # do_state_exp=True,
             # vae_path="07-05-multi-exp-single-instance-multiworld-2/07-05-multi-exp-single-instance-multiworld-2_2018_07_05_23_51_08_0000--s-20902/vae.pkl",
             # vae_path="07-06-push-and-reach-parallel/07-06-push_and_reach_parallel_2018_07_06_17_09_04_0000--s-35032/vae.pkl",
-            vae_path="07-17-reacher-memory-refactor/07-17-reacher-memory-refactor_2018_07_17_16_00_43_0000--s-53961/vae.pkl",
+            # vae_path="07-17-reacher-memory-refactor/07-17-reacher-memory-refactor_2018_07_17_16_00_43_0000--s-53961/vae.pkl",
+            vae_path="08-03-reacher-memory-refactor/08-03-reacher-memory-refactor_2018_08_03_21_33_37_0000--s-86627/vae.pkl",
             algo_kwargs=dict(
-                num_epochs=2000,
-                # num_steps_per_epoch=100,
-                # num_steps_per_eval=100,
-                # num_epochs=500,
-                num_steps_per_epoch=500,
-                num_steps_per_eval=500,
-                tau=1e-2,
-                batch_size=128,
-                max_path_length=100,
-                discount=0.99,
-                num_updates_per_env_step=1,
-                # collection_mode='online-parallel',
-                # sim_throttle=True,
-                # parallel_env_params=dict(
-                    # num_workers=2,
-                # )
+                base_kwargs=dict(
+                    num_epochs=2000,
+                    # num_steps_per_epoch=100,
+                    # num_steps_per_eval=100,
+                    # num_epochs=500,
+                    num_steps_per_epoch=500,
+                    num_steps_per_eval=500,
+                    batch_size=128,
+                    max_path_length=100,
+                    discount=0.99,
+                    num_updates_per_env_step=1,
+                    collection_mode='online-parallel',
+                ),
+                td3_kwargs=dict(
+                    tau=1e-2,
+                ),
+                her_kwargs=dict(
+                ),
+            ),
+            qf_kwargs=dict(
+                hidden_sizes=[400, 300]
+            ),
+            policy_kwargs=dict(
+                hidden_sizes=[400, 300]
             ),
             replay_kwargs=dict(
                 max_size=int(1e6),
@@ -77,13 +86,13 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             representation_size=8,
             beta=1.0,
-            num_epochs=100,
+            num_epochs=40,
             generate_vae_dataset_kwargs=dict(
                 num_channels=3,
                 N=1000,
                 oracle_dataset=True,
                 show=False,
-                use_cached=False,
+                use_cached=True,
             ),
              # beta_schedule_kwargs=dict(
                  # x_values=[0, 100, 200, 500, 1000],

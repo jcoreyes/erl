@@ -2,6 +2,7 @@ import railrl.torch.vae.vae_schedules as vae_schedules
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.vae.conv_vae import ConvVAE
 import railrl.torch.pytorch_util as ptu
+from railrl.core import logger
 
 class OnlineVaeAlgorithm(TorchRLAlgorithm):
 
@@ -12,7 +13,6 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         vae_save_period=1,
         vae_training_schedule=vae_schedules.never_train,
         oracle_data=False,
-        hard_restart_period=1000000,
     ):
         self.vae = vae
         self.vae_trainer = vae_trainer
@@ -20,38 +20,28 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.vae_save_period = vae_save_period
         self.vae_training_schedule = vae_training_schedule
         self.epoch = 0
-        self.hard_restart_period = hard_restart_period
         self.oracle_data = oracle_data
 
     def _post_epoch(self, epoch):
         super()._post_epoch(epoch)
         should_train, amount_to_train = self.vae_training_schedule(epoch)
-        print(should_train, amount_to_train)
-        if epoch % self.hard_restart_period == 0 and epoch != 0:
-            self.reset_vae()
-            should_train = True
-            amount_to_train = 1000
-        import time
         if should_train:
-            cur = time.time()
             self.vae.train()
             self._train_vae(epoch, amount_to_train)
             self.vae.eval()
-            next_time = time.time()
-            print('vae train time:' , next_time - cur)
             self.replay_buffer.refresh_latents(epoch)
-            print('vae refresh time:' , time.time() - next_time)
-        cur = time.time()
         self._test_vae(epoch)
-        print('vae test time: ', time.time() - cur)
+
+        for log_key, log_val in self.vae_trainer.vae_logger_stats_for_rl.items():
+            logger.record_tabular(log_key, log_val)
         # very hacky
         self.epoch = epoch + 1
 
-    def reset_vae(self):
-        self.vae.init_weights(self.vae.init_w)
-
     def _post_step(self, step):
         pass
+
+    def reset_vae(self):
+        self.vae.init_weights(self.vae.init_w)
 
     def _train_vae(self, epoch, batches=50):
         batch_sampler = self.replay_buffer.random_vae_training_data
@@ -61,12 +51,9 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
             epoch,
             sample_batch=batch_sampler,
             batches=batches,
-            from_rl=False,
+            from_rl=True,
         )
-        import time
-        cur = time.time()
         self.replay_buffer.train_dynamics_model(batches=batches)
-        print(time.time() - cur)
 
     def _test_vae(self, epoch):
         # batch_sampler = self.replay_buffer.random_vae_training_data
@@ -78,9 +65,6 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
     def networks(self):
         return [self.vae]
 
-
     def update_epoch_snapshot(self, snapshot):
-        snapshot.update(
-            vae=self.vae,
-        )
+        snapshot.update(vae=self.vae)
 

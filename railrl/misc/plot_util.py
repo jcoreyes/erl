@@ -167,13 +167,13 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
         s = np.nanstd(ys, axis=0) / (len(ys) ** 0.5)
         if print_plot:
             if label_to_color is None:
-                line, = plt.plot(x, y, label=str(label))
                 plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2)
+                line, = plt.plot(x, y, label=str(label))
             else:
                 label_without_vary_prefix = label.split(":")[-1]
                 color = label_to_color[label_without_vary_prefix]
-                line, = plt.plot(x, y, label=str(label), color=color)
                 plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2, color=color)
+                line, = plt.plot(x, y, label=str(label), color=color)
             lines.append(line)
 
         if print_final:

@@ -143,9 +143,9 @@ if __name__ == "__main__":
     # train_data, test_data, info = generate_vae_dataset(
     #     N=10000
     # )
-    data_path = "/tmp/SawyerPickAndPlaceEnvYZ_6000_sawyer_pick_and_place_camera_oracleTruenext_dataset.npy"
+    data_path = "/tmp/sawyer_push_new_easy_wider2_10000.npy"
     train_data, test_data = load_dataset(data_path)
-    model_path = "/home/steven/vae.pkl"
+    model_path = "/Users/ashvin/data/s3doodad/ashvin/vae/fixed3/sawyer-pusher/train-vae-wider-viz/run0/id0/itr_80.pkl"
     VAEVisualizer(model_path, train_data, test_data)
 
     tk.mainloop()
