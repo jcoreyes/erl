@@ -130,9 +130,6 @@ def train_vae_and_update_variant(variant):
             )
             grill_variant['vae_train_data'] = vae_train_data
             grill_variant['vae_test_data'] = vae_test_data
-        else:
-            vae.train_dataset = None
-            vae.test_dataset = None
 
 def train_vae(variant, return_data=False):
     from railrl.core import logger
