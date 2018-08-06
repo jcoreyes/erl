@@ -325,16 +325,16 @@ class ConvVAETrainer():
 
         samples = ptu.Variable(torch.randn(debug_batch_size, self.representation_size))
         random_imgs = self.model.decode(samples)
-        random_mse = ((random_imgs - img_repeated)**2).mean(dim=1)
+        random_mses = (random_imgs - img_repeated)**2
+        mse_improvement = ptu.get_numpy(random_mses.mean(dim=1) - recon_mse)
 
-        mse_improvement = ptu.get_numpy(random_mse - recon_mse)
         stats = create_stats_ordered_dict(
             'debug/MSE improvement over random',
             mse_improvement,
         )
         stats.update(create_stats_ordered_dict(
-            'debug/MSE random decoding',
-            mse_improvement,
+            'debug/MSE of random decoding',
+            ptu.get_numpy(random_mses),
         ))
         stats['debug/MSE of reconstruction'] = ptu.get_numpy(
             recon_mse
