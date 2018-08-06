@@ -1,6 +1,10 @@
 import numpy as np
 from railrl.state_distance.policies import UniversalPolicy
 
+def tau_sampling_tdm_rollout(*args, tau_sampler=None, **kwargs):
+    init_tau = tau_sampler()
+    return tdm_rollout(*args, init_tau=init_tau, **kwargs)
+
 def create_rollout_function(rollout_function, **initial_kwargs):
     """
     initial_kwargs for
@@ -40,8 +44,6 @@ def multitask_rollout(
     env_infos = []
     next_observations = []
     path_length = 0
-    # goal = self.env.sample_goal_for_rollout()
-    # self.env.set_goal(goal)
     agent.reset()
     o = env.reset()
     if animated:
@@ -159,13 +161,12 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         env_infos=env_infos,
     )
 
-
 def tdm_rollout(
         env,
         agent: UniversalPolicy,
-        init_tau,
         max_path_length=np.inf,
         animated=False,
+        init_tau=0.0,
         decrement_tau=False,
         cycle_tau=False,
         get_action_kwargs=None,

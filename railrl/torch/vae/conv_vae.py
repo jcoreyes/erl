@@ -29,6 +29,8 @@ from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 import numpy as np
 from railrl.torch.core import PyTorchModule
 
+from multiworld.core.image_env import normalize_image
+
 e = MultitaskImagePoint2DEnv(render_size=84, render_onscreen=False, ball_radius=1)
 
 class ConvVAETrainer():
@@ -48,6 +50,8 @@ class ConvVAETrainer():
             state_sim_debug=False,
             mse_weight=0.1,
             is_auto_encoder=False,
+            linearity_weight=0.0,
+            use_linear_dynamics=False,
     ):
         self.log_interval = log_interval
         self.batch_size = batch_size
@@ -80,6 +84,9 @@ class ConvVAETrainer():
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
+        assert self.train_dataset.dtype == np.uint8
+        assert self.test_dataset.dtype == np.uint8
+
         self.normalize = normalize
         self.state_sim_debug = state_sim_debug
         self.mse_weight = mse_weight
@@ -88,11 +95,15 @@ class ConvVAETrainer():
             self.train_data_mean = np.mean(self.train_dataset, axis=0)
             # self.train_dataset = ((self.train_dataset - self.train_data_mean)) + 1 / 2
             # self.test_dataset = ((self.test_dataset - self.train_data_mean)) + 1 / 2
+        self.linearity_weight = linearity_weight
+        self.use_linear_dynamics = use_linear_dynamics
+        self.vae_logger_stats_for_rl = {}
+
 
     def get_batch(self, train=True):
         dataset = self.train_dataset if train else self.test_dataset
         ind = np.random.randint(0, len(dataset), self.batch_size)
-        samples = dataset[ind, :]
+        samples = normalize_image(dataset[ind, :])
         if self.normalize:
             samples = ((samples - self.train_data_mean) + 1) / 2
         return ptu.np_to_var(samples)
@@ -124,13 +135,21 @@ class ConvVAETrainer():
         output = self.model.fc6(F.relu(self.model.fc5(encoded_x)))
         return torch.norm(output-states)**2 / self.batch_size
 
+    def state_linearity_loss(self, obs, next_obs, actions):
+        latent_obs = self.model.encode(obs)[0]
+        latent_next_obs = self.model.encode(next_obs)[0]
+        action_obs_pair = torch.cat([latent_obs, actions], dim=1)
+        prediction = self.model.linear_constraint_fc(action_obs_pair)
+        return torch.norm(prediction - latent_next_obs)**2 / self.batch_size
+
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
         self.model.train()
         losses = []
         bces = []
         kles = []
         mses = []
-        beta = self.beta_schedule.get_value(epoch)
+        linear_losses = []
+        beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
             if self.state_sim_debug:
                 X, Y = self.get_debug_batch()
@@ -142,14 +161,25 @@ class ConvVAETrainer():
                 loss = bce + beta * kle + sim_loss*self.mse_weight
                 loss.backward()
             else:
-                data = self.get_batch()
                 if sample_batch is not None:
                     data = sample_batch(self.batch_size)
+                    obs = data['obs']
+                    next_obs = data['next_obs']
+                    actions = data['actions']
+                else:
+                    next_obs = self.get_batch()
+                    obs = None
+                    actions = None
                 self.optimizer.zero_grad()
-                recon_batch, mu, logvar = self.model(data)
-                bce = self.logprob(recon_batch, data, mu, logvar)
-                kle = self.kl_divergence(recon_batch, data, mu, logvar)
-                loss = bce + beta * kle
+                recon_batch, mu, logvar = self.model(next_obs)
+                bce = self.logprob(recon_batch, next_obs, mu, logvar)
+                kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
+                if self.use_linear_dynamics:
+                    linear_dynamics_loss = self.state_linearity_loss(obs, next_obs, actions)
+                    loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
+                    linear_losses.append(linear_dynamics_loss.data[0])
+                else:
+                    loss = bce + beta * kle
                 loss.backward()
 
             losses.append(loss.data[0])
@@ -163,15 +193,26 @@ class ConvVAETrainer():
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
-                    loss.data[0] / len(data)))
+                    loss.data[0] / len(next_obs)))
 
-        if not from_rl:
+        if from_rl:
+            self.vae_logger_stats_for_rl['Train VAE Epoch'] = epoch
+            self.vae_logger_stats_for_rl['Train VAE BCE'] = np.mean(bces)
+            self.vae_logger_stats_for_rl['Train VAE KL'] = np.mean(kles)
+            self.vae_logger_stats_for_rl['Train VAE Loss'] = np.mean(losses)
+            if self.use_linear_dynamics:
+                self.vae_logger_stats_for_rl['Train VAE Linear_loss'] = \
+                    np.mean(linear_losses)
+        else:
             logger.record_tabular("train/epoch", epoch)
             logger.record_tabular("train/BCE", np.mean(bces))
             logger.record_tabular("train/KL", np.mean(kles))
             if self.state_sim_debug:
                 logger.record_tabular("train/mse", np.mean(mses))
             logger.record_tabular("train/loss", np.mean(losses))
+            if self.use_linear_dynamics:
+                logger.record_tabular("train/linear_loss", np.mean(linear_losses))
+
 
 
     def test_epoch(
@@ -188,7 +229,7 @@ class ConvVAETrainer():
         kles = []
         zs = []
         mses = []
-        beta = self.beta_schedule.get_value(epoch)
+        beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(10):
             if self.state_sim_debug:
                 X, Y = self.get_debug_batch(train=False)
@@ -238,9 +279,13 @@ class ConvVAETrainer():
         if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
 
-
-
-        if not from_rl:
+        if from_rl:
+            self.vae_logger_stats_for_rl['Test VAE Epoch'] = epoch
+            self.vae_logger_stats_for_rl['Test VAE BCE'] = np.mean(bces)
+            self.vae_logger_stats_for_rl['Test VAE KL'] = np.mean(kles)
+            self.vae_logger_stats_for_rl['Test VAE loss'] = np.mean(losses)
+            self.vae_logger_stats_for_rl['VAE Beta'] = beta
+        else:
             for key, value in self.debug_statistics().items():
                 logger.record_tabular(key, value)
 
@@ -351,6 +396,7 @@ class ConvVAE(PyTorchModule):
             min_variance=1e-4,
             use_min_variance=True,
             state_size=0,
+            action_dim=None,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -393,6 +439,15 @@ class ConvVAE(PyTorchModule):
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
         self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6,
                                         stride=3)
+
+        if action_dim is not None:
+            self.linear_constraint_fc = \
+                    nn.Linear(
+                        self.representation_size + action_dim,
+                        self.representation_size
+                    )
+        else:
+            self.linear_constraint_fc = None
 
         self.init_weights(init_w)
 

@@ -31,11 +31,10 @@ class TwinSAC(TorchRLAlgorithm):
             policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
 
-            train_policy_with_reparameterization=False,
+            train_policy_with_reparameterization=True,
             soft_target_tau=1e-2,
             policy_update_period=1,
             target_update_period=1,
-            policy_update_minq=True,
             plotter=None,
             render_eval_paths=False,
             eval_deterministic=True,
@@ -69,7 +68,6 @@ class TwinSAC(TorchRLAlgorithm):
             train_policy_with_reparameterization
         )
 
-        self.policy_update_minq = policy_update_minq
 
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
@@ -153,15 +151,9 @@ class TwinSAC(TorchRLAlgorithm):
             """
             # paper says to do + but apparently that's a typo. Do Q - V.
             if self.train_policy_with_reparameterization:
-                if self.policy_update_minq is True:
-                    policy_loss = (log_pi - q_new_actions).mean()
-                else:
-                    policy_loss = (log_pi - q1_new_actions).mean()
+                policy_loss = (log_pi - q_new_actions).mean()
             else:
-                if self.policy_update_minq is True:
-                    log_policy_target = q_new_actions - v_pred
-                else:
-                    log_policy_target = q1_new_actions - v_pred
+                log_policy_target = q_new_actions - v_pred
                 policy_loss = (
                     log_pi * (log_pi - log_policy_target).detach()
                 ).mean()
@@ -194,15 +186,9 @@ class TwinSAC(TorchRLAlgorithm):
             """
             if policy_loss is None:
                 if self.train_policy_with_reparameterization:
-                    if self.policy_update_minq is True:
-                        policy_loss = (log_pi - q_new_actions).mean()
-                    else:
-                        policy_loss = (log_pi - q1_new_actions).mean()
+                    policy_loss = (log_pi - q_new_actions).mean()
                 else:
-                    if self.policy_update_minq is True:
-                        log_policy_target = q_new_actions - v_pred
-                    else:
-                        log_policy_target = q1_new_actions - v_pred
+                    log_policy_target = q_new_actions - v_pred
                     policy_loss = (
                         log_pi * (log_pi - log_policy_target).detach()
                     ).mean()

@@ -1,13 +1,17 @@
+import matplotlib
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
     vitchyr_base_dir,
     format_func,
     our_method_name,
+    configure_matplotlib,
 )
 import matplotlib.pyplot as plt
 from railrl.misc import plot_util as plot
 from railrl.misc import data_processing as dp
+
+configure_matplotlib(matplotlib)
 
 dirs = [
     ashvin_base_dir + 's3doodad/ashvin/vae/fixed3/sawyer-pusher/vae-dense-wider3/run1',
@@ -28,21 +32,15 @@ plot.comparison(
     smooth=plot.padded_ma_filter(10),
     xlim=(0, 250000),
     ylim=(0.14, 0.24),
-    figsize=(6, 5),
+    figsize=(6, 4),
     method_order=[2, 1, 0, 3],
 )
 plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 # plt.ylabel("")
 plt.xlabel("Timesteps")
-plt.ylabel("Final Distance to Goal")
-plt.title("Visual Pusher, Relabeling Ablation")
-plt.legend(
-    [our_method_name, "None", "HER", "VAE", ],
-    bbox_to_anchor=(0.49, -0.2),
-    loc="upper center",
-    ncol=4,
-    handlelength=1,
-)
+plt.ylabel("")
+plt.title("Visual Pusher")
+plt.legend([])
 plt.tight_layout()
 plt.savefig(output_dir + "pusher_relabeling_ablation.pdf")
 print("File saved to", output_dir + "pusher_relabeling_ablation.pdf")
