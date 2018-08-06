@@ -168,7 +168,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         if self.collection_mode == 'online':
             self.train_online(start_epoch=start_epoch)
         elif self.collection_mode == 'online-parallel':
-            self.train_parallel(start_epoch=start_epoch)
+            try:
+                self.train_parallel(start_epoch=start_epoch)
+            except:
+                import traceback
+                traceback.print_exc()
+                self.parallel_env.shutdown()
         elif self.collection_mode == 'batch':
             self.train_batch(start_epoch=start_epoch)
         elif self.collection_mode == 'offline':
@@ -228,10 +233,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._try_to_train()
                 gt.stamp('train')
             env_utils.mode(self.env, 'eval')
+            # TODO steven: move dump_tabular to be conditionally called in
+            # end_epoch and move post_epoch after eval
+            self._post_epoch(epoch)
             self._try_to_eval(epoch)
             gt.stamp('eval')
             self._end_epoch()
-            self._post_epoch(epoch)
 
     def train_batch(self, start_epoch):
         self._current_path_builder = PathBuilder()
@@ -283,7 +290,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_rollout_function = self.train_rollout_function
 
     def train_parallel(self, start_epoch=0):
-        parallel_env = RemoteRolloutEnv(
+        self.parallel_env = RemoteRolloutEnv(
             env=self.env,
             train_rollout_function=self.train_rollout_function,
             eval_rollout_function=self.eval_rollout_function,
@@ -300,7 +307,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 env_update = self.env.get_env_update()
             else:
                 env_update = None
-            parallel_env.update_worker_envs(env_update)
+            self.parallel_env.update_worker_envs(env_update)
             should_gather_data = True
             should_eval = True
             should_train = True
@@ -312,7 +319,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
             while should_gather_data or should_eval  or should_train:
                 if should_gather_data:
-                    path = parallel_env.rollout(
+                    path = self.parallel_env.rollout(
                         self.exploration_policy,
                         train=True,
                         discard_other_rollout_type=not should_eval,
@@ -325,7 +332,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                         self._n_env_steps_total += path_length
                 if should_eval:
                     # label as epoch but actually evaluating previous epoch
-                    path = parallel_env.rollout(
+                    path = self.parallel_env.rollout(
                         last_epoch_policy,
                         train=False,
                         discard_other_rollout_type=not should_gather_data,
@@ -347,10 +354,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                         self.num_env_steps_per_epoch
                 else:
                     should_train &= (should_eval or should_gather_data)
+            self._post_epoch(epoch)
             self._try_to_eval(epoch, eval_paths=eval_paths)
             self._end_epoch()
-            self._post_epoch(epoch)
-        parallel_env.shutdown()
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)

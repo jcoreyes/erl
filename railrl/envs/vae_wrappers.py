@@ -86,6 +86,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self._vw_goal_img_decoded = None
         self.mode(mode)
         self._presampled_goals = None
+        self.use_replay_buffer_goals = False
 
         self._mode_map = {}
 
@@ -225,7 +226,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
     def reset(self):
         obs = self.wrapped_env.reset()
         if self.use_vae_goals:
-            latent_goals = self._sample_vae_prior(1)
+            if self.use_replay_buffer_goals:
+                latent_goals = self.sample_replay_buffer_latent_goals(1)
+            else:
+                latent_goals = self._sample_vae_prior(1)
             if self.decode_goals:
                 goal_img = self._decode(latent_goals)[0].transpose().flatten()
             else:
@@ -273,6 +277,13 @@ class VAEWrappedEnv(ProxyEnv, Env):
             mu, sigma = self.vae.dist_mu, self.vae.dist_std
         n = np.random.randn(batch_size, self.representation_size)
         return sigma * n + mu
+
+    def sample_replay_buffer_latent_goals(self, batch_size):
+        if self.replay_buffer._size > 0:
+            idxs = self.replay_buffer._sample_indices(batch_size)
+            latent_goals = self.replay_buffer._next_obs['latent_achieved_goal'][idxs]
+            return latent_goals
+        return self._sample_vae_prior(batch_size)
 
     def _decode(self, latents):
         batch_size = latents.shape[0]
@@ -325,12 +336,16 @@ class VAEWrappedEnv(ProxyEnv, Env):
             return sampled_goals
         if self.use_vae_goals:
             goals = {}
-            latent_goals = self._sample_vae_prior(batch_size)
+            if self.use_replay_buffer_goals:
+                latent_goals = self.sample_replay_buffer_latent_goals(batch_size)
+            else:
+                latent_goals = self._sample_vae_prior(batch_size)
             if self.decode_goals:
                 raise NotImplementedError(
                     'I think we should change _decode to not transpose...'
                 )
                 goal_imgs = self._decode(latent_goals).transpose().flatten()
+
             else:
                 goal_imgs = None
             goals['image_desired_goal'] = goal_imgs
