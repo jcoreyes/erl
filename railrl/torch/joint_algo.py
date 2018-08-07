@@ -61,6 +61,10 @@ class JointAlgo(TorchRLAlgorithm):
         self.algo2.update_epoch_snapshot(snapshot)
         return snapshot
 
+    def update_epoch_snapshot(self, snapshot):
+        self.algo1.update_epoch_snapshot(snapshot)
+        self.algo2.update_epoch_snapshot(snapshot)
+
     @property
     def networks(self):
         return self.algo1.networks + self.algo2.networks

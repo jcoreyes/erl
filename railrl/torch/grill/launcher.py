@@ -29,11 +29,15 @@ from railrl.torch.grill.video_gen import dump_video
 from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.her.her_twin_sac import HerTwinSAC
 from railrl.torch.her.online_vae_her_td3 import OnlineVaeHerTd3
+from railrl.torch.her.online_vae_her_twin_sac import OnlineVaeHerTwinSac
 from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.td3.td3 import TD3
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, SpatialVAE, AutoEncoder
+from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.torch.online_vae.online_vae_tdm_td3 import OnlineVaeTdmTd3
+from railrl.misc.asset_loader import sync_down
 
 
 def grill_tdm_td3_full_experiment(variant):
@@ -55,13 +59,30 @@ def grill_her_td3_full_experiment(variant):
 
 
 def grill_her_td3_online_vae_full_experiment(variant):
+    variant['grill_variant']['save_vae_data'] = True
     full_experiment_variant_preprocess(variant)
     train_vae_and_update_variant(variant)
-    variant['grill_variant']['save_vae_data'] = True
+    variant['grill_variant']['vae_trainer_kwargs'] = \
+            variant['train_vae_variant']['algo_kwargs']
     if variant['double_algo']:
         grill_her_td3_experiment_online_vae_exploring(variant['grill_variant'])
     else:
         grill_her_td3_experiment_online_vae(variant['grill_variant'])
+
+def grill_her_twin_sac_online_vae_full_experiment(variant):
+    variant['grill_variant']['save_vae_data'] = True
+    full_experiment_variant_preprocess(variant)
+    train_vae_and_update_variant(variant)
+    grill_her_twin_sac_experiment_online_vae(variant['grill_variant'])
+
+def grill_tdm_td3_online_vae_full_experiment(variant):
+    variant['grill_variant']['save_vae_data'] = True
+    variant['grill_variant']['vae_trainer_kwargs'] = \
+            variant['train_vae_variant']['algo_kwargs']
+
+    full_experiment_variant_preprocess(variant)
+    train_vae_and_update_variant(variant)
+    grill_tdm_td3_experiment_online_vae(variant['grill_variant'])
 
 
 def full_experiment_variant_preprocess(variant):
@@ -102,7 +123,13 @@ def train_vae_and_update_variant(variant):
             relative_to_snapshot_dir=True,
         )
         grill_variant['vae_path'] = vae  # just pass the VAE directly
-
+    else:
+        if grill_variant.get('save_vae_data', False):
+            vae_train_data, vae_test_data, info = generate_vae_dataset(
+                    **train_vae_variant['generate_vae_dataset_kwargs']
+            )
+            grill_variant['vae_train_data'] = vae_train_data
+            grill_variant['vae_test_data'] = vae_test_data
 
 def train_vae(variant, return_data=False):
     from railrl.core import logger
@@ -160,6 +187,7 @@ def generate_vae_dataset(
         env_kwargs=None,
         oracle_dataset=False,
         n_random_steps=100,
+        vae_dataset_specific_env_kwargs=None,
 ):
     if env_kwargs is None:
         env_kwargs = {}
@@ -178,8 +206,14 @@ def generate_vae_dataset(
         dataset = np.load(filename)
         print("loaded data from saved file", filename)
     else:
+
+        if vae_dataset_specific_env_kwargs is None:
+            vae_dataset_specific_env_kwargs = {}
+        for key, val in env_kwargs.items():
+            if key not in vae_dataset_specific_env_kwargs:
+                vae_dataset_specific_env_kwargs[key] = val
         now = time.time()
-        env = env_class(**env_kwargs)
+        env = env_class(**vae_dataset_specific_env_kwargs)
         env = ImageEnv(
             env,
             imsize,
@@ -196,8 +230,8 @@ def generate_vae_dataset(
                 goal = env.sample_goal()
                 env.set_to_goal(goal)
             else:
+                env.reset()
                 for _ in range(n_random_steps):
-                    env.reset()
                     obs = env.step(env.action_space.sample())[0]
             obs = env.step(env.action_space.sample())[0]
             img = obs['image_observation']
@@ -535,7 +569,223 @@ def grill_tdm_td3_experiment(variant):
         algorithm.cuda()
         if not variant.get("do_state_exp", False):
             env.vae.cuda()
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        policy.train(False)
+        rollout_function = rf.create_rollout_function(
+            rf.tdm_rollout,
+            init_tau=algorithm.max_tau,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        video_func = get_video_save_func(
+            rollout_function,
+            env,
+            policy,
+            variant,
+        )
+        algorithm.post_epoch_funcs.append(video_func)
+    algorithm.train()
 
+def grill_her_twin_sac_experiment_online_vae(variant):
+    grill_preprocess_variant(variant)
+    env = get_envs(variant)
+    es = get_exploration_strategy(variant, env)
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    obs_dim = (
+        env.observation_space.spaces[observation_key].low.size
+        + env.observation_space.spaces[desired_goal_key].low.size
+    )
+    action_dim = env.action_space.low.size
+    hidden_sizes = variant.get('hidden_sizes', [400, 300])
+    qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    vf = FlattenMlp(
+        input_size=obs_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    policy = TanhGaussianPolicy(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        hidden_sizes=hidden_sizes,
+    )
+
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+
+    vae = env.vae
+
+    replay_buffer = OnlineVaeRelabelingBuffer(
+        vae=vae,
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_kwargs']
+    )
+    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+
+    t = ConvVAETrainer(variant['vae_train_data'],
+                       variant['vae_test_data'],
+                       vae,
+                       beta=variant['online_vae_beta'])
+    render = variant["render"]
+    assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
+    algorithm = OnlineVaeHerTwinSac(
+        algo_kwargs=dict(
+            env=env,
+            training_env=env,
+            qf1=qf1,
+            qf2=qf2,
+            vf=vf,
+            policy=policy,
+            render=render,
+            render_during_eval=render,
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+            **variant['algo_kwargs']
+        ),
+        online_vae_algo_kwargs=dict(
+            vae=vae,
+            vae_trainer=t,
+            **variant['online_vae_algo_kwargs']
+        )
+    )
+
+
+    if ptu.gpu_enabled():
+        print("using GPU")
+        algorithm.cuda()
+        vae.cuda()
+    if variant.get("save_video", True):
+        logdir = logger.get_snapshot_dir()
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        video_func = get_video_save_func(
+            algorithm,
+            rollout_function,
+            env,
+            policy,
+            variant,
+        )
+        algorithm.post_epoch_funcs.append(video_func)
+    algorithm.train()
+
+def grill_tdm_td3_experiment_online_vae(variant):
+    grill_preprocess_variant(variant)
+    env = get_envs(variant)
+    es = get_exploration_strategy(variant, env)
+    vae_trainer_kwargs = variant.get('vae_trainer_kwargs')
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    obs_dim = (
+        env.observation_space.spaces[observation_key].low.size
+    )
+    goal_dim = (
+        env.observation_space.spaces[desired_goal_key].low.size
+    )
+    action_dim = env.action_space.low.size
+
+    vectorized = 'vectorized' in env.reward_type
+    variant['algo_kwargs']['tdm_td3_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+
+    norm_order = env.norm_order
+    variant['algo_kwargs']['tdm_td3_kwargs']['tdm_kwargs']['norm_order'] = norm_order
+
+    qf1 = TdmQf(
+        env=env,
+        vectorized=vectorized,
+        norm_order=norm_order,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        action_dim=action_dim,
+        **variant['qf_kwargs']
+    )
+    qf2 = TdmQf(
+        env=env,
+        vectorized=vectorized,
+        norm_order=norm_order,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        action_dim=action_dim,
+        **variant['qf_kwargs']
+    )
+    policy = TdmPolicy(
+        env=env,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        action_dim=action_dim,
+        **variant['policy_kwargs']
+    )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+
+    vae = env.vae
+
+    replay_buffer = OnlineVaeRelabelingBuffer(
+        vae=vae,
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_kwargs']
+    )
+    algo_kwargs = variant['algo_kwargs']['tdm_td3_kwargs']
+    td3_kwargs = algo_kwargs['td3_kwargs']
+    td3_kwargs['training_env'] = env
+    tdm_kwargs = algo_kwargs['tdm_kwargs']
+    tdm_kwargs['observation_key'] = observation_key
+    tdm_kwargs['desired_goal_key'] = desired_goal_key
+    algo_kwargs["replay_buffer"] = replay_buffer
+
+    t = ConvVAETrainer(variant['vae_train_data'],
+                       variant['vae_test_data'],
+                       vae,
+                       beta=variant['online_vae_beta'],
+                       **vae_trainer_kwargs)
+    render = variant["render"]
+    assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
+    algorithm = OnlineVaeTdmTd3(
+        online_vae_kwargs=dict(
+            vae=vae,
+            vae_trainer=t,
+            **variant['algo_kwargs']['online_vae_kwargs']
+        ),
+        tdm_td3_kwargs=dict(
+            env=env,
+            qf1=qf1,
+            qf2=qf2,
+            policy=policy,
+            exploration_policy=exploration_policy,
+            **variant['algo_kwargs']['tdm_td3_kwargs']
+        ),
+    )
+
+    if ptu.gpu_enabled():
+        print("using GPU")
+        algorithm.cuda()
+        vae.cuda()
     if variant.get("save_video", True):
         rollout_function = rf.create_rollout_function(
             rf.tdm_rollout,
@@ -698,6 +948,7 @@ def grill_her_td3_experiment_online_vae(variant):
     )
 
     vae = env.vae
+    vae.action_dim = action_dim
 
     replay_buffer = OnlineVaeRelabelingBuffer(
         vae=vae,
@@ -705,38 +956,52 @@ def grill_her_td3_experiment_online_vae(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        exploration_rewards_type=variant.get('vae_exploration_rewards_type', 'None'),
         **variant['replay_kwargs']
     )
-    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+    variant["algo_kwargs"]["base_kwargs"]["replay_buffer"] = replay_buffer
+    if variant.get('use_replay_buffer_goals', False):
+        env.replay_buffer = replay_buffer
+        env.use_replay_buffer_goals = True
 
+
+    vae_trainer_kwargs = variant.get('vae_trainer_kwargs')
     t = ConvVAETrainer(variant['vae_train_data'],
                        variant['vae_test_data'],
                        vae,
-                       beta=variant['online_vae_beta'])
+                       beta=variant['online_vae_beta'],
+                       **vae_trainer_kwargs)
     render = variant["render"]
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     algorithm = OnlineVaeHerTd3(
-        vae=vae,
-        vae_trainer=t,
-        env=env,
-        training_env=env,
-        qf1=qf1,
-        qf2=qf2,
-        policy=policy,
-        exploration_policy=exploration_policy,
-        render=render,
-        render_during_eval=render,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        **variant['algo_kwargs']
+        online_vae_kwargs=dict(
+            vae=vae,
+            vae_trainer=t,
+            **variant['algo_kwargs']['online_vae_kwargs']
+        ),
+        base_kwargs=dict(
+            env=env,
+            training_env=env,
+            policy=policy,
+            exploration_policy=exploration_policy,
+            render=render,
+            render_during_eval=render,
+            **variant['algo_kwargs']['base_kwargs'],
+        ),
+        her_kwargs=dict(
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+        ),
+        td3_kwargs=dict(
+            **variant['algo_kwargs']['td3_kwargs'],
+            qf1=qf1,
+            qf2=qf2,
+        )
     )
 
     if ptu.gpu_enabled():
         print("using GPU")
         algorithm.cuda()
         vae.cuda()
-        env.decode_goals = True
     if variant.get("save_video", True):
         logdir = logger.get_snapshot_dir()
         rollout_function = rf.create_rollout_function(
@@ -813,15 +1078,19 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        exploration_rewards_type=variant['vae_exploration_rewards_type'],
         **variant['replay_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+    if variant.get('use_replay_buffer_goals', False):
+        env.replay_buffer = replay_buffer
+        env.use_replay_buffer_goals = True
 
+    vae_trainer_kwargs = variant.get('vae_trainer_kwargs')
     t = ConvVAETrainer(variant['vae_train_data'],
                        variant['vae_test_data'],
                        vae,
-                       beta=variant['online_vae_beta'])
+                       beta=variant['online_vae_beta'],
+                       **vae_trainer_kwargs)
 
     control_algorithm = TD3(
         env=env,
@@ -864,7 +1133,6 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         print("using GPU")
         algorithm.cuda()
         vae.cuda()
-        env.decode_goals = True
     if variant.get("save_video", True):
         logdir = logger.get_snapshot_dir()
         policy.train(False)
@@ -887,6 +1155,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
     logdir = logger.get_snapshot_dir()
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)
+    dump_video_kwargs = variant.get("dump_video_kwargs", dict())
 
     if do_state_exp:
         image_env = ImageEnv(
@@ -900,7 +1169,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
             if epoch % save_period == 0 or epoch == algo.num_epochs:
                 filename = osp.join(logdir,
                                     'video_{epoch}_env.mp4'.format(epoch=epoch))
-                dump_video(image_env, policy, filename, rollout_function)
+                dump_video(image_env, policy, filename, rollout_function, **dump_video_kwargs)
     else:
         image_env = env
         def save_video(algo, epoch):
@@ -911,7 +1180,8 @@ def get_video_save_func(rollout_function, env, policy, variant):
                     image_env,
                     mode='video_env',
                     func=dump_video,
-                    args=(image_env, policy, filename, rollout_function)
+                    args=(image_env, policy, filename, rollout_function),
+                    kwargs=dump_video_kwargs
                 )
                 filename = osp.join(logdir,
                                     'video_{epoch}_vae.mp4'.format(epoch=epoch))
@@ -919,6 +1189,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
                     image_env,
                     mode='video_vae',
                     func=dump_video,
-                    args=(image_env, policy, filename, rollout_function)
+                    args=(image_env, policy, filename, rollout_function),
+                    kwargs=dump_video_kwargs
                 )
     return save_video
