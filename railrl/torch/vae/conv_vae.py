@@ -18,6 +18,8 @@ from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
+from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import Sampler, BatchSampler
 
 from railrl.core import logger
 import os.path as osp
@@ -52,6 +54,8 @@ class ConvVAETrainer():
             is_auto_encoder=False,
             linearity_weight=0.0,
             use_linear_dynamics=False,
+            use_parallel_dataloading=True,
+            train_data_workers=2,
     ):
         self.log_interval = log_interval
         self.batch_size = batch_size
@@ -86,6 +90,46 @@ class ConvVAETrainer():
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
         assert self.train_dataset.dtype == np.uint8
         assert self.test_dataset.dtype == np.uint8
+        self.train_dataset = train_dataset
+        self.test_dataset = test_dataset
+
+        self.batch_size = batch_size
+        self.use_parallel_dataloading = use_parallel_dataloading
+        if use_parallel_dataloading:
+            self.train_dataset_pt = ImageDataset(
+                train_dataset,
+                should_normalize=True
+            )
+            self.test_dataset_pt = ImageDataset(
+                test_dataset,
+                should_normalize=True
+            )
+
+            self.train_dataloader = DataLoader(
+                self.train_dataset_pt,
+                sampler=BatchSampler(
+                    InfiniteRandomSampler(self.train_dataset),
+                    batch_size=batch_size,
+                    drop_last=False,
+                ),
+                num_workers=train_data_workers,
+                pin_memory=True,
+            )
+            self.test_dataloader = DataLoader(
+                self.test_dataset_pt,
+                sampler=BatchSampler(
+                    InfiniteRandomSampler(self.test_dataset),
+                    batch_size=batch_size,
+                    drop_last=False,
+                ),
+                num_workers=0,
+                pin_memory=True,
+            )
+            self.train_dataloader = iter(self.train_dataloader)
+            self.test_dataloader = iter(self.test_dataloader)
+
+
+
 
         self.normalize = normalize
         self.state_sim_debug = state_sim_debug
@@ -101,6 +145,14 @@ class ConvVAETrainer():
 
 
     def get_batch(self, train=True):
+        if self.use_parallel_dataloading:
+            if not train:
+                dataloader = self.test_dataloader
+            else:
+                dataloader = self.train_dataloader
+            samples = next(dataloader)
+            return ptu.Variable(samples[0])
+
         dataset = self.train_dataset if train else self.test_dataset
         ind = np.random.randint(0, len(dataset), self.batch_size)
         samples = normalize_image(dataset[ind, :])
@@ -771,6 +823,44 @@ class SpatialVAE(ConvVAE):
         mu = self.output_activation(self.fc1(h))
         logvar = self.output_activation(self.fc2(h))
         return mu, logvar
+
+class ImageDataset(Dataset):
+
+    def __init__(self, images, should_normalize=True):
+        super().__init__()
+        self.dataset = images
+        self.dataset_len = len(self.dataset)
+        assert should_normalize == (images.dtype == np.uint8)
+        self.should_normalize = should_normalize
+
+    def __len__(self):
+        return self.dataset_len
+
+    def __getitem__(self, idxs):
+        samples = self.dataset[idxs, :]
+        if self.should_normalize:
+            samples = normalize_image(samples)
+        return np.float32(samples)
+
+class InfiniteRandomSampler(Sampler):
+
+    def __init__(self, data_source):
+        self.data_source = data_source
+        self.iter = iter(torch.randperm(len(self.data_source)).tolist())
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            idx = next(self.iter)
+        except StopIteration:
+            self.iter = iter(torch.randperm(len(self.data_source)).tolist())
+            idx = next(self.iter)
+        return idx
+
+    def __len__(self):
+        return 2**62
 
 
 if __name__ == "__main__":
