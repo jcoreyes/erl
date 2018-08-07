@@ -16,7 +16,7 @@ VectorField = namedtuple("VectorField",
                           'y_values', 'info'])
 
 
-def make_heat_map(eval_func, x_bounds, y_bounds, *, resolution=10, info=None):
+def make_heat_map(eval_func, x_bounds, y_bounds, *, resolution=10, info=None, batch=False):
     """
     :param eval_func: eval_func(x, y) -> value
     :param x_bounds:
@@ -31,9 +31,17 @@ def make_heat_map(eval_func, x_bounds, y_bounds, *, resolution=10, info=None):
     y_values = np.linspace(*y_bounds, num=resolution)
     map = np.zeros((resolution, resolution))
 
-    for i in range(resolution):
-        for j in range(resolution):
-            map[i, j] = eval_func(x_values[i], y_values[j])
+    if batch:
+        inputs = []
+        for i in range(resolution):
+            for j in range(resolution):
+                inputs.append([x_values[i], y_values[j]])
+        inputs = np.array(inputs)
+        map = eval_func(inputs).reshape((resolution, resolution))
+    else:
+        for i in range(resolution):
+            for j in range(resolution):
+                map[i, j] = eval_func(x_values[i], y_values[j])
     return HeatMap(map, x_values, y_values, info)
 
 
