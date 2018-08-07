@@ -2,85 +2,16 @@ import ray
 
 from railrl.envs.base import RolloutEnv
 from railrl.envs.wrappers import NormalizedBoxEnv, ProxyEnv
-from railrl.samplers.util import rollout
 from railrl.core.serializable import Serializable
 import numpy as np
-
-@ray.remote
-class RayEnv(object):
-    """
-    Perform rollouts asynchronously using ray.
-    """
-    def __init__(
-            self,
-            env,
-            policy,
-            exploration_policy,
-            max_path_length,
-            normalize_env,
-            rollout_function,
-    ):
-        self._env = env
-        if normalize_env:
-            # TODO: support more than just box envs
-            self._env = NormalizedBoxEnv(self._env)
-        self._policy = policy
-        self._exploration_policy = exploration_policy
-        self._max_path_length = max_path_length
-        self.rollout_function = rollout_function
-
-    def rollout(self, policy_params, use_exploration_strategy):
-        self._policy.set_param_values_np(policy_params)
-        if use_exploration_strategy:
-            policy = self._exploration_policy
-        else:
-            policy = self._policy
-        # return self.multitask_rollout(self._env, policy, self._max_path_length)
-        return self.rollout_function(self._env, policy, self._max_path_length)
-
-    #HACK FOR COMPUTING MULITASK ROLLOUTS FOR PARALLEL
-    def multitask_rollout(self, env, policy, max_path_length):
-        observations = []
-        actions = []
-        rewards = []
-        terminals = []
-        agent_infos = []
-        env_infos = []
-        next_observations = []
-        path_length = 0
-        o = env.reset()
-        goal = env.get_goal()
-        while path_length < max_path_length:
-            new_obs = np.hstack((o, goal))
-            a, agent_info = policy.get_action(new_obs)
-            next_o, r, d, env_info = env.step(a)
-            observations.append(o)
-            rewards.append(r)
-            terminals.append(d)
-            actions.append(a)
-            next_observations.append(next_o)
-            agent_infos.append(agent_info)
-            env_infos.append(env_info)
-            path_length += 1
-            if d:
-                break
-            o = next_o
-
-        actions = np.array(actions)
-        if len(actions.shape) == 1:
-            actions = np.expand_dims(actions, 1)
-        observations = np.array(observations)
-        next_observations = np.array(next_observations)
-        return dict(
-            observations=observations,
-            actions=actions,
-            rewards=np.array(rewards).reshape(-1, 1),
-            next_observations=next_observations,
-            terminals=np.array(terminals).reshape(-1, 1),
-            agent_infos=agent_infos,
-            env_infos=env_infos,
-            goals=np.repeat(goal[None], path_length, 0),
-        )
+import torch
+import railrl.torch.pytorch_util as ptu
+import math
+from torch.multiprocessing import Process, Pipe
+from multiprocessing.connection import wait
+import torch.multiprocessing as mp
+import railrl.envs.env_utils as env_utils
+import cloudpickle
 
 class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     """
@@ -88,7 +19,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     asynchronously.
 
     This "environment" just talks to the remote environment. The advantage of
-    this environment over calling RayEnv directly is that rollout will return
+    this environment over calling WorkerEnv directly is that rollout will return
     `None` if a path is not ready, rather than returning a promise (an
     `ObjectID` in Ray-terminology).
 
@@ -111,24 +42,13 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     RemoteRolloutEnv will create its own instance of CarEnv with those
     parameters.
 
-    Note that you could use use RayEnv directly like this:
-    ```
-    env = CarEnv(foo=1)
-    ray_env = RayEnv(CarEnv, {'foo': 1})
-    path = ray_env.rollout.remote()
+    This Env can be considered the master env, collecting and managing the
+    rollouts of worker envs under the hood. Communication between workers and
+    master env are achieved through pipes. No explicit synchronization is
+    necessary as the worker/master will alternate between listening and sending
+    data through the pipe. Thus, there should never be a case where master and
+    worker are both sending or listening.
 
-    # Do some computation asyncronously, but eventually call
-    path = ray.get(path)  # blocks
-    # or
-    paths, _ = ray.wait([path])  # polls
-    ```
-    The main issue is that the caller then has to call `ray` directly, which is
-    breaks some abstractions around ray. Plus, then things like
-    `ray_env.action_space` wouldn't work
-
-    It's the responsibility of the caller to call ray.init() at some point before
-    initializing an instance of this class. (Okay, this breaks the
-    abstraction, but I can't think of a much cleaner alternative for now.)
     """
     def __init__(
             self,
@@ -136,40 +56,150 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             policy,
             exploration_policy,
             max_path_length,
-            normalize_env,
-            rollout_function=rollout,
+            train_rollout_function,
+            eval_rollout_function,
+            num_workers=2,
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
-        ray.register_custom_serializer(type(env), use_pickle=True)
-        ray.register_custom_serializer(type(policy), use_pickle=True)
-        ray.register_custom_serializer(type(exploration_policy), use_pickle=True)
-        self._ray_env = RayEnv.remote(
-            env,
-            policy,
-            exploration_policy,
-            max_path_length,
-            normalize_env,
-            rollout_function,
-        )
-        self._rollout_promise = None
-    def rollout(self, policy, use_exploration_strategy):
-        if self._rollout_promise is None:
-            policy_params = policy.get_param_values_np()
-            self._rollout_promise = self._ray_env.rollout.remote(
-                policy_params,
-                use_exploration_strategy,
-            )
-            return None
+        self.num_workers = num_workers
+        # Let self.worker_limits[True] be the max number of workers for training
+        # and self.worker_limits[False] be the max number of workers for eval.
+        self.worker_limits = {
+            True: math.ceil(self.num_workers / 2),
+            False: math.ceil(self.num_workers / 2),
+        }
 
+        self.parent_pipes = []
+        self.child_pipes = []
+
+        for _ in range(num_workers):
+            parent_conn, child_conn = Pipe()
+            self.parent_pipes.append(parent_conn)
+            self.child_pipes.append(child_conn)
+
+        self._workers = [
+            Process(
+                target=RemoteRolloutEnv._worker_loop,
+                args=(
+                    self.child_pipes[i],
+                    env,
+                    policy,
+                    exploration_policy,
+                    max_path_length,
+                    cloudpickle.dumps(train_rollout_function),
+                    cloudpickle.dumps(eval_rollout_function),
+                )
+            )
+        for i in range(num_workers)]
+
+        for worker in self._workers:
+            worker.start()
+
+        self.free_pipes = set(self.parent_pipes)
+        # self.pipe_info[pipe] stores (epoch, train_type)
+        self.pipe_info = {}
+        # Let self.promise_list[True] be the promises for training
+        # and self.promise_list[False] be the promises for eval.
+        self.rollout_promise_list = {
+            True: [],
+            False: [],
+        }
+
+    def rollout(self, policy, train, epoch, discard_other_rollout_type=False):
+        # prevent starvation if only one worker
+        if discard_other_rollout_type:
+            self._discard_rollout_promises(not train)
+
+        self._alloc_rollout_promise(policy, train, epoch)
         # Check if remote path has been collected.
-        paths, _ = ray.wait([self._rollout_promise], timeout=0)
-        if len(paths):
-            policy_params = policy.get_param_values_np()
-            self._rollout_promise = self._ray_env.rollout.remote(
-                policy_params,
-                use_exploration_strategy,
-            )
-            return ray.get(paths[0])
-
+        ready_promises = wait(self.rollout_promise_list[train], timeout=0)
+        for rollout_promise in ready_promises:
+            rollout = rollout_promise.recv()
+            path_epoch, _ = self.pipe_info[rollout_promise]
+            self._free_rollout_promise(rollout_promise)
+            # Throw away eval paths from previous epochs
+            if path_epoch != epoch and train == False:
+                continue
+            self._alloc_rollout_promise(policy, train, epoch)
+            return rollout
         return None
+
+    def update_worker_envs(self, update):
+        self.env_update = update
+
+    def shutdown(self):
+        for worker in self._workers:
+            worker.terminate()
+
+    def _alloc_rollout_promise(self, policy, train, epoch):
+        if len(self.free_pipes) == 0 or \
+           len(self.rollout_promise_list[train]) >= self.worker_limits[train]:
+            return
+        policy_params = policy.get_param_values_np()
+
+        free_pipe = self.free_pipes.pop()
+        free_pipe.send((self.env_update, (policy_params, train,)))
+        self.pipe_info[free_pipe] = (epoch, train)
+        self.rollout_promise_list[train].append(free_pipe)
+        return free_pipe
+
+    def _free_rollout_promise(self, pipe):
+        _, train = self.pipe_info[pipe]
+        assert pipe not in self.free_pipes
+        if wait([pipe], timeout=0):
+            pipe.recv()
+        self.free_pipes.add(pipe)
+        del self.pipe_info[pipe]
+        self.rollout_promise_list[train].remove(pipe)
+
+    def _discard_rollout_promises(self, train_type):
+        ready_promises = wait(self.rollout_promise_list[train_type], timeout=0)
+        for rollout_promise in ready_promises:
+            self._free_rollout_promise(rollout_promise)
+
+
+    def _worker_loop(pipe, *worker_env_args, **worker_env_kwargs):
+        env = RemoteRolloutEnv.WorkerEnv(*worker_env_args, **worker_env_kwargs)
+        while True:
+            wait([pipe])
+            env_update, rollout_args = pipe.recv()
+            if env_update is not None:
+                env._env.update_env(**env_update)
+            rollout = env.rollout(*rollout_args)
+            pipe.send(rollout)
+
+    class WorkerEnv:
+        def __init__(
+                self,
+                env,
+                policy,
+                exploration_policy,
+                max_path_length,
+                train_rollout_function,
+                eval_rollout_function,
+        ):
+            torch.set_num_threads(1)
+            self._env = env
+            self._policy = policy
+            self._exploration_policy = exploration_policy
+            self._max_path_length = max_path_length
+            self.train_rollout_function = cloudpickle.loads(train_rollout_function)
+            self.eval_rollout_function = cloudpickle.loads(eval_rollout_function)
+
+        def rollout(self, policy_params, use_exploration_strategy):
+            if use_exploration_strategy:
+                self._exploration_policy.set_param_values_np(policy_params)
+                policy = self._exploration_policy
+                rollout_function = self.train_rollout_function
+                env_utils.mode(self._env, 'train')
+            else:
+                self._policy.set_param_values_np(policy_params)
+                policy = self._policy
+                rollout_function = self.eval_rollout_function
+                env_utils.mode(self._env, 'eval')
+
+            rollout = rollout_function(self._env, policy, self._max_path_length)
+            if 'full_observations' in rollout:
+                rollout['observations'] = rollout['full_observations'][:-1]
+            return rollout

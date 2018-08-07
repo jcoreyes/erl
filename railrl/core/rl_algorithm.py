@@ -1,11 +1,11 @@
 import abc
+import copy
 import pickle
 import time
 from collections import OrderedDict
 
 import gtimer as gt
 import numpy as np
-import ray
 
 from railrl.core import logger
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
@@ -47,11 +47,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=True,
-
-            # Remove env parameters
-            sim_throttle=False,
             normalize_env=True,
-            parallel_step_to_train_ratio=20,
+
+            # Remote env parameters
+            sim_throttle=True,
+            parallel_step_ratio=1,
+            parallel_env_params=None,
 
             env_info_sizes=None,
     ):
@@ -148,23 +149,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
         self.train_on_eval_paths = train_on_eval_paths
-        self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
+
+        self.parallel_step_ratio = parallel_step_ratio
         self.sim_throttle = sim_throttle
-        if self.collection_mode == 'online-parallel':
-            '''
-            The caller must have run ray.init() before running this line of code.
-            Not the ideal scenario, but if the caller wants to run multiple experiments 
-            in a loop, the ray.init() call must be place outside the loop in order to
-            ensure that the init does not get called more than once (which would result
-            in an error)
-            '''
-            self.training_env = RemoteRolloutEnv(
-                env=env,
-                policy=eval_policy,
-                exploration_policy=exploration_policy,
-                max_path_length=self.max_path_length,
-                normalize_env=self.normalize_env,
-            )
+        self.parallel_env_params = parallel_env_params or {}
         self.init_rollout_function()
         self.post_epoch_funcs = []
 
@@ -180,7 +168,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         if self.collection_mode == 'online':
             self.train_online(start_epoch=start_epoch)
         elif self.collection_mode == 'online-parallel':
-            self.train_parallel(start_epoch=start_epoch)
+            try:
+                self.train_parallel(start_epoch=start_epoch)
+            except:
+                import traceback
+                traceback.print_exc()
+                self.parallel_env.shutdown()
         elif self.collection_mode == 'batch':
             self.train_batch(start_epoch=start_epoch)
         elif self.collection_mode == 'offline':
@@ -240,9 +233,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._try_to_train()
                 gt.stamp('train')
             env_utils.mode(self.env, 'eval')
+            # TODO steven: move dump_tabular to be conditionally called in
+            # end_epoch and move post_epoch after eval
+            self._post_epoch(epoch)
             self._try_to_eval(epoch)
             gt.stamp('eval')
-            self._post_epoch(epoch)
             self._end_epoch()
 
     def train_batch(self, start_epoch):
@@ -291,59 +286,77 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def init_rollout_function(self):
         from railrl.samplers.rollout_functions import rollout
-        self.rollout_function = rollout
+        self.train_rollout_function = rollout
+        self.eval_rollout_function = self.train_rollout_function
 
     def train_parallel(self, start_epoch=0):
-        assert isinstance(self.training_env, RemoteRolloutEnv), (
-            "Did the sub-class accidentally override the RemoteRolloutEnv?"
+        self.parallel_env = RemoteRolloutEnv(
+            env=self.env,
+            train_rollout_function=self.train_rollout_function,
+            eval_rollout_function=self.eval_rollout_function,
+            policy=self.eval_policy,
+            exploration_policy=self.exploration_policy,
+            max_path_length=self.max_path_length,
+            **self.parallel_env_params,
         )
         self.training_mode(False)
-        n_steps_current_epoch = 0
-        epoch = start_epoch
-        self._start_epoch(epoch)
-        n_eval_steps = 0
-        self._eval_paths = []
-        eval_end = False
-        while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
-            in_eval = n_steps_current_epoch >= self.num_env_steps_per_epoch
-            if self.sim_throttle:
-                if epoch == 0 or self._n_env_steps_total // (
-                    self._n_train_steps_total + 1) < self.parallel_step_to_train_ratio:
-                    path = self.training_env.rollout(
-                        self.exploration_policy,
-                        use_exploration_strategy=not in_eval,
-                    )
+        last_epoch_policy = copy.deepcopy(self.policy)
+        for epoch in range(start_epoch, self.num_epochs):
+            self._start_epoch(epoch)
+            if hasattr(self.env, "get_env_update"):
+                env_update = self.env.get_env_update()
             else:
-                path = self.training_env.rollout(
-                    self.exploration_policy,
-                    use_exploration_strategy=not in_eval,
-                )
-            if path is not None:
-                if in_eval:
-                    path_length = len(path['observations'])
-                    self._eval_paths.append(dict(path))
-                    n_eval_steps += path_length
-                    eval_end = n_eval_steps >= self.num_steps_per_eval + self.max_path_length
+                env_update = None
+            self.parallel_env.update_worker_envs(env_update)
+            should_gather_data = True
+            should_eval = True
+            should_train = True
+            last_epoch_policy.load_state_dict(self.policy.state_dict())
+            eval_paths = []
+            n_env_steps_current_epoch = 0
+            n_eval_steps = 0
+            n_train_steps = 0
 
-                path_length = len(path['observations'])
-                self._n_env_steps_total += path_length
-                n_steps_current_epoch += path_length
-                self._handle_path(path)
-                self.exploration_policy.reset()
-            gt.stamp('sample')
-            self._try_to_train()
-            gt.stamp('train')
-            # Check if epoch is over
-            if eval_end:
-                self._try_to_eval(epoch)
-                gt.stamp('eval')
-                self._end_epoch()
-                epoch += 1
-                n_steps_current_epoch = 0
-                self._start_epoch(epoch)
-                eval_end = False
-                n_eval_steps = 0
-                self._eval_paths = []
+            while should_gather_data or should_eval  or should_train:
+                if should_gather_data:
+                    path = self.parallel_env.rollout(
+                        self.exploration_policy,
+                        train=True,
+                        discard_other_rollout_type=not should_eval,
+                        epoch=epoch,
+                    )
+                    if path:
+                        path_length = len(path['observations'])
+                        self._handle_path(path)
+                        n_env_steps_current_epoch += path_length
+                        self._n_env_steps_total += path_length
+                if should_eval:
+                    # label as epoch but actually evaluating previous epoch
+                    path = self.parallel_env.rollout(
+                        last_epoch_policy,
+                        train=False,
+                        discard_other_rollout_type=not should_gather_data,
+                        epoch=epoch,
+                    )
+                    if path:
+                        eval_paths.append(dict(path))
+                        n_eval_steps += len(path['observations'])
+                if should_train:
+                    if self._n_env_steps_total > 0:
+                        self._try_to_train()
+                        n_train_steps += 1
+                should_gather_data &= \
+                        n_env_steps_current_epoch < self.num_env_steps_per_epoch
+                should_eval &= n_eval_steps < self.num_steps_per_eval
+
+                if self.sim_throttle:
+                    should_train &= self.parallel_step_ratio * n_train_steps < \
+                        self.num_env_steps_per_epoch
+                else:
+                    should_train &= (should_eval or should_gather_data)
+            self._post_epoch(epoch)
+            self._try_to_eval(epoch, eval_paths=eval_paths)
+            self._end_epoch()
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)
@@ -363,10 +376,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._n_train_steps_total += 1
             self.training_mode(False)
 
-    def _try_to_eval(self, epoch):
+    def _try_to_eval(self, epoch, eval_paths=None):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
-            self.evaluate(epoch)
+            self.evaluate(epoch, eval_paths=eval_paths)
 
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
@@ -403,7 +416,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 logger.record_tabular('Sample Time (s)', sample_time)
                 logger.record_tabular('Epoch Time (s)', epoch_time)
                 logger.record_tabular('Total Train Time (s)', total_time)
-
+            else:
+                logger.record_tabular('Epoch Time (s)',
+                                      time.time() - self._epoch_start_time)
             logger.record_tabular("Epoch", epoch)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
         else:
@@ -424,13 +439,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
         logger.log("Eval Time: {0}".format(time.time() - start_time))
 
-    def evaluate(self, epoch):
+    def evaluate(self, epoch, eval_paths=None):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
 
         logger.log("Collecting samples for evaluation")
-        if self.collection_mode == 'online-parallel':
-            test_paths = self._eval_paths
+        if eval_paths:
+            test_paths = eval_paths
         else:
             test_paths = self.get_eval_paths()
         statistics.update(eval_util.get_generic_path_information(

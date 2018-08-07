@@ -32,7 +32,7 @@ class MultigoalSimplePathSampler(object):
             path = multitask_rollout(
                 self.env,
                 self.policy,
-                tau,
+                init_tau=tau,
                 max_path_length=self.max_path_length,
                 decrement_tau=self.cycle_taus_for_rollout,
                 cycle_tau=self.cycle_taus_for_rollout,
