@@ -31,7 +31,7 @@ def add_border(img, pad_length, pad_color):
     return img2
 
 
-def get_image(goal, obs, pad_length, pad_color):
+def get_image(goal, obs, pad_length=1, pad_color=255):
     if len(goal.shape) == 1:
         goal = goal.reshape(-1, 84, 84).transpose()
         obs = obs.reshape(-1, 84, 84).transpose()
