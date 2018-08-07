@@ -1,4 +1,6 @@
 import pickle
+import random
+
 import cv2
 import numpy as np
 from gym import Env
@@ -83,14 +85,13 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self._vw_goal_img = None
         self._vw_goal_img_decoded = None
         self.mode(mode)
-        self._presampled_goals = presampled_goals
-        if presampled_goals is not None:
-            import random
-            self.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
-        else:
-            self.num_goals_presampled = 0
+        self.num_goals_presampled = 0
         self._mode_map = {}
         self.reset()
+
+    def set_presampled_goals(self, presampled_goals):
+        self._presampled_goals = presampled_goals
+        self.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
 
     @property
     def use_vae_goals(self):
@@ -223,7 +224,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self._vw_goal_img = goal_img
             self._vw_goal_img_decoded = goal_img
         else:
-            self.set_goal(obs)
+            if self.num_goals_presampled > 0:
+                goal = self.sample_goal()
+                self._latent_goal = goal['latent_desired_goal']
+                self.wrapped_env.set_goal(goal)
+                for key in goal:
+                    obs[key] = goal[key]
+            else:
+                self._latent_goal = self._encode_one(obs['image_desired_goal'])
             if self.decode_goals:
                 self._vw_goal_img_decoded = self._decode(self._latent_goal[None])[0]
         self._vw_goal_img = obs['image_desired_goal']
@@ -285,16 +293,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
         goal['latent_desired_goal'] = self._latent_goal
         return goal
 
-    def set_goal(self, obs=None, goal=None):
-        if self.num_goals_presampled>0 or goal is not None:
-            if goal is None:
-                goal = self.sample_goal()
-            self._latent_goal = goal['latent_desired_goal']
-            self.wrapped_env.set_goal(obs, goal)
-            for key in goal:
-                obs[key] = goal[key]
-        else:
-            self._latent_goal=self._encode_one(obs['image_desired_goal'])
+    def set_goal(self, goal):
+        ''' Assume goal contains both image_desired_goal and any goals required for wrapped envs'''
+        self._latent_goal = goal['latent_desired_goal']
+        self.wrapped_env.set_goal(goal)
 
     def sample_goal(self):
         goals = self.sample_goals(1)

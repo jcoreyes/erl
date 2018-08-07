@@ -228,15 +228,15 @@ def get_envs(variant):
     presample_goals = variant.get('presample_goals', False)
     env = variant["env_class"](**variant['env_kwargs'])
     if not do_state_exp:
-        image_env = ImageEnv(
+        env = ImageEnv(
             env,
             84,
             init_camera=init_camera,
             transpose=True,
             normalize=True,
         )
-        vae_env = VAEWrappedEnv(
-            image_env,
+        env = VAEWrappedEnv(
+            env,
             vae,
             decode_goals=render,
             render_goals=render,
@@ -245,21 +245,9 @@ def get_envs(variant):
             **variant.get('vae_wrapped_env_kwargs', {})
         )
         if presample_goals:
-            presampled_goals = variant['generate_goal_dataset_fn'](
-                env=vae_env,
-                **variant['goal_dataset_kwargs']
-            )
-            vae_env = VAEWrappedEnv(
-                image_env,
-                vae,
-                decode_goals=render,
-                render_goals=render,
-                render_rollouts=render,
-                reward_params=reward_params,
-                presampled_goals=presampled_goals,
-                **variant.get('vae_wrapped_env_kwargs', {})
-            )
-        env = vae_env
+            presampled_goals = variant['generate_goal_dataset_fn'](env=env, **variant['goal_generation_kwargs'])
+            env.set_presampled_goals(presampled_goals)
+
     if not do_state_exp:
         training_mode = variant.get("training_mode", "train")
         testing_mode = variant.get("testing_mode", "test")
