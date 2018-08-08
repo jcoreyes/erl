@@ -5,7 +5,6 @@ import argparse
 import torch
 import torch.utils.data
 from torch import nn, optim
-from torch.autograd import Variable
 from torch.nn import functional as F
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
@@ -100,7 +99,13 @@ class ConvVAETrainer():
         samples = normalize_image(dataset[ind, :])
         if self.normalize:
             samples = ((samples - self.train_data_mean) + 1) / 2
+<<<<<<< HEAD
         return ptu.np_to_var(samples)
+=======
+        if self.background_subtract:
+            samples = samples - self.train_data_mean
+        return ptu.from_numpy(samples)
+>>>>>>> 79ba36e... bug fixes for vae files
 
 
     def get_debug_batch(self, train=True):
@@ -109,17 +114,17 @@ class ConvVAETrainer():
         ind = np.random.randint(0, Y.shape[0], self.batch_size)
         X = X[ind, :]
         Y = Y[ind, :]
-        return ptu.np_to_var(X), ptu.np_to_var(Y)
+        return ptu.from_numpy(X), ptu.from_numpy(Y)
 
     def logprob(self, recon_x, x, mu, logvar):
 
         # Divide by batch_size rather than setting size_average=True because
-        # otherwise the averaging will also happen across dimension 1 (the
+        # otherwise the averaging will also happen across dim 1 (the
         # pixels)
         return F.binary_cross_entropy(
             recon_x,
-            x.narrow(start=0, length=self.imlength, dimension=1).contiguous().view(-1, self.imlength),
-            size_average=False,
+            x.narrow(start=0, length=self.imlength, dim=1).contiguous().view(-1, self.imlength),
+            size_average=False, #double check what is the correct thing to do here
         ) / self.batch_size
 
     def kl_divergence(self, recon_x, x, mu, logvar):
@@ -137,6 +142,7 @@ class ConvVAETrainer():
         mses = []
         beta = self.beta_schedule.get_value(epoch)
         for batch_idx in range(batches):
+<<<<<<< HEAD
             if self.state_sim_debug:
                 X, Y = self.get_debug_batch()
                 self.optimizer.zero_grad()
@@ -146,6 +152,25 @@ class ConvVAETrainer():
                 sim_loss = self.state_similarity_loss(self.model, mu, Y)
                 loss = bce + beta * kle + sim_loss*self.mse_weight
                 loss.backward()
+=======
+            if sample_batch is not None:
+                data = sample_batch(self.batch_size)
+                obs = data['obs']
+                next_obs = data['next_obs']
+                actions = data['actions']
+            else:
+                next_obs = self.get_batch()
+                obs = None
+                actions = None
+            self.optimizer.zero_grad()
+            recon_batch, mu, logvar = self.model(next_obs)
+            bce = self.logprob(recon_batch, next_obs, mu, logvar)
+            kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
+            if self.use_linear_dynamics:
+                linear_dynamics_loss = self.state_linearity_loss(obs, next_obs, actions)
+                loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
+                linear_losses.append(linear_dynamics_loss.item())
+>>>>>>> 79ba36e... bug fixes for vae files
             else:
                 data = self.get_batch()
                 if sample_batch is not None:
@@ -157,20 +182,40 @@ class ConvVAETrainer():
                 loss = bce + beta * kle
                 loss.backward()
 
+<<<<<<< HEAD
             losses.append(loss.data[0])
             bces.append(bce.data[0])
             kles.append(kle.data[0])
             if self.state_sim_debug:
                 mses.append(sim_loss.data[0])
+=======
+            losses.append(loss.item())
+            bces.append(bce.item())
+            kles.append(kle.item())
+>>>>>>> 79ba36e... bug fixes for vae files
 
             self.optimizer.step()
             if self.log_interval and batch_idx % self.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
+<<<<<<< HEAD
                     loss.data[0] / len(data)))
 
         if not from_rl:
+=======
+                    loss.item() / len(next_obs)))
+
+        if from_rl:
+            self.vae_logger_stats_for_rl['Train VAE Epoch'] = epoch
+            self.vae_logger_stats_for_rl['Train VAE BCE'] = np.mean(bces)
+            self.vae_logger_stats_for_rl['Train VAE KL'] = np.mean(kles)
+            self.vae_logger_stats_for_rl['Train VAE Loss'] = np.mean(losses)
+            if self.use_linear_dynamics:
+                self.vae_logger_stats_for_rl['Train VAE Linear_loss'] = \
+                    np.mean(linear_losses)
+        else:
+>>>>>>> 79ba36e... bug fixes for vae files
             logger.record_tabular("train/epoch", epoch)
             logger.record_tabular("train/BCE", np.mean(bces))
             logger.record_tabular("train/KL", np.mean(kles))
@@ -214,16 +259,22 @@ class ConvVAETrainer():
             z_data = ptu.get_numpy(mu.cpu())
             for i in range(len(z_data)):
                 zs.append(z_data[i, :])
+<<<<<<< HEAD
             losses.append(loss.data[0])
             bces.append(bce.data[0])
             kles.append(kle.data[0])
             if self.state_sim_debug:
                 mses.append(sim_loss.data[0])
+=======
+            losses.append(loss.item())
+            bces.append(bce.item())
+            kles.append(kle.item())
+>>>>>>> 79ba36e... bug fixes for vae files
 
             if batch_idx == 0 and save_reconstruction:
                 n = min(data.size(0), 8)
                 comparison = torch.cat([
-                    data[:n].narrow(start=0, length=self.imlength, dimension=1)
+                    data[:n].narrow(start=0, length=self.imlength, dim=1)
                     .contiguous().view(
                         -1, self.input_channels, self.imsize, self.imsize
                     ),
@@ -279,11 +330,10 @@ class ConvVAETrainer():
         data = self.get_batch(train=False)
         recon_batch, mu, logvar = self.model(data)
         img = data[0]
-        recon_mse = ((recon_batch[0] - img)**2).mean()
-
+        recon_mse = ((recon_batch[0] - img)**2).mean().view(-1)
         img_repeated = img.expand((debug_batch_size, img.shape[0]))
 
-        samples = ptu.Variable(torch.randn(debug_batch_size, self.representation_size))
+        samples = torch.randn(debug_batch_size, self.representation_size).to(ptu.device)
         random_imgs = self.model.decode(samples)
         random_mse = ((random_imgs - img_repeated)**2).mean(dim=1)
 
@@ -303,7 +353,7 @@ class ConvVAETrainer():
 
     def dump_samples(self, epoch):
         self.model.eval()
-        sample = ptu.Variable(torch.randn(64, self.representation_size))
+        sample = torch.randn(64, self.representation_size).to(ptu.device)
         sample = self.model.decode(sample).cpu()
         save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
         save_image(
@@ -429,7 +479,7 @@ class ConvVAE(PyTorchModule):
 
     def encode(self, input):
         input = input.view(-1, self.imlength + self.added_fc_size)
-        conv_input = input.narrow(start=0, length=self.imlength, dimension=1)
+        conv_input = input.narrow(start=0, length=self.imlength, dim=1)
 
         x = conv_input.contiguous().view(-1, self.input_channels, self.imsize, self.imsize)
         x = F.relu(self.bn1(self.conv1(x)))
@@ -438,7 +488,7 @@ class ConvVAE(PyTorchModule):
 
         h = x.view(-1, 128)  # flatten
         if self.added_fc_size != 0:
-            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dimension=1)
+            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dim=1)
             h = torch.cat((h, fc_input), dim=1)
         mu = self.output_activation(self.fc1(h))
         if self.log_min_variance is None:
@@ -450,7 +500,7 @@ class ConvVAE(PyTorchModule):
     def reparameterize(self, mu, logvar):
         if self.training:
             std = logvar.mul(0.5).exp_()
-            eps = ptu.Variable(std.data.new(std.size()).normal_())
+            eps = std.data.new(std.size()).normal_()
             return eps.mul(std).add_(mu)
         else:
             return mu
@@ -461,7 +511,6 @@ class ConvVAE(PyTorchModule):
         x = F.relu(self.conv4(h))
         x = F.relu(self.conv5(x))
         x = self.conv6(x).view(-1, self.imsize*self.imsize*self.input_channels)
-
         return self.sigmoid(x)
 
     def forward(self, x):
@@ -594,7 +643,7 @@ class ConvVAELarge(ConvVAE):
 
     def encode(self, input):
         input = input.view(-1, self.imlength + self.added_fc_size)
-        conv_input = input.narrow(start=0, length=self.imlength, dimension=1)
+        conv_input = input.narrow(start=0, length=self.imlength, dim=1)
 
         # batch_size = input.size(0)
         x = conv_input.contiguous().view(-1, self.input_channels, self.imsize, self.imsize)
@@ -606,7 +655,7 @@ class ConvVAELarge(ConvVAE):
         x = F.relu(self.bn6(self.conv6(x)))
         h = x.view(-1, 128)  # flatten
         if self.added_fc_size != 0:
-            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dimension=1)
+            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dim=1)
             h = torch.cat((h, fc_input), dim=1)
         mu = self.output_activation(self.fc1(h))
         if self.log_min_variance is None:
@@ -651,7 +700,7 @@ class SpatialVAE(ConvVAE):
         self.conv3 = nn.Conv2d(32, self.num_feat_points, kernel_size=5, stride=3)
 #        self.bn3 = nn.BatchNorm2d(32)
 
-        test_mat = Variable(torch.zeros(1, self.input_channels, self.imsize, self.imsize))
+        test_mat = torch.zeros(1, self.input_channels, self.imsize, self.imsize)
         test_mat = self.conv1(test_mat)
         test_mat = self.conv2(test_mat)
         test_mat = self.conv3(test_mat)
@@ -692,7 +741,7 @@ class SpatialVAE(ConvVAE):
 
     def encode(self, input):
         input = input.view(-1, self.imlength + self.added_fc_size)
-        conv_input = input.narrow(start=0, length=self.imlength, dimension=1)
+        conv_input = input.narrow(start=0, length=self.imlength, dim=1)
 
         # batch_size = input.size(0)
         x = conv_input.contiguous().view(-1, self.input_channels, self.imsize, self.imsize)
@@ -707,7 +756,7 @@ class SpatialVAE(ConvVAE):
         maps_x = torch.sum(x, 2)
         maps_y = torch.sum(x, 3)
 
-        weights = ptu.np_to_var(np.arange(d) / (d + 1))
+        weights = ptu.from_numpy(np.arange(d) / (d + 1))
 
         fp_x = torch.sum(maps_x * weights, 2)
         fp_y = torch.sum(maps_y * weights, 2)
@@ -715,7 +764,7 @@ class SpatialVAE(ConvVAE):
         x = torch.cat([fp_x, fp_y], 1)
         h = x.view(-1, self.num_feat_points * 2)
         if self.added_fc_size != 0:
-            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dimension=1)
+            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dim=1)
             h = torch.cat((h, fc_input), dim=1)
         h = F.relu(self.spatial_fc(h))
         mu = self.output_activation(self.fc1(h))

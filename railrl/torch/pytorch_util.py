@@ -202,10 +202,14 @@ GPU wrappers
 """
 
 _use_gpu = False
+device = None
 
 def set_gpu_mode(mode):
     global _use_gpu
+    global device
     _use_gpu = mode
+    if _use_gpu:
+        device = torch.device("cuda:0" if _use_gpu else "cpu")
 
 def gpu_enabled():
     return _use_gpu
@@ -236,13 +240,9 @@ def get_numpy(tensor):
     return tensor.numpy()
 
 def zeros(*sizes, out=None):
-    tensor = torch.zeros(*sizes, out=out)
-    if _use_gpu:
-        tensor = tensor.cuda()
+    tensor = torch.zeros(*sizes, out=out).to(device)
     return tensor
 
 def ones(*sizes, out=None):
-    tensor = torch.ones(*sizes, out=out)
-    if _use_gpu:
-        tensor = tensor.cuda()
+    tensor = torch.ones(*sizes, out=out).to(device)
     return tensor
