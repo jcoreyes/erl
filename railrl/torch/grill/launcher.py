@@ -280,7 +280,7 @@ def get_envs(variant):
         )
         if presample_goals:
             presampled_goals = variant['generate_goal_dataset_fn'](env=vae_env, **variant['goal_generation_kwargs'])
-            image_env.set_presampled_goals(presample_goals)
+            image_env.set_presampled_goals(presampled_goals)
             vae_env.set_presampled_goals(presampled_goals)
         env = vae_env
 
