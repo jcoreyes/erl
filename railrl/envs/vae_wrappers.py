@@ -41,7 +41,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         reward_params=None,
         mode="train",
         imsize=84,
-        presampled_goals=None,
     ):
         self.quick_init(locals())
         if reward_params is None:
@@ -89,7 +88,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.num_goals_presampled = 0
         self.use_replay_buffer_goals = False
         self._mode_map = {}
-        self.reset()
 
     def set_presampled_goals(self, presampled_goals):
         self._presampled_goals = presampled_goals
