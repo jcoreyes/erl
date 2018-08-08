@@ -51,10 +51,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_vae(vae)
         else:
             self.vae = vae
-<<<<<<< HEAD
-=======
         vae = vae.to(ptu.device)
->>>>>>> 79ba36e... bug fixes for vae files
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self._use_vae_goals = use_vae_goals
@@ -411,8 +408,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         else:
             raise NotImplementedError
 
-<<<<<<< HEAD
-=======
 class StateVAEWrappedEnv(ProxyEnv, Env):
     def __init__(
         self,
@@ -688,7 +683,6 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
         else:
             raise NotImplementedError
 
->>>>>>> 79ba36e... bug fixes for vae files
 def temporary_mode(env, mode, func, args=None, kwargs=None):
     if args is None:
         args = []
