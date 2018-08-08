@@ -108,7 +108,7 @@ def sawyer_init_camera_zoomed_in_fixed(camera):
     camera.lookat[0] = 0
     camera.lookat[1] = 0.85
     camera.lookat[2] = 0.3
-    camera.distance = 0.3
+    camera.distance = 0.35
     camera.elevation = -35
     camera.azimuth = 270
     camera.trackbodyid = -1
