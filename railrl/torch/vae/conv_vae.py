@@ -99,13 +99,7 @@ class ConvVAETrainer():
         samples = normalize_image(dataset[ind, :])
         if self.normalize:
             samples = ((samples - self.train_data_mean) + 1) / 2
-<<<<<<< HEAD
-        return ptu.np_to_var(samples)
-=======
-        if self.background_subtract:
-            samples = samples - self.train_data_mean
         return ptu.from_numpy(samples)
->>>>>>> 79ba36e... bug fixes for vae files
 
 
     def get_debug_batch(self, train=True):
@@ -142,17 +136,6 @@ class ConvVAETrainer():
         mses = []
         beta = self.beta_schedule.get_value(epoch)
         for batch_idx in range(batches):
-<<<<<<< HEAD
-            if self.state_sim_debug:
-                X, Y = self.get_debug_batch()
-                self.optimizer.zero_grad()
-                recon_batch, mu, logvar = self.model(X)
-                bce = self.logprob(recon_batch, X, mu, logvar)
-                kle = self.kl_divergence(recon_batch, X, mu, logvar)
-                sim_loss = self.state_similarity_loss(self.model, mu, Y)
-                loss = bce + beta * kle + sim_loss*self.mse_weight
-                loss.backward()
-=======
             if sample_batch is not None:
                 data = sample_batch(self.batch_size)
                 obs = data['obs']
@@ -170,7 +153,6 @@ class ConvVAETrainer():
                 linear_dynamics_loss = self.state_linearity_loss(obs, next_obs, actions)
                 loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
                 linear_losses.append(linear_dynamics_loss.item())
->>>>>>> 79ba36e... bug fixes for vae files
             else:
                 data = self.get_batch()
                 if sample_batch is not None:
@@ -182,28 +164,15 @@ class ConvVAETrainer():
                 loss = bce + beta * kle
                 loss.backward()
 
-<<<<<<< HEAD
-            losses.append(loss.data[0])
-            bces.append(bce.data[0])
-            kles.append(kle.data[0])
-            if self.state_sim_debug:
-                mses.append(sim_loss.data[0])
-=======
             losses.append(loss.item())
             bces.append(bce.item())
             kles.append(kle.item())
->>>>>>> 79ba36e... bug fixes for vae files
 
             self.optimizer.step()
             if self.log_interval and batch_idx % self.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
-<<<<<<< HEAD
-                    loss.data[0] / len(data)))
-
-        if not from_rl:
-=======
                     loss.item() / len(next_obs)))
 
         if from_rl:
@@ -215,7 +184,6 @@ class ConvVAETrainer():
                 self.vae_logger_stats_for_rl['Train VAE Linear_loss'] = \
                     np.mean(linear_losses)
         else:
->>>>>>> 79ba36e... bug fixes for vae files
             logger.record_tabular("train/epoch", epoch)
             logger.record_tabular("train/BCE", np.mean(bces))
             logger.record_tabular("train/KL", np.mean(kles))
@@ -259,17 +227,9 @@ class ConvVAETrainer():
             z_data = ptu.get_numpy(mu.cpu())
             for i in range(len(z_data)):
                 zs.append(z_data[i, :])
-<<<<<<< HEAD
-            losses.append(loss.data[0])
-            bces.append(bce.data[0])
-            kles.append(kle.data[0])
-            if self.state_sim_debug:
-                mses.append(sim_loss.data[0])
-=======
             losses.append(loss.item())
             bces.append(bce.item())
             kles.append(kle.item())
->>>>>>> 79ba36e... bug fixes for vae files
 
             if batch_idx == 0 and save_reconstruction:
                 n = min(data.size(0), 8)
