@@ -41,7 +41,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         reward_params=None,
         mode="train",
         imsize=84,
-        presampled_goals=None,
     ):
         self.quick_init(locals())
         if reward_params is None:
