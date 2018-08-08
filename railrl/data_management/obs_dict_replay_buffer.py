@@ -219,6 +219,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         new_next_obs_dict[self.desired_goal_key] = resampled_goals
         new_obs_dict = postprocess_obs_dict(new_obs_dict)
         new_next_obs_dict = postprocess_obs_dict(new_next_obs_dict)
+        # resampled_goals must be postprocessed as well
+        resampled_goals = new_next_obs_dict[self.desired_goal_key]
 
         new_actions = self._actions[indices]
         new_rewards = self.env.compute_rewards(
