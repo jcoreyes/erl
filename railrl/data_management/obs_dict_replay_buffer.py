@@ -185,17 +185,17 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         new_next_obs_dict = self._batch_next_obs_dict(indices)
 
         if num_env_goals > 0:
-            goals = self.env.sample_goals(num_env_goals)
-            goals = preprocess_obs_dict(goals)
+            env_goals = self.env.sample_goals(num_env_goals)
+            env_goals = preprocess_obs_dict(env_goals)
             last_env_goal_idx = num_rollout_goals + num_env_goals
             resampled_goals[num_rollout_goals:last_env_goal_idx] = (
-                goals[self.desired_goal_key]
+                env_goals[self.desired_goal_key]
             )
             for goal_key in self.goal_keys:
                 new_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = \
-                    goals[goal_key]
+                    env_goals[goal_key]
                 new_next_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = \
-                    goals[goal_key]
+                    env_goals[goal_key]
         if num_future_goals > 0:
             future_obs_idxs = []
             for i in indices[-num_future_goals:]:
@@ -215,12 +215,10 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 new_next_obs_dict[goal_key][-num_future_goals:] = \
                     self._next_obs[goal_key][future_obs_idxs]
 
-
-        new_obs_dict = postprocess_obs_dict(new_obs_dict)
-        new_next_obs_dict = postprocess_obs_dict(new_next_obs_dict)
         new_obs_dict[self.desired_goal_key] = resampled_goals
         new_next_obs_dict[self.desired_goal_key] = resampled_goals
-
+        new_obs_dict = postprocess_obs_dict(new_obs_dict)
+        new_next_obs_dict = postprocess_obs_dict(new_next_obs_dict)
 
         new_actions = self._actions[indices]
         new_rewards = self.env.compute_rewards(
