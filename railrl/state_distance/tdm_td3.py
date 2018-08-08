@@ -168,26 +168,3 @@ class TdmTd3(TemporalDifferenceModel, TD3):
                 'Policy Action',
                 ptu.get_numpy(policy_actions),
             ))
-
-    def get_epoch_snapshot(self, epoch):
-        snapshot = super().get_epoch_snapshot(epoch)
-        snapshot.update(
-            qf1=self.qf1,
-            qf2=self.qf2,
-            policy=self.eval_policy,
-            trained_policy=self.policy,
-            target_policy=self.target_policy,
-            exploration_policy=self.exploration_policy,
-        )
-        return snapshot
-
-    @property
-    def networks(self):
-        return [
-            self.policy,
-            self.qf1,
-            self.qf2,
-            self.target_policy,
-            self.target_qf1,
-            self.target_qf2,
-        ]

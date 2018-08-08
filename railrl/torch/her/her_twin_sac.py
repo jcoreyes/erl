@@ -7,20 +7,20 @@ from railrl.torch.her.her import HER
 from railrl.torch.sac.twin_sac import TwinSAC
 
 
-class HerTwinSac(HER, TwinSAC):
+class HerTwinSAC(HER, TwinSAC):
     def __init__(
             self,
             *args,
-            observation_key=None,
-            desired_goal_key=None,
+            twin_sac_kwargs,
+            her_kwargs,
+            base_kwargs,
             **kwargs
     ):
         HER.__init__(
             self,
-            observation_key=observation_key,
-            desired_goal_key=desired_goal_key,
+            **her_kwargs,
         )
-        TwinSAC.__init__(self, *args, **kwargs)
+        TwinSAC.__init__(self, *args, **kwargs, **twin_sac_kwargs, **base_kwargs)
         assert isinstance(
             self.replay_buffer, SimpleHerReplayBuffer
         ) or isinstance(

@@ -29,7 +29,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goal_reached_epsilon=1e-3,
             terminate_when_goal_reached=False,
             truncated_geom_factor=2.,
-            norm_order=1,
             square_distance=False,
             goal_weights=None,
             normalize_distance=False,
@@ -60,8 +59,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         `terminate_whe_goal_reached` is True.
         :param terminate_when_goal_reached: Do you terminate when you have
         reached the goal?
-        :param norm_order: If vectorized=False, do you use L1, L2,
-        etc. for distance?
         :param goal_weights: None or the weights for the different goal
         dimensions. These weights are used to compute the distances to the goal.
         """
@@ -88,7 +85,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.tau_sample_strategy = tau_sample_strategy
         self.goal_reached_epsilon = goal_reached_epsilon
         self.terminate_when_goal_reached = terminate_when_goal_reached
-        self.norm_order = norm_order
         self.square_distance = square_distance
         self._current_path_goal = None
         self._rollout_tau = np.array([self.max_tau])
@@ -115,17 +111,35 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             desired_goal_key=self.desired_goal_key,
         )
         self.pretrain_obs = None
-        if self.collection_mode == 'online-parallel':
-            # TODO(murtaza): What happens to the eval env?
-            # see `eval_sampler` definition above.
-            self.training_env = RemoteRolloutEnv(
-                env=self.env,
-                policy=self.eval_policy,
-                exploration_policy=self.exploration_policy,
-                max_path_length=self.max_path_length,
-                normalize_env=self.normalize_env,
-                rollout_function=self.rollout,
-            )
+
+        # the rl_algorithm constructor is called before the tdm's, so
+        # initializing the rollout function must be done here instead of
+        # overriding the function
+        from railrl.samplers.rollout_functions import \
+                create_rollout_function, tdm_rollout, tau_sampling_tdm_rollout
+
+        self.train_rollout_function = create_rollout_function(
+            tdm_rollout,
+            init_tau=self.max_tau,
+            cycle_tau=self.cycle_taus_for_rollout,
+            decrement_tau=self.cycle_taus_for_rollout,
+            observation_key=self.observation_key,
+            desired_goal_key=self.desired_goal_key,
+        )
+        self.eval_rollout_function = self.train_rollout_function
+
+        # Serializing this eval_rollout_function creates an infinite loop for
+        # some reason. Calling cloudpickle.dumps(self.eval_rollout_function) will
+        # literally fill your entire RAM/swap.
+        #
+        # self.eval_rollout_function = create_rollout_function(
+        #     tau_sampling_tdm_rollout,
+        #     tau_sampler=self._sample_max_tau_for_rollout(),
+        #     cycle_tau=self.cycle_taus_for_rollout,
+        #     decrement_tau=self.cycle_taus_for_rollout,
+        #     observation_key=self.observation_key,
+        #     desired_goal_key=self.desired_goal_key,
+        # )
 
     def _start_epoch(self, epoch):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)
@@ -143,6 +157,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         goals = batch['resampled_goals']
         rewards = batch['rewards']
         terminals = batch['terminals']
+
 
         if self.tau_sample_strategy == 'all_valid':
             obs = np.repeat(obs, self.max_tau + 1, 0)
@@ -245,7 +260,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             agent_infos=agent_info,
             env_infos=env_info,
             num_steps_left=self._rollout_tau,
-            goals=self._current_path_goal,
         )
         if self.cycle_taus_for_rollout:
             self._rollout_tau -= 1
@@ -281,7 +295,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def _handle_path(self, path):
         self._n_rollouts_total += 1
         self.replay_buffer.add_path(path)
+        self._exploration_paths.append(path)
 
-    def evaluate(self, epoch):
+    def evaluate(self, epoch, eval_paths=None):
         self.eval_statistics['Max Tau'] = self.max_tau
-        super().evaluate(epoch)
+        super().evaluate(epoch, eval_paths=eval_paths)

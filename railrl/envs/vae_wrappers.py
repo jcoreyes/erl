@@ -1,4 +1,6 @@
 import pickle
+import random
+
 import cv2
 import numpy as np
 from gym import Env
@@ -39,7 +41,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         reward_params=None,
         mode="train",
         imsize=84,
-        num_goals_presampled=0,
+        presampled_goals=None,
     ):
         self.quick_init(locals())
         if reward_params is None:
@@ -66,8 +68,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             render_rollouts=render_rollouts,
         )
         self.imsize = imsize
-        self.num_goals_presampled = num_goals_presampled
-
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", 'latent_distance')
         self.norm_order = self.reward_params.get("norm_order", 1)
@@ -89,9 +89,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self._vw_goal_img = None
         self._vw_goal_img_decoded = None
         self.mode(mode)
-        self._presampled_goals = None
-
+        self.num_goals_presampled = 0
+        self.use_replay_buffer_goals = False
         self._mode_map = {}
+        self.reset()
+
+    def set_presampled_goals(self, presampled_goals):
+        self._presampled_goals = presampled_goals
+        self.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
 
     @property
     def use_vae_goals(self):
@@ -147,6 +152,22 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
     def eval(self):
         self.mode(self._mode_map['eval'])
+
+    def get_env_update(self):
+        """
+        For online-parallel. Gets updates to the environment since the last time
+        the env was serialized.
+
+        subprocess_env.update_env(**env.get_env_update())
+        """
+        return dict(
+            mode_map=self._mode_map,
+            vae_state_dict=self.vae.state_dict(),
+        )
+
+    def update_env(self, mode_map, vae_state_dict):
+        self._mode_map = mode_map
+        self.vae.load_state_dict(vae_state_dict)
 
     @property
     def goal_dim(self):
@@ -213,7 +234,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
     def reset(self):
         obs = self.wrapped_env.reset()
         if self.use_vae_goals:
-            latent_goals = self._sample_vae_prior(1)
+            if self.use_replay_buffer_goals:
+                latent_goals = self.sample_replay_buffer_latent_goals(1)
+            else:
+                latent_goals = self._sample_vae_prior(1)
             if self.decode_goals:
                 goal_img = self._decode(latent_goals)[0].transpose().flatten()
             else:
@@ -224,7 +248,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self._vw_goal_img = goal_img
             self._vw_goal_img_decoded = goal_img
         else:
-            self._latent_goal = self._encode_one(obs['image_desired_goal'])
+            if self.num_goals_presampled > 0:
+                goal = self.sample_goal()
+                self._latent_goal = goal['latent_desired_goal']
+                self.wrapped_env.set_goal(goal)
+                for key in goal:
+                    obs[key] = goal[key]
+            else:
+                self._latent_goal = self._encode_one(obs['image_desired_goal'])
             if self.decode_goals:
                 self._vw_goal_img_decoded = self._decode(self._latent_goal[None])[0]
         self._vw_goal_img = obs['image_desired_goal']
@@ -262,6 +293,13 @@ class VAEWrappedEnv(ProxyEnv, Env):
         n = np.random.randn(batch_size, self.representation_size)
         return sigma * n + mu
 
+    def sample_replay_buffer_latent_goals(self, batch_size):
+        if self.replay_buffer._size > 0:
+            idxs = self.replay_buffer._sample_indices(batch_size)
+            latent_goals = self.replay_buffer._next_obs['latent_achieved_goal'][idxs]
+            return latent_goals
+        return self._sample_vae_prior(batch_size)
+
     def _decode(self, latents):
         batch_size = latents.shape[0]
         imgs = ptu.get_numpy(self.vae.decode(ptu.from_numpy(latents)))
@@ -286,26 +324,17 @@ class VAEWrappedEnv(ProxyEnv, Env):
         goal['latent_desired_goal'] = self._latent_goal
         return goal
 
-    def sample_goals(self, batch_size, force_resample=False):
-        if (
-            not force_resample
-            and batch_size > 1
-            and self.num_goals_presampled > 0
-            and not self.use_vae_goals
-        ):
-            if (
-                self._presampled_goals is None
-                    or self.num_goals_presampled < batch_size
-            ):
-                self.num_goals_presampled = max(
-                    self.num_goals_presampled,
-                    batch_size,
-                )
-                self._presampled_goals = self.sample_goals(
-                    self.num_goals_presampled,
-                    force_resample=True,
-                )
+    def set_goal(self, goal):
+        ''' Assume goal contains both image_desired_goal and any goals required for wrapped envs'''
+        self._latent_goal = goal['latent_desired_goal']
+        self.wrapped_env.set_goal(goal)
 
+    def sample_goal(self):
+        goals = self.sample_goals(1)
+        return self.unbatchify_dict(goals, 0)
+
+    def sample_goals(self, batch_size):
+        if self.num_goals_presampled > 0 and not self.use_vae_goals:
             idx = np.random.randint(0, self.num_goals_presampled, batch_size)
             sampled_goals = {
                 k: v[idx] for k, v in self._presampled_goals.items()
@@ -313,12 +342,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
             return sampled_goals
         if self.use_vae_goals:
             goals = {}
-            latent_goals = self._sample_vae_prior(batch_size)
+            if self.use_replay_buffer_goals:
+                latent_goals = self.sample_replay_buffer_latent_goals(batch_size)
+            else:
+                latent_goals = self._sample_vae_prior(batch_size)
             if self.decode_goals:
                 raise NotImplementedError(
                     'I think we should change _decode to not transpose...'
                 )
-                goal_imgs = self._decode(latent_goals).transpose().flatten()
             else:
                 goal_imgs = None
             goals['image_desired_goal'] = goal_imgs

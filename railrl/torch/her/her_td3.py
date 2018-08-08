@@ -10,16 +10,16 @@ class HerTd3(HER, TD3):
     def __init__(
             self,
             *args,
-            observation_key=None,
-            desired_goal_key=None,
+            td3_kwargs,
+            her_kwargs,
+            base_kwargs,
             **kwargs
     ):
         HER.__init__(
             self,
-            observation_key=observation_key,
-            desired_goal_key=desired_goal_key,
+            **her_kwargs,
         )
-        TD3.__init__(self, *args, **kwargs)
+        TD3.__init__(self, *args, **kwargs, **td3_kwargs, **base_kwargs)
         assert isinstance(
             self.replay_buffer, SimpleHerReplayBuffer
         ) or isinstance(

@@ -49,6 +49,8 @@ class ConvVAETrainer():
             state_sim_debug=False,
             mse_weight=0.1,
             is_auto_encoder=False,
+            linearity_weight=0.0,
+            use_linear_dynamics=False,
     ):
         self.log_interval = log_interval
         self.batch_size = batch_size
@@ -92,6 +94,10 @@ class ConvVAETrainer():
             self.train_data_mean = np.mean(self.train_dataset, axis=0)
             # self.train_dataset = ((self.train_dataset - self.train_data_mean)) + 1 / 2
             # self.test_dataset = ((self.test_dataset - self.train_data_mean)) + 1 / 2
+        self.linearity_weight = linearity_weight
+        self.use_linear_dynamics = use_linear_dynamics
+        self.vae_logger_stats_for_rl = {}
+
 
     def get_batch(self, train=True):
         dataset = self.train_dataset if train else self.test_dataset
@@ -128,13 +134,21 @@ class ConvVAETrainer():
         output = self.model.fc6(F.relu(self.model.fc5(encoded_x)))
         return torch.norm(output-states)**2 / self.batch_size
 
+    def state_linearity_loss(self, obs, next_obs, actions):
+        latent_obs = self.model.encode(obs)[0]
+        latent_next_obs = self.model.encode(next_obs)[0]
+        action_obs_pair = torch.cat([latent_obs, actions], dim=1)
+        prediction = self.model.linear_constraint_fc(action_obs_pair)
+        return torch.norm(prediction - latent_next_obs)**2 / self.batch_size
+
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
         self.model.train()
         losses = []
         bces = []
         kles = []
         mses = []
-        beta = self.beta_schedule.get_value(epoch)
+        linear_losses = []
+        beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
             if sample_batch is not None:
                 data = sample_batch(self.batch_size)
@@ -154,14 +168,25 @@ class ConvVAETrainer():
                 loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
                 linear_losses.append(linear_dynamics_loss.item())
             else:
-                data = self.get_batch()
                 if sample_batch is not None:
                     data = sample_batch(self.batch_size)
+                    obs = data['obs']
+                    next_obs = data['next_obs']
+                    actions = data['actions']
+                else:
+                    next_obs = self.get_batch()
+                    obs = None
+                    actions = None
                 self.optimizer.zero_grad()
-                recon_batch, mu, logvar = self.model(data)
-                bce = self.logprob(recon_batch, data, mu, logvar)
-                kle = self.kl_divergence(recon_batch, data, mu, logvar)
-                loss = bce + beta * kle
+                recon_batch, mu, logvar = self.model(next_obs)
+                bce = self.logprob(recon_batch, next_obs, mu, logvar)
+                kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
+                if self.use_linear_dynamics:
+                    linear_dynamics_loss = self.state_linearity_loss(obs, next_obs, actions)
+                    loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
+                    linear_losses.append(linear_dynamics_loss.data[0])
+                else:
+                    loss = bce + beta * kle
                 loss.backward()
 
             losses.append(loss.item())
@@ -190,6 +215,9 @@ class ConvVAETrainer():
             if self.state_sim_debug:
                 logger.record_tabular("train/mse", np.mean(mses))
             logger.record_tabular("train/loss", np.mean(losses))
+            if self.use_linear_dynamics:
+                logger.record_tabular("train/linear_loss", np.mean(linear_losses))
+
 
 
     def test_epoch(
@@ -206,7 +234,7 @@ class ConvVAETrainer():
         kles = []
         zs = []
         mses = []
-        beta = self.beta_schedule.get_value(epoch)
+        beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(10):
             if self.state_sim_debug:
                 X, Y = self.get_debug_batch(train=False)
@@ -254,9 +282,13 @@ class ConvVAETrainer():
         if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
 
-
-
-        if not from_rl:
+        if from_rl:
+            self.vae_logger_stats_for_rl['Test VAE Epoch'] = epoch
+            self.vae_logger_stats_for_rl['Test VAE BCE'] = np.mean(bces)
+            self.vae_logger_stats_for_rl['Test VAE KL'] = np.mean(kles)
+            self.vae_logger_stats_for_rl['Test VAE loss'] = np.mean(losses)
+            self.vae_logger_stats_for_rl['VAE Beta'] = beta
+        else:
             for key, value in self.debug_statistics().items():
                 logger.record_tabular(key, value)
 
@@ -295,16 +327,16 @@ class ConvVAETrainer():
 
         samples = torch.randn(debug_batch_size, self.representation_size).to(ptu.device)
         random_imgs = self.model.decode(samples)
-        random_mse = ((random_imgs - img_repeated)**2).mean(dim=1)
+        random_mses = (random_imgs - img_repeated)**2
+        mse_improvement = ptu.get_numpy(random_mses.mean(dim=1) - recon_mse)
 
-        mse_improvement = ptu.get_numpy(random_mse - recon_mse)
         stats = create_stats_ordered_dict(
             'debug/MSE improvement over random',
             mse_improvement,
         )
         stats.update(create_stats_ordered_dict(
-            'debug/MSE random decoding',
-            mse_improvement,
+            'debug/MSE of random decoding',
+            ptu.get_numpy(random_mses),
         ))
         stats['debug/MSE of reconstruction'] = ptu.get_numpy(
             recon_mse
@@ -366,6 +398,7 @@ class ConvVAE(PyTorchModule):
             min_variance=1e-4,
             use_min_variance=True,
             state_size=0,
+            action_dim=None,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -408,6 +441,15 @@ class ConvVAE(PyTorchModule):
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
         self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6,
                                         stride=3)
+
+        if action_dim is not None:
+            self.linear_constraint_fc = \
+                    nn.Linear(
+                        self.representation_size + action_dim,
+                        self.representation_size
+                    )
+        else:
+            self.linear_constraint_fc = None
 
         self.init_weights(init_w)
 
