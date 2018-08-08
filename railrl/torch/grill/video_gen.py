@@ -21,9 +21,6 @@ import time
 
 import scipy.misc
 
-H = 168
-W = 84
-
 def add_border(img, pad_length, pad_color, imsize=84):
     H = 2*imsize
     W = imsize

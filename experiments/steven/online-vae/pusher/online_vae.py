@@ -66,7 +66,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=4,
-                    collection_mode='online-parallel',
+                    # collection_mode='online-parallel',
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
@@ -76,11 +76,11 @@ if __name__ == "__main__":
                 ),
             ),
             replay_kwargs=dict(
-                max_size=int(30000),
+                max_size=int(80000),
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
-                exploration_rewards_scale=0.0,
-                exploration_rewards_type='reconstruction_error',
+                # exploration_rewards_scale=0.0,
+                # exploration_rewards_type='reconstruction_error',
                 # exploration_schedule_kwargs=dict(
                     # x_values=[0, 100, 200, 500, 1000],
                     # y_values=[.1, .1, .1, 0, 0],
@@ -130,14 +130,28 @@ if __name__ == "__main__":
 
     search_space = {
         'init_camera': [sawyer_top_down],
-        'grill_variant.online_vae_beta': [5.0],
+        'grill_variant.online_vae_beta': [2.5],
         'grill_variant.use_replay_buffer_goals': [False],
         'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0],
         # 'grill_variant.replay_kwargs.exploration_rewards_scale': [.1, .01, .001],
-        'grill_variant.replay_kwargs.exploration_rewards_type': ['reconstruction_error'],
-        'grill_variant.replay_kwargs.alpha': [2],
-        'grill_variant.exploration_noise': [0.8],
+        'grill_variant.replay_kwargs.exploration_rewards_type': ['None'],
+        'grill_variant.replay_kwargs.alpha': [0],
+        'grill_variant.exploration_noise': [.8],
+        # 'grill_variant.exploration_kwargs': [
+            # dict(
+                # min_sigma=.2,
+                # decay_period=200000,
+            # ),
+            # dict(
+                # min_sigma=.2,
+                # decay_period=500000,
+            # ),
+            # dict(
+                # min_sigma=.1,
+                # decay_period=500000,
+            # )
+        # ],
         'grill_variant.algo_kwargs.vae_training_schedule':
                 [
                  vae_schedules.every_six,
@@ -150,8 +164,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 2
-    mode = 'local'
-    exp_prefix = 'pusher-large-range-48x48-high-beta-2'
+    mode = 'ec2'
+    exp_prefix = 'pusher-large-range-48x48-ou-huge-buffer'
 
     # n_seeds = 3
     # mode = 'ec2'
