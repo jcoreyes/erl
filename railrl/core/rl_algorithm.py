@@ -647,9 +647,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def cuda(self):
+    def to(self, device):
         """
-        Turn cuda on.
+        Set correct device
         :return:
         """
         pass

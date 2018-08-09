@@ -27,6 +27,8 @@ def generate_goal_data_set(env=None, num_goals=1000, use_cached_dataset=False, a
     for goal_key in goal_generation_dict:
         goal_size, obs_to_goal_fn, obs_key = goal_generation_dict[goal_key]
         goal_dict[goal_key] = np.zeros((num_goals, goal_size))
+    env._latent_goal = env.observation_space.spaces['latent_desired_goal'].sample()
+    env.wrapped_env._img_goal = env.wrapped_env.observation_space.spaces['image_desired_goal'].sample()
     print('Generating Random Goals')
     for i in range(num_goals):
         if i % 50 == 0:

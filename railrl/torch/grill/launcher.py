@@ -152,8 +152,7 @@ def train_vae(variant, return_data=False):
         m = SpatialVAE(representation_size, int(representation_size/2), input_channels=3)
     else:
         m = ConvVAE(representation_size, input_channels=3)
-    if ptu.gpu_enabled():
-        m.cuda()
+    m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
     save_period = variant['save_period']
@@ -402,11 +401,9 @@ def grill_her_td3_experiment(variant):
         )
         algorithm.post_epoch_funcs.append(video_func)
 
-    if ptu.gpu_enabled():
-        print("using GPU")
-        algorithm.cuda()
-        if not variant.get("do_state_exp", False):
-            env.vae.cuda()
+    algorithm.to(ptu.device)
+    if not variant.get("do_state_exp", False):
+        env.vae.to(ptu.device)
 
     algorithm.train()
 
@@ -485,11 +482,9 @@ def grill_her_twin_sac_experiment(variant):
         )
         algorithm.post_epoch_funcs.append(video_func)
 
-    if ptu.gpu_enabled():
-        print("using GPU")
-        algorithm.cuda()
-        if not variant.get("do_state_exp", False):
-            env.vae.cuda()
+    algorithm.to(ptu.device)
+    if not variant.get("do_state_exp", False):
+        env.vae.to(ptu.device)
 
     algorithm.train()
 
@@ -566,11 +561,9 @@ def grill_tdm_td3_experiment(variant):
         **variant['algo_kwargs']
     )
 
-    if ptu.gpu_enabled():
-        print("using GPU")
-        algorithm.cuda()
-        if not variant.get("do_state_exp", False):
-            env.vae.cuda()
+    algorithm.to(ptu.device)
+    if not variant.get("do_state_exp", False):
+        env.vae.to(ptu.device)
     if variant.get("save_video", True):
         logdir = logger.get_snapshot_dir()
         policy.train(False)
@@ -669,10 +662,8 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     )
 
 
-    if ptu.gpu_enabled():
-        print("using GPU")
-        algorithm.cuda()
-        vae.cuda()
+    algorithm.to(ptu.device)
+    vae.to(ptu.device)
     if variant.get("save_video", True):
         logdir = logger.get_snapshot_dir()
         rollout_function = rf.create_rollout_function(
@@ -784,10 +775,8 @@ def grill_tdm_td3_experiment_online_vae(variant):
         ),
     )
 
-    if ptu.gpu_enabled():
-        print("using GPU")
-        algorithm.cuda()
-        vae.cuda()
+    algorithm.to(ptu.device)
+    vae.to(ptu.device)
     if variant.get("save_video", True):
         rollout_function = rf.create_rollout_function(
             rf.tdm_rollout,
@@ -806,11 +795,9 @@ def grill_tdm_td3_experiment_online_vae(variant):
         )
         algorithm.post_epoch_funcs.append(video_func)
 
-    if ptu.gpu_enabled():
-        print("using GPU")
-        algorithm.cuda()
-        if not variant.get("do_state_exp", False):
-            env.vae.cuda()
+    algorithm.to(ptu.device)
+    if not variant.get("do_state_exp", False):
+        env.vae.to(ptu.device)
 
     algorithm.train()
 
@@ -908,11 +895,9 @@ def grill_tdm_twin_sac_experiment(variant):
         )
         algorithm.post_epoch_funcs.append(video_func)
 
-    if ptu.gpu_enabled():
-        print("using GPU")
-        algorithm.cuda()
-        if not variant.get("do_state_exp", False):
-            env.vae.cuda()
+    algorithm.to(ptu.device)
+    if not variant.get("do_state_exp", False):
+        env.vae.to(ptu.device)
 
     algorithm.train()
 
@@ -1000,10 +985,9 @@ def grill_her_td3_experiment_online_vae(variant):
         )
     )
 
-    if ptu.gpu_enabled():
-        print("using GPU")
-        algorithm.cuda()
-        vae.cuda()
+
+    algorithm.to(ptu.device)
+    vae.to(ptu.device)
     if variant.get("save_video", True):
         logdir = logger.get_snapshot_dir()
         rollout_function = rf.create_rollout_function(
@@ -1131,10 +1115,9 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         **variant['joint_algo_kwargs']
     )
 
-    if ptu.gpu_enabled():
-        print("using GPU")
-        algorithm.cuda()
-        vae.cuda()
+
+    algorithm.to(ptu.device)
+    vae.to(ptu.device)
     if variant.get("save_video", True):
         logdir = logger.get_snapshot_dir()
         policy.train(False)

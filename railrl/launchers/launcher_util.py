@@ -60,6 +60,7 @@ def run_experiment(
         unique_id=None,
         prepend_date_to_exp_prefix=True,
         use_gpu=False,
+        gpu_id=0,
         snapshot_mode='last',
         snapshot_gap=1,
         base_log_dir=None,
@@ -202,6 +203,7 @@ def run_experiment(
         exp_id=exp_id,
         seed=seed,
         use_gpu=use_gpu,
+        gpu_id=gpu_id,
         snapshot_mode=snapshot_mode,
         snapshot_gap=snapshot_gap,
         git_infos=git_infos,
@@ -555,6 +557,7 @@ def run_experiment_here(
         exp_id=0,
         seed=0,
         use_gpu=True,
+        gpu_id=0,
         # Logger params:
         exp_prefix="default",
         snapshot_mode='last',
@@ -606,8 +609,8 @@ def run_experiment_here(
 
     set_seed(seed)
     from railrl.torch.pytorch_util import set_gpu_mode
-    set_gpu_mode(use_gpu)
-
+    set_gpu_mode(use_gpu, gpu_id)
+    os.environ['gpu_id'] = str(gpu_id)
     run_experiment_here_kwargs = dict(
         variant=variant,
         exp_id=exp_id,

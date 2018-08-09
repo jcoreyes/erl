@@ -4,7 +4,6 @@ from typing import Iterable
 from railrl.core.rl_algorithm import RLAlgorithm
 from railrl.torch.core import PyTorchModule, np_to_pytorch_batch
 
-
 class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def get_batch(self):
         batch = self.replay_buffer.random_batch(self.batch_size)
@@ -19,6 +18,6 @@ class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         for net in self.networks:
             net.train(mode)
 
-    def cuda(self):
+    def to(self, device):
         for net in self.networks:
-            net.cuda()
+            net.to(device)
