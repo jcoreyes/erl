@@ -204,7 +204,7 @@ GPU wrappers
 _use_gpu = False
 device = None
 
-def set_gpu_mode(mode, gpu_id=2):
+def set_gpu_mode(mode, gpu_id=0):
     global _use_gpu
     global device
     _use_gpu = mode
