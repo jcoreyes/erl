@@ -4,13 +4,13 @@ from torch.nn import functional as F
 
 def soft_update_from_to(source, target, tau):
     for target_param, param in zip(target.parameters(), source.parameters()):
-        target_param.detach().copy_(
-            target_param.detach() * (1.0 - tau) + param.detach() * tau
+        target_param.data.copy_(
+            target_param.data * (1.0 - tau) + param.data * tau
         )
 
 def copy_model_params_from_to(source, target):
     for target_param, param in zip(target.parameters(), source.parameters()):
-        target_param.detach().copy_(param.detach())
+        target_param.data.copy_(param.data)
 
 def maximum_2d(t1, t2):
     # noinspection PyArgumentList
@@ -136,7 +136,7 @@ def fanin_init(tensor):
     else:
         raise Exception("Shape must be have dimension at least 2.")
     bound = 1. / np.sqrt(fan_in)
-    return tensor.detach().uniform_(-bound, bound)
+    return tensor.data.uniform_(-bound, bound)
 
 def fanin_init_weights_like(tensor):
     size = tensor.size()
@@ -208,8 +208,7 @@ def set_gpu_mode(mode, gpu_id=2):
     global _use_gpu
     global device
     _use_gpu = mode
-    if _use_gpu:
-        device = torch.device("cuda:"+str(gpu_id) if _use_gpu else "cpu")
+    device = torch.device("cuda:"+str(gpu_id) if _use_gpu else "cpu")
 
 def gpu_enabled():
     return _use_gpu
@@ -219,30 +218,17 @@ def set_device(gpu_id):
 
 # noinspection PyPep8Naming
 def FloatTensor(*args, **kwargs):
-    if _use_gpu:
-        return torch.cuda.FloatTensor(*args, **kwargs)
-    else:
-        # noinspection PyArgumentList
-        return torch.FloatTensor(*args, **kwargs)
+    return torch.FloatTensor(*args, **kwargs).to(device)
 
 def from_numpy(*args, **kwargs):
-    if _use_gpu:
-        tensor = torch.from_numpy(*args, **kwargs).float().cuda()
-    else:
-        tensor = torch.from_numpy(*args, **kwargs).float()
-    assert tensor.requires_grad == False
-    return tensor
+    return torch.from_numpy(*args, **kwargs).to(device)
 
 def get_numpy(tensor):
-    tensor = tensor.detach()
-    if _use_gpu:
-        return tensor.cpu().numpy()
-    return tensor.numpy()
+    #not sure if I should do detach or not here
+    return tensor.to('cpu').numpy()
 
 def zeros(*sizes, out=None):
-    tensor = torch.zeros(*sizes, out=out).to(device)
-    return tensor
+    return torch.zeros(*sizes, out=out).to(device)
 
 def ones(*sizes, out=None):
-    tensor = torch.ones(*sizes, out=out).to(device)
-    return tensor
+    return torch.ones(*sizes, out=out).to(device)
