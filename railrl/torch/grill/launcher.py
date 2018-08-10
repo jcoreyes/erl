@@ -34,9 +34,9 @@ from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.td3.td3 import TD3
+from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, SpatialVAE, AutoEncoder
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.online_vae.online_vae_tdm_td3 import OnlineVaeTdmTd3
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, AutoEncoder
 from railrl.misc.asset_loader import sync_down
 
 
@@ -146,10 +146,12 @@ def train_vae(variant, return_data=False):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    if variant.get('autoencoder', False):
-        m = AutoEncoder(representation_size, **variant['vae_kwargs'])
+    if variant['algo_kwargs'].get('is_auto_encoder', False):
+        m = AutoEncoder(representation_size, input_channels=3)
+    elif variant.get('use_spatial_auto_encoder', False):
+        m = SpatialVAE(representation_size, int(representation_size/2), input_channels=3)
     else:
-        m = ConvVAE(representation_size, **variant['vae_kwargs'])
+        m = ConvVAE(representation_size, input_channels=3)
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -256,21 +258,20 @@ def get_envs(variant):
     reward_params = variant.get("reward_params", dict())
     init_camera = variant.get("init_camera", None)
     do_state_exp = variant.get("do_state_exp", False)
-
     from railrl.envs.vae_wrappers import load_vae
     vae = load_vae(vae_path) if type(vae_path) is str else vae_path
+    presample_goals = variant.get('presample_goals', False)
     env = variant["env_class"](**variant['env_kwargs'])
     if not do_state_exp:
-        env = ImageEnv(
+        image_env = ImageEnv(
             env,
             84,
             init_camera=init_camera,
             transpose=True,
             normalize=True,
         )
-
-        env = VAEWrappedEnv(
-            env,
+        vae_env = VAEWrappedEnv(
+            image_env,
             vae,
             decode_goals=render,
             render_goals=render,
@@ -278,6 +279,12 @@ def get_envs(variant):
             reward_params=reward_params,
             **variant.get('vae_wrapped_env_kwargs', {})
         )
+        if presample_goals:
+            presampled_goals = variant['generate_goal_dataset_fn'](env=vae_env, **variant['goal_generation_kwargs'])
+            image_env.set_presampled_goals(presampled_goals)
+            vae_env.set_presampled_goals(presampled_goals)
+        env = vae_env
+
     if not do_state_exp:
         training_mode = variant.get("training_mode", "train")
         testing_mode = variant.get("testing_mode", "test")
@@ -294,7 +301,11 @@ def get_exploration_strategy(variant, env):
     exploration_type = variant['exploration_type']
     exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
-        es = OUStrategy(action_space=env.action_space, max_sigma=exploration_noise)
+        es = OUStrategy(
+            action_space=env.action_space,
+            max_sigma=exploration_noise,
+            min_sigma=exploration_noise,  # Constant sigma
+        )
     elif exploration_type == 'gaussian':
         es = GaussianStrategy(
             action_space=env.action_space,
@@ -1147,6 +1158,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
     logdir = logger.get_snapshot_dir()
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)
+    dump_video_kwargs = variant.get("dump_video_kwargs", dict())
 
     if do_state_exp:
         image_env = ImageEnv(
@@ -1160,7 +1172,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
             if epoch % save_period == 0 or epoch == algo.num_epochs:
                 filename = osp.join(logdir,
                                     'video_{epoch}_env.mp4'.format(epoch=epoch))
-                dump_video(image_env, policy, filename, rollout_function)
+                dump_video(image_env, policy, filename, rollout_function, **dump_video_kwargs)
     else:
         image_env = env
         def save_video(algo, epoch):
@@ -1171,7 +1183,8 @@ def get_video_save_func(rollout_function, env, policy, variant):
                     image_env,
                     mode='video_env',
                     func=dump_video,
-                    args=(image_env, policy, filename, rollout_function)
+                    args=(image_env, policy, filename, rollout_function),
+                    kwargs=dump_video_kwargs
                 )
                 filename = osp.join(logdir,
                                     'video_{epoch}_vae.mp4'.format(epoch=epoch))
@@ -1179,6 +1192,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
                     image_env,
                     mode='video_vae',
                     func=dump_video,
-                    args=(image_env, policy, filename, rollout_function)
+                    args=(image_env, policy, filename, rollout_function),
+                    kwargs=dump_video_kwargs
                 )
     return save_video

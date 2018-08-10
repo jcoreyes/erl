@@ -74,6 +74,8 @@ def run_experiment(
         trial_dir_suffix=None,
         time_in_mins=60,
         num_exps_per_instance=1,
+        #ssh settings
+        ssh_host='default',
 ):
     """
     Usage:
@@ -111,11 +113,20 @@ def run_experiment(
     :param base_log_dir: Will over
     :param sync_interval: How often to sync s3 data (in seconds).
     :param local_input_dir_to_mount_point_dict: Dictionary for doodad.
+    :param ssh_host: the name of the host you want to ssh onto, should correspond to an entry in
+    config.py of the following form:
+    SSH_HOSTS=dict(
+    ssh_host=dict(
+        username='username',
+        hostname='hostname/ip address',
+    )
+    - if ssh_host is set to default, you will use ssh_host specified by config.SSH_DEFAULT_HOST
     :return:
     """
     try:
         import doodad
         import doodad.mode
+        import doodad.ssh
     except ImportError:
         print("Doodad not set up! Running experiment here.")
         mode = 'here_no_doodad'
@@ -130,8 +141,15 @@ def run_experiment(
         seed = random.randint(0, 100000)
     if variant is None:
         variant = {}
+    if mode == 'ssh' and base_log_dir is None:
+        base_log_dir = config.SSH_LOG_DIR
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
+    if ssh_host == 'default':
+        ssh_dict = config.SSH_HOSTS[config.SSH_DEFAULT_HOST]
+    else:
+        ssh_dict = config.SSH_HOSTS[ssh_host]
+
     for key, value in ppp.recursive_items(variant):
         # This check isn't really necessary, but it's to prevent myself from
         # forgetting to pass a variant through dot_map_dict_to_nested_dict.
@@ -272,6 +290,17 @@ def run_experiment(
             image=docker_image,
             gpu=use_gpu,
         )
+    elif mode == 'ssh':
+        credentials = doodad.ssh.credentials.SSHCredentials(
+            username=ssh_dict['username'],
+            hostname=ssh_dict['hostname'],
+            identity_file=config.SSH_PRIVATE_KEY
+        )
+        dmode = doodad.mode.SSHDocker(
+            credentials=credentials,
+            image=docker_image,
+            gpu=use_gpu,
+        )
     elif mode == 'local_singularity':
         dmode = doodad.mode.LocalSingularity(
             image=singularity_image,
@@ -336,6 +365,10 @@ def run_experiment(
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
     elif mode == 'local_docker':
+        base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
+        # The snapshot dir will be automatically created
+        snapshot_dir_for_script = None
+    elif mode == 'ssh':
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
@@ -415,6 +448,12 @@ def create_mounts(
             output=True,
         )
     elif mode == 'local_docker':
+        output_mount = mount.MountLocal(
+            local_dir=base_log_dir,
+            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            output=True,
+        )
+    elif mode == 'ssh':
         output_mount = mount.MountLocal(
             local_dir=base_log_dir,
             mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
