@@ -186,11 +186,12 @@ def generate_vae_dataset(
         oracle_dataset=False,
         n_random_steps=100,
         vae_dataset_specific_env_kwargs=None,
+        save_file_prefix=None,
 ):
     if env_kwargs is None:
         env_kwargs = {}
     filename = "/tmp/{}_{}_{}_oracle{}.npy".format(
-        env_class.__name__,
+        save_file_prefix if save_file_prefix else env_class.__name__,
         str(N),
         init_camera.__name__ if init_camera else '',
         oracle_dataset,
