@@ -232,3 +232,12 @@ def zeros(*sizes, out=None):
 
 def ones(*sizes, out=None):
     return torch.ones(*sizes, out=out).to(device)
+
+def randn(*args, **kwargs):
+    return torch.randn(*args, **kwargs).to(device)
+
+def zeros_like(*args, **kwargs):
+    return torch.zeros_like(*args, **kwargs).to(device)
+
+def normal(*args, **kwargs):
+    return torch.normal(*args, **kwargs).to(device)

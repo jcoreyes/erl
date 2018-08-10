@@ -78,7 +78,7 @@ class CNN(PyTorchModule):
             input_channels = out_channels
 
         # find output dimension of conv_layers by trial and add normalization conv layers
-        test_mat = Variable(torch.zeros(1, self.input_channels, self.input_width, self.input_height))
+        test_mat = ptu.zeros(1, self.input_channels, self.input_width, self.input_height)
         for conv_layer in self.conv_layers:
             test_mat = conv_layer(test_mat)
             self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
@@ -488,7 +488,7 @@ class AETanhPolicy(MlpPolicy):
 
     def get_action(self, obs_np):
         obs = obs_np
-        obs = ptu.np_to_var(obs)
+        obs = ptu.from_numpy(obs)
         image_obs, fc_obs = self.env.split_obs(obs)
         latent_obs = self.ae.history_encoder(image_obs, self.history_length)
         if fc_obs is not None:
@@ -527,7 +527,7 @@ class FeatPointMlp(PyTorchModule):
         self.conv2 = nn.Conv2d(48, 48, kernel_size=5, stride=1)
         self.conv3 = nn.Conv2d(48, self.num_feat_points, kernel_size=5, stride=1)
 
-        test_mat = Variable(torch.zeros(1, self.input_channels, self.input_size, self.input_size))
+        test_mat = ptu.zeros(1, self.input_channels, self.input_size, self.input_size)
         test_mat = self.conv1(test_mat)
         test_mat = self.conv2(test_mat)
         test_mat = self.conv3(test_mat)
@@ -564,7 +564,7 @@ class FeatPointMlp(PyTorchModule):
         maps_x = torch.sum(x, 2)
         maps_y = torch.sum(x, 3)
 
-        weights = ptu.np_to_var(np.arange(d) / (d + 1))
+        weights = ptu.from_numpy(np.arange(d) / (d + 1))
 
         fp_x = torch.sum(maps_x * weights, 2)
         fp_y = torch.sum(maps_y * weights, 2)

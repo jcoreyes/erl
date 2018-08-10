@@ -325,7 +325,7 @@ class ConvVAETrainer():
         recon_mse = ((recon_batch[0] - img)**2).mean().view(-1)
         img_repeated = img.expand((debug_batch_size, img.shape[0]))
 
-        samples = torch.randn(debug_batch_size, self.representation_size).to(ptu.device)
+        samples = ptu.randn(debug_batch_size, self.representation_size)
         random_imgs = self.model.decode(samples)
         random_mses = (random_imgs - img_repeated)**2
         mse_improvement = ptu.get_numpy(random_mses.mean(dim=1) - recon_mse)
@@ -345,7 +345,7 @@ class ConvVAETrainer():
 
     def dump_samples(self, epoch):
         self.model.eval()
-        sample = torch.randn(64, self.representation_size).to(ptu.device)
+        sample = ptu.randn(64, self.representation_size)
         sample = self.model.decode(sample).cpu()
         save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
         save_image(
@@ -702,7 +702,7 @@ class SpatialVAE(ConvVAE):
         self.conv3 = nn.Conv2d(32, self.num_feat_points, kernel_size=5, stride=3)
 #        self.bn3 = nn.BatchNorm2d(32)
 
-        test_mat = torch.zeros(1, self.input_channels, self.imsize, self.imsize)
+        test_mat = ptu.zeros(1, self.input_channels, self.imsize, self.imsize)
         test_mat = self.conv1(test_mat)
         test_mat = self.conv2(test_mat)
         test_mat = self.conv3(test_mat)
