@@ -2,7 +2,9 @@ import numpy as np
 import torch
 from railrl.data_management.path_builder import PathBuilder
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.core import np_ify, torch_ify
 
+from railrl.misc.np_util import softmax
 
 class HERExploration(TorchRLAlgorithm):
     """
@@ -63,7 +65,7 @@ class HERExploration(TorchRLAlgorithm):
         rgp = self.rollout_goal_params
         if rgp is None:
             self._rollout_goal = self.training_env.get_goal()
-        elif rgp["stategy"] == "ensemble_qs":
+        elif rgp["strategy"] == "ensemble_qs":
             exploration_temperature = rgp["exploration_temperature"]
             assert len(self.ensemble_qs) > 0
             N = 128
@@ -79,7 +81,7 @@ class HERExploration(TorchRLAlgorithm):
             ind = np.random.choice(np.arange(N), p=p)
             self._rollout_goal = {}
             self._rollout_goal[self.desired_goal_key] = proposed_goals[ind, :]
-        elif rgp["stategy"] == "vae_q":
+        elif rgp["strategy"] == "vae_q":
             pass
         else:
             assert False, "bad rollout goal strategy"
