@@ -72,7 +72,7 @@ def run_experiment(
         logger=default_logger,
         verbose=False,
         trial_dir_suffix=None,
-        time_in_mins=60,
+        time_in_mins=None,
         num_exps_per_instance=1,
         ssh_host=None,
 ):
@@ -308,6 +308,7 @@ def run_experiment(
             gpu=use_gpu,
         )
     elif mode == 'slurm_singularity':
+        assert time_in_mins is not None, "Must approximate/set time in minutes"
         if use_gpu:
             kwargs = config.SLURM_GPU_CONFIG
         else:
