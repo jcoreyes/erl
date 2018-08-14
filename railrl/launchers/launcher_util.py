@@ -74,8 +74,7 @@ def run_experiment(
         trial_dir_suffix=None,
         time_in_mins=60,
         num_exps_per_instance=1,
-        #ssh settings
-        ssh_host='default',
+        ssh_host=None,
 ):
     """
     Usage:
@@ -116,11 +115,13 @@ def run_experiment(
     :param ssh_host: the name of the host you want to ssh onto, should correspond to an entry in
     config.py of the following form:
     SSH_HOSTS=dict(
-    ssh_host=dict(
-        username='username',
-        hostname='hostname/ip address',
+        ssh_host=dict(
+            username='username',
+            hostname='hostname/ip address',
+        )
     )
-    - if ssh_host is set to default, you will use ssh_host specified by config.SSH_DEFAULT_HOST
+    - if ssh_host is set to None, you will use ssh_host specified by
+    config.SSH_DEFAULT_HOST
     :return:
     """
     try:
@@ -145,10 +146,6 @@ def run_experiment(
         base_log_dir = config.SSH_LOG_DIR
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
-    if ssh_host == 'default':
-        ssh_dict = config.SSH_HOSTS[config.SSH_DEFAULT_HOST]
-    else:
-        ssh_dict = config.SSH_HOSTS[ssh_host]
 
     for key, value in ppp.recursive_items(variant):
         # This check isn't really necessary, but it's to prevent myself from
@@ -291,6 +288,10 @@ def run_experiment(
             gpu=use_gpu,
         )
     elif mode == 'ssh':
+        if ssh_host == None:
+            ssh_dict = config.SSH_HOSTS[config.SSH_DEFAULT_HOST]
+        else:
+            ssh_dict = config.SSH_HOSTS[ssh_host]
         credentials = doodad.ssh.credentials.SSHCredentials(
             username=ssh_dict['username'],
             hostname=ssh_dict['hostname'],
