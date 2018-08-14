@@ -326,7 +326,7 @@ def run_experiment(
     if mode == 'ec2':
         # Ignored since I'm setting the snapshot dir directly
         base_log_dir_for_script = None
-        # mode_specific_kwargs['num_exps'] = num_exps_per_instance
+        mode_specific_kwargs['num_exps'] = num_exps_per_instance
         run_experiment_kwargs['randomize_seed'] = True
         # The snapshot dir needs to be specified for S3 because S3 will
         # automatically create the experiment director and sub-directory.
