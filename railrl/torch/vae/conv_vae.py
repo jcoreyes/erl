@@ -619,7 +619,7 @@ class ConvVAE(PyTorchModule):
         self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
 
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
-        self.fc4 = nn.Linear(self.conv_output_dim, imsize*imsize)
+        # self.fc4 = nn.Linear(self.conv_output_dim, imsize*imsize)
 
         self.conv4 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
