@@ -34,9 +34,10 @@ from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.td3.td3 import TD3
+from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, SpatialVAE, AutoEncoder
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.online_vae.online_vae_tdm_td3 import OnlineVaeTdmTd3
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, AutoEncoder
+from railrl.torch.vae.conv_vae import ConvVAE, ConvVAESmall, ConvVAETrainer, AutoEncoder
 from railrl.misc.asset_loader import sync_down
 
 
@@ -91,9 +92,13 @@ def full_experiment_variant_preprocess(variant):
     env_class = variant['env_class']
     env_kwargs = variant['env_kwargs']
     init_camera = variant.get('init_camera', None)
+    imsize = variant.get('imsize', 84)
     train_vae_variant['generate_vae_dataset_kwargs']['env_class'] = env_class
     train_vae_variant['generate_vae_dataset_kwargs']['env_kwargs'] = env_kwargs
     train_vae_variant['generate_vae_dataset_kwargs']['init_camera'] = init_camera
+    train_vae_variant['generate_vae_dataset_kwargs']['imsize'] = imsize
+    train_vae_variant['imsize'] = imsize
+    grill_variant['imsize'] = imsize
     grill_variant['env_class'] = env_class
     grill_variant['env_kwargs'] = env_kwargs
     grill_variant['init_camera'] = init_camera
@@ -146,10 +151,15 @@ def train_vae(variant, return_data=False):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    if variant.get('autoencoder', False):
-        m = AutoEncoder(representation_size, **variant['vae_kwargs'])
+    if variant['algo_kwargs'].get('is_auto_encoder', False):
+        m = AutoEncoder(representation_size, input_channels=3)
+    elif variant.get('use_spatial_auto_encoder', False):
+        m = SpatialVAE(representation_size, int(representation_size/2), input_channels=3)
     else:
-        m = ConvVAE(representation_size, **variant['vae_kwargs'])
+        if variant.get('imsize') == 84:
+            m = ConvVAE(representation_size, **variant['vae_kwargs'])
+        elif variant.get('imsize') == 48:
+            m = ConvVAESmall(representation_size, **variant['vae_kwargs'])
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -186,11 +196,12 @@ def generate_vae_dataset(
         oracle_dataset=False,
         n_random_steps=100,
         vae_dataset_specific_env_kwargs=None,
+        save_file_prefix=None,
 ):
     if env_kwargs is None:
         env_kwargs = {}
     filename = "/tmp/{}_{}_{}_oracle{}.npy".format(
-        env_class.__name__,
+        save_file_prefix if save_file_prefix else env_class.__name__,
         str(N),
         init_camera.__name__ if init_camera else '',
         oracle_dataset,
@@ -235,7 +246,7 @@ def generate_vae_dataset(
             img = obs['image_observation']
             dataset[i, :] = unormalize_image(img)
             if show:
-                img = img.reshape(3, 84, 84).transpose()
+                img = img.reshape(3, imsize, imsize).transpose()
                 img = img[::-1, :, ::-1]
                 cv2.imshow('img', img)
                 cv2.waitKey(1)
@@ -255,28 +266,36 @@ def get_envs(variant):
     reward_params = variant.get("reward_params", dict())
     init_camera = variant.get("init_camera", None)
     do_state_exp = variant.get("do_state_exp", False)
+    imsize = variant.get('imsize')
 
     from railrl.envs.vae_wrappers import load_vae
     vae = load_vae(vae_path) if type(vae_path) is str else vae_path
+    presample_goals = variant.get('presample_goals', False)
     env = variant["env_class"](**variant['env_kwargs'])
     if not do_state_exp:
-        env = ImageEnv(
+        image_env = ImageEnv(
             env,
-            84,
+            imsize,
             init_camera=init_camera,
             transpose=True,
             normalize=True,
         )
-
-        env = VAEWrappedEnv(
-            env,
+        vae_env = VAEWrappedEnv(
+            image_env,
             vae,
+            imsize=imsize,
             decode_goals=render,
             render_goals=render,
             render_rollouts=render,
             reward_params=reward_params,
             **variant.get('vae_wrapped_env_kwargs', {})
         )
+        if presample_goals:
+            presampled_goals = variant['generate_goal_dataset_fn'](env=vae_env, **variant['goal_generation_kwargs'])
+            image_env.set_presampled_goals(presampled_goals)
+            vae_env.set_presampled_goals(presampled_goals)
+        env = vae_env
+
     if not do_state_exp:
         training_mode = variant.get("training_mode", "train")
         testing_mode = variant.get("testing_mode", "test")
@@ -293,7 +312,11 @@ def get_exploration_strategy(variant, env):
     exploration_type = variant['exploration_type']
     exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
-        es = OUStrategy(action_space=env.action_space, max_sigma=exploration_noise)
+        es = OUStrategy(
+            action_space=env.action_space,
+            max_sigma=exploration_noise,
+            min_sigma=exploration_noise,  # Constant sigma
+        )
     elif exploration_type == 'gaussian':
         es = GaussianStrategy(
             action_space=env.action_space,
@@ -1147,11 +1170,13 @@ def get_video_save_func(rollout_function, env, policy, variant):
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)
     dump_video_kwargs = variant.get("dump_video_kwargs", dict())
+    imsize = variant.get('imsize')
+    dump_video_kwargs['imsize'] = imsize
 
     if do_state_exp:
         image_env = ImageEnv(
             env,
-            84,
+            imsize,
             init_camera=variant.get('init_camera', None),
             transpose=True,
             normalize=True,

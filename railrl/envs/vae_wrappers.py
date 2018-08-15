@@ -1,4 +1,6 @@
 import pickle
+import random
+
 import cv2
 import numpy as np
 from gym import Env
@@ -39,7 +41,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         reward_params=None,
         mode="train",
         imsize=84,
-        num_goals_presampled=0,
     ):
         self.quick_init(locals())
         if reward_params is None:
@@ -62,8 +63,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             render_rollouts=render_rollouts,
         )
         self.imsize = imsize
-        self.num_goals_presampled = num_goals_presampled
-
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", 'latent_distance')
         self.norm_order = self.reward_params.get("norm_order", 1)
@@ -82,7 +81,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         spaces['latent_achieved_goal'] = latent_space
         self.observation_space = Dict(spaces)
         self.mode(mode)
-        self._presampled_goals = None
+        self.num_goals_presampled = 0
         self.use_replay_buffer_goals = False
 
         self.vae_input_key_prefix = vae_input_key_prefix
@@ -162,30 +161,19 @@ class VAEWrappedEnv(ProxyEnv, Env):
         info["vae_dist_l1"] = np.linalg.norm(dist, ord=1)
         info["vae_dist_l2"] = np.linalg.norm(dist, ord=2)
 
+    def set_presampled_goals(self, presampled_goals):
+        self._presampled_goals = presampled_goals
+        self.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
+
     @property
     def use_vae_goals(self):
         return self._use_vae_goals and not self.reward_type.startswith('state')
 
-    def sample_goals(self, batch_size, force_resample=False):
-        if (
-            not force_resample
-            and batch_size > 1
-            and self.num_goals_presampled > 0
-            and not self.use_vae_goals
-        ):
-            if (
-                self._presampled_goals is None
-                    or self.num_goals_presampled < batch_size
-            ):
-                self.num_goals_presampled = max(
-                    self.num_goals_presampled,
-                    batch_size,
-                )
-                self._presampled_goals = self.sample_goals(
-                    self.num_goals_presampled,
-                    force_resample=True,
-                )
-
+    """
+    Multitask functions
+    """
+    def sample_goals(self, batch_size):
+        if self.num_goals_presampled > 0 and not self.use_vae_goals:
             idx = np.random.randint(0, self.num_goals_presampled, batch_size)
             sampled_goals = {
                 k: v[idx] for k, v in self._presampled_goals.items()
@@ -217,6 +205,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
         goals['image_desired_goal'] = image_goals
         goals[self.vae_input_desired_goal_key] = decoded_goals
         return goals
+
+    def sample_goal(self):
+        goals = self.sample_goals(1)
+        return self.unbatchify_dict(goals, 0)
 
     def compute_reward(self, action, obs):
         actions = action[None]
@@ -251,15 +243,23 @@ class VAEWrappedEnv(ProxyEnv, Env):
         else:
             raise NotImplementedError
 
-    """
-    Multitask functions
-    """
     @property
     def goal_dim(self):
         return self.representation_size
 
     def get_goal(self):
         return self.desired_goal
+
+    def set_goal(self, goal):
+        """
+        Assume goal contains both image_desired_goal and any goals required for wrapped envs
+
+        :param goal:
+        :return:
+        """
+        # self._latent_goal = goal['latent_desired_goal']
+        self.desired_goal = goal
+        self.wrapped_env.set_goal(goal)
 
     def get_diagnostics(self, paths, **kwargs):
         statistics = self.wrapped_env.get_diagnostics(paths, **kwargs)
@@ -278,6 +278,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
             ))
         return statistics
 
+    """
+    Other functions
+    """
     def mode(self, name):
         if name == "train":
             self._use_vae_goals = True
@@ -408,7 +411,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         zs = self.vae.encode(ptu.np_to_var(flat_img[None]))[0]
         imgs = ptu.get_numpy(self.vae.decode(zs))
         imgs = imgs.reshape(
-            1, self.input_channels, 84, 84
+            1, self.input_channels, self.imsize, self.imsize
         ).transpose([0, 3, 2, 1])
         return imgs[0]
 
@@ -435,6 +438,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             return decoded, None
         else:
             raise AssertionError("Bad prefix for the vae input key.")
+
 
 def temporary_mode(env, mode, func, args=None, kwargs=None):
     if args is None:
