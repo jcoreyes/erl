@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, init_sawyer_camera_v4
+from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, init_sawyer_camera_v4, sawyer_top_down
 from railrl.envs.mujoco.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEasyEnv
 )
@@ -17,6 +17,7 @@ import railrl.torch.vae.vae_schedules as vae_schedules
 
 if __name__ == "__main__":
     variant = dict(
+        imsize=48,
         double_algo=False,
         # env_class=SawyerReachXYEnv,
         env_class=SawyerPushAndReachXYEnv,
@@ -24,12 +25,12 @@ if __name__ == "__main__":
         env_kwargs=dict(
             hide_goal_markers=True,
             action_scale=.02,
-            # puck_low=[-0.25, .4],
-            # puck_high=[0.25, .8],
-            # mocap_low=[-0.2, 0.45, 0.],
-            # mocap_high=[0.2, 0.75, 0.5],
-            # goal_low=[-0.2, 0.45, 0.02, -0.25, 0.4],
-            # goal_high=[0.2, 0.75, 0.02, 0.25, 0.8],
+            puck_low=[-0.25, .4],
+            puck_high=[0.25, .8],
+            mocap_low=[-0.2, 0.45, 0.],
+            mocap_high=[0.2, 0.75, 0.5],
+            goal_low=[-0.2, 0.45, 0.02, -0.25, 0.4],
+            goal_high=[0.2, 0.75, 0.02, 0.25, 0.8],
 
             # puck_low=[-0.2, .5],
             # puck_high=[0.2, .7],
@@ -38,12 +39,12 @@ if __name__ == "__main__":
             # goal_low=[-0.05, 0.55, 0.02, -0.2, 0.5],
             # goal_high=[0.05, 0.65, 0.02, 0.2, 0.7],
 
-            puck_low=[-0.15, .5],
-            puck_high=[0.15, .7],
-            mocap_low=[-0.1, 0.5, 0.],
-            mocap_high=[0.1, 0.7, 0.5],
-            goal_low=[-0.05, 0.55, 0.02, -0.15, 0.5],
-            goal_high=[0.05, 0.65, 0.02, 0.15, 0.7],
+            # puck_low=[-0.15, .5],
+            # puck_high=[0.15, .7],
+            # mocap_low=[-0.1, 0.5, 0.],
+            # mocap_high=[0.1, 0.7, 0.5],
+            # goal_low=[-0.05, 0.55, 0.02, -0.15, 0.5],
+            # goal_high=[0.05, 0.65, 0.02, 0.15, 0.7],
         ),
         # init_camera=sawyer_init_camera_zoomed_in,
         grill_variant=dict(
@@ -62,9 +63,9 @@ if __name__ == "__main__":
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
                     batch_size=128,
-                    max_path_length=50,
+                    max_path_length=100,
                     discount=0.99,
-                    num_updates_per_env_step=2,
+                    num_updates_per_env_step=4,
                     # collection_mode='online-parallel',
                 ),
                 td3_kwargs=dict(
@@ -75,11 +76,16 @@ if __name__ == "__main__":
                 ),
             ),
             replay_kwargs=dict(
-                max_size=int(30000),
+                max_size=int(80000),
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
-                exploration_rewards_scale=0.0,
-                exploration_rewards_type='reconstruction_error',
+                # exploration_rewards_scale=0.0,
+                # exploration_rewards_type='reconstruction_error',
+                # exploration_schedule_kwargs=dict(
+                    # x_values=[0, 100, 200, 500, 1000],
+                    # y_values=[.1, .1, .1, 0, 0],
+                # ),
+
             ),
             algorithm='GRILL-HER-TD3',
             normalize=False,
@@ -99,7 +105,7 @@ if __name__ == "__main__":
             beta=1.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=100,
+                N=101,
                 test_p=.9,
                 oracle_dataset=True,
                 use_cached=False,
@@ -123,15 +129,29 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'init_camera': [sawyer_init_camera_zoomed_in],
+        'init_camera': [sawyer_top_down],
         'grill_variant.online_vae_beta': [2.5],
         'grill_variant.use_replay_buffer_goals': [False],
         'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0],
-        'grill_variant.replay_kwargs.exploration_rewards_scale': [0],
+        # 'grill_variant.replay_kwargs.exploration_rewards_scale': [.1, .01, .001],
         'grill_variant.replay_kwargs.exploration_rewards_type': ['None'],
         'grill_variant.replay_kwargs.alpha': [0],
-        'grill_variant.exploration_noise': [0.8],
+        'grill_variant.exploration_noise': [.8],
+        # 'grill_variant.exploration_kwargs': [
+            # dict(
+                # min_sigma=.2,
+                # decay_period=200000,
+            # ),
+            # dict(
+                # min_sigma=.2,
+                # decay_period=500000,
+            # ),
+            # dict(
+                # min_sigma=.1,
+                # decay_period=500000,
+            # )
+        # ],
         'grill_variant.algo_kwargs.vae_training_schedule':
                 [
                  vae_schedules.every_six,
@@ -144,8 +164,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 2
-    mode = 'local'
-    exp_prefix = 'pusher-small-range-post-refactor-not-parallel'
+    mode = 'ec2'
+    exp_prefix = 'pusher-large-range-48x48-ou-huge-buffer'
 
     # n_seeds = 3
     # mode = 'ec2'
