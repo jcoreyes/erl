@@ -21,29 +21,23 @@ import time
 
 import scipy.misc
 
-H = 168
-W = 84
-PAD = 0 # False
-if PAD:
-    W += 2 * PAD
-    H += 2 * PAD
-
-
-def add_border(img):
-    img = img.reshape((168, 84, -1))
-    img2 = np.ones((H, W, img.shape[2]), dtype=np.uint8) * 255
-    img2[PAD:-PAD, PAD:-PAD, :] = img
+def add_border(img, pad_length, pad_color, imsize=84):
+    H = 2*imsize
+    W = imsize
+    img = img.reshape((2*imsize, imsize, -1))
+    img2 = np.ones((H + 2 * pad_length, W + 2 * pad_length, img.shape[2]), dtype=np.uint8) * pad_color
+    img2[pad_length:-pad_length, pad_length:-pad_length, :] = img
     return img2
 
 
-def get_image(goal, obs):
+def get_image(goal, obs, imsize=84, pad_length=1, pad_color=255):
     if len(goal.shape) == 1:
-        goal = goal.reshape(-1, 84, 84).transpose()
-        obs = obs.reshape(-1, 84, 84).transpose()
+        goal = goal.reshape(-1, imsize, imsize).transpose()
+        obs = obs.reshape(-1, imsize, imsize).transpose()
     img = np.concatenate((goal, obs))
     img = np.uint8(255 * img)
-    if PAD:
-        img = add_border(img)
+    if pad_length > 0:
+        img = add_border(img, pad_length, pad_color)
     return img
 
 
@@ -52,17 +46,22 @@ def dump_video(
         policy,
         filename,
         rollout_function,
-        ROWS=3,
-        COLUMNS=6,
+        rows=3,
+        columns=6,
+        pad_length=0,
+        pad_color=255,
         do_timer=True,
         horizon=100,
         dirname_to_save_images=None,
         subdirname="rollouts",
+        imsize=84,
 ):
     # num_channels = env.vae.input_channels
     num_channels = 1 if env.grayscale else 3
     frames = []
-    N = ROWS * COLUMNS
+    H = 2*imsize
+    W=imsize
+    N = rows * columns
     for i in range(N):
         start = time.time()
         path = rollout_function(
@@ -72,30 +71,38 @@ def dump_video(
             animated=False,
         )
         frames += [
-            get_image(d['image_desired_goal'], d['image_observation'])
+            get_image(
+                d['image_desired_goal'],
+                d['image_observation'],
+                pad_length=pad_length,
+                pad_color=pad_color,
+                imsize=imsize,
+            )
             for d in path['full_observations']
         ]
         if dirname_to_save_images:
             rollout_dir = osp.join(dirname_to_save_images, subdirname, str(i))
             os.makedirs(rollout_dir, exist_ok=True)
             rollout_frames = frames[-101:]
-            goal_img = np.flip(rollout_frames[0][:84, :84, :], 0)
+            goal_img = np.flip(rollout_frames[0][:imsize, :imsize, :], 0)
             scipy.misc.imsave(rollout_dir+"/goal.png", goal_img)
-            goal_img = np.flip(rollout_frames[1][:84, :84, :], 0)
+            goal_img = np.flip(rollout_frames[1][:imsize, :imsize, :], 0)
             scipy.misc.imsave(rollout_dir+"/z_goal.png", goal_img)
             for j in range(0, 101, 1):
-                img = np.flip(rollout_frames[j][84:, :84, :], 0)
+                img = np.flip(rollout_frames[j][imsize:, :imsize, :], 0)
                 scipy.misc.imsave(rollout_dir+"/"+str(j)+".png", img)
         if do_timer:
             print(i, time.time() - start)
 
-    frames = np.array(frames, dtype=np.uint8).reshape((N, horizon + 1, H, W, num_channels))
+    frames = np.array(frames, dtype=np.uint8).reshape(
+        (N, horizon + 1, H + 2 * pad_length, W + 2 * pad_length, num_channels))
     f1 = []
-    for k1 in range(COLUMNS):
+    for k1 in range(columns):
         f2 = []
-        for k2 in range(ROWS):
-            k = k1 * ROWS + k2
-            f2.append(frames[k:k+1, :, :, :, :].reshape((horizon + 1, H, W, num_channels)))
+        for k2 in range(rows):
+            k = k1 * rows + k2
+            f2.append(frames[k:k+1, :, :, :, :].
+                      reshape((horizon + 1, H + 2 * pad_length, W + 2 * pad_length, num_channels)))
         f1.append(np.concatenate(f2, axis=1))
     outputdata = np.concatenate(f1, axis=2)
     skvideo.io.vwrite(filename, outputdata)

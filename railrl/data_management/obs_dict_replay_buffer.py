@@ -74,11 +74,11 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         self._next_obs = {}
         self.ob_spaces = self.env.observation_space.spaces
         for key in [observation_key, desired_goal_key, achieved_goal_key]:
-            assert key in self.ob_spaces
             if key not in ob_keys_to_save:
                 ob_keys_to_save.append(key)
         for key in ob_keys_to_save + internal_keys:
-            assert key in self.ob_spaces
+            assert key in self.ob_spaces, \
+                "Key not found in the observation space: %s" % key
             type = np.float64
             if key.startswith('image'):
                 type = np.uint8
@@ -185,17 +185,17 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         new_next_obs_dict = self._batch_next_obs_dict(indices)
 
         if num_env_goals > 0:
-            goals = self.env.sample_goals(num_env_goals)
-            goals = preprocess_obs_dict(goals)
+            env_goals = self.env.sample_goals(num_env_goals)
+            env_goals = preprocess_obs_dict(env_goals)
             last_env_goal_idx = num_rollout_goals + num_env_goals
             resampled_goals[num_rollout_goals:last_env_goal_idx] = (
-                goals[self.desired_goal_key]
+                env_goals[self.desired_goal_key]
             )
             for goal_key in self.goal_keys:
                 new_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = \
-                    goals[goal_key]
+                    env_goals[goal_key]
                 new_next_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = \
-                    goals[goal_key]
+                    env_goals[goal_key]
         if num_future_goals > 0:
             future_obs_idxs = []
             for i in indices[-num_future_goals:]:
@@ -215,12 +215,12 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 new_next_obs_dict[goal_key][-num_future_goals:] = \
                     self._next_obs[goal_key][future_obs_idxs]
 
-
-        new_obs_dict = postprocess_obs_dict(new_obs_dict)
-        new_next_obs_dict = postprocess_obs_dict(new_next_obs_dict)
         new_obs_dict[self.desired_goal_key] = resampled_goals
         new_next_obs_dict[self.desired_goal_key] = resampled_goals
-
+        new_obs_dict = postprocess_obs_dict(new_obs_dict)
+        new_next_obs_dict = postprocess_obs_dict(new_next_obs_dict)
+        # resampled_goals must be postprocessed as well
+        resampled_goals = new_next_obs_dict[self.desired_goal_key]
 
         new_actions = self._actions[indices]
         new_rewards = self.env.compute_rewards(
