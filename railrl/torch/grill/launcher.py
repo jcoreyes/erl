@@ -37,6 +37,7 @@ from railrl.torch.td3.td3 import TD3
 from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, SpatialVAE, AutoEncoder
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.online_vae.online_vae_tdm_td3 import OnlineVaeTdmTd3
+from railrl.torch.vae.conv_vae import ConvVAE, ConvVAESmall, ConvVAETrainer, AutoEncoder
 from railrl.misc.asset_loader import sync_down
 
 
@@ -91,9 +92,13 @@ def full_experiment_variant_preprocess(variant):
     env_class = variant['env_class']
     env_kwargs = variant['env_kwargs']
     init_camera = variant.get('init_camera', None)
+    imsize = variant.get('imsize', 84)
     train_vae_variant['generate_vae_dataset_kwargs']['env_class'] = env_class
     train_vae_variant['generate_vae_dataset_kwargs']['env_kwargs'] = env_kwargs
     train_vae_variant['generate_vae_dataset_kwargs']['init_camera'] = init_camera
+    train_vae_variant['generate_vae_dataset_kwargs']['imsize'] = imsize
+    train_vae_variant['imsize'] = imsize
+    grill_variant['imsize'] = imsize
     grill_variant['env_class'] = env_class
     grill_variant['env_kwargs'] = env_kwargs
     grill_variant['init_camera'] = init_camera
@@ -151,7 +156,10 @@ def train_vae(variant, return_data=False):
     elif variant.get('use_spatial_auto_encoder', False):
         m = SpatialVAE(representation_size, int(representation_size/2), input_channels=3)
     else:
-        m = ConvVAE(representation_size, input_channels=3)
+        if variant.get('imsize') == 84:
+            m = ConvVAE(representation_size, **variant['vae_kwargs'])
+        elif variant.get('imsize') == 48:
+            m = ConvVAESmall(representation_size, **variant['vae_kwargs'])
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -238,7 +246,7 @@ def generate_vae_dataset(
             img = obs['image_observation']
             dataset[i, :] = unormalize_image(img)
             if show:
-                img = img.reshape(3, 84, 84).transpose()
+                img = img.reshape(3, imsize, imsize).transpose()
                 img = img[::-1, :, ::-1]
                 cv2.imshow('img', img)
                 cv2.waitKey(1)
@@ -258,6 +266,8 @@ def get_envs(variant):
     reward_params = variant.get("reward_params", dict())
     init_camera = variant.get("init_camera", None)
     do_state_exp = variant.get("do_state_exp", False)
+    imsize = variant.get('imsize')
+
     from railrl.envs.vae_wrappers import load_vae
     vae = load_vae(vae_path) if type(vae_path) is str else vae_path
     presample_goals = variant.get('presample_goals', False)
@@ -265,7 +275,7 @@ def get_envs(variant):
     if not do_state_exp:
         image_env = ImageEnv(
             env,
-            84,
+            imsize,
             init_camera=init_camera,
             transpose=True,
             normalize=True,
@@ -273,6 +283,7 @@ def get_envs(variant):
         vae_env = VAEWrappedEnv(
             image_env,
             vae,
+            imsize=imsize,
             decode_goals=render,
             render_goals=render,
             render_rollouts=render,
@@ -1159,11 +1170,13 @@ def get_video_save_func(rollout_function, env, policy, variant):
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)
     dump_video_kwargs = variant.get("dump_video_kwargs", dict())
+    imsize = variant.get('imsize')
+    dump_video_kwargs['imsize'] = imsize
 
     if do_state_exp:
         image_env = ImageEnv(
             env,
-            84,
+            imsize,
             init_camera=variant.get('init_camera', None),
             transpose=True,
             normalize=True,

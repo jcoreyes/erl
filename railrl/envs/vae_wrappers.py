@@ -205,7 +205,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         zs = self.vae.encode(ptu.np_to_var(flat_img[None]))[0]
         imgs = ptu.get_numpy(self.vae.decode(zs))
         imgs = imgs.reshape(
-            1, self.input_channels, 84, 84
+            1, self.input_channels, self.imsize, self.imsize
         ).transpose([0, 3, 2, 1])
         return imgs[0]
 
@@ -299,7 +299,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         imgs = ptu.get_numpy(self.vae.decode(ptu.np_to_var(latents)))
         # TODO: why do we need this tranpose? Can we eliminate it?
         imgs = imgs.reshape(
-            batch_size, self.input_channels, 84, 84
+            batch_size, self.input_channels, self.imsize, self.imsize
         ).transpose([0, 3, 2, 1])
         return imgs
 

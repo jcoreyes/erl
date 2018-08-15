@@ -19,6 +19,7 @@ from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
 
 if __name__ == "__main__":
     variant = dict(
+        imsize=48,
         env_class=SawyerReachXYEnv,
         # env_class=SawyerPushAndReachXYEnv,
        # env_class=SawyerPickAndPlaceEnv,
@@ -43,7 +44,7 @@ if __name__ == "__main__":
             # vae_path="07-05-multi-exp-single-instance-multiworld-2/07-05-multi-exp-single-instance-multiworld-2_2018_07_05_23_51_08_0000--s-20902/vae.pkl",
             # vae_path="07-06-push-and-reach-parallel/07-06-push_and_reach_parallel_2018_07_06_17_09_04_0000--s-35032/vae.pkl",
             # vae_path="07-17-reacher-memory-refactor/07-17-reacher-memory-refactor_2018_07_17_16_00_43_0000--s-53961/vae.pkl",
-            vae_path="08-03-reacher-memory-refactor/08-03-reacher-memory-refactor_2018_08_03_21_33_37_0000--s-86627/vae.pkl",
+            # vae_path="08-03-reacher-memory-refactor/08-03-reacher-memory-refactor_2018_08_03_21_33_37_0000--s-86627/vae.pkl",
             algo_kwargs=dict(
                 base_kwargs=dict(
                     num_epochs=2000,
@@ -89,7 +90,7 @@ if __name__ == "__main__":
             num_epochs=40,
             generate_vae_dataset_kwargs=dict(
                 num_channels=3,
-                N=1000,
+                N=200,
                 oracle_dataset=True,
                 show=False,
                 use_cached=True,
