@@ -12,7 +12,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=1001,
+                num_epochs=3,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=5000,
                 max_path_length=500,
@@ -29,19 +29,7 @@ if __name__ == "__main__":
             ),
             td3_kwargs=dict(),
         ),
-        env_id='SawyerPushAndReacherXYEnv-ResetFree-v0',
-        # env_class=SawyerPushAndReachXYEnv,
-        # env_kwargs=dict(
-        #     reward_type='puck_distance',
-        #     reset_free=True,
-        #     hand_low=(-0.28, 0.3, 0.05),
-        #     hand_high=(0.28, 0.9, 0.3),
-        #     puck_low=(-.4, .2),
-        #     puck_high=(.4, 1),
-        #     goal_low=(-0.25, 0.3, 0.02, -.2, .4),
-        #     goal_high=(0.25, 0.875, 0.02, .2, .8),
-        #     # num_resets_before_puck_reset=int(1e6),
-        # ),
+        env_id='SawyerPushAndReachXYEnv-ResetFree-v0',
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_goals_are_rollout_goals=0.5,
@@ -59,7 +47,7 @@ if __name__ == "__main__":
             max_sigma=.8,
         ),
         exploration_type='ou',
-        save_video_period=250,
+        save_video_period=100,
         do_state_exp=True,
         # init_camera=sawyer_pusher_camera_upright_v2,
         imsize=48,
@@ -77,14 +65,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds= 1
-    mode='local'
-    exp_prefix= 'dev'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'dev'
 
-    # mode = 'ec2'
     n_seeds = 3
     mode = 'slurm_singularity'
-    exp_prefix = 'recreate-push-state-results-3'
+    exp_prefix = 'reset-free-push-state-with-state-distance-reward'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
@@ -93,5 +80,5 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                time_in_mins=1000,
+                time_in_mins=5,
             )
