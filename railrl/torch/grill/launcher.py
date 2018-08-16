@@ -152,6 +152,8 @@ def train_vae(variant, return_data=False):
             m = ConvVAE(representation_size, **variant['vae_kwargs'])
         elif variant.get('imsize') == 48:
             m = ConvVAESmall(representation_size, **variant['vae_kwargs'])
+        else:
+            raise NotImplementedError('Only support 84 and 48 images.')
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -194,20 +196,17 @@ def generate_vae_dataset(
     from multiworld.core.image_env import ImageEnv, unormalize_image
     from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 
-    if env_id is not None:
-        from gym.envs import registration
-        from railrl.misc.gym_util import get_class_and_kwargs
-        import multiworld.envs.pygame
-        import multiworld.envs.mujoco
-        spec = registration.spec(env_id)
-        env_class, env_kwargs = get_class_and_kwargs(spec)
-
     if env_kwargs is None:
         env_kwargs = {}
-    filename = "/tmp/{}_{}_{}_oracle{}.npy".format(
-        save_file_prefix if save_file_prefix else env_class.__name__,
+    if save_file_prefix is None:
+        save_file_prefix = env_id
+    if save_file_prefix is None:
+        save_file_prefix = env_class.__name__
+    filename = "/tmp/{}_N{}_{}_imsize{}_oracle{}.npy".format(
+        save_file_prefix,
         str(N),
         init_camera.__name__ if init_camera else '',
+        imsize,
         oracle_dataset,
     )
     info = {}
@@ -219,21 +218,28 @@ def generate_vae_dataset(
         dataset = np.load(filename)
         print("loaded data from saved file", filename)
     else:
-
-        if vae_dataset_specific_env_kwargs is None:
-            vae_dataset_specific_env_kwargs = {}
-        for key, val in env_kwargs.items():
-            if key not in vae_dataset_specific_env_kwargs:
-                vae_dataset_specific_env_kwargs[key] = val
         now = time.time()
-        env = env_class(**vae_dataset_specific_env_kwargs)
-        env = ImageEnv(
-            env,
-            imsize,
-            init_camera=init_camera,
-            transpose=True,
-            normalize=True,
-        )
+
+        if env_id is not None:
+            import gym
+            import multiworld.envs.pygame
+            import multiworld.envs.mujoco
+            env = gym.make(env_id)
+        else:
+            if vae_dataset_specific_env_kwargs is None:
+                vae_dataset_specific_env_kwargs = {}
+            for key, val in env_kwargs.items():
+                if key not in vae_dataset_specific_env_kwargs:
+                    vae_dataset_specific_env_kwargs[key] = val
+            env = env_class(**vae_dataset_specific_env_kwargs)
+        if not isinstance(env, ImageEnv):
+            env = ImageEnv(
+                env,
+                imsize,
+                init_camera=init_camera,
+                transpose=True,
+                normalize=True,
+            )
         env.reset()
         info['env'] = env
 
@@ -272,7 +278,6 @@ def get_envs(variant):
     reward_params = variant.get("reward_params", dict())
     init_camera = variant.get("init_camera", None)
     do_state_exp = variant.get("do_state_exp", False)
-    imsize = variant.get('imsize')
 
     from railrl.envs.vae_wrappers import load_vae
     vae = load_vae(vae_path) if type(vae_path) is str else vae_path
@@ -287,17 +292,20 @@ def get_envs(variant):
     else:
         env = variant["env_class"](**variant['env_kwargs'])
     if not do_state_exp:
-        image_env = ImageEnv(
-            env,
-            imsize,
-            init_camera=init_camera,
-            transpose=True,
-            normalize=True,
-        )
+        if isinstance(env, ImageEnv):
+            image_env = env
+        else:
+            image_env = ImageEnv(
+                env,
+                variant.get('imsize'),
+                init_camera=init_camera,
+                transpose=True,
+                normalize=True,
+            )
         vae_env = VAEWrappedEnv(
             image_env,
             vae,
-            imsize=imsize,
+            imsize=image_env.imsize,
             decode_goals=render,
             render_goals=render,
             render_rollouts=render,
@@ -1279,10 +1287,10 @@ def get_video_save_func(rollout_function, env, policy, variant):
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)
     dump_video_kwargs = variant.get("dump_video_kwargs", dict())
-    imsize = variant.get('imsize')
-    dump_video_kwargs['imsize'] = imsize
 
     if do_state_exp:
+        imsize = variant.get('imsize')
+        dump_video_kwargs['imsize'] = imsize
         image_env = ImageEnv(
             env,
             imsize,
@@ -1299,6 +1307,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
                            **dump_video_kwargs)
     else:
         image_env = env
+        dump_video_kwargs['imsize'] = env.imsize
 
         def save_video(algo, epoch):
             if epoch % save_period == 0 or epoch == algo.num_epochs:
