@@ -36,7 +36,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=5000,
+                    num_epochs=1000,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=5000,
                     min_num_steps_before_training=4000,
@@ -104,22 +104,25 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env_kwargs.num_resets_before_puck_reset': [1, 10, 100, int(1e6)],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100, 500,
-                                                                  1000],
-        'grill_variant.replay_kwargs.alpha': [1, 3],
+        # 'env_id': [
+        #     'SawyerPushAndReachXYEnv-ResetFree-Every1B-v0'
+        # ],
+        'env_kwargs.num_resets_before_puck_reset': [1],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [500],
+        'grill_variant.replay_kwargs.alpha': [3],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'dev'
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_online_reset_hand_with_puck'
+    exp_prefix = 'vitchyr-sawyer-pusher-online-reset-hand-with-puck-does' \
+                 '--fraction-goals-are-rollout-goals--matter'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

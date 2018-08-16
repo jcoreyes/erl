@@ -12,7 +12,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=3,
+                num_epochs=1000,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=5000,
                 max_path_length=500,
@@ -56,7 +56,9 @@ if __name__ == "__main__":
         desired_goal_key='state_desired_goal',
     )
     search_space = {
-        'env_kwargs.num_resets_before_puck_reset': [1, int(1e6)],
+        'env_id': [
+            'SawyerPushAndReachXYEnv-ResetFree-Every1B-v0'
+        ],
         # 'env_kwargs.num_resets_before_puck_reset': [int(1e6)],
         # 'env_kwargs.num_resets_before_hand_reset': [20, int(1e6)],
         'algo_kwargs.base_kwargs.max_path_length': [500],
@@ -71,7 +73,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'slurm_singularity'
-    exp_prefix = 'reset-free-push-state-with-state-distance-reward'
+    exp_prefix = 'reset-free-push-state-with-state-distance-reward-2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
@@ -80,5 +82,5 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                time_in_mins=5,
+                time_in_mins=20*60,
             )
