@@ -463,21 +463,11 @@ class ConvVAESmall(PyTorchModule):
         self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=3)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=2)
         self.conv3 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
-        ptu.compute_conv_layer_sizes(
-            h_in=self.imsize,
-            w_in=self.imsize,
-            kernel_sizes=[5, 3, 3],
-            strides=[3, 2, 2],
-            pool_sizes=[1, 1, 1],
-        )
         self.kernel_out = 64
         self.conv_output_dim = self.kernel_out*9
-        print(self.conv_output_dim)
-        # self.fc4 = nn.Linear(self.conv_output_dim, self.conv_output_dim)
         self.fc1 = nn.Linear(self.conv_output_dim, representation_size)
         self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
-        print(ptu.compute_deconv_layer_sizes(3, 3, [3, 3, 6], [2, 2, 3]))
         self.conv4 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2)
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2)
         self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6,
