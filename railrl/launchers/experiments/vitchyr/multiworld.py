@@ -1,24 +1,33 @@
-import railrl.torch.pytorch_util as ptu
-from multiworld.core.flat_goal_env import FlatGoalEnv
-from railrl.data_management.obs_dict_replay_buffer import \
-    ObsDictRelabelingBuffer
-from railrl.envs.multitask.multitask_env import \
-    MultitaskEnvToSilentMultitaskEnv, MultiTaskHistoryEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import (
-    PolicyWrappedWithExplorationStrategy
-)
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.torch.her.her_td3 import HerTd3
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-
-
 def her_td3_experiment(variant):
-    env = variant['env_class'](**variant['env_kwargs'])
+    import gym
+    import multiworld.envs.mujoco
+    import multiworld.envs.pygame
+    import railrl.samplers.rollout_functions as rf
+    import railrl.torch.pytorch_util as ptu
+    from railrl.exploration_strategies.base import (
+        PolicyWrappedWithExplorationStrategy
+    )
+    from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
+    from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+    from railrl.exploration_strategies.ou_strategy import OUStrategy
+    from railrl.torch.grill.launcher import get_video_save_func
+    from railrl.torch.her.her_td3 import HerTd3
+    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.data_management.obs_dict_replay_buffer import (
+        ObsDictRelabelingBuffer
+    )
+
+    if 'presample_goals' in variant:
+        raise NotImplementedError()
+    env = gym.make(variant['env_id'])
+
     observation_key = variant['observation_key']
     desired_goal_key = variant['desired_goal_key']
+    variant['algo_kwargs']['her_kwargs']['observation_key'] = observation_key
+    variant['algo_kwargs']['her_kwargs']['desired_goal_key'] = desired_goal_key
+    if variant.get('normalize', False):
+        raise NotImplementedError()
+
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     replay_buffer = ObsDictRelabelingBuffer(
         env=env,
@@ -74,10 +83,22 @@ def her_td3_experiment(variant):
         policy=policy,
         exploration_policy=exploration_policy,
         replay_buffer=replay_buffer,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
         **variant['algo_kwargs']
     )
+    if variant.get("save_video", False):
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        video_func = get_video_save_func(
+            rollout_function,
+            env,
+            policy,
+            variant,
+        )
+        algorithm.post_epoch_funcs.append(video_func)
     if ptu.gpu_enabled():
         algorithm.cuda()
     algorithm.train()
