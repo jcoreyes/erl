@@ -7,8 +7,6 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import \
     SawyerPushAndReachXYEnv
 from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
-from railrl.data_management.visualize_obs_dict_buffer import \
-    VisualizeObsDictRelabelingBuffer
 from railrl.launchers.experiments.murtaza.multiworld_her import \
     her_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
@@ -45,10 +43,10 @@ if __name__ == "__main__":
             puck_high=(.4, 1),
             goal_low=(-0.25, 0.3, 0.02, -.2, .4),
             goal_high=(0.25, 0.875, 0.02, .2, .8),
-            num_resets_before_puck_reset=int(1e6),
+            # num_resets_before_puck_reset=int(1e6),
         ),
         replay_buffer_class=ObsDictRelabelingBuffer,
-        replay_kwargs=dict(
+        replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_goals_are_rollout_goals=0.5,
             fraction_resampled_goals_are_env_goals=0.5,
@@ -69,13 +67,14 @@ if __name__ == "__main__":
         save_video_period=250,
         do_state_exp=True,
         init_camera=sawyer_pusher_camera_upright_v2,
+        imsize=48,
         save_video=True,
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
     )
     search_space = {
         'env_kwargs.num_resets_before_puck_reset': [int(1e6)],
-        'env_kwargs.num_resets_before_hand_reset': [20, int(1e6)],
+        # 'env_kwargs.num_resets_before_hand_reset': [20, int(1e6)],
         'algo_kwargs.base_kwargs.max_path_length': [500],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
