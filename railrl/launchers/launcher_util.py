@@ -57,7 +57,6 @@ def run_experiment(
         seed=None,
         variant=None,
         exp_id=0,
-        unique_id=None,
         prepend_date_to_exp_prefix=True,
         use_gpu=False,
         snapshot_mode='last',
@@ -103,7 +102,6 @@ def run_experiment(
     :param seed: Seed for this specific trial.
     :param variant: Dictionary
     :param exp_id: One experiment = one variant setting + multiple seeds
-    :param unique_id: If not set, the unique id is generated.
     :param prepend_date_to_exp_prefix: If False, do not prepend the date to
     the experiment directory.
     :param use_gpu:
@@ -155,13 +153,10 @@ def run_experiment(
                 "Variants should not have periods in keys. Did you mean to "
                 "convert {} into a nested dictionary?".format(key)
             )
-    if unique_id is None:
-        unique_id = str(uuid.uuid4())
     if prepend_date_to_exp_prefix:
         exp_prefix = time.strftime("%m-%d") + "-" + exp_prefix
     variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
-    variant['unique_id'] = str(unique_id)
     variant['exp_prefix'] = str(exp_prefix)
     variant['instance_type'] = str(instance_type)
 
@@ -725,6 +720,8 @@ def setup_logger(
         )
 
     if variant is not None:
+        if 'unique_id' not in variant:
+            variant['unique_id'] = str(uuid.uuid4())
         logger.log("Variant:")
         logger.log(json.dumps(ppp.dict_to_safe_json(variant), indent=2))
         variant_log_path = osp.join(log_dir, variant_log_file)
