@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
-    SawyerPushAndReachXYEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_many_env import (
+    SawyerPushManyXyEnv,
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
@@ -10,18 +10,11 @@ import railrl.torch.vae.vae_schedules as vae_schedules
 if __name__ == "__main__":
     variant = dict(
         double_algo=False,
-        env_class=SawyerPushAndReachXYEnv,
+        env_class=SawyerPushManyXyEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
-            action_scale=.02,
-            hand_low=(-0.28, 0.3, 0.05),
-            hand_high=(0.28, 0.9, 0.3),
-            puck_low=(-.4, .2),
-            puck_high=(.4, 1),
-            goal_low=(-0.25, 0.3, 0.02, -.2, .4),
-            goal_high=(0.25, 0.875, 0.02, .2, .8),
-            reset_free=True,
-            num_resets_before_puck_reset=int(1e6)
+            reset_free=False,
+            randomize_num_objects=False,
         ),
         init_camera=sawyer_pusher_camera_upright_v2,
         grill_variant=dict(
@@ -56,7 +49,7 @@ if __name__ == "__main__":
             ),
             replay_kwargs=dict(
                 max_size=int(30000),
-                fraction_goals_are_rollout_goals=0.2,
+                fraction_goals_are_rollout_goals=0.,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_scale=0.0,
                 exploration_rewards_type='reconstruction_error',
@@ -85,11 +78,6 @@ if __name__ == "__main__":
                 oracle_dataset=True,
                 use_cached=False,
                 num_channels=3,
-                vae_dataset_specific_env_kwargs=dict(
-                    goal_low=(-0.28, 0.3, 0.02, -.2, .4),
-                    goal_high=(0.28, 0.9, 0.02, .2, .8),
-                ),
-
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -101,18 +89,13 @@ if __name__ == "__main__":
             ),
             save_period=5,
         ),
+        version='easy-env',
     )
 
     search_space = {
-        # 'env_id': [
-        #     'SawyerPushAndReachXYEnv-ResetFree-Every1B-v0'
-        # ],
-        'env_kwargs.num_resets_before_puck_reset': [1, 2, 3, 5, 10],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
-        'grill_variant.replay_kwargs.alpha': [1, 3],
-        'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [
-            0,
-        ],
+        'env_kwargs.num_resets_before_puck_reset': [1],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [500],
+        'grill_variant.replay_kwargs.alpha': [3],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -122,9 +105,10 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 1
+    n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'vitchyr-sawyer-pusher-online-reset-hand-with-puck-path-100'
+    exp_prefix = 'vitchyr-sawyer-multipush-xy-online-reset-hand-with-puck' \
+                 '-broken-sample-goals-still'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

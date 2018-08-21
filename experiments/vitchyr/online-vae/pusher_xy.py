@@ -1,33 +1,31 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
+import railrl.torch.vae.vae_schedules as vae_schedules
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_top_down
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
 
 if __name__ == "__main__":
     variant = dict(
+        imsize=48,
         double_algo=False,
         env_class=SawyerPushAndReachXYEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
             action_scale=.02,
-            hand_low=(-0.28, 0.3, 0.05),
-            hand_high=(0.28, 0.9, 0.3),
-            puck_low=(-.4, .2),
-            puck_high=(.4, 1),
-            goal_low=(-0.25, 0.3, 0.02, -.2, .4),
-            goal_high=(0.25, 0.875, 0.02, .2, .8),
-            reset_free=True,
-            num_resets_before_puck_reset=int(1e6)
+            puck_low=[-0.25, .4],
+            puck_high=[0.25, .8],
+            mocap_low=[-0.2, 0.45, 0.],
+            mocap_high=[0.2, 0.75, 0.5],
+            goal_low=[-0.2, 0.45, 0.02, -0.25, 0.4],
+            goal_high=[0.2, 0.75, 0.02, 0.25, 0.8],
         ),
-        init_camera=sawyer_pusher_camera_upright_v2,
+        init_camera=sawyer_pusher_camera_top_down,
         grill_variant=dict(
             save_video=True,
-            online_vae_beta=2.5,
-            save_video_period=250,
+            save_video_period=25,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -38,34 +36,30 @@ if __name__ == "__main__":
                 base_kwargs=dict(
                     num_epochs=1000,
                     num_steps_per_epoch=1000,
-                    num_steps_per_eval=5000,
+                    num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
                     batch_size=128,
-                    max_path_length=100,
+                    max_path_length=500,
                     discount=0.99,
-                    num_updates_per_env_step=2,
+                    num_updates_per_env_step=4,
+                    # collection_mode='online-parallel',
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
                 ),
                 online_vae_kwargs=dict(
                     vae_training_schedule=vae_schedules.every_six,
-                    oracle_data=False,
-                    vae_save_period=25,
                 ),
             ),
             replay_kwargs=dict(
-                max_size=int(30000),
-                fraction_goals_are_rollout_goals=0.2,
+                max_size=int(80000),
+                fraction_goals_are_rollout_goals=0.,
                 fraction_resampled_goals_are_env_goals=0.5,
-                exploration_rewards_scale=0.0,
-                exploration_rewards_type='reconstruction_error',
-                alpha=3,
             ),
-            algorithm='GRILL-HER-TD3',
+            algorithm='GRILL-HER-TD3-one-seed',
             normalize=False,
             render=False,
-            exploration_noise=0.8,
+            exploration_noise=0.5,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -80,16 +74,11 @@ if __name__ == "__main__":
             beta=1.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=100,
+                N=101,
                 test_p=.9,
                 oracle_dataset=True,
                 use_cached=False,
                 num_channels=3,
-                vae_dataset_specific_env_kwargs=dict(
-                    goal_low=(-0.28, 0.3, 0.02, -.2, .4),
-                    goal_high=(0.28, 0.9, 0.02, .2, .8),
-                ),
-
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -104,37 +93,41 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        # 'env_id': [
-        #     'SawyerPushAndReachXYEnv-ResetFree-Every1B-v0'
-        # ],
-        'env_kwargs.num_resets_before_puck_reset': [1, 2, 3, 5, 10],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
-        'grill_variant.replay_kwargs.alpha': [1, 3],
-        'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [
-            0,
-        ],
+        'grill_variant.online_vae_beta': [2.5],
+        'grill_variant.use_replay_buffer_goals': [False],
+        'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5],
+        'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0],
+        'grill_variant.replay_kwargs.exploration_rewards_type': ['None'],
+        'grill_variant.replay_kwargs.alpha': [0],
+        'grill_variant.exploration_noise': [.8],
+        'grill_variant.algo_kwargs.vae_training_schedule':
+            [
+                vae_schedules.every_six,
+            ],
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
+        'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
     n_seeds = 1
-    mode = 'local'
+    mode = 'here_no_doodad'
     exp_prefix = 'dev'
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'vitchyr-sawyer-pusher-online-reset-hand-with-puck-path-100'
-
+    exp_prefix = 'recreate-online-vae-pushing-results-max-path-length-500'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_td3_online_vae_full_experiment,
+                exp_id=exp_id,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
-                num_exps_per_instance=2,
+                num_exps_per_instance=1,
             )
