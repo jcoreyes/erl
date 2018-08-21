@@ -38,7 +38,7 @@ if __name__ == "__main__":
                 base_kwargs=dict(
                     num_epochs=1000,
                     num_steps_per_epoch=1000,
-                    num_steps_per_eval=5000,
+                    num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
                     batch_size=128,
                     max_path_length=100,

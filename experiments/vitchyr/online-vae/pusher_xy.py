@@ -56,7 +56,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0.,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
-            algorithm='GRILL-HER-TD3-one-seed',
+            algorithm='GRILL-HER-TD3',
             normalize=False,
             render=False,
             exploration_noise=0.5,
@@ -97,14 +97,17 @@ if __name__ == "__main__":
         'grill_variant.use_replay_buffer_goals': [False],
         'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0],
-        'grill_variant.replay_kwargs.exploration_rewards_type': ['None'],
-        'grill_variant.replay_kwargs.alpha': [0],
+        'grill_variant.replay_kwargs.exploration_rewards_type': [
+            'reconstruction_error'
+        ],
+        'grill_variant.replay_kwargs.alpha': [3],
         'grill_variant.exploration_noise': [.8],
         'grill_variant.algo_kwargs.vae_training_schedule':
             [
                 vae_schedules.every_six,
             ],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100, 500],
         'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -117,7 +120,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'recreate-online-vae-pushing-results-max-path-length-500'
+    exp_prefix = 'recreate-online-vae-pushing-results-alpha-3-take2'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
@@ -129,5 +132,5 @@ if __name__ == "__main__":
                 use_gpu=True,
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
-                num_exps_per_instance=1,
+                num_exps_per_instance=2,
             )
