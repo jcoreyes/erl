@@ -56,9 +56,13 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.replay_buffer.train_dynamics_model(batches=batches)
 
     def _test_vae(self, epoch):
-        # batch_sampler = self.replay_buffer.random_vae_training_data
-        self.vae_trainer.test_epoch(epoch, from_rl=True)
-        if epoch % self.vae_save_period == 0:
+        save_imgs = epoch % self.vae_save_period == 0
+        self.vae_trainer.test_epoch(
+            epoch,
+            from_rl=True,
+            save_reconstruction=save_imgs,
+        )
+        if save_imgs:
             self.vae_trainer.dump_samples(epoch)
 
     @property
