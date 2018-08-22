@@ -34,7 +34,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1000,
+                    num_epochs=500,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -99,7 +99,7 @@ if __name__ == "__main__":
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0],
         'grill_variant.replay_kwargs.exploration_rewards_type': [
             'reconstruction_error',
-            'None',
+            # 'None',
         ],
         'grill_variant.replay_kwargs.alpha': [3],
         'grill_variant.exploration_noise': [.8],
@@ -107,8 +107,10 @@ if __name__ == "__main__":
             [
                 vae_schedules.every_six,
             ],
-        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100, 500],
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [
+            1, 2, 4
+        ],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
         'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -119,9 +121,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 1
+    n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'recreate-online-vae-pushing-results-online-parallel-collection-two-seed-per-instance-take-2'
+    exp_prefix = 'online-vae-pushing-parallel-sweep-NUPO'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
