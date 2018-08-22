@@ -71,9 +71,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'slurm_singularity'
-    exp_prefix = 'reset-free-push-state-with-state-distance-reward-2'
+    # n_seeds = 3
+    # mode = 'slurm_singularity'
+    # exp_prefix = 'reset-free-push-state-with-state-distance-reward-2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):

@@ -42,7 +42,7 @@ if __name__ == "__main__":
                     max_path_length=500,
                     discount=0.99,
                     num_updates_per_env_step=4,
-                    # collection_mode='online-parallel',
+                    collection_mode='online-parallel',
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
@@ -98,7 +98,8 @@ if __name__ == "__main__":
         'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0],
         'grill_variant.replay_kwargs.exploration_rewards_type': [
-            'reconstruction_error'
+            'reconstruction_error',
+            'None',
         ],
         'grill_variant.replay_kwargs.alpha': [3],
         'grill_variant.exploration_noise': [.8],
@@ -115,12 +116,12 @@ if __name__ == "__main__":
     )
 
     n_seeds = 1
-    mode = 'here_no_doodad'
+    mode = 'local'
     exp_prefix = 'dev'
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'recreate-online-vae-pushing-results-alpha-3-take2'
+    exp_prefix = 'recreate-online-vae-pushing-results-online-parallel-collection-two-seed-per-instance-take-2'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
