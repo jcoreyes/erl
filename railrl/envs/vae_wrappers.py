@@ -310,6 +310,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.render_decoded = False
         else:
             raise ValueError("Invalid mode: {}".format(name))
+        if hasattr(self.wrapped_env, "mode"):
+            self.wrapped_env.mode(name)
         self.cur_mode = name
 
     def add_mode(self, env_type, mode):
