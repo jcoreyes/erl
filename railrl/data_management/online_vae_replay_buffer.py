@@ -54,7 +54,6 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         super().__init__(internal_keys=internal_keys, *args, **kwargs)
         self.do_exploration = (
             exploration_rewards_type != None
-            and exploration_rewards_scale != 0.
         )
         self._exploration_rewards = np.zeros((self.max_size, 1))
 
