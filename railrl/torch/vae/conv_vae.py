@@ -131,7 +131,7 @@ class ConvVAETrainer():
                 dataloader = self.test_dataloader
             else:
                 dataloader = self.train_dataloader
-            samples = next(dataloader)
+            samples = next(dataloader).to(ptu.device)
             return samples
 
         dataset = self.train_dataset if train else self.test_dataset

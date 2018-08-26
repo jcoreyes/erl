@@ -102,7 +102,7 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                # use_gpu=True,
-                # gpu_id=0,
-                # num_exps_per_instance=1,
+                use_gpu=True,
+                gpu_id=0,
+                num_exps_per_instance=1,
             )

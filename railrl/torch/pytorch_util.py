@@ -221,11 +221,11 @@ def FloatTensor(*args, **kwargs):
     return torch.FloatTensor(*args, **kwargs).to(device)
 
 def from_numpy(*args, **kwargs):
-    return torch.from_numpy(*args, **kwargs).to(device).float()
+    return torch.from_numpy(*args, **kwargs).float().to(device)
 
 def get_numpy(tensor):
     #not sure if I should do detach or not here
-    return tensor.to('cpu').numpy()
+    return tensor.to('cpu').detach().numpy()
 
 def zeros(*sizes, out=None):
     return torch.zeros(*sizes, out=out).to(device)
