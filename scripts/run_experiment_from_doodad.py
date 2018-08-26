@@ -9,7 +9,7 @@ if __name__ == "__main__":
     run_experiment_kwargs = args_dict['run_experiment_kwargs']
     output_dir = args_dict['output_dir']
     run_mode = args_dict.get('mode', None)
-    if run_mode and run_mode == 'slurm_singularity':
+    if run_mode and run_mode in ['slurm_singularity', 'sss']:
         import os
         run_experiment_kwargs['variant']['slurm-job-id'] = os.environ.get(
             'SLURM_JOB_ID', None

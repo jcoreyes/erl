@@ -31,6 +31,7 @@ GitInfo = namedtuple(
 
 ec2_okayed = False
 gpu_ec2_okayed = False
+first_sss_launch = True
 
 try:
     import doodad.mount as mount
@@ -44,6 +45,17 @@ try:
     NON_CODE_MOUNTS = []
     for non_code_mapping in config.DIR_AND_MOUNT_POINT_MAPPINGS:
         NON_CODE_MOUNTS.append(mount.MountLocal(**non_code_mapping))
+
+    SSS_CODE_MOUNTS = []
+    SSS_NON_CODE_MOUNTS = []
+    if hasattr(config, 'SSS_DIR_AND_MOUNT_POINT_MAPPINGS'):
+        for non_code_mapping in config.SSS_DIR_AND_MOUNT_POINT_MAPPINGS:
+            SSS_NON_CODE_MOUNTS.append(mount.MountLocal(**non_code_mapping))
+    if hasattr(config, 'SSS_CODE_DIRS_TO_MOUNT'):
+        for code_dir in config.SSS_CODE_DIRS_TO_MOUNT:
+            SSS_CODE_MOUNTS.append(
+                mount.MountLocal(local_dir=code_dir, pythonpath=True)
+            )
 except ImportError:
     print("doodad not detected")
 
@@ -132,6 +144,7 @@ def run_experiment(
     global ec2_okayed
     global gpu_ec2_okayed
     global target_mount
+    global first_sss_launch
 
     """
     Sanitize inputs as needed
@@ -143,7 +156,10 @@ def run_experiment(
     if mode == 'ssh' and base_log_dir is None:
         base_log_dir = config.SSH_LOG_DIR
     if base_log_dir is None:
-        base_log_dir = config.LOCAL_LOG_DIR
+        if mode == 'sss':
+            base_log_dir = config.SSS_LOG_DIR
+        else:
+            base_log_dir = config.LOCAL_LOG_DIR
 
     for key, value in ppp.recursive_items(variant):
         # This check isn't really necessary, but it's to prevent myself from
@@ -242,7 +258,11 @@ def run_experiment(
             instance_type = config.INSTANCE_TYPE
         if spot_price is None:
             spot_price = config.SPOT_PRICE
-    singularity_image = config.GPU_SINGULARITY_IMAGE
+    if mode == 'sss':
+        singularity_image = config.SSS_IMAGE
+    else:
+        singularity_image = config.SINGULARITY_IMAGE
+
 
     """
     Get the mode
@@ -302,18 +322,26 @@ def run_experiment(
             image=singularity_image,
             gpu=use_gpu,
         )
-    elif mode == 'slurm_singularity':
+    elif mode == 'slurm_singularity' or mode == 'sss':
         assert time_in_mins is not None, "Must approximate/set time in minutes"
         if use_gpu:
             kwargs = config.SLURM_GPU_CONFIG
         else:
             kwargs = config.SLURM_CPU_CONFIG
-        dmode = doodad.mode.SlurmSingularity(
-            image=singularity_image,
-            gpu=use_gpu,
-            time_in_mins=time_in_mins,
-            **kwargs
-        )
+        if mode == 'slurm_singularity':
+            dmode = doodad.mode.SlurmSingularity(
+                image=singularity_image,
+                gpu=use_gpu,
+                time_in_mins=time_in_mins,
+                **kwargs
+            )
+        else:
+            dmode = doodad.mode.ScriptSlurmSingularity(
+                image=singularity_image,
+                gpu=use_gpu,
+                time_in_mins=time_in_mins,
+                **kwargs
+            )
     elif mode == 'ec2':
         # Do this separately in case someone does not have EC2 configured
         dmode = doodad.mode.EC2AutoconfigDocker(
@@ -349,6 +377,7 @@ def run_experiment(
     """
     mode_specific_kwargs = {}
     launch_locally = None
+    target = config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH
     if mode == 'ec2':
         # Ignored since I'm setting the snapshot dir directly
         base_log_dir_for_script = None
@@ -369,12 +398,16 @@ def run_experiment(
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
-    elif mode == 'local_singularity' or mode == 'slurm_singularity':
+    elif mode in ['local_singularity', 'slurm_singularity', 'sss']:
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
         mode_specific_kwargs['pre_cmd'] = config.SINGULARITY_PRE_CMDS
+        mode_specific_kwargs['first_launch_command'] = first_sss_launch
         launch_locally = True
+        if mode == 'sss':
+            first_sss_launch = False
+            target = config.SSS_RUN_DOODAD_EXPERIMENT_SCRIPT_PATH
     elif mode == 'here_no_doodad':
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
@@ -383,7 +416,7 @@ def run_experiment(
         raise NotImplementedError("Mode not supported: {}".format(mode))
     run_experiment_kwargs['base_log_dir'] = base_log_dir_for_script
     target_mount = doodad.launch_python(
-        target=config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH,
+        target=target,
         mode=dmode,
         mount_points=mounts,
         args={
@@ -396,6 +429,7 @@ def run_experiment(
         target_mount=target_mount,
         verbose=verbose,
         launch_locally=launch_locally,
+        dry=True,
         **mode_specific_kwargs
     )
 
@@ -406,12 +440,19 @@ def create_mounts(
         sync_interval=180,
         local_input_dir_to_mount_point_dict=None,
 ):
+    if mode == 'sss':
+        code_mounts = SSS_CODE_MOUNTS
+        non_code_mounts = SSS_NON_CODE_MOUNTS
+    else:
+        code_mounts = CODE_MOUNTS
+        non_code_mounts = NON_CODE_MOUNTS
+
     if local_input_dir_to_mount_point_dict is None:
         local_input_dir_to_mount_point_dict = {}
     else:
         raise NotImplementedError("TODO(vitchyr): Implement this")
 
-    mounts = [m for m in CODE_MOUNTS]
+    mounts = [m for m in code_mounts]
     for dir, mount_point in local_input_dir_to_mount_point_dict.items():
         mounts.append(mount.MountLocal(
             local_dir=dir,
@@ -420,7 +461,7 @@ def create_mounts(
         ))
 
     if mode != 'local':
-        for m in NON_CODE_MOUNTS:
+        for m in non_code_mounts:
             mounts.append(m)
 
     if mode == 'ec2':
@@ -433,11 +474,7 @@ def create_mounts(
                            '*.log', '*.pkl', '*.mp4', '*.png', '*.jpg',
                            '*.jpeg', '*.patch'),
         )
-    elif (
-        mode == 'local'
-        or mode == 'local_singularity'
-        or mode == 'slurm_singularity'
-    ):
+    elif mode in ['local', 'local_singularity', 'slurm_singularity', 'sss']:
         # To save directly to local files (singularity does this), skip mounting
         output_mount = mount.MountLocal(
             local_dir=base_log_dir,
