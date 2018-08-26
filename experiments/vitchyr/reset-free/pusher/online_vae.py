@@ -59,7 +59,7 @@ if __name__ == "__main__":
                 ),
             ),
             replay_kwargs=dict(
-                max_size=int(80000),
+                max_size=int(30000),
                 fraction_goals_are_rollout_goals=0.,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_scale=1.0,
@@ -126,7 +126,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'reset-free-online-parallel-push-2'
+    exp_prefix = 'reset-free-online-parallel-push-3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

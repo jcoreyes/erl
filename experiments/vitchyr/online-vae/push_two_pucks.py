@@ -1,8 +1,8 @@
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.vae.vae_schedules as vae_schedules
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_top_down
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
-    SawyerPushAndReachXYEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env_two_pucks import (
+    SawyerPushAndReachXYDoublePuckEnv,
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
@@ -11,21 +11,21 @@ if __name__ == "__main__":
     variant = dict(
         imsize=48,
         double_algo=False,
-        env_class=SawyerPushAndReachXYEnv,
+        env_class=SawyerPushAndReachXYDoublePuckEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
             action_scale=.02,
-            puck_low=[-0.25, .4],
-            puck_high=[0.25, .8],
-            mocap_low=[-0.2, 0.45, 0.],
-            mocap_high=[0.2, 0.75, 0.5],
-            goal_low=[-0.2, 0.45, 0.02, -0.25, 0.4],
-            goal_high=[0.2, 0.75, 0.02, 0.25, 0.8],
+            # puck_low=[-0.25, .4],
+            # puck_high=[0.25, .8],
+            # mocap_low=[-0.2, 0.45, 0.],
+            # mocap_high=[0.2, 0.75, 0.5],
+            # goal_low=[-0.2, 0.45, 0.02, -0.25, 0.4],
+            # goal_high=[0.2, 0.75, 0.02, 0.25, 0.8],
         ),
         init_camera=sawyer_pusher_camera_top_down,
         grill_variant=dict(
             save_video=True,
-            save_video_period=25,
+            save_video_period=50,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -34,7 +34,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=500,
+                    num_epochs=1000,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -88,7 +88,7 @@ if __name__ == "__main__":
                 use_linear_dynamics=False,
                 lr=1e-3,
             ),
-            save_period=5,
+            save_period=30,
         ),
     )
 
@@ -104,8 +104,8 @@ if __name__ == "__main__":
         'grill_variant.replay_kwargs.max_size': [
             # 1000000,
             # 100000,
-            # 50000,
-            30000,
+            50000,
+            # 30000,
             # 3000,
         ],
         'grill_variant.replay_kwargs.alpha': [3],
@@ -115,10 +115,12 @@ if __name__ == "__main__":
                 vae_schedules.every_six,
             ],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 2, 4, 6
+            2,
         ],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
         'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
+        'env_kwargs.always_start_on_same_side': [True, False],
+        'env_kwargs.goal_always_on_same_side': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -130,7 +132,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'online-vae-pushing-parallel-sweep-NUPO'
+    exp_prefix = 'online-vae-two-pushing-parallel-2'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
