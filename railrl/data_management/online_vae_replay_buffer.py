@@ -157,15 +157,15 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         obs = normalize_image(self._obs[self.decoded_obs_key][indices])
         actions = self._actions[indices]
         return dict(
-            obs=ptu.np_to_var(obs),
-            next_obs=ptu.np_to_var(next_obs),
-            actions=ptu.np_to_var(actions),
+            obs=ptu.from_numpy(obs),
+            next_obs=ptu.from_numpy(next_obs),
+            actions=ptu.from_numpy(actions),
         )
 
 
     def reconstruction_mse(self, next_vae_obs, indices):
         n_samples = len(next_vae_obs)
-        torch_input = ptu.np_to_var(next_vae_obs)
+        torch_input = ptu.from_numpy(next_vae_obs)
         recon_next_vae_obs, _, _ = self.vae(torch_input)
 
         error = torch_input - recon_next_vae_obs
@@ -177,9 +177,9 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         next_obs = self._next_obs[self.observation_key][indices]
         actions = self._actions[indices]
 
-        state_action_pair = ptu.np_to_var(np.c_[obs, actions])
+        state_action_pair = ptu.from_numpy(np.c_[obs, actions])
         prediction = self.dynamics_model(state_action_pair)
-        mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
+        mse = self.dynamics_loss(prediction, ptu.from_numpy(next_obs))
         return ptu.get_numpy(mse)
 
     def inverse_model_error(self, next_vae_obs, indices):
@@ -188,9 +188,9 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         obs, next_obs = next_obs, obs
         actions = self._actions[indices]
 
-        state_action_pair = ptu.np_to_var(np.c_[obs, actions])
+        state_action_pair = ptu.from_numpy(np.c_[obs, actions])
         prediction = self.dynamics_model(state_action_pair)
-        mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
+        mse = self.dynamics_loss(prediction, ptu.from_numpy(next_obs))
         return ptu.get_numpy(mse)
 
     def latent_novelty(self, next_vae_obs, indices):
@@ -224,9 +224,9 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             if self.exploration_rewards_type == 'inverse_model_error':
                 obs, next_obs = next_obs, obs
 
-            state_action_pair = ptu.np_to_var(np.c_[obs, actions])
+            state_action_pair = ptu.from_numpy(np.c_[obs, actions])
             prediction = self.dynamics_model(state_action_pair)
-            mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
+            mse = self.dynamics_loss(prediction, ptu.from_numpy(next_obs))
 
             mse.backward()
             self.dynamics_optimizer.step()
