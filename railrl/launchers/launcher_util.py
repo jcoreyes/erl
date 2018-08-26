@@ -431,7 +431,6 @@ def run_experiment(
         target_mount=target_mount,
         verbose=verbose,
         launch_locally=launch_locally,
-        dry=True,
         **mode_specific_kwargs
     )
 
