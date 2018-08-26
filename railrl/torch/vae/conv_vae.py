@@ -92,21 +92,17 @@ class ConvVAETrainer():
 
             self.train_dataloader = DataLoader(
                 self.train_dataset_pt,
-                sampler=BatchSampler(
-                    InfiniteRandomSampler(self.train_dataset),
-                    batch_size=batch_size,
-                    drop_last=False,
-                ),
+                sampler=InfiniteRandomSampler(self.train_dataset),
+                batch_size=batch_size,
+                drop_last=False,
                 num_workers=train_data_workers,
                 pin_memory=True,
             )
             self.test_dataloader = DataLoader(
                 self.test_dataset_pt,
-                sampler=BatchSampler(
-                    InfiniteRandomSampler(self.test_dataset),
-                    batch_size=batch_size,
-                    drop_last=False,
-                ),
+                sampler=InfiniteRandomSampler(self.test_dataset),
+                batch_size=batch_size,
+                drop_last=False,
                 num_workers=0,
                 pin_memory=True,
             )
@@ -136,7 +132,7 @@ class ConvVAETrainer():
             else:
                 dataloader = self.train_dataloader
             samples = next(dataloader)
-            return samples[0]
+            return samples
 
         dataset = self.train_dataset if train else self.test_dataset
         ind = np.random.randint(0, len(dataset), self.batch_size)
