@@ -1,14 +1,15 @@
 import boto3
-from subprocess import Popen
-from multiprocessing import Process
 
 from railrl.launchers.config import LOCAL_LOG_DIR, AWS_S3_PATH
 import os
 
 
 def local_path_from_s3_or_local_path(filename):
+    relative_filename = os.path.join(LOCAL_LOG_DIR, filename)
     if os.path.isfile(filename):
         return filename
+    elif os.path.isfile(relative_filename):
+        return relative_filename
     else:
         return sync_down(filename)
 
@@ -30,22 +31,27 @@ def sync_down(path, check_exists=True):
         from doodad.ec2.autoconfig import AUTOCONFIG
         os.environ["AWS_ACCESS_KEY_ID"] = AUTOCONFIG.aws_access_key()
         os.environ["AWS_SECRET_ACCESS_KEY"] = AUTOCONFIG.aws_access_secret()
-        aws = "/env/bin/aws"
-    else:
-        aws = "aws"
 
-    # cmd = "%s s3 cp s3://s3doodad/doodad/logs/%s %s" % (aws, path, local_path)
-    cmd = "%s s3 cp %s/%s %s" % (aws, AWS_S3_PATH, path, local_path)
-    from railrl.core import logger
-    print("cmd:", cmd)
-    logger.log("cmd: " + cmd)
-    cmd_list = cmd.split(" ")
+    full_s3_path = os.path.join(AWS_S3_PATH, path)
+    bucket_name, bucket_relative_path = split_s3_full_path(full_s3_path)
     try:
-        p = Popen(cmd_list).wait()
-    except:
+        bucket = boto3.resource('s3').Bucket(bucket_name)
+        bucket.download_file(bucket_relative_path, local_path)
+    except Exception as e:
         local_path = None
-        print("Failed to sync!....", path)
+        print("Failed to sync! path: ", path)
+        print("Exception: ", e)
     return local_path
+
+
+def split_s3_full_path(s3_path):
+    """
+    Split "s3://foo/bar/baz" into "foo" and "bar/baz"
+    """
+    bucket_name_and_directories = s3_path.split('//')[1]
+    bucket_name, *directories = bucket_name_and_directories.split('/')
+    directory_path = '/'.join(directories)
+    return bucket_name, directory_path
 
 if __name__ == "__main__":
     p = sync_down("ashvin/vae/new-point2d/run0/id1/params.pkl")

@@ -1,27 +1,22 @@
+"""
+Snapshot of experiments giving results of:
+
+/home/vitchyr/git/railrl/data/doodads3/08-21-recreate-online-vae-pushing-results-online-parallel-collection-one-seed-per-instance/
+"""
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, init_sawyer_camera_v4, sawyer_top_down
-from railrl.envs.mujoco.sawyer_push_and_reach_env import (
-    SawyerPushAndReachXYEasyEnv
-)
-from railrl.images.camera import (
-    sawyer_init_camera_zoomed_in_fixed,
-    sawyer_init_camera_zoomed_in,
-)
+import railrl.torch.vae.vae_schedules as vae_schedules
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_top_down
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
-from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
-import railrl.torch.vae.vae_schedules as vae_schedules
 
 if __name__ == "__main__":
     variant = dict(
         imsize=48,
         double_algo=False,
-        # env_class=SawyerReachXYEnv,
         env_class=SawyerPushAndReachXYEnv,
-        # env_class=SawyerPickAndPlaceEnv,
         env_kwargs=dict(
             hide_goal_markers=True,
             action_scale=.02,
@@ -31,22 +26,8 @@ if __name__ == "__main__":
             mocap_high=[0.2, 0.75, 0.5],
             goal_low=[-0.2, 0.45, 0.02, -0.25, 0.4],
             goal_high=[0.2, 0.75, 0.02, 0.25, 0.8],
-
-            # puck_low=[-0.2, .5],
-            # puck_high=[0.2, .7],
-            # mocap_low=[-0.1, 0.5, 0.],
-            # mocap_high=[0.1, 0.7, 0.5],
-            # goal_low=[-0.05, 0.55, 0.02, -0.2, 0.5],
-            # goal_high=[0.05, 0.65, 0.02, 0.2, 0.7],
-
-            # puck_low=[-0.15, .5],
-            # puck_high=[0.15, .7],
-            # mocap_low=[-0.1, 0.5, 0.],
-            # mocap_high=[0.1, 0.7, 0.5],
-            # goal_low=[-0.05, 0.55, 0.02, -0.15, 0.5],
-            # goal_high=[0.05, 0.65, 0.02, 0.15, 0.7],
         ),
-        # init_camera=sawyer_init_camera_zoomed_in,
+        init_camera=sawyer_pusher_camera_top_down,
         grill_variant=dict(
             save_video=True,
             save_video_period=25,
@@ -63,29 +44,22 @@ if __name__ == "__main__":
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
                     batch_size=128,
-                    max_path_length=100,
+                    max_path_length=500,
                     discount=0.99,
                     num_updates_per_env_step=4,
-                    # collection_mode='online-parallel',
+                    collection_mode='online-parallel',
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
                 ),
                 online_vae_kwargs=dict(
-                   vae_training_schedule=vae_schedules.every_six,
+                    vae_training_schedule=vae_schedules.every_six,
                 ),
             ),
             replay_kwargs=dict(
                 max_size=int(80000),
-                fraction_goals_are_rollout_goals=0.2,
+                fraction_goals_are_rollout_goals=0.,
                 fraction_resampled_goals_are_env_goals=0.5,
-                # exploration_rewards_scale=0.0,
-                # exploration_rewards_type='reconstruction_error',
-                # exploration_schedule_kwargs=dict(
-                    # x_values=[0, 100, 200, 500, 1000],
-                    # y_values=[.1, .1, .1, 0, 0],
-                # ),
-
             ),
             algorithm='GRILL-HER-TD3',
             normalize=False,
@@ -110,11 +84,6 @@ if __name__ == "__main__":
                 oracle_dataset=True,
                 use_cached=False,
                 num_channels=3,
-                # vae_dataset_specific_env_kwargs=dict(
-                    # goal_low=[-0.1, 0.5, 0.02, -0.2, 0.5],
-                    # goal_high=[0.1, 0.7, 0.02, 0.2, 0.7],
-                # ),
-
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -129,57 +98,45 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'init_camera': [sawyer_top_down],
         'grill_variant.online_vae_beta': [2.5],
         'grill_variant.use_replay_buffer_goals': [False],
         'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0],
-        # 'grill_variant.replay_kwargs.exploration_rewards_scale': [.1, .01, .001],
-        'grill_variant.replay_kwargs.exploration_rewards_type': ['None'],
-        'grill_variant.replay_kwargs.alpha': [0],
+        'grill_variant.replay_kwargs.exploration_rewards_type': [
+            'reconstruction_error',
+            'None',
+        ],
+        'grill_variant.replay_kwargs.alpha': [3],
         'grill_variant.exploration_noise': [.8],
-        # 'grill_variant.exploration_kwargs': [
-            # dict(
-                # min_sigma=.2,
-                # decay_period=200000,
-            # ),
-            # dict(
-                # min_sigma=.2,
-                # decay_period=500000,
-            # ),
-            # dict(
-                # min_sigma=.1,
-                # decay_period=500000,
-            # )
-        # ],
         'grill_variant.algo_kwargs.vae_training_schedule':
-                [
-                 vae_schedules.every_six,
-                ],
+            [
+                vae_schedules.every_six,
+            ],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100, 500],
         'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'pusher-large-range-48x48-ou-huge-buffer'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'multiworld-goalenv-full-grill-her-td3'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'recreate-online-vae-pushing-results-online-parallel-collection-one-seed-per-instance-take-2'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_td3_online_vae_full_experiment,
+                exp_id=exp_id,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                # trial_dir_suffix='n1000-{}--zoomed-{}'.format(n1000, zoomed),
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
-                num_exps_per_instance=2,
+                num_exps_per_instance=1,
             )

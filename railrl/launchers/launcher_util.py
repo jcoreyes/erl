@@ -57,7 +57,6 @@ def run_experiment(
         seed=None,
         variant=None,
         exp_id=0,
-        unique_id=None,
         prepend_date_to_exp_prefix=True,
         use_gpu=False,
         gpu_id=0,
@@ -73,10 +72,9 @@ def run_experiment(
         logger=default_logger,
         verbose=False,
         trial_dir_suffix=None,
-        time_in_mins=60,
+        time_in_mins=None,
         num_exps_per_instance=1,
-        #ssh settings
-        ssh_host='default',
+        ssh_host=None,
 ):
     """
     Usage:
@@ -105,7 +103,6 @@ def run_experiment(
     :param seed: Seed for this specific trial.
     :param variant: Dictionary
     :param exp_id: One experiment = one variant setting + multiple seeds
-    :param unique_id: If not set, the unique id is generated.
     :param prepend_date_to_exp_prefix: If False, do not prepend the date to
     the experiment directory.
     :param use_gpu:
@@ -117,11 +114,13 @@ def run_experiment(
     :param ssh_host: the name of the host you want to ssh onto, should correspond to an entry in
     config.py of the following form:
     SSH_HOSTS=dict(
-    ssh_host=dict(
-        username='username',
-        hostname='hostname/ip address',
+        ssh_host=dict(
+            username='username',
+            hostname='hostname/ip address',
+        )
     )
-    - if ssh_host is set to default, you will use ssh_host specified by config.SSH_DEFAULT_HOST
+    - if ssh_host is set to None, you will use ssh_host specified by
+    config.SSH_DEFAULT_HOST
     :return:
     """
     try:
@@ -146,10 +145,6 @@ def run_experiment(
         base_log_dir = config.SSH_LOG_DIR
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
-    if ssh_host == 'default':
-        ssh_dict = config.SSH_HOSTS[config.SSH_DEFAULT_HOST]
-    else:
-        ssh_dict = config.SSH_HOSTS[ssh_host]
 
     for key, value in ppp.recursive_items(variant):
         # This check isn't really necessary, but it's to prevent myself from
@@ -159,13 +154,10 @@ def run_experiment(
                 "Variants should not have periods in keys. Did you mean to "
                 "convert {} into a nested dictionary?".format(key)
             )
-    if unique_id is None:
-        unique_id = str(uuid.uuid4())
     if prepend_date_to_exp_prefix:
         exp_prefix = time.strftime("%m-%d") + "-" + exp_prefix
     variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
-    variant['unique_id'] = str(unique_id)
     variant['exp_prefix'] = str(exp_prefix)
     variant['instance_type'] = str(instance_type)
 
@@ -293,6 +285,10 @@ def run_experiment(
             gpu=use_gpu,
         )
     elif mode == 'ssh':
+        if ssh_host == None:
+            ssh_dict = config.SSH_HOSTS[config.SSH_DEFAULT_HOST]
+        else:
+            ssh_dict = config.SSH_HOSTS[ssh_host]
         credentials = doodad.ssh.credentials.SSHCredentials(
             username=ssh_dict['username'],
             hostname=ssh_dict['hostname'],
@@ -309,6 +305,7 @@ def run_experiment(
             gpu=use_gpu,
         )
     elif mode == 'slurm_singularity':
+        assert time_in_mins is not None, "Must approximate/set time in minutes"
         if use_gpu:
             kwargs = config.SLURM_GPU_CONFIG
         else:
@@ -726,6 +723,8 @@ def setup_logger(
         )
 
     if variant is not None:
+        if 'unique_id' not in variant:
+            variant['unique_id'] = str(uuid.uuid4())
         logger.log("Variant:")
         logger.log(json.dumps(ppp.dict_to_safe_json(variant), indent=2))
         variant_log_path = osp.join(log_dir, variant_log_file)

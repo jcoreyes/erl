@@ -43,7 +43,7 @@ if __name__ == "__main__":
         init_camera=init_sawyer_camera_v4,
         grill_variant=dict(
             algo_kwargs=dict(
-                num_epochs=0,
+                num_epochs=250,
                 # num_steps_per_epoch=100,
                 # num_steps_per_eval=100,
                 # num_epochs=500,

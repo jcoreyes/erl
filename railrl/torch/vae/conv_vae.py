@@ -17,6 +17,8 @@ from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
+from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import Sampler, BatchSampler
 
 from railrl.core import logger
 import os.path as osp
@@ -30,8 +32,6 @@ from railrl.torch.core import PyTorchModule
 
 from multiworld.core.image_env import normalize_image
 
-e = MultitaskImagePoint2DEnv(render_size=84, render_onscreen=False, ball_radius=1)
-
 class ConvVAETrainer():
     def __init__(
             self,
@@ -42,7 +42,6 @@ class ConvVAETrainer():
             log_interval=0,
             beta=0.5,
             beta_schedule=None,
-            imsize=84,
             lr=1e-3,
             do_scatterplot=False,
             normalize=False,
@@ -51,6 +50,8 @@ class ConvVAETrainer():
             is_auto_encoder=False,
             linearity_weight=0.0,
             use_linear_dynamics=False,
+            use_parallel_dataloading=True,
+            train_data_workers=2,
     ):
         self.log_interval = log_interval
         self.batch_size = batch_size
@@ -60,7 +61,7 @@ class ConvVAETrainer():
         self.beta_schedule = beta_schedule
         if self.beta_schedule is None:
             self.beta_schedule = ConstantSchedule(self.beta)
-        self.imsize = imsize
+        self.imsize = model.imsize
         self.do_scatterplot = do_scatterplot
 
         """
@@ -85,6 +86,46 @@ class ConvVAETrainer():
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
         assert self.train_dataset.dtype == np.uint8
         assert self.test_dataset.dtype == np.uint8
+        self.train_dataset = train_dataset
+        self.test_dataset = test_dataset
+
+        self.batch_size = batch_size
+        self.use_parallel_dataloading = use_parallel_dataloading
+        if use_parallel_dataloading:
+            self.train_dataset_pt = ImageDataset(
+                train_dataset,
+                should_normalize=True
+            )
+            self.test_dataset_pt = ImageDataset(
+                test_dataset,
+                should_normalize=True
+            )
+
+            self.train_dataloader = DataLoader(
+                self.train_dataset_pt,
+                sampler=BatchSampler(
+                    InfiniteRandomSampler(self.train_dataset),
+                    batch_size=batch_size,
+                    drop_last=False,
+                ),
+                num_workers=train_data_workers,
+                pin_memory=True,
+            )
+            self.test_dataloader = DataLoader(
+                self.test_dataset_pt,
+                sampler=BatchSampler(
+                    InfiniteRandomSampler(self.test_dataset),
+                    batch_size=batch_size,
+                    drop_last=False,
+                ),
+                num_workers=0,
+                pin_memory=True,
+            )
+            self.train_dataloader = iter(self.train_dataloader)
+            self.test_dataloader = iter(self.test_dataloader)
+
+
+
 
         self.normalize = normalize
         self.state_sim_debug = state_sim_debug
@@ -100,6 +141,14 @@ class ConvVAETrainer():
 
 
     def get_batch(self, train=True):
+        if self.use_parallel_dataloading:
+            if not train:
+                dataloader = self.test_dataloader
+            else:
+                dataloader = self.train_dataloader
+            samples = next(dataloader)
+            return ptu.Variable(samples[0])
+
         dataset = self.train_dataset if train else self.test_dataset
         ind = np.random.randint(0, len(dataset), self.batch_size)
         samples = normalize_image(dataset[ind, :])
@@ -382,6 +431,133 @@ class ConvVAETrainer():
         plt.grid(True)
         save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
         plt.savefig(save_file)
+
+class ConvVAESmall(PyTorchModule):
+    def __init__(
+            self,
+            representation_size,
+            init_w=1e-3,
+            input_channels=1,
+            imsize=48,
+            hidden_init=ptu.fanin_init,
+            output_activation=identity,
+            min_variance=1e-3,
+            state_size=0,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+        if min_variance is None:
+            self.log_min_variance = None
+        else:
+            self.log_min_variance = float(np.log(min_variance))
+
+        self.representation_size = representation_size
+        self.hidden_init = hidden_init
+        self.output_activation = output_activation
+        self.input_channels = input_channels
+        self.imsize = imsize
+        self.imlength = self.imsize**2 * self.input_channels
+        self.dist_mu = np.zeros(self.representation_size)
+        self.dist_std = np.ones(self.representation_size)
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+        self.init_w = init_w
+        self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=3)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=2)
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
+        self.kernel_out = 64
+        self.conv_output_dim = self.kernel_out*9
+        self.fc1 = nn.Linear(self.conv_output_dim, representation_size)
+        self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
+        self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
+        self.conv4 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2)
+        self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2)
+        self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6,
+                                        stride=3)
+        self.epoch = 0
+        self.init_weights(init_w)
+
+    def init_weights(self, init_w):
+        self.hidden_init(self.conv1.weight)
+        self.conv1.bias.data.fill_(0)
+        self.hidden_init(self.conv2.weight)
+        self.conv2.bias.data.fill_(0)
+        self.hidden_init(self.conv3.weight)
+        self.conv3.bias.data.fill_(0)
+        self.hidden_init(self.conv4.weight)
+        self.conv4.bias.data.fill_(0)
+        self.hidden_init(self.conv5.weight)
+        self.conv5.bias.data.fill_(0)
+        self.hidden_init(self.conv6.weight)
+        self.conv6.bias.data.fill_(0)
+
+        self.hidden_init(self.fc1.weight)
+        self.fc1.bias.data.fill_(0)
+        self.fc1.weight.data.uniform_(-init_w, init_w)
+        self.fc1.bias.data.uniform_(-init_w, init_w)
+        self.hidden_init(self.fc2.weight)
+        self.fc2.bias.data.fill_(0)
+        self.fc2.weight.data.uniform_(-init_w, init_w)
+        self.fc2.bias.data.uniform_(-init_w, init_w)
+
+        self.fc3.weight.data.uniform_(-init_w, init_w)
+        self.fc3.bias.data.uniform_(-init_w, init_w)
+
+        # self.fc4.weight.data.uniform_(-init_w, init_w)
+        # self.fc4.bias.data.uniform_(-init_w, init_w)
+
+
+    def encode(self, input):
+        input = input.view(-1, self.imlength)
+        conv_input = input
+        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize, self.imsize)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        h = x.view(-1, self.conv_output_dim)  # flatten
+        # h = self.relu(self.fc4(h))
+        mu = self.output_activation(self.fc1(h))
+        if self.log_min_variance is None:
+            logvar = self.output_activation(self.fc2(h))
+        else:
+            logvar = self.log_min_variance + torch.abs(self.fc2(h))
+
+        return mu, logvar
+
+    def reparameterize(self, mu, logvar):
+        if self.training:
+            std = logvar.mul(0.5).exp_()
+            eps = ptu.Variable(std.data.new(std.size()).normal_())
+            return eps.mul(std).add_(mu)
+        else:
+            return mu
+
+    def decode(self, z):
+        h3 = self.relu(self.fc3(z))
+        h = h3.view(-1, self.kernel_out, 3, 3)
+        x = F.relu(self.conv4(h))
+        x = F.relu(self.conv5(x))
+        x = self.conv6(x).view(-1, self.imsize*self.imsize*self.input_channels)
+
+        return self.sigmoid(x)
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        return self.decode(z), mu, logvar
+
+    def __getstate__(self):
+        d = super().__getstate__()
+        # Add these explicitly in case they were modified
+        d["_dist_mu"] = self.dist_mu
+        d["_dist_std"] = self.dist_std
+        return d
+
+    def __setstate__(self, d):
+        super().__setstate__(d)
+        self.dist_mu = d["_dist_mu"]
+        self.dist_std = d["_dist_std"]
+
 
 
 
@@ -772,6 +948,44 @@ class SpatialVAE(ConvVAE):
         mu = self.output_activation(self.fc1(h))
         logvar = self.output_activation(self.fc2(h))
         return mu, logvar
+
+class ImageDataset(Dataset):
+
+    def __init__(self, images, should_normalize=True):
+        super().__init__()
+        self.dataset = images
+        self.dataset_len = len(self.dataset)
+        assert should_normalize == (images.dtype == np.uint8)
+        self.should_normalize = should_normalize
+
+    def __len__(self):
+        return self.dataset_len
+
+    def __getitem__(self, idxs):
+        samples = self.dataset[idxs, :]
+        if self.should_normalize:
+            samples = normalize_image(samples)
+        return np.float32(samples)
+
+class InfiniteRandomSampler(Sampler):
+
+    def __init__(self, data_source):
+        self.data_source = data_source
+        self.iter = iter(torch.randperm(len(self.data_source)).tolist())
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            idx = next(self.iter)
+        except StopIteration:
+            self.iter = iter(torch.randperm(len(self.data_source)).tolist())
+            idx = next(self.iter)
+        return idx
+
+    def __len__(self):
+        return 2**62
 
 
 if __name__ == "__main__":

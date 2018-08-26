@@ -107,6 +107,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         }
 
     def rollout(self, policy, train, epoch, discard_other_rollout_type=False):
+        if not self.workers_alive():
+            raise RuntimeError("Worker has died prematurely.")
         # prevent starvation if only one worker
         if discard_other_rollout_type:
             self._discard_rollout_promises(not train)
@@ -124,6 +126,9 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             self._alloc_rollout_promise(policy, train, epoch)
             return rollout
         return None
+
+    def workers_alive(self):
+        return all(worker.is_alive() for worker in self._workers)
 
     def update_worker_envs(self, update):
         self.env_update = update

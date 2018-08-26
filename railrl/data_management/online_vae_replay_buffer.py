@@ -52,9 +52,13 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
                 continue
             internal_keys.append(key)
         super().__init__(internal_keys=internal_keys, *args, **kwargs)
+        self.do_exploration = (
+            exploration_rewards_type != None
+        )
         self._exploration_rewards = np.zeros((self.max_size, 1))
 
         self.total_exploration_error = 0.0
+        self.vae_sample_probs = None
         self.alpha = alpha
         self.use_dynamics_model = \
                 self.exploration_rewards_type == 'forward_model_error' or \
@@ -95,10 +99,11 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
 
     def random_batch(self, batch_size):
         batch = super().random_batch(batch_size)
-        batch_idxs = batch['indices'].flatten()
-        batch['exploration_rewards'] = self._exploration_rewards[batch_idxs]
         exploration_rewards_scale = float(self.exploration_schedule.get_value(self.epoch))
-        batch['rewards'] += exploration_rewards_scale * batch['exploration_rewards']
+        if self.do_exploration:
+            batch_idxs = batch['indices'].flatten()
+            batch['exploration_rewards'] = self._exploration_rewards[batch_idxs]
+            batch['rewards'] += exploration_rewards_scale * batch['exploration_rewards']
         return batch
 
     def refresh_latents(self, epoch):
@@ -106,7 +111,6 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         batch_size = 1024
         next_idx = min(batch_size, self._size)
         cur_idx = 0
-        idxs = np.arange(cur_idx, next_idx)
         while cur_idx < self._size:
             idxs = np.arange(cur_idx, next_idx)
             self._obs[self.observation_key][idxs] = \
@@ -125,19 +129,21 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
                 self.env._encode(
                     normalize_image(self._next_obs[self.decoded_achieved_goal_key][idxs])
                 )
-            self._exploration_rewards[idxs] = self.exploration_reward_func(
-                normalize_image(self._next_obs[self.decoded_obs_key][idxs]),
-                idxs,
-            ).reshape(-1, 1)
+            if self.do_exploration:
+                self._exploration_rewards[idxs] = self.exploration_reward_func(
+                    normalize_image(self._next_obs[self.decoded_obs_key][idxs]),
+                    idxs,
+                ).reshape(-1, 1)
 
             cur_idx += batch_size
             next_idx += batch_size
             next_idx = min(next_idx, self._size)
-        self.total_exploration_error = np.sum(self._exploration_rewards[:self._size])
-        self.vae_sample_probs = self._exploration_rewards[:self._size]**self.alpha
-        if np.sum(self.vae_sample_probs) != 0.0:
-            self.vae_sample_probs /= np.sum(self.vae_sample_probs)
-        self.vae_sample_probs = self.vae_sample_probs.flatten()
+        if self.do_exploration:
+            self.total_exploration_error = np.sum(self._exploration_rewards[:self._size])
+            self.vae_sample_probs = self._exploration_rewards[:self._size]**self.alpha
+            if np.sum(self.vae_sample_probs) != 0.0:
+                self.vae_sample_probs /= np.sum(self.vae_sample_probs)
+            self.vae_sample_probs = self.vae_sample_probs.flatten()
 
     def random_vae_training_data(self, batch_size):
         indices = self._sample_indices(batch_size)
