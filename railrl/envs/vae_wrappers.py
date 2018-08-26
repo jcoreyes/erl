@@ -146,7 +146,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
     def _update_info(self, info, obs):
         latent_obs, logvar = self.vae.encode(
-            ptu.np_to_var(obs[self.vae_input_observation_key])
+            ptu.from_numpy(obs[self.vae_input_observation_key])
         )
         latent_obs, logvar = ptu.get_numpy(latent_obs)[0], ptu.get_numpy(logvar)[0]
         assert (latent_obs == obs['latent_observation']).all()
@@ -399,7 +399,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
     def _decode(self, latents):
         batch_size = latents.shape[0]
-        decoded = ptu.get_numpy(self.vae.decode(ptu.np_to_var(latents)))
+        decoded = ptu.get_numpy(self.vae.decode(ptu.from_numpy(latents)))
         return decoded
 
     def _encode_one(self, img):
@@ -409,7 +409,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return ptu.get_numpy(self.vae.encode(ptu.from_numpy(imgs))[0])
 
     def _reconstruct_img(self, flat_img):
-        zs = self.vae.encode(ptu.np_to_var(flat_img[None]))[0]
+        zs = self.vae.encode(ptu.from_numpy(flat_img[None]))[0]
         imgs = ptu.get_numpy(self.vae.decode(zs))
         imgs = imgs.reshape(
             1, self.input_channels, self.imsize, self.imsize
