@@ -50,6 +50,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_vae(vae)
         else:
             self.vae = vae
+        import ipdb; ipdb.set_trace()
         vae = vae.to(ptu.device)
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels

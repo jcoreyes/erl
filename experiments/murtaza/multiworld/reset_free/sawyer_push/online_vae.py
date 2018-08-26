@@ -20,7 +20,6 @@ if __name__ == "__main__":
             puck_high=(.4, 1),
             goal_low=(-0.25, 0.3, 0.02, -.2, .4),
             goal_high=(0.25, 0.875, 0.02, .2, .8),
-            reset_free=True,
             num_resets_before_puck_reset=int(1e6)
         ),
         imsize=48,
@@ -45,7 +44,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online-parallel'
+                    collection_mode='online-parallel',
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
