@@ -64,18 +64,7 @@ class ConvVAETrainer():
         self.imsize = model.imsize
         self.do_scatterplot = do_scatterplot
 
-        """
-        I think it's a bit nicer if the caller makes this call, i.e.
-        ```
-        m = ConvVAE(representation_size)
-        if ptu.gpu_enabled():
-            m.cuda()
-        t = ConvVAETrainer(train_data, test_data, m)
-        ```
-        However, I'll leave this here for backwards-compatibility.
-        """
-        if ptu.gpu_enabled():
-            model.cuda()
+        model.to(ptu.device)
 
         self.model = model
         self.representation_size = model.representation_size
@@ -147,7 +136,7 @@ class ConvVAETrainer():
             else:
                 dataloader = self.train_dataloader
             samples = next(dataloader)
-            return ptu.Variable(samples[0])
+            return samples[0]
 
         dataset = self.train_dataset if train else self.test_dataset
         ind = np.random.randint(0, len(dataset), self.batch_size)

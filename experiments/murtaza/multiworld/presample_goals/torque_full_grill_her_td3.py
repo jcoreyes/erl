@@ -68,13 +68,14 @@ if __name__ == "__main__":
         num_epochs=1,
         generate_vae_dataset_kwargs=dict(
             N=100,
-            use_cached=True ,
+            use_cached=True,
         ),
         algo_kwargs=dict(
             batch_size=64,
         ),
-        conv_vae_kwargs=dict(
+        vae_kwargs=dict(
             min_variance=None,
+            input_channels=3,
         ),
         save_period=200,
         representation_size=16,
@@ -101,7 +102,7 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                use_gpu=True,
-                gpu_id=0,
-                num_exps_per_instance=1,
+                # use_gpu=True,
+                # gpu_id=0,
+                # num_exps_per_instance=1,
             )
