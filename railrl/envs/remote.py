@@ -77,7 +77,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             parent_conn, child_conn = Pipe()
             self.parent_pipes.append(parent_conn)
             self.child_pipes.append(child_conn)
-
+            import ipdb; ipdb.set_trace()
         self._workers = [
             Process(
                 target=RemoteRolloutEnv._worker_loop,
