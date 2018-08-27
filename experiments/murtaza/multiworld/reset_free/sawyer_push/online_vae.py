@@ -20,7 +20,6 @@ if __name__ == "__main__":
             puck_high=(.4, 1),
             goal_low=(-0.25, 0.3, 0.02, -.2, .4),
             goal_high=(0.25, 0.875, 0.02, .2, .8),
-            reset_free=True,
             num_resets_before_puck_reset=int(1e6)
         ),
         imsize=48,
@@ -82,7 +81,7 @@ if __name__ == "__main__":
             beta=1.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=100,
+                N=1,
                 test_p=.9,
                 oracle_dataset=True,
                 use_cached=False,
@@ -91,7 +90,6 @@ if __name__ == "__main__":
                     goal_low=(-0.28, 0.3, 0.02, -.2, .4),
                     goal_high=(0.28, 0.9, 0.02, .2, .8),
                 ),
-
             ),
             vae_kwargs=dict(
                 input_channels=3,
