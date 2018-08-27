@@ -47,7 +47,7 @@ def experiment(variant):
         replay_buffer=replay_buffer,
     )
     if ptu.gpu_enabled():
-        algorithm.cuda()
+        algorithm.to(ptu.device)
 
     algorithm.train()
 

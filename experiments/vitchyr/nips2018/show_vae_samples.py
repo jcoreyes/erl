@@ -15,7 +15,7 @@ filename = str(uuid.uuid4())
 def simulate_policy(args):
     ptu.set_gpu_mode(True)
     model = pickle.load(open(args.file, "rb")) # joblib.load(args.file)
-    model.cuda()
+    model.to(ptu.device)
     import ipdb; ipdb.set_trace()
     samples = ptu.Variable(torch.randn(64, model.representation_size))
     samples = model.decode(samples).cpu()

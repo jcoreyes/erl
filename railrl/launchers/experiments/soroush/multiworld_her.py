@@ -86,10 +86,10 @@ def her_td3_experiment(variant):
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
-        qf1.cuda()
-        qf2.cuda()
-        policy.cuda()
-        algorithm.cuda()
+        qf1.to(ptu.device)
+        qf2.to(ptu.device)
+        policy.to(ptu.device)
+        algorithm.to(ptu.device)
     algorithm.train()
 
 def her_twin_sac_experiment(variant):
@@ -139,11 +139,11 @@ def her_twin_sac_experiment(variant):
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
-        qf1.cuda()
-        qf2.cuda()
-        vf.cuda()
-        policy.cuda()
-        algorithm.cuda()
+        qf1.to(ptu.device)
+        qf2.to(ptu.device)
+        vf.to(ptu.device)
+        policy.to(ptu.device)
+        algorithm.to(ptu.device)
     algorithm.train()
 
 def her_sac_experiment(variant):
@@ -187,8 +187,8 @@ def her_sac_experiment(variant):
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
-        qf.cuda()
-        vf.cuda()
-        policy.cuda()
-        algorithm.cuda()
+        qf.to(ptu.device)
+        vf.to(ptu.device)
+        policy.to(ptu.device)
+        algorithm.to(ptu.device)
     algorithm.train()

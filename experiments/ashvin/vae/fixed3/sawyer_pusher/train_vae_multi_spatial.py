@@ -22,7 +22,7 @@ def experiment(variant):
         beta_schedule = None
     m = SpatialVAE(representation_size, num_feat_points=representation_size//2, input_channels=3)
     if ptu.gpu_enabled():
-        m.cuda()
+        m.to(ptu.device)
         gpu_id = variant.get("gpu_id", None)
         if gpu_id is not None:
             ptu.set_device(gpu_id)

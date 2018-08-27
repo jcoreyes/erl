@@ -315,7 +315,7 @@ EPS_DECAY = 200
 model = DQN()
 
 if use_cuda:
-    model.cuda()
+    model.to(ptu.device)
 
 optimizer = optim.RMSprop(model.parameters())
 memory = ReplayMemory(10000)

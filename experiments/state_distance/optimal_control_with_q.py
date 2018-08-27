@@ -62,7 +62,7 @@ if __name__ == "__main__":
     qf = data['qf']
     if args.gpu:
         set_gpu_mode(True)
-        qf.cuda()
+        qf.to(ptu.device)
     qf.train(False)
     print("Env type:", type(env))
 

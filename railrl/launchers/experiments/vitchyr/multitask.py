@@ -70,7 +70,7 @@ def td3_experiment(variant):
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
-        algorithm.cuda()
+        algorithm.to(ptu.device)
     algorithm.train()
 
 
@@ -137,7 +137,7 @@ def her_td3_experiment(variant):
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
-        algorithm.cuda()
+        algorithm.to(ptu.device)
     algorithm.train()
 
 
@@ -199,7 +199,7 @@ def tdm_td3_experiment(variant):
         **algo_kwargs
     )
     if ptu.gpu_enabled():
-        algorithm.cuda()
+        algorithm.to(ptu.device)
     algorithm.train()
 
 
@@ -250,5 +250,5 @@ def ddpg_experiment(variant):
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
-        algorithm.cuda()
+        algorithm.to(ptu.device)
     algorithm.train()

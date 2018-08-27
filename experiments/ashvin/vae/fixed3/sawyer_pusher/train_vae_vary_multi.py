@@ -21,7 +21,7 @@ def experiment(variant):
         beta_schedule = None
     m = ConvVAE(representation_size, input_channels=3)
     if ptu.gpu_enabled():
-        m.cuda()
+        m.to(ptu.device)
         gpu_id = variant.get("gpu_id", None)
         if gpu_id is not None:
             ptu.set_device(gpu_id)

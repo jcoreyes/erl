@@ -126,7 +126,7 @@ def product(x):
 
 model = Net()
 if args.cuda:
-    model.cuda()
+    model.to(ptu.device)
 params = list(model.parameters())
 print(sum([product(p.size()) for p in params]))
 
@@ -136,7 +136,7 @@ def train(epoch):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         if args.cuda:
-            data, target = data.cuda(), target.cuda()
+            data, target = data.to(ptu.device), target.to(ptu.device)
         data, target = Variable(data), Variable(target)
         optimizer.zero_grad()
         output = model(data)
@@ -154,7 +154,7 @@ def test(epoch):
     correct = 0
     for data, target in test_loader:
         if args.cuda:
-            data, target = data.cuda(), target.cuda()
+            data, target = data.to(ptu.device), target.to(ptu.device)
         data, target = Variable(data, requires_grad=False), Variable(target)
         output = model(data)
         test_loss += F.nll_loss(output, target).data[0]

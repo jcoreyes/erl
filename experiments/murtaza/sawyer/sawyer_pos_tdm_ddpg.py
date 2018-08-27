@@ -57,7 +57,7 @@ def experiment(variant):
         **variant['ddpg_tdm_kwargs']
     )
     if ptu.gpu_enabled():
-        algorithm.cuda()
+        algorithm.to(ptu.device)
     algorithm.train()
 
 

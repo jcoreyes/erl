@@ -51,7 +51,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_vae(vae)
         else:
             self.vae = vae
-        vae = vae.to(ptu.device)
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self._use_vae_goals = use_vae_goals

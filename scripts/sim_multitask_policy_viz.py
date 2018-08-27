@@ -24,7 +24,7 @@ def simulate_policy(args):
     print("Policy loaded")
     if args.gpu:
         set_gpu_mode(True)
-        policy.cuda()
+        policy.to(ptu.device)
     if isinstance(env, VAEWrappedEnv):
         env.mode(args.mode)
     if args.enable_render or hasattr(env, 'enable_render'):

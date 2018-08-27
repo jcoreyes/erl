@@ -84,7 +84,7 @@ class VAE(nn.Module):
         for batch_idx, (data, _) in enumerate(self.train_loader):
             data = Variable(data)
             if self.use_cuda:
-                data = data.cuda()
+                data = data.to(ptu.device)
             self.optimizer.zero_grad()
             recon_batch, mu, logvar = self(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
@@ -116,7 +116,7 @@ class VAE(nn.Module):
         kles = []
         for i, (data, _) in enumerate(self.test_loader):
             if self.use_cuda:
-                data = data.cuda()
+                data = data.to(ptu.device)
             data = Variable(data, requires_grad=False)
             recon_batch, mu, logvar = self(data)
             bce = self.logprob(recon_batch, data, mu, logvar)
@@ -142,7 +142,7 @@ class VAE(nn.Module):
     def dump_samples(self, epoch):
         sample = Variable(torch.randn(64, 20))
         if self.use_cuda:
-            sample = sample.cuda()
+            sample = sample.to(ptu.device)
         sample = self.decode(sample).cpu()
         save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
         save_image(sample.data.view(64, 1, 28, 28), save_dir)

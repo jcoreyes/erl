@@ -19,7 +19,7 @@ def example(variant):
     logger.log('Current date & time is: {}'.format(date.strftime(date_format)))
     if torch.cuda.is_available():
         x = torch.randn(3)
-        logger.log(str(x.cuda()))
+        logger.log(str(x.to(ptu.device)))
 
     date = date.astimezone(timezone('US/Pacific'))
     logger.log('Local date & time is: {}'.format(date.strftime(date_format)))

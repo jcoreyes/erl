@@ -62,7 +62,7 @@ def experiment(variant):
     else:
         raise Exception("Invalid algo class: {}".format(algo_class))
     if ptu.gpu_enabled():
-        algorithm.cuda()
+        algorithm.to(ptu.device)
     algorithm.train()
 
 

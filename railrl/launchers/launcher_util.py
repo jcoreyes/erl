@@ -479,7 +479,7 @@ def resume_torch_algorithm(variant):
         epoch = data['epoch']+1
         use_gpu = variant['use_gpu']
         if use_gpu and ptu.gpu_enabled():
-            algorithm.cuda()
+            algorithm.to(ptu.device)
         algorithm.train(start_epoch=epoch + 1)
 
 
@@ -544,7 +544,7 @@ def resume_torch_algorithm_simple(variant):
         algorithm = data['algorithm']
         epoch = data['epoch']+1
         if ptu.gpu_enabled():
-            algorithm.cuda()
+            algorithm.to(ptu.device)
         algorithm.train(start_epoch=epoch + 1)
 
 

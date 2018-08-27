@@ -67,7 +67,7 @@ def experiment(variant):
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
-        algo.cuda()
+        algo.to(ptu.device)
     algo.train()
 
 
