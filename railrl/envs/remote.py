@@ -77,7 +77,6 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             parent_conn, child_conn = Pipe()
             self.parent_pipes.append(parent_conn)
             self.child_pipes.append(child_conn)
-            import ipdb; ipdb.set_trace()
         self._workers = [
             Process(
                 target=RemoteRolloutEnv._worker_loop,
@@ -89,6 +88,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
                     max_path_length,
                     cloudpickle.dumps(train_rollout_function),
                     cloudpickle.dumps(eval_rollout_function),
+                    ptu._use_gpu,
+                    ptu._gpu_id,
                 )
             )
         for i in range(num_workers)]
@@ -165,7 +166,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
 
 
     def _worker_loop(pipe, *worker_env_args, **worker_env_kwargs):
-        env = RemoteRolloutEnv.WorkerEnv(*worker_env_args, use_gpu = ptu._use_gpu, gpu_id = ptu._gpu_id, **worker_env_kwargs)
+        env = RemoteRolloutEnv.WorkerEnv(*worker_env_args, **worker_env_kwargs)
         while True:
             wait([pipe])
             env_update, rollout_args = pipe.recv()
@@ -183,8 +184,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
                 max_path_length,
                 train_rollout_function,
                 eval_rollout_function,
-                use_gpu=False,
-                gpu_id=0,
+                use_gpu,
+                gpu_id,
         ):
             torch.set_num_threads(1)
             self._env = env
