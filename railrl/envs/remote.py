@@ -77,7 +77,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             parent_conn, child_conn = Pipe()
             self.parent_pipes.append(parent_conn)
             self.child_pipes.append(child_conn)
-            import ipdb; ipdb.set_trace()
+
         self._workers = [
             Process(
                 target=RemoteRolloutEnv._worker_loop,
@@ -165,7 +165,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
 
 
     def _worker_loop(pipe, *worker_env_args, **worker_env_kwargs):
-        env = RemoteRolloutEnv.WorkerEnv(*worker_env_args, use_gpu = ptu._use_gpu, gpu_id = ptu._gpu_id, **worker_env_kwargs)
+        env = RemoteRolloutEnv.WorkerEnv(*worker_env_args, **worker_env_kwargs)
         while True:
             wait([pipe])
             env_update, rollout_args = pipe.recv()
@@ -183,8 +183,6 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
                 max_path_length,
                 train_rollout_function,
                 eval_rollout_function,
-                use_gpu=False,
-                gpu_id=0,
         ):
             torch.set_num_threads(1)
             self._env = env
@@ -193,8 +191,6 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             self._max_path_length = max_path_length
             self.train_rollout_function = cloudpickle.loads(train_rollout_function)
             self.eval_rollout_function = cloudpickle.loads(eval_rollout_function)
-            #hacky solution for the issue that you can't serialize the torch.device
-            ptu.device = torch.device("cuda:"+str(gpu_id) if use_gpu else "cpu")
 
         def rollout(self, policy_params, use_exploration_strategy):
             if use_exploration_strategy:

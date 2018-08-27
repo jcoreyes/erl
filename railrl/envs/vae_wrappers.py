@@ -1,5 +1,6 @@
 import pickle
 import random
+import torch
 
 import cv2
 import numpy as np
@@ -343,11 +344,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
         return dict(
             mode_map=self._mode_map,
             vae_state_dict=self.vae.state_dict(),
+            use_gpu = ptu._use_gpu,
+            gpu_id = ptu._gpu_id
         )
 
-    def update_env(self, mode_map, vae_state_dict):
+    def update_env(self, mode_map, vae_state_dict, use_gpu, gpu_id):
         self._mode_map = mode_map
         self.vae.load_state_dict(vae_state_dict)
+        ptu.device = torch.device("cuda:"+str(gpu_id) if use_gpu else "cpu")
 
     def enable_render(self):
         self._use_vae_goals = False

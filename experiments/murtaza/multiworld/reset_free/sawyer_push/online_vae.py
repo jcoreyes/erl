@@ -25,7 +25,7 @@ if __name__ == "__main__":
         imsize=48,
         init_camera=sawyer_pusher_camera_upright_v2,
         grill_variant=dict(
-            save_video=True,
+            save_video=False,
             online_vae_beta=2.5,
             save_video_period=250,
             qf_kwargs=dict(
@@ -44,7 +44,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online',
+                    collection_mode='online-parallel',
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
@@ -112,13 +112,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_online_torch4_online_imsize_48'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_pusher_online_torch4_online_imsize_48'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
