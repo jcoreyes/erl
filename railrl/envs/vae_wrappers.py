@@ -91,6 +91,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.vae_input_desired_goal_key = vae_input_key_prefix + '_desired_goal'
         self._mode_map = {}
 
+        self._initial_obs = None
+
     def reset(self):
         obs = self.wrapped_env.reset()
         goal = self.wrapped_env.get_goal()
@@ -120,6 +122,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         goal['proprio_desired_goal'] = proprio_goal
         goal[self.vae_input_desired_goal_key] = decoded_goal
         self.desired_goal = goal
+        self._initial_obs = obs
         return self._update_obs(obs)
 
     def step(self, action):
@@ -370,6 +373,18 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.waitKey(1)
             reconstruction = self._reconstruct_img(obs['image_observation'])
             cv2.imshow('env_reconstruction', reconstruction)
+            cv2.waitKey(1)
+            init_img = self._initial_obs['image_observation'].reshape(
+                self.input_channels,
+                self.imsize,
+                self.imsize,
+            ).transpose()
+            cv2.imshow('initial_state', init_img)
+            cv2.waitKey(1)
+            init_reconstruction = self._reconstruct_img(
+                self._initial_obs['image_observation']
+            )
+            cv2.imshow('init_reconstruction', init_reconstruction)
             cv2.waitKey(1)
 
         if self.render_goals:
