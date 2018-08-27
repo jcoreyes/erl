@@ -51,7 +51,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_vae(vae)
         else:
             self.vae = vae
-        vae = vae.to(ptu.device)
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self._use_vae_goals = use_vae_goals
@@ -352,7 +351,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self._mode_map = mode_map
         self.vae.load_state_dict(vae_state_dict)
         ptu.device = torch.device("cuda:"+str(gpu_id) if use_gpu else "cpu")
-
+        self.vae.to(ptu.device)
+         
     def enable_render(self):
         self._use_vae_goals = False
         self.decode_goals = True
@@ -477,7 +477,6 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_vae(vae)
         else:
             self.vae = vae
-        vae = vae.to(ptu.device)
         self.representation_size = self.vae.representation_size
         self._use_vae_goals = use_vae_goals
         self.sample_from_true_prior = sample_from_true_prior
