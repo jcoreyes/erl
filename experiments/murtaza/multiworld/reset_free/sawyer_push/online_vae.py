@@ -81,7 +81,7 @@ if __name__ == "__main__":
             beta=1.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=1,
+                N=100,
                 test_p=.9,
                 oracle_dataset=True,
                 use_cached=False,
@@ -112,13 +112,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_pusher_online_torch4_online_imsize_48'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_pusher_online_torch4_parallel_imsize_48'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
