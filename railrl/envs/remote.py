@@ -89,6 +89,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
                     max_path_length,
                     cloudpickle.dumps(train_rollout_function),
                     cloudpickle.dumps(eval_rollout_function),
+                    ptu._use_gpu,
+                    ptu._gpu_id,
                 )
             )
         for i in range(num_workers)]
@@ -183,6 +185,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
                 max_path_length,
                 train_rollout_function,
                 eval_rollout_function,
+                use_gpu,
+                gpu_id,
         ):
             torch.set_num_threads(1)
             self._env = env
@@ -191,6 +195,9 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             self._max_path_length = max_path_length
             self.train_rollout_function = cloudpickle.loads(train_rollout_function)
             self.eval_rollout_function = cloudpickle.loads(eval_rollout_function)
+            ptu.device = torch.device("cuda:" + str(gpu_id) if use_gpu else "cpu")
+            self._policy.to(ptu.device)
+            self._exploration_policy.to(ptu.device)
 
         def rollout(self, policy_params, use_exploration_strategy):
             if use_exploration_strategy:
