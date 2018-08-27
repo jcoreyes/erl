@@ -47,7 +47,7 @@ def experiment(variant):
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
-        algorithm.cuda()
+        algorithm.to(ptu.device)
     with torch.autograd.profiler.profile() as prof:
         algorithm.train()
     prof.export_chrome_trace("tmp-torch-chrome-trace.prof")

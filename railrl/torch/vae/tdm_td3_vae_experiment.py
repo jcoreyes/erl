@@ -164,10 +164,10 @@ def tdm_td3_vae_experiment(variant):
         # gpu_id = variant["gpu_id"]
         # ptu.set_gpu_mode(True)
         # ptu.set_device(gpu_id)
-        algorithm.cuda()
+        algorithm.to(ptu.device)
         if not do_state_based_exp:
             for e in [testing_env, training_env, video_vae_env, video_goal_env]:
-                e.vae.cuda()
+                e.vae.to(ptu.device)
 
     algorithm.train()
 

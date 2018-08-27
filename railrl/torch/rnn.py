@@ -218,7 +218,7 @@ class LSTM(nn.Module):
         if length is None:
             length = Variable(torch.LongTensor([max_time] * batch_size))
             if input_.is_cuda:
-                length = length.cuda()
+                length = length.to(ptu.device)
         if hx is None:
             zeros = Variable(
                 input_.data.new(batch_size, self.hidden_size).zero_()

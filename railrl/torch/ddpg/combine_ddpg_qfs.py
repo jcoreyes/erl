@@ -77,9 +77,9 @@ class DdpgQfCombiner(object):
             logger.pop_prefix()
 
     def cuda(self):
-        self.policy.cuda()
-        self.qf1.cuda()
-        self.qf2.cuda()
+        self.policy.to(ptu.device)
+        self.qf1.to(ptu.device)
+        self.qf2.to(ptu.device)
 
     def get_batch(self):
         sample_size = self.batch_size // 2

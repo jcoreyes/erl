@@ -52,9 +52,9 @@ def experiment(variant):
     )
     tau = variant['tau']
     if ptu.gpu_enabled():
-        goal_chooser.cuda()
-        goal_conditioned_model.cuda()
-        argmax_qf_policy.cuda()
+        goal_chooser.to(ptu.device)
+        goal_conditioned_model.to(ptu.device)
+        argmax_qf_policy.to(ptu.device)
     train_amortized_goal_chooser(
         goal_chooser,
         goal_conditioned_model,

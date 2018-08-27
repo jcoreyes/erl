@@ -21,7 +21,7 @@ def example(variant):
         algorithm.num_epochs = epochs
         use_gpu = variant['use_gpu']
         if use_gpu and ptu.gpu_enabled():
-            algorithm.cuda()
+            algorithm.to(ptu.device)
         algorithm.train()
     else:
         es_min_sigma = variant['es_min_sigma']
@@ -67,7 +67,7 @@ def example(variant):
             batch_size=batch_size,
         )
         if use_gpu:
-            algorithm.cuda()
+            algorithm.to(ptu.device)
         algorithm.train()
 
 if __name__ == "__main__":

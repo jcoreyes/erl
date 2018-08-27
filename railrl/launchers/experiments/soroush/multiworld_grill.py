@@ -102,7 +102,7 @@ def train_vae(variant):
         beta_schedule = None
     m = ConvVAE(representation_size, input_channels=3)
     if ptu.gpu_enabled():
-        m.cuda()
+        m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
     save_period = variant['save_period']
@@ -314,9 +314,9 @@ def grill_her_td3_experiment(variant):
 
     if ptu.gpu_enabled():
         print("using GPU")
-        algorithm.cuda()
+        algorithm.to(ptu.device)
         for e in [testing_env, training_env, video_vae_env, video_goal_env]:
-            e.vae.cuda()
+            e.vae.to(ptu.device)
 
     algorithm.train()
 
@@ -443,13 +443,13 @@ def grill_her_twin_sac_experiment(variant):
 
     if ptu.gpu_enabled():
         print("using GPU")
-        qf1.cuda()
-        qf2.cuda()
-        vf.cuda()
-        policy.cuda()
-        algorithm.cuda()
+        qf1.to(ptu.device)
+        qf2.to(ptu.device)
+        vf.to(ptu.device)
+        policy.to(ptu.device)
+        algorithm.to(ptu.device)
         for e in [testing_env, training_env, video_vae_env, video_goal_env]:
-            e.vae.cuda()
+            e.vae.to(ptu.device)
 
     algorithm.train()
 
@@ -570,12 +570,12 @@ def grill_her_sac_experiment(variant):
 
     if ptu.gpu_enabled():
         print("using GPU")
-        qf.cuda()
-        vf.cuda()
-        policy.cuda()
-        algorithm.cuda()
+        qf.to(ptu.device)
+        vf.to(ptu.device)
+        policy.to(ptu.device)
+        algorithm.to(ptu.device)
         for e in [testing_env, training_env, video_vae_env, video_goal_env]:
-            e.vae.cuda()
+            e.vae.to(ptu.device)
 
     algorithm.train()
 

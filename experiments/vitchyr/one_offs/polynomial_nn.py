@@ -245,7 +245,7 @@ def main():
         FakeDataset(obs_dim, action_dim, test_size, state_bounds, action_bounds),
         batch_size=batch_size, shuffle=True)
 
-    model.cuda()
+    model.to(ptu.device)
 
     def eval_model(state, action):
         state = ptu.Variable(state, requires_grad=False)

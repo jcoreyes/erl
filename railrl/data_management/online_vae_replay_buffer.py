@@ -208,7 +208,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             input_size=obs_dim + self._action_dim,
         )
         if ptu.gpu_enabled():
-            self.dynamics_model.cuda()
+            self.dynamics_model.to(ptu.device)
         self.dynamics_optimizer = Adam(self.dynamics_model.parameters())
         self.dynamics_loss = MSELoss()
 

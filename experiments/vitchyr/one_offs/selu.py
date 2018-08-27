@@ -105,7 +105,7 @@ class alpha_drop(nn.Module):
             return x
         else:
             random_tensor = self.keep_prob + torch.rand(x.size())
-            binary_tensor = Variable(torch.floor(random_tensor).cuda())
+            binary_tensor = Variable(torch.floor(random_tensor).to(ptu.device))
             x = x.mul(binary_tensor)
             ret = x + self.alpha * (1 - binary_tensor)
             ret.mul_(self.a).add_(self.b)
@@ -338,7 +338,7 @@ model = DeepSeluNet()
 # model = DeepTanhNet()
 # model = DeepSNTanhNet()
 if args.cuda:
-    model.cuda()
+    model.to(ptu.device)
 
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
@@ -347,7 +347,7 @@ def train(epoch):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         if args.cuda:
-            data, target = data.cuda(), target.cuda()
+            data, target = data.to(ptu.device), target.to(ptu.device)
         data, target = Variable(data), Variable(target)
         optimizer.zero_grad()
         output = model(data)
@@ -366,7 +366,7 @@ def test(epoch):
     correct = 0
     for data, target in test_loader:
         if args.cuda:
-            data, target = data.cuda(), target.cuda()
+            data, target = data.to(ptu.device), target.to(ptu.device)
         data, target = Variable(data, requires_grad=False), Variable(target)
         output = model(data)
         test_loss += F.nll_loss(output, target).data[0]

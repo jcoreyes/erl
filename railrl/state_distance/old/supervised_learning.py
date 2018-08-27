@@ -94,7 +94,7 @@ class SupervisedLearning(object):
         )
 
     def cuda(self):
-        self.qf.cuda()
+        self.qf.to(ptu.device)
 
     def _do_training(self):
         batch = self.get_batch()

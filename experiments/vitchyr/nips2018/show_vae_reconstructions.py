@@ -17,7 +17,7 @@ filename = str(uuid.uuid4())
 def simulate_policy(args):
     ptu.set_gpu_mode(True)
     model = pickle.load(open(args.file, "rb")) # joblib.load(args.file)
-    model.cuda()
+    model.to(ptu.device)
     imgs = np.load(args.imgfile)
     import ipdb; ipdb.set_trace()
     z = model.encode(ptu.np_to_var(imgs))
