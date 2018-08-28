@@ -240,6 +240,8 @@ def generate_vae_dataset(
                 transpose=True,
                 normalize=True,
             )
+        else:
+            imsize = env.imsize
         env.reset()
         info['env'] = env
 
