@@ -7,7 +7,7 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerDoorEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env_two_pucks import \
     SawyerPushAndReachXYDoublePuckEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import train_vae
+from railrl.torch.grill.launcher import train_vae, generate_vae_dataset
 
 if __name__ == "__main__":
     variant = dict(
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     # exp_prefix = 'pre-train-door'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
-            train_vae,
+            generate_vae_dataset,
             exp_prefix=exp_prefix,
             mode=mode,
             variant=variant,
