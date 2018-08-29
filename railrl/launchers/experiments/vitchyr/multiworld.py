@@ -19,7 +19,10 @@ def her_td3_experiment(variant):
 
     if 'presample_goals' in variant:
         raise NotImplementedError()
-    env = gym.make(variant['env_id'])
+    if 'env_id' in variant:
+        env = gym.make(variant['env_id'])
+    else:
+        env = variant['env_class'](**variant['env_kwargs'])
 
     observation_key = variant['observation_key']
     desired_goal_key = variant['desired_goal_key']

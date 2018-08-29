@@ -95,6 +95,8 @@ if __name__ == "__main__":
             ),
             save_period=5,
         ),
+        version='new-pnp-gripper-open-58aee2f',
+        num_exps_per_instance=2,
     )
 
     search_space = {
@@ -104,7 +106,7 @@ if __name__ == "__main__":
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0],
         'grill_variant.replay_kwargs.exploration_rewards_type': [
             'reconstruction_error',
-            'None',
+            # 'None',
         ],
         'grill_variant.replay_kwargs.alpha': [3],
         'grill_variant.exploration_noise': [.8],
@@ -113,7 +115,7 @@ if __name__ == "__main__":
                 vae_schedules.every_six,
             ],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100, 500],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
         'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -124,9 +126,10 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 1
+    n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'recreate-online-vae-pushing-results-online-parallel-collection-one-seed-per-instance-take-2'
+    exp_prefix = 'pusher-test-pnp-merge-2'
+
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
@@ -138,5 +141,5 @@ if __name__ == "__main__":
                 use_gpu=True,
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
-                num_exps_per_instance=1,
+                num_exps_per_instance=2,
             )
