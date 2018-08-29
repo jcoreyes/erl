@@ -284,6 +284,7 @@ def get_envs(variant):
     from railrl.envs.vae_wrappers import load_vae
     vae = load_vae(vae_path) if type(vae_path) is str else vae_path
     presample_goals = variant.get('presample_goals', False)
+    presample_image_goals_only = variant.get('presample_image_goals_only', False)
     if 'env_id' in variant:
         import gym
         from gym.envs import registration
@@ -315,12 +316,27 @@ def get_envs(variant):
             **variant.get('vae_wrapped_env_kwargs', {})
         )
         if presample_goals:
+            """
+            This will fail for online-parallel as presampled_goals will not be
+            serialized. Also don't use this for online-vae.
+            """
             presampled_goals = variant['generate_goal_dataset_fn'](
                 env=vae_env,
                 **variant['goal_generation_kwargs']
             )
             image_env.set_presampled_goals(presampled_goals)
             vae_env.set_presampled_goals(presampled_goals)
+            print("Presampling all goals only")
+        elif presample_image_goals_only:
+            presampled_goals = variant['generate_goal_dataset_fn'](
+                image_env=vae_env.wrapped_env,
+                **variant['goal_generation_kwargs']
+            )
+            image_env.set_presampled_goals(presampled_goals)
+            print("Presampling image goals only")
+        else:
+            print("Not using presampled goals")
+
         env = vae_env
 
     if not do_state_exp:
