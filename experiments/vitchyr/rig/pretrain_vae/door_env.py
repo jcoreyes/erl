@@ -16,12 +16,8 @@ if __name__ == "__main__":
         beta=1.0,
         num_epochs=1000,
         generate_vae_dataset_kwargs=dict(
-            env_class=SawyerDoorEnv,
-            env_kwargs=dict(),
-            init_camera=sawyer_door_env_camera,
-            N=1000,
-            oracle_dataset=False,
-            num_channels=3,
+            dataset_path='/home/vitchyr/git/railrl/data/doodads3/manual'
+                         '-upload/skewed_dataset_SawyerDoorEnv_N1000_sawyer_door_env_camera_imsize48_oracleFalse.npy',
         ),
         algo_kwargs=dict(
             do_scatterplot=False,
@@ -38,7 +34,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'representation_size': [16],
+        'representation_size': [2, 4, 8, 16],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -48,7 +44,7 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     # mode = 'ec2'
-    # exp_prefix = 'pre-train-door'
+    exp_prefix = 'pre-train-door-on-skewed-dataset'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             train_vae,

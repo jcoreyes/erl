@@ -13,7 +13,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=500,
+                num_epochs=250,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=5000,
                 max_path_length=500,
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         'algo_kwargs.base_kwargs.max_path_length': [100],
         'env_kwargs.reward_type': [
             'angle_diff_and_hand_distance',
-            'angle_difference',
+            # 'angle_difference',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -74,7 +74,8 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'sss'
-    exp_prefix = 'door-env-from-state-larger-angle-range-500epoch'
+    exp_prefix = 'door-env-from-state-larger-angle-range-250epoch-with' \
+                 '-gripper-3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
