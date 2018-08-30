@@ -111,7 +111,7 @@ def train_vae_and_update_variant(variant):
     else:
         if grill_variant.get('save_vae_data', False):
             vae_train_data, vae_test_data, info = generate_vae_dataset(
-                **train_vae_variant['generate_vae_dataset_kwargs']
+                train_vae_variant['generate_vae_dataset_kwargs']
             )
             grill_variant['vae_train_data'] = vae_train_data
             grill_variant['vae_test_data'] = vae_test_data
@@ -133,7 +133,7 @@ def train_vae(variant, return_data=False):
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
                                             generate_vae_dataset)
     train_data, test_data, info = generate_vae_dataset_fctn(
-        **variant['generate_vae_dataset_kwargs']
+        variant['generate_vae_dataset_kwargs']
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
@@ -176,95 +176,94 @@ def train_vae(variant, return_data=False):
     return m
 
 
-def generate_vae_dataset(
-        env_class=None,
-        env_kwargs=None,
-        env_id=None,
-        N=10000,
-        test_p=0.9,
-        use_cached=True,
-        imsize=84,
-        num_channels=1,
-        show=False,
-        init_camera=None,
-        dataset_path=None,
-        oracle_dataset=False,
-        n_random_steps=100,
-        vae_dataset_specific_env_kwargs=None,
-        save_file_prefix=None,
-):
+def generate_vae_dataset(variant):
+    env_class = variant.get('env_class', None)
+    env_kwargs = variant.get('env_kwargs',None)
+    env_id = variant.get('env_id', None)
+    N = variant.get('N', 10000)
+    test_p = variant.get('test_p', 0.9)
+    use_cached = variant.get('use_cached', True)
+    imsize = variant.get('imsize', 84)
+    num_channels = variant.get('num_channels', 1)
+    show = variant.get('show', False)
+    init_camera = variant.get('init_camera', None)
+    dataset_path = variant.get('dataset_path', None)
+    oracle_dataset = variant.get('oracle_dataset', False)
+    n_random_steps = variant.get('n_random_steps', 100)
+    vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
+    save_file_prefix = variant.get('save_file_prefix', None)
     from multiworld.core.image_env import ImageEnv, unormalize_image
     from railrl.misc.asset_loader import local_path_from_s3_or_local_path
-
-    if env_kwargs is None:
-        env_kwargs = {}
-    if save_file_prefix is None:
-        save_file_prefix = env_id
-    if save_file_prefix is None:
-        save_file_prefix = env_class.__name__
-    filename = "/tmp/{}_N{}_{}_imsize{}_oracle{}.npy".format(
-        save_file_prefix,
-        str(N),
-        init_camera.__name__ if init_camera else '',
-        imsize,
-        oracle_dataset,
-    )
     info = {}
     if dataset_path is not None:
         filename = local_path_from_s3_or_local_path(dataset_path)
         dataset = np.load(filename)
         N = dataset.shape[0]
-    elif use_cached and osp.isfile(filename):
-        dataset = np.load(filename)
-        print("loaded data from saved file", filename)
     else:
-        now = time.time()
-
-        if env_id is not None:
-            import gym
-            import multiworld.envs.pygame
-            import multiworld.envs.mujoco
-            env = gym.make(env_id)
+        if env_kwargs is None:
+            env_kwargs = {}
+        if save_file_prefix is None:
+            save_file_prefix = env_id
+        if save_file_prefix is None:
+            save_file_prefix = env_class.__name__
+        filename = "/tmp/{}_N{}_{}_imsize{}_oracle{}.npy".format(
+            save_file_prefix,
+            str(N),
+            init_camera.__name__ if init_camera else '',
+            imsize,
+            oracle_dataset,
+        )
+        if use_cached and osp.isfile(filename):
+            dataset = np.load(filename)
+            print("loaded data from saved file", filename)
         else:
-            if vae_dataset_specific_env_kwargs is None:
-                vae_dataset_specific_env_kwargs = {}
-            for key, val in env_kwargs.items():
-                if key not in vae_dataset_specific_env_kwargs:
-                    vae_dataset_specific_env_kwargs[key] = val
-            env = env_class(**vae_dataset_specific_env_kwargs)
-        if not isinstance(env, ImageEnv):
-            env = ImageEnv(
-                env,
-                imsize,
-                init_camera=init_camera,
-                transpose=True,
-                normalize=True,
-            )
-        else:
-            imsize = env.imsize
-        env.reset()
-        info['env'] = env
+            now = time.time()
 
-        dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
-        for i in range(N):
-            if oracle_dataset:
-                goal = env.sample_goal()
-                env.set_to_goal(goal)
+            if env_id is not None:
+                import gym
+                import multiworld.envs.pygame
+                import multiworld.envs.mujoco
+                env = gym.make(env_id)
             else:
-                env.reset()
-                for _ in range(n_random_steps):
-                    obs = env.step(env.action_space.sample())[0]
-            obs = env.step(env.action_space.sample())[0]
-            img = obs['image_observation']
-            dataset[i, :] = unormalize_image(img)
-            if show:
-                img = img.reshape(3, imsize, imsize).transpose()
-                img = img[::-1, :, ::-1]
-                cv2.imshow('img', img)
-                cv2.waitKey(1)
-                # radius = input('waiting...')
-        print("done making training data", filename, time.time() - now)
-        np.save(filename, dataset)
+                if vae_dataset_specific_env_kwargs is None:
+                    vae_dataset_specific_env_kwargs = {}
+                for key, val in env_kwargs.items():
+                    if key not in vae_dataset_specific_env_kwargs:
+                        vae_dataset_specific_env_kwargs[key] = val
+                env = env_class(**vae_dataset_specific_env_kwargs)
+            if not isinstance(env, ImageEnv):
+                env = ImageEnv(
+                    env,
+                    imsize,
+                    init_camera=init_camera,
+                    transpose=True,
+                    normalize=True,
+                )
+            else:
+                imsize = env.imsize
+            env.reset()
+            info['env'] = env
+
+            dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
+            for i in range(N):
+                if oracle_dataset:
+                    goal = env.sample_goal()
+                    env.set_to_goal(goal)
+                else:
+                    env.reset()
+                    for _ in range(n_random_steps):
+                        obs = env.step(env.action_space.sample())[0]
+                obs = env.step(env.action_space.sample())[0]
+                img = obs['image_observation']
+                dataset[i, :] = unormalize_image(img)
+                if show:
+                    img = img.reshape(3, imsize, imsize).transpose()
+                    img = img[::-1, :, ::-1]
+                    cv2.imshow('img', img)
+                    cv2.waitKey(1)
+                    # radius = input('waiting...')
+            print("done making training data", filename, time.time() - now)
+            np.save(filename, dataset)
 
     n = int(N * test_p)
     train_dataset = dataset[:n, :]
