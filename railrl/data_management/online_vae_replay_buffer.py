@@ -184,6 +184,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         return ptu.get_numpy(mse)
 
     def inverse_model_error(self, next_vae_obs, indices):
+        raise NotImplementedError("This is a backwards not inverse model")
         obs = self._obs[self.observation_key][indices]
         next_obs = self._next_obs[self.observation_key][indices]
         obs, next_obs = next_obs, obs
