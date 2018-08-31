@@ -14,10 +14,10 @@ if __name__ == "__main__":
         imsize=48,
         representation_size=16,
         beta=1.0,
-        num_epochs=10,
+        num_epochs=1000,
         generate_vae_dataset_kwargs=dict(
             dataset_path='/home/vitchyr/git/railrl/data/doodads3/manual'
-                         '-upload/skewed_dataset_SawyerDoorEnv_N1000_sawyer_door_env_camera_imsize48_oracleFalse.npy',
+                         '-upload/full_skewed_dataset_SawyerDoorEnv_N1000_sawyer_door_env_camera_imsize48_oracleFalse.npy',
         ),
         algo_kwargs=dict(
             do_scatterplot=False,
@@ -31,13 +31,24 @@ if __name__ == "__main__":
             x_values=[0, 100, 200, 1000],
             y_values=[0, 0, 5, 5],
         ),
-        save_period=1,
+        save_period=20,
     )
 
     search_space = {
         'algo_kwargs.skew_dataset': [
             True,
-            # False,
+        ],
+        'algo_kwargs.skew_config.power': [
+            2,
+            1,
+        ],
+        'algo_kwargs.skew_config.method': [
+            'kl',
+            'squared_error',
+        ],
+        'algo_kwargs.gaussian_decoder_loss': [
+            True,
+            False,
         ],
         'representation_size': [16],
     }
@@ -49,7 +60,7 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     # mode = 'ec2'
-    # exp_prefix = 'pre-train-door-on-skewed-dataset-skew-training-2'
+    # exp_prefix = 'pre-train-door-on-skewed-dataset-skew-training-sweep-factor'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             train_vae,

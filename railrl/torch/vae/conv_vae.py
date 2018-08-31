@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import os.path as osp
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.utils.data
@@ -44,7 +45,11 @@ class ConvVAETrainer():
             use_parallel_dataloading=True,
             train_data_workers=2,
             skew_dataset=False,
+            skew_config=None,
+            gaussian_decoder_loss=False,
     ):
+        if skew_config is None:
+            skew_config = {}
         self.log_interval = log_interval
         self.batch_size = batch_size
         self.beta = beta
@@ -85,6 +90,8 @@ class ConvVAETrainer():
         self.use_parallel_dataloading = use_parallel_dataloading
         self.train_data_workers = train_data_workers
         self.skew_dataset = skew_dataset
+        self.skew_config = skew_config
+        self.gaussian_decoder_loss = gaussian_decoder_loss
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
                 train_dataset,
@@ -101,6 +108,7 @@ class ConvVAETrainer():
                     self.train_dataset, self._train_weights
                 )
             else:
+                self._train_weights = None
                 base_sampler = InfiniteRandomSampler(self.train_dataset)
             self.train_dataloader = DataLoader(
                 self.train_dataset_pt,
@@ -158,7 +166,23 @@ class ConvVAETrainer():
             ))
 
     def _compute_train_weights(self):
-        return self._reconstruction_squared_error_np_to_np(self.train_dataset)
+        method = self.skew_config.get('method', 'squared_error')
+        power = self.skew_config.get('power', 1)
+        if method == 'squared_error':
+            return self._reconstruction_squared_error_np_to_np(
+                self.train_dataset
+            )**power
+        elif method == 'kl':
+            return self._kl_np_to_np(self.train_dataset)**power
+        else:
+            raise NotImplementedError('Method {} not supported'.format(method))
+
+    def _kl_np_to_np(self, np_imgs):
+        torch_input = ptu.np_to_var(normalize_image(np_imgs))
+        mu, log_var = self.model.encode(torch_input)
+        return ptu.get_numpy(
+            - torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1)
+        )
 
     def _reconstruction_squared_error_np_to_np(self, np_imgs):
         torch_input = ptu.np_to_var(normalize_image(np_imgs))
@@ -192,15 +216,17 @@ class ConvVAETrainer():
         return ptu.np_to_var(X), ptu.np_to_var(Y)
 
     def logprob(self, recon_x, x, mu, logvar):
-
-        # Divide by batch_size rather than setting size_average=True because
-        # otherwise the averaging will also happen across dimension 1 (the
-        # pixels)
-        return F.binary_cross_entropy(
-            recon_x,
-            x.narrow(start=0, length=self.imlength, dimension=1).contiguous().view(-1, self.imlength),
-            size_average=False,
-        ) / self.batch_size
+        if self.gaussian_decoder_loss:
+            return ((recon_x - x)**2).sum() / self.batch_size
+        else:
+            # Divide by batch_size rather than setting size_average=True because
+            # otherwise the averaging will also happen across dimension 1 (the
+            # pixels)
+            return F.binary_cross_entropy(
+                recon_x,
+                x.narrow(start=0, length=self.imlength, dimension=1).contiguous().view(-1, self.imlength),
+                size_average=False,
+            ) / self.batch_size
 
     def kl_divergence(self, recon_x, x, mu, logvar):
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
@@ -429,6 +455,22 @@ class ConvVAETrainer():
             sample.data.view(64, self.input_channels, self.imsize, self.imsize),
             save_dir
         )
+
+    def dump_sampling_histogram(self, epoch):
+        weights = torch.from_numpy(self._train_weights)
+        samples = torch.multinomial(
+            weights, len(weights), replacement=True
+        )
+        plt.clf()
+        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights)))
+        save_file = osp.join(logger.get_snapshot_dir(), 'hist{}.png'.format(
+            epoch))
+        plt.savefig(save_file)
+        data_save_file = osp.join(logger.get_snapshot_dir(), 'hist_data.txt')
+        with open(data_save_file, 'a') as f:
+            f.write(str(list(zip(bins, n))))
+            f.write('\n')
+
 
     def dump_best_reconstruction(self, epoch):
         idx_and_weights = self._get_sorted_idx_and_train_weights()
@@ -1061,21 +1103,19 @@ class InfiniteWeightedRandomSampler(Sampler):
         assert len(data_source) == len(weights)
         assert len(weights.shape) == 1
         self.data_source = data_source
-        self._weights = weights / sum(weights)
-        self.iter = iter(
-            np.random.multinomial(
-                len(self._weights),
-                self._weights
-            )
-        )
+        # Always use CPU
+        self._weights = torch.from_numpy(weights)
+        self.iter = self._create_iterator()
 
     def update_weights(self, weights):
         self._weights = weights
-        self.iter = iter(
-            np.random.multinomial(
-                len(self._weights),
-                self._weights
-            )
+        self.iter = self._create_iterator()
+
+    def _create_iterator(self):
+        return iter(
+            torch.multinomial(
+                self._weights, len(self._weights), replacement=True
+            ).tolist()
         )
 
     def __iter__(self):
@@ -1085,12 +1125,7 @@ class InfiniteWeightedRandomSampler(Sampler):
         try:
             idx = next(self.iter)
         except StopIteration:
-            self.iter = iter(
-                np.random.multinomial(
-                    len(self._weights),
-                    self._weights
-                )
-            )
+            self.iter = self._create_iterator()
             idx = next(self.iter)
         return idx
 
