@@ -1,37 +1,27 @@
 # Adapted from pytorch examples
 
 from __future__ import print_function
-import argparse
+
+import os.path as osp
+
+import numpy as np
 import torch
 import torch.utils.data
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.nn import functional as F
-from torchvision import datasets, transforms
+from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import Sampler, BatchSampler
 from torchvision.utils import save_image
 
+from multiworld.core.image_env import normalize_image
+from railrl.core import logger
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
-from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data.sampler import Sampler, BatchSampler
 
-from railrl.core import logger
-import os.path as osp
-
-from railrl.torch.vae.vae import VAE
-import numpy as np
-
-from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
-import numpy as np
-from railrl.torch.core import PyTorchModule
-
-from multiworld.core.image_env import normalize_image
 
 class ConvVAETrainer():
     def __init__(
@@ -53,6 +43,7 @@ class ConvVAETrainer():
             use_linear_dynamics=False,
             use_parallel_dataloading=True,
             train_data_workers=2,
+            skew_dataset=False,
     ):
         self.log_interval = log_interval
         self.batch_size = batch_size
@@ -92,6 +83,8 @@ class ConvVAETrainer():
 
         self.batch_size = batch_size
         self.use_parallel_dataloading = use_parallel_dataloading
+        self.train_data_workers = train_data_workers
+        self.skew_dataset = skew_dataset
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
                 train_dataset,
@@ -102,10 +95,17 @@ class ConvVAETrainer():
                 should_normalize=True
             )
 
+            if self.skew_dataset:
+                self._train_weights = self._compute_train_weights()
+                base_sampler = InfiniteWeightedRandomSampler(
+                    self.train_dataset, self._train_weights
+                )
+            else:
+                base_sampler = InfiniteRandomSampler(self.train_dataset)
             self.train_dataloader = DataLoader(
                 self.train_dataset_pt,
                 sampler=BatchSampler(
-                    InfiniteRandomSampler(self.train_dataset),
+                    base_sampler,
                     batch_size=batch_size,
                     drop_last=False,
                 ),
@@ -139,7 +139,32 @@ class ConvVAETrainer():
         self.linearity_weight = linearity_weight
         self.use_linear_dynamics = use_linear_dynamics
         self.vae_logger_stats_for_rl = {}
+        self._extra_stats_to_log = None
 
+    def update_train_weights(self):
+        # TODO: update the weights of the sampler rather than recreating loader
+        if self.skew_dataset:
+            self._train_weights = self._compute_train_weights()
+            self.train_dataloader = iter(DataLoader(
+                self.train_dataset_pt,
+                sampler=BatchSampler(
+                    InfiniteWeightedRandomSampler(self.train_dataset,
+                                                  self._train_weights),
+                    batch_size=self.batch_size,
+                    drop_last=False,
+                ),
+                num_workers=self.train_data_workers,
+                pin_memory=True,
+            ))
+
+    def _compute_train_weights(self):
+        return self._reconstruction_squared_error_np_to_np(self.train_dataset)
+
+    def _reconstruction_squared_error_np_to_np(self, np_imgs):
+        torch_input = ptu.np_to_var(normalize_image(np_imgs))
+        recons, *_ = self.model(torch_input)
+        error = torch_input - recons
+        return ptu.get_numpy((error**2).sum(dim=1))
 
     def get_batch(self, train=True):
         if self.use_parallel_dataloading:
@@ -388,6 +413,11 @@ class ConvVAETrainer():
         stats['debug/MSE of reconstruction'] = ptu.get_numpy(
             recon_mse
         )[0]
+        if self.skew_dataset:
+            stats.update(create_stats_ordered_dict(
+                'train weight',
+                self._train_weights
+            ))
         return stats
 
     def dump_samples(self, epoch):
@@ -399,6 +429,44 @@ class ConvVAETrainer():
             sample.data.view(64, self.input_channels, self.imsize, self.imsize),
             save_dir
         )
+
+    def dump_best_reconstruction(self, epoch):
+        idx_and_weights = self._get_sorted_idx_and_train_weights()
+        NUM_SHOWN = 4
+        idxs = [i for i, _ in idx_and_weights[:NUM_SHOWN]]
+        self._dump_imgs_and_reconstructions(idxs, 'best{}.png'.format(epoch))
+
+    def dump_worst_reconstruction(self, epoch):
+        idx_and_weights = self._get_sorted_idx_and_train_weights()
+        idx_and_weights = idx_and_weights[::-1]
+        NUM_SHOWN = 4
+        idxs = [i for i, _ in idx_and_weights[:NUM_SHOWN]]
+        self._dump_imgs_and_reconstructions(idxs, 'worst{}.png'.format(epoch))
+
+    def _dump_imgs_and_reconstructions(self, idxs, filename):
+        imgs = []
+        recons = []
+        for i in idxs:
+            img_np = self.train_dataset[i]
+            img_torch = ptu.np_to_var(normalize_image(img_np))
+            recon, *_ = self.model(img_torch)
+
+            img = img_torch.view(self.input_channels, self.imsize, self.imsize)
+            rimg = recon.view(self.input_channels, self.imsize, self.imsize)
+            imgs.append(img)
+            recons.append(rimg)
+        all_imgs = torch.stack(imgs + recons)
+        save_file = osp.join(logger.get_snapshot_dir(), filename)
+        save_image(
+            all_imgs.data,
+            save_file,
+            nrow=4,
+        )
+
+    def _get_sorted_idx_and_train_weights(self):
+        idx_and_weights = zip(range(len(self._train_weights)),
+                              self._train_weights)
+        return sorted(idx_and_weights, key=lambda x: x[0])
 
     def plot_scattered(self, z, epoch):
         try:
@@ -980,6 +1048,49 @@ class InfiniteRandomSampler(Sampler):
             idx = next(self.iter)
         except StopIteration:
             self.iter = iter(torch.randperm(len(self.data_source)).tolist())
+            idx = next(self.iter)
+        return idx
+
+    def __len__(self):
+        return 2**62
+
+
+class InfiniteWeightedRandomSampler(Sampler):
+
+    def __init__(self, data_source, weights):
+        assert len(data_source) == len(weights)
+        assert len(weights.shape) == 1
+        self.data_source = data_source
+        self._weights = weights / sum(weights)
+        self.iter = iter(
+            np.random.multinomial(
+                len(self._weights),
+                self._weights
+            )
+        )
+
+    def update_weights(self, weights):
+        self._weights = weights
+        self.iter = iter(
+            np.random.multinomial(
+                len(self._weights),
+                self._weights
+            )
+        )
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            idx = next(self.iter)
+        except StopIteration:
+            self.iter = iter(
+                np.random.multinomial(
+                    len(self._weights),
+                    self._weights
+                )
+            )
             idx = next(self.iter)
         return idx
 

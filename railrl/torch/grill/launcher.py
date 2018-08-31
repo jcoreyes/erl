@@ -170,6 +170,9 @@ def train_vae(variant, return_data=False):
         )
         if should_save_imgs:
             t.dump_samples(epoch)
+            t.dump_best_reconstruction(epoch)
+            t.dump_worst_reconstruction(epoch)
+        t.update_train_weights()
     logger.save_extra_data(m, 'vae.pkl', mode='pickle')
     if return_data:
         return m, train_data, test_data
