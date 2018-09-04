@@ -212,9 +212,9 @@ class ConvVAETrainer():
             else:
                 if sample_batch is not None:
                     data = sample_batch(self.batch_size)
-                    obs = data['obs']
+                    # obs = data['obs']
                     next_obs = data['next_obs']
-                    actions = data['actions']
+                    # actions = data['actions']
                 else:
                     next_obs = self.get_batch()
                     obs = None
