@@ -36,19 +36,20 @@ if __name__ == "__main__":
 
     search_space = {
         'algo_kwargs.skew_dataset': [
-            True,
+            False,
+            # True,
         ],
         'algo_kwargs.skew_config.power': [
-            2,
+            # 2,
             1,
         ],
         'algo_kwargs.skew_config.method': [
             'kl',
-            'squared_error',
+            # 'squared_error',
         ],
         'algo_kwargs.gaussian_decoder_loss': [
             True,
-            False,
+            # False,
         ],
         'representation_size': [16],
     }
@@ -60,7 +61,7 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     # mode = 'ec2'
-    # exp_prefix = 'pre-train-door-on-skewed-dataset-skew-training-sweep-factor'
+    exp_prefix = 'pre-train-door-on-skewed-dataset-skew-no-skew-training'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             train_vae,
