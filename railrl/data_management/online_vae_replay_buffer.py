@@ -155,12 +155,12 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
                 p=self.vae_sample_probs,
             )
         next_obs = normalize_image(self._next_obs[self.decoded_obs_key][indices])
-        obs = normalize_image(self._obs[self.decoded_obs_key][indices])
-        actions = self._actions[indices]
+        # obs = normalize_image(self._obs[self.decoded_obs_key][indices])
+        # actions = self._actions[indices]
         return dict(
-            obs=ptu.np_to_var(obs),
+            # obs=ptu.np_to_var(obs),
             next_obs=ptu.np_to_var(next_obs),
-            actions=ptu.np_to_var(actions),
+            # actions=ptu.np_to_var(actions),
         )
 
 
