@@ -457,6 +457,8 @@ class ConvVAETrainer():
         )
 
     def dump_sampling_histogram(self, epoch):
+        if self._train_weights is None:
+            self._train_weights = self._compute_train_weights()
         weights = torch.from_numpy(self._train_weights)
         samples = torch.multinomial(
             weights, len(weights), replacement=True
@@ -506,6 +508,8 @@ class ConvVAETrainer():
         )
 
     def _get_sorted_idx_and_train_weights(self):
+        if self._train_weights is None:
+            self._train_weights = self._compute_train_weights()
         idx_and_weights = zip(range(len(self._train_weights)),
                               self._train_weights)
         return sorted(idx_and_weights, key=lambda x: x[0])
