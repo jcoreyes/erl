@@ -182,6 +182,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             raise TypeError("Invalid collection_mode: {}".format(
                 self.collection_mode
             ))
+        self.cleanup()
+
+    def cleanup(self):
+        pass
 
     def pretrain(self):
         pass
