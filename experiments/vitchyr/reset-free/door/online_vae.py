@@ -99,9 +99,14 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100, 500],
-        'grill_variant.replay_kwargs.alpha': [3],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
+        'grill_variant.replay_kwargs.alpha': [
+            2,
+            # 1,
+            # 0,
+        ],
         'grill_variant.replay_kwargs.exploration_rewards_type': [
+            'latent_distance'
             'reconstruction_error',
         ],
     }
@@ -115,7 +120,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'ec2'
-    # exp_prefix = 'online-vae-new-door'
+    # exp_prefix = 'online-vae-new-door-sweep-alpha'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
