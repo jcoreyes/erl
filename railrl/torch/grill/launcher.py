@@ -241,7 +241,7 @@ def generate_vae_dataset(variant):
                 )
             else:
                 imsize = env.imsize
-            env.reset()
+            env.reset_model()
             info['env'] = env
 
             dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
@@ -250,7 +250,7 @@ def generate_vae_dataset(variant):
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
                 else:
-                    env.reset()
+                    env.reset_model()
                     for _ in range(n_random_steps):
                         obs = env.step(env.action_space.sample())[0]
                 obs = env.step(env.action_space.sample())[0]
