@@ -97,9 +97,9 @@ class CNN(PyTorchModule):
             self.fc_norm_layers.append(norm_layer)
             fc_input_size = hidden_size
 
-        self.first_head = nn.Linear(fc_input_size, output_size)
-        self.first_head.weight.data.uniform_(-init_w, init_w)
-        self.first_head.bias.data.uniform_(-init_w, init_w)
+        self.last_fc = nn.Linear(fc_input_size, output_size)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, input):
         fc_input = (self.added_fc_input_size != 0)
@@ -126,7 +126,7 @@ class CNN(PyTorchModule):
             h = torch.cat((h, extra_fc_input), dim=1)
         h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
 
-        output = self.output_activation(self.first_head(h))
+        output = self.output_activation(self.last_fc(h))
         return output
 
     def apply_forward(self, input, hidden_layers, norm_layers):
@@ -231,10 +231,10 @@ class Mlp(PyTorchModule):
                 self.__setattr__("layer_norm{}".format(i), ln)
                 self.layer_norms.append(ln)
 
-        self.first_head = nn.Linear(in_size, output_size)
-        self.first_head.weight.data.uniform_(-init_w, init_w)
+        self.last_head = nn.Linear(in_size, output_size)
+        self.last_head.weight.data.uniform_(-init_w, init_w)
         if output_bias is not None:
-            self.first_head.bias.data.fill_(output_bias)
+            self.last_head.bias.data.fill_(output_bias)
 
     def forward(self, input, return_preactivations=False):
         h = input
@@ -243,7 +243,7 @@ class Mlp(PyTorchModule):
             if self.layer_norm and i < len(self.fcs) - 1:
                 h = self.layer_norms[i](h)
             h = self.hidden_activation(h)
-        preactivation = self.first_head(h)
+        preactivation = self.last_head(h)
         output = self.output_activation(preactivation)
         if return_preactivations:
             return output, preactivation
@@ -344,7 +344,7 @@ class FeedForwardQFunction(PyTorchModule):
         self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
                                      embedded_hidden_size)
 
-        self.first_head = nn.Linear(embedded_hidden_size, 1)
+        self.last_fc = nn.Linear(embedded_hidden_size, 1)
         self.output_activation = output_activation
 
         self.init_weights(init_w)
@@ -357,8 +357,8 @@ class FeedForwardQFunction(PyTorchModule):
         self.obs_fc.bias.data.fill_(0)
         self.hidden_init(self.embedded_fc.weight)
         self.embedded_fc.bias.data.fill_(0)
-        self.first_head.weight.data.uniform_(-init_w, init_w)
-        self.first_head.bias.data.uniform_(-init_w, init_w)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
         if self.batchnorm_obs:
@@ -367,7 +367,7 @@ class FeedForwardQFunction(PyTorchModule):
         h = F.relu(self.obs_fc(h))
         h = torch.cat((h, action), dim=1)
         h = F.relu(self.embedded_fc(h))
-        return self.output_activation(self.first_head(h))
+        return self.output_activation(self.last_fc(h))
 
 
 class FeedForwardPolicy(PyTorchModule):
@@ -392,7 +392,7 @@ class FeedForwardPolicy(PyTorchModule):
 
         self.fc1 = nn.Linear(obs_dim, fc1_size)
         self.fc2 = nn.Linear(fc1_size, fc2_size)
-        self.first_head = nn.Linear(fc2_size, action_dim)
+        self.last_fc = nn.Linear(fc2_size, action_dim)
 
         self.init_weights(init_w)
 
@@ -402,13 +402,13 @@ class FeedForwardPolicy(PyTorchModule):
         self.hidden_init(self.fc2.weight)
         self.fc2.bias.data.fill_(0)
 
-        self.first_head.weight.data.uniform_(-init_w, init_w)
-        self.first_head.bias.data.uniform_(-init_w, init_w)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs):
         h = F.relu(self.fc1(obs))
         h = F.relu(self.fc2(h))
-        return F.tanh(self.first_head(h))
+        return F.tanh(self.last_fc(h))
 
     def get_action(self, obs_np):
         actions = self.get_actions(obs_np[None])
@@ -516,15 +516,15 @@ class OuterProductFF(PyTorchModule):
             self.__setattr__("sop{}".format(i), sop)
             self.sops.append(sop)
         self.output_activation = output_activation
-        self.first_head = nn.Linear(in_size, output_size)
-        self.first_head.weight.data.uniform_(-init_w, init_w)
-        self.first_head.bias.data.fill_(b_init_value)
+        self.last_fc = nn.Linear(in_size, output_size)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.fill_(b_init_value)
 
     def forward(self, input, return_preactivations=False):
         h = input
         for i, sop in enumerate(self.sops):
             h = self.hidden_activation(sop(h))
-        preactivation = self.first_head(h)
+        preactivation = self.last_fc(h)
         output = self.output_activation(preactivation)
         if return_preactivations:
             return output, preactivation
@@ -598,7 +598,7 @@ class FeatPointMlp(PyTorchModule):
         self.out_size = int(np.prod(test_mat.shape))
         self.fc1 = nn.Linear(2 * self.num_feat_points, 400)
         self.fc2 = nn.Linear(400, 300)
-        self.first_head = nn.Linear(300, self.input_channels * self.downsample_size* self.downsample_size)
+        self.last_fc = nn.Linear(300, self.input_channels * self.downsample_size * self.downsample_size)
 
         self.init_weights(init_w)
         self.i = 0
@@ -642,7 +642,7 @@ class FeatPointMlp(PyTorchModule):
         h = input
         h = F.relu(self.fc1(h))
         h = F.relu(self.fc2(h))
-        h = self.first_head(h)
+        h = self.last_fc(h)
         return h
 
     def history_encoder(self, input, history_length):
