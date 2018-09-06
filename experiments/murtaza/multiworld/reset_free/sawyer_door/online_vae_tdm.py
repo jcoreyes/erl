@@ -11,13 +11,6 @@ if __name__ == "__main__":
         imsize=48,
         init_camera=sawyer_door_env_camera_v2,
         env_kwargs=dict(
-<<<<<<< HEAD
-            goal_low=(-.25, .3, .12, -1.0472),
-            goal_high=(.25, .6, .12, 0),
-            min_angle=-1.0472,
-            reset_free=True,
-            xml_path='sawyer_xyz/sawyer_door_pull_60.xml',
-=======
             goal_low=(-0.1, 0.42, 0.05, 0),
             goal_high=(0.0, 0.65, .075, 0.523599),
             # goal_high=(0.0, 0.65, .075, 1.0472),
@@ -28,7 +21,6 @@ if __name__ == "__main__":
             max_angle=0.523599,
             # xml_path='sawyer_xyz/sawyer_door_pull.xml',
             xml_path='sawyer_xyz/sawyer_door_pull_30.xml',
->>>>>>> grill-multiworld
         ),
         grill_variant=dict(
             save_video=True,
@@ -48,11 +40,7 @@ if __name__ == "__main__":
                         num_steps_per_eval=1000,
                         min_num_steps_before_training=4000,
                         batch_size=128,
-<<<<<<< HEAD
-                        max_path_length=500,
-=======
                         max_path_length=100,
->>>>>>> grill-multiworld
                         discount=0.99,
                         num_updates_per_env_step=2,
                         collection_mode='online-parallel',
@@ -141,12 +129,8 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-<<<<<<< HEAD
-    exp_prefix = 'sawyer_door_online_vae_tdm_confirmation_fixed_v3'
-=======
     exp_prefix = 'sawyer_new_door_online_vae_tdm_30'
->>>>>>> grill-multiworld
-    
+
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
