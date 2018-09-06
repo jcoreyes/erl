@@ -1,3 +1,5 @@
+import pickle
+
 import boto3
 
 from railrl.launchers.config import LOCAL_LOG_DIR, AWS_S3_PATH
@@ -52,6 +54,17 @@ def split_s3_full_path(s3_path):
     bucket_name, *directories = bucket_name_and_directories.split('/')
     directory_path = '/'.join(directories)
     return bucket_name, directory_path
+
+
+def load_local_or_remote_pickle(vae_file):
+    if vae_file[0] == "/":
+        local_path = vae_file
+    else:
+        local_path = sync_down(vae_file)
+    vae = pickle.load(open(local_path, "rb"))
+    print("loaded", local_path)
+    return vae
+
 
 if __name__ == "__main__":
     p = sync_down("ashvin/vae/new-point2d/run0/id1/params.pkl")

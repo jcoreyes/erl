@@ -1,4 +1,3 @@
-import pickle
 import random
 
 import cv2
@@ -8,18 +7,7 @@ from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
 from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
 from railrl.envs.wrappers import ProxyEnv
-from railrl.misc.asset_loader import sync_down
-
-
-def load_vae(vae_file):
-    if vae_file[0] == "/":
-        local_path = vae_file
-    else:
-        local_path = sync_down(vae_file)
-    vae = pickle.load(open(local_path, "rb"))
-    # vae = torch.load(local_path, map_location=lambda storage, loc: storage)
-    print("loaded", local_path)
-    return vae
+from railrl.misc.asset_loader import load_local_or_remote_pickle
 
 
 class VAEWrappedEnv(ProxyEnv, Env):
@@ -51,7 +39,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             reward_params = dict()
         super().__init__(wrapped_env)
         if type(vae) is str:
-            self.vae = load_vae(vae)
+            self.vae = load_local_or_remote_pickle(vae)
         else:
             self.vae = vae
         if ptu.gpu_enabled():
@@ -505,7 +493,7 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
         if reward_params is None:
             reward_params = dict()
         if type(vae) is str:
-            self.vae = load_vae(vae)
+            self.vae = load_local_or_remote_pickle(vae)
         else:
             self.vae = vae
         if ptu.gpu_enabled():

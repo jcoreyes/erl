@@ -1,7 +1,7 @@
 import cv2
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.vae_wrappers import load_vae
+from railrl.misc.asset_loader import load_local_or_remote_pickle
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 import numpy as np
@@ -70,7 +70,7 @@ def generate_goal_data_set_door(env=None, num_goals=1000, use_cached_dataset=Fal
         goal_generation_dict[goal_key] = [goal_size, obs_key]
 
     goal_dict = dict()
-    policy_file = load_vae(policy_file)
+    policy_file = load_local_or_remote_pickle(policy_file)
     policy = policy_file['policy']
     if ptu.gpu_enabled():
         policy.cuda()

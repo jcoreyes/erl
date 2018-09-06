@@ -279,8 +279,8 @@ def get_envs(variant):
     reward_params = variant.get("reward_params", dict())
     init_camera = variant.get("init_camera", None)
     do_state_exp = variant.get("do_state_exp", False)
-    from railrl.envs.vae_wrappers import load_vae
-    vae = load_vae(vae_path) if type(vae_path) is str else vae_path
+    from railrl.misc.asset_loader import load_local_or_remote_pickle
+    vae = load_local_or_remote_pickle(vae_path) if type(vae_path) is str else vae_path
     presample_goals = variant.get('presample_goals', False)
     presample_image_goals_only = variant.get('presample_image_goals_only', False)
     if 'env_id' in variant:
