@@ -7,7 +7,6 @@ from gym import Env
 from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
 from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
-# from multiworld.envs.mujoco.sawyer_reach_torque.generate_goal_data_set import generate_goal_data_set
 from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.asset_loader import sync_down
 
