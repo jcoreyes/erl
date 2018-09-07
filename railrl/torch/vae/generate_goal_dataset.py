@@ -16,19 +16,30 @@ def generate_goal_data_set(env=None, num_goals=1000, use_cached_dataset=False,
         goal_dict = np.load('/tmp/goals' + str(num_goals) + '.npy').item()
         print("loaded data from saved file")
         return goal_dict
-    cached_goal_keys = ['latent_desired_goal', 'image_desired_goal',
-                        'state_desired_goal', 'joint_desired_goal']
+    cached_goal_keys = [
+        'latent_desired_goal',
+        'image_desired_goal',
+        'state_desired_goal',
+        'joint_desired_goal',
+    ]
     goal_sizes = [
         env.observation_space.spaces['latent_desired_goal'].low.size,
         env.observation_space.spaces['image_desired_goal'].low.size,
         env.observation_space.spaces['state_desired_goal'].low.size,
         7
     ]
-    observation_keys = ['latent_observation', 'image_observation',
-                        'state_observation', 'state_observation']
+    observation_keys = [
+        'latent_observation',
+        'image_observation',
+        'state_observation',
+        'state_observation',
+    ]
     goal_generation_dict = dict()
-    for goal_key, goal_size, obs_key in zip(cached_goal_keys, goal_sizes,
-                                            observation_keys):
+    for goal_key, goal_size, obs_key in zip(
+            cached_goal_keys,
+            goal_sizes,
+            observation_keys,
+    ):
         goal_generation_dict[goal_key] = [goal_size, obs_key]
     goal_dict = dict()
     policy = RandomPolicy(env.action_space)
