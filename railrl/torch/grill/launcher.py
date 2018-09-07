@@ -176,6 +176,7 @@ def train_vae(variant, return_data=False):
         return m, train_data, test_data
     return m
 
+
 def generate_vae_dataset(variant):
     env_class = variant.get('env_class', None)
     env_kwargs = variant.get('env_kwargs',None)
@@ -192,6 +193,7 @@ def generate_vae_dataset(variant):
     n_random_steps = variant.get('n_random_steps', 100)
     vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
     save_file_prefix = variant.get('save_file_prefix', None)
+    non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
     from multiworld.core.image_env import ImageEnv, unormalize_image
     from railrl.misc.asset_loader import local_path_from_s3_or_local_path
     info = {}
@@ -238,9 +240,11 @@ def generate_vae_dataset(variant):
                     init_camera=init_camera,
                     transpose=True,
                     normalize=True,
+                    non_presampled_goal_img_is_garbage=non_presampled_goal_img_is_garbage,
                 )
             else:
                 imsize = env.imsize
+                env.non_presampled_goal_img_is_garbage = non_presampled_goal_img_is_garbage
             env.reset()
             info['env'] = env
 
@@ -303,26 +307,35 @@ def get_envs(variant):
                 transpose=True,
                 normalize=True,
             )
-        vae_env = VAEWrappedEnv(
-            image_env,
-            vae,
-            imsize=image_env.imsize,
-            decode_goals=render,
-            render_goals=render,
-            render_rollouts=render,
-            reward_params=reward_params,
-            **variant.get('vae_wrapped_env_kwargs', {})
-        )
         if presample_goals:
             """
             This will fail for online-parallel as presampled_goals will not be
             serialized. Also don't use this for online-vae.
             """
-            presampled_goals = variant['generate_goal_dataset_fn'](
-                env=vae_env,
-                **variant['goal_generation_kwargs']
-            )
-            del vae_env
+            presampled_goals_path = variant.get('presampled_goals_path', None)
+            if presampled_goals_path is None:
+                image_env.non_presampled_goal_img_is_garbage = True
+                vae_env = VAEWrappedEnv(
+                    image_env,
+                    vae,
+                    imsize=image_env.imsize,
+                    decode_goals=render,
+                    render_goals=render,
+                    render_rollouts=render,
+                    reward_params=reward_params,
+                    **variant.get('vae_wrapped_env_kwargs', {})
+                )
+                presampled_goals = variant['generate_goal_dataset_fn'](
+                    env=vae_env,
+                    **variant['goal_generation_kwargs']
+                )
+                del vae_env
+                import sys
+                sys.exit(0)
+            else:
+                presampled_goals = load_local_or_remote_pickle(
+                    presampled_goals_path
+                )
             del image_env
             image_env = ImageEnv(
                 env,
@@ -331,6 +344,7 @@ def get_envs(variant):
                 transpose=True,
                 normalize=True,
                 presampled_goals=presampled_goals,
+                **variant.get('image_env_kwargs', {})
             )
             vae_env = VAEWrappedEnv(
                 image_env,
@@ -344,15 +358,26 @@ def get_envs(variant):
                 **variant.get('vae_wrapped_env_kwargs', {})
             )
             print("Presampling all goals only")
-        elif presample_image_goals_only:
-            presampled_goals = variant['generate_goal_dataset_fn'](
-                image_env=vae_env.wrapped_env,
-                **variant['goal_generation_kwargs']
-            )
-            image_env.set_presampled_goals(presampled_goals)
-            print("Presampling image goals only")
         else:
-            print("Not using presampled goals")
+            vae_env = VAEWrappedEnv(
+                image_env,
+                vae,
+                imsize=image_env.imsize,
+                decode_goals=render,
+                render_goals=render,
+                render_rollouts=render,
+                reward_params=reward_params,
+                **variant.get('vae_wrapped_env_kwargs', {})
+            )
+            if presample_image_goals_only:
+                presampled_goals = variant['generate_goal_dataset_fn'](
+                    image_env=vae_env.wrapped_env,
+                    **variant['goal_generation_kwargs']
+                )
+                image_env.set_presampled_goals(presampled_goals)
+                print("Presampling image goals only")
+            else:
+                print("Not using presampled goals")
 
         env = vae_env
 
