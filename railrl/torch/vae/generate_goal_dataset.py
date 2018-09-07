@@ -59,7 +59,7 @@ def generate_goal_data_set(env=None, num_goals=1000, use_cached_dataset=False,
     return goal_dict
 
 
-def generate_goal_data_set_door(
+def generate_goal_dataset_using_policy(
         env=None,
         num_goals=1000,
         use_cached_dataset=False,
@@ -70,29 +70,16 @@ def generate_goal_data_set_door(
     filename = '/tmp/goals_n{}_{}.npy'.format(num_goals, env)
     if use_cached_dataset and osp.isfile(filename):
         goal_dict = np.load(filename).item()
-        logging.log(logging.INFO, "Loaded data from {}".format(filename))
+        print("Loaded data from {}".format(filename))
         return goal_dict
-    cached_goal_keys = [
-        'latent_desired_goal',
-        'image_desired_goal',
-        'state_desired_goal',
-    ]
-    goal_sizes = [
-        env.observation_space.spaces['latent_desired_goal'].low.size,
-        env.observation_space.spaces['image_desired_goal'].low.size,
-        env.observation_space.spaces['state_desired_goal'].low.size,
-    ]
-    observation_keys = [
-        'latent_achieved_goal',
-        'image_achieved_goal',
-        'state_achieved_goal',
-    ]
+
     goal_generation_dict = dict()
-    for goal_key, goal_size, obs_key in zip(
-            cached_goal_keys,
-            goal_sizes,
-            observation_keys
-    ):
+    for goal_key, obs_key in [
+        ('latent_desired_goal', 'latent_achieved_goal'),
+        ('image_desired_goal', 'image_achieved_goal'),
+        ('state_desired_goal', 'state_achieved_goal'),
+    ]:
+        goal_size = env.observation_space.spaces[goal_key].low.size
         goal_generation_dict[goal_key] = [goal_size, obs_key]
 
     goal_dict = dict()

@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.generate_goal_dataset import generate_goal_data_set_door
+from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v2, sawyer_door_env_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerDoorEnv
 from railrl.launchers.launcher_util import run_experiment
@@ -76,7 +76,7 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
-            generate_goal_dataset_fn=generate_goal_data_set_door,
+            generate_goal_dataset_fn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=False,
