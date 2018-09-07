@@ -278,15 +278,18 @@ def generate_vae_dataset(variant):
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv
     from railrl.envs.vae_wrappers import VAEWrappedEnv
-    render = variant["render"]
+    from railrl.misc.asset_loader import load_local_or_remote_pickle
+
+    render = variant.get('render', False)
     vae_path = variant.get("vae_path", None)
     reward_params = variant.get("reward_params", dict())
     init_camera = variant.get("init_camera", None)
     do_state_exp = variant.get("do_state_exp", False)
-    from railrl.misc.asset_loader import load_local_or_remote_pickle
-    vae = load_local_or_remote_pickle(vae_path) if type(vae_path) is str else vae_path
     presample_goals = variant.get('presample_goals', False)
     presample_image_goals_only = variant.get('presample_image_goals_only', False)
+    presampled_goals_path = variant.get('presampled_goals_path', None)
+
+    vae = load_local_or_remote_pickle(vae_path) if type(vae_path) is str else vae_path
     if 'env_id' in variant:
         import gym
         from gym.envs import registration
@@ -312,7 +315,6 @@ def get_envs(variant):
             This will fail for online-parallel as presampled_goals will not be
             serialized. Also don't use this for online-vae.
             """
-            presampled_goals_path = variant.get('presampled_goals_path', None)
             if presampled_goals_path is None:
                 image_env.non_presampled_goal_img_is_garbage = True
                 vae_env = VAEWrappedEnv(
