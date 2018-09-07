@@ -106,7 +106,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             if self.num_goals_presampled > 0:
                 goal = self.sample_goal()
                 latent_goal = self._encode_one(goal['image_desired_goal'])
-                goal['latent_desired_goal']
                 self.wrapped_env.set_goal(goal)
             else:
                 latent_goal = self._encode_one(obs[self.vae_input_desired_goal_key])

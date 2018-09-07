@@ -86,7 +86,6 @@ def generate_goal_dataset_using_policy(
 
     goal_generation_dict = dict()
     for goal_key, obs_key in [
-        ('latent_desired_goal', 'latent_achieved_goal'),
         ('image_desired_goal', 'image_achieved_goal'),
         ('state_desired_goal', 'state_achieved_goal'),
     ]:
