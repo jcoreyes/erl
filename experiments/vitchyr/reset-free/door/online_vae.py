@@ -77,8 +77,10 @@ if __name__ == "__main__":
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
+            # presampled_goals_path='manual-upload/goals_n1000_SawyerDoorEnv.npy',
+            presampled_goals_path='/tmp/goals_n10_VAEWrappedEnv(ImageEnv(<SawyerDoorEnv instance>)).npy',
             goal_generation_kwargs=dict(
-                num_goals=10,
+                num_goals=100,
                 use_cached_dataset=False,
                 policy_file='/home/vitchyr/git/railrl/data/doodads3/08-29-door-env-from-state-larger-angle-range-250epoch-with-gripper-2/08-29-door-env-from-state-larger-angle-range-250epoch-with-gripper-2_2018_08_29_23_34_17_0000--s-98277/params.pkl',
                 path_length=30,
