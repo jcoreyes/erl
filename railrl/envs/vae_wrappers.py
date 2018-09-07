@@ -7,7 +7,7 @@ from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
 from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
 from railrl.envs.wrappers import ProxyEnv
-from railrl.misc.asset_loader import load_local_or_remote_pickle
+from railrl.misc.asset_loader import load_local_or_remote_file
 
 
 class VAEWrappedEnv(ProxyEnv, Env):
@@ -39,7 +39,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             reward_params = dict()
         super().__init__(wrapped_env)
         if type(vae) is str:
-            self.vae = load_local_or_remote_pickle(vae)
+            self.vae = load_local_or_remote_file(vae)
         else:
             self.vae = vae
         if ptu.gpu_enabled():
@@ -493,7 +493,7 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
         if reward_params is None:
             reward_params = dict()
         if type(vae) is str:
-            self.vae = load_local_or_remote_pickle(vae)
+            self.vae = load_local_or_remote_file(vae)
         else:
             self.vae = vae
         if ptu.gpu_enabled():
