@@ -31,7 +31,9 @@ if __name__ == "__main__":
             td3_kwargs=dict(),
         ),
         env_class=SawyerDoorEnv,
-        env_kwargs=dict(),
+        env_kwargs=dict(
+            xml_path='sawyer_xyz/sawyer_door_pull_30.xml',
+        ),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_goals_are_rollout_goals=0.2,
@@ -72,10 +74,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'sss'
-    exp_prefix = 'door-env-from-state-larger-angle-range-250epoch-with' \
-                 '-gripper-3'
+    # n_seeds = 3
+    # mode = 'sss'
+    # exp_prefix = 'door-env-from-state-max-angle-30'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):

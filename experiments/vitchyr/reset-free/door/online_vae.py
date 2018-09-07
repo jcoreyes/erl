@@ -21,8 +21,8 @@ if __name__ == "__main__":
             # hand_high=(0., 0.65, .075),
             # max_angle=1.0472,
             # max_angle=0.523599,
-            xml_path='sawyer_xyz/sawyer_door_pull.xml',
-            # xml_path='sawyer_xyz/sawyer_door_pull_30.xml',
+            # xml_path='sawyer_xyz/sawyer_door_pull.xml',
+            xml_path='sawyer_xyz/sawyer_door_pull_30.xml',
         ),
         grill_variant=dict(
             save_video=True,
@@ -38,7 +38,7 @@ if __name__ == "__main__":
                 base_kwargs=dict(
                     num_epochs=500,
                     num_steps_per_epoch=1000,
-                    num_steps_per_eval=500,
+                    num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
                     batch_size=128,
                     max_path_length=100,
@@ -82,7 +82,7 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=100,
                 use_cached_dataset=False,
-                policy_file='/home/vitchyr/git/railrl/data/doodads3/08-29-door-env-from-state-larger-angle-range-250epoch-with-gripper-2/08-29-door-env-from-state-larger-angle-range-250epoch-with-gripper-2_2018_08_29_23_34_17_0000--s-98277/params.pkl',
+                policy_file='manual-upload/SawyerDoorEnv_policy_params.pkl',
                 path_length=30,
                 show=False,
             ),
@@ -96,8 +96,8 @@ if __name__ == "__main__":
             beta=1.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=100,
-                test_p=.9,
+                N=2,
+                test_p=.5,
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -120,8 +120,9 @@ if __name__ == "__main__":
         'env_kwargs.reset_free': [False],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [100],
         'grill_variant.es_kwargs.max_sigma': [.8],
-        'grill_variant.replay_buffer_kwargs.alpha': [2],
-        'grill_variant.vae_wrapped_env_kwargs.sample_from_true_prior':[True],
+        'grill_variant.replay_buffer_kwargs.alpha': [0, 2],
+        'grill_variant.vae_wrapped_env_kwargs.sample_from_true_prior': [True,
+                                                                        False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -135,6 +136,10 @@ if __name__ == "__main__":
     # mode = 'ec2'
     # exp_prefix = 'sawyer_new_door_online_vae_30'
 
+    # n_seeds = 2
+    # mode = 'sss'
+    # exp_prefix = 'sawyer-door-full-sweep-alpha'
+
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
@@ -143,5 +148,6 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=3,
+                num_exps_per_instance=2,
+                time_in_mins=60*10,
           )
