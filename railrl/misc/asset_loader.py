@@ -1,9 +1,15 @@
+import joblib
+import numpy as np
 import pickle
 
 import boto3
 
 from railrl.launchers.config import LOCAL_LOG_DIR, AWS_S3_PATH
 import os
+
+PICKLE = 'pickle'
+NUMPY = 'numpy'
+JOBLIB = 'joblib'
 
 
 def local_path_from_s3_or_local_path(filename):
@@ -56,14 +62,27 @@ def split_s3_full_path(s3_path):
     return bucket_name, directory_path
 
 
-def load_local_or_remote_pickle(vae_file):
-    if vae_file[0] == "/":
-        local_path = vae_file
+def load_local_or_remote_file(filepath, file_type=None):
+    if filepath[0] == "/":
+        local_path = filepath
     else:
-        local_path = sync_down(vae_file)
-    vae = pickle.load(open(local_path, "rb"))
+        local_path = sync_down(filepath)
+    if file_type is None:
+        extension = local_path.split('.')[-1]
+        if extension == 'npy':
+            file_type = NUMPY
+        else:
+            file_type = PICKLE
+    else:
+        file_type = PICKLE
+    if file_type == NUMPY:
+        object = np.load(open(local_path, "rb"))
+    elif file_type == JOBLIB:
+        object = joblib.load(local_path)
+    else:
+        object = pickle.load(open(local_path, "rb"))
     print("loaded", local_path)
-    return vae
+    return object
 
 
 if __name__ == "__main__":

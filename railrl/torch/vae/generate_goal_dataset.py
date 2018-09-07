@@ -1,9 +1,8 @@
 import cv2
 
 import railrl.torch.pytorch_util as ptu
-from railrl.misc.asset_loader import load_local_or_remote_pickle
-from railrl.exploration_strategies.base import \
-    PolicyWrappedWithExplorationStrategy
+from railrl.misc.asset_loader import load_local_or_remote_file
+from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 import numpy as np
 from railrl.policies.simple import RandomPolicy
@@ -83,7 +82,7 @@ def generate_goal_dataset_using_policy(
         goal_generation_dict[goal_key] = [goal_size, obs_key]
 
     goal_dict = dict()
-    policy_file = load_local_or_remote_pickle(policy_file)
+    policy_file = load_local_or_remote_file(policy_file)
     policy = policy_file['policy']
     if ptu.gpu_enabled():
         policy.cuda()

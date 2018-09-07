@@ -278,7 +278,7 @@ def generate_vae_dataset(variant):
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv
     from railrl.envs.vae_wrappers import VAEWrappedEnv
-    from railrl.misc.asset_loader import load_local_or_remote_pickle
+    from railrl.misc.asset_loader import load_local_or_remote_file
 
     render = variant.get('render', False)
     vae_path = variant.get("vae_path", None)
@@ -289,7 +289,7 @@ def get_envs(variant):
     presample_image_goals_only = variant.get('presample_image_goals_only', False)
     presampled_goals_path = variant.get('presampled_goals_path', None)
 
-    vae = load_local_or_remote_pickle(vae_path) if type(vae_path) is str else vae_path
+    vae = load_local_or_remote_file(vae_path) if type(vae_path) is str else vae_path
     if 'env_id' in variant:
         import gym
         from gym.envs import registration
@@ -333,9 +333,9 @@ def get_envs(variant):
                 )
                 del vae_env
             else:
-                presampled_goals = load_local_or_remote_pickle(
+                presampled_goals = load_local_or_remote_file(
                     presampled_goals_path
-                )
+                ).item()
             del image_env
             image_env = ImageEnv(
                 env,
