@@ -76,8 +76,9 @@ def generate_goal_dataset_using_policy(
         policy_file=None,
         show=False,
         path_length=500,
+        save_filename=None,
 ):
-    filename = '/tmp/goals_n{}_{}.npy'.format(num_goals, env)
+    filename = save_filename or '/tmp/goals_n{}_{}.npy'.format(num_goals, env)
     if use_cached_dataset and osp.isfile(filename):
         goal_dict = np.load(filename).item()
         print("Loaded data from {}".format(filename))
