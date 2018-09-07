@@ -325,13 +325,11 @@ def get_envs(variant):
                     reward_params=reward_params,
                     **variant.get('vae_wrapped_env_kwargs', {})
                 )
-                presampled_goals = variant['generate_goal_dataset_fn'](
+                presampled_goals = variant['generate_goal_dataset_fctn'](
                     env=vae_env,
                     **variant['goal_generation_kwargs']
                 )
                 del vae_env
-                import sys
-                sys.exit(0)
             else:
                 presampled_goals = load_local_or_remote_pickle(
                     presampled_goals_path
@@ -370,7 +368,7 @@ def get_envs(variant):
                 **variant.get('vae_wrapped_env_kwargs', {})
             )
             if presample_image_goals_only:
-                presampled_goals = variant['generate_goal_dataset_fn'](
+                presampled_goals = variant['generate_goal_dataset_fctn'](
                     image_env=vae_env.wrapped_env,
                     **variant['goal_generation_kwargs']
                 )

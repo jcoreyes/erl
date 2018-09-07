@@ -76,7 +76,7 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
-            generate_goal_dataset_fn=generate_goal_dataset_using_policy,
+            generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=False,
