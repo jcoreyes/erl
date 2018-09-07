@@ -77,7 +77,7 @@ if __name__ == "__main__":
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
-            presampled_goals_path='manual-upload/goals_n1000_SawyerDoorEnv.npy',
+            presampled_goals_path='manual-upload/goals_n1000_SawyerDoorEnv_max_angle_30.npy',
             # presampled_goals_path='/tmp/goals_n10_VAEWrappedEnv(ImageEnv(<SawyerDoorEnv instance>)).npy',
             goal_generation_kwargs=dict(
                 num_goals=100,
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env_kwargs.reset_free': [False],
+        'env_kwargs.reset_free': [True, False],
         'grill_variant.algo_kwargs.base_kwargs.reward_scale': [100],
         'grill_variant.es_kwargs.max_sigma': [.8],
         'grill_variant.replay_buffer_kwargs.alpha': [0, 2],
@@ -136,9 +136,9 @@ if __name__ == "__main__":
     # mode = 'ec2'
     # exp_prefix = 'sawyer_new_door_online_vae_30'
 
-    # n_seeds = 2
-    # mode = 'sss'
-    # exp_prefix = 'sawyer-door-full-sweep-alpha'
+    n_seeds = 2
+    mode = 'sss'
+    exp_prefix = 'sawyer-door-max-angle-30-sweep-alpha'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

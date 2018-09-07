@@ -18,10 +18,11 @@ image_env = ImageEnv(
 
 generate_goal_dataset_using_policy(
     env=image_env,
-    num_goals=100,
+    num_goals=1000,
     use_cached_dataset=False,
     policy_file='manual-upload/SawyerDoorEnv_policy_params.pkl',
     path_length=30,
     show=True,
-    save_filename='/tmp/test.npy',
+    save_filename='/home/vitchyr/git/railrl/data/doodads3/manual-upload'
+                  '/goals_n1000_SawyerDoorEnv_max_angle_30.npy'
 )
