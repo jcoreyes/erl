@@ -29,7 +29,7 @@ class ConvVAETrainer():
             log_interval=0,
             beta=0.5,
             beta_schedule=None,
-            lr=1e-3,
+            lr=None,
             do_scatterplot=False,
             normalize=False,
             mse_weight=0.1,
@@ -45,7 +45,11 @@ class ConvVAETrainer():
         self.beta = beta
         if is_auto_encoder:
             self.beta = 0
-            lr = 1e-2
+        if lr is None:
+            if is_auto_encoder:
+                lr = 1e-2
+            else:
+                lr = 1e-3
         self.beta_schedule = beta_schedule
         if self.beta_schedule is None or is_auto_encoder:
             self.beta_schedule = ConstantSchedule(self.beta)
