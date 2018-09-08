@@ -68,7 +68,7 @@ class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
         passed directly to the subprocess as an argument to the fork call.
         """
         self._shared_obs_info = shared_obs_info
-        self._shared_next_obs = shared_next_obs_info
+        self._shared_next_obs_info = shared_next_obs_info
         for obs_key in self._shared_obs_info.keys():
             self._obs[obs_key] = to_np(*self._shared_obs_info[obs_key])
             self._next_obs[obs_key] = to_np(*self._shared_next_obs_info[obs_key])
