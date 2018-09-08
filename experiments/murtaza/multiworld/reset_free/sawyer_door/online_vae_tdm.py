@@ -9,7 +9,7 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         imsize=48,
-        init_camera=sawyer_door_env_camera_v2,
+        init_camera=sawyer_door_env_camera_v3,
         env_kwargs=dict(
             goal_low=(-0.1, 0.42, 0.05, 0),
             goal_high=(0.0, 0.65, .075, 0.523599),

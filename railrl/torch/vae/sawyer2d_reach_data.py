@@ -3,8 +3,9 @@ import time
 import numpy as np
 import os.path as osp
 
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
-from railrl.envs.wrappers import ImageMujocoEnv
+from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, init_sawyer_camera_v2, init_sawyer_camera_v3
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
+from multiworld.core.image_env import ImageEnv
 from railrl.images.camera import sawyer_init_camera
 import cv2
 
@@ -15,7 +16,7 @@ def generate_vae_dataset(
         N=10000, test_p=0.9, use_cached=True, imsize=84, show=False,
         dataset_path=None,
 ):
-    filename = "/tmp/sawyer_pos_control_imgs" + str(N) + ".npy"
+    filename = "/tmp/sawyer_xy_pos_control_imgs" + str(N) + ".npy"
     info = {}
     if dataset_path is not None:
         filename = local_path_from_s3_or_local_path(dataset_path)
@@ -25,24 +26,23 @@ def generate_vae_dataset(
         print("loaded data from saved file", filename)
     else:
         now = time.time()
-        env = SawyerXYEnv(hide_goal=True)
-        env = ImageMujocoEnv(
+        env = SawyerReachXYEnv(hide_goal_markers=True)
+        env = ImageEnv(
             env, imsize,
             transpose=True,
-            init_camera=sawyer_init_camera,
+            init_camera=init_sawyer_camera_v1,
             normalize=True,
         )
         info['env'] = env
         dataset = np.zeros((N, imsize * imsize * 3))
         for i in range(N):
             # Move the goal out of the image
-            # env.wrapped_env.set_goal(np.array([100, 100, 100]))
             env.reset()
             for _ in range(50):
                 env.wrapped_env.step(
                     env.wrapped_env.action_space.sample()
                 )
-            img = env.step(env.action_space.sample())[0]
+            img = env.step(env.action_space.sample())[0]['image_observation']
 
             dataset[i, :] = img
             if show:
@@ -56,7 +56,6 @@ def generate_vae_dataset(
     train_dataset = dataset[:n, :]
     test_dataset = dataset[n:, :]
     return train_dataset, test_dataset, info
-
 
 if __name__ == "__main__":
     generate_vae_dataset(10000, use_cached=False, show=True)
