@@ -1,37 +1,23 @@
 # Adapted from pytorch examples
 
 from __future__ import print_function
-import argparse
 import torch
 import torch.utils.data
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.nn import functional as F
-from torchvision import datasets, transforms
 from torchvision.utils import save_image
-
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.core import PyTorchModule
-from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import Sampler, BatchSampler
-
 from railrl.core import logger
 import os.path as osp
-
-from railrl.torch.vae.vae import VAE
 import numpy as np
-
-from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
-import numpy as np
-from railrl.torch.core import PyTorchModule
-
 from multiworld.core.image_env import normalize_image
+from railrl.torch.core import PyTorchModule
 
 class ConvVAETrainer():
     def __init__(
@@ -43,12 +29,12 @@ class ConvVAETrainer():
             log_interval=0,
             beta=0.5,
             beta_schedule=None,
-            lr=1e-3,
+            lr=None,
             do_scatterplot=False,
             normalize=False,
-            state_sim_debug=False,
             mse_weight=0.1,
             is_auto_encoder=False,
+            background_subtract=False,
             linearity_weight=0.0,
             use_linear_dynamics=False,
             use_parallel_dataloading=True,
@@ -59,8 +45,13 @@ class ConvVAETrainer():
         self.beta = beta
         if is_auto_encoder:
             self.beta = 0
+        if lr is None:
+            if is_auto_encoder:
+                lr = 1e-2
+            else:
+                lr = 1e-3
         self.beta_schedule = beta_schedule
-        if self.beta_schedule is None:
+        if self.beta_schedule is None or is_auto_encoder:
             self.beta_schedule = ConstantSchedule(self.beta)
         self.imsize = model.imsize
         self.do_scatterplot = do_scatterplot
@@ -129,11 +120,12 @@ class ConvVAETrainer():
 
 
         self.normalize = normalize
-        self.state_sim_debug = state_sim_debug
         self.mse_weight = mse_weight
+        self.background_subtract = background_subtract
 
-        if self.normalize:
+        if self.normalize or self.background_subtract:
             self.train_data_mean = np.mean(self.train_dataset, axis=0)
+            self.train_data_mean = normalize_image(np.uint8(self.train_data_mean))
             # self.train_dataset = ((self.train_dataset - self.train_data_mean)) + 1 / 2
             # self.test_dataset = ((self.test_dataset - self.train_data_mean)) + 1 / 2
         self.linearity_weight = linearity_weight
@@ -155,6 +147,8 @@ class ConvVAETrainer():
         samples = normalize_image(dataset[ind, :])
         if self.normalize:
             samples = ((samples - self.train_data_mean) + 1) / 2
+        if self.background_subtract:
+            samples = samples - self.train_data_mean
         return ptu.np_to_var(samples)
 
 
@@ -180,10 +174,6 @@ class ConvVAETrainer():
     def kl_divergence(self, recon_x, x, mu, logvar):
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
-    def state_similarity_loss(self, model, encoded_x, states):
-        output = self.model.fc6(F.relu(self.model.fc5(encoded_x)))
-        return torch.norm(output-states)**2 / self.batch_size
-
     def state_linearity_loss(self, obs, next_obs, actions):
         latent_obs = self.model.encode(obs)[0]
         latent_next_obs = self.model.encode(next_obs)[0]
@@ -196,46 +186,33 @@ class ConvVAETrainer():
         losses = []
         bces = []
         kles = []
-        mses = []
         linear_losses = []
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
-            if self.state_sim_debug:
-                X, Y = self.get_debug_batch()
-                self.optimizer.zero_grad()
-                recon_batch, mu, logvar = self.model(X)
-                bce = self.logprob(recon_batch, X, mu, logvar)
-                kle = self.kl_divergence(recon_batch, X, mu, logvar)
-                sim_loss = self.state_similarity_loss(self.model, mu, Y)
-                loss = bce + beta * kle + sim_loss*self.mse_weight
-                loss.backward()
+            if sample_batch is not None:
+                data = sample_batch(self.batch_size)
+                # obs = data['obs']
+                next_obs = data['next_obs']
+                # actions = data['actions']
             else:
-                if sample_batch is not None:
-                    data = sample_batch(self.batch_size)
-                    # obs = data['obs']
-                    next_obs = data['next_obs']
-                    # actions = data['actions']
-                else:
-                    next_obs = self.get_batch()
-                    obs = None
-                    actions = None
-                self.optimizer.zero_grad()
-                recon_batch, mu, logvar = self.model(next_obs)
-                bce = self.logprob(recon_batch, next_obs, mu, logvar)
-                kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
-                if self.use_linear_dynamics:
-                    linear_dynamics_loss = self.state_linearity_loss(obs, next_obs, actions)
-                    loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
-                    linear_losses.append(linear_dynamics_loss.data[0])
-                else:
-                    loss = bce + beta * kle
-                loss.backward()
+                next_obs = self.get_batch()
+                obs = None
+                actions = None
+            self.optimizer.zero_grad()
+            recon_batch, mu, logvar = self.model(next_obs)
+            bce = self.logprob(recon_batch, next_obs, mu, logvar)
+            kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
+            if self.use_linear_dynamics:
+                linear_dynamics_loss = self.state_linearity_loss(obs, next_obs, actions)
+                loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
+                linear_losses.append(linear_dynamics_loss.data[0])
+            else:
+                loss = bce + beta * kle
+            loss.backward()
 
             losses.append(loss.data[0])
             bces.append(bce.data[0])
             kles.append(kle.data[0])
-            if self.state_sim_debug:
-                mses.append(sim_loss.data[0])
 
             self.optimizer.step()
             if self.log_interval and batch_idx % self.log_interval == 0:
@@ -256,8 +233,6 @@ class ConvVAETrainer():
             logger.record_tabular("train/epoch", epoch)
             logger.record_tabular("train/BCE", np.mean(bces))
             logger.record_tabular("train/KL", np.mean(kles))
-            if self.state_sim_debug:
-                logger.record_tabular("train/mse", np.mean(mses))
             logger.record_tabular("train/loss", np.mean(losses))
             if self.use_linear_dynamics:
                 logger.record_tabular("train/linear_loss", np.mean(linear_losses))
@@ -277,24 +252,13 @@ class ConvVAETrainer():
         bces = []
         kles = []
         zs = []
-        mses = []
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(10):
-            if self.state_sim_debug:
-                X, Y = self.get_debug_batch(train=False)
-                recon_batch, mu, logvar = self.model(X)
-                bce = self.logprob(recon_batch, X, mu, logvar)
-                kle = self.kl_divergence(recon_batch, X, mu, logvar)
-                sim_loss = self.state_similarity_loss(self.model, mu, Y)
-                loss = bce + beta * kle + sim_loss
-                data = X
-            else:
-                data = self.get_batch(train=False)
-                recon_batch, mu, logvar = self.model(data)
-                bce = self.logprob(recon_batch, data, mu, logvar)
-                kle = self.kl_divergence(recon_batch, data, mu, logvar)
-                loss = bce + beta * kle
-
+            data = self.get_batch(train=False)
+            recon_batch, mu, logvar = self.model(data)
+            bce = self.logprob(recon_batch, data, mu, logvar)
+            kle = self.kl_divergence(recon_batch, data, mu, logvar)
+            loss = bce + beta * kle
 
             z_data = ptu.get_numpy(mu.cpu())
             for i in range(len(z_data)):
@@ -302,8 +266,6 @@ class ConvVAETrainer():
             losses.append(loss.data[0])
             bces.append(bce.data[0])
             kles.append(kle.data[0])
-            if self.state_sim_debug:
-                mses.append(sim_loss.data[0])
 
             if batch_idx == 0 and save_reconstruction:
                 n = min(data.size(0), 8)
@@ -342,9 +304,6 @@ class ConvVAETrainer():
             logger.record_tabular("test/KL", np.mean(kles))
             logger.record_tabular("test/loss", np.mean(losses))
             logger.record_tabular("beta", beta)
-            if self.state_sim_debug:
-                logger.record_tabular("test/MSE", np.mean(mses))
-
             logger.dump_tabular()
             if save_vae:
                 logger.save_itr_params(epoch, self.model)  # slow...
@@ -364,7 +323,6 @@ class ConvVAETrainer():
            coverage)
         """
         debug_batch_size = 64
-
         data = self.get_batch(train=False)
         recon_batch, mu, logvar = self.model(data)
         img = data[0]
@@ -376,7 +334,6 @@ class ConvVAETrainer():
         random_imgs = self.model.decode(samples)
         random_mses = (random_imgs - img_repeated)**2
         mse_improvement = ptu.get_numpy(random_mses.mean(dim=1) - recon_mse)
-
         stats = create_stats_ordered_dict(
             'debug/MSE improvement over random',
             mse_improvement,
@@ -609,8 +566,6 @@ class ConvVAE(PyTorchModule):
         self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
 
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
-        # self.fc4 = nn.Linear(self.conv_output_dim, imsize*imsize)
-
         self.conv4 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=6, stride=3)
         self.conv6 = nn.ConvTranspose2d(16, input_channels, kernel_size=6,
@@ -719,7 +674,6 @@ class ConvVAELarge(ConvVAE):
             hidden_init=ptu.fanin_init,
             output_activation=identity,
             min_variance=1e-4,
-            state_size=0,
     ):
         self.save_init_params(locals())
         # TODO(mdalal2020): You probably want to fix this init call...
@@ -734,8 +688,8 @@ class ConvVAELarge(ConvVAE):
             self.log_min_variance = None
         else:
             self.log_min_variance = float(np.log(min_variance))
-        self.dist_mu = None
-        self.dist_std = None
+        self.dist_mu = np.zeros(self.representation_size)
+        self.dist_std = np.ones(self.representation_size)
 
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
@@ -869,8 +823,6 @@ class SpatialVAE(ConvVAE):
             temperature=1.0,
             **kwargs
     ):
-        # (from vitchyr:) This was commented out... but I'm guessing it
-        # really shouldn't be since that will break the serialization code.
         self.save_init_params(locals())
         super().__init__(representation_size, *args, **kwargs)
         self.num_feat_points = num_feat_points

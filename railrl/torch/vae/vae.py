@@ -1,63 +1,224 @@
 # Adapted from pytorch examples
 
 from __future__ import print_function
-import argparse
 import torch
 import torch.utils.data
 from torch import nn, optim
 from torch.autograd import Variable
-from torch.nn import functional as F
-from torchvision import datasets, transforms
-from torchvision.utils import save_image
-
 from railrl.core import logger
 import os.path as osp
-
 import numpy as np
+from railrl.misc.ml_util import ConstantSchedule
+from railrl.pythonplusplus import identity
+from railrl.torch.core import PyTorchModule
+from railrl.torch.networks import Mlp, TwoHeadMlp
+import railrl.torch.pytorch_util as ptu
 
-class VAE(nn.Module):
-    def __init__(self, batch_size=128, log_interval=0, use_cuda=False, beta=0.5):
-        super(VAE, self).__init__()
-
-        self.setup_network()
+class VAETrainer():
+    def __init__(
+            self,
+            train_dataset,
+            test_dataset,
+            model,
+            batch_size=128,
+            log_interval=0,
+            beta=0.5,
+            beta_schedule=None,
+            lr=1e-3,
+            do_scatterplot=False,
+            normalize=False,
+            is_auto_encoder=False,
+    ):
         self.log_interval = log_interval
-        self.use_cuda = use_cuda
         self.batch_size = batch_size
         self.beta = beta
+        if is_auto_encoder:
+            self.beta = 0
+        self.beta_schedule = beta_schedule
+        if self.beta_schedule is None:
+            self.beta_schedule = ConstantSchedule(self.beta)
+        self.do_scatterplot = do_scatterplot
 
-        self.optimizer = optim.Adam(self.parameters(), lr=1e-3)
-        self.get_data(self.batch_size) # initialize data loaders
+        if ptu.gpu_enabled():
+            model.cuda()
 
-    def setup_network(self):
-        self.fc1 = nn.Linear(784, 400)
-        self.fc21 = nn.Linear(400, 20)
-        self.fc22 = nn.Linear(400, 20)
-        self.fc3 = nn.Linear(20, 400)
-        self.fc4 = nn.Linear(400, 784)
+        self.model = model
+        self.representation_size = model.representation_size
 
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        self.train_dataset, self.test_dataset = train_dataset, test_dataset
+        self.normalize = normalize
+        self.mse = nn.MSELoss()
+
+        if self.normalize:
+            self.train_data_mean = np.mean(self.train_dataset, axis=0)
+
+    def get_batch(self, train=True):
+        dataset = self.train_dataset if train else self.test_dataset
+        ind = np.random.randint(0, len(dataset), self.batch_size)
+        samples = dataset[ind, :]
+        if self.normalize:
+            samples = ((samples - self.train_data_mean) + 1) / 2
+        return ptu.np_to_var(samples)
+
+
+    def get_debug_batch(self, train=True):
+        dataset = self.train_dataset if train else self.test_dataset
+        X, Y = dataset
+        ind = np.random.randint(0, Y.shape[0], self.batch_size)
+        X = X[ind, :]
+        Y = Y[ind, :]
+        return ptu.np_to_var(X), ptu.np_to_var(Y)
+
+    def logprob(self, recon_x, x):
+        return self.mse(recon_x, x)
+
+    def kl_divergence(self, mu, logvar):
+        kl = - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
+        return kl
+
+    def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
+        self.model.train()
+        losses = []
+        kles = []
+        mses = []
+        beta = self.beta_schedule.get_value(epoch)
+        for batch_idx in range(batches):
+            if sample_batch is not None:
+                data = sample_batch(self.batch_size)
+            else:
+                data = self.get_batch()
+            self.optimizer.zero_grad()
+            recon_batch, mu, logvar = self.model(data)
+            mse = self.logprob(recon_batch, data)
+            kle = self.kl_divergence(mu, logvar)
+            # print('Mu', mu.mean().data[0])
+            # print('Logvar', logvar.mean().exp().data[0])
+            # print('MSE', mse.data[0])
+            loss = mse + beta * kle
+            loss.backward()
+
+            losses.append(loss.data[0])
+            mses.append(mse.data[0])
+            kles.append(kle.data[0])
+
+            self.optimizer.step()
+            if self.log_interval and batch_idx % self.log_interval == 0:
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epoch, batch_idx * len(data), len(self.train_loader.dataset),
+                    100. * batch_idx / len(self.train_loader),
+                    loss.data[0] / len(data)))
+
+        if not from_rl:
+            logger.record_tabular("train/epoch", epoch)
+            logger.record_tabular("train/MSE", np.mean(mses))
+            logger.record_tabular("train/KL", np.mean(kles))
+            logger.record_tabular("train/loss", np.mean(losses))
+
+    def test_epoch(
+            self,
+            epoch,
+            save_scatterplot=True,
+            save_vae=True,
+            from_rl=False,
+    ):
+        self.model.eval()
+        losses = []
+        kles = []
+        zs = []
+        mses = []
+        beta = self.beta_schedule.get_value(epoch)
+        for batch_idx in range(100):
+            data = self.get_batch(train=False)
+            recon_batch, mu, logvar = self.model(data)
+            mse = self.logprob(recon_batch, data)
+            kle = self.kl_divergence(mu, logvar)
+            loss = mse + beta * kle
+            z_data = ptu.get_numpy(mu.cpu())
+            for i in range(len(z_data)):
+                zs.append(z_data[i, :])
+            losses.append(loss.data[0])
+            mses.append(mse.data[0])
+            kles.append(kle.data[0])
+        zs = np.array(zs)
+        self.model.dist_mu = zs.mean(axis=0)
+        self.model.dist_std = zs.std(axis=0)
+        if self.do_scatterplot and save_scatterplot:
+            self.plot_scattered(np.array(zs), epoch)
+
+        if not from_rl:
+            logger.record_tabular("test/MSE", np.mean(mses))
+            logger.record_tabular("test/KL", np.mean(kles))
+            logger.record_tabular("test/loss", np.mean(losses))
+            logger.record_tabular("beta", beta)
+            logger.dump_tabular()
+            if save_vae:
+                logger.save_itr_params(epoch, self.model)  # slow...
+
+    def dump_samples(self, epoch):
+        pass
+
+    def plot_scattered(self, z, epoch):
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            logger.log(__file__ + ": Unable to load matplotlib. Consider "
+                                  "setting do_scatterplot to False")
+            return
+        dim_and_stds = [(i, np.std(z[:, i])) for i in range(z.shape[1])]
+        dim_and_stds = sorted(
+            dim_and_stds,
+            key=lambda x: x[1]
+        )
+        dim1 = dim_and_stds[-1][0]
+        dim2 = dim_and_stds[-2][0]
+        plt.figure(figsize=(8, 8))
+        plt.scatter(z[:, dim1], z[:, dim2], marker='o', edgecolor='none')
+        if self.model.dist_mu is not None:
+            x1 = self.model.dist_mu[dim1:dim1+1]
+            y1 = self.model.dist_mu[dim2:dim2+1]
+            x2 = self.model.dist_mu[dim1:dim1+1] + self.model.dist_std[dim1:dim1+1]
+            y2 = self.model.dist_mu[dim2:dim2+1] + self.model.dist_std[dim2:dim2+1]
+        plt.plot([x1, x2], [y1, y2], color='k', linestyle='-', linewidth=2)
+        axes = plt.gca()
+        axes.set_xlim([-6, 6])
+        axes.set_ylim([-6, 6])
+        axes.set_title('dim {} vs dim {}'.format(dim1, dim2))
+        plt.grid(True)
+        save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
+        plt.savefig(save_file)
+
+class VAE(PyTorchModule):
+    def __init__(
+            self,
+            representation_size,
+            input_size,
+            hidden_sizes,
+            init_w=1e-3,
+            hidden_init=ptu.fanin_init,
+            output_activation=identity,
+            output_scale=1,
+            layer_norm=False,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+        self.representation_size = representation_size
+        self.hidden_init = hidden_init
+        self.output_activation = output_activation
+        self.dist_mu = np.zeros(self.representation_size)
+        self.dist_std = np.ones(self.representation_size)
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
-
-    def get_data(self, batch_size, **kwargs):
-        """Loads MNIST data for testing"""
-        # kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
-        self.train_loader = torch.utils.data.DataLoader(
-            datasets.MNIST('/tmp/data', train=True, download=True,
-                           transform=transforms.ToTensor()),
-            batch_size=batch_size, shuffle=True, **kwargs)
-        self.test_loader = torch.utils.data.DataLoader(
-            datasets.MNIST('/tmp/data', train=False, transform=transforms.ToTensor()),
-            batch_size=batch_size, shuffle=True, **kwargs)
-
-    def logprob(self, recon_x, x, mu, logvar):
-        return F.binary_cross_entropy(recon_x, x.view(-1, 784), size_average=False)
-
-    def kl_divergence(self, recon_x, x, mu, logvar):
-        return -self.beta * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        self.init_w = init_w
+        hidden_sizes = list(hidden_sizes)
+        self.encoder=TwoHeadMlp(hidden_sizes, representation_size, representation_size, input_size, layer_norm=layer_norm)
+        hidden_sizes.reverse()
+        self.decoder=Mlp(hidden_sizes, input_size, representation_size, layer_norm=layer_norm, output_activation=output_activation, output_bias=None)
+        self.output_scale = output_scale
 
     def encode(self, x):
-        h1 = self.relu(self.fc1(x))
-        return self.fc21(h1), self.fc22(h1)
+        mu, logvar = self.encoder(x)
+        return mu, logvar
 
     def reparameterize(self, mu, logvar):
         if self.training:
@@ -68,88 +229,27 @@ class VAE(nn.Module):
             return mu
 
     def decode(self, z):
-        h3 = self.relu(self.fc3(z))
-        return self.sigmoid(self.fc4(h3))
+        return self.decoder(z) * self.output_scale
 
     def forward(self, x):
-        mu, logvar = self.encode(x.view(-1, 784))
+        mu, logvar = self.encode(x)
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
 
-    def train_epoch(self, epoch):
-        self.train()
-        losses = []
-        bces = []
-        kles = []
-        for batch_idx, (data, _) in enumerate(self.train_loader):
-            data = Variable(data)
-            if self.use_cuda:
-                data = data.cuda()
-            self.optimizer.zero_grad()
-            recon_batch, mu, logvar = self(data)
-            bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = self.kl_divergence(recon_batch, data, mu, logvar)
-            loss = bce + kle
-            loss.backward()
+    def __getstate__(self):
+        d = super().__getstate__()
+        # Add these explicitly in case they were modified
+        d["_dist_mu"] = self.dist_mu
+        d["_dist_std"] = self.dist_std
+        return d
 
-            losses.append(loss.data[0])
-            bces.append(bce.data[0])
-            kles.append(kle.data[0])
+    def __setstate__(self, d):
+        super().__setstate__(d)
+        self.dist_mu = d["_dist_mu"]
+        self.dist_std = d["_dist_std"]
 
-            self.optimizer.step()
-            if self.log_interval and batch_idx % self.log_interval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, batch_idx * len(data), len(self.train_loader.dataset),
-                    100. * batch_idx / len(self.train_loader),
-                    loss.data[0] / len(data)))
-
-        logger.record_tabular("train/epoch", epoch)
-        logger.record_tabular("train/BCE", np.mean(bces) / self.batch_size)
-        logger.record_tabular("train/KL", np.mean(kles) / self.batch_size)
-        logger.record_tabular("train/loss", np.mean(losses) / self.batch_size)
-
-
-    def test_epoch(self, epoch):
-        self.eval()
-        losses = []
-        bces = []
-        kles = []
-        for i, (data, _) in enumerate(self.test_loader):
-            if self.use_cuda:
-                data = data.cuda()
-            data = Variable(data, volatile=True)
-            recon_batch, mu, logvar = self(data)
-            bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = self.kl_divergence(recon_batch, data, mu, logvar)
-            loss = bce + kle
-
-            losses.append(loss.data[0])
-            bces.append(bce.data[0])
-            kles.append(kle.data[0])
-
-            if i == 0:
-                n = min(data.size(0), 8)
-                comparison = torch.cat([data[:n],
-                                      recon_batch.view(self.batch_size, 1, 28, 28)[:n]])
-                save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
-                save_image(comparison.data.cpu(), save_dir, nrow=n)
-
-        logger.record_tabular("test/BCE", np.mean(bces) / self.batch_size)
-        logger.record_tabular("test/KL", np.mean(kles) / self.batch_size)
-        logger.record_tabular("test/loss", np.mean(losses) / self.batch_size)
-        logger.dump_tabular()
-
-    def dump_samples(self, epoch):
-        sample = Variable(torch.randn(64, 20))
-        if self.use_cuda:
-            sample = sample.cuda()
-        sample = self.decode(sample).cpu()
-        save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
-        save_image(sample.data.view(64, 1, 28, 28), save_dir)
-
-if __name__ == "__main__":
-    m = VAE()
-    for epoch in range(1, args.epochs + 1):
-        m.train_epoch(epoch)
-        m.test_epoch(epoch)
-
+class AutoEncoder(VAE):
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = mu
+        return self.decode(z), mu, logvar
