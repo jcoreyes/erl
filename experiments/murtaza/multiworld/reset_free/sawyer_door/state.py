@@ -3,6 +3,7 @@ from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.experiments.vitchyr.multiworld import her_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
+from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
@@ -61,13 +62,21 @@ if __name__ == "__main__":
             max_sigma=.8,
         ),
         exploration_type='ou',
-        save_video_period=100,
-        do_state_exp=True,
-        init_camera=sawyer_door_env_camera_v3,
-        imsize=48,
-        save_video=False,
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
+        init_camera=sawyer_door_env_camera_v3,
+        imsize=48,
+        do_state_exp=True,
+        save_video_period=100,
+        generate_goal_dataset_fn=generate_goal_dataset_using_policy,
+        save_video=False,
+        goal_generation_kwargs=dict(
+            num_goals=100,
+            use_cached_dataset=False,
+            policy_file='09-06-sawyer-door-new-door-30-fixed/09-06-sawyer_door_new_door_30_fixed_2018_09_06_19_08_13_id000--s74142/itr_260.pkl',
+            path_length=100,
+            show=False,
+        ),
     )
     search_space = {
         'algo_kwargs.base_kwargs.max_path_length': [100],
