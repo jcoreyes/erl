@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.generate_goal_dataset import generate_goal_data_set_door
+from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v2
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_tdm_td3_online_vae_full_experiment
@@ -19,8 +19,8 @@ if __name__ == "__main__":
             hand_high=(0., 0.65, .075),
             # max_angle=1.0472,
             max_angle=0.523599,
-            # xml_path='sawyer_xyz/sawyer_door_pull.xml',
-            xml_path='sawyer_xyz/sawyer_door_pull_30.xml',
+            # xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
+            xml_path='sawyer_xyz/sawyer_door_pull_hook_30.xml',
         ),
         grill_variant=dict(
             save_video=True,
@@ -80,7 +80,7 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
-            generate_goal_dataset_fn=generate_goal_data_set_door,
+            generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=False,

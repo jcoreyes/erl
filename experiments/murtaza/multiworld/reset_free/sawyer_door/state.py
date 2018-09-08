@@ -1,6 +1,6 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v2, sawyer_door_env_camera_v3
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerDoorEnv
+from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.experiments.vitchyr.multiworld import her_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
 
@@ -28,18 +28,21 @@ if __name__ == "__main__":
             ),
             td3_kwargs=dict(),
         ),
-        env_class=SawyerDoorEnv,
+        env_class=SawyerDoorHookEnv,
         env_kwargs=dict(
+            # goal_low=(-0.1, 0.525, 0.05, 0),
+            # goal_high=(0.0, 0.65, .075, 0.523599),
+            # hand_low=(-0.1, 0.525, 0.05),
+            # hand_high=(0., 0.65, .075),
+            # max_angle=0.523599,
+            # xml_path='sawyer_xyz/sawyer_door_pull_hook_30.xml',
+
             goal_low=(-0.1, 0.42, 0.05, 0),
-            goal_high=(0.0, 0.65, .075, 0.523599),
-            # goal_high=(0.0, 0.65, .075, 1.0472),
-            # hand_low=(-0.1, 0.42, 0.05),
-            hand_low=(-0.1, 0.525, 0.05),
+            goal_high=(0.0, 0.65, .075, 1.0472),
+            hand_low=(-0.1, 0.42, 0.05),
             hand_high=(0., 0.65, .075),
-            # max_angle=1.0472,
-            max_angle=0.523599,
-            # xml_path='sawyer_xyz/sawyer_door_pull.xml',
-            xml_path='sawyer_xyz/sawyer_door_pull_30.xml',
+            max_angle=1.0472,
+            xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
@@ -72,19 +75,19 @@ if __name__ == "__main__":
             'angle_diff_and_hand_distance',
         ],
         'env_kwargs.reset_free':[True],
-        'env_kwargs.target_pos_scale':[1, 1.25, 1.5, 2]
+        'env_kwargs.target_pos_scale':[1]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_door_new_door_30_reset_free'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_door_new_door_60_reset_free'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
