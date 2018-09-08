@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerDoorEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
@@ -10,7 +10,7 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         imsize=48,
-        env_class=SawyerDoorEnv,
+        env_class=SawyerDoorHookEnv,
         init_camera=sawyer_door_env_camera_v3,
         env_kwargs=dict(
             goal_low=(-0.1, 0.525, 0.05, 0),
@@ -18,14 +18,14 @@ if __name__ == "__main__":
             hand_low=(-0.1, 0.525, 0.05),
             hand_high=(0., 0.65, .075),
             max_angle=0.523599,
-            xml_path='sawyer_xyz/sawyer_door_pull_30.xml',
+            xml_path='sawyer_xyz/sawyer_door_pull_hook_30.xml',
 
             # goal_low=(-0.1, 0.42, 0.05, 0),
             # goal_high=(0.0, 0.65, .075, 1.0472),
             # hand_low=(-0.1, 0.42, 0.05),
             # hand_high=(0., 0.65, .075),
             # max_angle=1.0472,
-            # xml_path='sawyer_xyz/sawyer_door_pull.xml',
+            # xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
         ),
         grill_variant=dict(
             save_video=True,
@@ -82,7 +82,7 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
-                num_goals=1000,
+                num_goals=1,
                 use_cached_dataset=False,
                 policy_file='09-06-sawyer-door-new-door-60/09-06-sawyer_door_new_door_60_2018_09_07_01_09_46_id000--s8496/itr_450.pkl',
                 path_length=100,
@@ -126,13 +126,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_new_door_online_vae_30'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_new_door_online_vae_30'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
