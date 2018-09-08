@@ -18,8 +18,9 @@ import os.path as osp
 import numpy as np
 from multiworld.core.image_env import normalize_image
 from railrl.torch.core import PyTorchModule
+from railrl.core.serializable import Serializable
 
-class ConvVAETrainer():
+class ConvVAETrainer(Serializable):
     def __init__(
             self,
             train_dataset,
@@ -40,6 +41,7 @@ class ConvVAETrainer():
             use_parallel_dataloading=True,
             train_data_workers=2,
     ):
+        self.quick_init(locals())
         self.log_interval = log_interval
         self.batch_size = batch_size
         self.beta = beta
@@ -74,7 +76,8 @@ class ConvVAETrainer():
         self.input_channels = model.input_channels
         self.imlength = model.imlength
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        self.lr = lr
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
         assert self.train_dataset.dtype == np.uint8
         assert self.test_dataset.dtype == np.uint8
@@ -116,9 +119,6 @@ class ConvVAETrainer():
             self.train_dataloader = iter(self.train_dataloader)
             self.test_dataloader = iter(self.test_dataloader)
 
-
-
-
         self.normalize = normalize
         self.mse_weight = mse_weight
         self.background_subtract = background_subtract
@@ -132,6 +132,9 @@ class ConvVAETrainer():
         self.use_linear_dynamics = use_linear_dynamics
         self.vae_logger_stats_for_rl = {}
 
+    def set_vae(self, vae):
+        self.model = vae
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
     def get_batch(self, train=True):
         if self.use_parallel_dataloading:
