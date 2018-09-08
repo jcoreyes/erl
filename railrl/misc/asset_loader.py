@@ -63,10 +63,7 @@ def split_s3_full_path(s3_path):
 
 
 def load_local_or_remote_file(filepath, file_type=None):
-    if filepath[0] == "/":
-        local_path = filepath
-    else:
-        local_path = sync_down(filepath)
+    local_path = local_path_from_s3_or_local_path(filepath)
     if file_type is None:
         extension = local_path.split('.')[-1]
         if extension == 'npy':
