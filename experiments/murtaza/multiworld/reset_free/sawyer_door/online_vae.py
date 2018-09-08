@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v2, sawyer_door_env_camera_v3
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerDoorEnv
+from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
@@ -10,19 +10,22 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         imsize=48,
-        env_class=SawyerDoorEnv,
+        env_class=SawyerDoorHookEnv,
         init_camera=sawyer_door_env_camera_v3,
         env_kwargs=dict(
+            # goal_low=(-0.1, 0.525, 0.05, 0),
+            # goal_high=(0.0, 0.65, .075, 0.523599),
+            # hand_low=(-0.1, 0.525, 0.05),
+            # hand_high=(0., 0.65, .075),
+            # max_angle=0.523599,
+            # xml_path='sawyer_xyz/sawyer_door_pull_hook_30.xml',
+
             goal_low=(-0.1, 0.42, 0.05, 0),
-            goal_high=(0.0, 0.65, .075, 0.523599),
-            # goal_high=(0.0, 0.65, .075, 1.0472),
-            # hand_low=(-0.1, 0.42, 0.05),
-            hand_low=(-0.1, 0.525, 0.05),
+            goal_high=(0.0, 0.65, .075, 1.0472),
+            hand_low=(-0.1, 0.42, 0.05),
             hand_high=(0., 0.65, .075),
-            # max_angle=1.0472,
-            max_angle=0.523599,
-            # xml_path='sawyer_xyz/sawyer_door_pull.xml',
-            xml_path='sawyer_xyz/sawyer_door_pull_30.xml',
+            max_angle=1.0472,
+            xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
         ),
         grill_variant=dict(
             save_video=True,
@@ -45,6 +48,7 @@ if __name__ == "__main__":
                     discount=0.99,
                     num_updates_per_env_step=2,
                     collection_mode='online-parallel',
+                    # collection_mode='online',
                     reward_scale=1,
                 ),
                 td3_kwargs=dict(
@@ -80,7 +84,7 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=False,
-                policy_file='09-06-sawyer-door-new-door-30-fixed/09-06-sawyer_door_new_door_30_fixed_2018_09_06_19_08_13_id000--s74142/itr_260.pkl',
+                policy_file='09-06-sawyer-door-new-door-60/09-06-sawyer_door_new_door_60_2018_09_07_01_09_46_id000--s8496/itr_450.pkl',
                 path_length=100,
                 show=False,
             ),
@@ -100,6 +104,7 @@ if __name__ == "__main__":
                 show=False,
                 oracle_dataset=False,
                 n_random_steps=1,
+                non_presampled_goal_img_is_garbage=True,
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -115,10 +120,7 @@ if __name__ == "__main__":
 
     search_space = {
         'env_kwargs.reset_free':[True, False],
-        'grill_variant.algo_kwargs.base_kwargs.reward_scale':[1, 100],
-        'grill_variant.es_kwargs.max_sigma':[.8],
-        'grill_variant.replay_buffer_kwargs.alpha':[1, 2, 3],
-        'grill_variant.vae_wrapped_env_kwargs.sample_from_true_prior':[True],
+        'grill_variant.replay_buffer_kwargs.alpha':[0, 1, 2, 3],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -130,7 +132,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_new_door_online_vae_30'
+    exp_prefix = 'sawyer_new_door_online_vae_60'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

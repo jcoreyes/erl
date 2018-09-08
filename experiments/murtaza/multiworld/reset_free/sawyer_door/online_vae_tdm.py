@@ -9,7 +9,7 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         imsize=48,
-        init_camera=sawyer_door_env_camera_v2,
+        init_camera=sawyer_door_env_camera_v3,
         env_kwargs=dict(
             goal_low=(-0.1, 0.42, 0.05, 0),
             goal_high=(0.0, 0.65, .075, 0.523599),
@@ -19,8 +19,8 @@ if __name__ == "__main__":
             hand_high=(0., 0.65, .075),
             # max_angle=1.0472,
             max_angle=0.523599,
-            # xml_path='sawyer_xyz/sawyer_door_pull.xml',
-            xml_path='sawyer_xyz/sawyer_door_pull_30.xml',
+            # xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
+            xml_path='sawyer_xyz/sawyer_door_pull_hook_30.xml',
         ),
         grill_variant=dict(
             save_video=True,
