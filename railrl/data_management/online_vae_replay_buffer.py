@@ -182,14 +182,21 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             self.vae_sample_probs = self.vae_sample_probs.flatten()
 
     def random_vae_training_data(self, batch_size):
-        if self.alpha != 0:
+        if self.alpha != 0 and self.vae_sample_probs is not None:
+            print('yop')
             indices = np.random.choice(
                 len(self.vae_sample_probs),
                 batch_size,
                 p=self.vae_sample_probs,
             )
         else:
+            print('hi')
             indices = self._sample_indices(batch_size)
+        print(indices)
+        print(self._sample_indices(batch_size))
+        print(self.decoded_obs_key)
+        print(self._next_obs.keys())
+
         next_obs = normalize_image(self._next_obs[self.decoded_obs_key][indices])
         return dict(
             next_obs=ptu.np_to_var(next_obs),
