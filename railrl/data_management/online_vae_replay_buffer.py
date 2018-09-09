@@ -30,7 +30,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         **kwargs
     ):
         self.quick_init(locals())
-        super().__init__(internal_keys=internal_keys, *args, **kwargs)
         self.vae = vae
         self.decoded_obs_key = decoded_obs_key
         self.decoded_desired_goal_key = decoded_desired_goal_key
@@ -59,6 +58,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             if key in internal_keys:
                 continue
             internal_keys.append(key)
+        super().__init__(internal_keys=internal_keys, *args, **kwargs)
         self._give_explr_reward_bonus = (
             exploration_rewards_type != None
             and exploration_rewards_scale != 0.
@@ -181,7 +181,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             self.vae_sample_probs = self.vae_sample_probs.flatten()
 
     def random_vae_training_data(self, batch_size):
-        if self.alpha != 0:
+        if self.alpha != 0 and self.vae_sample_probs is not None:
             indices = np.random.choice(
                 len(self.vae_sample_probs),
                 batch_size,
