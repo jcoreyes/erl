@@ -23,7 +23,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         decoded_desired_goal_key='image_desired_goal',
         exploration_rewards_type='None',
         exploration_rewards_scale=1.0,
-        vae_prioritization_type='None',
+        vae_priority_type='None',
         alpha=1.0,
         internal_keys=None,
         exploration_schedule_kwargs=None,
@@ -37,7 +37,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.decoded_achieved_goal_key = decoded_achieved_goal_key
         self.exploration_rewards_type = exploration_rewards_type
         self.exploration_rewards_scale = exploration_rewards_scale
-        self.vae_prioritization_type = vae_prioritization_type
+        self.vae_priority_type = vae_priority_type
         self.alpha = alpha
 
         if exploration_schedule_kwargs is None:
@@ -64,6 +64,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             and exploration_rewards_scale != 0.
         )
         self._exploration_rewards = np.zeros((self.max_size, 1))
+        self._vae_sample_priorities = np.zeros((self.max_size, 1))
 
         self.total_exploration_error = 0.0
         self.vae_sample_probs = None
@@ -87,7 +88,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'forward_model_error':  self.forward_model_error,
             'inverse_model_error':  self.inverse_model_error,
             'None':                 self.no_reward,
-        }[self.vae_prioritization_type]
+        }[self.vae_priority_type]
         self.epoch = 0
 
     def add_path(self, path):
@@ -144,11 +145,26 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 self.env._encode(
                     normalize_image(self._next_obs[self.decoded_achieved_goal_key][idxs])
                 )
+            normalized_imgs = (
+                normalize_image(self._next_obs[self.decoded_obs_key][idxs])
+            )
             if self._give_explr_reward_bonus:
                 self._exploration_rewards[idxs] = self.exploration_reward_func(
-                    normalize_image(self._next_obs[self.decoded_obs_key][idxs]),
+                    normalized_imgs,
                     idxs,
                 ).reshape(-1, 1)
+            if self.alpha != 0:
+                if self.exploration_rewards_type == self.vae_priority_type:
+                    self._vae_sample_priorities[idxs] = (
+                        self._exploration_rewards[idxs]
+                    )
+                else:
+                    self._vae_sample_priorities[idxs] = (
+                        self.vae_prioritization_func(
+                            normalized_imgs,
+                            idxs,
+                        ).reshape(-1, 1)
+                    )
 
             cur_idx += batch_size
             next_idx += batch_size
@@ -158,15 +174,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 np.sum(self._exploration_rewards[:self._size])
             )
         if self.alpha != 0:
-            if self.exploration_rewards_type == self.vae_prioritization_type:
-                vae_sample_priorities = self._exploration_rewards[:self._size]
-            else:
-                vae_sample_priorities = (
-                    np.sum(self._exploration_rewards[:self._size])
-                )
+            vae_sample_priorities = self._vae_sample_priorities[:self._size]
             self.vae_sample_probs = vae_sample_priorities**self.alpha
-            if np.sum(self.vae_sample_probs) != 0.0:
-                self.vae_sample_probs /= np.sum(self.vae_sample_probs)
+            assert np.sum(self.vae_sample_probs) > 0.0
+            self.vae_sample_probs /= np.sum(self.vae_sample_probs)
             self.vae_sample_probs = self.vae_sample_probs.flatten()
 
     def random_vae_training_data(self, batch_size):
