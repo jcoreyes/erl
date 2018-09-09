@@ -73,25 +73,25 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
         self.use_dynamics_model = (
             self.exploration_rewards_type == 'forward_model_error'
-            or self.exploration_rewards_type == 'inverse_model_error'
         )
         if self.use_dynamics_model:
             self.initialize_dynamics_model()
 
-        self.exploration_reward_func = {
-            'reconstruction_error': self.reconstruction_mse,
-            'latent_distance':      self.latent_novelty,
-            'forward_model_error':  self.forward_model_error,
-            'inverse_model_error':  self.inverse_model_error,
-            'None':                 self.no_reward,
-        }[self.exploration_rewards_type]
-        self.vae_prioritization_func = {
-            'reconstruction_error': self.reconstruction_mse,
-            'latent_distance':      self.latent_novelty,
-            'forward_model_error':  self.forward_model_error,
-            'inverse_model_error':  self.inverse_model_error,
-            'None':                 self.no_reward,
-        }[self.vae_priority_type]
+        type_to_function = {
+            'reconstruction_error':         self.reconstruction_mse,
+            'bce':                          self.binary_cross_entropy,
+            'latent_distance':              self.latent_novelty,
+            'latent_distance_true_prior':   self.latent_novelty_true_prior,
+            'forward_model_error':          self.forward_model_error,
+            'None':                         self.no_reward,
+        }
+
+        self.exploration_reward_func = (
+            type_to_function[self.exploration_rewards_type]
+        )
+        self.vae_prioritization_func = (
+            type_to_function[self.vae_priority_type]
+        )
         self.epoch = 0
 
     def add_path(self, path):
@@ -189,19 +189,32 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             )
         else:
             indices = self._sample_indices(batch_size)
+
         next_obs = normalize_image(self._next_obs[self.decoded_obs_key][indices])
         return dict(
             next_obs=ptu.np_to_var(next_obs),
         )
 
     def reconstruction_mse(self, next_vae_obs, indices):
-        n_samples = len(next_vae_obs)
         torch_input = ptu.np_to_var(next_vae_obs)
         recon_next_vae_obs, _, _ = self.vae(torch_input)
 
         error = torch_input - recon_next_vae_obs
-        mse = torch.sum(error**2, dim=1) / n_samples
+        mse = torch.sum(error**2, dim=1)
         return ptu.get_numpy(mse)
+
+    def binary_cross_entropy(self, next_vae_obs, indices):
+        torch_input = ptu.np_to_var(next_vae_obs)
+        recon_next_vae_obs, _, _ = self.vae(torch_input)
+
+        error = - torch_input * torch.log(
+            torch.clamp(
+                recon_next_vae_obs,
+                min=1e-30,  # corresponds to about -70
+            )
+        )
+        bce = torch.sum(error, dim=1)
+        return ptu.get_numpy(bce)
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]
@@ -213,20 +226,13 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
         return ptu.get_numpy(mse)
 
-    def inverse_model_error(self, next_vae_obs, indices):
-        raise NotImplementedError("This is a backwards not inverse model")
-        obs = self._obs[self.observation_key][indices]
-        next_obs = self._next_obs[self.observation_key][indices]
-        obs, next_obs = next_obs, obs
-        actions = self._actions[indices]
-
-        state_action_pair = ptu.np_to_var(np.c_[obs, actions])
-        prediction = self.dynamics_model(state_action_pair)
-        mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
-        return ptu.get_numpy(mse)
-
     def latent_novelty(self, next_vae_obs, indices):
-        distances = (self.env._encode(vae_obs) - self.vae.dist_mu / self.vae.dist_std)**2
+        distances = ((self.env._encode(next_vae_obs) - self.vae.dist_mu) /
+                     self.vae.dist_std)**2
+        return distances.sum(axis=1)
+
+    def latent_novelty_true_prior(self, next_vae_obs, indices):
+        distances = self.env._encode(next_vae_obs)**2
         return distances.sum(axis=1)
 
     def no_reward(self, next_vae_obs, indices):

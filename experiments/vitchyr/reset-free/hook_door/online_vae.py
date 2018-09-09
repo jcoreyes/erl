@@ -66,8 +66,13 @@ if __name__ == "__main__":
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_scale=0,
                 exploration_rewards_type='None',
+<<<<<<< HEAD
+                # vae_priority_type='None',
+                alpha=3,
+=======
                 vae_priority_type='None',
                 alpha=0,
+>>>>>>> grill-multiworld
             ),
             algorithm='ONLINE-VAE-HER-TD3',
             normalize=False,
@@ -140,6 +145,12 @@ if __name__ == "__main__":
         ],
         'grill_variant.replay_buffer_kwargs.exploration_rewards_scale': [
             0, 1, 10, 100, 1000
+        ],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type': [
+            'bce',
+            # 'reconstruction_error',
+            'latent_distance',
+            'latent_distance_true_prior',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
