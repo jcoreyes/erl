@@ -209,7 +209,13 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         torch_input = ptu.np_to_var(next_vae_obs)
         recon_next_vae_obs, _, _ = self.vae(torch_input)
 
-        bce = torch_input * torch.log(recon_next_vae_obs) / n_samples
+        error = - torch_input * torch.log(
+            torch.clamp(
+                recon_next_vae_obs,
+                min=1e-30,  # corresponds to about -70
+            )
+        )
+        bce = torch.sum(error, dim=1) / n_samples
         return ptu.get_numpy(bce)
 
     def forward_model_error(self, next_vae_obs, indices):
