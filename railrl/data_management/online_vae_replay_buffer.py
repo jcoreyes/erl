@@ -1,5 +1,7 @@
 from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer, flatten_dict
+from railrl.data_management.shared_obs_dict_replay_buffer import \
+        SharedObsDictRelabelingBuffer
 from multiworld.core.image_env import normalize_image
 import railrl.torch.pytorch_util as ptu
 import numpy as np
@@ -10,7 +12,7 @@ from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 
-class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
+class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
     def __init__(
         self,
@@ -26,6 +28,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         exploration_schedule_kwargs=None,
         **kwargs
     ):
+        self.quick_init(locals())
         self.vae = vae
         self.decoded_obs_key = decoded_obs_key
         self.decoded_desired_goal_key = decoded_desired_goal_key
@@ -155,12 +158,12 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
                 p=self.vae_sample_probs,
             )
         next_obs = normalize_image(self._next_obs[self.decoded_obs_key][indices])
-        obs = normalize_image(self._obs[self.decoded_obs_key][indices])
-        actions = self._actions[indices]
+        # obs = normalize_image(self._obs[self.decoded_obs_key][indices])
+        # actions = self._actions[indices]
         return dict(
-            obs=ptu.np_to_var(obs),
+            # obs=ptu.np_to_var(obs),
             next_obs=ptu.np_to_var(next_obs),
-            actions=ptu.np_to_var(actions),
+            # actions=ptu.np_to_var(actions),
         )
 
 

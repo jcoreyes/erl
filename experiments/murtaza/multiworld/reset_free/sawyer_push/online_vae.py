@@ -1,7 +1,8 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v2
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerDoorEnv
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
+    SawyerPushAndReachXYEnv
+)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
@@ -9,25 +10,24 @@ import railrl.torch.vae.vae_schedules as vae_schedules
 if __name__ == "__main__":
     variant = dict(
         double_algo=False,
+        env_class=SawyerPushAndReachXYEnv,
         imsize=48,
-        env_class=SawyerDoorEnv,
-        init_camera=sawyer_door_env_camera_v2,
         env_kwargs=dict(
-            # goal_low=(-0.1, 0.42, 0.05, 0),
-            # goal_high=(0.0, 0.65, .075, 0.523599),
-            # goal_high=(0.0, 0.65, .075, 1.0472),
-            # hand_low=(-0.1, 0.42, 0.05),
-            # hand_low=(-0.1, 0.525, 0.05),
-            # hand_high=(0., 0.65, .075),
-            # max_angle=1.0472,
-            # max_angle=0.523599,
-            # xml_path='sawyer_xyz/sawyer_door_pull.xml',
-            xml_path='sawyer_xyz/sawyer_door_pull_30.xml',
+            hide_goal_markers=True,
+            action_scale=.02,
+            hand_low=(-0.28, 0.3, 0.05),
+            hand_high=(0.28, 0.9, 0.3),
+            puck_low=(-.4, .2),
+            puck_high=(.4, 1),
+            goal_low=(-0.25, 0.3, 0.02, -.2, .4),
+            goal_high=(0.25, 0.875, 0.02, .2, .8),
+            num_resets_before_puck_reset=int(1e6)
         ),
+        init_camera=sawyer_pusher_camera_upright_v2,
         grill_variant=dict(
-            save_video=True,
+            # save_video=true,
             online_vae_beta=2.5,
-            save_video_period=50,
+            save_video_period=250,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -36,7 +36,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=5,
+                    num_epochs=500,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -44,8 +44,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online-parallel',
-                    reward_scale=1,
+                    collection_mode='online'
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
@@ -57,14 +56,14 @@ if __name__ == "__main__":
                 ),
             ),
             replay_buffer_kwargs=dict(
-                max_size=int(100000),
+                max_size=int(30000),
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_scale=0.0,
                 exploration_rewards_type='reconstruction_error',
                 alpha=3,
             ),
-            algorithm='ONLINE-VAE-HER-TD3',
+            algorithm='grill-her-td3',
             normalize=False,
             render=False,
             exploration_noise=0.8,
@@ -76,33 +75,22 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
-            generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
-            presampled_goals_path='manual-upload/goals_n1000_SawyerDoorEnv_max_angle_30.npy',
-            # presampled_goals_path='/tmp/goals_n10_VAEWrappedEnv(ImageEnv(<SawyerDoorEnv instance>)).npy',
-            goal_generation_kwargs=dict(
-                num_goals=100,
-                use_cached_dataset=False,
-                policy_file='manual-upload/SawyerDoorEnv_policy_params.pkl',
-                path_length=30,
-                show=False,
-            ),
-            presample_goals=True,
-            vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=True,
-            )
         ),
         train_vae_variant=dict(
             representation_size=16,
             beta=1.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=2,
-                test_p=.5,
+                N=100,
+                test_p=.9,
+                oracle_dataset=True,
                 use_cached=False,
-                show=False,
-                oracle_dataset=False,
-                n_random_steps=1,
-                non_presampled_goal_img_is_garbage=True,
+                num_channels=3,
+                vae_dataset_specific_env_kwargs=dict(
+                    goal_low=(-0.28, 0.3, 0.02, -.2, .4),
+                    goal_high=(0.28, 0.9, 0.02, .2, .8),
+                ),
+
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -117,29 +105,24 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'env_kwargs.num_resets_before_puck_reset': [1],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
-        'grill_variant.replay_kwargs.alpha': [
-            2,
-            # 1,
-            # 0,
-        ],
-        'grill_variant.replay_kwargs.exploration_rewards_type': [
-            'latent_distance'
-            'reconstruction_error',
-        ],
+        'grill_variant.replay_buffer_kwargs.alpha': [3],
+        'num_exps_per_instance':[3, 5, 7],
+        'grill_variant.algo_kwargs.base_kwargs.collection_mode':['online', 'online-parallel'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'dev'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'online-vae-new-door-sweep-alpha'
+    # mode = 'local'
+    # exp_prefix = 'test'
 
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_pusher_steven_sweep'
+    
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
@@ -148,6 +131,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=2,
-                time_in_mins=60*10,
-          )
+                snapshot_gap=200,
+                snapshot_mode='gap_and_last',
+                num_exps_per_instance=variant['num_exps_per_instance'],
+            )

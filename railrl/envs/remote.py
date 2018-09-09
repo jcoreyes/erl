@@ -93,6 +93,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             )
         for i in range(num_workers)]
 
+        import railrl.envs.sawyer_parallel_hack
+
         for worker in self._workers:
             worker.start()
 

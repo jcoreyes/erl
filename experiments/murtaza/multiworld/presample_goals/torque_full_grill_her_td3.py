@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from experiments.murtaza.multiworld.presample_goals.generate_goal_dataset import generate_goal_data_set
+from railrl.torch.vae.generate_goal_dataset import generate_goal_data_set
 from multiworld.envs.mujoco.cameras import sawyer_torque_reacher_camera
 from multiworld.envs.mujoco.sawyer_reach_torque.sawyer_reach_torque_env import SawyerReachTorqueEnv
 from railrl.launchers.launcher_util import run_experiment
@@ -7,13 +7,13 @@ from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 from railrl.torch.vae.sawyer_torque_control_data import generate_vae_dataset
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_torque_multiworld_her_td3_grill_presampled_goals_pr'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_torque_multiworld_her_td3_grill_presampled_goals'
 
     grill_variant = dict(
         algo_kwargs=dict(
@@ -30,7 +30,7 @@ if __name__ == "__main__":
             td3_kwargs=dict(),
             her_kwargs=dict(),
         ),
-        replay_kwargs=dict(
+        replay_buffer_kwargs=dict(
             fraction_goals_are_rollout_goals=0.5,
             fraction_resampled_goals_are_env_goals=0,
             max_size=int(1e6)
@@ -57,7 +57,7 @@ if __name__ == "__main__":
         vae_wrapped_env_kwargs=dict(
         ),
         generate_goal_dataset_fn=generate_goal_data_set,
-        goal_generation_kwargs=dict(num_goals=1000, use_cached_dataset=True,),
+        goal_generation_kwargs=dict(num_goals=1000, use_cached_dataset=False,),
         presample_goals=True,
         save_video_period=50,
         save_video=True,
@@ -73,8 +73,9 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             batch_size=64,
         ),
-        conv_vae_kwargs=dict(
+        vae_kwargs=dict(
             min_variance=None,
+            input_channels=3,
         ),
         save_period=200,
         representation_size=16,
@@ -90,6 +91,7 @@ if __name__ == "__main__":
         init_camera=sawyer_torque_reacher_camera,
     )
     search_space = {
+        'grill_variant.algo_kwargs.base_kwargs.collection_mode':['online', 'online-parallel']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

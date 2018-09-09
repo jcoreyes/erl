@@ -4,10 +4,10 @@ import time
 import cv2
 import numpy as np
 
-
 def grill_tdm_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    train_vae_and_update_variant(variant)
+    if not variant['grill_variant'].get('do_state_exp', False):
+        train_vae_and_update_variant(variant)
     grill_tdm_td3_experiment(variant['grill_variant'])
 
 
@@ -19,7 +19,8 @@ def grill_tdm_twin_sac_full_experiment(variant):
 
 def grill_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    train_vae_and_update_variant(variant)
+    if not variant['grill_variant'].get('do_state_exp', False):
+        train_vae_and_update_variant(variant)
     grill_her_td3_experiment(variant['grill_variant'])
 
 
@@ -188,7 +189,7 @@ def generate_vae_dataset(variant):
     test_p = variant.get('test_p', 0.9)
     use_cached = variant.get('use_cached', True)
     imsize = variant.get('imsize', 84)
-    num_channels = variant.get('num_channels', 1)
+    num_channels = variant.get('num_channels', 3)
     show = variant.get('show', False)
     init_camera = variant.get('init_camera', None)
     dataset_path = variant.get('dataset_path', None)
@@ -196,6 +197,7 @@ def generate_vae_dataset(variant):
     n_random_steps = variant.get('n_random_steps', 100)
     vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
     save_file_prefix = variant.get('save_file_prefix', None)
+    non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
     from multiworld.core.image_env import ImageEnv, unormalize_image
     from railrl.misc.asset_loader import local_path_from_s3_or_local_path
     info = {}
@@ -242,9 +244,11 @@ def generate_vae_dataset(variant):
                     init_camera=init_camera,
                     transpose=True,
                     normalize=True,
+                    non_presampled_goal_img_is_garbage=non_presampled_goal_img_is_garbage,
                 )
             else:
                 imsize = env.imsize
+                env.non_presampled_goal_img_is_garbage = non_presampled_goal_img_is_garbage
             env.reset()
             info['env'] = env
 
@@ -278,16 +282,18 @@ def generate_vae_dataset(variant):
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv
     from railrl.envs.vae_wrappers import VAEWrappedEnv
-    render = variant["render"]
+    from railrl.misc.asset_loader import load_local_or_remote_file
+
+    render = variant.get('render', False)
     vae_path = variant.get("vae_path", None)
     reward_params = variant.get("reward_params", dict())
     init_camera = variant.get("init_camera", None)
     do_state_exp = variant.get("do_state_exp", False)
-
-    from railrl.envs.vae_wrappers import load_vae
-    vae = load_vae(vae_path) if type(vae_path) is str else vae_path
     presample_goals = variant.get('presample_goals', False)
     presample_image_goals_only = variant.get('presample_image_goals_only', False)
+    presampled_goals_path = variant.get('presampled_goals_path', None)
+
+    vae = load_local_or_remote_file(vae_path) if type(vae_path) is str else vae_path
     if 'env_id' in variant:
         import gym
         from gym.envs import registration
@@ -308,37 +314,74 @@ def get_envs(variant):
                 transpose=True,
                 normalize=True,
             )
-        vae_env = VAEWrappedEnv(
-            image_env,
-            vae,
-            imsize=image_env.imsize,
-            decode_goals=render,
-            render_goals=render,
-            render_rollouts=render,
-            reward_params=reward_params,
-            **variant.get('vae_wrapped_env_kwargs', {})
-        )
         if presample_goals:
             """
             This will fail for online-parallel as presampled_goals will not be
             serialized. Also don't use this for online-vae.
             """
-            presampled_goals = variant['generate_goal_dataset_fn'](
-                env=vae_env,
-                **variant['goal_generation_kwargs']
+            if presampled_goals_path is None:
+                image_env.non_presampled_goal_img_is_garbage = True
+                vae_env = VAEWrappedEnv(
+                    image_env,
+                    vae,
+                    imsize=image_env.imsize,
+                    decode_goals=render,
+                    render_goals=render,
+                    render_rollouts=render,
+                    reward_params=reward_params,
+                    **variant.get('vae_wrapped_env_kwargs', {})
+                )
+                presampled_goals = variant['generate_goal_dataset_fctn'](
+                    env=vae_env,
+                    **variant['goal_generation_kwargs']
+                )
+                del vae_env
+            else:
+                presampled_goals = load_local_or_remote_file(
+                    presampled_goals_path
+                ).item()
+            del image_env
+            image_env = ImageEnv(
+                env,
+                variant.get('imsize'),
+                init_camera=init_camera,
+                transpose=True,
+                normalize=True,
+                presampled_goals=presampled_goals,
+                **variant.get('image_env_kwargs', {})
             )
-            image_env.set_presampled_goals(presampled_goals)
-            vae_env.set_presampled_goals(presampled_goals)
+            vae_env = VAEWrappedEnv(
+                image_env,
+                vae,
+                imsize=image_env.imsize,
+                decode_goals=render,
+                render_goals=render,
+                render_rollouts=render,
+                reward_params=reward_params,
+                presampled_goals = presampled_goals,
+                **variant.get('vae_wrapped_env_kwargs', {})
+            )
             print("Presampling all goals only")
-        elif presample_image_goals_only:
-            presampled_goals = variant['generate_goal_dataset_fn'](
-                image_env=vae_env.wrapped_env,
-                **variant['goal_generation_kwargs']
-            )
-            image_env.set_presampled_goals(presampled_goals)
-            print("Presampling image goals only")
         else:
-            print("Not using presampled goals")
+            vae_env = VAEWrappedEnv(
+                image_env,
+                vae,
+                imsize=image_env.imsize,
+                decode_goals=render,
+                render_goals=render,
+                render_rollouts=render,
+                reward_params=reward_params,
+                **variant.get('vae_wrapped_env_kwargs', {})
+            )
+            if presample_image_goals_only:
+                presampled_goals = variant['generate_goal_dataset_fctn'](
+                    image_env=vae_env.wrapped_env,
+                    **variant['goal_generation_kwargs']
+                )
+                image_env.set_presampled_goals(presampled_goals)
+                print("Presampling image goals only")
+            else:
+                print("Not using presampled goals")
 
         env = vae_env
 
@@ -436,7 +479,7 @@ def grill_her_td3_experiment(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        **variant['replay_kwargs']
+        **variant['replay_buffer_kwargs']
     )
 
     algo_kwargs = variant['algo_kwargs']
@@ -526,7 +569,7 @@ def grill_her_twin_sac_experiment(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        **variant['replay_kwargs']
+        **variant['replay_buffer_kwargs']
     )
 
     algo_kwargs = variant['algo_kwargs']
@@ -627,13 +670,13 @@ def grill_tdm_td3_experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    variant['replay_kwargs']['vectorized'] = vectorized
+    variant['replay_buffer_kwargs']['vectorized'] = vectorized
     replay_buffer = ObsDictRelabelingBuffer(
         env=env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        **variant['replay_kwargs']
+        **variant['replay_buffer_kwargs']
     )
     algo_kwargs = variant['algo_kwargs']
     algo_kwargs['replay_buffer'] = replay_buffer
@@ -737,7 +780,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        **variant['replay_kwargs']
+        **variant['replay_buffer_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
 
@@ -822,8 +865,8 @@ def grill_tdm_td3_experiment_online_vae(variant):
         'vectorized'] = vectorized
 
     norm_order = env.norm_order
-    variant['algo_kwargs']['tdm_td3_kwargs']['tdm_kwargs'][
-        'norm_order'] = norm_order
+    # variant['algo_kwargs']['tdm_td3_kwargs']['tdm_kwargs'][
+    #     'norm_order'] = norm_order
 
     qf1 = TdmQf(
         env=env,
@@ -863,7 +906,7 @@ def grill_tdm_td3_experiment_online_vae(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        **variant['replay_kwargs']
+        **variant['replay_buffer_kwargs']
     )
     algo_kwargs = variant['algo_kwargs']['tdm_td3_kwargs']
     td3_kwargs = algo_kwargs['td3_kwargs']
@@ -901,6 +944,7 @@ def grill_tdm_td3_experiment_online_vae(variant):
         algorithm.cuda()
         vae.cuda()
     if variant.get("save_video", True):
+        policy.train(False)
         rollout_function = rf.create_rollout_function(
             rf.tdm_rollout,
             init_tau=algorithm._sample_max_tau_for_rollout(),
@@ -985,13 +1029,13 @@ def grill_tdm_twin_sac_experiment(variant):
         action_dim=action_dim,
         **variant['policy_kwargs']
     )
-    variant['replay_kwargs']['vectorized'] = vectorized
+    variant['replay_buffer_kwargs']['vectorized'] = vectorized
     replay_buffer = ObsDictRelabelingBuffer(
         env=env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        **variant['replay_kwargs']
+        **variant['replay_buffer_kwargs']
     )
     algo_kwargs = variant['algo_kwargs']
     algo_kwargs['replay_buffer'] = replay_buffer
@@ -1090,7 +1134,7 @@ def grill_her_td3_experiment_online_vae(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        **variant['replay_kwargs']
+        **variant['replay_buffer_kwargs']
     )
     variant["algo_kwargs"]["base_kwargs"]["replay_buffer"] = replay_buffer
     if variant.get('use_replay_buffer_goals', False):
@@ -1136,7 +1180,6 @@ def grill_her_td3_experiment_online_vae(variant):
         algorithm.cuda()
         vae.cuda()
     if variant.get("save_video", True):
-        logdir = logger.get_snapshot_dir()
         rollout_function = rf.create_rollout_function(
             rf.multitask_rollout,
             max_path_length=algorithm.max_path_length,
@@ -1224,7 +1267,7 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        **variant['replay_kwargs']
+        **variant['replay_buffer_kwargs']
     )
     variant["algo_kwargs"]["replay_buffer"] = replay_buffer
     if variant.get('use_replay_buffer_goals', False):
@@ -1281,7 +1324,6 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
         algorithm.cuda()
         vae.cuda()
     if variant.get("save_video", True):
-        logdir = logger.get_snapshot_dir()
         policy.train(False)
         rollout_function = rf.create_rollout_function(
             rf.multitask_rollout,
