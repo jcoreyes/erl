@@ -75,21 +75,21 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         if self.use_dynamics_model:
             self.initialize_dynamics_model()
 
-        self.exploration_reward_func = {
+        type_to_function = {
             'reconstruction_error':         self.reconstruction_mse,
             'bce':                          self.binary_cross_entropy,
             'latent_distance':              self.latent_novelty,
             'latent_distance_true_prior':   self.latent_novelty_true_prior,
             'forward_model_error':          self.forward_model_error,
             'None':                         self.no_reward,
-        }[self.exploration_rewards_type]
-        self.vae_prioritization_func = {
-            'reconstruction_error': self.reconstruction_mse,
-            'latent_distance':      self.latent_novelty,
-            'forward_model_error':  self.forward_model_error,
-            'inverse_model_error':  self.inverse_model_error,
-            'None':                 self.no_reward,
-        }[self.vae_priority_type]
+        }
+
+        self.exploration_reward_func = (
+            type_to_function[self.exploration_rewards_type]
+        )
+        self.vae_prioritization_func = (
+            type_to_function[self.vae_priority_type]
+        )
         self.epoch = 0
 
     def add_path(self, path):
