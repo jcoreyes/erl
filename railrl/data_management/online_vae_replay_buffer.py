@@ -23,18 +23,23 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         decoded_desired_goal_key='image_desired_goal',
         exploration_rewards_type='None',
         exploration_rewards_scale=1.0,
+        vae_priority_type='None',
         alpha=1.0,
         internal_keys=None,
         exploration_schedule_kwargs=None,
         **kwargs
     ):
         self.quick_init(locals())
+        super().__init__(internal_keys=internal_keys, *args, **kwargs)
         self.vae = vae
         self.decoded_obs_key = decoded_obs_key
         self.decoded_desired_goal_key = decoded_desired_goal_key
         self.decoded_achieved_goal_key = decoded_achieved_goal_key
         self.exploration_rewards_type = exploration_rewards_type
         self.exploration_rewards_scale = exploration_rewards_scale
+        self.vae_priority_type = vae_priority_type
+        self.alpha = alpha
+
         if exploration_schedule_kwargs is None:
             self.exploration_schedule = \
                     ConstantSchedule(self.exploration_rewards_scale)
@@ -54,12 +59,12 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             if key in internal_keys:
                 continue
             internal_keys.append(key)
-        super().__init__(internal_keys=internal_keys, *args, **kwargs)
-        self.do_exploration = (
+        self._give_explr_reward_bonus = (
             exploration_rewards_type != None
             and exploration_rewards_scale != 0.
         )
         self._exploration_rewards = np.zeros((self.max_size, 1))
+        self._vae_sample_priorities = np.zeros((self.max_size, 1))
 
         self.total_exploration_error = 0.0
         self.vae_sample_probs = None
@@ -78,6 +83,13 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'forward_model_error':          self.forward_model_error,
             'None':                         self.no_reward,
         }[self.exploration_rewards_type]
+        self.vae_prioritization_func = {
+            'reconstruction_error': self.reconstruction_mse,
+            'latent_distance':      self.latent_novelty,
+            'forward_model_error':  self.forward_model_error,
+            'inverse_model_error':  self.inverse_model_error,
+            'None':                 self.no_reward,
+        }[self.vae_priority_type]
         self.epoch = 0
 
     def add_path(self, path):
@@ -105,7 +117,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
     def random_batch(self, batch_size):
         batch = super().random_batch(batch_size)
         exploration_rewards_scale = float(self.exploration_schedule.get_value(self.epoch))
-        if self.do_exploration:
+        if self._give_explr_reward_bonus:
             batch_idxs = batch['indices'].flatten()
             batch['exploration_rewards'] = self._exploration_rewards[batch_idxs]
             batch['rewards'] += exploration_rewards_scale * batch['exploration_rewards']
@@ -134,37 +146,53 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 self.env._encode(
                     normalize_image(self._next_obs[self.decoded_achieved_goal_key][idxs])
                 )
-            if self.do_exploration:
+            normalized_imgs = (
+                normalize_image(self._next_obs[self.decoded_obs_key][idxs])
+            )
+            if self._give_explr_reward_bonus:
                 self._exploration_rewards[idxs] = self.exploration_reward_func(
-                    normalize_image(self._next_obs[self.decoded_obs_key][idxs]),
+                    normalized_imgs,
                     idxs,
                 ).reshape(-1, 1)
+            if self.alpha != 0:
+                if self.exploration_rewards_type == self.vae_priority_type:
+                    self._vae_sample_priorities[idxs] = (
+                        self._exploration_rewards[idxs]
+                    )
+                else:
+                    self._vae_sample_priorities[idxs] = (
+                        self.vae_prioritization_func(
+                            normalized_imgs,
+                            idxs,
+                        ).reshape(-1, 1)
+                    )
 
             cur_idx += batch_size
             next_idx += batch_size
             next_idx = min(next_idx, self._size)
-        if self.do_exploration:
-            self.total_exploration_error = np.sum(self._exploration_rewards[:self._size])
-            self.vae_sample_probs = self._exploration_rewards[:self._size]**self.alpha
-            if np.sum(self.vae_sample_probs) != 0.0:
-                self.vae_sample_probs /= np.sum(self.vae_sample_probs)
+        if self._give_explr_reward_bonus:
+            self.total_exploration_error = (
+                np.sum(self._exploration_rewards[:self._size])
+            )
+        if self.alpha != 0:
+            vae_sample_priorities = self._vae_sample_priorities[:self._size]
+            self.vae_sample_probs = vae_sample_priorities**self.alpha
+            assert np.sum(self.vae_sample_probs) > 0.0
+            self.vae_sample_probs /= np.sum(self.vae_sample_probs)
             self.vae_sample_probs = self.vae_sample_probs.flatten()
 
     def random_vae_training_data(self, batch_size):
-        indices = self._sample_indices(batch_size)
-        if self.total_exploration_error != 0.0:
+        if self.alpha != 0:
             indices = np.random.choice(
                 len(self.vae_sample_probs),
                 batch_size,
                 p=self.vae_sample_probs,
             )
+        else:
+            indices = self._sample_indices(batch_size)
         next_obs = normalize_image(self._next_obs[self.decoded_obs_key][indices])
-        # obs = normalize_image(self._obs[self.decoded_obs_key][indices])
-        # actions = self._actions[indices]
         return dict(
-            # obs=ptu.np_to_var(obs),
             next_obs=ptu.np_to_var(next_obs),
-            # actions=ptu.np_to_var(actions),
         )
 
     def reconstruction_mse(self, next_vae_obs, indices):
