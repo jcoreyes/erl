@@ -28,7 +28,7 @@ if __name__ == "__main__":
             xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
         ),
         grill_variant=dict(
-            save_video=False,
+            save_video=True,
             online_vae_beta=2.5,
             save_video_period=50,
             qf_kwargs=dict(
@@ -39,7 +39,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=350,
+                    num_epochs=500,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=4000,
@@ -64,15 +64,9 @@ if __name__ == "__main__":
                 max_size=int(30000),
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
-                exploration_rewards_scale=0,
-                exploration_rewards_type='None',
-<<<<<<< HEAD
-                # vae_priority_type='None',
+                exploration_rewards_scale=1.0,
+                exploration_rewards_type='reconstruction_error',
                 alpha=3,
-=======
-                vae_priority_type='None',
-                alpha=0,
->>>>>>> grill-multiworld
             ),
             algorithm='ONLINE-VAE-HER-TD3',
             normalize=False,
@@ -128,29 +122,10 @@ if __name__ == "__main__":
 
     search_space = {
         'env_kwargs.reset_free': [
-            True,
+            True, False
         ],
-        # 'grill_variant.replay_buffer_kwargs.alpha': [
-        #     # 1,
-        #     0, 1, 2, 5
-        # ],
-        # 'grill_variant.replay_buffer_kwargs.vae_priority_type': [
-        #     'bce',
-        #     # 'reconstruction_error',
-        #     'latent_distance',
-        #     'latent_distance_true_prior',
-        # ],
-        'grill_variant.replay_buffer_kwargs.exploration_rewards_type': [
-            'reconstruction_error',
-        ],
-        'grill_variant.replay_buffer_kwargs.exploration_rewards_scale': [
-            0, 1, 10, 100, 1000
-        ],
-        'grill_variant.replay_buffer_kwargs.vae_priority_type': [
-            'bce',
-            # 'reconstruction_error',
-            'latent_distance',
-            'latent_distance_true_prior',
+        'grill_variant.replay_buffer_kwargs.alpha': [
+            0, 1, 2, 5
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -163,7 +138,9 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_hook_door_only_exploration_bonus'
+    # n_seeds = 2
+    # mode = 'sss'
+    exp_prefix = 'sawyer_new_door_online_vae_60_pregen_goals_correct_expl_scale'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
