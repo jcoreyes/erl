@@ -61,10 +61,10 @@ if __name__ == "__main__":
                 ),
             ),
             replay_buffer_kwargs=dict(
-                max_size=int(100000),
+                max_size=int(30000),
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
-                exploration_rewards_scale=0.0,
+                exploration_rewards_scale=1.0,
                 exploration_rewards_type='reconstruction_error',
                 alpha=3,
             ),
@@ -136,11 +136,11 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'test'
 
-    # n_seeds = 1
-    # mode = 'ec2'
+    n_seeds = 1
+    mode = 'ec2'
     # n_seeds = 2
     # mode = 'sss'
-    # exp_prefix = 'sawyer_new_door_online_vae_60'
+    exp_prefix = 'sawyer_new_door_online_vae_60_pregen_goals_correct_expl_scale'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -150,6 +150,6 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=3,
+                num_exps_per_instance=2,
                 time_in_mins=10*60,
           )
