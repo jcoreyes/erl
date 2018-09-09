@@ -60,14 +60,17 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             internal_keys.append(key)
         super().__init__(internal_keys=internal_keys, *args, **kwargs)
         self._give_explr_reward_bonus = (
-            exploration_rewards_type != None
+            exploration_rewards_type != 'None'
             and exploration_rewards_scale != 0.
         )
         self._exploration_rewards = np.zeros((self.max_size, 1))
+        self._prioritize_vae_samples = (
+            vae_priority_type != 'None'
+            and alpha != 0.
+        )
         self._vae_sample_priorities = np.zeros((self.max_size, 1))
+        self._vae_sample_probs = None
 
-        self.total_exploration_error = 0.0
-        self.vae_sample_probs = None
         self.use_dynamics_model = (
             self.exploration_rewards_type == 'forward_model_error'
             or self.exploration_rewards_type == 'inverse_model_error'
@@ -153,7 +156,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                     normalized_imgs,
                     idxs,
                 ).reshape(-1, 1)
-            if self.alpha != 0:
+            if self._prioritize_vae_samples:
                 if self.exploration_rewards_type == self.vae_priority_type:
                     self._vae_sample_priorities[idxs] = (
                         self._exploration_rewards[idxs]
@@ -169,23 +172,20 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             cur_idx += batch_size
             next_idx += batch_size
             next_idx = min(next_idx, self._size)
-        if self._give_explr_reward_bonus:
-            self.total_exploration_error = (
-                np.sum(self._exploration_rewards[:self._size])
-            )
-        if self.alpha != 0:
+        if self._prioritize_vae_samples:
             vae_sample_priorities = self._vae_sample_priorities[:self._size]
-            self.vae_sample_probs = vae_sample_priorities**self.alpha
-            assert np.sum(self.vae_sample_probs) > 0.0
-            self.vae_sample_probs /= np.sum(self.vae_sample_probs)
-            self.vae_sample_probs = self.vae_sample_probs.flatten()
+            self._vae_sample_probs = vae_sample_priorities ** self.alpha
+            p_sum = np.sum(self._vae_sample_probs)
+            assert p_sum > 0, "Unnormalized p sum is {}".format(p_sum)
+            self._vae_sample_probs /= np.sum(self._vae_sample_probs)
+            self._vae_sample_probs = self._vae_sample_probs.flatten()
 
     def random_vae_training_data(self, batch_size):
-        if self.alpha != 0 and self.vae_sample_probs is not None:
+        if self._prioritize_vae_samples and self._vae_sample_probs is not None:
             indices = np.random.choice(
-                len(self.vae_sample_probs),
+                len(self._vae_sample_probs),
                 batch_size,
-                p=self.vae_sample_probs,
+                p=self._vae_sample_probs,
             )
         else:
             indices = self._sample_indices(batch_size)
@@ -193,7 +193,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         return dict(
             next_obs=ptu.np_to_var(next_obs),
         )
-
 
     def reconstruction_mse(self, next_vae_obs, indices):
         n_samples = len(next_vae_obs)
