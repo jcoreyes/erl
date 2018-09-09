@@ -196,16 +196,14 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         )
 
     def reconstruction_mse(self, next_vae_obs, indices):
-        n_samples = len(next_vae_obs)
         torch_input = ptu.np_to_var(next_vae_obs)
         recon_next_vae_obs, _, _ = self.vae(torch_input)
 
         error = torch_input - recon_next_vae_obs
-        mse = torch.sum(error**2, dim=1) / n_samples
+        mse = torch.sum(error**2, dim=1)
         return ptu.get_numpy(mse)
 
     def binary_cross_entropy(self, next_vae_obs, indices):
-        n_samples = len(next_vae_obs)
         torch_input = ptu.np_to_var(next_vae_obs)
         recon_next_vae_obs, _, _ = self.vae(torch_input)
 
@@ -215,7 +213,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 min=1e-30,  # corresponds to about -70
             )
         )
-        bce = torch.sum(error, dim=1) / n_samples
+        bce = torch.sum(error, dim=1)
         return ptu.get_numpy(bce)
 
     def forward_model_error(self, next_vae_obs, indices):
@@ -229,7 +227,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         return ptu.get_numpy(mse)
 
     def latent_novelty(self, next_vae_obs, indices):
-        distances = (self.env._encode(next_vae_obs) - self.vae.dist_mu /
+        distances = ((self.env._encode(next_vae_obs) - self.vae.dist_mu) /
                      self.vae.dist_std)**2
         return distances.sum(axis=1)
 
