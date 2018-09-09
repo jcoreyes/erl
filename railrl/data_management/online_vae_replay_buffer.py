@@ -64,9 +64,9 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.total_exploration_error = 0.0
         self.vae_sample_probs = None
         self.alpha = alpha
-        self.use_dynamics_model = \
-                self.exploration_rewards_type == 'forward_model_error' or \
-                self.exploration_rewards_type == 'inverse_model_error'
+        self.use_dynamics_model = (
+            self.exploration_rewards_type == 'forward_model_error'
+        )
         if self.use_dynamics_model:
             self.initialize_dynamics_model()
 
@@ -76,7 +76,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'latent_distance':              self.latent_novelty,
             'latent_distance_true_prior':   self.latent_novelty_true_prior,
             'forward_model_error':          self.forward_model_error,
-            'inverse_model_error':          self.inverse_model_error,
             'None':                         self.no_reward,
         }[self.exploration_rewards_type]
         self.epoch = 0
@@ -168,7 +167,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             # actions=ptu.np_to_var(actions),
         )
 
-
     def reconstruction_mse(self, next_vae_obs, indices):
         n_samples = len(next_vae_obs)
         torch_input = ptu.np_to_var(next_vae_obs)
@@ -189,18 +187,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]
         next_obs = self._next_obs[self.observation_key][indices]
-        actions = self._actions[indices]
-
-        state_action_pair = ptu.np_to_var(np.c_[obs, actions])
-        prediction = self.dynamics_model(state_action_pair)
-        mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
-        return ptu.get_numpy(mse)
-
-    def inverse_model_error(self, next_vae_obs, indices):
-        raise NotImplementedError("This is a backwards not inverse model")
-        obs = self._obs[self.observation_key][indices]
-        next_obs = self._next_obs[self.observation_key][indices]
-        obs, next_obs = next_obs, obs
         actions = self._actions[indices]
 
         state_action_pair = ptu.np_to_var(np.c_[obs, actions])
