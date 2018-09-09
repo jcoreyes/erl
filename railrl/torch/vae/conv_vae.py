@@ -447,17 +447,15 @@ class ConvVAETrainer(Serializable):
             f.write('\n')
 
 
-    def dump_best_reconstruction(self, epoch):
+    def dump_best_reconstruction(self, epoch, num_shown=4):
         idx_and_weights = self._get_sorted_idx_and_train_weights()
-        NUM_SHOWN = 4
-        idxs = [i for i, _ in idx_and_weights[:NUM_SHOWN]]
+        idxs = [i for i, _ in idx_and_weights[:num_shown]]
         self._dump_imgs_and_reconstructions(idxs, 'best{}.png'.format(epoch))
 
-    def dump_worst_reconstruction(self, epoch):
+    def dump_worst_reconstruction(self, epoch, num_shown=4):
         idx_and_weights = self._get_sorted_idx_and_train_weights()
         idx_and_weights = idx_and_weights[::-1]
-        NUM_SHOWN = 4
-        idxs = [i for i, _ in idx_and_weights[:NUM_SHOWN]]
+        idxs = [i for i, _ in idx_and_weights[:num_shown]]
         self._dump_imgs_and_reconstructions(idxs, 'worst{}.png'.format(epoch))
 
     def _dump_imgs_and_reconstructions(self, idxs, filename):
