@@ -117,12 +117,16 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        # 'env_kwargs.reset_free': [True, False],
-        # 'grill_variant.algo_kwargs.base_kwargs.reward_scale': [1, 100],
-        # 'grill_variant.replay_buffer_kwargs.alpha': [2],
-        # 'grill_variant.vae_wrapped_env_kwargs.sample_from_true_prior': [
-        #     True, False
-        # ],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
+        'grill_variant.replay_kwargs.alpha': [
+            2,
+            # 1,
+            # 0,
+        ],
+        'grill_variant.replay_kwargs.exploration_rewards_type': [
+            'latent_distance'
+            'reconstruction_error',
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -134,11 +138,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'ec2'
-    # exp_prefix = 'sawyer_new_door_online_vae_30'
-
-    n_seeds = 1
-    mode = 'sss'
-    exp_prefix = 'dev'
+    # exp_prefix = 'online-vae-new-door-sweep-alpha'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

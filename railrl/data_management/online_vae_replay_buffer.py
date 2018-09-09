@@ -235,6 +235,13 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         distances = self.env._encode(next_vae_obs)**2
         return distances.sum(axis=1)
 
+    def _kl_np_to_np(self, next_vae_obs, indices):
+        torch_input = ptu.np_to_var(next_vae_obs)
+        mu, log_var = self.vae.encode(torch_input)
+        return ptu.get_numpy(
+            - torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1)
+        )
+
     def no_reward(self, next_vae_obs, indices):
         return np.zeros((len(next_vae_obs), 1))
 

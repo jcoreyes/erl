@@ -12,9 +12,11 @@ if __name__ == "__main__":
         env_class=SawyerDoorEnv,
         env_kwargs=dict(),
         init_camera=sawyer_door_env_camera,
-        N=10,
+        N=100,
         oracle_dataset=False,
         num_channels=3,
+        save_file_prefix='door_open',
+        n_random_steps=30,
     )
 
     search_space = {
