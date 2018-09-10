@@ -137,8 +137,8 @@ if __name__ == "__main__":
         ],
         'grill_variant.replay_buffer_kwargs.vae_priority_type': [
             'bernoulli_inv_prob',
-            # 'gaussian_inv_prob',
-            # 'reconstruction_error',
+            'gaussian_inv_prob',
+            'reconstruction_error',
             # 'None',
         ],
         'grill_variant.replay_buffer_kwargs.alpha': [
@@ -153,9 +153,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'test'
 
-    # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_hook_door_gaussian_bernoulli_sweep-2'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_hook_door_gaussian_bernoulli_sweep-3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

@@ -22,19 +22,20 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             do_scatterplot=False,
             lr=1e-3,
+            gaussian_decoder_loss=True,
         ),
         vae_kwargs=dict(
             input_channels=3,
         ),
-        beta_schedule_kwargs=dict(
-            x_values=[0, 100, 200, 1000],
-            y_values=[0, 0, 5, 5],
-        ),
+        # beta_schedule_kwargs=dict(
+        #     x_values=[0, 100, 200, 1000],
+        #     y_values=[0, 0, 5, 5],
+        # ),
         save_period=10,
     )
 
     search_space = {
-        'representation_size': [2, 4, 8, 16],
+        'representation_size': [16],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -44,7 +45,7 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     # mode = 'ec2'
-    exp_prefix = 'pre-train-door-on-skewed-dataset'
+    # exp_prefix = 'pre-train-door-on-skewed-dataset'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         run_experiment(
             train_vae,
