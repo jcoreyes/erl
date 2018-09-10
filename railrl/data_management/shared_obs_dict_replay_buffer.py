@@ -33,6 +33,9 @@ class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
     ):
         self._shared_size = mp.Value(ctypes.c_long, 0)
         ObsDictRelabelingBuffer.__init__(self, *args, **kwargs)
+
+        self._mp_array_info = {}
+
         self._shared_obs_info = {}
         self._shared_next_obs_info = {}
 
@@ -54,12 +57,43 @@ class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
 
             self._obs[obs_key] = to_np(*self._shared_obs_info[obs_key])
             self._next_obs[obs_key] = to_np(*self._shared_next_obs_info[obs_key])
+        self._register_mp_array("_actions")
+        self._register_mp_array("_terminals")
+
+    def _register_mp_array(self, arr_instance_var_name):
+        """
+        Use this function to register an array to be shared. This will wipe arr.
+        """
+        assert hasattr(self, arr_instance_var_name), arr_instance_var_name
+        arr = getattr(self, arr_instance_var_name)
+
+        ctype = ctypes.c_double
+        if arr.dtype == np.uint8:
+           ctype = ctypes.c_uint8
+
+        self._mp_array_info[arr_instance_var_name] = (
+            mp.Array(ctype, arr.size),
+            arr.dtype,
+            arr.shape,
+        )
+
+        setattr(
+            self,
+            arr_instance_var_name,
+            to_np(*self._mp_array_info[arr_instance_var_name])
+        )
 
 
     def add_path(self, path):
         super().add_path(path)
 
-    def init_from(self, shared_obs_info, shared_next_obs_info, shared_size):
+    def init_from(
+        self,
+        shared_obs_info,
+        shared_next_obs_info,
+        mp_array_info,
+        shared_size
+    ):
         """
         The intended use is to have a subprocess serialize/copy a
         SharedObsDictRelabelingBuffer instance and call init_from on the
@@ -69,10 +103,26 @@ class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
         """
         self._shared_obs_info = shared_obs_info
         self._shared_next_obs_info = shared_next_obs_info
+        self._mp_array_info = mp_array_info
         for obs_key in self._shared_obs_info.keys():
             self._obs[obs_key] = to_np(*self._shared_obs_info[obs_key])
             self._next_obs[obs_key] = to_np(*self._shared_next_obs_info[obs_key])
+
+        for arr_instance_var_name in self._mp_array_info.keys():
+            setattr(
+                self,
+                arr_instance_var_name,
+                to_np(*self._mp_array_info[arr_instance_var_name])
+            )
         self._shared_size = shared_size
+
+    def get_mp_info(self):
+        return (
+            self._shared_obs_info,
+            self._shared_next_obs_info,
+            self._mp_array_info,
+            self._shared_size,
+        )
 
     @property
     def _size(self):

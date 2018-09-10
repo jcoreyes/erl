@@ -99,11 +99,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                 self.vae,
                 self.vae.state_dict(),
                 self.replay_buffer,
-                dict(
-                    shared_obs_info=self.replay_buffer._shared_obs_info,
-                    shared_next_obs_info=self.replay_buffer._shared_next_obs_info,
-                    shared_size=self.replay_buffer._shared_size,
-                ),
+                self.replay_buffer.get_mp_info(),
                 ptu.gpu_enabled(),
             )
         )
@@ -144,7 +140,7 @@ def subprocess_vae_loop(
     vae,
     vae_params,
     replay_buffer,
-    shared_vars,
+    mp_info,
     use_gpu=True,
 ):
     """
@@ -162,11 +158,7 @@ def subprocess_vae_loop(
     if ptu.gpu_enabled():
         vae.cuda()
     vae_trainer.set_vae(vae)
-    replay_buffer.init_from(
-        shared_vars['shared_obs_info'],
-        shared_vars['shared_next_obs_info'],
-        shared_vars['shared_size']
-    )
+    replay_buffer.init_from(*mp_info)
     replay_buffer.env.vae = vae
     while True:
         amount_to_train, epoch = conn_pipe.recv()
