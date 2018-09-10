@@ -227,8 +227,8 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         prob = (
             torch_input * recon_next_vae_obs
             + (1 - torch_input) * (1 - recon_next_vae_obs)
-        )
-        return 1 / prob
+        ).prod(dim=1)
+        return ptu.get_numpy(1 / prob)
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]
