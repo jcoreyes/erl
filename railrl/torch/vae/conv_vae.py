@@ -3,7 +3,6 @@
 from __future__ import print_function
 
 
-import matplotlib.pyplot as plt
 import torch
 import torch.utils.data
 from torch import nn, optim
@@ -430,6 +429,7 @@ class ConvVAETrainer(Serializable):
         )
 
     def dump_sampling_histogram(self, epoch):
+        import matplotlib.pyplot as plt
         if self._train_weights is None:
             self._train_weights = self._compute_train_weights()
         weights = torch.from_numpy(self._train_weights)
