@@ -95,6 +95,8 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             type_to_function[self.vae_priority_type]
         )
         self.epoch = 0
+        self._register_mp_array("_exploration_rewards")
+        self._register_mp_array("_vae_sample_priorities")
 
     def add_path(self, path):
         self.add_decoded_vae_goals_to_path(path)

@@ -32,7 +32,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.oracle_data = oracle_data
 
         self.vae_training_process = None
-        self.update_vae_thread = None
+        self.process_vae_update_thread = None
         self.parallel_vae_train = parallel_vae_train
 
     def _post_epoch(self, epoch):
@@ -46,13 +46,13 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                 assert self.vae_training_process.is_alive()
                 # Make sure the last vae update has finished before starting
                 # another one
-                if self.update_vae_thread is not None:
-                    self.update_vae_thread.join()
-                self.update_vae_thread = Thread(
-                    target=OnlineVaeAlgorithm.update_vae_thread,
+                if self.process_vae_update_thread is not None:
+                    self.process_vae_update_thread.join()
+                self.process_vae_update_thread = Thread(
+                    target=OnlineVaeAlgorithm.process_vae_update_thread,
                     args=(self,)
                 )
-                self.update_vae_thread.start()
+                self.process_vae_update_thread.start()
                 self.vae_conn_pipe.send((amount_to_train, epoch))
             else:
                 self.vae.train()
@@ -86,6 +86,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         snapshot.update(vae=self.vae)
 
     def cleanup(self):
+        self.vae_conn_pipe.close()
         self.vae_training_process.terminate()
 
     def init_vae_training_subproces(self):
@@ -93,24 +94,20 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
 
         self.vae_conn_pipe, process_pipe = Pipe()
         self.vae_training_process = Process(
-            target=subprocess_vae_loop,
+            target=subprocess_train_vae_loop,
             args=(
                 process_pipe,
                 self.vae,
                 self.vae.state_dict(),
                 self.replay_buffer,
-                dict(
-                    shared_obs_info=self.replay_buffer._shared_obs_info,
-                    shared_next_obs_info=self.replay_buffer._shared_next_obs_info,
-                    shared_size=self.replay_buffer._shared_size,
-                ),
+                self.replay_buffer.get_mp_info(),
                 ptu.gpu_enabled(),
             )
         )
         self.vae_training_process.start()
         self.vae_conn_pipe.send(self.vae_trainer)
 
-    def update_vae_thread(self):
+    def process_vae_update_thread(self):
         self.vae.load_state_dict(self.vae_conn_pipe.recv())
         _test_vae(
             self.vae_trainer,
@@ -139,12 +136,12 @@ def _test_vae(vae_trainer, epoch, vae_save_period=1):
     )
     if save_imgs: vae_trainer.dump_samples(epoch)
 
-def subprocess_vae_loop(
+def subprocess_train_vae_loop(
     conn_pipe,
     vae,
     vae_params,
     replay_buffer,
-    shared_vars,
+    mp_info,
     use_gpu=True,
 ):
     """
@@ -162,11 +159,7 @@ def subprocess_vae_loop(
     if ptu.gpu_enabled():
         vae.cuda()
     vae_trainer.set_vae(vae)
-    replay_buffer.init_from(
-        shared_vars['shared_obs_info'],
-        shared_vars['shared_next_obs_info'],
-        shared_vars['shared_size']
-    )
+    replay_buffer.init_from_mp_info(mp_info)
     replay_buffer.env.vae = vae
     while True:
         amount_to_train, epoch = conn_pipe.recv()
