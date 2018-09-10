@@ -66,13 +66,8 @@ if __name__ == "__main__":
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_scale=0,
                 exploration_rewards_type='None',
-<<<<<<< HEAD
-                # vae_priority_type='None',
-                alpha=3,
-=======
                 vae_priority_type='None',
-                alpha=0,
->>>>>>> grill-multiworld
+                alpha=1,
             ),
             algorithm='ONLINE-VAE-HER-TD3',
             normalize=False,
@@ -130,27 +125,24 @@ if __name__ == "__main__":
         'env_kwargs.reset_free': [
             True,
         ],
-        # 'grill_variant.replay_buffer_kwargs.alpha': [
-        #     # 1,
-        #     0, 1, 2, 5
-        # ],
-        # 'grill_variant.replay_buffer_kwargs.vae_priority_type': [
-        #     'bce',
-        #     # 'reconstruction_error',
-        #     'latent_distance',
-        #     'latent_distance_true_prior',
-        # ],
+        'train_vae_variant.algo_kwargs.gaussian_decoder_loss': [
+            True,
+            False,
+        ],
         'grill_variant.replay_buffer_kwargs.exploration_rewards_type': [
-            'reconstruction_error',
+            'None',
         ],
         'grill_variant.replay_buffer_kwargs.exploration_rewards_scale': [
-            0, 1, 10, 100, 1000
+            0,
         ],
         'grill_variant.replay_buffer_kwargs.vae_priority_type': [
-            'bce',
-            # 'reconstruction_error',
-            'latent_distance',
-            'latent_distance_true_prior',
+            'bernoulli_inv_prob',
+            'gaussian_inv_prob',
+            'reconstruction_error',
+            # 'None',
+        ],
+        'grill_variant.replay_buffer_kwargs.alpha': [
+            1, 5
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -163,7 +155,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_hook_door_only_exploration_bonus'
+    exp_prefix = 'sawyer_hook_door_gaussian_bernoulli_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
