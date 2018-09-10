@@ -83,6 +83,8 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'latent_distance':              self.latent_novelty,
             'latent_distance_true_prior':   self.latent_novelty_true_prior,
             'forward_model_error':          self.forward_model_error,
+            'gaussian_inv_prob':            self.gaussian_inv_prob,
+            'bernoulli_inv_prob':           self.bernoulli_inv_prob,
             'None':                         self.no_reward,
         }
 
@@ -203,6 +205,9 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         mse = torch.sum(error**2, dim=1)
         return ptu.get_numpy(mse)
 
+    def gaussian_inv_prob(self, next_vae_obs, indices):
+        return np.exp(self.reconstruction_mse(next_vae_obs, indices))
+
     def binary_cross_entropy(self, next_vae_obs, indices):
         torch_input = ptu.np_to_var(next_vae_obs)
         recon_next_vae_obs, _, _ = self.vae(torch_input)
@@ -215,6 +220,15 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         )
         bce = torch.sum(error, dim=1)
         return ptu.get_numpy(bce)
+
+    def bernoulli_inv_prob(self, next_vae_obs, indices):
+        torch_input = ptu.np_to_var(next_vae_obs)
+        recon_next_vae_obs, _, _ = self.vae(torch_input)
+        prob = (
+            torch_input * recon_next_vae_obs
+            + (1 - torch_input) * (1 - recon_next_vae_obs)
+        )
+        return 1 / prob
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]
