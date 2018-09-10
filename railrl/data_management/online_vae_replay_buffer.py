@@ -93,9 +93,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             type_to_function[self.vae_priority_type]
         )
         self.epoch = 0
-        self.init_mp_arrays()
-
-    def init_mp_arrays(self):
         self._register_mp_array("_exploration_rewards")
         self._register_mp_array("_vae_sample_priorities")
 

@@ -35,7 +35,6 @@ class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
         ObsDictRelabelingBuffer.__init__(self, *args, **kwargs)
 
         self._mp_array_info = {}
-
         self._shared_obs_info = {}
         self._shared_next_obs_info = {}
 
@@ -72,27 +71,17 @@ class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
            ctype = ctypes.c_uint8
 
         self._mp_array_info[arr_instance_var_name] = (
-            mp.Array(ctype, arr.size),
-            arr.dtype,
-            arr.shape,
+            mp.Array(ctype, arr.size), arr.dtype, arr.shape,
         )
-
         setattr(
             self,
             arr_instance_var_name,
             to_np(*self._mp_array_info[arr_instance_var_name])
         )
 
-
-    def add_path(self, path):
-        super().add_path(path)
-
-    def init_from(
+    def init_from_mp_info(
         self,
-        shared_obs_info,
-        shared_next_obs_info,
-        mp_array_info,
-        shared_size
+        mp_info,
     ):
         """
         The intended use is to have a subprocess serialize/copy a
@@ -101,6 +90,8 @@ class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
         since multiprocessing shared objects can't be serialized and must be
         passed directly to the subprocess as an argument to the fork call.
         """
+        shared_obs_info, shared_next_obs_info, mp_array_info, shared_size = mp_info
+
         self._shared_obs_info = shared_obs_info
         self._shared_next_obs_info = shared_next_obs_info
         self._mp_array_info = mp_array_info
