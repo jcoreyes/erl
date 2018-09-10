@@ -155,7 +155,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_hook_door_gaussian_bernoulli_sweep'
+    exp_prefix = 'sawyer_hook_door_gaussian_bernoulli_sweep-3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
