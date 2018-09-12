@@ -61,11 +61,11 @@ if __name__ == "__main__":
                 ),
             ),
             replay_buffer_kwargs=dict(
-                max_size=int(30000),
+                max_size=int(100000),
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
-                exploration_rewards_scale=0,
-                exploration_rewards_type='None',
+                exploration_rewards_scale=1.0,
+                exploration_rewards_type='reconstruction_error',
                 vae_priority_type='None',
                 alpha=1,
             ),
@@ -126,23 +126,24 @@ if __name__ == "__main__":
             True,
         ],
         'train_vae_variant.algo_kwargs.gaussian_decoder_loss': [
-            True,
+            # True,
             False,
         ],
         'grill_variant.replay_buffer_kwargs.exploration_rewards_type': [
-            'None',
+            'reconstruction_error',
         ],
         'grill_variant.replay_buffer_kwargs.exploration_rewards_scale': [
             0,
         ],
         'grill_variant.replay_buffer_kwargs.vae_priority_type': [
-            'bernoulli_inv_prob',
-            'gaussian_inv_prob',
+            # 'bernoulli_inv_prob',
+            # 'gaussian_inv_prob',
             'reconstruction_error',
             # 'None',
         ],
         'grill_variant.replay_buffer_kwargs.alpha': [
-            1, 5
+            # 1,
+            0, 1, 5
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -153,9 +154,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'test'
 
-    n_seeds = 1
+    n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'sawyer_hook_door_gaussian_bernoulli_sweep-3'
+    exp_prefix = 'sawyer-hook-post-merge-shared-vae-buffer-sweep-alpha-expl-rew'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
