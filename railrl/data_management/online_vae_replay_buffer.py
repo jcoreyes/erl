@@ -40,10 +40,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.alpha = alpha
 
         if exploration_schedule_kwargs is None:
-            self.exploration_schedule = \
+            self.explr_reward_scale_schedule = \
                     ConstantSchedule(self.exploration_rewards_scale)
         else:
-            self.exploration_schedule = \
+            self.explr_reward_scale_schedule = \
                     PiecewiseLinearSchedule(**exploration_schedule_kwargs)
 
         extra_keys = [
@@ -122,7 +122,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
     def random_batch(self, batch_size):
         batch = super().random_batch(batch_size)
-        exploration_rewards_scale = float(self.exploration_schedule.get_value(self.epoch))
+        exploration_rewards_scale = float(self.explr_reward_scale_schedule.get_value(self.epoch))
         if self._give_explr_reward_bonus:
             batch_idxs = batch['indices'].flatten()
             batch['exploration_rewards'] = self._exploration_rewards[batch_idxs]
@@ -161,7 +161,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                     idxs,
                 ).reshape(-1, 1)
             if self._prioritize_vae_samples:
-                if self.exploration_rewards_type == self.vae_priority_type:
+                if (
+                    self.exploration_rewards_type == self.vae_priority_type
+                    and self._give_explr_reward_bonus
+                ):
                     self._vae_sample_priorities[idxs] = (
                         self._exploration_rewards[idxs]
                     )
@@ -173,7 +176,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                         ).reshape(-1, 1)
                     )
 
-            cur_idx += batch_size
+            cur_idx = next_idx
             next_idx += batch_size
             next_idx = min(next_idx, self._size)
         if self._prioritize_vae_samples:
