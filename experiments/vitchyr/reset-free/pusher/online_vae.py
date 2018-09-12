@@ -59,7 +59,7 @@ if __name__ == "__main__":
                 ),
             ),
             replay_buffer_kwargs=dict(
-                max_size=int(100000),
+                max_size=int(30000),
                 fraction_goals_are_rollout_goals=0.,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_scale=0.0,
@@ -130,7 +130,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'push-with-resets-test-3'
+    exp_prefix = 'push-with-resets-test-5'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -142,5 +142,5 @@ if __name__ == "__main__":
                 use_gpu=True,
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
-                num_exps_per_instance=2,
+                num_exps_per_instance=1,
             )

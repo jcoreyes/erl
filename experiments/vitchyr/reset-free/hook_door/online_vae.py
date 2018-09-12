@@ -133,7 +133,7 @@ if __name__ == "__main__":
             'reconstruction_error',
         ],
         'grill_variant.replay_buffer_kwargs.exploration_rewards_scale': [
-            0,
+            0.001,
         ],
         'grill_variant.replay_buffer_kwargs.vae_priority_type': [
             # 'bernoulli_inv_prob',
@@ -142,8 +142,7 @@ if __name__ == "__main__":
             # 'None',
         ],
         'grill_variant.replay_buffer_kwargs.alpha': [
-            # 1,
-            0, 1, 5
+            1, 2, 5,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -156,7 +155,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'sawyer-hook-post-merge-shared-vae-buffer-sweep-alpha-expl-rew'
+    exp_prefix = 'sawyer-hook-alpha-sweep-with-some-exploration-rew'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
