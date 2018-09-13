@@ -201,37 +201,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             env_utils.mode(self.training_env, 'train')
             self.training_env.reset()
             for step in range(self.num_env_steps_per_epoch):
-                action, agent_info = self._get_action_and_info(
-                    observation,
-                )
-                if self.render:
-                    self.training_env.render()
-
-                next_ob, reward, terminal, env_info = (
-                    self.training_env.step(action)
-                )
-                self._n_env_steps_total += 1
-                terminal = np.array([terminal])
-                reward = np.array([reward])
-                self._handle_step(
-                    observation,
-                    action,
-                    reward,
-                    next_ob,
-                    terminal,
-                    agent_info=agent_info,
-                    env_info=env_info,
-                )
-                self._post_step(step)
-                if terminal or len(
-                        self._current_path_builder) >= self.max_path_length:
-                    self._handle_rollout_ending()
-                    observation = self._start_new_rollout(
-                        terminal=terminal,
-                        previous_rollout_last_ob=next_ob,
-                    )
-                else:
-                    observation = next_ob
+                observation = self._take_step_in_env(observation, step)
 
                 gt.stamp('sample')
                 self._try_to_train()
@@ -243,6 +213,33 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._try_to_eval(epoch)
             gt.stamp('eval')
             self._end_epoch()
+
+    def _take_step_in_env(self, observation, step):
+        action, agent_info = self._get_action_and_info(
+            observation,
+        )
+        if self.render:
+            self.training_env.render()
+        next_ob, reward, terminal, env_info = (
+            self.training_env.step(action)
+        )
+        self._n_env_steps_total += 1
+        self._handle_step(
+            observation,
+            action,
+            np.array([reward]),
+            next_ob,
+            np.array([terminal]),
+            agent_info=agent_info,
+            env_info=env_info,
+        )
+        self._post_step(step)
+        if terminal or len(self._current_path_builder) >= self.max_path_length:
+            self._handle_rollout_ending()
+            new_observation = self._start_new_rollout()
+        else:
+            new_observation = next_ob
+        return new_observation
 
     def train_batch(self, start_epoch):
         self._current_path_builder = PathBuilder()
@@ -530,7 +527,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
     def _post_step(self, step):
         pass
 
-    def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
+    def _start_new_rollout(self):
         self.exploration_policy.reset()
         return self.training_env.reset()
 
