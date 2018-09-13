@@ -147,7 +147,7 @@ if __name__ == "__main__":
             'None',
         ],
         'grill_variant.replay_buffer_kwargs.alpha': [
-            0,
+            0
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -158,9 +158,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'test'
 
-    n_seeds = 5
-    mode = 'ec2'
-    exp_prefix = 'sawyer-hook-settings-from-murtaza-expl-rew-sweep'
+    # n_seeds = 5
+    mode = 'slurm_singularity'
+    # exp_prefix = 'sawyer-hook-settings-from-murtaza-expl-rew-sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -172,4 +172,5 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 time_in_mins=10*60,
+                verbose=True,
           )
