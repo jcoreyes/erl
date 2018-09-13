@@ -349,18 +349,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
         """
         return dict(
             mode_map=self._mode_map,
-            vae_info=dict(
-                vae_state_dict=self.vae.state_dict(),
-                vae_dist_mu=self.vae.dist_mu,
-                vae_dist_std=self.vae.dist_mu
-            ),
+            vae_state=self.vae.__getstate__(),
         )
 
-    def update_env(self, mode_map, vae_info):
+    def update_env(self, mode_map, vae_state):
         self._mode_map = mode_map
-        self.vae.load_state_dict(vae_info['vae_state_dict'])
-        self.vae.dist_mu = vae_info['vae_dist_mu']
-        self.vae.dist_std = vae_info['vae_dist_std']
+        self.vae.__setstate__(vae_state)
 
     def enable_render(self):
         self._use_vae_goals = False
