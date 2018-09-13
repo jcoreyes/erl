@@ -144,7 +144,7 @@ class FiniteHorizonDQN(TorchRLAlgorithm):
             env_infos=env_infos,
         )
 
-    def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
+    def _start_new_rollout(self):
         self._rollout_t = 0
         return self.training_env.reset()
 

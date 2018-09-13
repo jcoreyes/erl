@@ -57,7 +57,7 @@ class HERExploration(TorchRLAlgorithm):
         )
         self.eval_rollout_function = self.train_rollout_function
 
-    def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
+    def _start_new_rollout(self):
         self.exploration_policy.reset()
         # Note: we assume we're using a silent env.
         o = self.training_env.reset()

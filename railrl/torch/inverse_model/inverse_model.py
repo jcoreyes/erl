@@ -107,7 +107,7 @@ class Inverse_Model(TorchRLAlgorithm):
                 ptu.get_numpy(policy_actions),
             ))
 
-    def _start_new_rollout(self, terminal=True, previous_rollout_last_ob=None):
+    def _start_new_rollout(self):
         self.exploration_policy.reset()
         self._current_path_goal = self.training_env.sample_goal_for_rollout()
         self.training_env.set_goal(self._current_path_goal)

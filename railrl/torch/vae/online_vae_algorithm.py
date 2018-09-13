@@ -72,9 +72,6 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         # very hacky
         self.epoch = epoch + 1
 
-    def _post_step(self, step):
-        pass
-
     def reset_vae(self):
         self.vae.init_weights(self.vae.init_w)
 
