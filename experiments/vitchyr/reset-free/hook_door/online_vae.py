@@ -50,6 +50,9 @@ if __name__ == "__main__":
                     collection_mode='online-parallel',
                     # collection_mode='online',
                     reward_scale=1,
+                    parallel_env_params=dict(
+                        num_workers=1,
+                    )
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
@@ -58,6 +61,7 @@ if __name__ == "__main__":
                    vae_training_schedule=vae_schedules.every_six,
                     oracle_data=False,
                     vae_save_period=25,
+                    parallel_vae_train=False,
                 ),
             ),
             replay_buffer_kwargs=dict(
@@ -131,18 +135,19 @@ if __name__ == "__main__":
         ],
         'grill_variant.replay_buffer_kwargs.exploration_rewards_type': [
             'reconstruction_error',
+            # 'None',
         ],
         'grill_variant.replay_buffer_kwargs.exploration_rewards_scale': [
-            0.001,
+            0, 1, 0.1,
         ],
         'grill_variant.replay_buffer_kwargs.vae_priority_type': [
             # 'bernoulli_inv_prob',
             # 'gaussian_inv_prob',
-            'reconstruction_error',
-            # 'None',
+            # 'reconstruction_error',
+            'None',
         ],
         'grill_variant.replay_buffer_kwargs.alpha': [
-            1, 2, 5,
+            0,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -155,7 +160,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'sawyer-hook-alpha-sweep-with-some-exploration-rew'
+    exp_prefix = 'sawyer-hook-settings-from-murtaza-expl-rew-sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
