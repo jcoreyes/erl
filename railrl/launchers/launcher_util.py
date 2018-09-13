@@ -405,8 +405,9 @@ def run_experiment(
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
         mode_specific_kwargs['pre_cmd'] = config.SINGULARITY_PRE_CMDS
-        mode_specific_kwargs['first_launch_command'] = first_sss_launch
         launch_locally = True
+        if mode == 'sss':
+            mode_specific_kwargs['first_launch_command'] = first_sss_launch
         if mode == 'sss':
             first_sss_launch = False
             target = config.SSS_RUN_DOODAD_EXPERIMENT_SCRIPT_PATH
