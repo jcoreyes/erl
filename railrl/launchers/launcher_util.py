@@ -75,7 +75,9 @@ def run_experiment(
         snapshot_gap=1,
         base_log_dir=None,
         local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
-        # Settings for EC2 only
+        # local settings
+        skip_wait=False,
+        # ec2 settings
         sync_interval=180,
         region='us-east-1',
         instance_type=None,
@@ -83,8 +85,10 @@ def run_experiment(
         logger=default_logger,
         verbose=False,
         trial_dir_suffix=None,
-        time_in_mins=None,
         num_exps_per_instance=1,
+        # sss settings
+        time_in_mins=None,
+        # ssh settings
         ssh_host=None,
 ):
     """
@@ -392,6 +396,7 @@ def run_experiment(
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
+        mode_specific_kwargs['skip_wait'] = skip_wait
     elif mode == 'local_docker':
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
