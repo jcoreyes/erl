@@ -160,6 +160,7 @@ def train_vae(variant, return_data=False):
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
     save_period = variant['save_period']
+    dump_skew_debug_plots = variant['dump_skew_debug_plots']
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
         t.train_epoch(epoch)
@@ -171,9 +172,10 @@ def train_vae(variant, return_data=False):
         )
         if should_save_imgs:
             t.dump_samples(epoch)
-            t.dump_best_reconstruction(epoch)
-            t.dump_worst_reconstruction(epoch)
-            t.dump_sampling_histogram(epoch)
+            if dump_skew_debug_plots:
+                t.dump_best_reconstruction(epoch)
+                t.dump_worst_reconstruction(epoch)
+                t.dump_sampling_histogram(epoch)
         t.update_train_weights()
     logger.save_extra_data(m, 'vae.pkl', mode='pickle')
     if return_data:
