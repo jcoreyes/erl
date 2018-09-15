@@ -3,13 +3,13 @@ from railrl.launchers.launcher_util import run_experiment_here
 import torch.multiprocessing as mp
 
 if __name__ == "__main__":
-    mp.set_start_method('spawn')
+    mp.set_start_method('forkserver')
     args_dict = dd.get_args()
     method_call = args_dict['method_call']
     run_experiment_kwargs = args_dict['run_experiment_kwargs']
     output_dir = args_dict['output_dir']
     run_mode = args_dict.get('mode', None)
-    if run_mode and run_mode == 'slurm_singularity':
+    if run_mode and run_mode in ['slurm_singularity', 'sss']:
         import os
         run_experiment_kwargs['variant']['slurm-job-id'] = os.environ.get(
             'SLURM_JOB_ID', None

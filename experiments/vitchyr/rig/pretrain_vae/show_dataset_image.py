@@ -10,9 +10,9 @@ filename = str(uuid.uuid4())
 def vis(args):
     imgs = np.load(args.file)
     for image_obs in imgs:
-        im = image_obs.reshape(3, 84, 84).transpose()
+        im = image_obs.reshape(3, 48, 48).transpose()
         cv2.imshow('img', im)
-        cv2.waitKey(1)
+        cv2.waitKey(100)
 
 
 if __name__ == "__main__":

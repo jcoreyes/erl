@@ -53,6 +53,9 @@ class ProxyEnv(Serializable, Env):
             return None
         return getattr(self._wrapped_env, attrname)
 
+    def __str__(self):
+        return '{}({})'.format(type(self).__name__, self.wrapped_env)
+
 
 class HistoryEnv(ProxyEnv, Env):
     def __init__(self, wrapped_env, history_len):

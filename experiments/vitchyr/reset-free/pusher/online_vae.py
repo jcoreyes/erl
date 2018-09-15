@@ -23,14 +23,14 @@ if __name__ == "__main__":
             mocap_high=[0.2, 0.75, 0.5],
             goal_low=[-0.2, 0.45, 0.02, -0.25, 0.4],
             goal_high=[0.2, 0.75, 0.02, 0.25, 0.8],
-            reset_free=True,
-            num_resets_before_puck_reset=int(1e6)
+            num_resets_before_puck_reset=1,
+            num_resets_before_hand_reset=1,
         ),
         init_camera=sawyer_pusher_camera_top_down,
         grill_variant=dict(
             save_video=True,
             online_vae_beta=2.5,
-            save_video_period=250,
+            save_video_period=200,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -55,18 +55,19 @@ if __name__ == "__main__":
                 online_vae_kwargs=dict(
                     vae_training_schedule=vae_schedules.every_six,
                     oracle_data=False,
-                    vae_save_period=25,
+                    vae_save_period=50,
                 ),
             ),
-            replay_kwargs=dict(
-                max_size=int(80000),
+            replay_buffer_kwargs=dict(
+                max_size=int(30000),
                 fraction_goals_are_rollout_goals=0.,
                 fraction_resampled_goals_are_env_goals=0.5,
-                exploration_rewards_scale=1.0,
-                exploration_rewards_type='reconstruction_error',
-                alpha=3,
+                exploration_rewards_scale=0.0,
+                exploration_rewards_type='None',
+                vae_priority_type='None',
+                alpha=0,
             ),
-            algorithm='GRILL-HER-TD3',
+            algorithm='RIG-TD3',
             normalize=False,
             render=False,
             exploration_noise=0.8,
@@ -108,12 +109,15 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env_kwargs.num_resets_before_puck_reset': [1, 3, int(1e6)],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100, 500],
-        'grill_variant.replay_kwargs.alpha': [3],
-        'grill_variant.replay_kwargs.exploration_rewards_type': [
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type': [
+            # 'bernoulli_inv_prob',
+            # 'gaussian_inv_prob',
             'reconstruction_error',
-            'None',
+            # 'None',
+        ],
+        'grill_variant.replay_buffer_kwargs.alpha': [
+            0, 1, 5
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -124,9 +128,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 1
+    n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'reset-free-online-parallel-push-2'
+    exp_prefix = 'push-with-resets-test-5'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

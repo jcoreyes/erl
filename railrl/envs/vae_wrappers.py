@@ -1,4 +1,3 @@
-import pickle
 import random
 import torch
 
@@ -9,18 +8,7 @@ from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
 from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
 from railrl.envs.wrappers import ProxyEnv
-from railrl.misc.asset_loader import sync_down
-
-
-def load_vae(vae_file):
-    if vae_file[0] == "/":
-        local_path = vae_file
-    else:
-        local_path = sync_down(vae_file)
-    vae = pickle.load(open(local_path, "rb"))
-    # vae = torch.load(local_path, map_location=lambda storage, loc: storage)
-    print("loaded", local_path)
-    return vae
+from railrl.misc.asset_loader import load_local_or_remote_file
 
 
 class VAEWrappedEnv(ProxyEnv, Env):
@@ -42,15 +30,21 @@ class VAEWrappedEnv(ProxyEnv, Env):
         reward_params=None,
         mode="train",
         imsize=84,
+        obs_size = None,
+        norm_order=2,
+        epsilon=20,
+        presampled_goals=None,
     ):
         self.quick_init(locals())
         if reward_params is None:
             reward_params = dict()
         super().__init__(wrapped_env)
         if type(vae) is str:
-            self.vae = load_vae(vae)
+            self.vae = load_local_or_remote_file(vae)
         else:
             self.vae = vae
+        if ptu.gpu_enabled():
+            vae.cuda()
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self._use_vae_goals = use_vae_goals
@@ -66,12 +60,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.imsize = imsize
         self.reward_params = reward_params
         self.reward_type = self.reward_params.get("type", 'latent_distance')
-        self.norm_order = self.reward_params.get("norm_order", 1)
-        self.epsilon = self.reward_params.get("epsilon", 20)
+        self.norm_order = self.reward_params.get("norm_order", norm_order)
+        self.epsilon = self.reward_params.get("epsilon", epsilon)
         self.reward_min_variance = self.reward_params.get("min_variance", 0)
         latent_space = Box(
-            -10 * np.ones(self.representation_size),
-            10 * np.ones(self.representation_size),
+            -10 * np.ones(obs_size or self.representation_size),
+            10 * np.ones(obs_size or self.representation_size),
         )
         spaces = self.wrapped_env.observation_space.spaces
         spaces['observation'] = latent_space
@@ -82,7 +76,11 @@ class VAEWrappedEnv(ProxyEnv, Env):
         spaces['latent_achieved_goal'] = latent_space
         self.observation_space = Dict(spaces)
         self.mode(mode)
-        self.num_goals_presampled = 0
+        self._presampled_goals = presampled_goals
+        if self._presampled_goals is None:
+            self.num_goals_presampled = 0
+        else:
+            self.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
         self.use_replay_buffer_goals = False
 
         self.vae_input_key_prefix = vae_input_key_prefix
@@ -91,6 +89,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.vae_input_achieved_goal_key = vae_input_key_prefix + '_achieved_goal'
         self.vae_input_desired_goal_key = vae_input_key_prefix + '_desired_goal'
         self._mode_map = {}
+        self.desired_goal = {}
+        self.desired_goal['latent_desired_goal'] = latent_space.sample()
+        self._initial_obs = None
 
     def reset(self):
         obs = self.wrapped_env.reset()
@@ -103,7 +104,12 @@ class VAEWrappedEnv(ProxyEnv, Env):
                 latent_goals = self._sample_vae_prior(1)
             latent_goal = latent_goals[0]
         else:
-            latent_goal = self._encode_one(obs[self.vae_input_desired_goal_key])
+            if self.num_goals_presampled > 0:
+                goal = self.sample_goal()
+                latent_goal= goal['latent_desired_goal']
+                self.wrapped_env.set_goal(goal)
+            else:
+                latent_goal = self._encode_one(obs[self.vae_input_desired_goal_key])
 
         if self.decode_goals:
             decoded_goal = self._decode(latent_goal)[0]
@@ -115,12 +121,14 @@ class VAEWrappedEnv(ProxyEnv, Env):
             image_goal = goal.get('image_desired_goal', None)
             proprio_goal = goal.get('proprio_desired_goal', None)
 
+
         goal['desired_goal'] = latent_goal
         goal['latent_desired_goal'] = latent_goal
         goal['image_desired_goal'] = image_goal
         goal['proprio_desired_goal'] = proprio_goal
         goal[self.vae_input_desired_goal_key] = decoded_goal
         self.desired_goal = goal
+        self._initial_obs = obs
         return self._update_obs(obs)
 
     def step(self, action):
@@ -162,10 +170,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         info["vae_dist_l1"] = np.linalg.norm(dist, ord=1)
         info["vae_dist_l2"] = np.linalg.norm(dist, ord=2)
 
-    def set_presampled_goals(self, presampled_goals):
-        self._presampled_goals = presampled_goals
-        self.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
-
     @property
     def use_vae_goals(self):
         return self._use_vae_goals and not self.reward_type.startswith('state')
@@ -179,6 +183,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
             sampled_goals = {
                 k: v[idx] for k, v in self._presampled_goals.items()
             }
+            #ensures goals are encoded using latest vae
+            if 'image_desired_goal' in sampled_goals:
+                sampled_goals['latent_desired_goal'] = self._encode(sampled_goals['image_desired_goal'])
             return sampled_goals
 
         if self.use_vae_goals:
@@ -258,7 +265,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
         :param goal:
         :return:
         """
-        # self._latent_goal = goal['latent_desired_goal']
         self.desired_goal = goal
         self.wrapped_env.set_goal(goal)
 
@@ -311,6 +317,8 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.render_decoded = False
         else:
             raise ValueError("Invalid mode: {}".format(name))
+        if hasattr(self.wrapped_env, "mode"):
+            self.wrapped_env.mode(name)
         self.cur_mode = name
 
     def add_mode(self, env_type, mode):
@@ -342,6 +350,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         """
         return dict(
             mode_map=self._mode_map,
+<<<<<<< HEAD
             vae_state_dict=self.vae.state_dict(),
             use_gpu = ptu._use_gpu,
             gpu_id = ptu._gpu_id
@@ -352,6 +361,20 @@ class VAEWrappedEnv(ProxyEnv, Env):
         self.vae.load_state_dict(vae_state_dict)
         ptu.device = torch.device("cuda:"+str(gpu_id) if use_gpu else "cpu")
         self.vae.to(ptu.device)
+=======
+            vae_info=dict(
+                vae_state_dict=self.vae.state_dict(),
+                vae_dist_mu=self.vae.dist_mu,
+                vae_dist_std=self.vae.dist_mu
+            ),
+        )
+
+    def update_env(self, mode_map, vae_info):
+        self._mode_map = mode_map
+        self.vae.load_state_dict(vae_info['vae_state_dict'])
+        self.vae.dist_mu = vae_info['vae_dist_mu']
+        self.vae.dist_std = vae_info['vae_dist_std']
+>>>>>>> grill-multiworld
 
     def enable_render(self):
         self._use_vae_goals = False
@@ -375,6 +398,18 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.waitKey(1)
             reconstruction = self._reconstruct_img(obs['image_observation'])
             cv2.imshow('env_reconstruction', reconstruction)
+            cv2.waitKey(1)
+            init_img = self._initial_obs['image_observation'].reshape(
+                self.input_channels,
+                self.imsize,
+                self.imsize,
+            ).transpose()
+            cv2.imshow('initial_state', init_img)
+            cv2.waitKey(1)
+            init_reconstruction = self._reconstruct_img(
+                self._initial_obs['image_observation']
+            )
+            cv2.imshow('init_reconstruction', init_reconstruction)
             cv2.waitKey(1)
 
         if self.render_goals:
@@ -474,9 +509,11 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
         if reward_params is None:
             reward_params = dict()
         if type(vae) is str:
-            self.vae = load_vae(vae)
+            self.vae = load_local_or_remote_file(vae)
         else:
             self.vae = vae
+        if ptu.gpu_enabled():
+            vae.cuda()
         self.representation_size = self.vae.representation_size
         self._use_vae_goals = use_vae_goals
         self.sample_from_true_prior = sample_from_true_prior
@@ -658,6 +695,7 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
 
     def _encode(self, imgs):
         return ptu.get_numpy(self.vae.encode(ptu.from_numpy(imgs))[0])
+
 
     """
     Multitask functions

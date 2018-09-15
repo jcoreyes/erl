@@ -1,3 +1,5 @@
+import pickle
+
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.samplers.util import rollout
 from railrl.torch.core import PyTorchModule
@@ -18,6 +20,7 @@ import numpy as np
 import time
 
 from railrl.envs.wrappers import ImageMujocoEnv
+import railrl.samplers.rollout_functions as rf
 import scipy.misc
 
 H = 168
@@ -173,6 +176,7 @@ def dump_video(env, policy, filename, ROWS=3, COLUMNS=6, do_timer=True, horizon=
 from railrl.images.camera import sawyer_init_camera, \
     sawyer_init_camera_zoomed_in
 
+
 def simulate_policy(args):
     data = joblib.load(args.file)
     if 'eval_policy' in data:
@@ -196,18 +200,10 @@ def simulate_policy(args):
         env = env._wrapped_env
     print("Policy loaded")
 
-    env.mode("video_env")
-    env.decode_goals = True
-
-    image_env = ImageMujocoEnv(
-        env._wrapped_env._wrapped_env,
-        84,
-        init_camera=None,
-        camera_name="topview",
-        transpose=True,
-        normalize=True,
-    )
-    # env.image_env = image_env
+    video_vae_env = pickle.loads(pickle.dumps(env))
+    video_goal_env = pickle.loads(pickle.dumps(env))
+    video_vae_env.mode("video_vae")
+    video_goal_env.mode("video_env")
 
     if args.enable_render:
         # some environments need to be reconfigured for visualization
@@ -232,13 +228,17 @@ def simulate_policy(args):
     ROWS = 3
     COLUMNS = 6
     dirname = osp.dirname(args.file)
-    filename = osp.join(dirname, "image.mp4")
-    paths = dump_video(env, policy, filename, ROWS=ROWS, COLUMNS=COLUMNS, horizon=args.H, image_env=image_env, dirname=dirname)
-
-    if hasattr(env, "log_diagnostics"):
-        env.log_diagnostics(paths)
-    logger.dump_tabular()
-
+    from railrl.torch.grill.video_gen import dump_video
+    rollout_function = rf.create_rollout_function(
+        rf.multitask_rollout,
+        max_path_length=args.H,
+        observation_key='observation',
+        desired_goal_key='desired_goal',
+    )
+    filename = osp.join(dirname, "video_final_goal.mp4")
+    dump_video(video_goal_env, policy, filename, rollout_function)
+    filename = osp.join(dirname, 'video_final_vae.mp4')
+    dump_video(video_vae_env, policy, filename, rollout_function)
 
 if __name__ == "__main__":
 

@@ -11,6 +11,7 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         env_class=SawyerPushAndReachXYEnv,
+        imsize=48,
         env_kwargs=dict(
             hide_goal_markers=True,
             action_scale=.02,
@@ -22,10 +23,9 @@ if __name__ == "__main__":
             goal_high=(0.25, 0.875, 0.02, .2, .8),
             num_resets_before_puck_reset=int(1e6)
         ),
-        imsize=48,
         init_camera=sawyer_pusher_camera_upright_v2,
         grill_variant=dict(
-            save_video=False,
+            # save_video=true,
             online_vae_beta=2.5,
             save_video_period=250,
             qf_kwargs=dict(
@@ -36,26 +36,26 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=5000,
+                    num_epochs=500,
                     num_steps_per_epoch=1000,
-                    num_steps_per_eval=5000,
+                    num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online-parallel',
+                    collection_mode='online'
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
                 ),
                 online_vae_kwargs=dict(
-                    vae_training_schedule=vae_schedules.every_six,
+                   vae_training_schedule=vae_schedules.every_six,
                     oracle_data=False,
                     vae_save_period=25,
                 ),
             ),
-            replay_kwargs=dict(
+            replay_buffer_kwargs=dict(
                 max_size=int(30000),
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
@@ -106,7 +106,9 @@ if __name__ == "__main__":
     search_space = {
         'env_kwargs.num_resets_before_puck_reset': [1],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
-        'grill_variant.replay_kwargs.alpha': [3],
+        'grill_variant.replay_buffer_kwargs.alpha': [3],
+        'num_exps_per_instance':[3, 5, 7],
+        'grill_variant.algo_kwargs.base_kwargs.collection_mode':['online', 'online-parallel'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -118,8 +120,8 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_online_torch4_parallel_imsize_48'
-
+    exp_prefix = 'sawyer_pusher_steven_sweep'
+    
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
@@ -130,6 +132,5 @@ if __name__ == "__main__":
                 use_gpu=True,
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
-                num_exps_per_instance=2,
+                num_exps_per_instance=variant['num_exps_per_instance'],
             )
-
