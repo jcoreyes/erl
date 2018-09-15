@@ -2,7 +2,6 @@
 
 from __future__ import print_function
 
-
 import torch
 import torch.utils.data
 from torch import nn, optim
@@ -21,6 +20,7 @@ import numpy as np
 from multiworld.core.image_env import normalize_image
 from railrl.torch.core import PyTorchModule
 from railrl.core.serializable import Serializable
+
 
 class ConvVAETrainer(Serializable):
     def __init__(
@@ -144,9 +144,9 @@ class ConvVAETrainer(Serializable):
 
         if self.normalize or self.background_subtract:
             self.train_data_mean = np.mean(self.train_dataset, axis=0)
-            self.train_data_mean = normalize_image(np.uint8(self.train_data_mean))
-            # self.train_dataset = ((self.train_dataset - self.train_data_mean)) + 1 / 2
-            # self.test_dataset = ((self.test_dataset - self.train_data_mean)) + 1 / 2
+            self.train_data_mean = normalize_image(
+                np.uint8(self.train_data_mean)
+            )
         self.linearity_weight = linearity_weight
         self.use_linear_dynamics = use_linear_dynamics
         self.vae_logger_stats_for_rl = {}
@@ -174,9 +174,9 @@ class ConvVAETrainer(Serializable):
         if method == 'squared_error':
             return self._reconstruction_squared_error_np_to_np(
                 self.train_dataset
-            )**power
+            ) ** power
         elif method == 'kl':
-            return self._kl_np_to_np(self.train_dataset)**power
+            return self._kl_np_to_np(self.train_dataset) ** power
         else:
             raise NotImplementedError('Method {} not supported'.format(method))
 
@@ -191,7 +191,7 @@ class ConvVAETrainer(Serializable):
         torch_input = ptu.np_to_var(normalize_image(np_imgs))
         recons, *_ = self.model(torch_input)
         error = torch_input - recons
-        return ptu.get_numpy((error**2).sum(dim=1))
+        return ptu.get_numpy((error ** 2).sum(dim=1))
 
     def set_vae(self, vae):
         self.model = vae
@@ -215,7 +215,6 @@ class ConvVAETrainer(Serializable):
             samples = samples - self.train_data_mean
         return ptu.np_to_var(samples)
 
-
     def get_debug_batch(self, train=True):
         dataset = self.train_dataset if train else self.test_dataset
         X, Y = dataset
@@ -226,14 +225,15 @@ class ConvVAETrainer(Serializable):
 
     def logprob(self, recon_x, x, mu, logvar):
         if self.gaussian_decoder_loss:
-            return ((recon_x - x)**2).sum() / self.batch_size
+            return ((recon_x - x) ** 2).sum() / self.batch_size
         else:
             # Divide by batch_size rather than setting size_average=True because
             # otherwise the averaging will also happen across dimension 1 (the
             # pixels)
             return F.binary_cross_entropy(
                 recon_x,
-                x.narrow(start=0, length=self.imlength, dimension=1).contiguous().view(-1, self.imlength),
+                x.narrow(start=0, length=self.imlength,
+                         dimension=1).contiguous().view(-1, self.imlength),
                 size_average=False,
             ) / self.batch_size
 
@@ -245,7 +245,7 @@ class ConvVAETrainer(Serializable):
         latent_next_obs = self.model.encode(next_obs)[0]
         action_obs_pair = torch.cat([latent_obs, actions], dim=1)
         prediction = self.model.linear_constraint_fc(action_obs_pair)
-        return torch.norm(prediction - latent_next_obs)**2 / self.batch_size
+        return torch.norm(prediction - latent_next_obs) ** 2 / self.batch_size
 
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
         self.model.train()
@@ -269,7 +269,9 @@ class ConvVAETrainer(Serializable):
             bce = self.logprob(recon_batch, next_obs, mu, logvar)
             kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
             if self.use_linear_dynamics:
-                linear_dynamics_loss = self.state_linearity_loss(obs, next_obs, actions)
+                linear_dynamics_loss = self.state_linearity_loss(
+                    obs, next_obs, actions
+                )
                 loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
                 linear_losses.append(linear_dynamics_loss.data[0])
             else:
@@ -283,9 +285,12 @@ class ConvVAETrainer(Serializable):
             self.optimizer.step()
             if self.log_interval and batch_idx % self.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, batch_idx * len(data), len(self.train_loader.dataset),
+                    epoch,
+                    batch_idx * len(data),
+                    len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
-                    loss.data[0] / len(next_obs)))
+                    loss.data[0] / len(next_obs))
+                )
 
         if from_rl:
             self.vae_logger_stats_for_rl['Train VAE Epoch'] = epoch
@@ -301,9 +306,8 @@ class ConvVAETrainer(Serializable):
             logger.record_tabular("train/KL", np.mean(kles))
             logger.record_tabular("train/loss", np.mean(losses))
             if self.use_linear_dynamics:
-                logger.record_tabular("train/linear_loss", np.mean(linear_losses))
-
-
+                logger.record_tabular("train/linear_loss",
+                                      np.mean(linear_losses))
 
     def test_epoch(
             self,
@@ -337,7 +341,7 @@ class ConvVAETrainer(Serializable):
                 n = min(data.size(0), 8)
                 comparison = torch.cat([
                     data[:n].narrow(start=0, length=self.imlength, dimension=1)
-                    .contiguous().view(
+                        .contiguous().view(
                         -1, self.input_channels, self.imsize, self.imsize
                     ),
                     recon_batch.view(
@@ -347,7 +351,8 @@ class ConvVAETrainer(Serializable):
                         self.imsize,
                     )[:n]
                 ])
-                save_dir = osp.join(logger.get_snapshot_dir(), 'r%d.png' % epoch)
+                save_dir = osp.join(logger.get_snapshot_dir(),
+                                    'r%d.png' % epoch)
                 save_image(comparison.data.cpu(), save_dir, nrow=n)
 
         zs = np.array(zs)
@@ -392,13 +397,14 @@ class ConvVAETrainer(Serializable):
         data = self.get_batch(train=False)
         recon_batch, mu, logvar = self.model(data)
         img = data[0]
-        recon_mse = ((recon_batch[0] - img)**2).mean()
+        recon_mse = ((recon_batch[0] - img) ** 2).mean()
 
         img_repeated = img.expand((debug_batch_size, img.shape[0]))
 
-        samples = ptu.Variable(torch.randn(debug_batch_size, self.representation_size))
+        samples = ptu.Variable(
+            torch.randn(debug_batch_size, self.representation_size))
         random_imgs = self.model.decode(samples)
-        random_mses = (random_imgs - img_repeated)**2
+        random_mses = (random_imgs - img_repeated) ** 2
         mse_improvement = ptu.get_numpy(random_mses.mean(dim=1) - recon_mse)
         stats = create_stats_ordered_dict(
             'debug/MSE improvement over random',
@@ -445,7 +451,6 @@ class ConvVAETrainer(Serializable):
         with open(data_save_file, 'a') as f:
             f.write(str(list(zip(bins, n))))
             f.write('\n')
-
 
     def dump_best_reconstruction(self, epoch, num_shown=4):
         idx_and_weights = self._get_sorted_idx_and_train_weights()
@@ -502,10 +507,16 @@ class ConvVAETrainer(Serializable):
         plt.figure(figsize=(8, 8))
         plt.scatter(z[:, dim1], z[:, dim2], marker='o', edgecolor='none')
         if self.model.dist_mu is not None:
-            x1 = self.model.dist_mu[dim1:dim1+1]
-            y1 = self.model.dist_mu[dim2:dim2+1]
-            x2 = self.model.dist_mu[dim1:dim1+1] + self.model.dist_std[dim1:dim1+1]
-            y2 = self.model.dist_mu[dim2:dim2+1] + self.model.dist_std[dim2:dim2+1]
+            x1 = self.model.dist_mu[dim1:dim1 + 1]
+            y1 = self.model.dist_mu[dim2:dim2 + 1]
+            x2 = (
+                self.model.dist_mu[dim1:dim1 + 1]
+                + self.model.dist_std[dim1:dim1 + 1]
+            )
+            y2 = (
+                self.model.dist_mu[dim2:dim2 + 1]
+                + self.model.dist_std[dim2:dim2 + 1]
+            )
         plt.plot([x1, x2], [y1, y2], color='k', linestyle='-', linewidth=2)
         axes = plt.gca()
         axes.set_xlim([-6, 6])
@@ -514,6 +525,7 @@ class ConvVAETrainer(Serializable):
         plt.grid(True)
         save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
         plt.savefig(save_file)
+
 
 class ConvVAESmall(PyTorchModule):
     def __init__(
@@ -539,7 +551,7 @@ class ConvVAESmall(PyTorchModule):
         self.output_activation = output_activation
         self.input_channels = input_channels
         self.imsize = imsize
-        self.imlength = self.imsize**2 * self.input_channels
+        self.imlength = self.imsize ** 2 * self.input_channels
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)
         self.relu = nn.ReLU()
@@ -549,7 +561,7 @@ class ConvVAESmall(PyTorchModule):
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=2)
         self.conv3 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
         self.kernel_out = 64
-        self.conv_output_dim = self.kernel_out*9
+        self.conv_output_dim = self.kernel_out * 9
         self.fc1 = nn.Linear(self.conv_output_dim, representation_size)
         self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
@@ -589,11 +601,11 @@ class ConvVAESmall(PyTorchModule):
         # self.fc4.weight.data.uniform_(-init_w, init_w)
         # self.fc4.bias.data.uniform_(-init_w, init_w)
 
-
     def encode(self, input):
         input = input.view(-1, self.imlength)
         conv_input = input
-        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize, self.imsize)
+        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize,
+                                         self.imsize)
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
@@ -620,7 +632,8 @@ class ConvVAESmall(PyTorchModule):
         h = h3.view(-1, self.kernel_out, 3, 3)
         x = F.relu(self.conv4(h))
         x = F.relu(self.conv5(x))
-        x = self.conv6(x).view(-1, self.imsize*self.imsize*self.input_channels)
+        x = self.conv6(x).view(-1,
+                               self.imsize * self.imsize * self.input_channels)
 
         return self.sigmoid(x)
 
@@ -640,8 +653,6 @@ class ConvVAESmall(PyTorchModule):
         super().__setstate__(d)
         self.dist_mu = d["_dist_mu"]
         self.dist_std = d["_dist_std"]
-
-
 
 
 class ConvVAE(PyTorchModule):
@@ -666,7 +677,7 @@ class ConvVAE(PyTorchModule):
         self.output_activation = output_activation
         self.input_channels = input_channels
         self.imsize = imsize
-        self.imlength = self.imsize**2 * self.input_channels
+        self.imlength = self.imsize ** 2 * self.input_channels
         if min_variance is None:
             self.log_min_variance = None
         else:
@@ -701,10 +712,10 @@ class ConvVAE(PyTorchModule):
 
         if action_dim is not None:
             self.linear_constraint_fc = \
-                    nn.Linear(
-                        self.representation_size + action_dim,
-                        self.representation_size
-                    )
+                nn.Linear(
+                    self.representation_size + action_dim,
+                    self.representation_size
+                )
         else:
             self.linear_constraint_fc = None
 
@@ -740,14 +751,16 @@ class ConvVAE(PyTorchModule):
         input = input.view(-1, self.imlength + self.added_fc_size)
         conv_input = input.narrow(start=0, length=self.imlength, dimension=1)
 
-        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize, self.imsize)
+        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize,
+                                         self.imsize)
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
 
         h = x.view(-1, 128)  # flatten
         if self.added_fc_size != 0:
-            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dimension=1)
+            fc_input = input.narrow(start=self.imlength,
+                                    length=self.added_fc_size, dimension=1)
             h = torch.cat((h, fc_input), dim=1)
         mu = self.output_activation(self.fc1(h))
         if self.log_min_variance is None:
@@ -769,7 +782,8 @@ class ConvVAE(PyTorchModule):
         h = h3.view(-1, 32, 2, 2)
         x = F.relu(self.conv4(h))
         x = F.relu(self.conv5(x))
-        x = self.conv6(x).view(-1, self.imsize*self.imsize*self.input_channels)
+        x = self.conv6(x).view(-1,
+                               self.imsize * self.imsize * self.input_channels)
 
         return self.sigmoid(x)
 
@@ -852,7 +866,8 @@ class ConvVAELarge(ConvVAE):
         self.conv9 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
         self.conv10 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=1)
         self.conv11 = nn.ConvTranspose2d(32, 16, kernel_size=5, stride=1)
-        self.conv12 = nn.ConvTranspose2d(16, input_channels, kernel_size=6, stride=1)
+        self.conv12 = nn.ConvTranspose2d(16, input_channels, kernel_size=6,
+                                         stride=1)
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
@@ -905,7 +920,8 @@ class ConvVAELarge(ConvVAE):
         conv_input = input.narrow(start=0, length=self.imlength, dimension=1)
 
         # batch_size = input.size(0)
-        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize, self.imsize)
+        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize,
+                                         self.imsize)
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
@@ -914,7 +930,8 @@ class ConvVAELarge(ConvVAE):
         x = F.relu(self.bn6(self.conv6(x)))
         h = x.view(-1, 128)  # flatten
         if self.added_fc_size != 0:
-            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dimension=1)
+            fc_input = input.narrow(start=self.imlength,
+                                    length=self.added_fc_size, dimension=1)
             h = torch.cat((h, fc_input), dim=1)
         mu = self.output_activation(self.fc1(h))
         if self.log_min_variance is None:
@@ -931,7 +948,8 @@ class ConvVAELarge(ConvVAE):
         x = F.relu(self.conv9(x))
         x = F.relu(self.conv10(x))
         x = F.relu(self.conv11(x))
-        x = self.conv12(x).view(-1, self.imsize * self.imsize * self.input_channels)
+        x = self.conv12(x).view(-1,
+                                self.imsize * self.imsize * self.input_channels)
         return self.sigmoid(x)
 
 
@@ -954,19 +972,22 @@ class SpatialVAE(ConvVAE):
         self.save_init_params(locals())
         super().__init__(representation_size, *args, **kwargs)
         self.num_feat_points = num_feat_points
-        self.conv3 = nn.Conv2d(32, self.num_feat_points, kernel_size=5, stride=3)
-#        self.bn3 = nn.BatchNorm2d(32)
+        self.conv3 = nn.Conv2d(32, self.num_feat_points, kernel_size=5,
+                               stride=3)
+        #        self.bn3 = nn.BatchNorm2d(32)
 
-        test_mat = Variable(torch.zeros(1, self.input_channels, self.imsize, self.imsize))
+        test_mat = Variable(
+            torch.zeros(1, self.input_channels, self.imsize, self.imsize))
         test_mat = self.conv1(test_mat)
         test_mat = self.conv2(test_mat)
         test_mat = self.conv3(test_mat)
         self.out_size = int(np.prod(test_mat.shape))
 
-        self.spatial_fc = nn.Linear(2 * self.num_feat_points + self.added_fc_size, 64)
+        self.spatial_fc = nn.Linear(
+            2 * self.num_feat_points + self.added_fc_size, 64)
 
         # self.conv_output_dim = 1568 # kernel 2
-        self.conv_output_dim = 128 # kernel 3
+        self.conv_output_dim = 128  # kernel 3
 
         self.fc1 = nn.Linear(64, representation_size)
         self.fc2 = nn.Linear(64, representation_size)
@@ -1001,12 +1022,13 @@ class SpatialVAE(ConvVAE):
         conv_input = input.narrow(start=0, length=self.imlength, dimension=1)
 
         # batch_size = input.size(0)
-        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize, self.imsize)
+        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize,
+                                         self.imsize)
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = self.conv3(x)
-        d = int((self.out_size // self.num_feat_points)**(1/2))
-        x = x.view(-1, self.num_feat_points, d*d)
+        d = int((self.out_size // self.num_feat_points) ** (1 / 2))
+        x = x.view(-1, self.num_feat_points, d * d)
         x = F.softmax(x / self.temperature, 2)
         x = x.view(-1, self.num_feat_points, d, d)
 
@@ -1021,12 +1043,14 @@ class SpatialVAE(ConvVAE):
         x = torch.cat([fp_x, fp_y], 1)
         h = x.view(-1, self.num_feat_points * 2)
         if self.added_fc_size != 0:
-            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dimension=1)
+            fc_input = input.narrow(start=self.imlength,
+                                    length=self.added_fc_size, dimension=1)
             h = torch.cat((h, fc_input), dim=1)
         h = F.relu(self.spatial_fc(h))
         mu = self.output_activation(self.fc1(h))
         logvar = self.output_activation(self.fc2(h))
         return mu, logvar
+
 
 class ImageDataset(Dataset):
 
@@ -1046,6 +1070,7 @@ class ImageDataset(Dataset):
             samples = normalize_image(samples)
         return np.float32(samples)
 
+
 class InfiniteRandomSampler(Sampler):
 
     def __init__(self, data_source):
@@ -1064,7 +1089,7 @@ class InfiniteRandomSampler(Sampler):
         return idx
 
     def __len__(self):
-        return 2**62
+        return 2 ** 62
 
 
 class InfiniteWeightedRandomSampler(Sampler):
@@ -1100,7 +1125,7 @@ class InfiniteWeightedRandomSampler(Sampler):
         return idx
 
     def __len__(self):
-        return 2**62
+        return 2 ** 62
 
 
 if __name__ == "__main__":
