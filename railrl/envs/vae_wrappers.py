@@ -350,31 +350,22 @@ class VAEWrappedEnv(ProxyEnv, Env):
         """
         return dict(
             mode_map=self._mode_map,
-<<<<<<< HEAD
-            vae_state_dict=self.vae.state_dict(),
-            use_gpu = ptu._use_gpu,
-            gpu_id = ptu._gpu_id
-        )
-
-    def update_env(self, mode_map, vae_state_dict, use_gpu, gpu_id):
-        self._mode_map = mode_map
-        self.vae.load_state_dict(vae_state_dict)
-        ptu.device = torch.device("cuda:"+str(gpu_id) if use_gpu else "cpu")
-        self.vae.to(ptu.device)
-=======
             vae_info=dict(
                 vae_state_dict=self.vae.state_dict(),
                 vae_dist_mu=self.vae.dist_mu,
-                vae_dist_std=self.vae.dist_mu
+                vae_dist_std=self.vae.dist_mu,
+                use_gpu=ptu._use_gpu,
+                gpu_id=ptu._gpu_id,
             ),
         )
 
-    def update_env(self, mode_map, vae_info):
+    def update_env(self, mode_map, vae_info, use_gpu, gpu_id):
         self._mode_map = mode_map
         self.vae.load_state_dict(vae_info['vae_state_dict'])
         self.vae.dist_mu = vae_info['vae_dist_mu']
         self.vae.dist_std = vae_info['vae_dist_std']
->>>>>>> grill-multiworld
+        ptu.device = torch.device("cuda:" + str(gpu_id) if use_gpu else "cpu")
+        self.vae.to(ptu.device)
 
     def enable_render(self):
         self._use_vae_goals = False
