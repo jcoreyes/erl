@@ -39,6 +39,10 @@ def gaussian_data(batch_size):
     return np.random.randn(batch_size, 2)
 
 
+def small_gaussian_data(batch_size):
+    return 0.5*np.random.randn(batch_size, 2)
+
+
 def uniform_truncated_data(batch_size):
     data = np.random.uniform(low=-2, high=2, size=(batch_size, 2))
     data = np.maximum(data, -1)
@@ -96,7 +100,7 @@ def flower_data(batch_size):
 
 ut_dataset = uniform_truncated_data(1000)
 u_dataset = uniform_data(100)
-empty_dataset = np.zeros((0, 2))
+# empty_dataset = np.zeros((0, 2))
 
 """
 Plotting

@@ -8,6 +8,8 @@ from railrl.torch.vae.skewed_vae import (
     uniform_truncated_data,
     four_corners,
     empty_dataset,
+    gaussian_data,
+    small_gaussian_data,
 )
 
 if __name__ == '__main__':
@@ -15,7 +17,7 @@ if __name__ == '__main__':
         dataset_generator=uniform_truncated_data,
         n_start_samples=300,
         bs=32,
-        n_epochs=1000,
+        n_epochs=5000,
         # n_epochs=2,
         n_samples_to_add_per_epoch=1000,
         skew_config=dict(
@@ -27,7 +29,7 @@ if __name__ == '__main__':
         weight_loss=False,
         z_dim=16,
         hidden_size=32,
-        save_period=50,
+        save_period=250,
         # save_period=1,
     )
 
@@ -35,27 +37,22 @@ if __name__ == '__main__':
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'skew-vae-four-corners-heatmaps'
-    # exp_prefix = 'skew-vae-dynamics-noise-2'
-    exp_prefix = 'skew-vae-sweep-many-with-video-4c'
+    exp_prefix = 'skew-vae-fc-repo-noise-after'
 
     search_space = {
         'dataset_generator': [
             four_corners,
             # empty_dataset,
+            # small_gaussian_data,
         ],
         'skew_config.mode': [
             # 'importance_sampling',
             'recon_mse',
-            'exp_recon_mse',
+            # 'exp_recon_mse',
             # 'biased_encoder',
             # 'prior'
             # 'none',
         ],
-        # 'skew_config.temperature': [
-        # ],
         'skew_config.alpha': [
             1,
         ],
@@ -64,15 +61,17 @@ if __name__ == '__main__':
         ],
         'skew_sampling': [
             True,
+            # False,
         ],
         'weight_loss': [
             True,
+            # False,
         ],
         'n_start_samples': [
             4,
         ],
         'dynamics_noise': [
-            0,
+            # 0,
             0.1,
             # 1,
         ],
@@ -88,5 +87,5 @@ if __name__ == '__main__':
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-                skip_wait=True,
+                # skip_wait=True,
             )
