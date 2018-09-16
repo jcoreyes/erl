@@ -170,8 +170,11 @@ def dict_to_safe_json(d, sort=False):
         if safe_json(item):
             new_d[key] = item
         else:
-            if isinstance(item, dict):
-                new_d[key] = dict_to_safe_json(item)
+            if (
+                    isinstance(item, dict)
+                    or isinstance(item, collections.OrderedDict)
+            ):
+                new_d[key] = dict_to_safe_json(item, sort=sort)
             else:
                 new_d[key] = str(item)
     if sort:
