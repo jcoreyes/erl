@@ -43,6 +43,15 @@ def uniform_truncated_data(batch_size):
     return data
 
 
+def four_corners(_):
+    return np.array([
+        [-1, 1],
+        [-1, -1],
+        [1, 1],
+        [1, -1],
+    ])
+
+
 def uniform_gaussian_data(batch_size):
     data = np.random.randn(batch_size, 2)
     data = np.maximum(data, -1)
@@ -86,23 +95,61 @@ empty_dataset = np.zeros((0, 2))
 Plotting
 """
 
-def show_heatmap(train_results, skew_config, xlim=(-5, 5), ylim=(-5, 5),
-                 resolution=20):
-    encoder, decoder, losses, kls, log_probs = train_results
+
+def show_heatmap(
+        encoder, decoder, skew_config,
+        xlim=(-1.5, 1.5), ylim=(-1.5, 1.5),
+        resolution=20,
+):
+    # encoder, decoder, losses, kls, log_probs = train_results
 
     def get_prob_batch(batch):
-        return 1. / compute_train_weights(batch, encoder, decoder, skew_config)
+        return compute_train_weights(batch, encoder, decoder, skew_config)
 
     heat_map = vu.make_heat_map(get_prob_batch, xlim, ylim,
                                 resolution=resolution, batch=True)
-    plt.figure()
+    # plt.figure()
     vu.plot_heatmap(heat_map)
-    plt.show()
+    # if report:
+    #     fig = plt.gcf()
+    #     img = vu.save_image(fig)
+    #     report.add_image(img, "Weight Heatmap")
+    # else:
+    #     plt.show()
 
 
-def visualize_results(results, xlim=(-1.5, 1.5), ylim=(-1.5, 1.5), n_vis=1000,
-                      report=None):
+def plot_weighted_histogram_sample(data, encoder, decoder, skew_config):
+    weights_np = compute_train_weights(data, encoder, decoder, skew_config)
+    weights = torch.FloatTensor(weights_np)
+    samples = torch.multinomial(
+        weights, len(weights), replacement=True
+    )
+    plt.hist(samples, bins=np.arange(0, len(weights)))
+
+
+def visualize_results(
+        results,
+        skew_config,
+        xlim=(-1.5, 1.5),
+        ylim=(-1.5, 1.5),
+        n_vis=1000,
+        report=None,
+):
     for epoch, encoder, decoder, vis_samples_np in zip(*results[:4]):
+        plt.figure()
+        show_heatmap(encoder, decoder, skew_config, xlim=xlim, ylim=ylim)
+        fig = plt.gcf()
+        img = vu.save_image(fig)
+        report.add_image(img, "Epoch {} Heatmap".format(epoch))
+
+        plt.figure()
+        plot_weighted_histogram_sample(
+            vis_samples_np, encoder, decoder, skew_config
+        )
+        fig = plt.gcf()
+        img = vu.save_image(fig)
+        report.add_image(img, "Epoch {} Sample Histogram".format(epoch))
+
         plt.figure()
         plt.suptitle("Epoch {}".format(epoch))
 
@@ -240,18 +287,19 @@ def plot_curves(train_results, report=None):
         plt.show()
 
 
-
 def progressbar(it, prefix="", size=60):
     count = len(it)
+
     def _show(_i):
-        x = int(size*_i/count)
-        sys.stdout.write("%s[%s%s] %i/%i\r" % (prefix, "#"*x, "."*(size-x), _i, count))
+        x = int(size * _i / count)
+        sys.stdout.write(
+            "%s[%s%s] %i/%i\r" % (prefix, "#" * x, "." * (size - x), _i, count))
         sys.stdout.flush()
 
     _show(0)
     for i, item in enumerate(it):
         yield item
-        _show(i+1)
+        _show(i + 1)
     sys.stdout.write("\n")
     sys.stdout.flush()
 
@@ -281,7 +329,7 @@ def kl_to_prior(means, log_stds, stds):
 
 def log_prob(batch, decoder, latents):
     reconstruction = decoder(latents)
-    return -((batch - reconstruction)**2).sum(dim=1, keepdim=True)
+    return -((batch - reconstruction) ** 2).sum(dim=1, keepdim=True)
 
 
 class Encoder(nn.Sequential):
@@ -333,6 +381,7 @@ def compute_train_weights(data, encoder, decoder, config):
     alpha = config.get('alpha', 0)
     mode = config.get('mode', 'none')
     n_average = config.get('n_average', 3)
+    temperature = config.get('temperature', 1)
     orig_data_length = len(data)
     if alpha == 0 or mode == 'none':
         return np.ones(orig_data_length)
@@ -344,31 +393,40 @@ def compute_train_weights(data, encoder, decoder, config):
     """
     Actually compute the weights
     """
-    if mode == 'biased_encoder':
-        latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
-            data
-        )
-        importance_weights = 1
-    elif mode == 'prior':
-        latents = Variable(torch.randn(len(data), z_dim))
-        importance_weights = 1
-    elif mode == 'importance_sampling':
-        latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
-            data
-        )
-
-        prior = Normal(0, 1)
-        prior_prob = prior.log_prob(latents).sum(dim=1).exp()
-
-        encoder_distrib = Normal(means, stds)
-        encoder_prob = encoder_distrib.log_prob(latents).sum(dim=1).exp()
-
-        importance_weights = prior_prob / encoder_prob
+    if mode == 'recon_mse':
+        latents, *_ = encoder.get_encoding_and_suff_stats(data)
+        reconstruction = decoder(latents)
+        weights = ((data - reconstruction) ** 2).sum(dim=1)
+    elif mode == 'exp_recon_mse':
+        latents, *_ = encoder.get_encoding_and_suff_stats(data)
+        reconstruction = decoder(latents)
+        weights = (temperature * (data - reconstruction) ** 2).sum(dim=1).exp()
     else:
-        raise NotImplementedError()
+        if mode == 'biased_encoder':
+            latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
+                data
+            )
+            importance_weights = 1
+        elif mode == 'prior':
+            latents = Variable(torch.randn(len(data), z_dim))
+            importance_weights = 1
+        elif mode == 'importance_sampling':
+            latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
+                data
+            )
 
-    data_prob = log_prob(data, decoder, latents).squeeze(1).exp()
-    weights = importance_weights * 1. / data_prob
+            prior = Normal(0, 1)
+            prior_prob = prior.log_prob(latents).sum(dim=1).exp()
+
+            encoder_distrib = Normal(means, stds)
+            encoder_prob = encoder_distrib.log_prob(latents).sum(dim=1).exp()
+
+            importance_weights = prior_prob / encoder_prob
+        else:
+            raise NotImplementedError()
+
+        data_prob = log_prob(data, decoder, latents).squeeze(1).exp()
+        weights = importance_weights * 1. / data_prob
     weights = weights ** alpha
 
     """
@@ -497,6 +555,15 @@ def train(
             train_datas.append(train_data)
         for i, indexed_batch in enumerate(train_dataloader):
             idxs, batch = indexed_batch
+            # idxs_torch = torch.cat(idxs)
+            # if (epoch+1) % save_period == 0:
+            #     # print("i: ", i)
+            #     print(
+            #         sum(idxs_torch == 0) +
+            #         sum(idxs_torch == 1) +
+            #         sum(idxs_torch == 2) +
+            #         sum(idxs_torch == 3) , " / ", len(batch)
+            #     )
 
             batch = Variable(batch[0].float())
 
@@ -530,6 +597,7 @@ def train(
         kls.append(np.mean(epoch_stats['kls']))
         log_probs.append(np.mean(epoch_stats['log_probs']))
 
+        logger.record_tabular("Epoch", epoch)
         logger.record_tabular("Loss", np.mean(epoch_stats['losses']))
         logger.record_tabular("KL", np.mean(epoch_stats['kls']))
         logger.record_tabular("Log Prob", np.mean(epoch_stats['log_probs']))
@@ -541,7 +609,10 @@ def train(
 
     results = epochs, encoders, decoders, train_datas, losses, kls, log_probs
 
-    report = HTMLReport(logger.get_snapshot_dir() + '/report.html')
+    report = HTMLReport(
+        logger.get_snapshot_dir() + '/report.html',
+        images_per_row=3,
+    )
     if full_variant:
         report.add_header("Variant")
         report.add_text(
@@ -552,9 +623,8 @@ def train(
     report.add_header("Training Curves")
     plot_curves(results, report=report)
     report.add_header("Samples")
-    visualize_results(results, report=report)
+    visualize_results(results, skew_config, report=report)
     report.save()
-
 
 
 if __name__ == '__main__':
@@ -628,5 +698,5 @@ if __name__ == '__main__':
     # visualize_results(all_results['prior'], report=report)
     # report.save()
 
-    #joblib.dump(all_results, "all_results.jb")
+    # joblib.dump(all_results, "all_results.jb")
     # joblib.dump(all_results, "all_results_prior.jb")

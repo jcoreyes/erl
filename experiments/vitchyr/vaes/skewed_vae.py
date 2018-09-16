@@ -6,14 +6,16 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.vae.skewed_vae import (
     train_from_variant,
     uniform_truncated_data,
+    four_corners,
 )
 
 if __name__ == '__main__':
     variant = dict(
         dataset_generator=uniform_truncated_data,
-        n_start_samples=1000,
+        n_start_samples=300,
         bs=32,
-        n_epochs=300,
+        n_epochs=100,
+        # n_epochs=2,
         n_samples_to_add_per_epoch=1000,
         skew_config=dict(
             alpha=1,
@@ -21,10 +23,11 @@ if __name__ == '__main__':
             n_average=100,
         ),
         skew_sampling=False,
-        weight_loss=True,
+        weight_loss=False,
         z_dim=16,
         hidden_size=32,
         save_period=20,
+        # save_period=1,
     )
 
     n_seeds = 1
@@ -33,19 +36,37 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = 'skew-vae-weight-sweep-3'
+    exp_prefix = 'skew-vae-four-corners-heatmaps'
 
     search_space = {
+        'dataset_generator': [
+            four_corners,
+            # uniform_truncated_data,
+        ],
         'skew_config.mode': [
-            'importance_sampling',
-            'biased_encoder',
-            'prior'
+            # 'importance_sampling',
+            # 'recon_mse',
+            'exp_recon_mse',
+            # 'biased_encoder',
+            # 'prior'
+            # 'none',
+        ],
+        # 'skew_config.temperature': [
+        # ],
+        'skew_config.alpha': [
+            2,
         ],
         'append_all_data': [
             False,
         ],
+        'skew_sampling': [
+            True,
+        ],
+        'weight_loss': [
+            True,
+        ],
         'n_start_samples': [
-            1000,
+            4,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -59,5 +80,5 @@ if __name__ == '__main__':
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-                skip_wait=True,
+                # skip_wait=True,
             )
