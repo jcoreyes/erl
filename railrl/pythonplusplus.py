@@ -156,13 +156,16 @@ def safe_json(data):
     return False
 
 
-def dict_to_safe_json(d):
+def dict_to_safe_json(d, sort=False):
     """
     Convert each value in the dictionary into a JSON'able primitive.
     :param d:
     :return:
     """
-    new_d = {}
+    if isinstance(d, collections.OrderedDict):
+        new_d = collections.OrderedDict()
+    else:
+        new_d = {}
     for key, item in d.items():
         if safe_json(item):
             new_d[key] = item
@@ -171,7 +174,10 @@ def dict_to_safe_json(d):
                 new_d[key] = dict_to_safe_json(item)
             else:
                 new_d[key] = str(item)
-    return collections.OrderedDict(sorted(new_d.items()))
+    if sort:
+        return collections.OrderedDict(sorted(new_d.items()))
+    else:
+        return new_d
 
 
 def recursive_items(dictionary):

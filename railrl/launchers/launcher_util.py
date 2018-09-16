@@ -767,7 +767,9 @@ def setup_logger(
         if 'unique_id' not in variant:
             variant['unique_id'] = str(uuid.uuid4())
         logger.log("Variant:")
-        logger.log(json.dumps(ppp.dict_to_safe_json(variant), indent=2))
+        logger.log(
+            json.dumps(ppp.dict_to_safe_json(variant, sort=True), indent=2)
+        )
         variant_log_path = osp.join(log_dir, variant_log_file)
         logger.log_variant(variant_log_path, variant)
 
