@@ -14,8 +14,8 @@ if __name__ == '__main__':
         dataset_generator=uniform_truncated_data,
         n_start_samples=300,
         bs=32,
-        n_epochs=100,
-        # n_epochs=2,
+        # n_epochs=1000,
+        n_epochs=2,
         n_samples_to_add_per_epoch=1000,
         skew_config=dict(
             alpha=1,
@@ -26,8 +26,8 @@ if __name__ == '__main__':
         weight_loss=False,
         z_dim=16,
         hidden_size=32,
-        save_period=20,
-        # save_period=1,
+        # save_period=50,
+        save_period=1,
     )
 
     n_seeds = 1
@@ -36,7 +36,8 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = 'skew-vae-four-corners-heatmaps'
+    # exp_prefix = 'skew-vae-four-corners-heatmaps'
+    # exp_prefix = 'skew-vae-dynamics-noise-2'
 
     search_space = {
         'dataset_generator': [
@@ -45,8 +46,8 @@ if __name__ == '__main__':
         ],
         'skew_config.mode': [
             # 'importance_sampling',
-            # 'recon_mse',
-            'exp_recon_mse',
+            'recon_mse',
+            # 'exp_recon_mse',
             # 'biased_encoder',
             # 'prior'
             # 'none',
@@ -54,7 +55,7 @@ if __name__ == '__main__':
         # 'skew_config.temperature': [
         # ],
         'skew_config.alpha': [
-            2,
+            1,
         ],
         'append_all_data': [
             False,
@@ -67,7 +68,12 @@ if __name__ == '__main__':
         ],
         'n_start_samples': [
             4,
-        ]
+        ],
+        'dynamics_noise': [
+            # 0,
+            0.1,
+            # 1,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

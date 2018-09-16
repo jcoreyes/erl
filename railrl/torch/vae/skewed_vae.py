@@ -4,7 +4,7 @@ Skew the dataset so that it turns into generating a uniform distribution.
 import copy
 import json
 import sys
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -127,87 +127,134 @@ def plot_weighted_histogram_sample(data, encoder, decoder, skew_config):
     plt.hist(samples, bins=np.arange(0, len(weights)))
 
 
+def get_weight_stats(data, encoder, decoder, skew_config):
+    weights_np = compute_train_weights(data, encoder, decoder, skew_config)
+    stats = []
+    stats.append("weight avg: {:4.4f}".format(weights_np.mean()))
+    stats.append("weight std: {:4.4f}".format(weights_np.std()))
+    stats.append("weight min: {:4.4f}".format(weights_np.min()))
+    stats.append("weight max: {:4.4f}".format(weights_np.max()))
+
+    bottom_4 = np.argpartition(weights_np, 4)[:4]
+    top_4 = np.argpartition(-weights_np, 4)[:4]
+    for rank, i in enumerate(top_4):
+        stats.append('max {} index. value = {:4.4f}. pos = {}'.format(
+            rank,
+            weights_np[i],
+            data[i]
+        ))
+    for rank, i in enumerate(bottom_4):
+        stats.append('min {} index. value = {:4.4f}. pos = {}'.format(
+            rank,
+            weights_np[i],
+            data[i]
+        ))
+    return '\n'.join(stats)
+
+
 def visualize_results(
         results,
-        skew_config,
+        full_variant,
         xlim=(-1.5, 1.5),
         ylim=(-1.5, 1.5),
         n_vis=1000,
         report=None,
 ):
     for epoch, encoder, decoder, vis_samples_np in zip(*results[:4]):
-        plt.figure()
-        show_heatmap(encoder, decoder, skew_config, xlim=xlim, ylim=ylim)
+        visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
+                  report, n_vis, xlim, ylim)
+
+
+def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
+              report=None, n_vis=1000, xlim=(-1.5, 1.5),
+              ylim=(-1.5, 1.5)):
+    skew_config = full_variant['skew_config']
+    dynamics_noise = full_variant['dynamics_noise']
+    plt.figure()
+    show_heatmap(encoder, decoder, skew_config, xlim=xlim, ylim=ylim)
+    fig = plt.gcf()
+    img = vu.save_image(fig)
+    report.add_image(img, "Epoch {} Heatmap".format(epoch))
+
+    # plt.figure()
+    # plot_weighted_histogram_sample(
+    #     vis_samples_np, encoder, decoder, skew_config
+    # )
+    # fig = plt.gcf()
+    # img = vu.save_image(fig)
+    # report.add_image(img, "Epoch {} Sample Histogram".format(epoch))
+
+
+
+
+    plt.figure()
+    plt.suptitle("Epoch {}".format(epoch))
+    n_samples = len(vis_samples_np)
+    skip_factor = max(n_samples // n_vis, 1)
+    vis_samples_np = vis_samples_np[::skip_factor]
+    vis_samples = np_to_var(vis_samples_np)
+    latents = encoder.encode(vis_samples)
+    z_dim = latents.shape[1]
+    reconstructed_samples = decoder(latents).data.numpy()
+    generated_samples = decoder(
+        Variable(torch.randn(n_vis, z_dim))
+    ).data.numpy()
+    projected_generated_samples = project_samples_np(
+        generated_samples,
+        dynamics_noise,
+    )
+    plt.subplot(2, 2, 1)
+    plt.plot(generated_samples[:, 0], generated_samples[:, 1], '.')
+    if xlim is not None:
+        plt.xlim(*xlim)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    plt.title("Generated Samples")
+    plt.subplot(2, 2, 2)
+    plt.plot(projected_generated_samples[:, 0],
+             projected_generated_samples[:, 1], '.')
+    if xlim is not None:
+        plt.xlim(*xlim)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    plt.title("Projected Generated Samples")
+    plt.subplot(2, 2, 3)
+    plt.plot(reconstructed_samples[:, 0], reconstructed_samples[:, 1], '.')
+    if xlim is not None:
+        plt.xlim(*xlim)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    plt.title("Reconstruction")
+    plt.subplot(2, 2, 4)
+    plt.plot(vis_samples_np[:, 0], vis_samples_np[:, 1], '.')
+    if xlim is not None:
+        plt.xlim(*xlim)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    plt.title("Original Samples")
+    if report:
         fig = plt.gcf()
         img = vu.save_image(fig)
-        report.add_image(img, "Epoch {} Heatmap".format(epoch))
+        report.add_image(img, "Epoch {}".format(epoch))
 
-        plt.figure()
-        plot_weighted_histogram_sample(
-            vis_samples_np, encoder, decoder, skew_config
+        weight_stats = get_weight_stats(
+            vis_samples_np, encoder, decoder, skew_config,
         )
-        fig = plt.gcf()
-        img = vu.save_image(fig)
-        report.add_image(img, "Epoch {} Sample Histogram".format(epoch))
-
-        plt.figure()
-        plt.suptitle("Epoch {}".format(epoch))
-
-        n_samples = len(vis_samples_np)
-        skip_factor = max(n_samples // n_vis, 1)
-        vis_samples_np = vis_samples_np[::skip_factor]
-
-        vis_samples = np_to_var(vis_samples_np)
-        latents = encoder.encode(vis_samples)
-        z_dim = latents.shape[1]
-        reconstructed_samples = decoder(latents).data.numpy()
-        generated_samples = decoder(
-            Variable(torch.randn(n_vis, z_dim))
-        ).data.numpy()
-        projected_generated_samples = project_samples_np(generated_samples)
-
-        plt.subplot(2, 2, 1)
-        plt.plot(generated_samples[:, 0], generated_samples[:, 1], '.')
-        if xlim is not None:
-            plt.xlim(*xlim)
-        if ylim is not None:
-            plt.ylim(*ylim)
-        plt.title("Generated Samples")
-
-        plt.subplot(2, 2, 2)
-        plt.plot(projected_generated_samples[:, 0],
-                 projected_generated_samples[:, 1], '.')
-        if xlim is not None:
-            plt.xlim(*xlim)
-        if ylim is not None:
-            plt.ylim(*ylim)
-        plt.title("Projected Generated Samples")
-
-        plt.subplot(2, 2, 3)
-        plt.plot(reconstructed_samples[:, 0], reconstructed_samples[:, 1], '.')
-        if xlim is not None:
-            plt.xlim(*xlim)
-        if ylim is not None:
-            plt.ylim(*ylim)
-        plt.title("Reconstruction")
-
-        plt.subplot(2, 2, 4)
-        plt.plot(vis_samples_np[:, 0], vis_samples_np[:, 1], '.')
-        if xlim is not None:
-            plt.xlim(*xlim)
-        if ylim is not None:
-            plt.ylim(*ylim)
-        plt.title("Original Samples")
-
-        if report:
-            fig = plt.gcf()
-            img = vu.save_image(fig)
-            report.add_image(img, "Epoch {}".format(epoch))
-    if not report:
+        report.add_text("Epoch {}".format(epoch))
+        report.add_text(weight_stats)
+        # for k, v in weight_stats.items():
+        #     report.add_text("\t{key}: {value}".format(key=k, value=v))
+        #
+        # report.add_text(json.dumps(
+        #     ppp.dict_to_safe_json(weight_stats)
+        # ))
+    else:
         plt.show()
 
 
-def plot_uniformness(results, n_samples=10000, n_bins=5, report=None):
+def plot_uniformness(results, full_variant, n_samples=10000, n_bins=5,
+                     report=None):
+    dynamics_noise = full_variant['dynamics_noise']
     generated_frac_on_border_lst = []
     dataset_frac_on_border_lst = []
     p_values = []  # computed using chi squared test
@@ -217,7 +264,10 @@ def plot_uniformness(results, n_samples=10000, n_bins=5, report=None):
         generated_samples = decoder(
             Variable(torch.randn(n_samples, z_dim))
         ).data.numpy()
-        projected_generated_samples = project_samples_np(generated_samples)
+        projected_generated_samples = project_samples_np(
+            generated_samples,
+            dynamics_noise,
+        )
 
         orig_n_samples_on_border = np.mean(
             np.any(vis_samples_np == 1, axis=1)
@@ -452,7 +502,8 @@ def generate_vae_samples_np(decoder, n_samples):
     return generated_samples.data.numpy()
 
 
-def project_samples_np(samples):
+def project_samples_np(samples, dynamics_noise):
+    samples = samples + dynamics_noise * np.random.randn(*samples.shape)
     samples = np.maximum(samples, -1)
     samples = np.minimum(samples, 1)
     return samples
@@ -479,6 +530,7 @@ def train(
         save_period=10,
         append_all_data=True,
         full_variant=None,
+        dynamics_noise=0,
         **kwargs
 ):
     if encoder is None:
@@ -504,6 +556,21 @@ def train(
             use_log_prob=False,
             alpha=0,
         )
+    report = HTMLReport(
+        logger.get_snapshot_dir() + '/report.html',
+        images_per_row=3,
+    )
+    if full_variant:
+        report.add_header("Variant")
+        report.add_text(
+            json.dumps(
+                ppp.dict_to_safe_json(
+                    full_variant,
+                    sort=True),
+               indent=2,
+            )
+        )
+
     orig_train_data = dataset_generator(n_start_samples)
     train_data = orig_train_data
 
@@ -522,7 +589,7 @@ def train(
         if n_samples_to_add_per_epoch > 0:
             vae_samples = generate_vae_samples_np(decoder,
                                                   n_samples_to_add_per_epoch)
-            projected_samples = project_samples_np(vae_samples)
+            projected_samples = project_samples_np(vae_samples, dynamics_noise)
             if append_all_data:
                 train_data = np.vstack((train_data, projected_samples))
             else:
@@ -606,97 +673,15 @@ def train(
             'encoder': encoder,
             'decoder': decoder,
         })
+        visualize(epoch, train_data, encoder, decoder, full_variant,
+                  report=report)
 
     results = epochs, encoders, decoders, train_datas, losses, kls, log_probs
 
-    report = HTMLReport(
-        logger.get_snapshot_dir() + '/report.html',
-        images_per_row=3,
-    )
-    if full_variant:
-        report.add_header("Variant")
-        report.add_text(
-            json.dumps(ppp.dict_to_safe_json(full_variant), indent=2)
-        )
     report.add_header("Uniformness")
-    plot_uniformness(results, report=report)
+    plot_uniformness(results, full_variant, report=report)
     report.add_header("Training Curves")
     plot_curves(results, report=report)
-    report.add_header("Samples")
-    visualize_results(results, skew_config, report=report)
+    # report.add_header("Samples")
+    # visualize_results(results, full_variant, report=report)
     report.save()
-
-
-if __name__ == '__main__':
-    plt.close('all')
-
-    # uniform_results = train(
-    #     u_dataset,
-    #     bs=32,
-    #     n_epochs=1000,
-    #     n_samples_to_add_per_epoch=0,
-    #     skew_config=dict(
-    #         alpha=0,
-    #         mode='none',
-    #         n_average=2,
-    #     ),
-    #     skew_sampling=False,
-    #     z_dim=16,
-    #     # beta_schedule=ConstantSchedule(0),
-    #     hidden_size=32,
-    #     save_period=50,
-    # )
-
-    # report = HTMLReport('report_uniform.html')
-    # plot_uniformness(uniform_results, report=report)
-    # plot_curves(uniform_results, report=report)
-    # visualize_results(uniform_results, xlim=(-3, 3), ylim=(-3, 3), report=report)
-    # report.save()
-
-    # Skew online dataset to make uniform distribution
-
-    all_results = {}
-    for mode in [
-        # 'importance_sampling',
-        # 'biased_encoder',
-        'prior'
-    ]:
-        all_results[mode] = train(
-            ut_dataset[:1000],
-            bs=32,
-            n_epochs=10,
-            n_samples_to_add_per_epoch=10,
-            skew_config=dict(
-                alpha=1,
-                mode=mode,
-                n_average=100,
-            ),
-            skew_sampling=True,
-            z_dim=16,
-            hidden_size=32,
-            save_period=200,
-        )
-
-    # report = HTMLReport('report_is.html')
-    # plot_uniformness(all_results['importance_sampling'], n_samples=10000,
-    #                  n_bins=5, report=report)
-    # plot_curves(all_results['importance_sampling'], report=report)
-    # visualize_results(all_results['importance_sampling'], report=report)
-    # report.save()
-
-    # report = HTMLReport('report_biased.html')
-    # plot_uniformness(all_results['biased_encoder'], n_samples=10000,
-    #                  n_bins=5, report=report)
-    # plot_curves(all_results['biased_encoder'], report=report)
-    # visualize_results(all_results['biased_encoder'], report=report)
-    # report.save()
-
-    # report = HTMLReport('report_prior_100.html')
-    # plot_uniformness(all_results['prior'], n_samples=10000, n_bins=5,
-    #                  report=report)
-    # plot_curves(all_results['prior'], report=report)
-    # visualize_results(all_results['prior'], report=report)
-    # report.save()
-
-    # joblib.dump(all_results, "all_results.jb")
-    # joblib.dump(all_results, "all_results_prior.jb")
