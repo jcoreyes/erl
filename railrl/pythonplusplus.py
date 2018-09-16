@@ -171,7 +171,7 @@ def dict_to_safe_json(d):
                 new_d[key] = dict_to_safe_json(item)
             else:
                 new_d[key] = str(item)
-    return new_d
+    return collections.OrderedDict(sorted(new_d.items()))
 
 
 def recursive_items(dictionary):
