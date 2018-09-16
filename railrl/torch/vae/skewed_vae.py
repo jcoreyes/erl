@@ -8,6 +8,7 @@ from collections import defaultdict, OrderedDict
 
 import matplotlib.pyplot as plt
 import numpy as np
+from skvideo.io import vwrite
 import torch
 from scipy.stats import chisquare
 from torch import nn as nn
@@ -26,6 +27,8 @@ from railrl.core import logger
 from railrl.misc import visualization_util as vu
 from railrl.misc.html_report import HTMLReport
 from railrl.misc.ml_util import ConstantSchedule
+
+K = 6
 
 """
 Datasets
@@ -50,6 +53,10 @@ def four_corners(_):
         [1, 1],
         [1, -1],
     ])
+
+
+def empty_dataset(_):
+    return np.zeros((0, 2))
 
 
 def uniform_gaussian_data(batch_size):
@@ -135,15 +142,19 @@ def get_weight_stats(data, encoder, decoder, skew_config):
     stats.append("weight min: {:4.4f}".format(weights_np.min()))
     stats.append("weight max: {:4.4f}".format(weights_np.max()))
 
-    bottom_4 = np.argpartition(weights_np, 4)[:4]
-    top_4 = np.argpartition(-weights_np, 4)[:4]
-    for rank, i in enumerate(top_4):
-        stats.append('max {} index. value = {:4.4f}. pos = {}'.format(
+    # bottom_k = np.argpartition(weights_np, K)[:K]
+    # top_k = np.argpartition(-weights_np, K)[:K]
+    arg_sorted = weights_np.argsort()
+    top_k = arg_sorted[-K:][::-1]
+    bottom_k = arg_sorted[:K]
+    for rank, i in enumerate(top_k):
+        stats.append('max {}. index = {}. value = {:4.4f}. pos = {}'.format(
             rank,
+            i,
             weights_np[i],
             data[i]
         ))
-    for rank, i in enumerate(bottom_4):
+    for rank, i in enumerate(bottom_k):
         stats.append('min {} index. value = {:4.4f}. pos = {}'.format(
             rank,
             weights_np[i],
@@ -152,39 +163,18 @@ def get_weight_stats(data, encoder, decoder, skew_config):
     return '\n'.join(stats)
 
 
-def visualize_results(
-        results,
-        full_variant,
-        xlim=(-1.5, 1.5),
-        ylim=(-1.5, 1.5),
-        n_vis=1000,
-        report=None,
-):
-    for epoch, encoder, decoder, vis_samples_np in zip(*results[:4]):
-        visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
-                  report, n_vis, xlim, ylim)
-
-
 def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
-              report=None, n_vis=1000, xlim=(-1.5, 1.5),
+              report, n_vis=1000, xlim=(-1.5, 1.5),
               ylim=(-1.5, 1.5)):
+    report.add_text("Epoch {}".format(epoch))
+
     skew_config = full_variant['skew_config']
     dynamics_noise = full_variant['dynamics_noise']
     plt.figure()
     show_heatmap(encoder, decoder, skew_config, xlim=xlim, ylim=ylim)
     fig = plt.gcf()
-    img = vu.save_image(fig)
-    report.add_image(img, "Epoch {} Heatmap".format(epoch))
-
-    # plt.figure()
-    # plot_weighted_histogram_sample(
-    #     vis_samples_np, encoder, decoder, skew_config
-    # )
-    # fig = plt.gcf()
-    # img = vu.save_image(fig)
-    # report.add_image(img, "Epoch {} Sample Histogram".format(epoch))
-
-
+    heatmap_img = vu.save_image(fig)
+    report.add_image(heatmap_img, "Epoch {} Heatmap".format(epoch))
 
 
     plt.figure()
@@ -232,24 +222,17 @@ def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
     if ylim is not None:
         plt.ylim(*ylim)
     plt.title("Original Samples")
-    if report:
-        fig = plt.gcf()
-        img = vu.save_image(fig)
-        report.add_image(img, "Epoch {}".format(epoch))
 
-        weight_stats = get_weight_stats(
-            vis_samples_np, encoder, decoder, skew_config,
-        )
-        report.add_text("Epoch {}".format(epoch))
-        report.add_text(weight_stats)
-        # for k, v in weight_stats.items():
-        #     report.add_text("\t{key}: {value}".format(key=k, value=v))
-        #
-        # report.add_text(json.dumps(
-        #     ppp.dict_to_safe_json(weight_stats)
-        # ))
-    else:
-        plt.show()
+    fig = plt.gcf()
+    sample_img = vu.save_image(fig)
+    report.add_image(sample_img, "Epoch {} Samples".format(epoch))
+
+    weight_stats = get_weight_stats(
+        vis_samples_np, encoder, decoder, skew_config,
+    )
+    report.add_text(weight_stats)
+
+    return heatmap_img, sample_img
 
 
 def plot_uniformness(results, full_variant, n_samples=10000, n_bins=5,
@@ -584,6 +567,8 @@ def train(
     encoders = []
     decoders = []
     train_datas = []
+    heatmap_imgs = []
+    sample_imgs = []
     for epoch in progressbar(range(n_epochs)):
         epoch_stats = defaultdict(list)
         if n_samples_to_add_per_epoch > 0:
@@ -620,18 +605,13 @@ def train(
             encoders.append(copy.deepcopy(encoder))
             decoders.append(copy.deepcopy(decoder))
             train_datas.append(train_data)
+            heatmap_img, sample_img = (
+                visualize(epoch, train_data, encoder, decoder, full_variant, report)
+            )
+            heatmap_imgs.append(heatmap_img)
+            sample_imgs.append(sample_img)
         for i, indexed_batch in enumerate(train_dataloader):
             idxs, batch = indexed_batch
-            # idxs_torch = torch.cat(idxs)
-            # if (epoch+1) % save_period == 0:
-            #     # print("i: ", i)
-            #     print(
-            #         sum(idxs_torch == 0) +
-            #         sum(idxs_torch == 1) +
-            #         sum(idxs_torch == 2) +
-            #         sum(idxs_torch == 3) , " / ", len(batch)
-            #     )
-
             batch = Variable(batch[0].float())
 
             latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
@@ -673,15 +653,22 @@ def train(
             'encoder': encoder,
             'decoder': decoder,
         })
-        visualize(epoch, train_data, encoder, decoder, full_variant,
-                  report=report)
 
     results = epochs, encoders, decoders, train_datas, losses, kls, log_probs
-
     report.add_header("Uniformness")
     plot_uniformness(results, full_variant, report=report)
     report.add_header("Training Curves")
     plot_curves(results, report=report)
-    # report.add_header("Samples")
-    # visualize_results(results, full_variant, report=report)
     report.save()
+
+    heatmap_video = np.stack(heatmap_imgs)
+    sample_video = np.stack(sample_imgs)
+
+    vwrite(
+        logger.get_snapshot_dir() + '/heatmaps.mp4',
+        heatmap_video,
+    )
+    vwrite(
+        logger.get_snapshot_dir() + '/samples.mp4',
+        sample_video,
+    )
