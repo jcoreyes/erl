@@ -29,7 +29,7 @@ if __name__ == '__main__':
         hidden_size=32,
         save_period=50,
         # save_period=1,
-    )format()
+    )
 
     n_seeds = 1
     mode = 'local'
