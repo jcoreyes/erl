@@ -17,6 +17,12 @@ def every_three_a_lot(epoch):
 def every_six(epoch):
     return epoch % 6 == 0, 1200
 
+def every_six_less(epoch):
+    return epoch % 6 == 0, 600
+
+def every_six_much_less(epoch):
+    return epoch % 6 == 0, 300
+
 def every_ten(epoch):
     return epoch % 10 == 0 or epoch == 5, 1000
 

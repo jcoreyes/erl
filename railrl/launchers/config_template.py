@@ -35,3 +35,51 @@ REGION_TO_GPU_AWS_IMAGE_ID = {
 
 # This really shouldn't matter and in theory could be whatever
 OUTPUT_DIR_FOR_DOODAD_TARGET = '/tmp/doodad-output/'
+
+
+"""
+Slurm Settings
+"""
+SINGULARITY_IMAGE = '/home/vitchyr/singularity/railrl-vitchyr-v2.img'
+SINGULARITY_PRE_CMDS = [
+    'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mjpro150/bin'
+]
+SLURM_CPU_CONFIG = dict(
+    account_name='fc_rail',
+    partition='savio',
+    nodes=1,
+    n_tasks=1,
+    n_gpus=1,
+)
+SLURM_GPU_CONFIG = dict(
+    account_name='fc_rail',
+    partition='savio2_1080ti',
+    nodes=1,
+    n_tasks=1,
+    n_gpus=1,
+)
+
+
+"""
+Slurm Script Settings
+
+These are basically the same settings as above, but for the remote machine
+where you will be running the generated script.
+"""
+SSS_CODE_DIRS_TO_MOUNT = [
+    '/global/home/users/vitchyr/git/railrl',
+    '/global/home/users/vitchyr/git/multiworld',
+    '/global/home/users/vitchyr/git/doodad',
+]
+SSS_DIR_AND_MOUNT_POINT_MAPPINGS = [
+    dict(
+        local_dir='/global/home/users/vitchyr/.mujoco',
+        mount_point='/root/.mujoco',
+    ),
+]
+SSS_LOG_DIR = '/global/scratch/vitchyr/doodad-log'
+
+SSS_IMAGE = '/global/scratch/vitchyr/singularity_imgs/railrl-vitchyr-v2.img'
+SSS_RUN_DOODAD_EXPERIMENT_SCRIPT_PATH = (
+    '/global/home/users/vitchyr/git/railrl/scripts/run_experiment_from_doodad.py'
+)

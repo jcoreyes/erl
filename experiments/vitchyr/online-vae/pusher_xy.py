@@ -101,6 +101,13 @@ if __name__ == "__main__":
             'reconstruction_error',
             # 'None',
         ],
+        'grill_variant.replay_kwargs.max_size': [
+            # 1000000,
+            # 100000,
+            # 50000,
+            30000,
+            # 3000,
+        ],
         'grill_variant.replay_kwargs.alpha': [3],
         'grill_variant.exploration_noise': [.8],
         'grill_variant.algo_kwargs.vae_training_schedule':
@@ -108,7 +115,7 @@ if __name__ == "__main__":
                 vae_schedules.every_six,
             ],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 2, 4
+            1, 2, 4, 6
         ],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
         'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
@@ -135,5 +142,5 @@ if __name__ == "__main__":
                 use_gpu=True,
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
-                num_exps_per_instance=2,
+                num_exps_per_instance=1,
             )

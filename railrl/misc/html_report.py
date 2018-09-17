@@ -112,10 +112,5 @@ class HTMLReport:
             self.add_image(im, txt, width)
 
     def save(self):
-        f = open(self.path, 'w')
-        f.write(self.doc.render())
-        f.close()
-
-    def __del__(self):
-        self.save()
-
+        with open(self.path, 'w') as f:
+            f.write(self.doc.render())

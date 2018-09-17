@@ -6,7 +6,7 @@ import scipy.misc
 from collections import namedtuple
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
-import seaborn as sns
+# import seaborn as sns
 import matplotlib.pyplot as plt
 
 # The first dimension of values correspond to the x axis
@@ -33,8 +33,8 @@ def make_heat_map(eval_func, x_bounds, y_bounds, *, resolution=10, info=None, ba
 
     if batch:
         inputs = []
-        for i in range(resolution):
-            for j in range(resolution):
+        for j in range(resolution):
+            for i in range(resolution):
                 inputs.append([x_values[i], y_values[j]])
         inputs = np.array(inputs)
         map = eval_func(inputs).reshape((resolution, resolution))
