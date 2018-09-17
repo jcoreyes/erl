@@ -1,8 +1,16 @@
+from railrl.core import logger
+from railrl.data_management.shared_obs_dict_replay_buffer \
+        import SharedObsDictRelabelingBuffer
 import railrl.torch.vae.vae_schedules as vae_schedules
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.vae.conv_vae import ConvVAE
 import railrl.torch.pytorch_util as ptu
-from railrl.core import logger
+
+from torch.multiprocessing import Process, Pipe
+from multiprocessing.connection import wait
+
+from threading import Thread
+from time import sleep
 
 class OnlineVaeAlgorithm(TorchRLAlgorithm):
 
@@ -13,6 +21,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         vae_save_period=1,
         vae_training_schedule=vae_schedules.never_train,
         oracle_data=False,
+        parallel_vae_train=True,
     ):
         self.vae = vae
         self.vae_trainer = vae_trainer
@@ -22,48 +31,49 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.epoch = 0
         self.oracle_data = oracle_data
 
+        self.vae_training_process = None
+        self.process_vae_update_thread = None
+        self.parallel_vae_train = parallel_vae_train
+
     def _post_epoch(self, epoch):
         super()._post_epoch(epoch)
+        if self.parallel_vae_train and self.vae_training_process is None:
+            self.init_vae_training_subproces()
+
         should_train, amount_to_train = self.vae_training_schedule(epoch)
         if should_train:
-            self.vae.train()
-            self._train_vae(epoch, amount_to_train)
-            self.vae.eval()
-            self.replay_buffer.refresh_latents(epoch)
-        self._test_vae(epoch)
-
-        for log_key, log_val in self.vae_trainer.vae_logger_stats_for_rl.items():
-            logger.record_tabular(log_key, log_val)
+            if self.parallel_vae_train:
+                assert self.vae_training_process.is_alive()
+                # Make sure the last vae update has finished before starting
+                # another one
+                if self.process_vae_update_thread is not None:
+                    self.process_vae_update_thread.join()
+                self.process_vae_update_thread = Thread(
+                    target=OnlineVaeAlgorithm.process_vae_update_thread,
+                    args=(self,)
+                )
+                self.process_vae_update_thread.start()
+                self.vae_conn_pipe.send((amount_to_train, epoch))
+            else:
+                self.vae.train()
+                _train_vae(
+                    self.vae_trainer,
+                    self.replay_buffer,
+                    epoch,
+                    amount_to_train
+                )
+                self.vae.eval()
+                self.replay_buffer.refresh_latents(epoch)
+                _test_vae(
+                    self.vae_trainer,
+                    self.epoch,
+                    vae_save_period=self.vae_save_period
+                )
         # very hacky
         self.epoch = epoch + 1
 
-    def _post_step(self, step):
-        pass
-
     def reset_vae(self):
         self.vae.init_weights(self.vae.init_w)
-
-    def _train_vae(self, epoch, batches=50):
-        batch_sampler = self.replay_buffer.random_vae_training_data
-        if self.oracle_data:
-            batch_sampler = None
-        self.vae_trainer.train_epoch(
-            epoch,
-            sample_batch=batch_sampler,
-            batches=batches,
-            from_rl=True,
-        )
-        self.replay_buffer.train_dynamics_model(batches=batches)
-
-    def _test_vae(self, epoch):
-        save_imgs = epoch % self.vae_save_period == 0
-        self.vae_trainer.test_epoch(
-            epoch,
-            from_rl=True,
-            save_reconstruction=save_imgs,
-        )
-        if save_imgs:
-            self.vae_trainer.dump_samples(epoch)
 
     @property
     def networks(self):
@@ -71,4 +81,88 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
 
     def update_epoch_snapshot(self, snapshot):
         snapshot.update(vae=self.vae)
+
+    def cleanup(self):
+        self.vae_conn_pipe.close()
+        self.vae_training_process.terminate()
+
+    def init_vae_training_subproces(self):
+        assert isinstance(self.replay_buffer, SharedObsDictRelabelingBuffer)
+
+        self.vae_conn_pipe, process_pipe = Pipe()
+        self.vae_training_process = Process(
+            target=subprocess_train_vae_loop,
+            args=(
+                process_pipe,
+                self.vae,
+                self.vae.state_dict(),
+                self.replay_buffer,
+                self.replay_buffer.get_mp_info(),
+                ptu.gpu_enabled(),
+            )
+        )
+        self.vae_training_process.start()
+        self.vae_conn_pipe.send(self.vae_trainer)
+
+    def process_vae_update_thread(self):
+        self.vae.load_state_dict(self.vae_conn_pipe.recv())
+        _test_vae(
+            self.vae_trainer,
+            self.epoch,
+            vae_save_period=self.vae_save_period
+        )
+
+def _train_vae(vae_trainer, replay_buffer, epoch, batches=50, oracle_data=False):
+    batch_sampler = replay_buffer.random_vae_training_data
+    if oracle_data:
+        batch_sampler = None
+    vae_trainer.train_epoch(
+        epoch,
+        sample_batch=batch_sampler,
+        batches=batches,
+        from_rl=True,
+    )
+    replay_buffer.train_dynamics_model(batches=batches)
+
+def _test_vae(vae_trainer, epoch, vae_save_period=1):
+    save_imgs = epoch % vae_save_period == 0
+    vae_trainer.test_epoch(
+        epoch,
+        from_rl=True,
+        save_reconstruction=save_imgs,
+    )
+    if save_imgs: vae_trainer.dump_samples(epoch)
+
+def subprocess_train_vae_loop(
+    conn_pipe,
+    vae,
+    vae_params,
+    replay_buffer,
+    mp_info,
+    use_gpu=True,
+):
+    """
+    The observations and next_observations of the replay buffer are stored in
+    shared memory. This loop waits until the parent signals to start vae
+    training, trains and sends the vae back, and then refreshes the latents.
+    Refreshing latents in the subprocess reflects in the main process as well
+    since the latents are in shared memory. Since this is does asynchronously,
+    it is possible for the main process to see half the latents updated and half
+    not.
+    """
+    ptu.set_gpu_mode(use_gpu)
+    vae_trainer = conn_pipe.recv()
+    vae.load_state_dict(vae_params)
+    if ptu.gpu_enabled():
+        vae.cuda()
+    vae_trainer.set_vae(vae)
+    replay_buffer.init_from_mp_info(mp_info)
+    replay_buffer.env.vae = vae
+    while True:
+        amount_to_train, epoch = conn_pipe.recv()
+        vae.train()
+        _train_vae(vae_trainer, replay_buffer, epoch, amount_to_train)
+        vae.eval()
+        conn_pipe.send(vae_trainer.model.state_dict())
+        replay_buffer.refresh_latents(epoch)
 
