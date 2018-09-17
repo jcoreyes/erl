@@ -3,6 +3,7 @@ Skew the dataset so that it turns into generating a uniform distribution.
 """
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
+from railrl.misc.ml_util import ConstantSchedule
 from railrl.torch.vae.skewed_vae import (
     train_from_variant,
     uniform_truncated_data,
@@ -17,7 +18,7 @@ if __name__ == '__main__':
         dataset_generator=uniform_truncated_data,
         n_start_samples=300,
         bs=32,
-        n_epochs=5000,
+        n_epochs=500,
         # n_epochs=2,
         n_samples_to_add_per_epoch=1000,
         skew_config=dict(
@@ -29,7 +30,11 @@ if __name__ == '__main__':
         weight_loss=False,
         z_dim=16,
         hidden_size=32,
-        save_period=250,
+        save_period=50,
+        beta_schedule_class=ConstantSchedule,
+        # beta_schedule_kwargs=dict(
+        #     value=0.1,
+        # )
         # save_period=1,
     )
 
@@ -37,7 +42,7 @@ if __name__ == '__main__':
     mode = 'local'
     exp_prefix = 'dev'
 
-    exp_prefix = 'skew-vae-fc-repo-noise-after'
+    exp_prefix = 'skew-vae-biased-sweep-small-beta'
 
     search_space = {
         'dataset_generator': [
@@ -47,10 +52,10 @@ if __name__ == '__main__':
         ],
         'skew_config.mode': [
             # 'importance_sampling',
-            'recon_mse',
+            # 'recon_mse',
             # 'exp_recon_mse',
-            # 'biased_encoder',
-            # 'prior'
+            'biased_encoder',
+            # 'prior',
             # 'none',
         ],
         'skew_config.alpha': [
@@ -71,9 +76,15 @@ if __name__ == '__main__':
             4,
         ],
         'dynamics_noise': [
-            # 0,
+            # 0.1,
+            0,
+        ],
+        'beta_schedule_kwargs.value': [
             0.1,
-            # 1,
+            0.01,
+            0.001,
+            0.0001,
+            0,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -87,5 +98,5 @@ if __name__ == '__main__':
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-                # skip_wait=True,
+                skip_wait=True,
             )

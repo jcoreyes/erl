@@ -98,10 +98,6 @@ def flower_data(batch_size):
     return X
 
 
-ut_dataset = uniform_truncated_data(1000)
-u_dataset = uniform_data(100)
-# empty_dataset = np.zeros((0, 2))
-
 """
 Plotting
 """
@@ -112,21 +108,13 @@ def show_heatmap(
         xlim=(-1.5, 1.5), ylim=(-1.5, 1.5),
         resolution=20,
 ):
-    # encoder, decoder, losses, kls, log_probs = train_results
 
     def get_prob_batch(batch):
         return compute_train_weights(batch, encoder, decoder, skew_config)
 
     heat_map = vu.make_heat_map(get_prob_batch, xlim, ylim,
                                 resolution=resolution, batch=True)
-    # plt.figure()
     vu.plot_heatmap(heat_map)
-    # if report:
-    #     fig = plt.gcf()
-    #     img = vu.save_image(fig)
-    #     report.add_image(img, "Weight Heatmap")
-    # else:
-    #     plt.show()
 
 
 def plot_weighted_histogram_sample(data, encoder, decoder, skew_config):
@@ -511,7 +499,8 @@ def train(
         skew_config=None,
         weight_loss=False,
         skew_sampling=False,
-        beta_schedule=None,
+        beta_schedule_class=None,
+        beta_schedule_kwargs=None,
         z_dim=1,
         hidden_size=32,
         save_period=10,
@@ -536,8 +525,10 @@ def train(
             nn.ReLU(),
             nn.Linear(hidden_size, 2),
         )
-    if beta_schedule is None:
+    if beta_schedule_class is None:
         beta_schedule = ConstantSchedule(1)
+    else:
+        beta_schedule = beta_schedule_class(**beta_schedule_kwargs)
     if skew_config is None:
         skew_config = dict(
             use_log_prob=False,
