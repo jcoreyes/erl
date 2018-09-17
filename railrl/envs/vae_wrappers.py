@@ -382,7 +382,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             ).transpose()
             cv2.imshow('env', img)
             cv2.waitKey(1)
-            reconstruction = self._reconstruct_img(obs['image_observation'])
+            reconstruction = self._reconstruct_img(obs['image_observation']).transpose()
             cv2.imshow('env_reconstruction', reconstruction)
             cv2.waitKey(1)
             init_img = self._initial_obs['image_observation'].reshape(
@@ -394,7 +394,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.waitKey(1)
             init_reconstruction = self._reconstruct_img(
                 self._initial_obs['image_observation']
-            )
+            ).transpose()
             cv2.imshow('init_reconstruction', init_reconstruction)
             cv2.waitKey(1)
 
@@ -438,7 +438,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         imgs = ptu.get_numpy(self.vae.decode(zs))
         imgs = imgs.reshape(
             1, self.input_channels, self.imsize, self.imsize
-        ).transpose([0, 3, 2, 1])
+        )
         return imgs[0]
 
     def _image_and_proprio_from_decoded_one(self, decoded):
