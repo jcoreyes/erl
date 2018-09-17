@@ -85,8 +85,7 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         **algo_params
     )
-    if ptu.gpu_enabled():
-        algorithm.to(ptu.device)
+    algorithm.to(ptu.device)
     algorithm.train()
 
 

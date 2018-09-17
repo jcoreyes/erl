@@ -37,8 +37,7 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         **variant['algo_params']
     )
-    if ptu.gpu_enabled():
-        algorithm.to(ptu.device)
+    algorithm.to(ptu.device)
     algorithm.train()
 
 if __name__ == "__main__":

@@ -87,6 +87,5 @@ def her_td3_experiment(variant):
         ensemble_qs=ensemble_qs,
         **variant['algo_kwargs']
     )
-    if ptu.gpu_enabled():
-        algorithm.to(ptu.device)
+    algorithm.to(ptu.device)
     algorithm.train()

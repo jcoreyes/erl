@@ -27,8 +27,7 @@ def experiment(variant):
         qf=qf,
         **variant['algo_params']
     )
-    if ptu.gpu_enabled():
-        algorithm.to(ptu.device)
+    algorithm.to(ptu.device)
     algorithm.train()
 
 

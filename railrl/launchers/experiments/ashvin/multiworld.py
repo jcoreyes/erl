@@ -80,6 +80,5 @@ def her_td3_experiment(variant):
         render_during_eval=render,
         **variant['algo_kwargs']
     )
-    if ptu.gpu_enabled():
-        algorithm.to(ptu.device)
+    algorithm.to(ptu.device)
     algorithm.train()

@@ -61,8 +61,7 @@ def experiment(variant):
         )
     else:
         raise Exception("Invalid algo class: {}".format(algo_class))
-    if ptu.gpu_enabled():
-        algorithm.to(ptu.device)
+    algorithm.to(ptu.device)
     algorithm.train()
 
 

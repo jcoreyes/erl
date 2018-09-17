@@ -117,8 +117,7 @@ def experiment(variant):
         replay_buffer=replay_buffer,
         **variant['sac_tdm_kwargs']
     )
-    if ptu.gpu_enabled():
-        algorithm.to(ptu.device)
+    algorithm.to(ptu.device)
     algorithm.train()
 
 

@@ -100,8 +100,7 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         **variant['algo_kwargs']
     )
-    if ptu.gpu_enabled():
-        algorithm.to(ptu.device)
+    algorithm.to(ptu.device)
         env._wrapped_env.vae.to(ptu.device)
     algorithm.train()
 

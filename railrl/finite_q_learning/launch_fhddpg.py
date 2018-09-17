@@ -33,8 +33,7 @@ def experiment(variant):
         policy,
         **variant['algo_kwargs']
     )
-    if ptu.gpu_enabled():
-        algorithm.to(ptu.device)
+    algorithm.to(ptu.device)
     algorithm.train()
 
 
