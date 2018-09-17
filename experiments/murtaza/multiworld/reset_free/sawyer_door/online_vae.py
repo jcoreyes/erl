@@ -97,6 +97,7 @@ if __name__ == "__main__":
             representation_size=16,
             beta=1.0,
             num_epochs=0,
+            dump_skew_debug_plots=True,
             generate_vae_dataset_kwargs=dict(
                 N=100,
                 test_p=.9,

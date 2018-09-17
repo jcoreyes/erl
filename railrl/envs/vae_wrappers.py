@@ -157,7 +157,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             ptu.from_numpy(obs[self.vae_input_observation_key])
         )
         latent_obs, logvar = ptu.get_numpy(latent_obs)[0], ptu.get_numpy(logvar)[0]
-        assert (latent_obs == obs['latent_observation']).all()
+        # assert (latent_obs == obs['latent_observation']).all()
         latent_goal = self.desired_goal['latent_desired_goal']
         dist = latent_goal - latent_obs
         var = np.exp(logvar.flatten())
@@ -558,7 +558,7 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
     def _update_info(self, info, obs):
         latent_obs, logvar = self.vae.encode(ptu.from_numpy(obs['state_observation']))
         latent_obs, logvar = ptu.get_numpy(latent_obs), ptu.get_numpy(logvar)
-        assert (latent_obs == obs['latent_observation']).all()
+        # assert (latent_obs == obs['latent_observation']).all()
         latent_goal = self._latent_goal
         dist = latent_goal - latent_obs
         var = np.exp(logvar.flatten())
