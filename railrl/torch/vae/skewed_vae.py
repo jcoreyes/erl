@@ -338,17 +338,18 @@ def np_to_var(np_array, **kwargs):
     return Variable(torch.from_numpy(np_array).float(), **kwargs)
 
 
-def kl_to_prior(means, log_stds, stds):
+def kl_to_prior(means, log_vars, stds):
     """
     KL between a Gaussian and a standard Gaussian.
 
     https://stats.stackexchange.com/questions/60680/kl-divergence-between-two-multivariate-gaussians
     """
-    return (
-            - log_stds
-            - 1 / 2.
-            + stds ** 2 / 2.
-            + means ** 2 / 2.
+    # Implement for one dimension. Broadcasting will take care of the constants.
+    return 0.5 * (
+            - log_vars
+            - 1
+            + 2 * (stds ** 2)
+            + means ** 2
     ).sum(dim=1, keepdim=True)
 
 
@@ -358,8 +359,21 @@ def compute_log_prob(batch, decoder, latents):
         reconstruction,
         decoder.output_std * torch.ones_like(reconstruction)
     )
-    return prior.log_prob(batch).sum(dim=1, keepdim=True)
+    vals = prior.log_prob(batch).sum(dim=1, keepdim=True)
+    return vals
 
+
+def all_finite(x):
+    """
+    Quick pytorch test that there are no nan's or infs.
+
+    note: torch now has torch.isnan
+    url: https://gist.github.com/wassname/df8bc03e60f81ff081e1895aabe1f519
+    """
+    not_inf = ((x + 1) != x)
+    not_nan = (x == x)
+    is_finite_vector = not_inf & not_nan
+    return is_finite_vector.int().data.numpy().all()
 
 class Encoder(nn.Sequential):
     def encode(self, x):
@@ -368,13 +382,13 @@ class Encoder(nn.Sequential):
     def get_encoding_and_suff_stats(self, x):
         output = self(x)
         z_dim = output.shape[1] // 2
-        means, log_stds = (
+        means, log_var = (
             output[:, :z_dim], output[:, z_dim:]
         )
-        stds = log_stds.exp()
+        stds = (0.5 * log_var).exp()
         epsilon = Variable(torch.randn(*means.size()))
         latents = epsilon * stds + means
-        return latents, means, log_stds, stds
+        return latents, means, log_var, stds
 
 
 class Decoder(nn.Sequential):
@@ -438,7 +452,7 @@ def compute_train_weights(data, encoder, decoder, config):
         weights = (temperature * (data - reconstruction) ** 2).sum(dim=1).exp()
     else:
         if mode == 'biased_encoder':
-            latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
+            latents, means, log_vars, stds = encoder.get_encoding_and_suff_stats(
                 data
             )
             importance_weights = 1
@@ -446,7 +460,7 @@ def compute_train_weights(data, encoder, decoder, config):
             latents = Variable(torch.randn(len(data), z_dim))
             importance_weights = 1
         elif mode == 'importance_sampling':
-            latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
+            latents, means, log_vars, stds = encoder.get_encoding_and_suff_stats(
                 data
             )
 
@@ -461,7 +475,10 @@ def compute_train_weights(data, encoder, decoder, config):
             raise NotImplementedError()
 
         data_prob = compute_log_prob(data, decoder, latents).squeeze(1).exp()
-        weights = importance_weights * 1. / data_prob
+        weights = importance_weights * 1. / torch.clamp(
+            data_prob,
+            min=1e-6,
+        )
     weights = weights ** alpha
 
     """
@@ -621,11 +638,11 @@ def train(
             idxs, batch = indexed_batch
             batch = Variable(batch[0].float())
 
-            latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
+            latents, means, log_vars, stds = encoder.get_encoding_and_suff_stats(
                 batch
             )
             beta = float(beta_schedule.get_value(epoch))
-            kl = kl_to_prior(means, log_stds, stds)
+            kl = kl_to_prior(means, log_vars, stds)
             reconstruction_log_prob = compute_log_prob(batch, decoder, latents)
 
             elbo = - kl * beta + reconstruction_log_prob

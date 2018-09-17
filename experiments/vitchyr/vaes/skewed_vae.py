@@ -16,9 +16,9 @@ from railrl.torch.vae.skewed_vae import (
 if __name__ == '__main__':
     variant = dict(
         dataset_generator=uniform_truncated_data,
-        n_start_samples=300,
+        n_start_samples=4,
         bs=32,
-        n_epochs=500,
+        n_epochs=300,
         # n_epochs=2,
         n_samples_to_add_per_epoch=1000,
         skew_config=dict(
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     exp_prefix = 'dev'
 
     # exp_prefix = 'skew-vae-biased-beta0.025-skew-weight-sweep'
-    # exp_prefix = 'skew-vae-biased-correct-kl-eqn-2'
+    # exp_prefix = 'skew-vae-biased-correct-kl-and-logp-eqns'
 
     search_space = {
         'dataset_generator': [
@@ -52,10 +52,10 @@ if __name__ == '__main__':
             # small_gaussian_data,
         ],
         'skew_config.mode': [
-            # 'recon_mse',
+            'recon_mse',
             # 'importance_sampling',
             # 'exp_recon_mse',
-            'biased_encoder',
+            # 'biased_encoder',
             # 'prior',
             # 'none',
         ],
@@ -81,8 +81,8 @@ if __name__ == '__main__':
             0,
         ],
         'beta_schedule_kwargs.value': [
-            1,
-            # 0.1,
+            # 1,
+            0.1,
             # 0.075,
             # 0.05,
             # 0.025,
@@ -94,6 +94,10 @@ if __name__ == '__main__':
             # 0.0001,
             # 0,
         ],
+        'decoder_output_std': [
+            1,
+            # 0.5,
+        ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
