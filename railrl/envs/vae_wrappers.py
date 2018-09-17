@@ -359,11 +359,13 @@ class VAEWrappedEnv(ProxyEnv, Env):
             ),
         )
 
-    def update_env(self, mode_map, vae_info, use_gpu, gpu_id):
+    def update_env(self, mode_map, vae_info):
         self._mode_map = mode_map
         self.vae.load_state_dict(vae_info['vae_state_dict'])
         self.vae.dist_mu = vae_info['vae_dist_mu']
         self.vae.dist_std = vae_info['vae_dist_std']
+        gpu_id = vae_info['gpu_id']
+        use_gpu = vae_info['use_gpu']
         ptu.device = torch.device("cuda:" + str(gpu_id) if use_gpu else "cpu")
         self.vae.to(ptu.device)
 
