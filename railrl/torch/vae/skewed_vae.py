@@ -344,17 +344,21 @@ def kl_to_prior(means, log_stds, stds):
 
     https://stats.stackexchange.com/questions/60680/kl-divergence-between-two-multivariate-gaussians
     """
-    return 0.5 * (
+    return (
             - log_stds
-            - 1
-            + stds ** 2
-            + means ** 2
+            - 1 / 2.
+            + stds ** 2 / 2.
+            + means ** 2 / 2.
     ).sum(dim=1, keepdim=True)
 
 
-def log_prob(batch, decoder, latents):
+def compute_log_prob(batch, decoder, latents):
     reconstruction = decoder(latents)
-    return -((batch - reconstruction) ** 2).sum(dim=1, keepdim=True)
+    prior = Normal(
+        reconstruction,
+        decoder.output_std * torch.ones_like(reconstruction)
+    )
+    return prior.log_prob(batch).sum(dim=1, keepdim=True)
 
 
 class Encoder(nn.Sequential):
@@ -371,6 +375,12 @@ class Encoder(nn.Sequential):
         epsilon = Variable(torch.randn(*means.size()))
         latents = epsilon * stds + means
         return latents, means, log_stds, stds
+
+
+class Decoder(nn.Sequential):
+    def __init__(self, *args, output_std=1):
+        super().__init__(*args)
+        self.output_std = output_std
 
 
 class VAE(nn.Module):
@@ -450,7 +460,7 @@ def compute_train_weights(data, encoder, decoder, config):
         else:
             raise NotImplementedError()
 
-        data_prob = log_prob(data, decoder, latents).squeeze(1).exp()
+        data_prob = compute_log_prob(data, decoder, latents).squeeze(1).exp()
         weights = importance_weights * 1. / data_prob
     weights = weights ** alpha
 
@@ -507,6 +517,7 @@ def train(
         append_all_data=True,
         full_variant=None,
         dynamics_noise=0,
+        decoder_output_std=1,
         **kwargs
 ):
     if encoder is None:
@@ -518,12 +529,13 @@ def train(
             nn.Linear(hidden_size, z_dim * 2),
         )
     if decoder is None:
-        decoder = nn.Sequential(
+        decoder = Decoder(
             nn.Linear(z_dim, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, 2),
+            output_std=decoder_output_std,
         )
     if beta_schedule_class is None:
         beta_schedule = ConstantSchedule(1)
@@ -614,7 +626,7 @@ def train(
             )
             beta = float(beta_schedule.get_value(epoch))
             kl = kl_to_prior(means, log_stds, stds)
-            reconstruction_log_prob = log_prob(batch, decoder, latents)
+            reconstruction_log_prob = compute_log_prob(batch, decoder, latents)
 
             elbo = - kl * beta + reconstruction_log_prob
             if weight_loss:

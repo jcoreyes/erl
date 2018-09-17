@@ -42,7 +42,8 @@ if __name__ == '__main__':
     mode = 'local'
     exp_prefix = 'dev'
 
-    exp_prefix = 'skew-vae-biased-sweep-small-beta'
+    # exp_prefix = 'skew-vae-biased-beta0.025-skew-weight-sweep'
+    # exp_prefix = 'skew-vae-biased-correct-kl-eqn-2'
 
     search_space = {
         'dataset_generator': [
@@ -51,8 +52,8 @@ if __name__ == '__main__':
             # small_gaussian_data,
         ],
         'skew_config.mode': [
-            # 'importance_sampling',
             # 'recon_mse',
+            # 'importance_sampling',
             # 'exp_recon_mse',
             'biased_encoder',
             # 'prior',
@@ -68,23 +69,30 @@ if __name__ == '__main__':
             True,
             # False,
         ],
-        'weight_loss': [
-            True,
-            # False,
-        ],
         'n_start_samples': [
             4,
+            # False,
+        ],
+        'weight_loss': [
+            True,
         ],
         'dynamics_noise': [
             # 0.1,
             0,
         ],
         'beta_schedule_kwargs.value': [
-            0.1,
-            0.01,
-            0.001,
-            0.0001,
-            0,
+            1,
+            # 0.1,
+            # 0.075,
+            # 0.05,
+            # 0.025,
+            # 0.01,
+            # 0.0075,
+            # 0.005,
+            # 0.0025,
+            # 0.001,
+            # 0.0001,
+            # 0,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -98,5 +106,5 @@ if __name__ == '__main__':
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-                skip_wait=True,
+                # skip_wait=True,
             )
