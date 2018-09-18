@@ -44,7 +44,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online'
+                    collection_mode='online-parallel'
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
@@ -80,6 +80,7 @@ if __name__ == "__main__":
             representation_size=16,
             beta=1.0,
             num_epochs=0,
+            dump_skew_debug_plots=True,
             generate_vae_dataset_kwargs=dict(
                 N=100,
                 test_p=.9,
@@ -107,8 +108,7 @@ if __name__ == "__main__":
         'env_kwargs.num_resets_before_puck_reset': [1],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
         'grill_variant.replay_buffer_kwargs.alpha': [3],
-        'num_exps_per_instance':[3, 5, 7],
-        'grill_variant.algo_kwargs.base_kwargs.collection_mode':['online', 'online-parallel'],
+        # 'grill_variant.algo_kwargs.base_kwargs.collection_mode':['online', 'online-parallel'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -132,5 +132,4 @@ if __name__ == "__main__":
                 use_gpu=True,
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
-                num_exps_per_instance=variant['num_exps_per_instance'],
             )
