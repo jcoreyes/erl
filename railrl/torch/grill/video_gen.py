@@ -72,30 +72,18 @@ def dump_video(
             max_path_length=horizon,
             animated=False,
         )
-        if isinstance(env, VAEWrappedEnv):
-            frames += [
-                get_image(
-                    d['image_desired_goal'],
-                    d['image_observation'],
-                    env._reconstruct_img(d['image_observation']).flatten(),
-                    pad_length=pad_length,
-                    pad_color=pad_color,
-                    imsize=imsize,
-                )
-                for d in path['full_observations']
-            ]
-        else:
-            frames += [
-                get_image(
-                    d['image_desired_goal'],
-                    d['image_observation'],
-                    d['image_observation'],
-                    pad_length=pad_length,
-                    pad_color=pad_color,
-                    imsize=imsize,
-                )
-                for d in path['full_observations']
-            ]
+        is_vae_env = isinstance(env, VAEWrappedEnv)
+        frames += [
+            get_image(
+                d['image_desired_goal'],
+                d['image_observation'],
+                env._reconstruct_img(d['image_observation']) if is_vae_env else d['image_observation'],
+                pad_length=pad_length,
+                pad_color=pad_color,
+                imsize=imsize,
+            )
+            for d in path['full_observations']
+        ]
 
         if dirname_to_save_images:
             rollout_dir = osp.join(dirname_to_save_images, subdirname, str(i))
