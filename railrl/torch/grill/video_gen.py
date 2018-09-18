@@ -8,6 +8,7 @@ from pathlib import Path
 import joblib
 
 from railrl.core import logger
+from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.pythonplusplus import find_key_recursive
 from railrl.samplers.rollout_functions import tdm_rollout
 from railrl.torch.core import PyTorchModule
@@ -71,17 +72,31 @@ def dump_video(
             max_path_length=horizon,
             animated=False,
         )
-        frames += [
-            get_image(
-                d['image_desired_goal'],
-                d['image_observation'],
-                env._reconstruct_img(d['image_observation']).flatten(),
-                pad_length=pad_length,
-                pad_color=pad_color,
-                imsize=imsize,
-            )
-            for d in path['full_observations']
-        ]
+        if isinstance(env, VAEWrappedEnv):
+            frames += [
+                get_image(
+                    d['image_desired_goal'],
+                    d['image_observation'],
+                    env._reconstruct_img(d['image_observation']).flatten(),
+                    pad_length=pad_length,
+                    pad_color=pad_color,
+                    imsize=imsize,
+                )
+                for d in path['full_observations']
+            ]
+        else:
+            frames += [
+                get_image(
+                    d['image_desired_goal'],
+                    d['image_observation'],
+                    d['image_observation'],
+                    pad_length=pad_length,
+                    pad_color=pad_color,
+                    imsize=imsize,
+                )
+                for d in path['full_observations']
+            ]
+
         if dirname_to_save_images:
             rollout_dir = osp.join(dirname_to_save_images, subdirname, str(i))
             os.makedirs(rollout_dir, exist_ok=True)
