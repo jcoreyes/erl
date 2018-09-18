@@ -66,6 +66,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         latent_space = Box(
             -10 * np.ones(obs_size or self.representation_size),
             10 * np.ones(obs_size or self.representation_size),
+            dtype=np.float32,
         )
         spaces = self.wrapped_env.observation_space.spaces
         spaces['observation'] = latent_space
@@ -524,6 +525,7 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
         latent_space = Box(
             -10 * np.ones(self.representation_size),
             10 * np.ones(self.representation_size),
+            dtype=np.float32,
         )
         spaces = self.wrapped_env.observation_space.spaces
         spaces['observation'] = latent_space
