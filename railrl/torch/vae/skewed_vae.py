@@ -156,7 +156,7 @@ def get_weight_stats(data, encoder, decoder, skew_config):
 
 
 def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
-              report, n_vis=1000, xlim=(-1.5, 1.5),
+              report, projection, n_vis=1000, xlim=(-1.5, 1.5),
               ylim=(-1.5, 1.5)):
     report.add_text("Epoch {}".format(epoch))
 
@@ -177,13 +177,15 @@ def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
     vis_samples = np_to_var(vis_samples_np)
     latents = encoder.encode(vis_samples)
     z_dim = latents.shape[1]
-    reconstructed_samples = decoder(latents).data.numpy()
-    generated_samples = decoder(
+    reconstructed_samples = decoder.reconstruct(latents).data.numpy()
+    generated_samples = decoder.reconstruct(
         Variable(torch.randn(n_vis, z_dim))
     ).data.numpy()
-    projected_generated_samples = project_samples_np(
+    generated_samples = generated_samples + dynamics_noise * np.random.randn(
+        *generated_samples.shape
+    )
+    projected_generated_samples = projection(
         generated_samples,
-        dynamics_noise,
     )
     plt.subplot(2, 2, 1)
     plt.plot(generated_samples[:, 0], generated_samples[:, 1], '.')
@@ -227,7 +229,8 @@ def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
     return heatmap_img, sample_img
 
 
-def plot_uniformness(results, full_variant, n_samples=10000, n_bins=5,
+def plot_uniformness(results, full_variant, projection, n_samples=10000,
+                     n_bins=5,
                      report=None):
     dynamics_noise = full_variant['dynamics_noise']
     generated_frac_on_border_lst = []
@@ -236,12 +239,14 @@ def plot_uniformness(results, full_variant, n_samples=10000, n_bins=5,
     for epoch, encoder, decoder, vis_samples_np in zip(*results[:4]):
 
         z_dim = decoder._modules['0'].weight.shape[1]
-        generated_samples = decoder(
+        generated_samples = decoder.reconstruct(
             Variable(torch.randn(n_samples, z_dim))
         ).data.numpy()
-        projected_generated_samples = project_samples_np(
+        generated_samples = generated_samples + dynamics_noise * np.random.randn(
+            *generated_samples.shape
+        )
+        projected_generated_samples = projection(
             generated_samples,
-            dynamics_noise,
         )
 
         orig_n_samples_on_border = np.mean(
@@ -354,11 +359,8 @@ def kl_to_prior(means, log_vars, stds):
 
 
 def compute_log_prob(batch, decoder, latents):
-    reconstruction = decoder(latents)
-    prior = Normal(
-        reconstruction,
-        decoder.output_std * torch.ones_like(reconstruction)
-    )
+    mu, var = decoder.decode(latents)
+    prior = Normal(mu, var.pow(0.5))
     vals = prior.log_prob(batch).sum(dim=1, keepdim=True)
     return vals
 
@@ -374,6 +376,7 @@ def all_finite(x):
     not_nan = (x == x)
     is_finite_vector = not_inf & not_nan
     return is_finite_vector.int().data.numpy().all()
+
 
 class Encoder(nn.Sequential):
     def encode(self, x):
@@ -392,21 +395,27 @@ class Encoder(nn.Sequential):
 
 
 class Decoder(nn.Sequential):
-    def __init__(self, *args, output_std=1):
+    def __init__(self, *args, output_var=1):
         super().__init__(*args)
-        self.output_std = output_std
+        self.output_var = output_var
 
+    def decode(self, input):
+        output = self(input)
+        if self.output_var == 'learned':
+            mu, logvar = torch.split(output, 2, dim=1)
+            var = logvar.exp()
+        else:
+            mu = output
+            var = self.output_var * torch.ones_like(mu)
+        return mu, var
 
-class VAE(nn.Module):
-    def __init__(self, encoder, decoder):
-        self.encoder = encoder
-        self.decoder = decoder
-        self.zdim = decoder._modules['0'].weight.shape[1]
+    def reconstruct(self, input):
+        mu, _ = self.decode(input)
+        return mu
 
-    def sample(self, n_samples):
-        return self.decoder(
-            Variable(torch.randn(n_samples, self.zdim))
-        ).data.numpy()
+    def sample(self, input):
+        mu, var = self.decode(input)
+        return Normal(mu, var.pow(0.5)).sample()
 
 
 class IndexedData(Dataset):
@@ -444,11 +453,11 @@ def compute_train_weights(data, encoder, decoder, config):
     """
     if mode == 'recon_mse':
         latents, *_ = encoder.get_encoding_and_suff_stats(data)
-        reconstruction = decoder(latents)
+        reconstruction = decoder.reconstruct(latents)
         weights = ((data - reconstruction) ** 2).sum(dim=1)
     elif mode == 'exp_recon_mse':
         latents, *_ = encoder.get_encoding_and_suff_stats(data)
-        reconstruction = decoder(latents)
+        reconstruction = decoder.reconstruct(latents)
         weights = (temperature * (data - reconstruction) ** 2).sum(dim=1).exp()
     else:
         if mode == 'biased_encoder':
@@ -465,12 +474,12 @@ def compute_train_weights(data, encoder, decoder, config):
             )
 
             prior = Normal(0, 1)
-            prior_prob = prior.log_prob(latents).sum(dim=1).exp()
+            prior_log_prob = prior.log_prob(latents).sum(dim=1)
 
             encoder_distrib = Normal(means, stds)
-            encoder_prob = encoder_distrib.log_prob(latents).sum(dim=1).exp()
+            encoder_log_prob = encoder_distrib.log_prob(latents).sum(dim=1)
 
-            importance_weights = prior_prob / encoder_prob
+            importance_weights = (prior_log_prob - encoder_log_prob).exp()
         else:
             raise NotImplementedError()
 
@@ -498,16 +507,24 @@ def compute_train_weights(data, encoder, decoder, config):
 
 def generate_vae_samples_np(decoder, n_samples):
     z_dim = decoder._modules['0'].weight.shape[1]
-    generated_samples = decoder(
+    generated_samples = decoder.sample(
         Variable(torch.randn(n_samples, z_dim))
     )
     return generated_samples.data.numpy()
 
 
-def project_samples_np(samples, dynamics_noise):
-    samples = samples + dynamics_noise * np.random.randn(*samples.shape)
+def project_samples_square_np(samples):
     samples = np.maximum(samples, -1)
     samples = np.minimum(samples, 1)
+    return samples
+
+
+def project_samples_ell_np(samples):
+    samples = project_samples_square_np(samples)
+    corners = np.logical_and(samples[:, 0] > 0, samples[:, 1] > 0)
+
+    samples[corners] = np.minimum(samples[corners], 0)
+    samples[n:, 1] = np.minimum(samples[n:, 1], 0)
     return samples
 
 
@@ -518,6 +535,7 @@ def train_from_variant(variant):
 def train(
         dataset_generator,
         n_start_samples,
+        projection=project_samples_square_np,
         encoder=None,
         decoder=None,
         bs=32,
@@ -534,7 +552,7 @@ def train(
         append_all_data=True,
         full_variant=None,
         dynamics_noise=0,
-        decoder_output_std=1,
+        decoder_output_var='learned',
         **kwargs
 ):
     if encoder is None:
@@ -546,13 +564,17 @@ def train(
             nn.Linear(hidden_size, z_dim * 2),
         )
     if decoder is None:
+        if decoder_output_var == 'learned':
+            last_layer = nn.Linear(hidden_size, 4)
+        else:
+            last_layer = nn.Linear(hidden_size, 2)
         decoder = Decoder(
             nn.Linear(z_dim, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, 2),
-            output_std=decoder_output_std,
+            last_layer,
+            output_var=decoder_output_var,
         )
     if beta_schedule_class is None:
         beta_schedule = ConstantSchedule(1)
@@ -598,7 +620,11 @@ def train(
         if n_samples_to_add_per_epoch > 0:
             vae_samples = generate_vae_samples_np(decoder,
                                                   n_samples_to_add_per_epoch)
-            projected_samples = project_samples_np(vae_samples, dynamics_noise)
+
+            new_samples = vae_samples + dynamics_noise * np.random.randn(
+                *vae_samples.shape
+            )
+            projected_samples = projection(new_samples)
             if append_all_data:
                 train_data = np.vstack((train_data, projected_samples))
             else:
@@ -630,10 +656,20 @@ def train(
             decoders.append(copy.deepcopy(decoder))
             train_datas.append(train_data)
             heatmap_img, sample_img = (
-                visualize(epoch, train_data, encoder, decoder, full_variant, report)
+                visualize(epoch, train_data, encoder, decoder, full_variant,
+                          report, projection)
             )
             heatmap_imgs.append(heatmap_img)
             sample_imgs.append(sample_img)
+            report.save()
+
+            from PIL import Image
+            Image.fromarray(heatmap_img).save(
+                logger.get_snapshot_dir() + '/heatmap{}.png'.format(epoch)
+            )
+            Image.fromarray(sample_img).save(
+                logger.get_snapshot_dir() + '/samples{}.png'.format(epoch)
+            )
         for i, indexed_batch in enumerate(train_dataloader):
             idxs, batch = indexed_batch
             batch = Variable(batch[0].float())
@@ -680,7 +716,7 @@ def train(
 
     results = epochs, encoders, decoders, train_datas, losses, kls, log_probs
     report.add_header("Uniformness")
-    plot_uniformness(results, full_variant, report=report)
+    plot_uniformness(results, full_variant, projection, report=report)
     report.add_header("Training Curves")
     plot_curves(results, report=report)
     report.save()
