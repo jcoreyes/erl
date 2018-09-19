@@ -79,6 +79,8 @@ def visualize(epoch, vis_samples_np, histogram,
 class Histogram(object):
     """
     A perfect histogram
+
+    In this code, x = first index (not necessarily left-right for visualization)
     """
 
     def __init__(self, num_bins):
@@ -95,6 +97,8 @@ class Histogram(object):
             bins=self.num_bins,
             range=[[-1, 1], [-1, 1]]
         )
+        self.xedges = xedges
+        self.yedges = yedges
         for xi in range(self.num_bins):
             x = 0.5 * (xedges[xi] + xedges[xi+1])
             for yi in range(self.num_bins):
@@ -118,11 +122,23 @@ class Histogram(object):
     def compute_pvals(self, data):
         H, *_ = np.histogram2d(data[:, 0], data[:, 1], self.num_bins)
         self.pvals = H.astype(np.float32) / len(data)
+        self.weights = 1. / (self.pvals + (self.pvals == 0))
 
     def reweight_pvals(self):
-        weights = 1. / (self.pvals + (self.pvals == 0))
-        new_pvals = self.pvals * weights
+        new_pvals = self.pvals * self.weights
         self.pvals = new_pvals / sum(new_pvals.flatten())
+
+    def compute_weights(self, data):
+        x_indices = np.digitize(data[:, 0], self.xedges)
+        # Because digitize well make index = len(self.xedges) if the value
+        # equals self.xedges[-1], i.e. the value is on the right-most border.
+        x_indices = np.minimum(x_indices, 5)
+        x_indices -= 1
+        y_indices = np.digitize(data[:, 1], self.yedges)
+        y_indices = np.minimum(y_indices, 5)
+        y_indices -= 1
+        indices = x_indices * self.num_bins + y_indices
+        return self.weights.flatten()[indices]
 
     def entropy(self):
         return entropy(self.pvals.flatten())

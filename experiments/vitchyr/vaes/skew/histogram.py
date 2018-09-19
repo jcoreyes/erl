@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev-histogram'
+    exp_prefix = 'dev'
 
     # exp_prefix = 'skew-vae-biased-beta0.025-skew-weight-sweep'
     # exp_prefix = 'skew-vae-all-correct-sweep-weight-skew-2'
