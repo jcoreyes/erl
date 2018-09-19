@@ -3,35 +3,31 @@ Skew the dataset so that it turns into generating a uniform distribution.
 """
 import copy
 import json
-import sys
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import numpy as np
-from skvideo.io import vwrite
 import torch
-from scipy.stats import chisquare
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from skvideo.io import vwrite
 from torch import nn as nn
 from torch.autograd import Variable
-from torch.distributions import Normal
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from torch.utils.data.dataset import Dataset
 from torch.utils.data.sampler import (
     BatchSampler, WeightedRandomSampler,
     RandomSampler,
 )
 
 import railrl.pythonplusplus as ppp
+import railrl.torch.pytorch_util as ptu
+import railrl.torch.vae.skew.skewed_vae as sv
 from railrl.core import logger
 from railrl.misc import visualization_util as vu
 from railrl.misc.html_report import HTMLReport
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.torch.vae.skew.datasets import project_samples_square_np
 from railrl.torch.vae.skew.histogram import Histogram
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import railrl.torch.vae.skew.skewed_vae as sv
-import railrl.torch.pytorch_util as ptu
 
 K = 6
 
@@ -66,6 +62,27 @@ def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
         pvals_str = np.array2string(histogram.pvals, precision=3)
         report.add_text(pvals_str)
     report.add_image(heatmap_img, "Epoch {} Heatmap".format(epoch))
+
+    plt.figure()
+    fig = plt.gcf()
+    ax = plt.gca()
+    heatmap_img = ax.imshow(
+        np.swapaxes(histogram.weights, 0, 1),  # imshow uses first axis as
+        # y-axis
+        extent=[-1, 1, -1, 1],
+        cmap=plt.get_cmap('plasma'),
+        interpolation='nearest',
+        aspect='auto',
+        origin='bottom',  # <-- Important! By default top left is (0, 0)
+    )
+    divider = make_axes_locatable(ax)
+    legend_axis = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(heatmap_img, cax=legend_axis, orientation='vertical')
+    heatmap_img = vu.save_image(fig)
+    if histogram.num_bins < 5:
+        pvals_str = np.array2string(histogram.pvals, precision=3)
+        report.add_text(pvals_str)
+    report.add_image(heatmap_img, "Epoch {} Weight Heatmap".format(epoch))
 
 
     plt.figure()
@@ -208,6 +225,8 @@ def train(
     train_datas = []
     heatmap_imgs = []
     sample_imgs = []
+    entropies = []
+    tvs_to_uniform = []
     for epoch in sv.progressbar(range(n_epochs)):
         epoch_stats = defaultdict(list)
         if n_samples_to_add_per_epoch > 0:
@@ -226,7 +245,7 @@ def train(
                 train_data = np.vstack((orig_train_data, projected_samples))
         indexed_train_data = sv.IndexedData(train_data)
 
-        histogram.compute_pvals(train_data)
+        histogram.compute_pvals_and_weights(train_data)
         all_weights = histogram.compute_weights(train_data)
         all_weights_pt = ptu.np_to_var(all_weights, requires_grad=False)
         if sum(all_weights) == 0:
@@ -298,22 +317,28 @@ def train(
         losses.append(np.mean(epoch_stats['losses']))
         kls.append(np.mean(epoch_stats['kls']))
         log_probs.append(np.mean(epoch_stats['log_probs']))
+        entropies.append(histogram.entropy())
+        tvs_to_uniform.append(histogram.tv_to_uniform())
 
         logger.record_tabular("Epoch", epoch)
-        logger.record_tabular("Loss", np.mean(epoch_stats['losses']))
-        logger.record_tabular("KL", np.mean(epoch_stats['kls']))
-        logger.record_tabular("Log Prob", np.mean(epoch_stats['log_probs']))
+        logger.record_tabular("VAE Loss", np.mean(epoch_stats['losses']))
+        logger.record_tabular("VAE KL", np.mean(epoch_stats['kls']))
+        logger.record_tabular("VAE Log Prob", np.mean(epoch_stats['log_probs']))
+        logger.record_tabular('Entropy ', histogram.entropy())
+        logger.record_tabular('KL from uniform', histogram.kl_from_uniform())
+        logger.record_tabular('Tv to uniform', histogram.tv_to_uniform())
         logger.dump_tabular()
         logger.save_itr_params(epoch, {
             'encoder': encoder,
             'decoder': decoder,
         })
 
-    results = epochs, encoders, decoders, train_datas, losses, kls, log_probs
-    report.add_header("Uniformness")
-    sv.plot_uniformness(results, full_variant, projection, report=report)
     report.add_header("Training Curves")
+    results = epochs, encoders, decoders, train_datas, losses, kls, log_probs
+    sv.plot_uniformness(results, full_variant, projection, report=report)
     sv.plot_curves(results, report=report)
+    plot_non_vae_curves(entropies, tvs_to_uniform, report)
+    report.add_text("Max entropy: {}".format(histogram.max_entropy()))
     report.save()
 
     heatmap_video = np.stack(heatmap_imgs)
@@ -327,3 +352,17 @@ def train(
         logger.get_snapshot_dir() + '/samples.mp4',
         sample_video,
     )
+
+
+def plot_non_vae_curves(entropies, tvs_to_uniform, report):
+    plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.plot(np.array(entropies))
+    plt.title("Entropy")
+    plt.subplot(1, 2, 2)
+    plt.plot(np.array(tvs_to_uniform))
+    plt.title("TV to uniform")
+    plt.xlabel("Epoch")
+    fig = plt.gcf()
+    img = vu.save_image(fig)
+    report.add_image(img, "Final Distribution")

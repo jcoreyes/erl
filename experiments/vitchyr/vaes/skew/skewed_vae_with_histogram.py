@@ -20,21 +20,21 @@ if __name__ == '__main__':
         dataset_generator=uniform_truncated_data,
         n_start_samples=4,
         bs=32,
-        n_epochs=1000,
+        # n_epochs=1000,
         # n_epochs=300,
-        # n_epochs=2,
+        n_epochs=10,
         n_samples_to_add_per_epoch=1000,
         skew_sampling=False,
         weight_loss=False,
         z_dim=16,
         hidden_size=32,
+        # save_period=50,
         # save_period=25,
-        save_period=50,
+        # save_period=1,
         beta_schedule_class=ConstantSchedule,
         # beta_schedule_kwargs=dict(
         #     value=0.1,
         # )
-        # save_period=1,
     )
 
     n_seeds = 1
@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     # exp_prefix = 'skew-vae-biased-beta0.025-skew-weight-sweep'
     # exp_prefix = 'skew-vae-all-correct-sweep-weight-skew-2'
-    # exp_prefix = 'skew-vae-ell'
+    # exp_prefix = 'skew-vae-with-histogram'
 
     search_space = {
         'dataset_generator': [
@@ -95,7 +95,8 @@ if __name__ == '__main__':
             # 0.1,
             # 0.05,
             'learned'
-        ]
+        ],
+        'num_bins': [5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

@@ -119,10 +119,10 @@ class Histogram(object):
         samples = self.bin_centers_flat[idxs]
         return samples
 
-    def compute_pvals(self, data):
+    def compute_pvals_and_weights(self, data):
         H, *_ = np.histogram2d(data[:, 0], data[:, 1], self.num_bins)
         self.pvals = H.astype(np.float32) / len(data)
-        self.weights = 1. / (self.pvals + (self.pvals == 0))
+        self.weights = 1. / (np.maximum(self.pvals, 1. / len(data)))
 
     def reweight_pvals(self):
         new_pvals = self.pvals * self.weights
@@ -142,6 +142,9 @@ class Histogram(object):
 
     def entropy(self):
         return entropy(self.pvals.flatten())
+
+    def max_entropy(self):
+        return entropy(self.uniform_distrib)
 
     def kl_from_uniform(self):
         return entropy(self.uniform_distrib, self.pvals.flatten())
@@ -208,7 +211,7 @@ def train(
         logger.record_tabular('Entropy ', histogram.entropy())
         logger.record_tabular('kl from uniform', histogram.kl_from_uniform())
         logger.record_tabular('Tv to uniform', histogram.tv_to_uniform())
-        histogram.compute_pvals(train_data)
+        histogram.compute_pvals_and_weights(train_data)
         histogram.reweight_pvals()
         if epoch == 0 or (epoch + 1) % save_period == 0:
             train_datas.append(train_data)
