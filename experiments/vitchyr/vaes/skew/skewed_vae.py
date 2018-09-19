@@ -4,8 +4,7 @@ Skew the dataset so that it turns into generating a uniform distribution.
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch.vae.skewed_vae import (
-    train_from_variant,
+from railrl.torch.vae.skew.datasets import (
     uniform_truncated_data,
     four_corners,
     empty_dataset,
@@ -14,6 +13,7 @@ from railrl.torch.vae.skewed_vae import (
     project_samples_square_np,
     project_samples_ell_np,
 )
+from railrl.torch.vae.skew.skewed_vae import train_from_variant
 
 if __name__ == '__main__':
     variant = dict(
