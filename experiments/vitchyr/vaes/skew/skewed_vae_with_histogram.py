@@ -12,6 +12,7 @@ from railrl.torch.vae.skew.datasets import (
     small_gaussian_data,
     project_samples_square_np,
     project_samples_ell_np,
+    project_square_border_np,
 )
 from railrl.torch.vae.skew.skewed_vae_with_histogram import train_from_variant
 
@@ -20,15 +21,15 @@ if __name__ == '__main__':
         dataset_generator=uniform_truncated_data,
         n_start_samples=4,
         bs=32,
-        # n_epochs=1000,
-        # n_epochs=300,
-        n_epochs=10,
+        n_epochs=1000,
+        # n_epochs=500,
+        # n_epochs=10,
         n_samples_to_add_per_epoch=1000,
         skew_sampling=False,
         weight_loss=False,
         z_dim=16,
         hidden_size=32,
-        # save_period=50,
+        save_period=50,
         # save_period=25,
         # save_period=1,
         beta_schedule_class=ConstantSchedule,
@@ -43,7 +44,8 @@ if __name__ == '__main__':
 
     # exp_prefix = 'skew-vae-biased-beta0.025-skew-weight-sweep'
     # exp_prefix = 'skew-vae-all-correct-sweep-weight-skew-2'
-    # exp_prefix = 'skew-vae-with-histogram'
+    # exp_prefix = 'skew-vae-with-histogram-sweep-weight-and-skew'
+    exp_prefix = 'dev-skew-vae-with-histogram-square-border'
 
     search_space = {
         'dataset_generator': [
@@ -52,7 +54,8 @@ if __name__ == '__main__':
             # small_gaussian_data,
         ],
         'projection': [
-            project_samples_square_np,
+            # project_samples_square_np,
+            project_square_border_np,
             # project_samples_ell_np,
         ],
         'append_all_data': [
@@ -96,7 +99,7 @@ if __name__ == '__main__':
             # 0.05,
             'learned'
         ],
-        'num_bins': [5],
+        'num_bins': [10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

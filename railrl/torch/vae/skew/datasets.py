@@ -16,23 +16,6 @@ def uniform_truncated_data(batch_size):
     return data
 
 
-def uniform_empty_square_truncated_data(batch_size):
-    data = np.random.uniform(low=-2, high=2, size=(batch_size, 2))
-    data = np.maximum(data, -1)
-    data = np.minimum(data, 1)
-    within_0p5 = (data < 0.5) * (data > -0.5)
-    angles = np.arctan2(data[:, 0], data[:, 1])
-    upper = (angles > np.pi / 4) * (angles < 3 * np.pi / 4)
-    left = (angles > 3 * np.pi / 4) * (angles < 5 * np.pi / 4)
-    bottom = (angles > 5 * np.pi / 4) * (angles < 7 * np.pi / 4)
-    right = 1 - (upper + left + bottom)
-    data[within_0p5 * upper, 1] = 0.5
-    data[within_0p5 * left, 0] = -0.5
-    data[within_0p5 * bottom, 1] = -0.5
-    data[within_0p5 * right, 0] = 0.5
-    return data
-
-
 def four_corners(_):
     return np.array([
         [-1, 1],
@@ -94,3 +77,22 @@ def project_samples_ell_np(samples):
     samples[corners] = np.minimum(samples[corners], 0)
     samples[n:, 1] = np.minimum(samples[n:, 1], 0)
     return samples
+
+
+def project_square_border_np(data):
+    data = np.maximum(data, -1)
+    data = np.minimum(data, 1)
+    within_0p5 = (data < 0.5) * (data > -0.5)
+    within_0p5 = within_0p5[:, 0] * within_0p5[:, 1]
+    angles = np.arctan2(data[:, 1], data[:, 0])
+    upper = (angles > np.pi / 4) * (angles < 3 * np.pi / 4)
+    left = np.abs(angles) >= 3 * np.pi / 4
+    bottom = (angles > -3 * np.pi / 4) * (angles < -1 * np.pi / 4)
+    right = np.abs(angles) <= np.pi / 4
+    data[within_0p5 * upper, 1] = 0.5
+    data[within_0p5 * left, 0] = -0.5
+    data[within_0p5 * bottom, 1] = -0.5
+    data[within_0p5 * right, 0] = 0.5
+    return data
+
+
