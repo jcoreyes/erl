@@ -166,6 +166,7 @@ def train(
         dynamics_noise=0,
         decoder_output_var='learned',
         num_bins=5,
+        train_vae_from_histogram=False,
         **kwargs
 ):
     if histogram is None:
@@ -230,10 +231,13 @@ def train(
     for epoch in sv.progressbar(range(n_epochs)):
         epoch_stats = defaultdict(list)
         if n_samples_to_add_per_epoch > 0:
-            vae_samples = sv.generate_vae_samples_np(
-                decoder,
-                n_samples_to_add_per_epoch,
-            )
+            if train_vae_from_histogram:
+                vae_samples = histogram.sample(n_samples_to_add_per_epoch)
+            else:
+                vae_samples = sv.generate_vae_samples_np(
+                    decoder,
+                    n_samples_to_add_per_epoch,
+                )
 
             new_samples = vae_samples + dynamics_noise * np.random.randn(
                 *vae_samples.shape

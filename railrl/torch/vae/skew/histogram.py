@@ -83,7 +83,7 @@ class Histogram(object):
     In this code, x = first index (not necessarily left-right for visualization)
     """
 
-    def __init__(self, num_bins):
+    def __init__(self, num_bins, weight_type='inv_p'):
         self.pvals = np.zeros((num_bins, num_bins))
         self.pvals[0, 0] = 1
         self.num_bins = num_bins
@@ -108,6 +108,7 @@ class Histogram(object):
         self.bin_centers_flat = bin_centers.reshape(
             self.num_bins_total, 2
         )
+        self.weight_type = weight_type
 
     def sample(self, n_samples):
         idxs = np.random.choice(
@@ -122,7 +123,11 @@ class Histogram(object):
     def compute_pvals_and_weights(self, data):
         H, *_ = np.histogram2d(data[:, 0], data[:, 1], self.num_bins)
         self.pvals = H.astype(np.float32) / len(data)
-        self.weights = 1. / (np.maximum(self.pvals, 1. / len(data)))
+        prob = np.maximum(self.pvals, 1. / len(data))
+        if self.weight_type == 'inv_p':
+            self.weights = 1. / prob
+        else:
+            self.weights = 1. / np.log(prob)
 
     def reweight_pvals(self):
         new_pvals = self.pvals * self.weights

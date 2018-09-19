@@ -12,6 +12,7 @@ from railrl.torch.vae.skew.datasets import (
     small_gaussian_data,
     project_samples_square_np,
     project_samples_ell_np,
+    project_square_border_np,
 )
 from railrl.torch.vae.skew.histogram import train_from_variant
 
@@ -36,6 +37,11 @@ if __name__ == '__main__':
     # exp_prefix = 'skew-vae-ell'
 
     search_space = {
+        'projection': [
+            # project_samples_square_np,
+            project_square_border_np,
+            # project_samples_ell_np,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

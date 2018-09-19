@@ -45,7 +45,7 @@ if __name__ == '__main__':
     # exp_prefix = 'skew-vae-biased-beta0.025-skew-weight-sweep'
     # exp_prefix = 'skew-vae-all-correct-sweep-weight-skew-2'
     # exp_prefix = 'skew-vae-with-histogram-sweep-weight-and-skew'
-    exp_prefix = 'dev-skew-vae-with-histogram-square-border'
+    # exp_prefix = 'dev-skew-vae-with-histogram-square-border'
 
     search_space = {
         'dataset_generator': [
@@ -54,8 +54,8 @@ if __name__ == '__main__':
             # small_gaussian_data,
         ],
         'projection': [
-            # project_samples_square_np,
-            project_square_border_np,
+            project_samples_square_np,
+            # project_square_border_np,
             # project_samples_ell_np,
         ],
         'append_all_data': [
@@ -73,8 +73,8 @@ if __name__ == '__main__':
             # False,
         ],
         'dynamics_noise': [
-            # 0.1,
-            0,
+            0.3,
+            # 0,
         ],
         'beta_schedule_kwargs.value': [
             # 1,
@@ -100,6 +100,7 @@ if __name__ == '__main__':
             'learned'
         ],
         'num_bins': [10],
+        'train_vae_from_histogram': [True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
