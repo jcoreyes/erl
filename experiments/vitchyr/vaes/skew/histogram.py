@@ -13,6 +13,7 @@ from railrl.torch.vae.skew.datasets import (
     project_samples_square_np,
     project_samples_ell_np,
     project_square_border_np,
+    project_square_cap_np,
 )
 from railrl.torch.vae.skew.histogram import train_from_variant
 
@@ -36,12 +37,13 @@ if __name__ == '__main__':
 
     # exp_prefix = 'skew-vae-biased-beta0.025-skew-weight-sweep'
     # exp_prefix = 'skew-vae-all-correct-sweep-weight-skew-2'
-    exp_prefix = 'skew-histogram-square-border-20bins-correct-v'
+    exp_prefix = 'skew-histogram-square-cap-20bins-correct-v-2'
 
     search_space = {
         'projection': [
             # project_samples_square_np,
-            project_square_border_np,
+            # project_square_border_np,
+            project_square_cap_np,
             # project_samples_ell_np,
         ],
         'weight_type': [

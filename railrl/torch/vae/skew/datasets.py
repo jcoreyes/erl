@@ -96,3 +96,27 @@ def project_square_border_np(data):
     return data
 
 
+def project_square_cap_np(data):
+    data = np.maximum(data, -1)
+    data = np.minimum(data, 1)
+    within_0p5 = (data < 0.5) * (data > -0.5)
+    within_0p5 = within_0p5[:, 0] * within_0p5[:, 1]
+    angles = np.arctan2(data[:, 1], data[:, 0])
+    upper = (angles > np.pi / 4) * (angles < 3 * np.pi / 4)
+    left = np.abs(angles) >= 3 * np.pi / 4
+    right = np.abs(angles) <= np.pi / 4
+    data[within_0p5 * upper, 1] = 0.5
+    data[within_0p5 * left, 0] = -0.5
+    data[within_0p5 * right, 0] = 0.5
+
+    under_square = (data[:, 0] < 0.5) * (data[:, 0] > -0.5) * (
+        data[:, 1] <= 0
+    )
+    data[under_square, 0] = -0.5
+    # under_square_right = (data[:, 0] < 0) * (data[:, 0] > -0.5) * (
+    #         data[:, 1] <= 0
+    # )
+    # data[under_square_left, 0] = -0.5
+    # data[under_square_right, 0] = -0.5
+    return data
+
