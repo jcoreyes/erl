@@ -21,10 +21,10 @@ if __name__ == '__main__':
         dataset_generator=uniform_truncated_data,
         n_start_samples=0,
         n_samples_to_add_per_epoch=10000,
-        # n_epochs=500,
-        # save_period=10,
-        n_epochs=5,
-        save_period=1,
+        n_epochs=500,
+        save_period=10,
+        # n_epochs=5,
+        # save_period=1,
         append_all_data=False,
         dynamics_noise=0.2,
         num_bins=20,
@@ -36,13 +36,18 @@ if __name__ == '__main__':
 
     # exp_prefix = 'skew-vae-biased-beta0.025-skew-weight-sweep'
     # exp_prefix = 'skew-vae-all-correct-sweep-weight-skew-2'
-    # exp_prefix = 'skew-histogram-square-20bins-long'
+    exp_prefix = 'skew-histogram-square-border-20bins-correct-v'
 
     search_space = {
         'projection': [
-            project_samples_square_np,
-            # project_square_border_np,
+            # project_samples_square_np,
+            project_square_border_np,
             # project_samples_ell_np,
+        ],
+        'weight_type': [
+            'inv_p',
+            'nll',
+            'sqrt_inv_p',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -56,5 +61,5 @@ if __name__ == '__main__':
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-                # skip_wait=True,
+                skip_wait=True,
             )

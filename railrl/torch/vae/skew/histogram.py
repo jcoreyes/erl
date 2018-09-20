@@ -153,8 +153,12 @@ class Histogram(object):
         prob = np.maximum(self.pvals, 1. / len(data))
         if self.weight_type == 'inv_p':
             self.weights = 1. / prob
+        elif self.weight_type == 'nll':
+            self.weights = - np.log(prob)
+        elif self.weight_type == 'sqrt_inv_p':
+            self.weights = (1. / prob) ** 0.5
         else:
-            self.weights = 1. / np.log(prob)
+            raise NotImplementedError()
 
     def reweight_pvals(self):
         new_pvals = self.pvals * self.weights
@@ -212,6 +216,7 @@ def train(
         full_variant=None,
         dynamics_noise=0,
         num_bins=5,
+        weight_type='inv_p',
         **kwargs
 ):
     report = HTMLReport(
@@ -242,7 +247,7 @@ def train(
     p_theta = previous iteration's model
     p_new = this iteration's distribution
     """
-    p_theta = Histogram(num_bins)
+    p_theta = Histogram(num_bins, weight_type=weight_type)
     for epoch in range(n_epochs):
         logger.record_tabular('Epoch', epoch)
         logger.record_tabular('Entropy ', p_theta.entropy())
@@ -251,7 +256,6 @@ def train(
         entropies.append(p_theta.entropy())
         tvs_to_uniform.append(p_theta.tv_to_uniform())
 
-        p_new = Histogram(num_bins)
 
         samples = p_theta.sample(n_samples_to_add_per_epoch)
         empirical_samples = dynamics(samples)
@@ -262,6 +266,7 @@ def train(
             train_data = np.vstack((orig_train_data, empirical_samples))
 
         weights = p_theta.compute_weights(train_data)
+        p_new = Histogram(num_bins, weight_type=weight_type)
         p_new.compute_pvals_and_weights(
             train_data,
             weights=weights,
@@ -291,6 +296,7 @@ def train(
         ],
         report
     )
+    report.add_text("Max entropy: {}".format(p_theta.max_entropy()))
     report.save()
 
     heatmap_video = np.stack(heatmap_imgs)
@@ -310,10 +316,21 @@ def train(
             logger.get_snapshot_dir() + '/samples.gif',
             sample_video,
         )
-        vwrite(
+        gif(
             logger.get_snapshot_dir() + '/heatmaps.gif',
             heatmap_video,
         )
+        report.add_image(
+            logger.get_snapshot_dir() + '/samples.gif',
+            "Samples GIF",
+            is_url=True,
+        )
+        report.add_image(
+            logger.get_snapshot_dir() + '/heatmaps.gif',
+            "Heatmaps GIF",
+            is_url=True,
+        )
+        report.save()
     except ImportError as e:
         print(e)
         print("Install array2gif with `pip install array2gif`")

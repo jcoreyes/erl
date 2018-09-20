@@ -176,7 +176,7 @@ def average_every_n_elements(arr, n):
     )
 
 
-def gif(filename, array, fps=10, scale=1.0):
+def gif(filename, array, fps=10):
     """Creates a gif given a stack of images using moviepy
     Notes
     -----
@@ -194,8 +194,6 @@ def gif(filename, array, fps=10, scale=1.0):
         A numpy array that contains a sequence of images
     fps : int
         frames per second (default: 10)
-    scale : float
-        how much to rescale each image by (default: 1.0)
     """
 
     # ensure that the file has the .gif extension
@@ -207,6 +205,6 @@ def gif(filename, array, fps=10, scale=1.0):
         array = array[..., np.newaxis] * np.ones(3)
 
     # make the moviepy clip
-    clip = ImageSequenceClip(list(array), fps=fps).resize(scale)
+    clip = ImageSequenceClip(list(array), fps=fps)
     clip.write_gif(filename, fps=fps)
     return clip

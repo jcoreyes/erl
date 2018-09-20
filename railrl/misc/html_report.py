@@ -79,7 +79,7 @@ class HTMLReport:
         sio.close()
         return encoded
 
-    def add_image(self, im, txt='', width=None, font_pct=100):
+    def add_image(self, im, txt='', width=None, font_pct=100, is_url=False):
         if width is None:
             width = self.default_image_width
         if self.t is None or self.row_image_count >= self.images_per_row:
@@ -88,18 +88,24 @@ class HTMLReport:
             # with tr():
             with td(style="word-wrap: break-word;", halign="center", valign="top"):
                 with p():
-                    img(
-                        style="width:%dpx" % width,
-                        src=r'data:image/png;base64,' + self._encode_image(im)
-                    )
-                    br()
-                    p(
-                        txt,
-                        style='width:{}px; word-wrap: break-word; white-space: pre-wrap; font-size: {}%;'.format(
-                            width,
-                            font_pct
+                    if is_url:
+                        img(
+                            style="width:%dpx" % width,
+                            src=im,
                         )
-                    )
+                    else:
+                        img(
+                            style="width:%dpx" % width,
+                            src=r'data:image/png;base64,' + self._encode_image(im)
+                        )
+                        br()
+                        p(
+                            txt,
+                            style='width:{}px; word-wrap: break-word; white-space: pre-wrap; font-size: {}%;'.format(
+                                width,
+                                font_pct
+                            )
+                        )
         self.row_image_count += 1
 
     def new_row(self):
