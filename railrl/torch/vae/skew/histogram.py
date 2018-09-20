@@ -10,11 +10,12 @@ import railrl.pythonplusplus as ppp
 from railrl.core import logger
 from railrl.misc import visualization_util as vu
 from railrl.misc.html_report import HTMLReport
+from railrl.misc.visualization_util import gif
 from railrl.torch.vae.skew.datasets import project_samples_square_np
 
 
 def visualize(epoch, vis_samples_np, histogram,
-              report, projection, n_vis=1000,
+              report, dynamics, n_vis=1000,
               xlim=(-1.5, 1.5),
               ylim=(-1.5, 1.5)):
     report.add_text("Epoch {}".format(epoch))
@@ -37,15 +38,35 @@ def visualize(epoch, vis_samples_np, histogram,
     if histogram.num_bins < 5:
         pvals_str = np.array2string(histogram.pvals, precision=3)
         report.add_text(pvals_str)
-    report.add_image(heatmap_img, "Epoch {} Heatmap".format(epoch))
+    report.add_image(heatmap_img, "Epoch {} Prob Heatmap".format(epoch))
+
+
+    plt.figure()
+    fig = plt.gcf()
+    ax = plt.gca()
+    heatmap_img = ax.imshow(
+        np.swapaxes(histogram.weights, 0, 1),  # imshow uses first axis as
+        # y-axis
+        extent=[-1, 1, -1, 1],
+        cmap=plt.get_cmap('plasma'),
+        interpolation='nearest',
+        aspect='auto',
+        origin='bottom',  # <-- Important! By default top left is (0, 0)
+    )
+    divider = make_axes_locatable(ax)
+    legend_axis = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(heatmap_img, cax=legend_axis, orientation='vertical')
+    heatmap_img = vu.save_image(fig)
+    if histogram.num_bins < 5:
+        pvals_str = np.array2string(histogram.pvals, precision=3)
+        report.add_text(pvals_str)
+    report.add_image(heatmap_img, "Epoch {} Weight Heatmap".format(epoch))
 
 
     plt.figure()
     plt.suptitle("Epoch {}".format(epoch))
     generated_samples = histogram.sample(n_vis)
-    projected_generated_samples = projection(
-        generated_samples,
-    )
+    projected_generated_samples = dynamics(generated_samples)
     plt.subplot(3, 1, 1)
     plt.plot(generated_samples[:, 0], generated_samples[:, 1], '.')
     if xlim is not None:
@@ -109,6 +130,7 @@ class Histogram(object):
             self.num_bins_total, 2
         )
         self.weight_type = weight_type
+        self.weights = np.ones((self.num_bins, self.num_bins))
 
     def sample(self, n_samples):
         idxs = np.random.choice(
@@ -120,8 +142,13 @@ class Histogram(object):
         samples = self.bin_centers_flat[idxs]
         return samples
 
-    def compute_pvals_and_weights(self, data):
-        H, *_ = np.histogram2d(data[:, 0], data[:, 1], self.num_bins)
+    def compute_pvals_and_weights(self, data, weights=None):
+        H, *_ = np.histogram2d(
+            data[:, 0],
+            data[:, 1],
+            self.num_bins,
+            weights=weights,
+        )
         self.pvals = H.astype(np.float32) / len(data)
         prob = np.maximum(self.pvals, 1. / len(data))
         if self.weight_type == 'inv_p':
@@ -155,18 +182,29 @@ class Histogram(object):
         return entropy(self.uniform_distrib, self.pvals.flatten())
 
     def tv_to_uniform(self):
-        return max(np.abs(self.pvals - self.uniform_distrib[0]).flatten())
+        return sum(np.abs(self.pvals - self.uniform_distrib[0]).flatten())
 
 
 def train_from_variant(variant):
     train(full_variant=variant, **variant)
 
 
+class Dynamics(object):
+    def __init__(self, projection, noise):
+        self.projection = projection
+        self.noise = noise
+
+    def __call__(self, samples):
+        new_samples = samples + self.noise * np.random.randn(
+            *samples.shape
+        )
+        return self.projection(new_samples)
+
+
 def train(
         dataset_generator,
         n_start_samples,
         projection=project_samples_square_np,
-        histogram=None,
         n_samples_to_add_per_epoch=1000,
         n_epochs=100,
         save_period=10,
@@ -176,12 +214,11 @@ def train(
         num_bins=5,
         **kwargs
 ):
-    if histogram is None:
-        histogram = Histogram(num_bins)
     report = HTMLReport(
         logger.get_snapshot_dir() + '/report.html',
         images_per_row=3,
         )
+    dynamics = Dynamics(projection, dynamics_noise)
     if full_variant:
         report.add_header("Variant")
         report.add_text(
@@ -199,30 +236,40 @@ def train(
     train_datas = []
     heatmap_imgs = []
     sample_imgs = []
+    entropies = []
+    tvs_to_uniform = []
+    """
+    p_theta = previous iteration's model
+    p_new = this iteration's distribution
+    """
+    p_theta = Histogram(num_bins)
     for epoch in range(n_epochs):
-        if n_samples_to_add_per_epoch > 0:
-            samples = histogram.sample(n_samples_to_add_per_epoch)
-
-            new_samples = samples + dynamics_noise * np.random.randn(
-                *samples.shape
-            )
-            projected_samples = projection(new_samples)
-            if append_all_data:
-                train_data = np.vstack((train_data, projected_samples))
-            else:
-                train_data = np.vstack((orig_train_data,
-                                        projected_samples))
         logger.record_tabular('Epoch', epoch)
-        logger.record_tabular('Entropy ', histogram.entropy())
-        logger.record_tabular('kl from uniform', histogram.kl_from_uniform())
-        logger.record_tabular('Tv to uniform', histogram.tv_to_uniform())
-        histogram.compute_pvals_and_weights(train_data)
-        histogram.reweight_pvals()
+        logger.record_tabular('Entropy ', p_theta.entropy())
+        logger.record_tabular('KL from uniform', p_theta.kl_from_uniform())
+        logger.record_tabular('TV to uniform', p_theta.tv_to_uniform())
+        entropies.append(p_theta.entropy())
+        tvs_to_uniform.append(p_theta.tv_to_uniform())
+
+        p_new = Histogram(num_bins)
+
+        samples = p_theta.sample(n_samples_to_add_per_epoch)
+        empirical_samples = dynamics(samples)
+
+        if append_all_data:
+            train_data = np.vstack((train_data, empirical_samples))
+        else:
+            train_data = np.vstack((orig_train_data, empirical_samples))
+
+        weights = p_theta.compute_weights(train_data)
+        p_new.compute_pvals_and_weights(
+            train_data,
+            weights=weights,
+        )
         if epoch == 0 or (epoch + 1) % save_period == 0:
             train_datas.append(train_data)
             heatmap_img, sample_img = (
-                visualize(epoch, train_data, histogram,
-                          report, projection)
+                visualize(epoch, train_data, p_theta, report, dynamics)
             )
             heatmap_imgs.append(heatmap_img)
             sample_imgs.append(sample_img)
@@ -235,7 +282,15 @@ def train(
             Image.fromarray(sample_img).save(
                 logger.get_snapshot_dir() + '/samples{}.png'.format(epoch)
             )
+        p_theta = p_new
         logger.dump_tabular()
+    plot_curves(
+        [
+            ("Entropy", entropies),
+            ("TVs to Uniform", tvs_to_uniform),
+        ],
+        report
+    )
     report.save()
 
     heatmap_video = np.stack(heatmap_imgs)
@@ -244,8 +299,34 @@ def train(
     vwrite(
         logger.get_snapshot_dir() + '/heatmaps.mp4',
         heatmap_video,
-        )
+    )
     vwrite(
         logger.get_snapshot_dir() + '/samples.mp4',
         sample_video,
+    )
+    try:
+        from array2gif import write_gif
+        gif(
+            logger.get_snapshot_dir() + '/samples.gif',
+            sample_video,
         )
+        vwrite(
+            logger.get_snapshot_dir() + '/heatmaps.gif',
+            heatmap_video,
+        )
+    except ImportError as e:
+        print(e)
+        print("Install array2gif with `pip install array2gif`")
+
+
+def plot_curves(names_and_data, report):
+    n_curves = len(names_and_data)
+    plt.figure()
+    for i, (name, data) in enumerate(names_and_data):
+        j = i + 1
+        plt.subplot(j, n_curves, j)
+        plt.plot(np.array(data))
+        plt.title(name)
+    fig = plt.gcf()
+    img = vu.save_image(fig)
+    report.add_image(img, "Final Distribution")

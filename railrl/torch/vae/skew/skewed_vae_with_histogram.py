@@ -231,13 +231,17 @@ def train(
     for epoch in sv.progressbar(range(n_epochs)):
         epoch_stats = defaultdict(list)
         if n_samples_to_add_per_epoch > 0:
-            if train_vae_from_histogram:
-                vae_samples = histogram.sample(n_samples_to_add_per_epoch)
-            else:
-                vae_samples = sv.generate_vae_samples_np(
-                    decoder,
-                    n_samples_to_add_per_epoch,
-                )
+            # if train_vae_from_histogram:
+            #     vae_samples = histogram.sample(n_samples_to_add_per_epoch)
+            # else:
+            #     vae_samples = sv.generate_vae_samples_np(
+            #         decoder,
+            #         n_samples_to_add_per_epoch,
+            #     )
+            vae_samples = sv.generate_vae_samples_np(
+                decoder,
+                n_samples_to_add_per_epoch,
+            )
 
             new_samples = vae_samples + dynamics_noise * np.random.randn(
                 *vae_samples.shape
@@ -288,9 +292,15 @@ def train(
             Image.fromarray(sample_img).save(
                 logger.get_snapshot_dir() + '/samples{}.png'.format(epoch)
             )
+        histogram.reweight_pvals()
         for i, indexed_batch in enumerate(train_dataloader):
             idxs, batch = indexed_batch
-            batch = Variable(batch[0].float())
+            if train_vae_from_histogram:
+                batch = ptu.np_to_var(histogram.sample(
+                    batch[0].shape[0]
+                ))
+            else:
+                batch = Variable(batch[0].float())
 
             latents, means, log_vars, stds = encoder.get_encoding_and_suff_stats(
                 batch

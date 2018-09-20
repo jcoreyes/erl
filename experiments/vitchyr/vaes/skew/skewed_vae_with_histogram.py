@@ -73,8 +73,8 @@ if __name__ == '__main__':
             # False,
         ],
         'dynamics_noise': [
-            0.3,
-            # 0,
+            # 0.1,
+            0,
         ],
         'beta_schedule_kwargs.value': [
             # 1,
