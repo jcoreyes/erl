@@ -26,8 +26,10 @@ from railrl.core import logger
 from railrl.misc import visualization_util as vu
 from railrl.misc.html_report import HTMLReport
 from railrl.misc.ml_util import ConstantSchedule
+from railrl.torch.vae.skew.common import Dynamics, plot_curves
 from railrl.torch.vae.skew.datasets import project_samples_square_np
-from railrl.torch.vae.skew.histogram import Histogram
+from railrl.torch.vae.skew.histogram import Histogram, visualize_histogram
+from railrl.misc.visualization_util import gif
 
 K = 6
 
@@ -35,56 +37,12 @@ K = 6
 Plotting
 """
 
-def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
-              report, projection,
-              histogram,
-              n_vis=1000, xlim=(-1.5, 1.5),
-              ylim=(-1.5, 1.5)):
-    dynamics_noise = full_variant['dynamics_noise']
-    report.add_text("Epoch {}".format(epoch))
-
-    plt.figure()
-    fig = plt.gcf()
-    ax = plt.gca()
-    heatmap_img = ax.imshow(
-        np.swapaxes(histogram.pvals, 0, 1),  # imshow uses first axis as y-axis
-        extent=[-1, 1, -1, 1],
-        cmap=plt.get_cmap('plasma'),
-        interpolation='nearest',
-        aspect='auto',
-        origin='bottom',  # <-- Important! By default top left is (0, 0)
-    )
-    divider = make_axes_locatable(ax)
-    legend_axis = divider.append_axes('right', size='5%', pad=0.05)
-    fig.colorbar(heatmap_img, cax=legend_axis, orientation='vertical')
-    heatmap_img = vu.save_image(fig)
-    if histogram.num_bins < 5:
-        pvals_str = np.array2string(histogram.pvals, precision=3)
-        report.add_text(pvals_str)
-    report.add_image(heatmap_img, "Epoch {} Heatmap".format(epoch))
-
-    plt.figure()
-    fig = plt.gcf()
-    ax = plt.gca()
-    heatmap_img = ax.imshow(
-        np.swapaxes(histogram.weights, 0, 1),  # imshow uses first axis as
-        # y-axis
-        extent=[-1, 1, -1, 1],
-        cmap=plt.get_cmap('plasma'),
-        interpolation='nearest',
-        aspect='auto',
-        origin='bottom',  # <-- Important! By default top left is (0, 0)
-    )
-    divider = make_axes_locatable(ax)
-    legend_axis = divider.append_axes('right', size='5%', pad=0.05)
-    fig.colorbar(heatmap_img, cax=legend_axis, orientation='vertical')
-    heatmap_img = vu.save_image(fig)
-    if histogram.num_bins < 5:
-        pvals_str = np.array2string(histogram.pvals, precision=3)
-        report.add_text(pvals_str)
-    report.add_image(heatmap_img, "Epoch {} Weight Heatmap".format(epoch))
-
-
+def visualize_samples(
+        epoch, vis_samples_np, encoder, decoder,
+        report, dynamics,
+        n_vis=1000, xlim=(-1.5, 1.5),
+        ylim=(-1.5, 1.5)
+):
     plt.figure()
     plt.suptitle("Epoch {}".format(epoch))
     n_samples = len(vis_samples_np)
@@ -97,12 +55,7 @@ def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
     generated_samples = decoder.reconstruct(
         Variable(torch.randn(n_vis, z_dim))
     ).data.numpy()
-    generated_samples = generated_samples + dynamics_noise * np.random.randn(
-        *generated_samples.shape
-    )
-    projected_generated_samples = projection(
-        generated_samples,
-    )
+    projected_generated_samples = dynamics(generated_samples)
     plt.subplot(2, 2, 1)
     plt.plot(generated_samples[:, 0], generated_samples[:, 1], '.')
     if xlim is not None:
@@ -137,7 +90,7 @@ def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
     sample_img = vu.save_image(fig)
     report.add_image(sample_img, "Epoch {} Samples".format(epoch))
 
-    return heatmap_img, sample_img
+    return sample_img
 
 
 def train_from_variant(variant):
@@ -148,9 +101,6 @@ def train(
         dataset_generator,
         n_start_samples,
         projection=project_samples_square_np,
-        encoder=None,
-        decoder=None,
-        histogram=None,
         bs=32,
         n_samples_to_add_per_epoch=1000,
         n_epochs=100,
@@ -167,39 +117,42 @@ def train(
         decoder_output_var='learned',
         num_bins=5,
         train_vae_from_histogram=False,
+        weight_type='sqrt_inv_p',
         **kwargs
 ):
-    if histogram is None:
-        histogram = Histogram(num_bins)
-    if encoder is None:
-        encoder = sv.Encoder(
-            nn.Linear(2, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, z_dim * 2),
-        )
-    if decoder is None:
-        if decoder_output_var == 'learned':
-            last_layer = nn.Linear(hidden_size, 4)
-        else:
-            last_layer = nn.Linear(hidden_size, 2)
-        decoder = sv.Decoder(
-            nn.Linear(z_dim, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            last_layer,
-            output_var=decoder_output_var,
+
+    """
+    Sanitize Inputs
+    """
+    encoder = sv.Encoder(
+        nn.Linear(2, hidden_size),
+        nn.ReLU(),
+        nn.Linear(hidden_size, hidden_size),
+        nn.ReLU(),
+        nn.Linear(hidden_size, z_dim * 2),
+    )
+    if decoder_output_var == 'learned':
+        last_layer = nn.Linear(hidden_size, 4)
+    else:
+        last_layer = nn.Linear(hidden_size, 2)
+    decoder = sv.Decoder(
+        nn.Linear(z_dim, hidden_size),
+        nn.ReLU(),
+        nn.Linear(hidden_size, hidden_size),
+        nn.ReLU(),
+        last_layer,
+        output_var=decoder_output_var,
         )
     if beta_schedule_class is None:
         beta_schedule = ConstantSchedule(1)
     else:
         beta_schedule = beta_schedule_class(**beta_schedule_kwargs)
+
     report = HTMLReport(
         logger.get_snapshot_dir() + '/report.html',
         images_per_row=3,
     )
+    dynamics = Dynamics(projection, dynamics_noise)
     if full_variant:
         report.add_header("Variant")
         report.add_text(
@@ -207,7 +160,7 @@ def train(
                 ppp.dict_to_safe_json(
                     full_variant,
                     sort=True),
-               indent=2,
+                indent=2,
             )
         )
 
@@ -223,38 +176,51 @@ def train(
     log_probs = []
     encoders = []
     decoders = []
-    train_datas = []
     heatmap_imgs = []
     sample_imgs = []
     entropies = []
     tvs_to_uniform = []
+    """
+    p_theta = this iteration's model
+    """
+    p_theta = Histogram(num_bins, weight_type=weight_type)
     for epoch in sv.progressbar(range(n_epochs)):
         epoch_stats = defaultdict(list)
         if n_samples_to_add_per_epoch > 0:
-            # if train_vae_from_histogram:
-            #     vae_samples = histogram.sample(n_samples_to_add_per_epoch)
-            # else:
-            #     vae_samples = sv.generate_vae_samples_np(
-            #         decoder,
-            #         n_samples_to_add_per_epoch,
-            #     )
             vae_samples = sv.generate_vae_samples_np(
                 decoder,
                 n_samples_to_add_per_epoch,
             )
-
-            new_samples = vae_samples + dynamics_noise * np.random.randn(
-                *vae_samples.shape
-            )
-            projected_samples = projection(new_samples)
+            projected_samples = dynamics(vae_samples)
             if append_all_data:
                 train_data = np.vstack((train_data, projected_samples))
             else:
                 train_data = np.vstack((orig_train_data, projected_samples))
-        indexed_train_data = sv.IndexedData(train_data)
+        p_theta = Histogram(num_bins, weight_type=weight_type)
+        p_theta.compute_pvals_and_per_bin_weights(train_data)
+        if epoch == 0 or (epoch + 1) % save_period == 0:
+            epochs.append(epoch)
+            encoders.append(copy.deepcopy(encoder))
+            decoders.append(copy.deepcopy(decoder))
+            report.add_text("Epoch {}".format(epoch))
+            heatmap_img = visualize_histogram(epoch, p_theta, report)
+            sample_img = visualize_samples(
+                epoch, train_data, encoder, decoder, report, dynamics,
+            )
+            heatmap_imgs.append(heatmap_img)
+            sample_imgs.append(sample_img)
+            report.save()
 
-        histogram.compute_pvals_and_weights(train_data)
-        all_weights = histogram.compute_weights(train_data)
+            from PIL import Image
+            Image.fromarray(heatmap_img).save(
+                logger.get_snapshot_dir() + '/heatmap{}.png'.format(epoch)
+            )
+            Image.fromarray(sample_img).save(
+                logger.get_snapshot_dir() + '/samples{}.png'.format(epoch)
+            )
+
+        indexed_train_data = sv.IndexedData(train_data)
+        all_weights = p_theta.compute_per_elem_weights(train_data)
         all_weights_pt = ptu.np_to_var(all_weights, requires_grad=False)
         if sum(all_weights) == 0:
             all_weights[:] = 1
@@ -272,31 +238,10 @@ def train(
                 drop_last=False,
             ),
         )
-        if epoch == 0 or (epoch + 1) % save_period == 0:
-            epochs.append(epoch)
-            encoders.append(copy.deepcopy(encoder))
-            decoders.append(copy.deepcopy(decoder))
-            train_datas.append(train_data)
-            heatmap_img, sample_img = (
-                visualize(epoch, train_data, encoder, decoder, full_variant,
-                             report, projection, histogram)
-            )
-            heatmap_imgs.append(heatmap_img)
-            sample_imgs.append(sample_img)
-            report.save()
-
-            from PIL import Image
-            Image.fromarray(heatmap_img).save(
-                logger.get_snapshot_dir() + '/heatmap{}.png'.format(epoch)
-            )
-            Image.fromarray(sample_img).save(
-                logger.get_snapshot_dir() + '/samples{}.png'.format(epoch)
-            )
-        histogram.reweight_pvals()
         for i, indexed_batch in enumerate(train_dataloader):
             idxs, batch = indexed_batch
             if train_vae_from_histogram:
-                batch = ptu.np_to_var(histogram.sample(
+                batch = ptu.np_to_var(p_theta.sample(
                     batch[0].shape[0]
                 ))
             else:
@@ -331,16 +276,16 @@ def train(
         losses.append(np.mean(epoch_stats['losses']))
         kls.append(np.mean(epoch_stats['kls']))
         log_probs.append(np.mean(epoch_stats['log_probs']))
-        entropies.append(histogram.entropy())
-        tvs_to_uniform.append(histogram.tv_to_uniform())
+        entropies.append(p_theta.entropy())
+        tvs_to_uniform.append(p_theta.tv_to_uniform())
 
         logger.record_tabular("Epoch", epoch)
         logger.record_tabular("VAE Loss", np.mean(epoch_stats['losses']))
         logger.record_tabular("VAE KL", np.mean(epoch_stats['kls']))
         logger.record_tabular("VAE Log Prob", np.mean(epoch_stats['log_probs']))
-        logger.record_tabular('Entropy ', histogram.entropy())
-        logger.record_tabular('KL from uniform', histogram.kl_from_uniform())
-        logger.record_tabular('Tv to uniform', histogram.tv_to_uniform())
+        logger.record_tabular('Entropy ', p_theta.entropy())
+        logger.record_tabular('KL from uniform', p_theta.kl_from_uniform())
+        logger.record_tabular('Tv to uniform', p_theta.tv_to_uniform())
         logger.dump_tabular()
         logger.save_itr_params(epoch, {
             'encoder': encoder,
@@ -348,11 +293,18 @@ def train(
         })
 
     report.add_header("Training Curves")
-    results = epochs, encoders, decoders, train_datas, losses, kls, log_probs
-    sv.plot_uniformness(results, full_variant, projection, report=report)
-    sv.plot_curves(results, report=report)
+    # results = epochs, encoders, decoders, train_datas, losses, kls, log_probs
+    # sv.plot_uniformness(results, full_variant, projection, report=report)
+    plot_curves(
+        [
+            ("Training Loss", losses),
+            ("KL", kls),
+            ("Log Probs", log_probs),
+        ],
+        report,
+    )
     plot_non_vae_curves(entropies, tvs_to_uniform, report)
-    report.add_text("Max entropy: {}".format(histogram.max_entropy()))
+    report.add_text("Max entropy: {}".format(p_theta.max_entropy()))
     report.save()
 
     heatmap_video = np.stack(heatmap_imgs)
@@ -366,6 +318,25 @@ def train(
         logger.get_snapshot_dir() + '/samples.mp4',
         sample_video,
     )
+    gif(
+        logger.get_snapshot_dir() + '/samples.gif',
+        sample_video,
+    )
+    gif(
+        logger.get_snapshot_dir() + '/heatmaps.gif',
+        heatmap_video,
+    )
+    report.add_image(
+        logger.get_snapshot_dir() + '/samples.gif',
+        "Samples GIF",
+        is_url=True,
+    )
+    report.add_image(
+        logger.get_snapshot_dir() + '/heatmaps.gif',
+        "Heatmaps GIF",
+        is_url=True,
+    )
+    report.save()
 
 
 def plot_non_vae_curves(entropies, tvs_to_uniform, report):

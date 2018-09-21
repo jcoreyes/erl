@@ -49,9 +49,7 @@ if __name__ == '__main__':
 
     search_space = {
         'dataset_generator': [
-            # four_corners,
             empty_dataset,
-            # small_gaussian_data,
         ],
         'projection': [
             project_samples_square_np,
@@ -73,8 +71,7 @@ if __name__ == '__main__':
             # False,
         ],
         'dynamics_noise': [
-            # 0.1,
-            0,
+            0.2,
         ],
         'beta_schedule_kwargs.value': [
             # 1,
@@ -99,8 +96,8 @@ if __name__ == '__main__':
             # 0.05,
             'learned'
         ],
-        'num_bins': [10],
-        'train_vae_from_histogram': [True],
+        'num_bins': [20],
+        'train_vae_from_histogram': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
