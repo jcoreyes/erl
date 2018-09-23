@@ -21,7 +21,9 @@ if __name__ == "__main__":
                 reward_scale=100,
                 render=False,
                 collection_mode='online-parallel',
-                # collection_mode='online'
+                parallel_env_params=dict(
+                    num_workers=1,
+                )
             ),
             her_kwargs=dict(
                 observation_key='state_observation',
@@ -82,6 +84,7 @@ if __name__ == "__main__":
         'algo_kwargs.base_kwargs.max_path_length': [100],
         'env_kwargs.reward_type': [
             'angle_diff_and_hand_distance',
+            # 'angle_difference',
         ],
         'env_kwargs.reset_free':[True],
         'env_kwargs.target_pos_scale':[1]
@@ -90,13 +93,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_door_new_door_60_reset_free'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_door_60_reset_free_thicker_handle'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):

@@ -196,12 +196,16 @@ def generate_vae_dataset(variant):
     init_camera = variant.get('init_camera', None)
     dataset_path = variant.get('dataset_path', None)
     oracle_dataset = variant.get('oracle_dataset', False)
+    oracle_dataset_from_policy=variant.get('oracle_dataset_from_policy', False)
+    policy_file = variant.get('policy_file', None)
     n_random_steps = variant.get('n_random_steps', 100)
     vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
     save_file_prefix = variant.get('save_file_prefix', None)
     non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
     from multiworld.core.image_env import ImageEnv, unormalize_image
     from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+    import railrl.torch.pytorch_util as ptu
+    from railrl.misc.asset_loader import load_local_or_remote_file
     info = {}
     if dataset_path is not None:
         filename = local_path_from_s3_or_local_path(dataset_path)
@@ -253,17 +257,31 @@ def generate_vae_dataset(variant):
                 env.non_presampled_goal_img_is_garbage = non_presampled_goal_img_is_garbage
             env.reset()
             info['env'] = env
-
+            if oracle_dataset_from_policy:
+                policy_file = load_local_or_remote_file(policy_file)
+                policy = policy_file['policy']
+                if ptu.gpu_enabled():
+                    policy.cuda()
             dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
             for i in range(N):
-                if oracle_dataset:
+                if oracle_dataset_from_policy:
+                    obs = env.reset()
+                    policy.reset()
+                    for i in range(n_random_steps):
+                        policy_obs = np.hstack((
+                            obs['state_observation'],
+                            obs['state_desired_goal'],
+                        ))
+                        action, _ = policy.get_action(policy_obs)
+                        obs, _, _, _ = env.step(action)
+                elif oracle_dataset:
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
+                    obs = env.step(env.action_space.sample())[0]
                 else:
                     env.reset()
                     for _ in range(n_random_steps):
                         obs = env.step(env.action_space.sample())[0]
-                obs = env.step(env.action_space.sample())[0]
                 img = obs['image_observation']
                 dataset[i, :] = unormalize_image(img)
                 if show:
