@@ -88,15 +88,17 @@ if __name__ == "__main__":
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=5000,
+                N=100,
                 oracle_dataset=False,
                 use_cached=True,
-                oracle_dataset_from_policy=True,
+                oracle_dataset_from_policy=False,
+                random_and_oracle_policy_data=True,
+                random_and_oracle_policy_data_split=.5,
                 non_presampled_goal_img_is_garbage=True,
                 vae_dataset_specific_kwargs=dict(),
                 policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
                 n_random_steps=100,
-                show=False,
+                show=True,
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -106,11 +108,11 @@ if __name__ == "__main__":
                 use_linear_dynamics=False,
                 lr=1e-3,
                 # full_gaussian_decoder=False,
-                skew_config=dict(
-                    method='p_theta',
-                ),
-                full_gaussian_decoder=True,
-                skew_dataset=True,
+                # skew_config=dict(
+                #     method='p_theta',
+                # ),
+                # full_gaussian_decoder=True,
+                # skew_dataset=True,
             ),
             save_period=100,
         ),
@@ -118,7 +120,7 @@ if __name__ == "__main__":
 
     search_space = {
         'train_vae_variant.beta':[2.5],
-        'grill_variant.exploration_noise':[.3, .5, .8],
+        # 'grill_variant.exploration_noise':[.3, .5, .8],
         # 'train_vae_variant.algo_kwargs.gaussian_decoder_loss':[True, False]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

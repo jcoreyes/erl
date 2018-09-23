@@ -201,6 +201,8 @@ def generate_vae_dataset(variant):
     dataset_path = variant.get('dataset_path', None)
     oracle_dataset = variant.get('oracle_dataset', False)
     oracle_dataset_from_policy=variant.get('oracle_dataset_from_policy', False)
+    random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
+    random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
     policy_file = variant.get('policy_file', None)
     n_random_steps = variant.get('n_random_steps', 100)
     vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
@@ -222,12 +224,12 @@ def generate_vae_dataset(variant):
             save_file_prefix = env_id
         if save_file_prefix is None:
             save_file_prefix = env_class.__name__
-        filename = "/tmp/{}_N{}_{}_imsize{}_oracle{}.npy".format(
+        filename = "/tmp/{}_N{}_{}_imsize{}_random_oracle_split_{}.npy".format(
             save_file_prefix,
             str(N),
             init_camera.__name__ if init_camera else '',
             imsize,
-            oracle_dataset,
+            random_and_oracle_policy_data_split,
         )
         if use_cached and osp.isfile(filename):
             dataset = np.load(filename)
@@ -268,7 +270,23 @@ def generate_vae_dataset(variant):
                     policy.cuda()
             dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
             for i in range(N):
-                if oracle_dataset_from_policy:
+                if random_and_oracle_policy_data:
+                    num_random_steps = int(N*random_and_oracle_policy_data_split)
+                    if i < num_random_steps:
+                        env.reset()
+                        for _ in range(n_random_steps):
+                            obs = env.step(env.action_space.sample())[0]
+                    else:
+                        obs = env.reset()
+                        policy.reset()
+                        for _ in range(n_random_steps):
+                            policy_obs = np.hstack((
+                                obs['state_observation'],
+                                obs['state_desired_goal'],
+                            ))
+                            action, _ = policy.get_action(policy_obs)
+                            obs, _, _, _ = env.step(action)
+                elif oracle_dataset_from_policy:
                     obs = env.reset()
                     policy.reset()
                     for _ in range(n_random_steps):
