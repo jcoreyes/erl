@@ -62,13 +62,13 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
-            skew_config=dict(
-                method='p_theta',
-                power=0,
-            ),
-            skew_dataset=False,
+            # skew_config=dict(
+                # method='p_theta',
+                # power=0,
+            # ),
+            # skew_dataset=False,
             # full_gaussian_decoder=True,
-            gaussian_decoder=True,
+            gaussian_decoder_loss=True,
         ),
         vae=ConvVAESmall,
         # vae=ConvVAESmallDouble,
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'algo_kwargs.is_auto_encoder':[True, False],
+        # 'algo_kwargs.is_auto_encoder':[False],
         'beta':[1, 2.5, 5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
