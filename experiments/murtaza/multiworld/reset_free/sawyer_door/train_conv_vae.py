@@ -43,7 +43,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sawyer_hook_door_vae'
+    exp_prefix = 'test'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -57,10 +57,14 @@ if __name__ == "__main__":
             is_auto_encoder=False,
             batch_size=64,
             lr=1e-3,
+            # skew_config=dict(
+            #     method='squared_error',
+            #     power='0',
+            # ),
         ),
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
-            N=5000,
+            N=100,
             oracle_dataset=False,
             use_cached=True,
             oracle_dataset_from_policy=True,
@@ -79,10 +83,11 @@ if __name__ == "__main__":
             policy_file='09-22-sawyer-door-60-reset-free-thicker-handle/09-22-sawyer_door_60_reset_free_thicker_handle_2018_09_22_23_22_27_id000--s25274/params.pkl',
             n_random_steps=100,
             init_camera=sawyer_door_env_camera_v3,
-            show=True,
+            show=False,
         ),
         vae_kwargs=dict(
             input_channels=3,
+            imsize=48,
         ),
         save_period=100,
         beta=5,
