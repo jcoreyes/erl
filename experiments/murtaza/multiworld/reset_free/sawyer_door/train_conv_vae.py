@@ -48,7 +48,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'sawyer_hook_door_vae'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -63,8 +63,8 @@ if __name__ == "__main__":
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                method='p_theta',
-                power=0,
+                # method='p_theta',
+                # power=0,
             ),
             # full_gaussian_decoder=True,
         ),
@@ -75,7 +75,7 @@ if __name__ == "__main__":
         generate_vae_dataset_kwargs=dict(
             N=5000,
             oracle_dataset=False,
-            use_cached=False,
+            use_cached=True,
             oracle_dataset_from_policy=True,
             imsize=48,
             env_class=SawyerDoorHookEnv,
@@ -90,10 +90,10 @@ if __name__ == "__main__":
             ),
             non_presampled_goal_img_is_garbage=True,
             vae_dataset_specific_kwargs=dict(),
-            policy_file='09-22-sawyer-door-new-door-60-reset-free/09-22-sawyer_door_new_door_60_reset_free_2018_09_23_00_36_29_id000--s58797/params.pkl',
+            policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
             n_random_steps=100,
             init_camera=sawyer_door_env_camera_v3,
-            show=True,
+            show=False,
         ),
         vae_kwargs=dict(
             input_channels=3,

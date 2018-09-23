@@ -1,5 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.experiments.murtaza.multiworld import her_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
@@ -51,7 +52,17 @@ if __name__ == "__main__":
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
         init_camera=sawyer_door_env_camera_v3,
-        env_id='SawyerDoorHookResetFreeEnv-v2',
+        # env_id='SawyerDoorHookResetFreeEnv-v2',
+        env_class=SawyerDoorHookEnv,
+        env_kwargs=dict(
+            goal_low=(-0.1, 0.45, 0.15, 0),
+            goal_high=(0.0, 0.65, .225, 1.0472),
+            hand_low=(-0.1, 0.45, 0.15),
+            hand_high=(0., 0.65, .225),
+            max_angle=1.0472,
+            xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
+            reset_free=True,
+        ),
         imsize=48,
         do_state_exp=True,
         save_video_period=50,
@@ -77,7 +88,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_door_new_door_60_reset_free'
+    exp_prefix = 'sawyer_door_new_door_60_reset_free_space_fix'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
