@@ -185,13 +185,15 @@ class ConvVAETrainer(Serializable):
             latents, mus, logvar, stds = self.model.get_encoding_and_suff_stats(imgs)
             true_prior = Normal(0, 1)
             vae_dist = Normal(mus, stds)
-            p_z = true_prior.log_prob(latents).sum(dim=1, keepdim=True).exp()
-            q_z =vae_dist.log_prob(latents).sum(dim=1, keepdim=True).exp()
+            log_p_z = true_prior.log_prob(latents).sum(dim=1, keepdim=True)
+            log_q_z =vae_dist.log_prob(latents).sum(dim=1, keepdim=True)
             dec_mu, dec_var = self.model.decode_full(latents)
             decoder_dist = Normal(dec_mu, dec_var.pow(.5))
-            d_x = decoder_dist.log_prob(imgs).sum(dim=1, keepdim=True).exp()
-            p_theta_x = ptu.get_numpy(p_z/(q_z+1e-8) * d_x)
-            return 1/np.sqrt(p_theta_x)
+            log_d_x = decoder_dist.log_prob(imgs).sum(dim=1, keepdim=True)
+            log_p_theta_x = -1/2*ptu.get_numpy(log_p_z - (log_q_z+1e-8) + log_d_x)
+            log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
+            p_theta_x_shifted = log_p_theta_x_prime.exp()
+            return p_theta_x_shifted
         else:
             raise NotImplementedError('Method {} not supported'.format(method))
 
@@ -269,7 +271,7 @@ class ConvVAETrainer(Serializable):
         input = input.view(-1, self.input_channels*self.imsize**2)
         log_probs = prior.log_prob(input)
         vals = log_probs.sum(dim=1, keepdim=True)
-        return vals
+        return vals.mean()
 
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
         self.model.train()
@@ -292,12 +294,11 @@ class ConvVAETrainer(Serializable):
             if self.full_gaussian_decoder:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(next_obs)
                 dec_mu, dec_var = self.model.decode_full(latents)
-                gauss_loss = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
+                gaussian_log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
                 recon_batch = dec_mu
                 kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
-                loss = -1*gauss_loss + beta * kle
-                loss = loss.mean()
-                bce = gauss_loss
+                loss = -1*gaussian_log_prob + beta * kle
+                bce = gaussian_log_prob
             else:
                 recon_batch, mu, logvar = self.model(next_obs)
                 bce = self.logprob(recon_batch, next_obs, mu, logvar)
