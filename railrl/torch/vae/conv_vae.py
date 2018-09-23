@@ -6,6 +6,7 @@ import torch
 import torch.utils.data
 from torch import nn, optim
 from torch.autograd import Variable
+from torch.distributions import Normal
 from torch.nn import functional as F
 from torchvision.utils import save_image
 from railrl.misc.eval_util import create_stats_ordered_dict
@@ -45,6 +46,7 @@ class ConvVAETrainer(Serializable):
             skew_dataset=False,
             skew_config=None,
             gaussian_decoder_loss=False,
+            full_gaussian_decoder=False,
     ):
         self.quick_init(locals())
         if skew_config is None:
@@ -97,6 +99,7 @@ class ConvVAETrainer(Serializable):
         self.skew_dataset = skew_dataset
         self.skew_config = skew_config
         self.gaussian_decoder_loss = gaussian_decoder_loss
+        self.full_gaussian_decoder=full_gaussian_decoder
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
                 train_dataset,
@@ -177,6 +180,18 @@ class ConvVAETrainer(Serializable):
             ) ** power
         elif method == 'kl':
             return self._kl_np_to_np(self.train_dataset) ** power
+        elif method == 'p_theta':
+            imgs = ptu.np_to_var(normalize_image(self.train_dataset))
+            latents, mus, logvar, stds = self.model.get_encoding_and_suff_stats(imgs)
+            true_prior = Normal(0, 1)
+            vae_dist = Normal(mus, logvar.exp())
+            p_z = true_prior.log_prob(latents).exp()
+            q_z =vae_dist.log_prob(latents).exp()
+            dec_mu, dec_var = self.model.decode_full(latents)
+            decoder_dist = Normal(dec_mu, dec_var)
+            d_x = decoder_dist.log_prob(imgs).exp().sum(dim=1, keepdim=True)
+            p_theta_x = ptu.get_numpy(p_z/q_z * d_x)
+            return 1/np.sqrt(p_theta_x)
         else:
             raise NotImplementedError('Method {} not supported'.format(method))
 
@@ -247,6 +262,15 @@ class ConvVAETrainer(Serializable):
         prediction = self.model.linear_constraint_fc(action_obs_pair)
         return torch.norm(prediction - latent_next_obs) ** 2 / self.batch_size
 
+    def compute_gaussian_log_prob(self, input, dec_mu, dec_var):
+        dec_mu = dec_mu.view(-1, self.input_channels*self.imsize**2)
+        dec_var = dec_var.view(-1, self.input_channels*self.imsize**2)
+        prior = Normal(dec_mu, dec_var.pow(0.5))
+        input = input.view(-1, self.input_channels*self.imsize**2)
+        log_probs = prior.log_prob(input)
+        vals = log_probs.sum(dim=1, keepdim=True)
+        return vals
+
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
         self.model.train()
         losses = []
@@ -265,17 +289,28 @@ class ConvVAETrainer(Serializable):
                 obs = None
                 actions = None
             self.optimizer.zero_grad()
-            recon_batch, mu, logvar = self.model(next_obs)
-            bce = self.logprob(recon_batch, next_obs, mu, logvar)
-            kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
-            if self.use_linear_dynamics:
-                linear_dynamics_loss = self.state_linearity_loss(
-                    obs, next_obs, actions
-                )
-                loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
-                linear_losses.append(linear_dynamics_loss.data[0])
+            if self.full_gaussian_decoder:
+                latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(next_obs)
+                dec_mu, dec_var = self.model.decode_full(latents)
+                gauss_loss = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
+                recon_batch = dec_mu
+                kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
+                loss = -1*gauss_loss + beta * kle
+                loss = loss.mean()
+                bce = gauss_loss
             else:
-                loss = bce + beta * kle
+                recon_batch, mu, logvar = self.model(next_obs)
+                bce = self.logprob(recon_batch, next_obs, mu, logvar)
+                kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
+
+                if self.use_linear_dynamics:
+                    linear_dynamics_loss = self.state_linearity_loss(
+                        obs, next_obs, actions
+                    )
+                    loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
+                    linear_losses.append(linear_dynamics_loss.data[0])
+                else:
+                    loss = bce + beta * kle
             loss.backward()
 
             losses.append(loss.data[0])
@@ -325,10 +360,20 @@ class ConvVAETrainer(Serializable):
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(10):
             data = self.get_batch(train=False)
-            recon_batch, mu, logvar = self.model(data)
-            bce = self.logprob(recon_batch, data, mu, logvar)
-            kle = self.kl_divergence(recon_batch, data, mu, logvar)
-            loss = bce + beta * kle
+            if self.full_gaussian_decoder:
+                latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(data)
+                dec_mu, dec_var = self.model.decode_full(latents)
+                gauss_loss = self.compute_gaussian_log_prob(data, dec_mu, dec_var)
+                recon_batch = dec_mu
+                kle = self.kl_divergence(recon_batch, data, mu, logvar)
+                loss = -1*gauss_loss + beta * kle
+                loss = loss.mean()
+                bce = gauss_loss
+            else:
+                recon_batch, mu, logvar = self.model(data)
+                bce = self.logprob(recon_batch, data, mu, logvar)
+                kle = self.kl_divergence(recon_batch, data, mu, logvar)
+                loss = bce + beta * kle
 
             z_data = ptu.get_numpy(mu.cpu())
             for i in range(len(z_data)):
@@ -636,6 +681,156 @@ class ConvVAESmall(PyTorchModule):
                                self.imsize * self.imsize * self.input_channels)
 
         return self.sigmoid(x)
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        return self.decode(z), mu, logvar
+
+    def __getstate__(self):
+        d = super().__getstate__()
+        # Add these explicitly in case they were modified
+        d["_dist_mu"] = self.dist_mu
+        d["_dist_std"] = self.dist_std
+        return d
+
+    def __setstate__(self, d):
+        super().__setstate__(d)
+        self.dist_mu = d["_dist_mu"]
+        self.dist_std = d["_dist_std"]
+
+class ConvVAESmallDouble(PyTorchModule):
+    def __init__(
+            self,
+            representation_size,
+            init_w=1e-3,
+            input_channels=1,
+            imsize=48,
+            hidden_init=ptu.fanin_init,
+            output_activation=identity,
+            min_variance=1e-3,
+            state_size=0,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+        if min_variance is None:
+            self.log_min_variance = None
+        else:
+            self.log_min_variance = float(np.log(min_variance))
+
+        self.representation_size = representation_size
+        self.hidden_init = hidden_init
+        self.output_activation = output_activation
+        self.input_channels = input_channels
+        self.imsize = imsize
+        self.imlength = self.imsize ** 2 * self.input_channels
+        self.dist_mu = np.zeros(self.representation_size)
+        self.dist_std = np.ones(self.representation_size)
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+        self.init_w = init_w
+        self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=3)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=2)
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
+        self.kernel_out = 64
+        self.conv_output_dim = self.kernel_out * 9
+        self.fc1 = nn.Linear(self.conv_output_dim, representation_size)
+        self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
+        self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
+        self.conv4 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2)
+        self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2)
+        self.dec_mu = nn.ConvTranspose2d(16, input_channels, kernel_size=6,
+                                         stride=3)
+        self.dec_var = nn.ConvTranspose2d(16, input_channels, kernel_size=6,
+                                          stride=3)
+        self.epoch = 0
+        self.init_weights(init_w)
+
+    def init_weights(self, init_w):
+        self.hidden_init(self.conv1.weight)
+        self.conv1.bias.data.fill_(0)
+        self.hidden_init(self.conv2.weight)
+        self.conv2.bias.data.fill_(0)
+        self.hidden_init(self.conv3.weight)
+        self.conv3.bias.data.fill_(0)
+        self.hidden_init(self.conv4.weight)
+        self.conv4.bias.data.fill_(0)
+        self.hidden_init(self.conv5.weight)
+        self.conv5.bias.data.fill_(0)
+        self.hidden_init(self.dec_mu.weight)
+        self.dec_mu.bias.data.fill_(0)
+        self.hidden_init(self.dec_var.weight)
+        self.dec_var.bias.data.fill_(0)
+
+        self.hidden_init(self.fc1.weight)
+        self.fc1.bias.data.fill_(0)
+        self.fc1.weight.data.uniform_(-init_w, init_w)
+        self.fc1.bias.data.uniform_(-init_w, init_w)
+        self.hidden_init(self.fc2.weight)
+        self.fc2.bias.data.fill_(0)
+        self.fc2.weight.data.uniform_(-init_w, init_w)
+        self.fc2.bias.data.uniform_(-init_w, init_w)
+
+        self.fc3.weight.data.uniform_(-init_w, init_w)
+        self.fc3.bias.data.uniform_(-init_w, init_w)
+
+        # self.fc4.weight.data.uniform_(-init_w, init_w)
+        # self.fc4.bias.data.uniform_(-init_w, init_w)
+
+    def encode(self, input):
+        input = input.view(-1, self.imlength)
+        conv_input = input
+        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize,
+                                         self.imsize)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        h = x.view(-1, self.conv_output_dim)  # flatten
+        # h = self.relu(self.fc4(h))
+        mu = self.output_activation(self.fc1(h))
+        if self.log_min_variance is None:
+            logvar = self.output_activation(self.fc2(h))
+        else:
+            logvar = self.log_min_variance + torch.abs(self.fc2(h))
+
+        return mu, logvar
+
+    def get_encoding_and_suff_stats(self, input):
+        mu, logvar = self.encode(input)
+        stds = (0.5 * logvar).exp()
+        epsilon = Variable(torch.randn(*mu.size()))
+        if ptu.gpu_enabled():
+            epsilon = epsilon.cuda()
+        latents = epsilon * stds + mu
+        return latents, mu, logvar, stds
+
+    def reparameterize(self, mu, logvar):
+        if self.training:
+            std = logvar.mul(0.5).exp_()
+            eps = ptu.Variable(std.data.new(std.size()).normal_())
+            return eps.mul(std).add_(mu)
+        else:
+            return mu
+
+    def decode(self, z):
+        h3 = self.relu(self.fc3(z))
+        h = h3.view(-1, self.kernel_out, 3, 3)
+        x = F.relu(self.conv4(h))
+        h = F.relu(self.conv5(x))
+        mu = self.dec_mu(h).view(-1,
+                                self.imsize * self.imsize * self.input_channels)
+        return self.output_activation(mu)
+
+    def decode_full(self, z):
+        h3 = self.relu(self.fc3(z))
+        h = h3.view(-1, self.kernel_out, 3, 3)
+        x = F.relu(self.conv4(h))
+        h = F.relu(self.conv5(x))
+        mu = self.dec_mu(h).view(-1,
+                                 self.imsize * self.imsize * self.input_channels)
+        var = self.dec_var(h).view(-1,
+                                   self.imsize * self.imsize * self.input_channels)
+        return mu, var.exp()
 
     def forward(self, x):
         mu, logvar = self.encode(x)

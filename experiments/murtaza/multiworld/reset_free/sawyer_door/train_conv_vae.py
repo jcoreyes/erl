@@ -3,7 +3,7 @@ from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, ConvVAESmall
+from railrl.torch.vae.conv_vae import ConvVAETrainer, ConvVAESmall, ConvVAESmallDouble
 from railrl.torch.grill.launcher import generate_vae_dataset
 
 def experiment(variant):
@@ -25,7 +25,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = ConvVAESmall(representation_size, **variant['vae_kwargs'])
+    m = variant['vae'](representation_size, **variant['vae_kwargs'])
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -57,22 +57,25 @@ if __name__ == "__main__":
     use_gpu = True
 
     variant = dict(
-        num_epochs=5000,
+        num_epochs=1000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                method='squared_error',
+                method='p_theta',
                 power=0,
             ),
+            full_gaussian_decoder=True,
         ),
+        # vae=ConvVAESmall,
+        vae=ConvVAESmallDouble,
         dump_skew_debug_plots=True,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
-            N=100,
+            N=10,
             oracle_dataset=False,
-            use_cached=True,
+            use_cached=False,
             oracle_dataset_from_policy=True,
             imsize=48,
             env_class=SawyerDoorHookEnv,
@@ -87,7 +90,7 @@ if __name__ == "__main__":
             ),
             non_presampled_goal_img_is_garbage=True,
             vae_dataset_specific_kwargs=dict(),
-            policy_file='09-22-sawyer-door-60-reset-free-thicker-handle/09-22-sawyer_door_60_reset_free_thicker_handle_2018_09_22_23_22_27_id000--s25274/params.pkl',
+            policy_file='09-22-sawyer-door-new-door-60-reset-free/09-22-sawyer_door_new_door_60_reset_free_2018_09_23_00_36_29_id000--s58797/params.pkl',
             n_random_steps=100,
             init_camera=sawyer_door_env_camera_v3,
             show=False,
