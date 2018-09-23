@@ -294,10 +294,10 @@ class ConvVAETrainer(Serializable):
             if self.full_gaussian_decoder:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(next_obs)
                 dec_mu, dec_var = self.model.decode_full(latents)
-                gaussian_log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
+                gaussian_log_prob = -1*self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
                 recon_batch = dec_mu
                 kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
-                loss = -1*gaussian_log_prob + beta * kle
+                loss = gaussian_log_prob + beta * kle
                 bce = gaussian_log_prob
             else:
                 recon_batch, mu, logvar = self.model(next_obs)
@@ -364,10 +364,10 @@ class ConvVAETrainer(Serializable):
             if self.full_gaussian_decoder:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(data)
                 dec_mu, dec_var = self.model.decode_full(latents)
-                gaussian_log_prob = self.compute_gaussian_log_prob(data, dec_mu, dec_var)
+                gaussian_log_prob = -1*self.compute_gaussian_log_prob(data, dec_mu, dec_var)
                 recon_batch = dec_mu
                 kle = self.kl_divergence(recon_batch, data, mu, logvar)
-                loss = -1*gaussian_log_prob + beta * kle
+                loss = gaussian_log_prob + beta * kle
                 bce = gaussian_log_prob
             else:
                 recon_batch, mu, logvar = self.model(data)
@@ -580,7 +580,7 @@ class ConvVAESmall(PyTorchModule):
             input_channels=1,
             imsize=48,
             hidden_init=ptu.fanin_init,
-            output_activation=identity,
+            output_activation=nn.Sigmoid,
             min_variance=1e-3,
             state_size=0,
     ):
@@ -600,7 +600,7 @@ class ConvVAESmall(PyTorchModule):
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)
         self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
+        self.output_activation = output_activation()
         self.init_w = init_w
         self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=3)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=2)
@@ -680,7 +680,7 @@ class ConvVAESmall(PyTorchModule):
         x = self.conv6(x).view(-1,
                                self.imsize * self.imsize * self.input_channels)
 
-        return self.sigmoid(x)
+        return self.output_activation(x)
 
     def forward(self, x):
         mu, logvar = self.encode(x)

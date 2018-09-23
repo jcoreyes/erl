@@ -3,6 +3,7 @@ from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
+from railrl.pythonplusplus import identity
 from railrl.torch.vae.conv_vae import ConvVAETrainer, ConvVAESmall, ConvVAESmallDouble
 from railrl.torch.grill.launcher import generate_vae_dataset
 
@@ -48,7 +49,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sawyer_hook_door_vae'
+    exp_prefix = 'sawyer_hook_door_vae_gaussian'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -61,15 +62,16 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
-            lr=1e-3,
             skew_config=dict(
                 method='p_theta',
                 power=0,
             ),
-            full_gaussian_decoder=True,
+            skew_dataset=False,
+            # full_gaussian_decoder=True,
+            gaussian_decoder=True,
         ),
-        # vae=ConvVAESmall,
-        vae=ConvVAESmallDouble,
+        vae=ConvVAESmall,
+        # vae=ConvVAESmallDouble,
         dump_skew_debug_plots=True,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
@@ -98,6 +100,7 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
+            output_activation=identity,
         ),
         save_period=100,
         beta=5,
@@ -105,7 +108,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'beta':[2.5]
+        'algo_kwargs.is_auto_encoder':[True, False],
+        'beta':[1, 2.5, 5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -120,5 +124,6 @@ if __name__ == "__main__":
                 use_gpu=use_gpu,
                 num_exps_per_instance=1,
                 snapshot_mode='gap_and_last',
-                snapshot_gap=500,
+                snapshot_gap=100,
+                skip_wait=True,
             )
