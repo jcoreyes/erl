@@ -3,14 +3,13 @@ from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_p
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment, grill_her_td3_full_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
+from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
         imsize=48,
-        env_class=SawyerDoorHookEnv,
         init_camera=sawyer_door_env_camera_v3,
+        env_class=SawyerDoorHookEnv,
         env_kwargs=dict(
             goal_low=(-0.1, 0.45, 0.15, 0),
             goal_high=(0.0, 0.65, .225, 1.0472),
@@ -69,11 +68,11 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
-                num_goals=100,
+                num_goals=1000,
                 use_cached_dataset=False,
-                policy_file='09-22-sawyer-door-new-door-60-reset-free/09-22-sawyer_door_new_door_60_reset_free_2018_09_23_00_36_29_id000--s58797/params.pkl',
+                policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
                 path_length=100,
-                show=True,
+                show=False,
             ),
             presampled_goals_path=None,
             presample_goals=True,
@@ -85,17 +84,17 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=1.0,
-            num_epochs=0,
-            dump_skew_debug_plots=True,
+            num_epochs=1000,
+            dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=10,
+                N=5000,
                 oracle_dataset=False,
                 use_cached=True,
                 oracle_dataset_from_policy=True,
                 non_presampled_goal_img_is_garbage=True,
                 vae_dataset_specific_kwargs=dict(),
-                policy_file='09-22-sawyer-door-new-door-60-reset-free/09-22-sawyer_door_new_door_60_reset_free_2018_09_23_00_36_29_id000--s58797/params.pkl',
+                policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
                 n_random_steps=100,
                 show=False,
             ),
@@ -106,12 +105,21 @@ if __name__ == "__main__":
                 do_scatterplot=False,
                 use_linear_dynamics=False,
                 lr=1e-3,
+                # full_gaussian_decoder=False,
+                skew_config=dict(
+                    method='p_theta',
+                ),
+                full_gaussian_decoder=True,
+                skew_dataset=True,
             ),
-            save_period=5,
+            save_period=100,
         ),
     )
 
     search_space = {
+        'train_vae_variant.beta':[2.5],
+        'grill_variant.exploration_noise':[.3, .5, .8],
+        # 'train_vae_variant.algo_kwargs.gaussian_decoder_loss':[True, False]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -123,7 +131,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'ec2'
-    # exp_prefix = 'sawyer_new_door_online_vae_60'
+    # exp_prefix = 'sawyer_hook_door_offline_vae'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

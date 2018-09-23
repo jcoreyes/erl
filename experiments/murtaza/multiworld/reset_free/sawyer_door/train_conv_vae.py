@@ -63,13 +63,13 @@ if __name__ == "__main__":
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                # method='p_theta',
-                # power=0,
+                method='p_theta',
+                power=0,
             ),
-            # full_gaussian_decoder=True,
+            full_gaussian_decoder=True,
         ),
-        vae=ConvVAESmall,
-        # vae=ConvVAESmallDouble,
+        # vae=ConvVAESmall,
+        vae=ConvVAESmallDouble,
         dump_skew_debug_plots=True,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
@@ -78,6 +78,7 @@ if __name__ == "__main__":
             use_cached=True,
             oracle_dataset_from_policy=True,
             imsize=48,
+            init_camera=sawyer_door_env_camera_v3,
             env_class=SawyerDoorHookEnv,
             env_kwargs=dict(
                 goal_low=(-0.1, 0.45, 0.15, 0),
@@ -92,7 +93,6 @@ if __name__ == "__main__":
             vae_dataset_specific_kwargs=dict(),
             policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
             n_random_steps=100,
-            init_camera=sawyer_door_env_camera_v3,
             show=False,
         ),
         vae_kwargs=dict(

@@ -123,6 +123,7 @@ def train_vae(variant, return_data=False):
     from railrl.torch.vae.conv_vae import (
         ConvVAE,
         ConvVAESmall,
+        ConvVAESmallDouble,
         SpatialVAE,
         AutoEncoder,
         ConvVAETrainer,
@@ -152,7 +153,10 @@ def train_vae(variant, return_data=False):
         if variant.get('imsize') == 84:
             m = ConvVAE(representation_size, **variant['vae_kwargs'])
         elif variant.get('imsize') == 48:
-            m = ConvVAESmall(representation_size, **variant['vae_kwargs'])
+            if variant['algo_kwargs']['full_gaussian_decoder']:
+                m = ConvVAESmallDouble(representation_size, **variant['vae_kwargs'])
+            else:
+                m = ConvVAESmall(representation_size, **variant['vae_kwargs'])
         else:
             raise NotImplementedError('Only support 84 and 48 images.')
     if ptu.gpu_enabled():
