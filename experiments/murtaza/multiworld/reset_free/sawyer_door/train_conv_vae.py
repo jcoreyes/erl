@@ -3,7 +3,7 @@ from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
+from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, ConvVAESmall
 from railrl.torch.grill.launcher import generate_vae_dataset
 
 def experiment(variant):
@@ -25,7 +25,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = ConvVAE(representation_size, **variant['vae_kwargs'])
+    m = ConvVAESmall(representation_size, **variant['vae_kwargs'])
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -38,6 +38,11 @@ def experiment(variant):
                      save_scatterplot=should_save_imgs)
         if should_save_imgs:
             t.dump_samples(epoch)
+            if variant['dump_skew_debug_plots']:
+                t.dump_best_reconstruction(epoch)
+                t.dump_worst_reconstruction(epoch)
+                t.dump_sampling_histogram(epoch)
+        t.update_train_weights()
 
 
 if __name__ == "__main__":
@@ -57,11 +62,12 @@ if __name__ == "__main__":
             is_auto_encoder=False,
             batch_size=64,
             lr=1e-3,
-            # skew_config=dict(
-            #     method='squared_error',
-            #     power='0',
-            # ),
+            skew_config=dict(
+                method='squared_error',
+                power=0,
+            ),
         ),
+        dump_skew_debug_plots=True,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
             N=100,
@@ -77,6 +83,7 @@ if __name__ == "__main__":
                 hand_high=(0., 0.65, .075),
                 max_angle=1.0472,
                 xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
+                reset_free=True,
             ),
             non_presampled_goal_img_is_garbage=True,
             vae_dataset_specific_kwargs=dict(),
