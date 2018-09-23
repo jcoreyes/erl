@@ -267,7 +267,7 @@ def generate_vae_dataset(variant):
                 if oracle_dataset_from_policy:
                     obs = env.reset()
                     policy.reset()
-                    for j in range(n_random_steps):
+                    for _ in range(n_random_steps):
                         policy_obs = np.hstack((
                             obs['state_observation'],
                             obs['state_desired_goal'],
@@ -282,7 +282,6 @@ def generate_vae_dataset(variant):
                     env.reset()
                     for _ in range(n_random_steps):
                         obs = env.step(env.action_space.sample())[0]
-                print(i)
                 img = obs['image_observation']
                 dataset[i, :] = unormalize_image(img)
                 if show:
