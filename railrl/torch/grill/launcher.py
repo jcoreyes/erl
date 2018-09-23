@@ -267,7 +267,7 @@ def generate_vae_dataset(variant):
                 if oracle_dataset_from_policy:
                     obs = env.reset()
                     policy.reset()
-                    for i in range(n_random_steps):
+                    for j in range(n_random_steps):
                         policy_obs = np.hstack((
                             obs['state_observation'],
                             obs['state_desired_goal'],
