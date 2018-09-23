@@ -364,12 +364,11 @@ class ConvVAETrainer(Serializable):
             if self.full_gaussian_decoder:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(data)
                 dec_mu, dec_var = self.model.decode_full(latents)
-                gauss_loss = self.compute_gaussian_log_prob(data, dec_mu, dec_var)
+                gaussian_log_prob = self.compute_gaussian_log_prob(data, dec_mu, dec_var)
                 recon_batch = dec_mu
                 kle = self.kl_divergence(recon_batch, data, mu, logvar)
-                loss = -1*gauss_loss + beta * kle
-                loss = loss.mean()
-                bce = gauss_loss
+                loss = -1*gaussian_log_prob + beta * kle
+                bce = gaussian_log_prob
             else:
                 recon_batch, mu, logvar = self.model(data)
                 bce = self.logprob(recon_batch, data, mu, logvar)
