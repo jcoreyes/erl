@@ -186,11 +186,11 @@ class ConvVAETrainer(Serializable):
             true_prior = Normal(0, 1)
             vae_dist = Normal(mus, stds)
             log_p_z = true_prior.log_prob(latents).sum(dim=1)
-            log_q_z =vae_dist.log_prob(latents).sum(dim=1)
+            log_q_z_given_x =vae_dist.log_prob(latents).sum(dim=1)
             dec_mu, dec_var = self.model.decode_full(latents)
             decoder_dist = Normal(dec_mu, dec_var.pow(.5))
-            log_d_x = decoder_dist.log_prob(imgs).sum(dim=1)
-            log_p_theta_x = -1/2*(log_p_z - (log_q_z+1e-8) + log_d_x)
+            log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
+            log_p_theta_x = -1/2*(log_p_z - log_q_z_given_x + log_d_x_given_z)
             log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
             p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
             return p_theta_x_shifted
@@ -267,7 +267,6 @@ class ConvVAETrainer(Serializable):
     def compute_gaussian_log_prob(self, input, dec_mu, dec_var):
         dec_mu = dec_mu.view(-1, self.input_channels*self.imsize**2)
         dec_var = dec_var.view(-1, self.input_channels*self.imsize**2)
-        dec_var = torch.ones_like(dec_var)
         prior = Normal(dec_mu, dec_var.pow(0.5))
         input = input.view(-1, self.input_channels*self.imsize**2)
         log_probs = prior.log_prob(input)
@@ -581,7 +580,8 @@ class ConvVAESmall(PyTorchModule):
             input_channels=1,
             imsize=48,
             hidden_init=ptu.fanin_init,
-            output_activation=nn.Sigmoid(),
+            encoder_activation='identity',
+            decoder_activation='identity',
             min_variance=1e-3,
             state_size=0,
     ):
@@ -594,14 +594,22 @@ class ConvVAESmall(PyTorchModule):
 
         self.representation_size = representation_size
         self.hidden_init = hidden_init
-        self.output_activation = output_activation
+        if encoder_activation == 'identity':
+            self.encoder_activation = identity
+        else:
+            raise EnvironmentError()
+        if decoder_activation == 'identity':
+            self.decoder_activation = identity
+        elif decoder_activation == 'sigmoid':
+            self.decoder_activation = nn.Sigmoid()
+        else:
+            raise EnvironmentError()
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize ** 2 * self.input_channels
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)
         self.relu = nn.ReLU()
-        self.output_activation = output_activation
         self.init_w = init_w
         self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=3)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=2)
@@ -657,9 +665,9 @@ class ConvVAESmall(PyTorchModule):
         x = F.relu(self.conv3(x))
         h = x.view(-1, self.conv_output_dim)  # flatten
         # h = self.relu(self.fc4(h))
-        mu = self.output_activation(self.fc1(h))
+        mu = self.encoder_activation(self.fc1(h))
         if self.log_min_variance is None:
-            logvar = self.output_activation(self.fc2(h))
+            logvar = self.encoder_activation(self.fc2(h))
         else:
             logvar = self.log_min_variance + torch.abs(self.fc2(h))
 
@@ -681,7 +689,7 @@ class ConvVAESmall(PyTorchModule):
         x = self.conv6(x).view(-1,
                                self.imsize * self.imsize * self.input_channels)
 
-        return self.output_activation(x)
+        return self.decoder_activation(x)
 
     def forward(self, x):
         mu, logvar = self.encode(x)
@@ -708,9 +716,12 @@ class ConvVAESmallDouble(PyTorchModule):
             input_channels=1,
             imsize=48,
             hidden_init=ptu.fanin_init,
-            output_activation=nn.Sigmoid(),
+            encoder_activation='identity',
+            decoder_activation='identity',
             min_variance=1e-3,
             state_size=0,
+            unit_variance=False,
+            is_auto_encoder=False,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -721,12 +732,22 @@ class ConvVAESmallDouble(PyTorchModule):
 
         self.representation_size = representation_size
         self.hidden_init = hidden_init
-        self.output_activation = output_activation
+        if encoder_activation == 'identity':
+            self.encoder_activation = identity
+        else:
+            raise EnvironmentError()
+        if decoder_activation == 'identity':
+            self.decoder_activation = identity
+        elif decoder_activation == 'sigmoid':
+            self.decoder_activation = nn.Sigmoid()
+        else:
+            raise EnvironmentError()
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize ** 2 * self.input_channels
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)
+        self.unit_variance = unit_variance
         self.relu = nn.ReLU()
         self.init_w = init_w
         self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=3)
@@ -744,6 +765,7 @@ class ConvVAESmallDouble(PyTorchModule):
         self.dec_var = nn.ConvTranspose2d(16, input_channels, kernel_size=6,
                                           stride=3)
         self.epoch = 0
+        self.is_auto_encoder=is_auto_encoder
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
@@ -787,9 +809,9 @@ class ConvVAESmallDouble(PyTorchModule):
         x = F.relu(self.conv3(x))
         h = x.view(-1, self.conv_output_dim)  # flatten
         # h = self.relu(self.fc4(h))
-        mu = self.output_activation(self.fc1(h))
+        mu = self.encoder_activation(self.fc1(h))
         if self.log_min_variance is None:
-            logvar = self.output_activation(self.fc2(h))
+            logvar = self.encoder_activation(self.fc2(h))
         else:
             logvar = self.log_min_variance + torch.abs(self.fc2(h))
 
@@ -819,7 +841,7 @@ class ConvVAESmallDouble(PyTorchModule):
         h = F.relu(self.conv5(x))
         mu = self.dec_mu(h).view(-1,
                                 self.imsize * self.imsize * self.input_channels)
-        return self.output_activation(mu)
+        return self.decoder_activation(mu)
 
     def decode_full(self, z):
         h3 = self.relu(self.fc3(z))
@@ -828,13 +850,19 @@ class ConvVAESmallDouble(PyTorchModule):
         h = F.relu(self.conv5(x))
         mu = self.dec_mu(h).view(-1,
                                  self.imsize * self.imsize * self.input_channels)
-        var = self.dec_var(h).view(-1,
+        logvar = self.dec_var(h).view(-1,
                                    self.imsize * self.imsize * self.input_channels)
-        return mu, var.exp()
+        var = self.decoder_activation(logvar.exp())
+        if self.unit_variance:
+            var = torch.ones_like(var)
+        return self.decoder_activation(mu), var
 
     def forward(self, x):
         mu, logvar = self.encode(x)
-        z = self.reparameterize(mu, logvar)
+        if self.is_auto_encoder:
+            z = mu
+        else:
+            z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
 
     def __getstate__(self):

@@ -3,8 +3,7 @@ from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.pythonplusplus import identity
-from railrl.torch.vae.conv_vae import ConvVAETrainer, ConvVAESmall, ConvVAESmallDouble
+from railrl.torch.vae.conv_vae import ConvVAETrainer, ConvVAESmallDouble
 from railrl.torch.grill.launcher import generate_vae_dataset
 
 def experiment(variant):
@@ -26,7 +25,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = variant['vae'](representation_size, **variant['vae_kwargs'])
+    m = variant['vae'](representation_size, is_auto_encoder=variant['algo_kwargs']['is_auto_encoder'], **variant['vae_kwargs'])
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -47,13 +46,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'sawyer_hook_door_vae_bce'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_hook_door_vae_double_net_use_identity'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_hook_door_vae_double_net_aevsvae_unitvarvsvar'
 
     use_gpu = True
 
@@ -64,15 +63,14 @@ if __name__ == "__main__":
             batch_size=64,
             lr=1e-3,
             # skew_config=dict(
-                # method='p_theta',
-                # power=0,
+            #     method='p_theta',
+            #     power=0,
             # ),
-            # skew_dataset=False,
-            # full_gaussian_decoder=True,
-            # gaussian_decoder_loss=True,
+            # skew_dataset=True,
+            full_gaussian_decoder=True,
         ),
-        vae=ConvVAESmall,
-        # vae=ConvVAESmallDouble,
+        # vae=ConvVAESmall,
+        vae=ConvVAESmallDouble,
         dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
@@ -102,7 +100,9 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
-            # output_activation=identity,
+            decoder_activation='identity',
+            # decoder_activation='sigmoid',
+            unit_variance=False,
         ),
         save_period=10,
         beta=5,
@@ -110,10 +110,10 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        # 'algo_kwargs.full_gaussian_decoder':[True, False],
-        # 'algo_kwargs.learning_rate':[1e-2, 5e-3, 1e-3, 5e-4],
-        'algo_kwargs.is_auto_encoder':[False],
-        'beta':[2.5]
+        'algo_kwargs.learning_rate':[5e-3, 1e-3, 5e-4],
+        'algo_kwargs.is_auto_encoder':[True, False],
+        'algo_kwargs.full_gaussian_decoder':[True, False],
+        'beta':[1, 2.5, 5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
