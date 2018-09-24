@@ -708,7 +708,7 @@ class ConvVAESmallDouble(PyTorchModule):
             input_channels=1,
             imsize=48,
             hidden_init=ptu.fanin_init,
-            output_activation=identity,
+            output_activation=nn.Sigmoid(),
             min_variance=1e-3,
             state_size=0,
     ):
@@ -728,7 +728,6 @@ class ConvVAESmallDouble(PyTorchModule):
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)
         self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
         self.init_w = init_w
         self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=5, stride=3)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=2)

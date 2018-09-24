@@ -47,31 +47,32 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'sawyer_hook_door_vae_gaussian'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_hook_door_vae_double_net_use_identity'
+    mode = 'local'
+    exp_prefix = 'sawyer_hook_door_vae_bce'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_hook_door_vae_double_net_use_identity'
 
     use_gpu = True
 
     variant = dict(
-        num_epochs=3000,
+        num_epochs=1000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
+            lr=1e-3,
             # skew_config=dict(
                 # method='p_theta',
                 # power=0,
             # ),
             # skew_dataset=False,
-            full_gaussian_decoder=True,
+            # full_gaussian_decoder=True,
             # gaussian_decoder_loss=True,
         ),
-        # vae=ConvVAESmall,
-        vae=ConvVAESmallDouble,
+        vae=ConvVAESmall,
+        # vae=ConvVAESmallDouble,
         dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
@@ -101,18 +102,18 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
-            output_activation=identity,
+            # output_activation=identity,
         ),
-        save_period=100,
+        save_period=10,
         beta=5,
         representation_size=16,
     )
 
     search_space = {
         # 'algo_kwargs.full_gaussian_decoder':[True, False],
-        'algo_kwargs.learning_rate':[1e-2, 5e-3, 1e-3, 5e-4],
+        # 'algo_kwargs.learning_rate':[1e-2, 5e-3, 1e-3, 5e-4],
         'algo_kwargs.is_auto_encoder':[False],
-        'beta':[1, 2.5, 5]
+        'beta':[2.5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -128,4 +129,5 @@ if __name__ == "__main__":
                 num_exps_per_instance=2,
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
+                # skip_wait=True,
             )
