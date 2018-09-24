@@ -72,7 +72,7 @@ if __name__ == "__main__":
         ),
         # vae=ConvVAESmall,
         vae=ConvVAESmallDouble,
-        dump_skew_debug_plots=True,
+        dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
             N=5000,
