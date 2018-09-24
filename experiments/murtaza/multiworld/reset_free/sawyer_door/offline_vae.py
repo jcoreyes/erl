@@ -109,7 +109,7 @@ if __name__ == "__main__":
                 lr=1e-3,
                 # full_gaussian_decoder=False,
                 skew_config=dict(
-                    method='reconstruction_error',
+                    method='squared_error',
                     power=1,
                 ),
                 skew_dataset=True,
@@ -127,13 +127,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_hook_door_offline_vae_reconstruction_prioritization'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_hook_door_offline_vae_reconstruction_prioritization'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
