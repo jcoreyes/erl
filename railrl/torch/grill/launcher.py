@@ -214,8 +214,7 @@ def generate_vae_dataset(variant):
     from railrl.misc.asset_loader import load_local_or_remote_file
     info = {}
     if dataset_path is not None:
-        filename = local_path_from_s3_or_local_path(dataset_path)
-        dataset = np.load(filename)
+        dataset = load_local_or_remote_file(dataset_path)
         N = dataset.shape[0]
     else:
         if env_kwargs is None:

@@ -30,7 +30,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=500,
+                    num_epochs=1,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=4000,
@@ -38,7 +38,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online-parallel',
+                    # collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -73,8 +73,9 @@ if __name__ == "__main__":
                 policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
                 path_length=100,
                 show=False,
+                save_filename='/tmp/goals/sawyer_hook_door_goals.npy'
             ),
-            presampled_goals_path=None,
+            presampled_goals_path='goals/sawyer_hook_door_goals.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -84,7 +85,7 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=1.0,
-            num_epochs=1000,
+            num_epochs=0,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
@@ -119,8 +120,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'train_vae_variant.beta':[2.5],
-        'train_vae_variant.algo_kwargs.skew_config.power':[0, 1, 3, 5],
+        # 'train_vae_variant.beta':[2.5],
+        # 'train_vae_variant.algo_kwargs.skew_config.power':[0, 1, 3, 5],
         'train_vae_variant.generate_vae_dataset_kwargs.random_and_oracle_policy_data_split':[.5, .75, .9],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

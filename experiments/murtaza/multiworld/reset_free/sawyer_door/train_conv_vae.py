@@ -47,13 +47,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'sawyer_hook_door_vae_gaussian'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_hook_door_vae'
+    # mode = 'local'
+    # exp_prefix = 'sawyer_hook_door_vae_gaussian'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_hook_door_vae_double_net'
 
     use_gpu = True
 
@@ -70,12 +70,13 @@ if __name__ == "__main__":
             # full_gaussian_decoder=True,
             gaussian_decoder_loss=True,
         ),
-        vae=ConvVAESmall,
-        # vae=ConvVAESmallDouble,
+        # vae=ConvVAESmall,
+        vae=ConvVAESmallDouble,
         dump_skew_debug_plots=True,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
             N=5000,
+            dataset_path='datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_oracleFalse.npy',
             oracle_dataset=False,
             use_cached=True,
             oracle_dataset_from_policy=True,
@@ -108,7 +109,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        # 'algo_kwargs.is_auto_encoder':[False],
+        'algo_kwargs.full_gaussian_decoder':[True, False],
+        'algo_kwargs.gaussian_decoder_loss':[True, False],
+        'algo_kwargs.is_auto_encoder':[False],
         'beta':[1, 2.5, 5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -125,5 +128,4 @@ if __name__ == "__main__":
                 num_exps_per_instance=1,
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
-                skip_wait=True,
             )
