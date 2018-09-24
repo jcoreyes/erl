@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
     search_space = {
         'train_vae_variant.beta':[2.5],
-        'train_vae_variant.algo_kwargs.power':[0, 1, 3, 5],
+        'train_vae_variant.algo_kwargs.skew_config.power':[0, 1, 3, 5],
         'train_vae_variant.generate_vae_dataset_kwargs.random_and_oracle_policy_data_split':[.5, .75, .9],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
