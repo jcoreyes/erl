@@ -104,7 +104,9 @@ if __name__ == "__main__":
             ),
             vae_kwargs=dict(
                 input_channels=3,
-                output_activation=identity,
+                # decoder_activation='identity',
+                # unit_variance=False,
+                decoder_activation='sigmoid',
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -117,8 +119,6 @@ if __name__ == "__main__":
                     power=1,
                 ),
                 skew_dataset=True,
-                # decoder_activation='identity',
-                decoder_activation='sigmoid',
             ),
             save_period=100,
         ),
