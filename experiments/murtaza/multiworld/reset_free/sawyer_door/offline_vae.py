@@ -91,7 +91,6 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=5000,
-                # dataset_path='datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_oracleFalse.npy',
                 oracle_dataset=False,
                 use_cached=False,
                 oracle_dataset_from_policy=False,
@@ -110,26 +109,30 @@ if __name__ == "__main__":
             algo_kwargs=dict(
                 do_scatterplot=False,
                 use_linear_dynamics=False,
+                is_auto_encoder=False,
+                batch_size=64,
                 lr=1e-3,
                 skew_config=dict(
                     method='squared_error',
                     power=1,
                 ),
                 skew_dataset=True,
+                # decoder_activation='identity',
+                decoder_activation='sigmoid',
             ),
             save_period=100,
         ),
     )
 
     search_space = {
-        # 'train_vae_variant.beta':[2.5],
-        # 'train_vae_variant.algo_kwargs.skew_config.power':[0, 1, 3, 5],
-        # 'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
-        #     'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.5.npy',
-        #     'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.npy',
-        #     'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.75.npy',
-        #     'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
-        # ],
+        'train_vae_variant.beta':[2.5],
+        'train_vae_variant.algo_kwargs.skew_config.power':[0, 1, 3, 5],
+        'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
+            'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.5.npy',
+            'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.npy',
+            'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.75.npy',
+            'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
