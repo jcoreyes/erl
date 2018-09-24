@@ -153,7 +153,7 @@ def train_vae(variant, return_data=False):
         if variant.get('imsize') == 84:
             m = ConvVAE(representation_size, **variant['vae_kwargs'])
         elif variant.get('imsize') == 48:
-            if variant['algo_kwargs']['full_gaussian_decoder']:
+            if variant['algo_kwargs'].get('full_gaussian_decoder', False):
                 m = ConvVAESmallDouble(representation_size, **variant['vae_kwargs'])
             else:
                 m = ConvVAESmall(representation_size, **variant['vae_kwargs'])
@@ -263,7 +263,7 @@ def generate_vae_dataset(variant):
                 env.non_presampled_goal_img_is_garbage = non_presampled_goal_img_is_garbage
             env.reset()
             info['env'] = env
-            if oracle_dataset_from_policy:
+            if oracle_dataset_from_policy or random_and_oracle_policy_data:
                 policy_file = load_local_or_remote_file(policy_file)
                 policy = policy_file['policy']
                 if ptu.gpu_enabled():

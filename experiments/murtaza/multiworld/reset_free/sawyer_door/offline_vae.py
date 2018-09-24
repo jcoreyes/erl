@@ -88,7 +88,7 @@ if __name__ == "__main__":
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=100,
+                N=5000,
                 oracle_dataset=False,
                 use_cached=True,
                 oracle_dataset_from_policy=False,
@@ -98,7 +98,7 @@ if __name__ == "__main__":
                 vae_dataset_specific_kwargs=dict(),
                 policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
                 n_random_steps=100,
-                show=True,
+                show=False,
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -108,11 +108,11 @@ if __name__ == "__main__":
                 use_linear_dynamics=False,
                 lr=1e-3,
                 # full_gaussian_decoder=False,
-                # skew_config=dict(
-                #     method='p_theta',
-                # ),
-                # full_gaussian_decoder=True,
-                # skew_dataset=True,
+                skew_config=dict(
+                    method='reconstruction_error',
+                    power=1,
+                ),
+                skew_dataset=True,
             ),
             save_period=100,
         ),
@@ -120,20 +120,20 @@ if __name__ == "__main__":
 
     search_space = {
         'train_vae_variant.beta':[2.5],
-        # 'grill_variant.exploration_noise':[.3, .5, .8],
-        # 'train_vae_variant.algo_kwargs.gaussian_decoder_loss':[True, False]
+        'train_vae_variant.algo_kwargs.power':[0, 1, 3, 5],
+        'train_vae_variant.generate_vae_dataset_kwargs.random_and_oracle_policy_data_split':[.5, .75, .9],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_hook_door_offline_vae'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_hook_door_offline_vae_reconstruction_prioritization'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -143,5 +143,5 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=3,
+                num_exps_per_instance=2,
           )
