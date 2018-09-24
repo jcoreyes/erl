@@ -267,6 +267,7 @@ class ConvVAETrainer(Serializable):
     def compute_gaussian_log_prob(self, input, dec_mu, dec_var):
         dec_mu = dec_mu.view(-1, self.input_channels*self.imsize**2)
         dec_var = dec_var.view(-1, self.input_channels*self.imsize**2)
+        dec_var = torch.ones_like(dec_var)
         prior = Normal(dec_mu, dec_var.pow(0.5))
         input = input.view(-1, self.input_channels*self.imsize**2)
         log_probs = prior.log_prob(input)
