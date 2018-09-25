@@ -277,7 +277,7 @@ class ConvVAETrainer(Serializable):
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
         self.model.train()
         losses = []
-        bces = []
+        log_probs = []
         kles = []
         linear_losses = []
         beta = float(self.beta_schedule.get_value(epoch))
@@ -295,28 +295,28 @@ class ConvVAETrainer(Serializable):
             if self.full_gaussian_decoder:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(next_obs)
                 dec_mu, dec_var = self.model.decode_full(latents)
-                gaussian_log_prob = -1*self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
+                gaussian_log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
+                log_prob = gaussian_log_prob
                 recon_batch = dec_mu
                 kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
-                loss = gaussian_log_prob + beta * kle
-                bce = gaussian_log_prob
+                loss = -1*gaussian_log_prob + beta * kle
             else:
                 recon_batch, mu, logvar = self.model(next_obs)
-                bce = self.logprob(recon_batch, next_obs, mu, logvar)
+                log_prob = self.logprob(recon_batch, next_obs, mu, logvar)
                 kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
 
                 if self.use_linear_dynamics:
                     linear_dynamics_loss = self.state_linearity_loss(
                         obs, next_obs, actions
                     )
-                    loss = bce + beta * kle + self.linearity_weight * linear_dynamics_loss
+                    loss = log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
                     linear_losses.append(linear_dynamics_loss.data[0])
                 else:
-                    loss = bce + beta * kle
+                    loss = log_prob + beta * kle
             loss.backward()
 
             losses.append(loss.data[0])
-            bces.append(bce.data[0])
+            log_probs.append(log_prob.data[0])
             kles.append(kle.data[0])
 
             self.optimizer.step()
@@ -331,7 +331,7 @@ class ConvVAETrainer(Serializable):
 
         if from_rl:
             self.vae_logger_stats_for_rl['Train VAE Epoch'] = epoch
-            self.vae_logger_stats_for_rl['Train VAE BCE'] = np.mean(bces)
+            self.vae_logger_stats_for_rl['Train VAE Log Prob'] = np.mean(log_probs)
             self.vae_logger_stats_for_rl['Train VAE KL'] = np.mean(kles)
             self.vae_logger_stats_for_rl['Train VAE Loss'] = np.mean(losses)
             if self.use_linear_dynamics:
@@ -339,7 +339,7 @@ class ConvVAETrainer(Serializable):
                     np.mean(linear_losses)
         else:
             logger.record_tabular("train/epoch", epoch)
-            logger.record_tabular("train/BCE", np.mean(bces))
+            logger.record_tabular("train/Log Prob", np.mean(log_probs))
             logger.record_tabular("train/KL", np.mean(kles))
             logger.record_tabular("train/loss", np.mean(losses))
             if self.use_linear_dynamics:
@@ -356,7 +356,7 @@ class ConvVAETrainer(Serializable):
     ):
         self.model.eval()
         losses = []
-        bces = []
+        log_probs = []
         kles = []
         zs = []
         beta = float(self.beta_schedule.get_value(epoch))
@@ -365,22 +365,22 @@ class ConvVAETrainer(Serializable):
             if self.full_gaussian_decoder:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(data)
                 dec_mu, dec_var = self.model.decode_full(latents)
-                gaussian_log_prob = -1*self.compute_gaussian_log_prob(data, dec_mu, dec_var)
+                gaussian_log_prob = self.compute_gaussian_log_prob(data, dec_mu, dec_var)
+                log_prob = gaussian_log_prob
                 recon_batch = dec_mu
                 kle = self.kl_divergence(recon_batch, data, mu, logvar)
-                loss = gaussian_log_prob + beta * kle
-                bce = gaussian_log_prob
+                loss = -1*gaussian_log_prob + beta * kle
             else:
                 recon_batch, mu, logvar = self.model(data)
-                bce = self.logprob(recon_batch, data, mu, logvar)
+                log_prob = self.logprob(recon_batch, data, mu, logvar)
                 kle = self.kl_divergence(recon_batch, data, mu, logvar)
-                loss = bce + beta * kle
+                loss = log_prob + beta * kle
 
             z_data = ptu.get_numpy(mu.cpu())
             for i in range(len(z_data)):
                 zs.append(z_data[i, :])
             losses.append(loss.data[0])
-            bces.append(bce.data[0])
+            log_probs.append(log_prob.data[0])
             kles.append(kle.data[0])
 
             if batch_idx == 0 and save_reconstruction:
@@ -409,7 +409,7 @@ class ConvVAETrainer(Serializable):
 
         if from_rl:
             self.vae_logger_stats_for_rl['Test VAE Epoch'] = epoch
-            self.vae_logger_stats_for_rl['Test VAE BCE'] = np.mean(bces)
+            self.vae_logger_stats_for_rl['Test VAE Log Prob'] = np.mean(log_probs)
             self.vae_logger_stats_for_rl['Test VAE KL'] = np.mean(kles)
             self.vae_logger_stats_for_rl['Test VAE loss'] = np.mean(losses)
             self.vae_logger_stats_for_rl['VAE Beta'] = beta
@@ -417,7 +417,7 @@ class ConvVAETrainer(Serializable):
             for key, value in self.debug_statistics().items():
                 logger.record_tabular(key, value)
 
-            logger.record_tabular("test/BCE", np.mean(bces))
+            logger.record_tabular("test/Log Prob", np.mean(log_probs))
             logger.record_tabular("test/KL", np.mean(kles))
             logger.record_tabular("test/loss", np.mean(losses))
             logger.record_tabular("beta", beta)
