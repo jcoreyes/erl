@@ -63,7 +63,7 @@ if __name__ == "__main__":
             batch_size=64,
             lr=1e-3,
             # skew_config=dict(
-            #     method='p_theta',
+            #     method='p_x',
             #     power=0,
             # ),
             # skew_dataset=True,
@@ -110,10 +110,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'algo_kwargs.learning_rate':[5e-3, 1e-3, 5e-4],
-        'algo_kwargs.is_auto_encoder':[True, False],
-        'algo_kwargs.full_gaussian_decoder':[True, False],
-        'beta':[1, 2.5, 5]
+        'algo_kwargs.lr':[1e-3],
+        'algo_kwargs.is_auto_encoder':[False],
+        'beta':[2.5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

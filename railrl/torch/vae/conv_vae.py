@@ -180,7 +180,7 @@ class ConvVAETrainer(Serializable):
             ) ** power
         elif method == 'kl':
             return self._kl_np_to_np(self.train_dataset) ** power
-        elif method == 'p_theta':
+        elif method == 'p_x':
             imgs = ptu.np_to_var(normalize_image(self.train_dataset))
             latents, mus, logvar, stds = self.model.get_encoding_and_suff_stats(imgs)
             true_prior = Normal(0, 1)
@@ -196,6 +196,7 @@ class ConvVAETrainer(Serializable):
             return p_theta_x_shifted
         else:
             raise NotImplementedError('Method {} not supported'.format(method))
+        #todo: hashcount priorities
 
     def _kl_np_to_np(self, np_imgs):
         torch_input = ptu.np_to_var(normalize_image(np_imgs))
