@@ -21,6 +21,7 @@ from multiworld.core.image_env import normalize_image
 from railrl.torch.core import PyTorchModule
 from railrl.core.serializable import Serializable
 
+
 class ConvVAETrainer(Serializable):
     def __init__(
             self,
@@ -185,7 +186,7 @@ class ConvVAETrainer(Serializable):
             vae_dist = Normal(mus, stds)
             log_p_z = true_prior.log_prob(latents).sum(dim=1)
             log_q_z_given_x =vae_dist.log_prob(latents).sum(dim=1)
-            dec_mu, dec_var = self.model.decode_full(latents)
+            _, dec_mu, dec_var = self.model.decode_full(latents)
             decoder_dist = Normal(dec_mu, dec_var.pow(.5))
             log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
             log_p_theta_x = -1/2*(log_p_z - log_q_z_given_x + log_d_x_given_z)
@@ -266,9 +267,9 @@ class ConvVAETrainer(Serializable):
     def compute_gaussian_log_prob(self, input, dec_mu, dec_var):
         dec_mu = dec_mu.view(-1, self.input_channels*self.imsize**2)
         dec_var = dec_var.view(-1, self.input_channels*self.imsize**2)
-        prior = Normal(dec_mu, dec_var.pow(0.5))
+        decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
         input = input.view(-1, self.input_channels*self.imsize**2)
-        log_probs = prior.log_prob(input)
+        log_probs = decoder_dist.log_prob(input)
         vals = log_probs.sum(dim=1, keepdim=True)
         return vals.mean()
 
@@ -292,9 +293,8 @@ class ConvVAETrainer(Serializable):
             self.optimizer.zero_grad()
             if self.full_gaussian_decoder:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(next_obs)
-                dec_mu, dec_var = self.model.decode_full(latents)
+                recon_batch, dec_mu, dec_var = self.model.decode_full(latents)
                 log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
-                recon_batch = dec_mu
                 kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
                 loss = -1*log_prob + beta * kle
             else:
@@ -361,9 +361,8 @@ class ConvVAETrainer(Serializable):
             data = self.get_batch(train=False)
             if self.full_gaussian_decoder:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(data)
-                dec_mu, dec_var = self.model.decode_full(latents)
+                recon_batch, dec_mu, dec_var = self.model.decode_full(latents)
                 log_prob = self.compute_gaussian_log_prob(data, dec_mu, dec_var)
-                recon_batch = dec_mu
                 kle = self.kl_divergence(recon_batch, data, mu, logvar)
                 loss = -1*log_prob + beta * kle
             else:
@@ -714,11 +713,12 @@ class ConvVAESmallDouble(PyTorchModule):
             imsize=48,
             hidden_init=ptu.fanin_init,
             encoder_activation='identity',
-            decoder_activation='identity',
+            decoder_activation='sigmoid',
             min_variance=1e-3,
             state_size=0,
             unit_variance=False,
             is_auto_encoder=False,
+            variance_scaling=1,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -728,6 +728,7 @@ class ConvVAESmallDouble(PyTorchModule):
             self.log_min_variance = float(np.log(min_variance))
 
         self.representation_size = representation_size
+        self.variance_scaling=variance_scaling
         self.hidden_init = hidden_init
         if encoder_activation == 'identity':
             self.encoder_activation = identity
@@ -854,7 +855,7 @@ class ConvVAESmallDouble(PyTorchModule):
         var = logvar.exp()
         if self.unit_variance:
             var = torch.ones_like(var)
-        return self.decoder_activation(mu), var
+        return self.decoder_activation(mu), self.decoder_activation(mu), self.decoder_activation(var)*self.variance_scaling
 
     def forward(self, x):
         mu, logvar = self.encode(x)

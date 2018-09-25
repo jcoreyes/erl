@@ -52,17 +52,17 @@ if __name__ == "__main__":
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
         init_camera=sawyer_door_env_camera_v3,
-        # env_id='SawyerDoorHookResetFreeEnv-v2',
-        env_class=SawyerDoorHookEnv,
-        env_kwargs=dict(
-            goal_low=(-0.25, 0.45, 0.1, 0),
-            goal_high=(0.25, 0.65, .25, 1.0472),
-            hand_low=(-0.25, 0.45, 0.15),
-            hand_high=(.25, 0.65, .25),
-            max_angle=1.0472,
-            xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
-            reset_free=True,
-        ),
+        env_id='SawyerDoorHookResetFreeEnv-v4',
+        # env_class=SawyerDoorHookEnv,
+        # env_kwargs=dict(
+        #     goal_low=(-0.25, 0.45, 0.1, 0),
+        #     goal_high=(0.25, 0.65, .25, 1.0472),
+        #     hand_low=(-0.25, 0.45, 0.15),
+        #     hand_high=(.25, 0.65, .25),
+        #     max_angle=1.0472,
+        #     xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
+        #     reset_free=True,
+        # ),
         imsize=48,
         do_state_exp=True,
         save_video_period=50,
@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_door_new_door_60_reset_free_hard_space'
+    exp_prefix = 'sawyer_door_new_door_60_reset_free_hard_space-v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):

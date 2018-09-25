@@ -9,10 +9,10 @@ if __name__ == "__main__":
     variant = dict(
         imsize=48,
         init_camera=sawyer_door_env_camera_v3,
-        env_id='SawyerDoorHookResetFreeEnv-v4',
+        env_id='SawyerDoorHookResetFreeEnv-v3',
         grill_variant=dict(
             save_video=True,
-            save_video_period=10,
+            save_video_period=50,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -76,7 +76,7 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=1.0,
-            num_epochs=100,
+            num_epochs=1000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
@@ -94,11 +94,9 @@ if __name__ == "__main__":
             ),
             vae_kwargs=dict(
                 input_channels=3,
-                # decoder_activation='identity',
                 unit_variance=False,
                 decoder_activation='sigmoid',
                 variance_scaling=10,
-                # decoder_activation='tanh',
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -107,39 +105,38 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
                 skew_config=dict(
-                    method='squared_error',
-                    # method='p_x',
+                    method='p_x',
                     power=1,
                 ),
-                # skew_dataset=True,
+                skew_dataset=False,
                 full_gaussian_decoder=True,
-                # gaussian_decoder_loss=True,
             ),
-            save_period=10,
+            save_period=50,
         ),
     )
 
     search_space = {
-        'train_vae_variant.beta':[2.5],
-        'train_vae_variant.algo_kwargs.skew_config.power':[0, 1, 5, 10],
+        'train_vae_variant.beta':[1, 2.5, 5],
+        'train_vae_variant.vae_kwargs.variance_scaling':[1, 5, 10],
+        'train_vae_variant.vae_kwargs.unit_variance':[True, False],
         'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
             'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.npy',
-            'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
-            'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99.npy',
-            'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1.npy',
+            # 'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
+            # 'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99.npy',
+            # 'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1.npy',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'sigmoidonmeanandvarscaling'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_hook_door_offline_vae_recon_prioritization_more_skewed'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'sawyer_hook_door_offline_vae_sigmoid_gaussian_decoder'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
