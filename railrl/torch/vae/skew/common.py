@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -18,10 +19,17 @@ class Dynamics(object):
 
 def plot_curves(names_and_data, report):
     n_curves = len(names_and_data)
+    if n_curves < 4:
+        n_cols = n_curves
+        n_rows = 1
+    else:
+        n_cols = n_curves // 2
+        n_rows = math.ceil(float(n_curves) / n_cols)
+
     plt.figure()
     for i, (name, data) in enumerate(names_and_data):
         j = i + 1
-        plt.subplot(j, n_curves, j)
+        plt.subplot(n_rows, n_cols, j)
         plt.plot(np.array(data))
         plt.title(name)
     fig = plt.gcf()

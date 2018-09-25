@@ -293,8 +293,8 @@ def kl_to_prior(means, log_vars, stds):
 
 def compute_log_prob(batch, decoder, latents):
     mu, var = decoder.decode(latents)
-    prior = Normal(mu, var.pow(0.5))
-    vals = prior.log_prob(batch).sum(dim=1, keepdim=True)
+    dist = Normal(mu, var.pow(0.5))
+    vals = dist.log_prob(batch).sum(dim=1, keepdim=True)
     return vals
 
 

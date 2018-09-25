@@ -15,12 +15,40 @@ from railrl.torch.vae.skew.common import Dynamics, plot_curves
 from railrl.torch.vae.skew.datasets import project_samples_square_np
 
 
+def visualize_histogram_samples(
+        histogram,
+        report,
+        dynamics,
+        n_vis=1000,
+        title="Histogram Samples",
+):
+    plt.figure()
+    generated_samples = histogram.sample(n_vis)
+    projected_generated_samples = dynamics(generated_samples)
+    plt.plot(
+        projected_generated_samples[:, 0],
+        projected_generated_samples[:, 1],
+        '.',
+     )
+    plt.xlim(-1.5, 1.5)
+    plt.ylim(-1.5, 1.5)
+    plt.title(title)
+
+    fig = plt.gcf()
+    sample_img = vu.save_image(fig)
+    report.add_image(sample_img, title)
+    return sample_img
+
+
 def visualize_samples(epoch, vis_samples_np, histogram,
                       report, dynamics, n_vis=1000,
+                      title=None,
                       xlim=(-1.5, 1.5),
                       ylim=(-1.5, 1.5)):
+    if title is None:
+        title = "Epoch {}".format(epoch)
     plt.figure()
-    plt.suptitle("Epoch {}".format(epoch))
+    plt.suptitle(title)
     generated_samples = histogram.sample(n_vis)
     projected_generated_samples = dynamics(generated_samples)
     plt.subplot(3, 1, 1)
@@ -148,7 +176,10 @@ class Histogram(object):
             self.num_bins,
             weights=weights,
         )
-        self.pvals = H.astype(np.float32) / len(data)
+        if weights is None:
+            self.pvals = H.astype(np.float32) / len(data)
+        else:
+            self.pvals = H.astype(np.float32) / weights.sum()
         prob = np.maximum(self.pvals, 1. / len(data))
         if self.weight_type == 'inv_p':
             self.weights = 1. / prob

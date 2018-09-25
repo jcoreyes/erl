@@ -12,7 +12,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from skvideo.io import vwrite
 from torch import nn as nn
 from torch.autograd import Variable
-from torch.optim import Adam
+from torch.optim import Adam, RMSprop
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import (
     BatchSampler, WeightedRandomSampler,
@@ -28,7 +28,8 @@ from railrl.misc.html_report import HTMLReport
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.torch.vae.skew.common import Dynamics, plot_curves
 from railrl.torch.vae.skew.datasets import project_samples_square_np
-from railrl.torch.vae.skew.histogram import Histogram, visualize_histogram
+from railrl.torch.vae.skew.histogram import Histogram, visualize_histogram, \
+    visualize_histogram_samples
 from railrl.misc.visualization_util import gif
 
 K = 6
@@ -147,10 +148,13 @@ def train(
         beta_schedule = ConstantSchedule(1)
     else:
         beta_schedule = beta_schedule_class(**beta_schedule_kwargs)
+    if train_vae_from_histogram:
+        assert not weight_loss
+        assert not skew_sampling
 
     report = HTMLReport(
         logger.get_snapshot_dir() + '/report.html',
-        images_per_row=3,
+        images_per_row=5,
     )
     dynamics = Dynamics(projection, dynamics_noise)
     if full_variant:
@@ -180,24 +184,32 @@ def train(
     sample_imgs = []
     entropies = []
     tvs_to_uniform = []
+    entropy_gains_from_reweighting = []
     """
-    p_theta = this iteration's model
+    p_theta = VAE's distribution
     """
     p_theta = Histogram(num_bins, weight_type=weight_type)
     for epoch in sv.progressbar(range(n_epochs)):
         epoch_stats = defaultdict(list)
-        if n_samples_to_add_per_epoch > 0:
-            vae_samples = sv.generate_vae_samples_np(
-                decoder,
-                n_samples_to_add_per_epoch,
-            )
-            projected_samples = dynamics(vae_samples)
-            if append_all_data:
-                train_data = np.vstack((train_data, projected_samples))
-            else:
-                train_data = np.vstack((orig_train_data, projected_samples))
         p_theta = Histogram(num_bins, weight_type=weight_type)
-        p_theta.compute_pvals_and_per_bin_weights(train_data)
+        vae_samples = sv.generate_vae_samples_np(
+            decoder,
+            n_samples_to_add_per_epoch,
+        )
+        p_theta.compute_pvals_and_per_bin_weights(vae_samples)
+        projected_samples = dynamics(vae_samples)
+        if append_all_data:
+            train_data = np.vstack((train_data, projected_samples))
+        else:
+            train_data = np.vstack((orig_train_data, projected_samples))
+
+        all_weights = p_theta.compute_per_elem_weights(train_data)
+        p_new = Histogram(num_bins, weight_type=weight_type)
+        p_new.compute_pvals_and_per_bin_weights(
+            train_data,
+            weights=all_weights,
+        )
+        all_weights_pt = ptu.np_to_var(all_weights, requires_grad=False)
         if epoch == 0 or (epoch + 1) % save_period == 0:
             epochs.append(epoch)
             encoders.append(copy.deepcopy(encoder))
@@ -206,6 +218,14 @@ def train(
             heatmap_img = visualize_histogram(epoch, p_theta, report)
             sample_img = visualize_samples(
                 epoch, train_data, encoder, decoder, report, dynamics,
+            )
+            _ = visualize_histogram_samples(
+                p_theta, report, dynamics,
+                title="P Theta Samples"
+            )
+            _ = visualize_histogram_samples(
+                p_new, report, dynamics,
+                title="P New Samples"
             )
             heatmap_imgs.append(heatmap_img)
             sample_imgs.append(sample_img)
@@ -219,12 +239,13 @@ def train(
                 logger.get_snapshot_dir() + '/samples{}.png'.format(epoch)
             )
 
-        indexed_train_data = sv.IndexedData(train_data)
-        all_weights = p_theta.compute_per_elem_weights(train_data)
-        all_weights_pt = ptu.np_to_var(all_weights, requires_grad=False)
+        """
+        train VAE to look like p_new
+        """
         if sum(all_weights) == 0:
             all_weights[:] = 1
 
+        indexed_train_data = sv.IndexedData(train_data)
         if skew_sampling:
             base_sampler = WeightedRandomSampler(all_weights, len(all_weights))
         else:
@@ -238,10 +259,10 @@ def train(
                 drop_last=False,
             ),
         )
-        for i, indexed_batch in enumerate(train_dataloader):
+        for _, indexed_batch in enumerate(train_dataloader):
             idxs, batch = indexed_batch
             if train_vae_from_histogram:
-                batch = ptu.np_to_var(p_theta.sample(
+                batch = ptu.np_to_var(p_new.sample(
                     batch[0].shape[0]
                 ))
             else:
@@ -256,9 +277,13 @@ def train(
 
             elbo = - kl * beta + reconstruction_log_prob
             if weight_loss:
-                idxs = torch.cat(idxs)
-                weights = all_weights_pt[idxs].unsqueeze(1)
-                loss = -(weights * elbo).mean()
+                # idxs = torch.cat(idxs)
+                # batch_weights = all_weights_pt[idxs].unsqueeze(1)
+                weights_np = p_theta.compute_per_elem_weights(
+                    train_data
+                )
+                batch_weights = ptu.np_to_var(weights_np)
+                loss = -(batch_weights * elbo).mean()
             else:
                 loss = - elbo.mean()
             encoder_opt.zero_grad()
@@ -278,6 +303,8 @@ def train(
         log_probs.append(np.mean(epoch_stats['log_probs']))
         entropies.append(p_theta.entropy())
         tvs_to_uniform.append(p_theta.tv_to_uniform())
+        entropy_gain = p_new.entropy() - p_theta.entropy()
+        entropy_gains_from_reweighting.append(entropy_gain)
 
         logger.record_tabular("Epoch", epoch)
         logger.record_tabular("VAE Loss", np.mean(epoch_stats['losses']))
@@ -285,7 +312,8 @@ def train(
         logger.record_tabular("VAE Log Prob", np.mean(epoch_stats['log_probs']))
         logger.record_tabular('Entropy ', p_theta.entropy())
         logger.record_tabular('KL from uniform', p_theta.kl_from_uniform())
-        logger.record_tabular('Tv to uniform', p_theta.tv_to_uniform())
+        logger.record_tabular('TV to uniform', p_theta.tv_to_uniform())
+        logger.record_tabular('Entropy gain from reweight', entropy_gain)
         logger.dump_tabular()
         logger.save_itr_params(epoch, {
             'encoder': encoder,
@@ -300,6 +328,7 @@ def train(
             ("Training Loss", losses),
             ("KL", kls),
             ("Log Probs", log_probs),
+            ("Entropy Gain from Reweighting", entropy_gains_from_reweighting),
         ],
         report,
     )
