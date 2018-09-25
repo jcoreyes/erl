@@ -1,7 +1,6 @@
 # Adapted from pytorch examples
 
 from __future__ import print_function
-
 import torch
 import torch.utils.data
 from torch import nn, optim
@@ -21,7 +20,6 @@ import numpy as np
 from multiworld.core.image_env import normalize_image
 from railrl.torch.core import PyTorchModule
 from railrl.core.serializable import Serializable
-
 
 class ConvVAETrainer(Serializable):
     def __init__(
@@ -295,11 +293,10 @@ class ConvVAETrainer(Serializable):
             if self.full_gaussian_decoder:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(next_obs)
                 dec_mu, dec_var = self.model.decode_full(latents)
-                gaussian_log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
-                log_prob = gaussian_log_prob
+                log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
                 recon_batch = dec_mu
                 kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
-                loss = -1*gaussian_log_prob + beta * kle
+                loss = -1*log_prob + beta * kle
             else:
                 recon_batch, mu, logvar = self.model(next_obs)
                 log_prob = self.logprob(recon_batch, next_obs, mu, logvar)
@@ -365,11 +362,10 @@ class ConvVAETrainer(Serializable):
             if self.full_gaussian_decoder:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(data)
                 dec_mu, dec_var = self.model.decode_full(latents)
-                gaussian_log_prob = self.compute_gaussian_log_prob(data, dec_mu, dec_var)
-                log_prob = gaussian_log_prob
+                log_prob = self.compute_gaussian_log_prob(data, dec_mu, dec_var)
                 recon_batch = dec_mu
                 kle = self.kl_divergence(recon_batch, data, mu, logvar)
-                loss = -1*gaussian_log_prob + beta * kle
+                loss = -1*log_prob + beta * kle
             else:
                 recon_batch, mu, logvar = self.model(data)
                 log_prob = self.logprob(recon_batch, data, mu, logvar)
@@ -741,6 +737,8 @@ class ConvVAESmallDouble(PyTorchModule):
             self.decoder_activation = identity
         elif decoder_activation == 'sigmoid':
             self.decoder_activation = nn.Sigmoid()
+        elif decoder_activation == 'tanh':
+            self.decoder_activation = nn.Tanh()
         else:
             raise EnvironmentError()
         self.input_channels = input_channels
@@ -853,7 +851,7 @@ class ConvVAESmallDouble(PyTorchModule):
                                  self.imsize * self.imsize * self.input_channels)
         logvar = self.dec_var(h).view(-1,
                                    self.imsize * self.imsize * self.input_channels)
-        var = self.decoder_activation(logvar.exp())
+        var = logvar.exp()
         if self.unit_variance:
             var = torch.ones_like(var)
         return self.decoder_activation(mu), var

@@ -46,13 +46,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_hook_door_vae_double_net_aevsvae_unitvarvsvar'
+    mode = 'local'
+    exp_prefix = 'gaussian_decoder_debug'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_hook_door_vae_double_net_aevsvae_unitvarvsvar'
 
     use_gpu = True
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         num_epochs=1000,
         algo_kwargs=dict(
             is_auto_encoder=False,
-            batch_size=64,
+            batch_size=128,
             lr=1e-3,
             # skew_config=dict(
             #     method='p_x',
@@ -102,7 +102,7 @@ if __name__ == "__main__":
             imsize=48,
             decoder_activation='identity',
             # decoder_activation='sigmoid',
-            unit_variance=False,
+            unit_variance=True,
         ),
         save_period=10,
         beta=5,
@@ -111,8 +111,8 @@ if __name__ == "__main__":
 
     search_space = {
         'algo_kwargs.lr':[1e-3],
-        'algo_kwargs.is_auto_encoder':[False],
-        'beta':[2.5]
+        'beta':[2.5],
+        'vae_kwargs.unit_variance':[False]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

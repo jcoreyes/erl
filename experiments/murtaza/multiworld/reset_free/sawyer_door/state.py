@@ -10,7 +10,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=200,
+                num_epochs=500,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=500,
                 max_path_length=100,
@@ -55,10 +55,10 @@ if __name__ == "__main__":
         # env_id='SawyerDoorHookResetFreeEnv-v2',
         env_class=SawyerDoorHookEnv,
         env_kwargs=dict(
-            goal_low=(-0.1, 0.45, 0.15, 0),
-            goal_high=(0.0, 0.65, .225, 1.0472),
-            hand_low=(-0.1, 0.45, 0.15),
-            hand_high=(0., 0.65, .225),
+            goal_low=(-0.25, 0.45, 0.1, 0),
+            goal_high=(0.25, 0.65, .25, 1.0472),
+            hand_low=(-0.25, 0.45, 0.15),
+            hand_high=(.25, 0.65, .25),
             max_angle=1.0472,
             xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
             reset_free=True,
@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_door_new_door_60_reset_free_space_fix'
+    exp_prefix = 'sawyer_door_new_door_60_reset_free_hard_space'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):

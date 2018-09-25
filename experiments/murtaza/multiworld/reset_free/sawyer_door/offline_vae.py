@@ -21,7 +21,7 @@ if __name__ == "__main__":
         ),
         grill_variant=dict(
             save_video=True,
-            save_video_period=50,
+            save_video_period=10,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -30,7 +30,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1000,
+                    num_epochs=500,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=4000,
@@ -38,7 +38,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online-parallel',
+                    collection_mode='online',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -85,7 +85,7 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=1.0,
-            num_epochs=1000,
+            num_epochs=100,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
@@ -105,7 +105,8 @@ if __name__ == "__main__":
                 input_channels=3,
                 # decoder_activation='identity',
                 unit_variance=True,
-                decoder_activation='sigmoid',
+                # decoder_activation='sigmoid',
+                decoder_activation='tanh',
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -114,25 +115,26 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
                 skew_config=dict(
-                    # method='squared_error',
-                    method='p_x',
+                    method='squared_error',
+                    # method='p_x',
                     power=1,
                 ),
                 # skew_dataset=True,
                 full_gaussian_decoder=True,
+                # gaussian_decoder_loss=True,
             ),
-            save_period=50,
+            save_period=10,
         ),
     )
 
     search_space = {
         'train_vae_variant.beta':[2.5],
-        # 'train_vae_variant.algo_kwargs.skew_config.power':[0, 1, 5, 10],
+        'train_vae_variant.algo_kwargs.skew_config.power':[0, 1, 5, 10],
         'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
             'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.npy',
-        #     'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
-        #     'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99.npy',
-        #     'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1.npy',
+            # 'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
+            # 'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99.npy',
+            # 'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1.npy',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -141,11 +143,11 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'gaussian_decoder_debug'
 
     # n_seeds = 3
     # mode = 'ec2'
-    # exp_prefix = 'sawyer_hook_door_offline_vae_p_x_unit_var_prioritization'
+    # exp_prefix = 'sawyer_hook_door_offline_vae_recon_prioritization_more_skewed'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
