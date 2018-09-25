@@ -95,6 +95,11 @@ if __name__ == "__main__":
             vae_kwargs=dict(
                 input_channels=3,
                 decoder_activation='sigmoid',
+                exploration_counter_kwargs=dict(
+                    hash_dim=16,
+                    obs_dim=16,
+                    observation_key='latent_observation',
+                )
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -103,7 +108,7 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
                 skew_config=dict(
-                    method='squared_error',
+                    method='hash_count',
                     power=1,
                 ),
                 skew_dataset=True,
@@ -128,7 +133,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'sigmoidonmeanandvarscaling'
+    exp_prefix = 'test'
 
     # n_seeds = 3
     # mode = 'ec2'

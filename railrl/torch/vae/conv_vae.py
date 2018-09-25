@@ -8,6 +8,8 @@ from torch.autograd import Variable
 from torch.distributions import Normal
 from torch.nn import functional as F
 from torchvision.utils import save_image
+
+from railrl.exploration_strategies.count_based.count_based import CountExplorationCountGoalSampler
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.pythonplusplus import identity
@@ -46,6 +48,7 @@ class ConvVAETrainer(Serializable):
             skew_config=None,
             gaussian_decoder_loss=False,
             full_gaussian_decoder=False,
+            exploration_counter_kwargs=None,
     ):
         self.quick_init(locals())
         if skew_config is None:
@@ -99,6 +102,10 @@ class ConvVAETrainer(Serializable):
         self.skew_config = skew_config
         self.gaussian_decoder_loss = gaussian_decoder_loss
         self.full_gaussian_decoder=full_gaussian_decoder
+        if skew_config.get('method') == 'hash_count':
+            if exploration_counter_kwargs is None:
+                exploration_counter_kwargs = dict()
+            self.exploration_counter = CountExplorationCountGoalSampler(**exploration_counter_kwargs)
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
                 train_dataset,
@@ -193,6 +200,13 @@ class ConvVAETrainer(Serializable):
             log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
             p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
             return p_theta_x_shifted
+        elif method == 'hash_count':
+            torch_input = ptu.np_to_var(normalize_image(self.train_dataset))
+            mus, log_vars = self.model.encode(torch_input)
+            mus = ptu.get_numpy(mus)
+            self.exploration_counter.increment_counts(mus)
+            priority = 1/(self.exploration_counter.compute_count_based_reward(mus)**power)
+            return ptu.get_numpy(priority)
         else:
             raise NotImplementedError('Method {} not supported'.format(method))
         #todo: hashcount priorities
