@@ -93,8 +93,8 @@ if __name__ == '__main__':
             False,
         ],
         'weight_type': [
-            'inv_p',
-            # 'sqrt_inv_p',
+            # 'inv_p',
+            'sqrt_inv_p',
             # 'nll',
         ],
         'use_perfect_samples': [
