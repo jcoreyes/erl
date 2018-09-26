@@ -26,9 +26,11 @@ if __name__ == '__main__':
         bs=32,
         # n_epochs=1000,
         # save_period=50,
-        n_epochs=50,
         save_period=1,
+        n_epochs=50,
         n_samples_to_add_per_epoch=10000,
+        # n_epochs=5,
+        # n_samples_to_add_per_epoch=10,
         n_start_samples=0,
         skew_sampling=False,
         weight_loss=False,
@@ -39,7 +41,7 @@ if __name__ == '__main__':
         # beta_schedule_kwargs=dict(
         #     value=0.1,
         # )
-        skew_config=dict(
+        vae_weight_config=dict(
             alpha=1,
             mode='importance_sampling',
             n_average=100,
@@ -51,19 +53,32 @@ if __name__ == '__main__':
     mode = 'local'
     exp_prefix = 'dev'
 
-    exp_prefix = 'sv-square-full-method'
-    exp_prefix = 'sv-square-full-method-big-bs'
+    # exp_prefix = 'sv-square-full-method'
+    # exp_prefix = 'sv-square-full-method-big-bs-inv-sqrt'
+    # exp_prefix = 'sv-square-weight-loss'
     # exp_prefix = 'sv-zero-init-square-border'
     # exp_prefix = 'sv-zero-init-square-cap'
     # exp_prefix = 'sv-zero-init-square-cap-split'
 
     search_space = {
+        # Optimization hyperparameters
+        'bs': [
+            500,
+        ],
+        'num_inner_vae_epochs': [10],
+        # Env hyperparameters
+        'dynamics_noise': [
+            # 0.2,
+            # 0.1,
+            0.05,
+        ],
         'projection': [
             # project_samples_square_np,
             project_square_border_np,
             # project_square_cap_np,
             # project_square_cap_split_np,
         ],
+        # Method hyperparameters
         'append_all_data': [
             False,
         ],
@@ -71,24 +86,19 @@ if __name__ == '__main__':
             # True,
             False,
         ],
-        'bs': [
-            500,
-        ],
         'weight_loss': [
-            True,
-            # False,
-        ],
-        'dynamics_noise': [
-            0.2,
+            # True,
+            False,
         ],
         'beta_schedule_kwargs.value': [
             1,
         ],
-        'decoder_output_std': [
-            'learned'
+        'decoder_output_var': [
+            # 'learned'
+            # 0.5,
+            5,
         ],
-        'num_bins': [20],
-        'train_vae_from_histogram': [
+        'reset_vae_every_epoch': [
             # True,
             False,
         ],
@@ -97,16 +107,20 @@ if __name__ == '__main__':
             'sqrt_inv_p',
             # 'nll',
         ],
+        # Cheating hyperparameters
+        'num_bins': [60],
+        'train_vae_from_histogram': [
+            True,
+            # False,
+        ],
         'use_perfect_samples': [
             # True,
             False,
         ],
         'use_perfect_density': [
-            # True,
-            False,
+            True,
+            # False,
         ],
-        'reset_vae_every_epoch': [False],
-        'num_inner_vae_epochs': [10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

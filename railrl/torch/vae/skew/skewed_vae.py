@@ -36,14 +36,28 @@ Plotting
 """
 
 
-def show_heatmap(
+def show_weight_heatmap(
         encoder, decoder, skew_config,
         xlim=(-1.5, 1.5), ylim=(-1.5, 1.5),
         resolution=20,
 ):
 
     def get_prob_batch(batch):
-        return compute_train_weights(batch, encoder, decoder, skew_config)
+        return compute_train_weights(batch, encoder, decoder, skew_config)[0]
+
+    heat_map = vu.make_heat_map(get_prob_batch, xlim, ylim,
+                                resolution=resolution, batch=True)
+    vu.plot_heatmap(heat_map)
+
+
+def show_prob_heatmap(
+        encoder, decoder, skew_config,
+        xlim=(-1.5, 1.5), ylim=(-1.5, 1.5),
+        resolution=20,
+):
+
+    def get_prob_batch(batch):
+        return compute_train_weights(batch, encoder, decoder, skew_config)[1]
 
     heat_map = vu.make_heat_map(get_prob_batch, xlim, ylim,
                                 resolution=resolution, batch=True)
@@ -96,7 +110,7 @@ def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
     skew_config = full_variant['skew_config']
     dynamics_noise = full_variant['dynamics_noise']
     plt.figure()
-    show_heatmap(encoder, decoder, skew_config, xlim=xlim, ylim=ylim)
+    show_weight_heatmap(encoder, decoder, skew_config, xlim=xlim, ylim=ylim)
     fig = plt.gcf()
     heatmap_img = vu.save_image(fig)
     report.add_image(heatmap_img, "Epoch {} Heatmap".format(epoch))
@@ -378,6 +392,7 @@ def compute_train_weights(data, encoder, decoder, config):
     mode = config.get('mode', 'none')
     n_average = config.get('n_average', 3)
     temperature = config.get('temperature', 1)
+    weight_type = config['weight_type']
     orig_data_length = len(data)
     if alpha == 0 or mode == 'none':
         return np.ones(orig_data_length)
@@ -418,19 +433,47 @@ def compute_train_weights(data, encoder, decoder, config):
             encoder_log_prob = encoder_distrib.log_prob(latents).sum(dim=1)
 
             importance_weights = (prior_log_prob - encoder_log_prob).exp()
+            iws = importance_weights.data.numpy()
+            # print("---")
+            # print("max importance weight", np.max(iws))
+            # print("min importance weight", np.min(iws))
+            # print("std importance weight", np.std(iws))
+            # print("mean importance weight", np.mean(iws))
         else:
             raise NotImplementedError()
 
-        data_prob = compute_log_prob(data, decoder, latents).squeeze(1).exp()
-        weights = importance_weights * 1. / torch.clamp(
-            data_prob,
-            min=1e-6,
+        data_log_prob = compute_log_prob(data, decoder, latents).squeeze(1)
+        data_log_prob = torch.clamp(
+            data_log_prob,
+            # min=-20,  # corresponds to 1e-9
+            # min=-14,  # corresponds to 1e-6
+            min=-7,  # corresponds to 1e-3
         )
-    weights = weights ** alpha
+        data_prob = data_log_prob.exp()
+        if weight_type == 'sqrt_inv_p':
+            weights = (-0.5 * data_log_prob).exp()
+        elif weight_type == 'inv_p':
+            weights = (-1 * data_log_prob).exp()
+        dp = data_prob.data.numpy()
+        print(" $ $ $ $")
+        print("max data prob", np.max(dp))
+        print("min data prob", np.min(dp))
+        print("std data prob", np.std(dp))
+        print("mean data prob", np.mean(dp))
+        weights = importance_weights * weights
+    weights = weights ** alpha / weights.sum()
 
     """
     Average over `n_average`
     """
+    dp_samples_of_results = torch.split(data_prob, orig_data_length, dim=0)
+    # pre_avg.shape = ORIG_LEN x N_AVERAGE
+    dp_pre_avg = torch.cat(
+        [x.unsqueeze(1) for x in dp_samples_of_results],
+        1,
+    )
+    # final.shape = ORIG_LEN
+    dp_final = torch.mean(dp_pre_avg, dim=1, keepdim=False)
 
     samples_of_results = torch.split(weights, orig_data_length, dim=0)
     # pre_avg.shape = ORIG_LEN x N_AVERAGE
@@ -440,7 +483,7 @@ def compute_train_weights(data, encoder, decoder, config):
     )
     # final.shape = ORIG_LEN
     final = torch.mean(pre_avg, dim=1, keepdim=False)
-    return final.data.numpy()
+    return final.data.numpy(), dp_final.data.numpy()
 
 
 def generate_vae_samples_np(decoder, n_samples):

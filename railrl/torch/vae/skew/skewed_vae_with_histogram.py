@@ -100,15 +100,26 @@ def visualize_vae_samples(
 
 
 def visualize_vae(encoder, decoder, skew_config, report,
+                  resolution=20,
                   title="VAE Heatmap"):
-    sv.show_heatmap(encoder, decoder, skew_config)
+    sv.show_prob_heatmap(encoder, decoder, skew_config, resolution=resolution)
+    fig = plt.gcf()
+    prob_heatmap_img = vu.save_image(fig)
+    report.add_image(prob_heatmap_img, "Prob " + title)
+
+    sv.show_weight_heatmap(encoder, decoder, skew_config, resolution=resolution)
     fig = plt.gcf()
     heatmap_img = vu.save_image(fig)
-    report.add_image(heatmap_img, title)
+    report.add_image(heatmap_img, "Weight " + title)
     return heatmap_img
 
 
 def train_from_variant(variant):
+    variant.pop('seed')
+    variant.pop('exp_id')
+    variant.pop('exp_prefix')
+    variant.pop('unique_id')
+    variant.pop('instance_type')
     train(full_variant=variant, **variant)
 
 
@@ -139,14 +150,16 @@ def train(
         num_inner_vae_epochs=1,
         vae_weight_config=None,
         use_dataset_generator_first_epoch=True,
-        **kwargs
 ):
 
     """
     Sanitize Inputs
     """
+    if not (use_perfect_density and use_perfect_samples):
+        assert vae_weight_config is not None
     if vae_weight_config is None:
         vae_weight_config = {}
+    vae_weight_config['weight_type'] = weight_type
     if beta_schedule_class is None:
         beta_schedule = ConstantSchedule(1)
     else:
@@ -231,6 +244,7 @@ def train(
         p_new.compute_pvals_and_per_bin_weights(
             train_data,
             weights=all_weights,
+            # weights=np.exp(10 * all_weights),
         )
         if epoch == 0 or (epoch + 1) % save_period == 0:
             epochs.append(epoch)
@@ -239,7 +253,8 @@ def train(
             report.add_text("Epoch {}".format(epoch))
             hist_heatmap_img = visualize_histogram(epoch, p_theta, report)
             vae_heatmap_img = visualize_vae(
-                encoder, decoder, vae_weight_config, report
+                encoder, decoder, vae_weight_config, report,
+                resolution=num_bins,
             )
             sample_img = visualize_vae_samples(
                 epoch, train_data, encoder, decoder, report, dynamics,
@@ -404,7 +419,7 @@ def train(
         )
         gif_file_path = logger.get_snapshot_dir() + '/{}.gif'.format(filename)
         gif(gif_file_path, video)
-        report.add_image(gif_file_path, filename, filename, is_url=True)
+        report.add_image(gif_file_path, txt=filename, is_url=True)
     report.save()
 
 
