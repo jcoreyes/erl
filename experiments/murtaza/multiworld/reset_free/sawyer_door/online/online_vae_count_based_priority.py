@@ -55,6 +55,11 @@ if __name__ == "__main__":
                 exploration_rewards_type='None',
                 vae_priority_type='hash_count',
                 power=0,
+                exploration_counter_kwargs=dict(
+                    hash_dim=16,
+                    obs_dim=16,
+                    observation_key='latent_observation',
+                ),
             ),
             normalize=False,
             render=False,
@@ -100,34 +105,34 @@ if __name__ == "__main__":
             ),
             vae_kwargs=dict(
                 input_channels=3,
-                unit_variance=False,
                 decoder_activation='sigmoid',
-                variance_scaling=1,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
                 use_linear_dynamics=False,
                 lr=1e-3,
+                full_gaussian_decoder=True,
             ),
             save_period=5,
         ),
     )
 
     search_space = {
-        'train_vae_variant.beta':[1, 2.5, 5],
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_gaussian_inv_prob']
+        'train_vae_variant.beta':[1, 2.5],
+        'train_vae_variant.algo_kwargs.full_gaussian_decoder':[True, False],
+        'grill_variant.replay_buffer_kwargs.power': [0, 1 / 2, 1],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_online_vae_door_prioritization_explr_noise'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'sawyer_harder_door_online_vae_hash_count_priority'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

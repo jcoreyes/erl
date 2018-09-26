@@ -106,25 +106,27 @@ if __name__ == "__main__":
                 do_scatterplot=False,
                 use_linear_dynamics=False,
                 lr=1e-3,
+                full_gaussian_decoder=True,
             ),
             save_period=5,
         ),
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.power':[0, 1/2, 1, 10],
+        'grill_variant.replay_buffer_kwargs.power':[0, 1/2, 1],
+        'train_vae_variant.algo_kwargs.full_gaussian_decoder': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_online_vae_door_prioritization_explr_noise'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'sawyer_harder_door_offline_vae_recon_priority'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
