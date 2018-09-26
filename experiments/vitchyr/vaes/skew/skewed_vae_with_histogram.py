@@ -42,9 +42,9 @@ if __name__ == '__main__':
         #     value=0.1,
         # )
         vae_kwargs=dict(
-            # mode='importance_sampling',
+            mode='importance_sampling',
             # mode='biased_encoder',
-            mode='prior',
+            # mode='prior',
             n_average=100,
         ),
         use_dataset_generator_first_epoch=True,
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     mode = 'local'
     exp_prefix = 'dev'
 
-    # exp_prefix = 'sv-square-full-method'
+    exp_prefix = 'sv-square-full-method-is-learned'
     # exp_prefix = 'sv-square-full-method-big-bs-inv-sqrt'
     # exp_prefix = 'sv-square-weight-loss'
     # exp_prefix = 'sv-zero-init-square-border'
@@ -91,17 +91,17 @@ if __name__ == '__main__':
             False,
         ],
         'weight_loss': [
-            # True,
-            False,
+            True,
+            # False,
         ],
         'beta_schedule_kwargs.value': [
             1,
         ],
         'decoder_output_var': [
-            # 'learned'
+            'learned',
             # 0.05,
             # 0.1,
-            0.2,
+            # 0.2,
             # 0.5,
             # 5,
         ],
@@ -117,16 +117,16 @@ if __name__ == '__main__':
         # Cheating hyperparameters
         'num_bins': [60],
         'train_vae_from_histogram': [
-            True,
-            # False,
+            # True,
+            False,
         ],
         'use_perfect_samples': [
             # True,
             False,
         ],
         'use_perfect_density': [
-            True,
-            # False,
+            # True,
+            False,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

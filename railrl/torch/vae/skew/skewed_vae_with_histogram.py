@@ -97,22 +97,26 @@ def visualize_vae_samples(
 
 def visualize_vae(vae, skew_config, report,
                   resolution=20,
+                  xlim=(-1.5, 1.5),
+                  ylim=(-1.5, 1.5),
                   title="VAE Heatmap"):
-    show_prob_heatmap(vae, resolution=resolution)
+    show_prob_heatmap(vae, xlim=xlim, ylim=ylim, resolution=resolution)
     fig = plt.gcf()
     prob_heatmap_img = vu.save_image(fig)
     report.add_image(prob_heatmap_img, "Prob " + title)
 
-    show_weight_heatmap(vae, skew_config, resolution=resolution)
+    show_weight_heatmap(
+        vae, skew_config,xlim=xlim, ylim=ylim, resolution=resolution,
+    )
     fig = plt.gcf()
     heatmap_img = vu.save_image(fig)
     report.add_image(heatmap_img, "Weight " + title)
-    return heatmap_img
+    return prob_heatmap_img
 
 
 def show_weight_heatmap(
         vae, skew_config,
-        xlim=(-1.5, 1.5), ylim=(-1.5, 1.5),
+        xlim, ylim,
         resolution=20,
 ):
 
@@ -127,7 +131,7 @@ def show_weight_heatmap(
 
 def show_prob_heatmap(
         vae,
-        xlim=(-1.5, 1.5), ylim=(-1.5, 1.5),
+        xlim, ylim,
         resolution=20,
 ):
 
@@ -285,6 +289,8 @@ def train(
             vae_heatmap_img = visualize_vae(
                 vae, skew_config, report,
                 resolution=num_bins,
+                xlim=(-1, 1),
+                ylim=(-1, 1),
             )
             sample_img = visualize_vae_samples(
                 epoch, train_data, vae, report, dynamics,
@@ -486,8 +492,8 @@ def visualize_histogram(histogram, skew_config, report):
     prob = histogram.pvals
     weights = prob_to_weight(prob, skew_config)
     for name, values in [
-        ('Prob Heatmap', prob),
         ('Weight Heatmap', weights),
+        ('Prob Heatmap', prob),
     ]:
         plt.figure()
         fig = plt.gcf()
