@@ -5,6 +5,7 @@ import copy
 import json
 from collections import defaultdict
 
+from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -12,7 +13,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from skvideo.io import vwrite
 from torch import nn as nn
 from torch.autograd import Variable
-from torch.optim import Adam, RMSprop
+from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import (
     BatchSampler, WeightedRandomSampler,
@@ -26,10 +27,13 @@ from railrl.core import logger
 from railrl.misc import visualization_util as vu
 from railrl.misc.html_report import HTMLReport
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch.vae.skew.common import Dynamics, plot_curves
+from railrl.torch.vae.skew.common import (
+    Dynamics, plot_curves,
+    visualize_samples,
+    visualize_samples_and_projection,
+)
 from railrl.torch.vae.skew.datasets import project_samples_square_np
-from railrl.torch.vae.skew.histogram import Histogram, visualize_histogram, \
-    visualize_histogram_samples
+from railrl.torch.vae.skew.histogram import Histogram, visualize_histogram
 from railrl.misc.visualization_util import gif
 
 K = 6
@@ -95,21 +99,13 @@ def visualize_vae_samples(
     return sample_img
 
 
-def visualize_samples(
-        samples,
-        report,
-        title="Samples",
-):
-    plt.figure()
-    plt.plot(samples[:, 0], samples[:, 1], '.')
-    plt.xlim(-1.5, 1.5)
-    plt.ylim(-1.5, 1.5)
-    plt.title(title)
-
+def visualize_vae(encoder, decoder, skew_config, report,
+                  title="VAE Heatmap"):
+    sv.show_heatmap(encoder, decoder, skew_config)
     fig = plt.gcf()
-    sample_img = vu.save_image(fig)
-    report.add_image(sample_img, title)
-    return sample_img
+    heatmap_img = vu.save_image(fig)
+    report.add_image(heatmap_img, title)
+    return heatmap_img
 
 
 def train_from_variant(variant):
@@ -161,7 +157,7 @@ def train(
 
     report = HTMLReport(
         logger.get_snapshot_dir() + '/report.html',
-        images_per_row=6,
+        images_per_row=10,
     )
     dynamics = Dynamics(projection, dynamics_noise)
     if full_variant:
@@ -188,7 +184,8 @@ def train(
     log_probs = []
     encoders = []
     decoders = []
-    heatmap_imgs = []
+    hist_heatmap_imgs = []
+    vae_heatmap_imgs = []
     sample_imgs = []
     entropies = []
     tvs_to_uniform = []
@@ -231,7 +228,6 @@ def train(
                 decoder,
                 vae_weight_config,
             )
-        # if epoch == 0:
         p_new.compute_pvals_and_per_bin_weights(
             train_data,
             weights=all_weights,
@@ -241,26 +237,44 @@ def train(
             encoders.append(copy.deepcopy(encoder))
             decoders.append(copy.deepcopy(decoder))
             report.add_text("Epoch {}".format(epoch))
-            heatmap_img = visualize_histogram(epoch, p_theta, report)
+            hist_heatmap_img = visualize_histogram(epoch, p_theta, report)
+            vae_heatmap_img = visualize_vae(
+                encoder, decoder, vae_weight_config, report
+            )
             sample_img = visualize_vae_samples(
                 epoch, train_data, encoder, decoder, report, dynamics,
             )
-            visualize_samples(vae_samples, report, title="VAE Samples")
-            _ = visualize_histogram_samples(
-                p_theta, report, dynamics,
-                title="P Theta Samples"
+
+            visualize_samples(
+                vae_samples,
+                report,
+                title="VAE Samples"
             )
-            _ = visualize_histogram_samples(
-                p_new, report, dynamics,
-                title="P New Samples"
+            visualize_samples(
+                train_data,
+                report,
+                title="Projected VAE Samples"
             )
-            heatmap_imgs.append(heatmap_img)
+            visualize_samples(
+                p_theta.sample(n_samples_to_add_per_epoch),
+                report,
+                title="P Theta/RB Samples",
+            )
+            visualize_samples(
+                p_new.sample(n_samples_to_add_per_epoch),
+                report,
+                title="P Adjusted Samples",
+            )
+            hist_heatmap_imgs.append(hist_heatmap_img)
+            vae_heatmap_imgs.append(vae_heatmap_img)
             sample_imgs.append(sample_img)
             report.save()
 
-            from PIL import Image
-            Image.fromarray(heatmap_img).save(
-                logger.get_snapshot_dir() + '/heatmap{}.png'.format(epoch)
+            Image.fromarray(hist_heatmap_img).save(
+                logger.get_snapshot_dir() + '/hist_heatmap{}.png'.format(epoch)
+            )
+            Image.fromarray(vae_heatmap_img).save(
+                logger.get_snapshot_dir() + '/hist_heatmap{}.png'.format(epoch)
             )
             Image.fromarray(sample_img).save(
                 logger.get_snapshot_dir() + '/samples{}.png'.format(epoch)
@@ -359,8 +373,6 @@ def train(
 
 
     report.add_header("Training Curves")
-    # results = epochs, encoders, decoders, train_datas, losses, kls, log_probs
-    # sv.plot_uniformness(results, full_variant, projection, report=report)
     plot_curves(
         [
             ("Training Loss", losses),
@@ -370,39 +382,29 @@ def train(
         ],
         report,
     )
-    plot_non_vae_curves(entropies, tvs_to_uniform, report)
+    plot_curves(
+        [
+            ("Entropy", entropies),
+            ("TV to Uniform", tvs_to_uniform),
+        ],
+        report,
+    )
     report.add_text("Max entropy: {}".format(p_theta.max_entropy()))
     report.save()
 
-    heatmap_video = np.stack(heatmap_imgs)
-    sample_video = np.stack(sample_imgs)
-
-    vwrite(
-        logger.get_snapshot_dir() + '/heatmaps.mp4',
-        heatmap_video,
-    )
-    vwrite(
-        logger.get_snapshot_dir() + '/samples.mp4',
-        sample_video,
-    )
-    gif(
-        logger.get_snapshot_dir() + '/samples.gif',
-        sample_video,
-    )
-    gif(
-        logger.get_snapshot_dir() + '/heatmaps.gif',
-        heatmap_video,
-    )
-    report.add_image(
-        logger.get_snapshot_dir() + '/samples.gif',
-        "Samples GIF",
-        is_url=True,
-    )
-    report.add_image(
-        logger.get_snapshot_dir() + '/heatmaps.gif',
-        "Heatmaps GIF",
-        is_url=True,
-    )
+    for filename, imgs in [
+        ("hist_heatmaps", hist_heatmap_imgs),
+        ("vae_heatmaps", vae_heatmap_imgs),
+        ("samples", sample_imgs),
+    ]:
+        video = np.stack(imgs)
+        vwrite(
+            logger.get_snapshot_dir() + '/{}.mp4'.format(filename),
+            video,
+        )
+        gif_file_path = logger.get_snapshot_dir() + '/{}.gif'.format(filename)
+        gif(gif_file_path, video)
+        report.add_image(gif_file_path, filename, filename, is_url=True)
     report.save()
 
 
@@ -430,17 +432,3 @@ def get_vae(decoder_output_var, hidden_size, z_dim):
     encoder_opt = Adam(encoder.parameters())
     decoder_opt = Adam(decoder.parameters())
     return decoder, decoder_opt, encoder, encoder_opt
-
-
-def plot_non_vae_curves(entropies, tvs_to_uniform, report):
-    plt.figure()
-    plt.subplot(1, 2, 1)
-    plt.plot(np.array(entropies))
-    plt.title("Entropy")
-    plt.subplot(1, 2, 2)
-    plt.plot(np.array(tvs_to_uniform))
-    plt.title("TV to uniform")
-    plt.xlabel("Epoch")
-    fig = plt.gcf()
-    img = vu.save_image(fig)
-    report.add_image(img, "Final Distribution")
