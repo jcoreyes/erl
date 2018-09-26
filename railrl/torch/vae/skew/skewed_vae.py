@@ -328,9 +328,14 @@ class Encoder(nn.Sequential):
 
 
 class Decoder(nn.Sequential):
-    def __init__(self, *args, output_var=1):
+    def __init__(self, *args, output_var=1, output_offset=0):
         super().__init__(*args)
         self.output_var = output_var
+        self.output_offset = output_offset
+
+    def __call__(self, *args, **kwargs):
+        output = super().__call__(*args, **kwargs)
+        return output + self.output_offset
 
     def decode(self, input):
         output = self(input)

@@ -38,10 +38,11 @@ K = 6
 Plotting
 """
 
-def visualize_samples(
+def visualize_vae_samples(
         epoch, vis_samples_np, encoder, decoder,
         report, dynamics,
-        n_vis=1000, xlim=(-1.5, 1.5),
+        n_vis=1000,
+        xlim=(-1.5, 1.5),
         ylim=(-1.5, 1.5)
 ):
     plt.figure()
@@ -94,6 +95,23 @@ def visualize_samples(
     return sample_img
 
 
+def visualize_samples(
+        samples,
+        report,
+        title="Samples",
+):
+    plt.figure()
+    plt.plot(samples[:, 0], samples[:, 1], '.')
+    plt.xlim(-1.5, 1.5)
+    plt.ylim(-1.5, 1.5)
+    plt.title(title)
+
+    fig = plt.gcf()
+    sample_img = vu.save_image(fig)
+    report.add_image(sample_img, title)
+    return sample_img
+
+
 def train_from_variant(variant):
     train(full_variant=variant, **variant)
 
@@ -119,42 +137,31 @@ def train(
         num_bins=5,
         train_vae_from_histogram=False,
         weight_type='sqrt_inv_p',
+        use_perfect_samples=False,
+        use_perfect_density=False,
+        reset_vae_every_epoch=False,
+        num_inner_vae_epochs=1,
+        vae_weight_config=None,
+        use_dataset_generator_first_epoch=True,
         **kwargs
 ):
 
     """
     Sanitize Inputs
     """
-    encoder = sv.Encoder(
-        nn.Linear(2, hidden_size),
-        nn.ReLU(),
-        nn.Linear(hidden_size, hidden_size),
-        nn.ReLU(),
-        nn.Linear(hidden_size, z_dim * 2),
-    )
-    if decoder_output_var == 'learned':
-        last_layer = nn.Linear(hidden_size, 4)
-    else:
-        last_layer = nn.Linear(hidden_size, 2)
-    decoder = sv.Decoder(
-        nn.Linear(z_dim, hidden_size),
-        nn.ReLU(),
-        nn.Linear(hidden_size, hidden_size),
-        nn.ReLU(),
-        last_layer,
-        output_var=decoder_output_var,
-        )
+    if vae_weight_config is None:
+        vae_weight_config = {}
     if beta_schedule_class is None:
         beta_schedule = ConstantSchedule(1)
     else:
         beta_schedule = beta_schedule_class(**beta_schedule_kwargs)
     if train_vae_from_histogram:
-        assert not weight_loss
+        # assert not weight_loss
         assert not skew_sampling
 
     report = HTMLReport(
         logger.get_snapshot_dir() + '/report.html',
-        images_per_row=5,
+        images_per_row=6,
     )
     dynamics = Dynamics(projection, dynamics_noise)
     if full_variant:
@@ -168,11 +175,12 @@ def train(
             )
         )
 
-    orig_train_data = dataset_generator(n_start_samples)
-    train_data = orig_train_data
 
-    encoder_opt = Adam(encoder.parameters())
-    decoder_opt = Adam(decoder.parameters())
+    decoder, decoder_opt, encoder, encoder_opt = get_vae(
+        decoder_output_var,
+        hidden_size,
+        z_dim
+    )
 
     epochs = []
     losses = []
@@ -189,13 +197,24 @@ def train(
     p_theta = VAE's distribution
     """
     p_theta = Histogram(num_bins, weight_type=weight_type)
+    p_new = Histogram(num_bins, weight_type=weight_type)
+
+    orig_train_data = dataset_generator(n_start_samples)
+    train_data = orig_train_data
     for epoch in sv.progressbar(range(n_epochs)):
         epoch_stats = defaultdict(list)
         p_theta = Histogram(num_bins, weight_type=weight_type)
-        vae_samples = sv.generate_vae_samples_np(
-            decoder,
-            n_samples_to_add_per_epoch,
-        )
+        if epoch == 0 and use_dataset_generator_first_epoch:
+            vae_samples = dataset_generator(n_samples_to_add_per_epoch)
+        else:
+            if use_perfect_samples and epoch != 0:
+                # Ideally the VAE = p_new, but in practice, it won't be...
+                vae_samples = p_new.sample(n_samples_to_add_per_epoch)
+            else:
+                vae_samples = sv.generate_vae_samples_np(
+                    decoder,
+                    n_samples_to_add_per_epoch,
+                )
         p_theta.compute_pvals_and_per_bin_weights(vae_samples)
         projected_samples = dynamics(vae_samples)
         if append_all_data:
@@ -203,22 +222,30 @@ def train(
         else:
             train_data = np.vstack((orig_train_data, projected_samples))
 
-        all_weights = p_theta.compute_per_elem_weights(train_data)
-        p_new = Histogram(num_bins, weight_type=weight_type)
+        if use_perfect_density:
+            all_weights = p_theta.compute_per_elem_weights(train_data)
+        else:
+            all_weights = sv.compute_train_weights(
+                train_data,
+                encoder,
+                decoder,
+                vae_weight_config,
+            )
+        # if epoch == 0:
         p_new.compute_pvals_and_per_bin_weights(
             train_data,
             weights=all_weights,
         )
-        all_weights_pt = ptu.np_to_var(all_weights, requires_grad=False)
         if epoch == 0 or (epoch + 1) % save_period == 0:
             epochs.append(epoch)
             encoders.append(copy.deepcopy(encoder))
             decoders.append(copy.deepcopy(decoder))
             report.add_text("Epoch {}".format(epoch))
             heatmap_img = visualize_histogram(epoch, p_theta, report)
-            sample_img = visualize_samples(
+            sample_img = visualize_vae_samples(
                 epoch, train_data, encoder, decoder, report, dynamics,
             )
+            visualize_samples(vae_samples, report, title="VAE Samples")
             _ = visualize_histogram_samples(
                 p_theta, report, dynamics,
                 title="P Theta Samples"
@@ -244,6 +271,7 @@ def train(
         """
         if sum(all_weights) == 0:
             all_weights[:] = 1
+        all_weights_pt = ptu.np_to_var(all_weights, requires_grad=False)
 
         indexed_train_data = sv.IndexedData(train_data)
         if skew_sampling:
@@ -259,44 +287,53 @@ def train(
                 drop_last=False,
             ),
         )
-        for _, indexed_batch in enumerate(train_dataloader):
-            idxs, batch = indexed_batch
-            if train_vae_from_histogram:
-                batch = ptu.np_to_var(p_new.sample(
-                    batch[0].shape[0]
-                ))
-            else:
-                batch = Variable(batch[0].float())
-
-            latents, means, log_vars, stds = encoder.get_encoding_and_suff_stats(
-                batch
+        if reset_vae_every_epoch:
+            decoder, decoder_opt, encoder, encoder_opt = get_vae(
+                decoder_output_var,
+                hidden_size,
+                z_dim
             )
-            beta = float(beta_schedule.get_value(epoch))
-            kl = sv.kl_to_prior(means, log_vars, stds)
-            reconstruction_log_prob = sv.compute_log_prob(batch, decoder, latents)
+        for _ in range(num_inner_vae_epochs):
+            for _, indexed_batch in enumerate(train_dataloader):
+                idxs, batch = indexed_batch
+                if train_vae_from_histogram:
+                    batch = ptu.np_to_var(p_new.sample(
+                        batch[0].shape[0]
+                    ))
+                else:
+                    batch = Variable(batch[0].float())
 
-            elbo = - kl * beta + reconstruction_log_prob
-            if weight_loss:
-                # idxs = torch.cat(idxs)
-                # batch_weights = all_weights_pt[idxs].unsqueeze(1)
-                weights_np = p_theta.compute_per_elem_weights(
-                    train_data
+                latents, means, log_vars, stds = encoder.get_encoding_and_suff_stats(
+                    batch
                 )
-                batch_weights = ptu.np_to_var(weights_np)
-                loss = -(batch_weights * elbo).mean()
-            else:
-                loss = - elbo.mean()
-            encoder_opt.zero_grad()
-            decoder_opt.zero_grad()
-            loss.backward()
-            encoder_opt.step()
-            decoder_opt.step()
+                beta = float(beta_schedule.get_value(epoch))
+                kl = sv.kl_to_prior(means, log_vars, stds)
+                reconstruction_log_prob = sv.compute_log_prob(batch, decoder, latents)
 
-            epoch_stats['losses'].append(loss.data.numpy())
-            epoch_stats['kls'].append(kl.mean().data.numpy())
-            epoch_stats['log_probs'].append(
-                reconstruction_log_prob.mean().data.numpy()
-            )
+                elbo = - kl * beta + reconstruction_log_prob
+                if weight_loss:
+                    if train_vae_from_histogram:
+                        weights_np = p_theta.compute_per_elem_weights(
+                            ptu.get_numpy(batch)
+                        )
+                        batch_weights = ptu.np_to_var(weights_np).unsqueeze(1)
+                    else:
+                        idxs = torch.cat(idxs)
+                        batch_weights = all_weights_pt[idxs].unsqueeze(1)
+                    loss = -(batch_weights * elbo).mean()
+                else:
+                    loss = - elbo.mean()
+                encoder_opt.zero_grad()
+                decoder_opt.zero_grad()
+                loss.backward()
+                encoder_opt.step()
+                decoder_opt.step()
+
+                epoch_stats['losses'].append(loss.data.numpy())
+                epoch_stats['kls'].append(kl.mean().data.numpy())
+                epoch_stats['log_probs'].append(
+                    reconstruction_log_prob.mean().data.numpy()
+                )
 
         losses.append(np.mean(epoch_stats['losses']))
         kls.append(np.mean(epoch_stats['kls']))
@@ -319,6 +356,7 @@ def train(
             'encoder': encoder,
             'decoder': decoder,
         })
+
 
     report.add_header("Training Curves")
     # results = epochs, encoders, decoders, train_datas, losses, kls, log_probs
@@ -366,6 +404,32 @@ def train(
         is_url=True,
     )
     report.save()
+
+
+def get_vae(decoder_output_var, hidden_size, z_dim):
+    encoder = sv.Encoder(
+        nn.Linear(2, hidden_size),
+        nn.ReLU(),
+        nn.Linear(hidden_size, hidden_size),
+        nn.ReLU(),
+        nn.Linear(hidden_size, z_dim * 2),
+    )
+    if decoder_output_var == 'learned':
+        last_layer = nn.Linear(hidden_size, 4)
+    else:
+        last_layer = nn.Linear(hidden_size, 2)
+    decoder = sv.Decoder(
+        nn.Linear(z_dim, hidden_size),
+        nn.ReLU(),
+        nn.Linear(hidden_size, hidden_size),
+        nn.ReLU(),
+        last_layer,
+        output_var=decoder_output_var,
+        output_offset=-1,
+    )
+    encoder_opt = Adam(encoder.parameters())
+    decoder_opt = Adam(decoder.parameters())
+    return decoder, decoder_opt, encoder, encoder_opt
 
 
 def plot_non_vae_curves(entropies, tvs_to_uniform, report):

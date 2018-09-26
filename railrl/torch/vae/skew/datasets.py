@@ -25,6 +25,15 @@ def four_corners(_):
     ])
 
 
+def zeros_dataset(batch_size):
+    return np.zeros((batch_size, 2))
+
+
+def negative_one_dataset(batch_size):
+    data = - np.ones((batch_size, 2))
+    return data
+
+
 def empty_dataset(_):
     return np.zeros((0, 2))
 
@@ -96,6 +105,13 @@ def project_square_border_np(data):
     return data
 
 
+def project_square_border_positive_np(data):
+    data = data - 1
+    data = project_square_border_np(data)
+    data = data + 1
+    return data
+
+
 def project_square_cap_np(data):
     data = np.maximum(data, -1)
     data = np.minimum(data, 1)
@@ -120,3 +136,12 @@ def project_square_cap_np(data):
     # data[under_square_right, 0] = -0.5
     return data
 
+
+def project_square_cap_split_np(data):
+    data = project_square_cap_np(data)
+    # in order: bottom, top, left, right
+    data[(-0.25 < data[:, 1]) * (data[:, 1] <= 0), 1] = -0.25
+    data[(0 <= data[:, 1]) * (data[:, 1] < 0.25), 1] = 0.25
+    data[(-0.25 < data[:, 0]) * (data[:, 0] <= 0), 0] = -0.25
+    data[(0 <= data[:, 0]) * (data[:, 0] < 0.25), 0] = 0.25
+    return data

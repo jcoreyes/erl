@@ -181,14 +181,19 @@ class Histogram(object):
         else:
             self.pvals = H.astype(np.float32) / weights.sum()
         prob = np.maximum(self.pvals, 1. / len(data))
-        if self.weight_type == 'inv_p':
-            self.weights = 1. / prob
-        elif self.weight_type == 'nll':
-            self.weights = - np.log(prob)
-        elif self.weight_type == 'sqrt_inv_p':
-            self.weights = (1. / prob) ** 0.5
-        else:
-            raise NotImplementedError()
+        with np.errstate(divide='ignore', invalid='ignore'):
+            if self.weight_type == 'inv_p':
+                self.weights = 1. / prob
+            elif self.weight_type == 'nll':
+                self.weights = - np.log(prob)
+            elif self.weight_type == 'sqrt_inv_p':
+                self.weights = (1. / prob) ** 0.5
+            else:
+                raise NotImplementedError()
+        self.weights[self.weights == np.inf] = 0
+        self.weights[self.weights == -np.inf] = 0
+        self.weights[self.weights == -np.nan] = 0
+        self.weights = self.weights / (self.weights.flatten().sum())
 
     def reweight_pvals(self):
         new_pvals = self.pvals * self.weights
