@@ -53,7 +53,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_type='None',
-                vae_priority_type='reconstruction_error',
+                vae_priority_type='image_gaussian_inv_prob',
                 power=1,
             ),
             normalize=False,
@@ -111,9 +111,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.power':[0, 1/2, 1],
-        'train_vae_variant.algo_kwargs.full_gaussian_decoder': [True, False],
-        'grill_variant.exploration_noise': [.3, .5, .8],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_gaussian_inv_probs'],
+        'grill_variant.exploration_noise': [.3, .5, .8]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -125,7 +124,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_online_vae_recon_priority'
+    exp_prefix = 'sawyer_harder_door_online_vae_inv_bernoulli_priority'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
