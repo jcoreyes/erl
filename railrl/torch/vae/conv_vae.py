@@ -23,6 +23,36 @@ from multiworld.core.image_env import normalize_image
 from railrl.torch.core import PyTorchModule
 from railrl.core.serializable import Serializable
 
+def inv_gaussian_p_x_np_to_np(model, data):
+    ''' Assumes data is normalized images'''
+    imgs = ptu.np_to_var(data)
+    latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
+    true_prior = Normal(0, 1)
+    vae_dist = Normal(mus, stds)
+    log_p_z = true_prior.log_prob(latents).sum(dim=1)
+    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
+    _, dec_mu, dec_var = model.decode_full(latents)
+    decoder_dist = Normal(dec_mu, dec_var.pow(.5))
+    log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
+    log_p_theta_x = -1 / 2 * (log_p_z - log_q_z_given_x + log_d_x_given_z)
+    log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
+    p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
+    return p_theta_x_shifted
+
+def inv_p_bernoulli_x_np_to_np(model, data):
+    ''' Assumes data is normalized images'''
+    imgs = ptu.np_to_var(data)
+    latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
+    true_prior = Normal(0, 1)
+    vae_dist = Normal(mus, stds)
+    log_p_z = true_prior.log_prob(latents).sum(dim=1)
+    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
+    decoded = model.decode(latents)
+    log_d_x_given_z = torch.log(imgs * decoded + (1-imgs) * (1-decoded)).sum(dim=1)
+    log_p_theta_x = -1 / 2 * (log_p_z - log_q_z_given_x + log_d_x_given_z)
+    log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
+    p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
+    return p_theta_x_shifted
 
 class ConvVAETrainer(Serializable):
     def __init__(
@@ -205,9 +235,14 @@ class ConvVAETrainer(Serializable):
             ) ** power
         elif method == 'kl':
             return self._kl_np_to_np(data) ** power
-        elif method == 'inv_p_x':
-            p_theta_x_shifted = inv_p_x(self.model, data)
-            return p_theta_x_shifted
+        elif method == 'inv_gaussian_p_x':
+            data = normalize_image(data)
+            inv_gaussian_p_x = inv_gaussian_p_x_np_to_np(self.model, data)
+            return inv_gaussian_p_x
+        elif method == 'inv_bernoulli_p_x':
+            data = normalize_image(data)
+            inv_bernoulli_p_x = inv_p_bernoulli_x_np_to_np(self.model, data)
+            return inv_bernoulli_p_x
         elif method == 'hash_count':
             self.exploration_counter.clear_counter()
             mus, mean, std = self.get_dataset_stats(data)
@@ -690,6 +725,15 @@ class ConvVAESmall(PyTorchModule):
             logvar = self.log_min_variance + torch.abs(self.fc2(h))
 
         return mu, logvar
+
+    def get_encoding_and_suff_stats(self, input):
+        mu, logvar = self.encode(input)
+        stds = (0.5 * logvar).exp()
+        epsilon = Variable(torch.randn(*mu.size()))
+        if ptu.gpu_enabled():
+            epsilon = epsilon.cuda()
+        latents = epsilon * stds + mu
+        return latents, mu, logvar, stds
 
     def reparameterize(self, mu, logvar):
         if self.training:
@@ -1295,21 +1339,6 @@ class SpatialVAE(ConvVAE):
         mu = self.output_activation(self.fc1(h))
         logvar = self.output_activation(self.fc2(h))
         return mu, logvar
-
-def inv_p_x(model, data):
-    imgs = ptu.np_to_var(normalize_image(data))
-    latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
-    true_prior = Normal(0, 1)
-    vae_dist = Normal(mus, stds)
-    log_p_z = true_prior.log_prob(latents).sum(dim=1)
-    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
-    _, dec_mu, dec_var = model.decode_full(latents)
-    decoder_dist = Normal(dec_mu, dec_var.pow(.5))
-    log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
-    log_p_theta_x = -1 / 2 * (log_p_z - log_q_z_given_x + log_d_x_given_z)
-    log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
-    p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
-    return p_theta_x_shifted
 
 class ImageDataset(Dataset):
 

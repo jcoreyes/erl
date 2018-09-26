@@ -15,7 +15,7 @@ from railrl.exploration_strategies.count_based.count_based import CountExplorati
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import inv_p_x
+from railrl.torch.vae.conv_vae import inv_gaussian_p_x_np_to_np
 
 
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
@@ -272,7 +272,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         return ptu.get_numpy(1 / prob)
 
     def image_gaussian_inv_prob(self, next_vae_obs, indices):
-        return inv_p_x(self.vae, next_vae_obs)
+        return inv_gaussian_p_x_np_to_np(self.vae, next_vae_obs)
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]
