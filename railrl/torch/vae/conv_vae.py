@@ -105,8 +105,11 @@ class ConvVAETrainer(Serializable):
         if skew_dataset and skew_config.get('method') == 'hash_count':
             if exploration_counter_kwargs is None:
                 exploration_counter_kwargs = dict()
+            _, mean, std = self.get_dataset_stats()
             self.exploration_counter = CountExplorationCountGoalSampler(
                 normalize_obs = True,
+                obs_mean=mean,
+                obs_std=std,
                 **exploration_counter_kwargs)
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
