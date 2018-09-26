@@ -9,7 +9,7 @@ if __name__ == "__main__":
     variant = dict(
         imsize=48,
         init_camera=sawyer_door_env_camera_v3,
-        env_id='SawyerDoorHookResetFreeEnv-v3',
+        env_id='SawyerDoorHookResetFreeEnv-v6',
         grill_variant=dict(
             save_video=True,
             save_video_period=50,
@@ -29,7 +29,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online',
+                    collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -61,13 +61,11 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=False,
-                # policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
-                policy_file='09-25-sawyer-door-new-door-60-reset-free-hard-space-v2/09-25-sawyer_door_new_door_60_reset_free_hard_space-v2_2018_09_25_18_31_15_id000--s54367/params.pkl',
+                policy_file='09-26-sawyer-hook-door-sweep-envs/09-26-sawyer_hook_door_sweep_envs_2018_09_26_16_58_00_id000--s25573/params.pkl',
                 path_length=100,
                 show=False,
-                save_filename='/tmp/goals/SawyerDoorHookResetFreeEnv-v4.npy'
             ),
-            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v4.npy',
+            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v6_N1000_imsize48goals.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -86,11 +84,10 @@ if __name__ == "__main__":
                 use_cached=False,
                 oracle_dataset_from_policy=False,
                 random_and_oracle_policy_data=True,
-                random_and_oracle_policy_data_split=1,
+                random_and_oracle_policy_data_split=.99,
                 non_presampled_goal_img_is_garbage=True,
                 vae_dataset_specific_kwargs=dict(),
-                # policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
-                policy_file='09-25-sawyer-door-new-door-60-reset-free-hard-space-v2/09-25-sawyer_door_new_door_60_reset_free_hard_space-v2_2018_09_25_18_31_15_id000--s54367/params.pkl',
+                policy_file='09-26-sawyer-hook-door-sweep-envs/09-26-sawyer_hook_door_sweep_envs_2018_09_26_16_58_00_id000--s25573/params.pkl',
                 n_random_steps=100,
                 show=False,
             ),
@@ -107,7 +104,7 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
                 skew_config=dict(
-                    method='inv_p_x',
+                    method='inv_gaussian_p_x',
                 ),
                 skew_dataset=True,
                 full_gaussian_decoder=True,
@@ -119,10 +116,9 @@ if __name__ == "__main__":
     search_space = {
         'train_vae_variant.algo_kwargs.skew_dataset':[True, False],
         'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
-            'datasets/SawyerDoorHookResetFreeEnv-v4_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.npy',
-            'datasets/SawyerDoorHookResetFreeEnv-v4_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.5.npy',
-            'datasets/SawyerDoorHookResetFreeEnv-v4_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
-            'datasets/SawyerDoorHookResetFreeEnv-v4_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99.npy',
+            'datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
+            'datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99.npy',
+            'datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1.npy',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

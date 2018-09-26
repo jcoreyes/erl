@@ -10,7 +10,7 @@ if __name__ == "__main__":
         double_algo=False,
         online_vae_exploration=False,
         imsize=48,
-        env_id='SawyerDoorHookResetFreeEnv-v4',
+        env_id='SawyerDoorHookResetFreeEnv-v6',
         init_camera=sawyer_door_env_camera_v3,
         grill_variant=dict(
             save_video=True,
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_type='None',
                 vae_priority_type='reconstruction_error',
-                power=0,
+                power=1,
             ),
             normalize=False,
             render=False,
@@ -71,13 +71,11 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=False,
-                # policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
-                policy_file='09-25-sawyer-door-new-door-60-reset-free-hard-space-v2/09-25-sawyer_door_new_door_60_reset_free_hard_space-v2_2018_09_25_18_31_15_id000--s54367/params.pkl',
+                policy_file='09-26-sawyer-hook-door-sweep-envs/09-26-sawyer_hook_door_sweep_envs_2018_09_26_16_58_00_id000--s25573/params.pkl',
                 path_length=100,
                 show=False,
-                save_filename='/tmp/goals/SawyerDoorHookResetFreeEnv-v4.npy'
             ),
-            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v4.npy',
+            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v6_N1000_imsize48goals.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
