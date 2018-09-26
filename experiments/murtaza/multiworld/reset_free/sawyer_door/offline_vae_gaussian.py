@@ -45,7 +45,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
-            algorithm='OFFLINE-VAE-HER-TD3',
+            algorithm='OFFLINE-VAE-INV-GAUSS-HER-TD3',
             normalize=False,
             render=False,
             exploration_noise=0.8,
@@ -61,12 +61,13 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=False,
-                policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
+                # policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
+                policy_file='09-25-sawyer-door-new-door-60-reset-free-hard-space-v2/09-25-sawyer_door_new_door_60_reset_free_hard_space-v2_2018_09_25_18_31_15_id000--s54367/params.pkl',
                 path_length=100,
                 show=False,
-                save_filename='/tmp/goals/sawyer_hook_door_goals.npy'
+                save_filename='/tmp/goals/SawyerDoorHookResetFreeEnv-v4.npy'
             ),
-            presampled_goals_path='goals/sawyer_hook_door_goals.npy',
+            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v4.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -88,15 +89,16 @@ if __name__ == "__main__":
                 random_and_oracle_policy_data_split=1,
                 non_presampled_goal_img_is_garbage=True,
                 vae_dataset_specific_kwargs=dict(),
-                policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
+                # policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
+                policy_file='09-25-sawyer-door-new-door-60-reset-free-hard-space-v2/09-25-sawyer_door_new_door_60_reset_free_hard_space-v2_2018_09_25_18_31_15_id000--s54367/params.pkl',
                 n_random_steps=100,
-                show=True,
+                show=False,
             ),
             vae_kwargs=dict(
                 input_channels=3,
                 unit_variance=False,
                 decoder_activation='sigmoid',
-                variance_scaling=10,
+                variance_scaling=1,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -105,10 +107,9 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
                 skew_config=dict(
-                    method='p_x',
-                    power=1,
+                    method='inv_p_x',
                 ),
-                skew_dataset=False,
+                skew_dataset=True,
                 full_gaussian_decoder=True,
             ),
             save_period=50,
@@ -116,14 +117,12 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'train_vae_variant.beta':[1, 2.5, 5],
-        'train_vae_variant.vae_kwargs.variance_scaling':[1, 5, 10],
-        'train_vae_variant.vae_kwargs.unit_variance':[True, False],
+        'train_vae_variant.algo_kwargs.skew_dataset':[True, False],
         'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
-            'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.npy',
-            # 'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
-            # 'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99.npy',
-            # 'datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1.npy',
+            'datasets/SawyerDoorHookResetFreeEnv-v4_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.npy',
+            'datasets/SawyerDoorHookResetFreeEnv-v4_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.5.npy',
+            'datasets/SawyerDoorHookResetFreeEnv-v4_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
+            'datasets/SawyerDoorHookResetFreeEnv-v4_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99.npy',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -134,9 +133,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 3
+    n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_hook_door_offline_vae_sigmoid_gaussian_decoder'
+    exp_prefix = 'sawyer_harder_door_offline_vae_inv_gaussian_priority'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

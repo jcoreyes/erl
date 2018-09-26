@@ -1,3 +1,5 @@
+from torch.distributions import Normal
+
 from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer, flatten_dict
 from railrl.data_management.shared_obs_dict_replay_buffer import \
@@ -11,6 +13,8 @@ from torch.nn import MSELoss
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
+from railrl.torch.vae.conv_vae import inv_p_x
+
 
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
@@ -85,6 +89,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'forward_model_error':          self.forward_model_error,
             'gaussian_inv_prob':            self.gaussian_inv_prob,
             'bernoulli_inv_prob':           self.bernoulli_inv_prob,
+            'image_gaussian_inv_prob':      self.image_gaussian_inv_prob,
             'None':                         self.no_reward,
         }
 
@@ -234,6 +239,9 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             + (1 - torch_input) * (1 - recon_next_vae_obs)
         ).prod(dim=1)
         return ptu.get_numpy(1 / prob)
+
+    def image_gaussian_inv_prob(self, next_vae_obs, indices):
+        return inv_p_x(self.vae, next_vae_obs)
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]

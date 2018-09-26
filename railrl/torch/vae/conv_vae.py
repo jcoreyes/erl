@@ -102,10 +102,12 @@ class ConvVAETrainer(Serializable):
         self.skew_config = skew_config
         self.gaussian_decoder_loss = gaussian_decoder_loss
         self.full_gaussian_decoder=full_gaussian_decoder
-        if skew_config.get('method') == 'hash_count':
+        if skew_dataset and skew_config.get('method') == 'hash_count':
             if exploration_counter_kwargs is None:
                 exploration_counter_kwargs = dict()
-            self.exploration_counter = CountExplorationCountGoalSampler(**exploration_counter_kwargs)
+            self.exploration_counter = CountExplorationCountGoalSampler(
+                normalize_obs = True,
+                **exploration_counter_kwargs)
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
                 train_dataset,
@@ -161,6 +163,14 @@ class ConvVAETrainer(Serializable):
         self.vae_logger_stats_for_rl = {}
         self._extra_stats_to_log = None
 
+    def get_dataset_stats(self):
+        torch_input = ptu.np_to_var(normalize_image(self.train_dataset))
+        mus, log_vars = self.model.encode(torch_input)
+        mus = ptu.get_numpy(mus)
+        mean = np.mean(mus, axis=0)
+        std = np.std(mus, axis=0)
+        return mus, mean, std
+
     def update_train_weights(self):
         # TODO: update the weights of the sampler rather than recreating loader
         if self.skew_dataset:
@@ -186,30 +196,19 @@ class ConvVAETrainer(Serializable):
             ) ** power
         elif method == 'kl':
             return self._kl_np_to_np(self.train_dataset) ** power
-        elif method == 'p_x':
-            imgs = ptu.np_to_var(normalize_image(self.train_dataset))
-            latents, mus, logvar, stds = self.model.get_encoding_and_suff_stats(imgs)
-            true_prior = Normal(0, 1)
-            vae_dist = Normal(mus, stds)
-            log_p_z = true_prior.log_prob(latents).sum(dim=1)
-            log_q_z_given_x =vae_dist.log_prob(latents).sum(dim=1)
-            _, dec_mu, dec_var = self.model.decode_full(latents)
-            decoder_dist = Normal(dec_mu, dec_var.pow(.5))
-            log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
-            log_p_theta_x = -1/2*(log_p_z - log_q_z_given_x + log_d_x_given_z)
-            log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
-            p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
+        elif method == 'inv_p_x':
+            p_theta_x_shifted = inv_p_x(self.model, self.train_dataset)
             return p_theta_x_shifted
         elif method == 'hash_count':
-            torch_input = ptu.np_to_var(normalize_image(self.train_dataset))
-            mus, log_vars = self.model.encode(torch_input)
-            mus = ptu.get_numpy(mus)
+            self.exploration_counter.clear_counter()
+            mus, mean, std = self.get_dataset_stats()
+            self.exploration_counter.set_mean_std(mean=mean, std=std)
             self.exploration_counter.increment_counts(mus)
-            priority = 1/(self.exploration_counter.compute_count_based_reward(mus)**power)
-            return ptu.get_numpy(priority)
+            priority = self.exploration_counter.compute_count_based_reward(mus)**power
+            return priority.reshape(-1)
         else:
             raise NotImplementedError('Method {} not supported'.format(method))
-        #todo: hashcount priorities
+
 
     def _kl_np_to_np(self, np_imgs):
         torch_input = ptu.np_to_var(normalize_image(np_imgs))
@@ -1288,6 +1287,20 @@ class SpatialVAE(ConvVAE):
         logvar = self.output_activation(self.fc2(h))
         return mu, logvar
 
+def inv_p_x(model, data):
+    imgs = ptu.np_to_var(normalize_image(data))
+    latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
+    true_prior = Normal(0, 1)
+    vae_dist = Normal(mus, stds)
+    log_p_z = true_prior.log_prob(latents).sum(dim=1)
+    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
+    _, dec_mu, dec_var = model.decode_full(latents)
+    decoder_dist = Normal(dec_mu, dec_var.pow(.5))
+    log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
+    log_p_theta_x = -1 / 2 * (log_p_z - log_q_z_given_x + log_d_x_given_z)
+    log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
+    p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
+    return p_theta_x_shifted
 
 class ImageDataset(Dataset):
 

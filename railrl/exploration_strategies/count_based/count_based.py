@@ -28,8 +28,7 @@ class CountExploration:
             obs_mean, obs_std = compute_obs_mean_std(env, N=num_samples, observation_key=observation_key)
         elif not normalize_obs:
             obs_mean, obs_std = np.zeros(obs_dim), np.ones(obs_dim)
-        self.obs_mean = obs_mean
-        self.obs_std = obs_std+.00001
+        self.set_mean_std(mean=obs_mean, std=obs_std)
         self.env = env
         self.observation_key = observation_key
 
@@ -53,11 +52,15 @@ class CountExploration:
 
     def compute_count_based_reward(self, observations):
         new_obs_counts = self.get_counts(observations)
-        new_rewards = ((new_obs_counts+.0001) ** (-1/2)).reshape(-1, 1)
+        new_rewards = ((new_obs_counts+1e-8) ** (-1/2)).reshape(-1, 1)
         return new_rewards
 
     def clear_counter(self):
         self.counts = Counter()
+
+    def set_mean_std(self, mean, std):
+        self.obs_mean = mean
+        self.obs_std = std + 1e-8
 
 class CountExplorationCountGoalSampler(CountExploration):
     '''

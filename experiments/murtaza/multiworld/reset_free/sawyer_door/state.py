@@ -71,7 +71,7 @@ if __name__ == "__main__":
         presampled_goals_path='goals/sawyer_hook_door_goals.npy',
     )
     search_space = {
-        'algo_kwargs.base_kwargs.max_path_length': [100],
+        'algo_kwargs.base_kwargs.max_path_length': [100, 200, 500],
         'env_kwargs.reward_type': [
             'angle_diff_and_hand_distance',
         ],
@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_door_new_door_60_reset_free_hard_space-v2'
+    exp_prefix = 'sawyer_door_new_door_60_reset_free_hard_space-v2_path_length_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
