@@ -41,8 +41,7 @@ if __name__ == '__main__':
         # beta_schedule_kwargs=dict(
         #     value=0.1,
         # )
-        vae_weight_config=dict(
-            alpha=1,
+        vae_kwargs=dict(
             mode='importance_sampling',
             n_average=100,
         ),
@@ -95,14 +94,16 @@ if __name__ == '__main__':
         ],
         'decoder_output_var': [
             # 'learned'
+            0.05,
+            # 0.1,
             # 0.5,
-            5,
+            # 5,
         ],
         'reset_vae_every_epoch': [
             # True,
             False,
         ],
-        'weight_type': [
+        'skew_config.weight_type': [
             # 'inv_p',
             'sqrt_inv_p',
             # 'nll',

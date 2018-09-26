@@ -200,7 +200,7 @@ class Histogram(object):
         new_pvals = self.pvals * self.weights
         self.pvals = new_pvals / sum(new_pvals.flatten())
 
-    def compute_per_elem_weights(self, data):
+    def _get_indices(self, data):
         x_indices = np.digitize(data[:, 0], self.xedges)
         # Because digitize well make index = len(self.xedges) if the value
         # equals self.xedges[-1], i.e. the value is on the right-most border.
@@ -210,7 +210,15 @@ class Histogram(object):
         y_indices = np.minimum(y_indices, 5)
         y_indices -= 1
         indices = x_indices * self.num_bins + y_indices
+        return indices
+
+    def compute_per_elem_weights(self, data):
+        indices = self._get_indices(data)
         return self.weights.flatten()[indices]
+
+    def compute_density(self, data):
+        indices = self._get_indices(data)
+        return self.pvals.flatten()[indices]
 
     def entropy(self):
         return entropy(self.pvals.flatten())

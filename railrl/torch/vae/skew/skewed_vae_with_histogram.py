@@ -35,6 +35,7 @@ from railrl.torch.vae.skew.common import (
 from railrl.torch.vae.skew.datasets import project_samples_square_np
 from railrl.torch.vae.skew.histogram import Histogram, visualize_histogram
 from railrl.misc.visualization_util import gif
+from railrl.torch.vae.skew.skewed_vae import compute_train_weights
 
 K = 6
 
@@ -43,7 +44,7 @@ Plotting
 """
 
 def visualize_vae_samples(
-        epoch, vis_samples_np, encoder, decoder,
+        epoch, vis_samples_np, vae,
         report, dynamics,
         n_vis=1000,
         xlim=(-1.5, 1.5),
@@ -54,13 +55,8 @@ def visualize_vae_samples(
     n_samples = len(vis_samples_np)
     skip_factor = max(n_samples // n_vis, 1)
     vis_samples_np = vis_samples_np[::skip_factor]
-    vis_samples = ptu.np_to_var(vis_samples_np)
-    latents = encoder.encode(vis_samples)
-    z_dim = latents.shape[1]
-    reconstructed_samples = decoder.reconstruct(latents).data.numpy()
-    generated_samples = decoder.reconstruct(
-        Variable(torch.randn(n_vis, z_dim))
-    ).data.numpy()
+    reconstructed_samples = vae.reconstruct(vis_samples_np)
+    generated_samples = vae.sample(n_vis)
     projected_generated_samples = dynamics(generated_samples)
     plt.subplot(2, 2, 1)
     plt.plot(generated_samples[:, 0], generated_samples[:, 1], '.')
@@ -99,19 +95,48 @@ def visualize_vae_samples(
     return sample_img
 
 
-def visualize_vae(encoder, decoder, skew_config, report,
+def visualize_vae(vae, skew_config, report,
                   resolution=20,
                   title="VAE Heatmap"):
-    sv.show_prob_heatmap(encoder, decoder, skew_config, resolution=resolution)
+    show_prob_heatmap(vae, resolution=resolution)
     fig = plt.gcf()
     prob_heatmap_img = vu.save_image(fig)
     report.add_image(prob_heatmap_img, "Prob " + title)
 
-    sv.show_weight_heatmap(encoder, decoder, skew_config, resolution=resolution)
+    show_weight_heatmap(vae, skew_config, resolution=resolution)
     fig = plt.gcf()
     heatmap_img = vu.save_image(fig)
     report.add_image(heatmap_img, "Weight " + title)
     return heatmap_img
+
+
+def show_weight_heatmap(
+        vae, skew_config,
+        xlim=(-1.5, 1.5), ylim=(-1.5, 1.5),
+        resolution=20,
+):
+
+    def get_prob_batch(batch):
+        prob = vae.compute_density(batch)
+        return prob_to_weight(prob, skew_config)
+
+    heat_map = vu.make_heat_map(get_prob_batch, xlim, ylim,
+                                resolution=resolution, batch=True)
+    vu.plot_heatmap(heat_map)
+
+
+def show_prob_heatmap(
+        vae,
+        xlim=(-1.5, 1.5), ylim=(-1.5, 1.5),
+        resolution=20,
+):
+
+    def get_prob_batch(batch):
+        return vae.compute_density(batch)
+
+    heat_map = vu.make_heat_map(get_prob_batch, xlim, ylim,
+                                resolution=resolution, batch=True)
+    vu.plot_heatmap(heat_map)
 
 
 def train_from_variant(variant):
@@ -121,6 +146,23 @@ def train_from_variant(variant):
     variant.pop('unique_id')
     variant.pop('instance_type')
     train(full_variant=variant, **variant)
+
+
+def prob_to_weight(prob, skew_config):
+    weight_type = skew_config['weight_type']
+    with np.errstate(divide='ignore', invalid='ignore'):
+        if weight_type == 'inv_p':
+            weights = 1. / prob
+        elif weight_type == 'nll':
+            weights = - np.log(prob)
+        elif weight_type == 'sqrt_inv_p':
+            weights = (1. / prob) ** 0.5
+        else:
+            raise NotImplementedError()
+    weights[weights == np.inf] = 0
+    weights[weights == -np.inf] = 0
+    weights[weights == -np.nan] = 0
+    return weights / weights.flatten().sum()
 
 
 def train(
@@ -143,23 +185,23 @@ def train(
         decoder_output_var='learned',
         num_bins=5,
         train_vae_from_histogram=False,
-        weight_type='sqrt_inv_p',
+        skew_config=None,
         use_perfect_samples=False,
         use_perfect_density=False,
         reset_vae_every_epoch=False,
         num_inner_vae_epochs=1,
-        vae_weight_config=None,
+        vae_kwargs=None,
         use_dataset_generator_first_epoch=True,
 ):
 
     """
     Sanitize Inputs
     """
+    assert skew_config is not None
     if not (use_perfect_density and use_perfect_samples):
-        assert vae_weight_config is not None
-    if vae_weight_config is None:
-        vae_weight_config = {}
-    vae_weight_config['weight_type'] = weight_type
+        assert vae_kwargs is not None
+    if vae_kwargs is None:
+        vae_kwargs = {}
     if beta_schedule_class is None:
         beta_schedule = ConstantSchedule(1)
     else:
@@ -185,18 +227,17 @@ def train(
         )
 
 
-    decoder, decoder_opt, encoder, encoder_opt = get_vae(
+    vae, decoder, decoder_opt, encoder, encoder_opt = get_vae(
         decoder_output_var,
         hidden_size,
-        z_dim
+        z_dim,
+        vae_kwargs,
     )
 
     epochs = []
     losses = []
     kls = []
     log_probs = []
-    encoders = []
-    decoders = []
     hist_heatmap_imgs = []
     vae_heatmap_imgs = []
     sample_imgs = []
@@ -206,14 +247,14 @@ def train(
     """
     p_theta = VAE's distribution
     """
-    p_theta = Histogram(num_bins, weight_type=weight_type)
-    p_new = Histogram(num_bins, weight_type=weight_type)
+    p_theta = Histogram(num_bins)
+    p_new = Histogram(num_bins)
 
     orig_train_data = dataset_generator(n_start_samples)
     train_data = orig_train_data
     for epoch in sv.progressbar(range(n_epochs)):
         epoch_stats = defaultdict(list)
-        p_theta = Histogram(num_bins, weight_type=weight_type)
+        p_theta = Histogram(num_bins)
         if epoch == 0 and use_dataset_generator_first_epoch:
             vae_samples = dataset_generator(n_samples_to_add_per_epoch)
         else:
@@ -221,10 +262,7 @@ def train(
                 # Ideally the VAE = p_new, but in practice, it won't be...
                 vae_samples = p_new.sample(n_samples_to_add_per_epoch)
             else:
-                vae_samples = sv.generate_vae_samples_np(
-                    decoder,
-                    n_samples_to_add_per_epoch,
-                )
+                vae_samples = vae.sample(n_samples_to_add_per_epoch)
         p_theta.compute_pvals_and_per_bin_weights(vae_samples)
         projected_samples = dynamics(vae_samples)
         if append_all_data:
@@ -233,14 +271,17 @@ def train(
             train_data = np.vstack((orig_train_data, projected_samples))
 
         if use_perfect_density:
-            all_weights = p_theta.compute_per_elem_weights(train_data)
+            # all_weights = p_theta.compute_per_elem_weights(train_data)
+            prob = p_theta.compute_density(train_data)
         else:
-            all_weights = sv.compute_train_weights(
-                train_data,
-                encoder,
-                decoder,
-                vae_weight_config,
-            )
+            prob = vae.compute_density(train_data)
+            # all_weights = sv.compute_train_weights(
+            #     train_data,
+            #     encoder,
+            #     decoder,
+            #     vae_kwargs,
+            # )
+        all_weights = prob_to_weight(prob, skew_config)
         p_new.compute_pvals_and_per_bin_weights(
             train_data,
             weights=all_weights,
@@ -248,16 +289,14 @@ def train(
         )
         if epoch == 0 or (epoch + 1) % save_period == 0:
             epochs.append(epoch)
-            encoders.append(copy.deepcopy(encoder))
-            decoders.append(copy.deepcopy(decoder))
             report.add_text("Epoch {}".format(epoch))
             hist_heatmap_img = visualize_histogram(epoch, p_theta, report)
             vae_heatmap_img = visualize_vae(
-                encoder, decoder, vae_weight_config, report,
+                vae, skew_config, report,
                 resolution=num_bins,
             )
             sample_img = visualize_vae_samples(
-                epoch, train_data, encoder, decoder, report, dynamics,
+                epoch, train_data, vae, report, dynamics,
             )
 
             visualize_samples(
@@ -317,10 +356,11 @@ def train(
             ),
         )
         if reset_vae_every_epoch:
-            decoder, decoder_opt, encoder, encoder_opt = get_vae(
+            vae, decoder, decoder_opt, encoder, encoder_opt = get_vae(
                 decoder_output_var,
                 hidden_size,
-                z_dim
+                z_dim,
+                vae_kwargs,
             )
         for _ in range(num_inner_vae_epochs):
             for _, indexed_batch in enumerate(train_dataloader):
@@ -382,8 +422,9 @@ def train(
         logger.record_tabular('Entropy gain from reweight', entropy_gain)
         logger.dump_tabular()
         logger.save_itr_params(epoch, {
-            'encoder': encoder,
-            'decoder': decoder,
+            'vae': vae,
+            'train_data': train_data,
+            'vae_samples': vae_samples,
         })
 
 
@@ -423,7 +464,7 @@ def train(
     report.save()
 
 
-def get_vae(decoder_output_var, hidden_size, z_dim):
+def get_vae(decoder_output_var, hidden_size, z_dim, vae_kwargs):
     encoder = sv.Encoder(
         nn.Linear(2, hidden_size),
         nn.ReLU(),
@@ -446,4 +487,5 @@ def get_vae(decoder_output_var, hidden_size, z_dim):
     )
     encoder_opt = Adam(encoder.parameters())
     decoder_opt = Adam(decoder.parameters())
-    return decoder, decoder_opt, encoder, encoder_opt
+    vae = sv.VAE(encoder=encoder, decoder=decoder, z_dim=z_dim, **vae_kwargs)
+    return vae, decoder, decoder_opt, encoder, encoder_opt
