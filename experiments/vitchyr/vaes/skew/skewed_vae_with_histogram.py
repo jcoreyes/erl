@@ -98,7 +98,8 @@ if __name__ == '__main__':
         'decoder_output_var': [
             # 'learned'
             # 0.05,
-            0.1,
+            # 0.1,
+            0.2,
             # 0.5,
             # 5,
         ],
@@ -122,8 +123,8 @@ if __name__ == '__main__':
             False,
         ],
         'use_perfect_density': [
-            # True,
-            False,
+            True,
+            # False,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
