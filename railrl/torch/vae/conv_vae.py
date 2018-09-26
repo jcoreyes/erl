@@ -49,6 +49,7 @@ class ConvVAETrainer(Serializable):
             gaussian_decoder_loss=False,
             full_gaussian_decoder=False,
             exploration_counter_kwargs=None,
+            n_latents=1,
     ):
         self.quick_init(locals())
         if skew_config is None:
@@ -95,6 +96,7 @@ class ConvVAETrainer(Serializable):
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
 
+        self.n_latents=n_latents
         self.batch_size = batch_size
         self.use_parallel_dataloading = use_parallel_dataloading
         self.train_data_workers = train_data_workers
@@ -166,8 +168,8 @@ class ConvVAETrainer(Serializable):
         self.vae_logger_stats_for_rl = {}
         self._extra_stats_to_log = None
 
-    def get_dataset_stats(self):
-        torch_input = ptu.np_to_var(normalize_image(self.train_dataset))
+    def get_dataset_stats(self, data):
+        torch_input = ptu.np_to_var(normalize_image(data))
         mus, log_vars = self.model.encode(torch_input)
         mus = ptu.get_numpy(mus)
         mean = np.mean(mus, axis=0)
@@ -193,18 +195,22 @@ class ConvVAETrainer(Serializable):
     def _compute_train_weights(self):
         method = self.skew_config.get('method', 'squared_error')
         power = self.skew_config.get('power', 1)
+        data = self.train_dataset
+        data = np.vstack([
+            data for _ in range(self.n_latents)
+        ])
         if method == 'squared_error':
             return self._reconstruction_squared_error_np_to_np(
-                self.train_dataset
+                data,
             ) ** power
         elif method == 'kl':
-            return self._kl_np_to_np(self.train_dataset) ** power
+            return self._kl_np_to_np(data) ** power
         elif method == 'inv_p_x':
-            p_theta_x_shifted = inv_p_x(self.model, self.train_dataset)
+            p_theta_x_shifted = inv_p_x(self.model, data)
             return p_theta_x_shifted
         elif method == 'hash_count':
             self.exploration_counter.clear_counter()
-            mus, mean, std = self.get_dataset_stats()
+            mus, mean, std = self.get_dataset_stats(data)
             self.exploration_counter.set_mean_std(mean=mean, std=std)
             self.exploration_counter.increment_counts(mus)
             priority = self.exploration_counter.compute_count_based_reward(mus)**power
