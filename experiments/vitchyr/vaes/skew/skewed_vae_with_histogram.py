@@ -18,10 +18,11 @@ from railrl.torch.vae.skew.skewed_vae_with_histogram import train_from_variant
 
 if __name__ == '__main__':
     variant = dict(
-        dataset_generator=uniform_truncated_data,
+        dataset_generator=empty_dataset,
         n_start_samples=4,
         bs=32,
         n_epochs=1000,
+        save_period=50,
         # n_epochs=500,
         # n_epochs=10,
         n_samples_to_add_per_epoch=1000,
@@ -29,9 +30,7 @@ if __name__ == '__main__':
         weight_loss=False,
         z_dim=16,
         hidden_size=32,
-        save_period=50,
-        # save_period=25,
-        # save_period=1,
+        append_all_data=False,
         beta_schedule_class=ConstantSchedule,
         # beta_schedule_kwargs=dict(
         #     value=0.1,
@@ -43,64 +42,37 @@ if __name__ == '__main__':
     exp_prefix = 'dev'
 
     # exp_prefix = 'skew-vae-biased-beta0.025-skew-weight-sweep'
-    # exp_prefix = 'skew-vae-all-correct-sweep-weight-skew-2'
-    # exp_prefix = 'skew-vae-with-histogram-sweep-weight-and-skew'
-    # exp_prefix = 'dev-skew-vae-with-histogram-square-border'
 
     search_space = {
-        'dataset_generator': [
-            # four_corners,
-            empty_dataset,
-            # small_gaussian_data,
-        ],
         'projection': [
             project_samples_square_np,
-            # project_square_border_np,
-            # project_samples_ell_np,
         ],
         'append_all_data': [
             False,
         ],
         'skew_sampling': [
-            True,
-            # False,
-        ],
-        'n_start_samples': [
-            4,
+            # True,
+            False,
         ],
         'weight_loss': [
-            True,
-            # False,
+            # True,
+            False,
         ],
         'dynamics_noise': [
-            # 0.1,
-            0,
+            0.2,
         ],
         'beta_schedule_kwargs.value': [
-            # 1,
             0.1,
-            # 0.075,
-            # 0.05,
-            # 0.025,
-            # 0.01,
-            # 0.0075,
-            # 0.005,
-            # 0.0025,
-            # 0.001,
-            # 0.0001,
-            # 0,
         ],
         'decoder_output_std': [
-            # 1,
-            # 0.5,
-            # 0.3,
-            # 0.2,
-            # 0.1,
-            # 0.05,
             'learned'
         ],
-        'num_bins': [10],
+        'num_bins': [20],
         'train_vae_from_histogram': [True],
+        'weight_type': [
+            'inv_p',
+            # 'sqrt_inv_p',
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
