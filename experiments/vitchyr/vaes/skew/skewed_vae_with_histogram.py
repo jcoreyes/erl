@@ -42,7 +42,9 @@ if __name__ == '__main__':
         #     value=0.1,
         # )
         vae_kwargs=dict(
-            mode='importance_sampling',
+            # mode='importance_sampling',
+            # mode='biased_encoder',
+            mode='prior',
             n_average=100,
         ),
         use_dataset_generator_first_epoch=True,

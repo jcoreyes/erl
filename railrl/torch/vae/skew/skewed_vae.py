@@ -385,10 +385,10 @@ class VAE(PyTorchModule):
             latents, means, log_vars, stds = (
                 self.encoder.get_encoding_and_suff_stats(data)
             )
-            importance_weights = 1
+            importance_weights = ptu.Variable(torch.ones(data.shape[0]))
         elif self.mode == 'prior':
             latents = Variable(torch.randn(len(data), self.z_dim))
-            importance_weights = 1
+            importance_weights = ptu.Variable(torch.ones(data.shape[0]))
         elif self.mode == 'importance_sampling':
             latents, means, log_vars, stds = (
                 self.encoder.get_encoding_and_suff_stats(data)
@@ -403,48 +403,29 @@ class VAE(PyTorchModule):
         else:
             raise NotImplementedError()
 
-
-        data_log_prob = compute_log_prob(data, self.decoder, latents).squeeze(1)
-        # data_log_prob = torch.clamp(
-        #     data_log_prob,
-        #     min=self.min_log_prob,
-        # )
-        unweighted_data_prob = data_log_prob.exp()
-        dp = unweighted_data_prob.data.numpy()
-
-        print("---------")
-        print("max udp", np.max(dp))
-        print("min udp", np.min(dp))
-        print("std udp", np.std(dp))
-        print("mean udp", np.mean(dp))
-
-        data_prob = importance_weights * unweighted_data_prob / importance_weights.sum()
-        data_prob = data_prob * self.n_average
-
-        dp = data_prob.data.numpy()
-        print(" - ")
-        print("max dp", np.max(dp))
-        print("min dp", np.min(dp))
-        print("std dp", np.std(dp))
-        print("mean dp", np.mean(dp))
-
-
-        iw = importance_weights.data.numpy()
-        print(" - ")
-        print("max iw", np.max(iw))
-        print("min iw", np.min(iw))
-        print("std iw", np.std(iw))
-        print("mean iw", np.mean(iw))
-
-
+        unweighted_data_log_prob = compute_log_prob(
+            data, self.decoder, latents
+        ).squeeze(1)
+        unweighted_data_prob = unweighted_data_log_prob.exp()
+        unnormalized_data_prob = unweighted_data_prob * importance_weights
         """
         Average over `n_average`
         """
-        samples_of_results = torch.split(data_prob, orig_data_length, dim=0)
+        dp_split = torch.split(unnormalized_data_prob, orig_data_length, dim=0)
         # pre_avg.shape = ORIG_LEN x N_AVERAGE
-        pre_avg = torch.stack(samples_of_results, dim=1)
+        dp_stacked = torch.stack(dp_split, dim=1)
         # final.shape = ORIG_LEN
-        final = torch.mean(pre_avg, dim=1, keepdim=False)
+        unnormalized_dp = torch.sum(dp_stacked, dim=1, keepdim=False)
+
+        """
+        Compute the importance weight denomintors.
+        This requires summing across the `n_average` dimension.
+        """
+        iw_split = torch.split(importance_weights, orig_data_length, dim=0)
+        iw_stacked = torch.stack(iw_split, dim=1)
+        iw_denominators = iw_stacked.sum(dim=1, keepdim=False)
+
+        final = unnormalized_dp / iw_denominators
         return final.data.numpy()
 
 
