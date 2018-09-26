@@ -46,6 +46,9 @@ if __name__ == '__main__':
             n_average=100,
         ),
         use_dataset_generator_first_epoch=True,
+        skew_config=dict(
+            minimum_prob=1e-6,
+        ),
     )
 
     n_seeds = 1
@@ -94,8 +97,8 @@ if __name__ == '__main__':
         ],
         'decoder_output_var': [
             # 'learned'
-            0.05,
-            # 0.1,
+            # 0.05,
+            0.1,
             # 0.5,
             # 5,
         ],
@@ -119,8 +122,8 @@ if __name__ == '__main__':
             False,
         ],
         'use_perfect_density': [
-            True,
-            # False,
+            # True,
+            False,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

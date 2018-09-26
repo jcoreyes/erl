@@ -404,12 +404,29 @@ class VAE(PyTorchModule):
             raise NotImplementedError()
 
         data_log_prob = compute_log_prob(data, self.decoder, latents).squeeze(1)
-        data_log_prob = torch.clamp(
-            data_log_prob,
-            min=self.min_log_prob,
-        )
+        # data_log_prob = torch.clamp(
+        #     data_log_prob,
+        #     min=self.min_log_prob,
+        # )
         unweighted_data_prob = data_log_prob.exp()
+        dp = unweighted_data_prob.data.numpy()
+
+        print("---------")
+        print("max dp", np.max(dp))
+        print("min dp", np.min(dp))
+        print("std dp", np.std(dp))
+        print("mean dp", np.mean(dp))
+
         data_prob = importance_weights * unweighted_data_prob / importance_weights.sum()
+        data_prob = data_prob * self.n_average
+
+        iw = importance_weights.data.numpy()
+        print("----")
+        print("max iw", np.max(iw))
+        print("min iw", np.min(iw))
+        print("std iw", np.std(iw))
+        print("mean iw", np.mean(iw))
+
 
         """
         Average over `n_average`

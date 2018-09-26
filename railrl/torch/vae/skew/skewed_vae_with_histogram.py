@@ -9,6 +9,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from skvideo.io import vwrite
 from torch import nn as nn
@@ -33,9 +34,8 @@ from railrl.torch.vae.skew.common import (
     visualize_samples_and_projection,
 )
 from railrl.torch.vae.skew.datasets import project_samples_square_np
-from railrl.torch.vae.skew.histogram import Histogram, visualize_histogram
+from railrl.torch.vae.skew.histogram import Histogram
 from railrl.misc.visualization_util import gif
-from railrl.torch.vae.skew.skewed_vae import compute_train_weights
 
 K = 6
 
@@ -150,6 +150,8 @@ def train_from_variant(variant):
 
 def prob_to_weight(prob, skew_config):
     weight_type = skew_config['weight_type']
+    min_prob = skew_config['minimum_prob']
+    prob = np.maximum(prob, min_prob)
     with np.errstate(divide='ignore', invalid='ignore'):
         if weight_type == 'inv_p':
             weights = 1. / prob
@@ -263,7 +265,7 @@ def train(
                 vae_samples = p_new.sample(n_samples_to_add_per_epoch)
             else:
                 vae_samples = vae.sample(n_samples_to_add_per_epoch)
-        p_theta.compute_pvals_and_per_bin_weights(vae_samples)
+        p_theta.compute_pvals(vae_samples)
         projected_samples = dynamics(vae_samples)
         if append_all_data:
             train_data = np.vstack((train_data, projected_samples))
@@ -271,26 +273,15 @@ def train(
             train_data = np.vstack((orig_train_data, projected_samples))
 
         if use_perfect_density:
-            # all_weights = p_theta.compute_per_elem_weights(train_data)
             prob = p_theta.compute_density(train_data)
         else:
             prob = vae.compute_density(train_data)
-            # all_weights = sv.compute_train_weights(
-            #     train_data,
-            #     encoder,
-            #     decoder,
-            #     vae_kwargs,
-            # )
         all_weights = prob_to_weight(prob, skew_config)
-        p_new.compute_pvals_and_per_bin_weights(
-            train_data,
-            weights=all_weights,
-            # weights=np.exp(10 * all_weights),
-        )
+        p_new.compute_pvals(train_data, weights=all_weights)
         if epoch == 0 or (epoch + 1) % save_period == 0:
             epochs.append(epoch)
             report.add_text("Epoch {}".format(epoch))
-            hist_heatmap_img = visualize_histogram(epoch, p_theta, report)
+            hist_heatmap_img = visualize_histogram(p_theta, skew_config, report)
             vae_heatmap_img = visualize_vae(
                 vae, skew_config, report,
                 resolution=num_bins,
@@ -489,3 +480,32 @@ def get_vae(decoder_output_var, hidden_size, z_dim, vae_kwargs):
     decoder_opt = Adam(decoder.parameters())
     vae = sv.VAE(encoder=encoder, decoder=decoder, z_dim=z_dim, **vae_kwargs)
     return vae, decoder, decoder_opt, encoder, encoder_opt
+
+
+def visualize_histogram(histogram, skew_config, report):
+    prob = histogram.pvals
+    weights = prob_to_weight(prob, skew_config)
+    for name, values in [
+        ('Prob Heatmap', prob),
+        ('Weight Heatmap', weights),
+    ]:
+        plt.figure()
+        fig = plt.gcf()
+        ax = plt.gca()
+        heatmap_img = ax.imshow(
+            np.swapaxes(values, 0, 1),  # imshow uses first axis as y-axis
+            extent=[-1, 1, -1, 1],
+            cmap=plt.get_cmap('plasma'),
+            interpolation='nearest',
+            aspect='auto',
+            origin='bottom',  # <-- Important! By default top left is (0, 0)
+        )
+        divider = make_axes_locatable(ax)
+        legend_axis = divider.append_axes('right', size='5%', pad=0.05)
+        fig.colorbar(heatmap_img, cax=legend_axis, orientation='vertical')
+        heatmap_img = vu.save_image(fig)
+        if histogram.num_bins < 5:
+            pvals_str = np.array2string(histogram.pvals, precision=3)
+            report.add_text(pvals_str)
+        report.add_image(heatmap_img, name)
+    return heatmap_img

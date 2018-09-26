@@ -2,7 +2,6 @@ import json
 
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.stats import entropy
 from skvideo.io import vwrite
 
@@ -81,49 +80,6 @@ def visualize_samples(epoch, vis_samples_np, histogram,
     return sample_img
 
 
-def visualize_histogram(epoch, histogram, report):
-    plt.figure()
-    fig = plt.gcf()
-    ax = plt.gca()
-    heatmap_img = ax.imshow(
-        np.swapaxes(histogram.pvals, 0, 1),  # imshow uses first axis as y-axis
-        extent=[-1, 1, -1, 1],
-        cmap=plt.get_cmap('plasma'),
-        interpolation='nearest',
-        aspect='auto',
-        origin='bottom',  # <-- Important! By default top left is (0, 0)
-    )
-    divider = make_axes_locatable(ax)
-    legend_axis = divider.append_axes('right', size='5%', pad=0.05)
-    fig.colorbar(heatmap_img, cax=legend_axis, orientation='vertical')
-    heatmap_img = vu.save_image(fig)
-    if histogram.num_bins < 5:
-        pvals_str = np.array2string(histogram.pvals, precision=3)
-        report.add_text(pvals_str)
-    report.add_image(heatmap_img, "Epoch {} Prob Heatmap".format(epoch))
-    plt.figure()
-    fig = plt.gcf()
-    ax = plt.gca()
-    heatmap_img = ax.imshow(
-        np.swapaxes(histogram.weights, 0, 1),  # imshow uses first axis as
-        # y-axis
-        extent=[-1, 1, -1, 1],
-        cmap=plt.get_cmap('plasma'),
-        interpolation='nearest',
-        aspect='auto',
-        origin='bottom',  # <-- Important! By default top left is (0, 0)
-    )
-    divider = make_axes_locatable(ax)
-    legend_axis = divider.append_axes('right', size='5%', pad=0.05)
-    fig.colorbar(heatmap_img, cax=legend_axis, orientation='vertical')
-    heatmap_img = vu.save_image(fig)
-    if histogram.num_bins < 5:
-        pvals_str = np.array2string(histogram.pvals, precision=3)
-        report.add_text(pvals_str)
-    report.add_image(heatmap_img, "Epoch {} Weight Heatmap".format(epoch))
-    return heatmap_img
-
-
 class Histogram(object):
     """
     A perfect histogram
@@ -131,7 +87,7 @@ class Histogram(object):
     In this code, x = first index (not necessarily left-right for visualization)
     """
 
-    def __init__(self, num_bins, weight_type='inv_p'):
+    def __init__(self, num_bins):
         self.pvals = np.zeros((num_bins, num_bins))
         self.pvals[0, 0] = 1
         self.num_bins = num_bins
@@ -156,8 +112,6 @@ class Histogram(object):
         self.bin_centers_flat = bin_centers.reshape(
             self.num_bins_total, 2
         )
-        self.weight_type = weight_type
-        self.weights = np.ones((self.num_bins, self.num_bins))
 
     def sample(self, n_samples):
         idxs = np.random.choice(
@@ -169,7 +123,7 @@ class Histogram(object):
         samples = self.bin_centers_flat[idxs]
         return samples
 
-    def compute_pvals_and_per_bin_weights(self, data, weights=None):
+    def compute_pvals(self, data, weights=None):
         H, *_ = np.histogram2d(
             data[:, 0],
             data[:, 1],
@@ -181,24 +135,10 @@ class Histogram(object):
             self.pvals = H.astype(np.float32) / len(data)
         else:
             self.pvals = H.astype(np.float32) / weights.sum()
-        prob = np.maximum(self.pvals, 1. / len(data))
-        with np.errstate(divide='ignore', invalid='ignore'):
-            if self.weight_type == 'inv_p':
-                self.weights = 1. / prob
-            elif self.weight_type == 'nll':
-                self.weights = - np.log(prob)
-            elif self.weight_type == 'sqrt_inv_p':
-                self.weights = (1. / prob) ** 0.5
-            else:
-                raise NotImplementedError()
-        self.weights[self.weights == np.inf] = 0
-        self.weights[self.weights == -np.inf] = 0
-        self.weights[self.weights == -np.nan] = 0
-        self.weights = self.weights / (self.weights.flatten().sum())
 
-    def reweight_pvals(self):
-        new_pvals = self.pvals * self.weights
-        self.pvals = new_pvals / sum(new_pvals.flatten())
+    def compute_density(self, data):
+        indices = self._get_indices(data)
+        return self.pvals.flatten()[indices]
 
     def _get_indices(self, data):
         x_indices = np.digitize(data[:, 0], self.xedges)
@@ -211,14 +151,6 @@ class Histogram(object):
         y_indices -= 1
         indices = x_indices * self.num_bins + y_indices
         return indices
-
-    def compute_per_elem_weights(self, data):
-        indices = self._get_indices(data)
-        return self.weights.flatten()[indices]
-
-    def compute_density(self, data):
-        indices = self._get_indices(data)
-        return self.pvals.flatten()[indices]
 
     def entropy(self):
         return entropy(self.pvals.flatten())
@@ -314,7 +246,7 @@ def train(
             )
         weights = p_theta.compute_per_elem_weights(train_data)
         p_new = Histogram(num_bins, weight_type=weight_type)
-        p_new.compute_pvals_and_per_bin_weights(
+        p_new.compute_pvals(
             train_data,
             weights=weights,
         )
