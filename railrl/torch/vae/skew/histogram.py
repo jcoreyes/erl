@@ -143,7 +143,7 @@ class Histogram(object):
         h, xedges, yedges = np.histogram2d(
             np.zeros(1), np.zeros(1),
             bins=self.num_bins,
-            range=[[-1, 1], [-1, 1]]
+            range=[[-1, 1], [-1, 1]],
         )
         self.xedges = xedges
         self.yedges = yedges
@@ -174,6 +174,7 @@ class Histogram(object):
             data[:, 0],
             data[:, 1],
             self.num_bins,
+            range=[[-1, 1], [-1, 1]],
             weights=weights,
         )
         if weights is None:
