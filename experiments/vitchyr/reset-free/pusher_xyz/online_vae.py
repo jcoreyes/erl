@@ -112,7 +112,7 @@ if __name__ == "__main__":
         # ],
         'env_kwargs.num_resets_before_puck_reset': [1],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [500],
-        'grill_variant.replay_kwargs.alpha': [3],
+        'grill_variant.replay_kwargs.power': [3],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

@@ -136,7 +136,7 @@ if __name__ == "__main__":
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0],
         # 'grill_variant.replay_kwargs.exploration_rewards_scale': [.1, .01, .001],
         'grill_variant.replay_kwargs.exploration_rewards_type': ['None'],
-        'grill_variant.replay_kwargs.alpha': [0],
+        'grill_variant.replay_kwargs.power': [0],
         'grill_variant.exploration_noise': [.8],
         # 'grill_variant.exploration_kwargs': [
             # dict(

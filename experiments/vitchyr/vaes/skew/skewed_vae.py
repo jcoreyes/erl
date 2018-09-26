@@ -68,7 +68,7 @@ if __name__ == '__main__':
             # 'prior',
             # 'none',
         ],
-        'skew_config.alpha': [
+        'skew_config.power': [
             1,
         ],
         'append_all_data': [

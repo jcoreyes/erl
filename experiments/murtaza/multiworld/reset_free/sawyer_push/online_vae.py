@@ -107,7 +107,7 @@ if __name__ == "__main__":
     search_space = {
         'env_kwargs.num_resets_before_puck_reset': [1],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
-        'grill_variant.replay_buffer_kwargs.alpha': [3],
+        'grill_variant.replay_buffer_kwargs.power': [3],
         'num_exps_per_instance':[3, 5, 7],
         'grill_variant.algo_kwargs.base_kwargs.collection_mode':['online', 'online-parallel'],
     }

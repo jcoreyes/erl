@@ -1,6 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
@@ -8,7 +9,7 @@ if __name__ == "__main__":
     variant = dict(
         imsize=48,
         init_camera=sawyer_door_env_camera_v3,
-        env_id='SawyerDoorHookResetFreeEnv-v4',
+        env_id='SawyerDoorHookResetFreeEnv-v3',
         grill_variant=dict(
             save_video=True,
             save_video_period=50,
@@ -20,7 +21,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=500,
+                    num_epochs=505,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=4000,
@@ -44,7 +45,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
-            algorithm='OFFLINE-VAE-RECON-HER-TD3',
+            algorithm='OFFLINE-VAE-INV-GAUSS-HER-TD3',
             normalize=False,
             render=False,
             exploration_noise=0.8,
@@ -75,7 +76,7 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             vae_path=None,
             representation_size=16,
-            beta=2.5,
+            beta=1.0,
             num_epochs=1000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
@@ -95,7 +96,9 @@ if __name__ == "__main__":
             ),
             vae_kwargs=dict(
                 input_channels=3,
+                unit_variance=False,
                 decoder_activation='sigmoid',
+                variance_scaling=1,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -104,17 +107,17 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
                 skew_config=dict(
-                    method='squared_error',
-                    power=1,
+                    method='inv_p_x',
                 ),
                 skew_dataset=True,
+                full_gaussian_decoder=True,
             ),
             save_period=50,
         ),
     )
 
     search_space = {
-        'train_vae_variant.algo_kwargs.skew_config.power':[0, 1/2, 1],
+        'train_vae_variant.algo_kwargs.skew_dataset':[True, False],
         'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
             'datasets/SawyerDoorHookResetFreeEnv-v4_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.npy',
             'datasets/SawyerDoorHookResetFreeEnv-v4_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.5.npy',
@@ -132,7 +135,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_offline_vae_recon_priority'
+    exp_prefix = 'sawyer_harder_door_offline_vae_inv_gaussian_priority'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

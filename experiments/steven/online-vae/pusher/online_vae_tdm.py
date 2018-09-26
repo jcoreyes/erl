@@ -122,7 +122,7 @@ if __name__ == "__main__":
         'grill_variant.training_mode': ['train'],
         # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
-        'grill_variant.replay_kwargs.alpha': [0],
+        'grill_variant.replay_kwargs.power': [0],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':
         [vae_schedules.every_six],
         'grill_variant.exploration_noise': [.8],

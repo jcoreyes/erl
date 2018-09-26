@@ -115,7 +115,7 @@ if __name__ == "__main__":
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0],
         'grill_variant.algo_kwargs.soft_target_tau': [1e-2],
         'grill_variant.online_vae_algo_kwargs.oracle_data': [True],
-        'grill_variant.replay_kwargs.alpha': [0],
+        'grill_variant.replay_kwargs.power': [0],
         'grill_variant.replay_kwargs.max_size': [30000, 40000, 50000, 60000],
 
 
