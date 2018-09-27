@@ -117,9 +117,6 @@ if __name__ == "__main__":
     search_space = {
         'train_vae_variant.beta':[1, 2.5],
         'train_vae_variant.algo_kwargs.skew_dataset':[True, False],
-        'train_vae_variant.algo_kwargs.normalize_mean': [True, False],
-        'train_vae_variant.algo_kwargs.normalize_std': [True, False],
-        'train_vae_variant.algo_kwargs.normalize_max': [True, False],
         'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
             'datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
             'datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99.npy',
@@ -136,7 +133,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_offline_vae_inv_bernoulli_priority_sweep_HACK'
+    exp_prefix = 'sawyer_harder_door_offline_vae_inv_bernoulli_priority_sweep_HACK_vs_not'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
