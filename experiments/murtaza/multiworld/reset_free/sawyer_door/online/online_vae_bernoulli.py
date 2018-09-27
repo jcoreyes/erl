@@ -75,12 +75,12 @@ if __name__ == "__main__":
                 path_length=100,
                 show=False,
             ),
-            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v6_N1000_imsize48goals.npy',
+            # presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v6_N1000_imsize48goals.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             ),
-            algorithm='ONLINE-VAE-RECON-HER-TD3',
+            algorithm='ONLINE-VAE-BERNOULLI-HER-TD3',
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -105,17 +105,20 @@ if __name__ == "__main__":
                 use_linear_dynamics=False,
                 lr=1e-3,
                 normalize_log_probs=True,
+                normalize_mean=True,
+                normalize_std=True,
+                normalize_max=False,
             ),
             save_period=5,
         ),
     )
 
     search_space = {
-        'grill_variant.exploration_noise': [.8],
+        'grill_variant.exploration_noise': [.3, .5, .8],
         'grill_variant.online_vae_beta':[1, 2.5],
-        'train_vae_variant.algo_kwargs.normalize_mean':[True, False],
-        'train_vae_variant.algo_kwargs.normalize_std':[True, False],
-        'train_vae_variant.algo_kwargs.normalize_max':[True, False],
+        'env_id':['SawyerDoorHookResetFreeEnv-v3', 'SawyerDoorHookResetFreeEnv-v5', 'SawyerDoorHookResetFreeEnv-v6'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob']
+
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -127,7 +130,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_online_vae_inv_bernoulli_priority_HACK'
+    exp_prefix = 'sawyer_harder_door_online_vae_bernoulli_env_id_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
