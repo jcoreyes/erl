@@ -39,7 +39,7 @@ def inv_gaussian_p_x_np_to_np(model, data):
     p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
     return p_theta_x_shifted
 
-def inv_p_bernoulli_x_np_to_np(model, data, normalize=False, biased_sampling=False):
+def inv_p_bernoulli_x_np_to_np(model, data, normalize=False, normalize_max=False, normalize_mean=True, normalize_std=False, biased_sampling=False):
     ''' Assumes data is normalized images'''
     imgs = ptu.np_to_var(data)
     latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
@@ -48,20 +48,56 @@ def inv_p_bernoulli_x_np_to_np(model, data, normalize=False, biased_sampling=Fal
     log_p_z = true_prior.log_prob(latents).sum(dim=1)
     log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
     decoded = model.decode(latents)
-    log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded)).sum(dim=1)
+    log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
+
     if biased_sampling:
-        log_p_theta_x = -1 / 2 * (log_d_x_given_z)
-        log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
+        log_inv_root_p_theta_x = -1 / 2 * (log_d_x_given_z)
+        log_p_theta_x_prime = log_inv_root_p_theta_x - log_inv_root_p_theta_x.max()
         p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
         return p_theta_x_shifted
 
 
     if normalize:
-        log_p_z = (log_p_z - log_p_z.mean()) /log_p_z.std()
-        log_q_z_given_x = (log_q_z_given_x - log_q_z_given_x.mean()) /log_q_z_given_x.std()
-        log_d_x_given_z = (log_d_x_given_z - log_d_x_given_z.mean()) /log_d_x_given_z.std()
-    log_p_theta_x = -1 / 2 * (log_p_z - log_q_z_given_x + log_d_x_given_z)
-    log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
+        log_p_z_mean = log_p_z.mean()
+        log_q_z_given_x_mean = log_q_z_given_x.mean()
+        log_d_x_given_z_mean = log_d_x_given_z.mean()
+
+        log_p_z_max = log_p_z.max()
+        log_q_z_given_x_max = log_q_z_given_x.max()
+        log_d_x_given_z_max = log_d_x_given_z.max()
+
+        log_p_z_std = log_p_z.std()
+        log_q_z_given_x_std = log_q_z_given_x.std()
+        log_d_x_given_z_std = log_d_x_given_z.std()
+
+        # print('log_p_z_mean', log_p_z_mean)
+        # print('log_p_z_max', log_p_z_max)
+        # print('log_p_z_std', log_p_z_std)
+        #
+        # print('log_q_z_given_x_mean', log_q_z_given_x_mean)
+        # print('log_q_z_given_x_max', log_q_z_given_x_max)
+        # print('log_q_z_given_x_std', log_q_z_given_x_std)
+        #
+        # print('log_d_x_given_z_mean', log_d_x_given_z_mean)
+        # print('log_d_x_given_z_max', log_d_x_given_z_max)
+        # print('log_d_x_given_z_std', log_d_x_given_z_std)
+
+
+        if normalize_mean:
+            log_p_z = (log_p_z - log_p_z_mean)
+            log_q_z_given_x = (log_q_z_given_x - log_q_z_given_x_mean)
+            log_d_x_given_z = (log_d_x_given_z - log_d_x_given_z_mean)
+        elif normalize_max:
+            log_p_z = (log_p_z - log_p_z_max)
+            log_q_z_given_x = (log_q_z_given_x - log_q_z_given_x_max)
+            log_d_x_given_z = (log_d_x_given_z - log_d_x_given_z_max)
+        if normalize_std:
+            log_p_z = log_p_z/log_p_z_std
+            log_q_z_given_x = log_q_z_given_x/log_q_z_given_x_std
+            log_d_x_given_z = log_d_x_given_z/log_d_x_given_z_std
+
+    log_inv_root_p_theta_x = -1 / 2 * (log_p_z - log_q_z_given_x + log_d_x_given_z)
+    log_p_theta_x_prime = log_inv_root_p_theta_x - log_inv_root_p_theta_x.max()
     p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
     return p_theta_x_shifted
 
@@ -90,8 +126,10 @@ class ConvVAETrainer(Serializable):
             gaussian_decoder_loss=False,
             full_gaussian_decoder=False,
             exploration_counter_kwargs=None,
-            n_latents=1,
             normalize_log_probs=False,
+            normalize_mean=False,
+            normalize_std=False,
+            normalize_max=False,
             biased_sampling=False,
     ):
         self.quick_init(locals())
@@ -139,7 +177,6 @@ class ConvVAETrainer(Serializable):
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
 
-        self.n_latents=n_latents
         self.batch_size = batch_size
         self.use_parallel_dataloading = use_parallel_dataloading
         self.train_data_workers = train_data_workers
@@ -148,6 +185,9 @@ class ConvVAETrainer(Serializable):
         self.gaussian_decoder_loss = gaussian_decoder_loss
         self.full_gaussian_decoder=full_gaussian_decoder
         self.normalize_log_probs = normalize_log_probs
+        self.normalize_mean = normalize_mean
+        self.normalize_std = normalize_std
+        self.normalize_max = normalize_max
         self.biased_sampling=biased_sampling
         if skew_dataset and skew_config.get('method') == 'hash_count':
             if exploration_counter_kwargs is None:
@@ -241,9 +281,6 @@ class ConvVAETrainer(Serializable):
         method = self.skew_config.get('method', 'squared_error')
         power = self.skew_config.get('power', 1)
         data = self.train_dataset
-        data = np.vstack([
-            data for _ in range(self.n_latents)
-        ])
         if method == 'squared_error':
             return self._reconstruction_squared_error_np_to_np(
                 data,
@@ -256,7 +293,14 @@ class ConvVAETrainer(Serializable):
             return inv_gaussian_p_x
         elif method == 'inv_bernoulli_p_x':
             data = normalize_image(data)
-            inv_bernoulli_p_x = inv_p_bernoulli_x_np_to_np(self.model, data, normalize=self.normalize_log_probs, biased_sampling=self.biased_sampling)
+            inv_bernoulli_p_x = inv_p_bernoulli_x_np_to_np(self.model,
+                                                           data,
+                                                           normalize=self.normalize_log_probs,
+                                                           normalize_mean=self.normalize_mean,
+                                                           normalize_std=self.normalize_std,
+                                                           normalize_max=self.normalize_max,
+                                                           biased_sampling=self.biased_sampling
+                                                           )
             return inv_bernoulli_p_x
         elif method == 'hash_count':
             self.exploration_counter.clear_counter()
@@ -475,10 +519,10 @@ class ConvVAETrainer(Serializable):
             self.plot_scattered(np.array(zs), epoch)
 
 
-
-        train_weight_mean = np.mean(self._train_weights)
-        num_above_avg = np.sum(np.where(self._train_weights >= train_weight_mean, 1, 0))
-        logger.record_tabular("% train weights above average", num_above_avg/self.train_dataset.shape[0])
+        if self.skew_dataset:
+            train_weight_mean = np.mean(self._train_weights)
+            num_above_avg = np.sum(np.where(self._train_weights >= train_weight_mean, 1, 0))
+            logger.record_tabular("% train weights above average", num_above_avg/self.train_dataset.shape[0])
 
         if from_rl:
             self.vae_logger_stats_for_rl['Test VAE Epoch'] = epoch

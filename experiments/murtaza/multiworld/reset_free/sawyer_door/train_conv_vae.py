@@ -46,39 +46,41 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test-biased-sampling'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'normalized-sampling'
+    mode = 'local'
+    exp_prefix = 'normalized'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'normalized-sampling'
 
     use_gpu = True
 
     variant = dict(
-        beta_schedule_kwargs=dict(
-            x_values=[0, 800, 1700],
-            y_values=[0, 0, .5],
-        ),
+        # beta_schedule_kwargs=dict(
+        #     x_values=[0, 800, 1700],
+        #     y_values=[0, 0, .5],
+        # ),
         num_epochs=2500,
         algo_kwargs=dict(
             is_auto_encoder=False,
-            batch_size=128,
+            batch_size=64,
             lr=1e-3,
             skew_config=dict(
                 method='inv_bernoulli_p_x',
             ),
             skew_dataset=True,
-            normalize_log_probs=False,
-            #biased_sampling=True,
+            normalize_log_probs=True,
+            # normalize_mean=True,
+            normalize_std=False,
+            normalize_max=True,
         ),
         vae=ConvVAESmallDouble,
         dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
             N=5000,
-            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
+            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1.npy',
             oracle_dataset=False,
             use_cached=True,
             oracle_dataset_from_policy=True,
@@ -93,18 +95,15 @@ if __name__ == "__main__":
             input_channels=3,
             imsize=48,
             decoder_activation='sigmoid',
-            unit_variance=True,
         ),
         save_period=10,
-        beta=5,
+        beta=2.5,
         representation_size=16,
     )
 
     search_space = {
         'algo_kwargs.lr':[1e-3],
-        'beta':[0.5, 1, 2.5, 5],
-        'algo_kwargs.normalize_log_probs':[False, True],
-        'representation_size':[6, 16],
+        # 'algo_kwargs.normalize_log_probs':[True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

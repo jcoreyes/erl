@@ -104,14 +104,18 @@ if __name__ == "__main__":
                 do_scatterplot=False,
                 use_linear_dynamics=False,
                 lr=1e-3,
+                normalize_log_probs=True,
             ),
             save_period=5,
         ),
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
-        'grill_variant.exploration_noise': [.3, .5, .8]
+        'grill_variant.exploration_noise': [.8],
+        'grill_variant.online_vae_beta':[1, 2.5],
+        'train_vae_variant.algo_kwargs.normalize_mean':[True, False],
+        'train_vae_variant.algo_kwargs.normalize_std':[True, False],
+        'train_vae_variant.algo_kwargs.normalize_max':[True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -123,7 +127,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_online_vae_inv_bernoulli_priority'
+    exp_prefix = 'sawyer_harder_door_online_vae_inv_bernoulli_priority_HACK'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
