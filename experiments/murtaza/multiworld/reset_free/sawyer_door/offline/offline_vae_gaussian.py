@@ -75,7 +75,7 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=1.0,
-            num_epochs=1000,
+            num_epochs=2500,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
@@ -108,6 +108,7 @@ if __name__ == "__main__":
                 ),
                 skew_dataset=True,
                 full_gaussian_decoder=True,
+                n_latents=1,
             ),
             save_period=50,
         ),
@@ -131,7 +132,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_offline_vae_inv_gaussian_priority'
+    exp_prefix = 'sawyer_harder_door_offline_vae_inv_gaussian_priority_sweep_n_latents'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

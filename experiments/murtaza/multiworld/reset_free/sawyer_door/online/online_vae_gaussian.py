@@ -111,7 +111,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_gaussian_inv_probs'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_gaussian_inv_prob'],
         'grill_variant.exploration_noise':[.3, .5, .8]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

@@ -39,7 +39,7 @@ def inv_gaussian_p_x_np_to_np(model, data):
     p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
     return p_theta_x_shifted
 
-def inv_p_bernoulli_x_np_to_np(model, data):
+def inv_p_bernoulli_x_np_to_np(model, data, normalize=False, biased_sampling=False):
     ''' Assumes data is normalized images'''
     imgs = ptu.np_to_var(data)
     latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
@@ -48,7 +48,18 @@ def inv_p_bernoulli_x_np_to_np(model, data):
     log_p_z = true_prior.log_prob(latents).sum(dim=1)
     log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
     decoded = model.decode(latents)
-    log_d_x_given_z = torch.log(imgs * decoded + (1-imgs) * (1-decoded)).sum(dim=1)
+    log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded)).sum(dim=1)
+    if biased_sampling:
+        log_p_theta_x = -1 / 2 * (log_d_x_given_z)
+        log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
+        p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
+        return p_theta_x_shifted
+
+
+    if normalize:
+        log_p_z = (log_p_z - log_p_z.mean()) /log_p_z.std()
+        log_q_z_given_x = (log_q_z_given_x - log_q_z_given_x.mean()) /log_q_z_given_x.std()
+        log_d_x_given_z = (log_d_x_given_z - log_d_x_given_z.mean()) /log_d_x_given_z.std()
     log_p_theta_x = -1 / 2 * (log_p_z - log_q_z_given_x + log_d_x_given_z)
     log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
     p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
@@ -80,6 +91,8 @@ class ConvVAETrainer(Serializable):
             full_gaussian_decoder=False,
             exploration_counter_kwargs=None,
             n_latents=1,
+            normalize_log_probs=False,
+            biased_sampling=False,
     ):
         self.quick_init(locals())
         if skew_config is None:
@@ -134,6 +147,8 @@ class ConvVAETrainer(Serializable):
         self.skew_config = skew_config
         self.gaussian_decoder_loss = gaussian_decoder_loss
         self.full_gaussian_decoder=full_gaussian_decoder
+        self.normalize_log_probs = normalize_log_probs
+        self.biased_sampling=biased_sampling
         if skew_dataset and skew_config.get('method') == 'hash_count':
             if exploration_counter_kwargs is None:
                 exploration_counter_kwargs = dict()
@@ -241,7 +256,7 @@ class ConvVAETrainer(Serializable):
             return inv_gaussian_p_x
         elif method == 'inv_bernoulli_p_x':
             data = normalize_image(data)
-            inv_bernoulli_p_x = inv_p_bernoulli_x_np_to_np(self.model, data)
+            inv_bernoulli_p_x = inv_p_bernoulli_x_np_to_np(self.model, data, normalize=self.normalize_log_probs, biased_sampling=self.biased_sampling)
             return inv_bernoulli_p_x
         elif method == 'hash_count':
             self.exploration_counter.clear_counter()
@@ -458,6 +473,12 @@ class ConvVAETrainer(Serializable):
         self.model.dist_std = zs.std(axis=0)
         if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
+
+
+
+        train_weight_mean = np.mean(self._train_weights)
+        num_above_avg = np.sum(np.where(self._train_weights >= train_weight_mean, 1, 0))
+        logger.record_tabular("% train weights above average", num_above_avg/self.train_dataset.shape[0])
 
         if from_rl:
             self.vae_logger_stats_for_rl['Test VAE Epoch'] = epoch

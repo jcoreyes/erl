@@ -53,7 +53,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_type='None',
-                vae_priority_type='image_gaussian_inv_prob',
+                vae_priority_type='image_bernoulli_inv_prob',
                 power=1,
             ),
             normalize=False,
@@ -104,14 +104,13 @@ if __name__ == "__main__":
                 do_scatterplot=False,
                 use_linear_dynamics=False,
                 lr=1e-3,
-                full_gaussian_decoder=True,
             ),
             save_period=5,
         ),
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_gaussian_inv_probs'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
         'grill_variant.exploration_noise': [.3, .5, .8]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

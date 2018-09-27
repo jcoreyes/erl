@@ -46,51 +46,43 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'gaussian_decoder_debug'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_hook_door_vae_double_net_aevsvae_unitvarvsvar'
+    # mode = 'local'
+    # exp_prefix = 'test-biased-sampling'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'normalized-sampling'
 
     use_gpu = True
 
     variant = dict(
-        num_epochs=1000,
+        beta_schedule_kwargs=dict(
+            x_values=[0, 800, 1700],
+            y_values=[0, 0, .5],
+        ),
+        num_epochs=2500,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=128,
             lr=1e-3,
-            # skew_config=dict(
-            #     method='p_x',
-            #     power=0,
-            # ),
-            # skew_dataset=True,
-            full_gaussian_decoder=True,
+            skew_config=dict(
+                method='inv_bernoulli_p_x',
+            ),
+            skew_dataset=True,
+            normalize_log_probs=False,
+            #biased_sampling=True,
         ),
-        # vae=ConvVAESmall,
         vae=ConvVAESmallDouble,
         dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
             N=5000,
-            dataset_path='datasets/SawyerDoorHookEnv_N5000_sawyer_door_env_camera_v3_imsize48_oracleFalse.npy',
+            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
             oracle_dataset=False,
             use_cached=True,
             oracle_dataset_from_policy=True,
             imsize=48,
-            init_camera=sawyer_door_env_camera_v3,
-            env_class=SawyerDoorHookEnv,
-            env_kwargs=dict(
-                goal_low=(-0.1, 0.45, 0.15, 0),
-                goal_high=(0.0, 0.65, .225, 1.0472),
-                hand_low=(-0.1, 0.45, 0.15),
-                hand_high=(0., 0.65, .225),
-                max_angle=1.0472,
-                xml_path='sawyer_xyz/sawyer_door_pull_hook.xml',
-                reset_free=True,
-            ),
             non_presampled_goal_img_is_garbage=True,
             vae_dataset_specific_kwargs=dict(),
             policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
@@ -100,8 +92,7 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
-            decoder_activation='identity',
-            # decoder_activation='sigmoid',
+            decoder_activation='sigmoid',
             unit_variance=True,
         ),
         save_period=10,
@@ -111,8 +102,9 @@ if __name__ == "__main__":
 
     search_space = {
         'algo_kwargs.lr':[1e-3],
-        'beta':[2.5],
-        'vae_kwargs.unit_variance':[False]
+        'beta':[0.5, 1, 2.5, 5],
+        'algo_kwargs.normalize_log_probs':[False, True],
+        'representation_size':[6, 16],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
