@@ -63,6 +63,7 @@ if __name__ == "__main__":
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
+            use_automatic_entropy_tuning=True,
         ),
         net_size=300,
     )
