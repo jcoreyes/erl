@@ -41,6 +41,9 @@ class TwinSAC(TorchRLAlgorithm):
 
             eval_policy=None,
             exploration_policy=None,
+
+            use_automatic_entropy_tuning=False,
+            target_entropy=None,
             **kwargs
     ):
         if eval_policy is None:
@@ -68,6 +71,17 @@ class TwinSAC(TorchRLAlgorithm):
             train_policy_with_reparameterization
         )
 
+        self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
+        if self.use_automatic_entropy_tuning:
+            if target_entropy:
+                self.target_entropy = target_entropy
+            else:
+                self.target_entropy = -np.prod(self.env.action_space.shape).item()  # heuristic value from Tuomas
+            self.log_alpha = ptu.Variable(torch.zeros(1), requires_grad=True)
+            self.alpha_optimizer = optimizer_class(
+                [self.log_alpha],
+                lr=policy_lr,
+            )
 
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
@@ -103,6 +117,7 @@ class TwinSAC(TorchRLAlgorithm):
 
         q1_pred = self.qf1(obs, actions)
         q2_pred = self.qf2(obs, actions)
+        v_pred = self.vf(obs)
         # Make sure policy accounts for squashing functions like tanh correctly!
         policy_outputs = self.policy(obs,
                                      reparameterize=self.train_policy_with_reparameterization,
@@ -117,17 +132,34 @@ class TwinSAC(TorchRLAlgorithm):
         qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
         qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
 
-        """
-        VF Loss
-        """
-        q1_new_actions = self.qf1(obs, new_actions)
-        q_new_actions = torch.min(
-            q1_new_actions,
-            self.qf2(obs, new_actions),
-        )
-        v_target = q_new_actions - log_pi
-        v_pred = self.vf(obs)
-        vf_loss = self.vf_criterion(v_pred, v_target.detach())
+        if self.use_automatic_entropy_tuning:
+            """
+            Alpha Loss
+            """
+            alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+            alpha = self.log_alpha.exp()
+
+            """
+            VF Loss
+            """
+            q1_new_actions = self.qf1(obs, new_actions)
+            q_new_actions = torch.min(
+                q1_new_actions,
+                self.qf2(obs, new_actions),
+            )
+            v_target = q_new_actions - alpha*log_pi
+            vf_loss = self.vf_criterion(v_pred, v_target.detach())
+        else:
+            """
+            VF Loss
+            """
+            q1_new_actions = self.qf1(obs, new_actions)
+            q_new_actions = torch.min(
+                q1_new_actions,
+                self.qf2(obs, new_actions),
+            )
+            v_target = q_new_actions - log_pi
+            vf_loss = self.vf_criterion(v_pred, v_target.detach())
 
         """
         Update networks
@@ -144,19 +176,33 @@ class TwinSAC(TorchRLAlgorithm):
         vf_loss.backward()
         self.vf_optimizer.step()
 
+        if self.use_automatic_entropy_tuning:
+            self.alpha_optimizer.zero_grad()
+            alpha_loss.backward()
+            self.alpha_optimizer.step()
+
         policy_loss = None
         if self._n_train_steps_total % self.policy_update_period == 0:
             """
             Policy Loss
             """
             # paper says to do + but apparently that's a typo. Do Q - V.
-            if self.train_policy_with_reparameterization:
-                policy_loss = (log_pi - q_new_actions).mean()
+            if self.use_automatic_entropy_tuning:
+                if self.train_policy_with_reparameterization:
+                    policy_loss = (alpha*log_pi - q_new_actions).mean()
+                else:
+                    log_policy_target = q_new_actions - v_pred
+                    policy_loss = (
+                        log_pi * (alpha*log_pi - log_policy_target).detach()
+                    ).mean()
             else:
-                log_policy_target = q_new_actions - v_pred
-                policy_loss = (
-                    log_pi * (log_pi - log_policy_target).detach()
-                ).mean()
+                if self.train_policy_with_reparameterization:
+                    policy_loss = (log_pi - q_new_actions).mean()
+                else:
+                    log_policy_target = q_new_actions - v_pred
+                    policy_loss = (
+                        log_pi * (log_pi - log_policy_target).detach()
+                    ).mean()
             mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
             std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
             pre_tanh_value = policy_outputs[-1]
@@ -232,6 +278,9 @@ class TwinSAC(TorchRLAlgorithm):
                 'Policy log std',
                 ptu.get_numpy(policy_log_std),
             ))
+            if self.use_automatic_entropy_tuning:
+                self.eval_statistics['Alpha'] = ptu.get_numpy(alpha)[0]
+                self.eval_statistics['Alpha Loss'] = ptu.get_numpy(alpha_loss)[0]
 
     @property
     def networks(self):

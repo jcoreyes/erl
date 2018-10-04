@@ -54,6 +54,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             target_hard_update_period=1,
             eval_policy=None,
             exploration_policy=None,
+
             use_automatic_entropy_tuning=False,
             target_entropy=None,
             **kwargs
@@ -82,10 +83,10 @@ class SoftActorCritic(TorchRLAlgorithm):
         )
         self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
         if self.use_automatic_entropy_tuning:
-            if target_entropy == None:
-                self.target_entropy = -np.prod(self.env.action_space.shape).item() #heuristic value from Tuomas 
-            else:
+            if target_entropy:
                 self.target_entropy = target_entropy
+            else:
+                self.target_entropy = -np.prod(self.env.action_space.shape).item()  # heuristic value from Tuomas
             self.log_alpha = ptu.Variable(torch.zeros(1), requires_grad=True)
             self.alpha_optimizer = optimizer_class(
                 [self.log_alpha],
@@ -137,8 +138,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             """
             Alpha Loss
             """
-            # alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
-            alpha_loss = ptu.Variable(torch.zeros(1), requires_grad=True)
+            alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
             alpha = self.log_alpha.exp()
 
             """

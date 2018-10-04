@@ -3,6 +3,7 @@ import argparse
 from gym.envs.mujoco import (
     HalfCheetahEnv,
     AntEnv,
+    HopperEnv,
     Walker2dEnv,
     InvertedDoublePendulumEnv,
 )
@@ -12,12 +13,12 @@ from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.variant_generator import VariantGenerator
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.sac import SoftActorCritic
+from railrl.torch.sac.twin_sac import TwinSAC
 
 COMMON_PARAMS = dict(
-    num_epochs=10000,
+    num_epochs=3000,
     num_steps_per_epoch=1000,
     num_steps_per_eval=1000, #check
     max_path_length=1000, #check
@@ -32,9 +33,9 @@ COMMON_PARAMS = dict(
     policy_lr=3E-4,
     qf_lr=3E-4,
     vf_lr=3E-4,
-    layer_size=256,
-    algorithm="SAC",
-    version="SAC",
+    layer_size=256, # [256, 512]
+    algorithm="Twin-SAC",
+    version="Twin-SAC-on-Q-no-delay-policyminq",
     env_class=HalfCheetahEnv,
 )
 
@@ -128,6 +129,7 @@ def experiment(variant):
         discount=variant['discount'],
         replay_buffer_size=variant['replay_buffer_size'],
         soft_target_tau=variant['soft_target_tau'],
+        policy_update_period=variant['policy_update_period'],
         target_update_period=variant['target_update_period'],
         train_policy_with_reparameterization=variant['train_policy_with_reparameterization'],
         policy_lr=variant['policy_lr'],
@@ -138,7 +140,13 @@ def experiment(variant):
     )
 
     M = variant['layer_size']
-    qf = FlattenMlp(
+    qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=[M, M],
+        # **variant['qf_kwargs']
+    )
+    qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
@@ -156,15 +164,17 @@ def experiment(variant):
         hidden_sizes=[M, M],
         # **variant['policy_kwargs']
     )
-    algorithm = SoftActorCritic(
+    algorithm = TwinSAC(
         env,
         policy=policy,
-        qf=qf,
+        qf1=qf1,
+        qf2=qf2,
         vf=vf,
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
-        qf.cuda()
+        qf1.cuda()
+        qf2.cuda()
         vf.cuda()
         policy.cuda()
         algorithm.cuda()
@@ -176,7 +186,7 @@ if __name__ == "__main__":
     args = parse_args()
     variant_generator = get_variants(args)
     variants = variant_generator.variants()
-    exp_prefix = "sac-" + args.env
+    exp_prefix = "twin-sac-" + args.env
     if len(args.label) > 0:
         exp_prefix = exp_prefix + "-" + args.label
 
