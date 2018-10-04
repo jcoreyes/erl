@@ -21,11 +21,10 @@ if __name__ == "__main__":
             puck_high=(.4, 1),
             goal_low=(-0.25, 0.3, 0.02, -.2, .4),
             goal_high=(0.25, 0.875, 0.02, .2, .8),
-            num_resets_before_puck_reset=int(1e6)
         ),
         init_camera=sawyer_pusher_camera_upright_v2,
         grill_variant=dict(
-            # save_video=true,
+            save_video=False,
             online_vae_beta=2.5,
             save_video_period=250,
             qf_kwargs=dict(
@@ -44,7 +43,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online-parallel'
+                    collection_mode='online'
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
@@ -109,6 +108,8 @@ if __name__ == "__main__":
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
         'grill_variant.replay_buffer_kwargs.alpha': [3],
         # 'grill_variant.algo_kwargs.base_kwargs.collection_mode':['online', 'online-parallel'],
+        # 'grill_variant.algo_kwargs.base_kwargs.parallel_env_params.num_workers':[1, 2],
+        # 'grill_variant.algo_kwargs.online_vae_kwargs.parallel_vae_train':[True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
