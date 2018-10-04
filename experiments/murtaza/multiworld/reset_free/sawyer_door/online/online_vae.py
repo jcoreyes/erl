@@ -66,7 +66,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0.2,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_scale=0.0,
-                exploration_rewards_type='reconstruction_error',
+                vae_priority_type='reconstruction_error',
                 alpha=3,
             ),
             algorithm='ONLINE-VAE-HER-TD3',

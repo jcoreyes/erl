@@ -375,6 +375,7 @@ def get_envs(variant):
                 )
                 presampled_goals = variant['generate_goal_dataset_fctn'](
                     env=vae_env,
+                    env_id=variant.get('env_id', None),
                     **variant['goal_generation_kwargs']
                 )
                 del vae_env

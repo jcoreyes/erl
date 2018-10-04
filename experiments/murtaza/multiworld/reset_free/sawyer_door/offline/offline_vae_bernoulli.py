@@ -101,17 +101,22 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
                 skew_config=dict(
-                    method='squared_error',
+                    method='inv_bernoulli_p_x',
                     power=1,
                 ),
                 skew_dataset=True,
+                normalize_log_probs=True,
+                normalize_mean=True,
+                normalize_std=True,
+                normalize_max=False,
             ),
             save_period=10,
         ),
     )
 
     search_space = {
-        'train_vae_variant.algo_kwargs.skew_config.power':[0, 1/2, 1],
+        'train_vae_variant.beta':[1, 2.5],
+        'train_vae_variant.algo_kwargs.skew_dataset':[True, False],
         'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
             'datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
             'datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99.npy',
@@ -128,7 +133,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_offline_vae_recon_priority'
+    exp_prefix = 'sawyer_harder_door_offline_vae_inv_bernoulli_priority_sweep_HACK_vs_not'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
