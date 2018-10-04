@@ -4,7 +4,7 @@ Skew the dataset so that it turns into generating a uniform distribution.
 import copy
 import json
 import sys
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,94 +27,15 @@ from railrl.core import logger
 from railrl.misc import visualization_util as vu
 from railrl.misc.html_report import HTMLReport
 from railrl.misc.ml_util import ConstantSchedule
+from railrl.torch.core import PyTorchModule
+from railrl.torch.vae.skew.datasets import project_samples_square_np
+import railrl.torch.pytorch_util as ptu
 
 K = 6
 
 """
-Datasets
-"""
-
-
-def gaussian_data(batch_size):
-    return np.random.randn(batch_size, 2)
-
-
-def small_gaussian_data(batch_size):
-    return 0.5*np.random.randn(batch_size, 2)
-
-
-def uniform_truncated_data(batch_size):
-    data = np.random.uniform(low=-2, high=2, size=(batch_size, 2))
-    data = np.maximum(data, -1)
-    data = np.minimum(data, 1)
-    return data
-
-
-def four_corners(_):
-    return np.array([
-        [-1, 1],
-        [-1, -1],
-        [1, 1],
-        [1, -1],
-    ])
-
-
-def empty_dataset(_):
-    return np.zeros((0, 2))
-
-
-def uniform_gaussian_data(batch_size):
-    data = np.random.randn(batch_size, 2)
-    data = np.maximum(data, -1)
-    data = np.minimum(data, 1)
-    return data
-
-
-def uniform_data(batch_size):
-    return np.random.uniform(low=-2, high=2, size=(batch_size, 2))
-
-
-def affine_gaussian_data(batch_size):
-    return (
-            np.random.randn(batch_size, 2) * np.array([1, 10]) + np.array(
-        [20, 1])
-    )
-
-
-def flower_data(batch_size):
-    z_true = np.random.uniform(0, 1, batch_size)
-    r = np.power(z_true, 0.5)
-    phi = 0.25 * np.pi * z_true
-    x1 = r * np.cos(phi)
-    x2 = r * np.sin(phi)
-
-    # Sampling form a Gaussian
-    x1 = np.random.normal(x1, 0.10 * np.power(z_true, 2), batch_size)
-    x2 = np.random.normal(x2, 0.10 * np.power(z_true, 2), batch_size)
-
-    # Bringing data in the right form
-    X = np.transpose(np.reshape((x1, x2), (2, batch_size)))
-    X = np.asarray(X, dtype='float32')
-    return X
-
-
-"""
 Plotting
 """
-
-
-def show_heatmap(
-        encoder, decoder, skew_config,
-        xlim=(-1.5, 1.5), ylim=(-1.5, 1.5),
-        resolution=20,
-):
-
-    def get_prob_batch(batch):
-        return compute_train_weights(batch, encoder, decoder, skew_config)
-
-    heat_map = vu.make_heat_map(get_prob_batch, xlim, ylim,
-                                resolution=resolution, batch=True)
-    vu.plot_heatmap(heat_map)
 
 
 def plot_weighted_histogram_sample(data, encoder, decoder, skew_config):
@@ -156,14 +77,14 @@ def get_weight_stats(data, encoder, decoder, skew_config):
 
 
 def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
-              report, n_vis=1000, xlim=(-1.5, 1.5),
+              report, projection, n_vis=1000, xlim=(-1.5, 1.5),
               ylim=(-1.5, 1.5)):
     report.add_text("Epoch {}".format(epoch))
 
     skew_config = full_variant['skew_config']
     dynamics_noise = full_variant['dynamics_noise']
     plt.figure()
-    show_heatmap(encoder, decoder, skew_config, xlim=xlim, ylim=ylim)
+    show_weight_heatmap(encoder, decoder, skew_config, xlim=xlim, ylim=ylim)
     fig = plt.gcf()
     heatmap_img = vu.save_image(fig)
     report.add_image(heatmap_img, "Epoch {} Heatmap".format(epoch))
@@ -177,13 +98,15 @@ def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
     vis_samples = np_to_var(vis_samples_np)
     latents = encoder.encode(vis_samples)
     z_dim = latents.shape[1]
-    reconstructed_samples = decoder(latents).data.numpy()
-    generated_samples = decoder(
+    reconstructed_samples = decoder.reconstruct(latents).data.numpy()
+    generated_samples = decoder.reconstruct(
         Variable(torch.randn(n_vis, z_dim))
     ).data.numpy()
-    projected_generated_samples = project_samples_np(
+    generated_samples = generated_samples + dynamics_noise * np.random.randn(
+        *generated_samples.shape
+    )
+    projected_generated_samples = projection(
         generated_samples,
-        dynamics_noise,
     )
     plt.subplot(2, 2, 1)
     plt.plot(generated_samples[:, 0], generated_samples[:, 1], '.')
@@ -227,7 +150,8 @@ def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
     return heatmap_img, sample_img
 
 
-def plot_uniformness(results, full_variant, n_samples=10000, n_bins=5,
+def plot_uniformness(results, full_variant, projection, n_samples=10000,
+                     n_bins=5,
                      report=None):
     dynamics_noise = full_variant['dynamics_noise']
     generated_frac_on_border_lst = []
@@ -236,12 +160,14 @@ def plot_uniformness(results, full_variant, n_samples=10000, n_bins=5,
     for epoch, encoder, decoder, vis_samples_np in zip(*results[:4]):
 
         z_dim = decoder._modules['0'].weight.shape[1]
-        generated_samples = decoder(
+        generated_samples = decoder.reconstruct(
             Variable(torch.randn(n_samples, z_dim))
         ).data.numpy()
-        projected_generated_samples = project_samples_np(
+        generated_samples = generated_samples + dynamics_noise * np.random.randn(
+            *generated_samples.shape
+        )
+        projected_generated_samples = projection(
             generated_samples,
-            dynamics_noise,
         )
 
         orig_n_samples_on_border = np.mean(
@@ -338,23 +264,39 @@ def np_to_var(np_array, **kwargs):
     return Variable(torch.from_numpy(np_array).float(), **kwargs)
 
 
-def kl_to_prior(means, log_stds, stds):
+def kl_to_prior(means, log_vars, stds):
     """
     KL between a Gaussian and a standard Gaussian.
 
     https://stats.stackexchange.com/questions/60680/kl-divergence-between-two-multivariate-gaussians
     """
+    # Implement for one dimension. Broadcasting will take care of the constants.
     return 0.5 * (
-            - log_stds
+            - log_vars
             - 1
-            + stds ** 2
+            + 2 * (stds ** 2)
             + means ** 2
     ).sum(dim=1, keepdim=True)
 
 
-def log_prob(batch, decoder, latents):
-    reconstruction = decoder(latents)
-    return -((batch - reconstruction) ** 2).sum(dim=1, keepdim=True)
+def compute_log_prob(batch, decoder, latents):
+    mu, var = decoder.decode(latents)
+    dist = Normal(mu, var.pow(0.5))
+    vals = dist.log_prob(batch).sum(dim=1, keepdim=True)
+    return vals
+
+
+def all_finite(x):
+    """
+    Quick pytorch test that there are no nan's or infs.
+
+    note: torch now has torch.isnan
+    url: https://gist.github.com/wassname/df8bc03e60f81ff081e1895aabe1f519
+    """
+    not_inf = ((x + 1) != x)
+    not_nan = (x == x)
+    is_finite_vector = not_inf & not_nan
+    return is_finite_vector.int().data.numpy().all()
 
 
 class Encoder(nn.Sequential):
@@ -364,25 +306,127 @@ class Encoder(nn.Sequential):
     def get_encoding_and_suff_stats(self, x):
         output = self(x)
         z_dim = output.shape[1] // 2
-        means, log_stds = (
+        means, log_var = (
             output[:, :z_dim], output[:, z_dim:]
         )
-        stds = log_stds.exp()
+        stds = (0.5 * log_var).exp()
         epsilon = Variable(torch.randn(*means.size()))
         latents = epsilon * stds + means
-        return latents, means, log_stds, stds
+        return latents, means, log_var, stds
 
 
-class VAE(nn.Module):
-    def __init__(self, encoder, decoder):
+class Decoder(nn.Sequential):
+    def __init__(self, *args, output_var=1, output_offset=0):
+        super().__init__(*args)
+        self.output_var = output_var
+        self.output_offset = output_offset
+
+    def __call__(self, *args, **kwargs):
+        output = super().__call__(*args, **kwargs)
+        return output + self.output_offset
+
+    def decode(self, input):
+        output = self(input)
+        if self.output_var == 'learned':
+            mu, logvar = torch.split(output, 2, dim=1)
+            var = logvar.exp()
+        else:
+            mu = output
+            var = self.output_var * torch.ones_like(mu)
+        return mu, var
+
+    def reconstruct(self, input):
+        mu, _ = self.decode(input)
+        return mu
+
+    def sample(self, latent):
+        mu, var = self.decode(latent)
+        return Normal(mu, var.pow(0.5)).sample()
+
+
+class VAE(PyTorchModule):
+    def __init__(
+            self,
+            encoder,
+            decoder,
+            z_dim,
+            mode='importance_sampling',
+            min_prob=1e-7,
+            n_average=100,
+    ):
+        self.quick_init(locals())
+        super().__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.zdim = decoder._modules['0'].weight.shape[1]
+        self.z_dim = z_dim
+        self.mode = mode
+        self.min_log_prob = np.log(min_prob)
+        self.n_average = n_average
 
-    def sample(self, n_samples):
-        return self.decoder(
-            Variable(torch.randn(n_samples, self.zdim))
+    def sample_given_z(self, latent):
+        return self.decoder.sample(latent)
+
+    def sample(self, num_samples):
+        return self.sample_given_z(
+            Variable(torch.randn(num_samples, self.z_dim))
         ).data.numpy()
+
+    def reconstruct(self, data):
+        latents = self.encoder.encode(ptu.np_to_var(data))
+        return self.decoder.reconstruct(latents).data.numpy()
+
+    def compute_density(self, data):
+        orig_data_length = len(data)
+        data = np.vstack([
+            data for _ in range(self.n_average)
+        ])
+        data = np_to_var(data)
+        if self.mode == 'biased_encoder':
+            latents, means, log_vars, stds = (
+                self.encoder.get_encoding_and_suff_stats(data)
+            )
+            importance_weights = ptu.Variable(torch.ones(data.shape[0]))
+        elif self.mode == 'prior':
+            latents = Variable(torch.randn(len(data), self.z_dim))
+            importance_weights = ptu.Variable(torch.ones(data.shape[0]))
+        elif self.mode == 'importance_sampling':
+            latents, means, log_vars, stds = (
+                self.encoder.get_encoding_and_suff_stats(data)
+            )
+            prior = Normal(0, 1)
+            prior_log_prob = prior.log_prob(latents).sum(dim=1)
+
+            encoder_distrib = Normal(means, stds)
+            encoder_log_prob = encoder_distrib.log_prob(latents).sum(dim=1)
+
+            importance_weights = (prior_log_prob - encoder_log_prob).exp()
+        else:
+            raise NotImplementedError()
+
+        unweighted_data_log_prob = compute_log_prob(
+            data, self.decoder, latents
+        ).squeeze(1)
+        unweighted_data_prob = unweighted_data_log_prob.exp()
+        unnormalized_data_prob = unweighted_data_prob * importance_weights
+        """
+        Average over `n_average`
+        """
+        dp_split = torch.split(unnormalized_data_prob, orig_data_length, dim=0)
+        # pre_avg.shape = ORIG_LEN x N_AVERAGE
+        dp_stacked = torch.stack(dp_split, dim=1)
+        # final.shape = ORIG_LEN
+        unnormalized_dp = torch.sum(dp_stacked, dim=1, keepdim=False)
+
+        """
+        Compute the importance weight denomintors.
+        This requires summing across the `n_average` dimension.
+        """
+        iw_split = torch.split(importance_weights, orig_data_length, dim=0)
+        iw_stacked = torch.stack(iw_split, dim=1)
+        iw_denominators = iw_stacked.sum(dim=1, keepdim=False)
+
+        final = unnormalized_dp / iw_denominators
+        return final.data.numpy()
 
 
 class IndexedData(Dataset):
@@ -396,94 +440,6 @@ class IndexedData(Dataset):
         return index, self.dataset[index]
 
 
-def compute_train_weights(data, encoder, decoder, config):
-    """
-    :param data: PyTorch
-    :param encoder:
-    :param decoder:
-    :return: PyTorch
-    """
-    alpha = config.get('alpha', 0)
-    mode = config.get('mode', 'none')
-    n_average = config.get('n_average', 3)
-    temperature = config.get('temperature', 1)
-    orig_data_length = len(data)
-    if alpha == 0 or mode == 'none':
-        return np.ones(orig_data_length)
-    data = np.vstack([
-        data for _ in range(n_average)
-    ])
-    data = np_to_var(data)
-    z_dim = decoder._modules['0'].weight.shape[1]
-    """
-    Actually compute the weights
-    """
-    if mode == 'recon_mse':
-        latents, *_ = encoder.get_encoding_and_suff_stats(data)
-        reconstruction = decoder(latents)
-        weights = ((data - reconstruction) ** 2).sum(dim=1)
-    elif mode == 'exp_recon_mse':
-        latents, *_ = encoder.get_encoding_and_suff_stats(data)
-        reconstruction = decoder(latents)
-        weights = (temperature * (data - reconstruction) ** 2).sum(dim=1).exp()
-    else:
-        if mode == 'biased_encoder':
-            latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
-                data
-            )
-            importance_weights = 1
-        elif mode == 'prior':
-            latents = Variable(torch.randn(len(data), z_dim))
-            importance_weights = 1
-        elif mode == 'importance_sampling':
-            latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
-                data
-            )
-
-            prior = Normal(0, 1)
-            prior_prob = prior.log_prob(latents).sum(dim=1).exp()
-
-            encoder_distrib = Normal(means, stds)
-            encoder_prob = encoder_distrib.log_prob(latents).sum(dim=1).exp()
-
-            importance_weights = prior_prob / encoder_prob
-        else:
-            raise NotImplementedError()
-
-        data_prob = log_prob(data, decoder, latents).squeeze(1).exp()
-        weights = importance_weights * 1. / data_prob
-    weights = weights ** alpha
-
-    """
-    Average over `n_average`
-    """
-
-    samples_of_results = torch.split(weights, orig_data_length, dim=0)
-    # pre_avg.shape = ORIG_LEN x N_AVERAGE
-    pre_avg = torch.cat(
-        [x.unsqueeze(1) for x in samples_of_results],
-        1,
-    )
-    # final.shape = ORIG_LEN
-    final = torch.mean(pre_avg, dim=1, keepdim=False)
-    return final.data.numpy()
-
-
-def generate_vae_samples_np(decoder, n_samples):
-    z_dim = decoder._modules['0'].weight.shape[1]
-    generated_samples = decoder(
-        Variable(torch.randn(n_samples, z_dim))
-    )
-    return generated_samples.data.numpy()
-
-
-def project_samples_np(samples, dynamics_noise):
-    samples = samples + dynamics_noise * np.random.randn(*samples.shape)
-    samples = np.maximum(samples, -1)
-    samples = np.minimum(samples, 1)
-    return samples
-
-
 def train_from_variant(variant):
     train(full_variant=variant, **variant)
 
@@ -491,6 +447,7 @@ def train_from_variant(variant):
 def train(
         dataset_generator,
         n_start_samples,
+        projection=project_samples_square_np,
         encoder=None,
         decoder=None,
         bs=32,
@@ -507,6 +464,7 @@ def train(
         append_all_data=True,
         full_variant=None,
         dynamics_noise=0,
+        decoder_output_var='learned',
         **kwargs
 ):
     if encoder is None:
@@ -518,12 +476,17 @@ def train(
             nn.Linear(hidden_size, z_dim * 2),
         )
     if decoder is None:
-        decoder = nn.Sequential(
+        if decoder_output_var == 'learned':
+            last_layer = nn.Linear(hidden_size, 4)
+        else:
+            last_layer = nn.Linear(hidden_size, 2)
+        decoder = Decoder(
             nn.Linear(z_dim, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, 2),
+            last_layer,
+            output_var=decoder_output_var,
         )
     if beta_schedule_class is None:
         beta_schedule = ConstantSchedule(1)
@@ -569,7 +532,11 @@ def train(
         if n_samples_to_add_per_epoch > 0:
             vae_samples = generate_vae_samples_np(decoder,
                                                   n_samples_to_add_per_epoch)
-            projected_samples = project_samples_np(vae_samples, dynamics_noise)
+
+            new_samples = vae_samples + dynamics_noise * np.random.randn(
+                *vae_samples.shape
+            )
+            projected_samples = projection(new_samples)
             if append_all_data:
                 train_data = np.vstack((train_data, projected_samples))
             else:
@@ -601,20 +568,30 @@ def train(
             decoders.append(copy.deepcopy(decoder))
             train_datas.append(train_data)
             heatmap_img, sample_img = (
-                visualize(epoch, train_data, encoder, decoder, full_variant, report)
+                visualize(epoch, train_data, encoder, decoder, full_variant,
+                          report, projection)
             )
             heatmap_imgs.append(heatmap_img)
             sample_imgs.append(sample_img)
+            report.save()
+
+            from PIL import Image
+            Image.fromarray(heatmap_img).save(
+                logger.get_snapshot_dir() + '/heatmap{}.png'.format(epoch)
+            )
+            Image.fromarray(sample_img).save(
+                logger.get_snapshot_dir() + '/samples{}.png'.format(epoch)
+            )
         for i, indexed_batch in enumerate(train_dataloader):
             idxs, batch = indexed_batch
             batch = Variable(batch[0].float())
 
-            latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
+            latents, means, log_vars, stds = encoder.get_encoding_and_suff_stats(
                 batch
             )
             beta = float(beta_schedule.get_value(epoch))
-            kl = kl_to_prior(means, log_stds, stds)
-            reconstruction_log_prob = log_prob(batch, decoder, latents)
+            kl = kl_to_prior(means, log_vars, stds)
+            reconstruction_log_prob = compute_log_prob(batch, decoder, latents)
 
             elbo = - kl * beta + reconstruction_log_prob
             if weight_loss:
@@ -651,7 +628,7 @@ def train(
 
     results = epochs, encoders, decoders, train_datas, losses, kls, log_probs
     report.add_header("Uniformness")
-    plot_uniformness(results, full_variant, report=report)
+    plot_uniformness(results, full_variant, projection, report=report)
     report.add_header("Training Curves")
     plot_curves(results, report=report)
     report.save()
