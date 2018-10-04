@@ -43,7 +43,10 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online'
+                    collection_mode='online',
+                    parallel_env_params=dict(
+                        num_workers=1,
+                    )
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
@@ -52,6 +55,7 @@ if __name__ == "__main__":
                    vae_training_schedule=vae_schedules.every_six,
                     oracle_data=False,
                     vae_save_period=25,
+                    parallel_vae_train=True,
                 ),
             ),
             replay_buffer_kwargs=dict(
@@ -107,21 +111,21 @@ if __name__ == "__main__":
         'env_kwargs.num_resets_before_puck_reset': [1],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
         'grill_variant.replay_buffer_kwargs.alpha': [3],
-        # 'grill_variant.algo_kwargs.base_kwargs.collection_mode':['online', 'online-parallel'],
-        # 'grill_variant.algo_kwargs.base_kwargs.parallel_env_params.num_workers':[1, 2],
-        # 'grill_variant.algo_kwargs.online_vae_kwargs.parallel_vae_train':[True, False],
+        'grill_variant.algo_kwargs.base_kwargs.collection_mode':['online', 'online-parallel'],
+        'grill_variant.algo_kwargs.base_kwargs.parallel_env_params.num_workers':[1, 2],
+        'grill_variant.algo_kwargs.online_vae_kwargs.parallel_vae_train':[True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_pusher_steven_sweep'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'torch4cuda9-online-vae-sweep'
     
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -132,5 +136,6 @@ if __name__ == "__main__":
                 variant=variant,
                 use_gpu=True,
                 snapshot_gap=200,
+                num_exps_per_instance=2,
                 snapshot_mode='gap_and_last',
             )

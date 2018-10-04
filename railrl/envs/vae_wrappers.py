@@ -500,7 +500,6 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_local_or_remote_file(vae)
         else:
             self.vae = vae
-        self.vae.to(ptu.device)
         self.representation_size = self.vae.representation_size
         self._use_vae_goals = use_vae_goals
         self.sample_from_true_prior = sample_from_true_prior
@@ -542,7 +541,6 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
         return self.representation_size
 
     def step(self, action):
-        print(next(self.vae.parameters()).is_cuda)
         obs, reward, done, info = self.wrapped_env.step(action)
         new_obs = self._update_obs(obs)
         self._update_info(info, obs)
