@@ -83,7 +83,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
         if self.use_automatic_entropy_tuning:
             if target_entropy == None:
-                self.target_entropy = -np.prod(self.env.action_space.shape).item()
+                self.target_entropy = -np.prod(self.env.action_space.shape).item() #heuristic value from Tuomas 
             else:
                 self.target_entropy = target_entropy
             self.log_alpha = ptu.Variable(torch.zeros(1), requires_grad=True)
@@ -126,18 +126,6 @@ class SoftActorCritic(TorchRLAlgorithm):
                                      return_log_prob=True)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
-        if self.use_automatic_entropy_tuning:
-            """
-            Alpha Loss
-            """
-            alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
-            alpha = self.log_alpha.exp()
-            self.alpha_optimizer.zero_grad()
-            alpha_loss.backward()
-            self.alpha_optimizer.step()
-        else:
-            alpha=1
-
         """
         QF Loss
         """
@@ -145,23 +133,49 @@ class SoftActorCritic(TorchRLAlgorithm):
         q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_v_values
         qf_loss = self.qf_criterion(q_pred, q_target.detach())
 
-        """
-        VF Loss
-        """
-        q_new_actions = self.qf(obs, new_actions)
-        v_target = q_new_actions - alpha*log_pi
-        vf_loss = self.vf_criterion(v_pred, v_target.detach())
+        if self.use_automatic_entropy_tuning:
+            """
+            Alpha Loss
+            """
+            # alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+            alpha_loss = ptu.Variable(torch.zeros(1), requires_grad=True)
+            alpha = self.log_alpha.exp()
 
-        """
-        Policy Loss
-        """
-        if self.train_policy_with_reparameterization:
-            policy_loss = (alpha*log_pi - q_new_actions).mean()
+            """
+            VF Loss
+            """
+            q_new_actions = self.qf(obs, new_actions)
+            v_target = q_new_actions - alpha * log_pi
+            vf_loss = self.vf_criterion(v_pred, v_target.detach())
+
+            """
+            Policy Loss
+            """
+            if self.train_policy_with_reparameterization:
+                policy_loss = (alpha * log_pi - q_new_actions).mean()
+            else:
+                log_policy_target = q_new_actions - v_pred
+                policy_loss = (
+                        log_pi * (alpha * log_pi - log_policy_target).detach()
+                ).mean()
         else:
-            log_policy_target = q_new_actions - v_pred
-            policy_loss = (
-                log_pi * (alpha*log_pi - log_policy_target).detach()
-            ).mean()
+            """
+            VF Loss
+            """
+            q_new_actions = self.qf(obs, new_actions)
+            v_target = q_new_actions - log_pi
+            vf_loss = self.vf_criterion(v_pred, v_target.detach())
+
+            """
+            Policy Loss
+            """
+            if self.train_policy_with_reparameterization:
+                policy_loss = (log_pi - q_new_actions).mean()
+            else:
+                log_policy_target = q_new_actions - v_pred
+                policy_loss = (
+                    log_pi * (log_pi - log_policy_target).detach()
+                ).mean()
         mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
         std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
         pre_tanh_value = policy_outputs[-1]
@@ -185,6 +199,11 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
+
+        if self.use_automatic_entropy_tuning:
+            self.alpha_optimizer.zero_grad()
+            alpha_loss.backward()
+            self.alpha_optimizer.step()
 
 
         if self._n_train_steps_total % self.target_update_period == 0:

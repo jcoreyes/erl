@@ -67,5 +67,5 @@ if __name__ == "__main__":
         ),
         net_size=300,
     )
-    setup_logger('name-of-experiment', variant=variant)
+    setup_logger('test', variant=variant)
     experiment(variant)
