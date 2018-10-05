@@ -47,7 +47,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online-parallel',
+                    collection_mode='online',
                     # collection_mode='online',
                     reward_scale=1,
                 ),

@@ -228,4 +228,4 @@ class TD3EnsembleQs(TorchRLAlgorithm):
             self.target_policy,
             self.target_qf1,
             self.target_qf2,
-        ]
+        ]  + self.ensemble_qs

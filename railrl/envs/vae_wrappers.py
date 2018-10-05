@@ -43,7 +43,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_local_or_remote_file(vae)
         else:
             self.vae = vae
-        vae.to(ptu.device)
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self._use_vae_goals = use_vae_goals
@@ -65,6 +64,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         latent_space = Box(
             -10 * np.ones(obs_size or self.representation_size),
             10 * np.ones(obs_size or self.representation_size),
+            dtype=np.float32,
         )
         spaces = self.wrapped_env.observation_space.spaces
         spaces['observation'] = latent_space
@@ -349,22 +349,18 @@ class VAEWrappedEnv(ProxyEnv, Env):
         """
         return dict(
             mode_map=self._mode_map,
-            vae_info=dict(
-                vae_state_dict=self.vae.state_dict(),
-                vae_dist_mu=self.vae.dist_mu,
-                vae_dist_std=self.vae.dist_mu,
+            gpu_info=dict(
                 use_gpu=ptu._use_gpu,
                 gpu_id=ptu._gpu_id,
             ),
+            vae_state=self.vae.__getstate__(),
         )
 
-    def update_env(self, mode_map, vae_info):
+    def update_env(self, mode_map, vae_state, gpu_info):
         self._mode_map = mode_map
-        self.vae.load_state_dict(vae_info['vae_state_dict'])
-        self.vae.dist_mu = vae_info['vae_dist_mu']
-        self.vae.dist_std = vae_info['vae_dist_std']
-        gpu_id = vae_info['gpu_id']
-        use_gpu = vae_info['use_gpu']
+        self.vae.__setstate__(vae_state)
+        gpu_id = gpu_info['gpu_id']
+        use_gpu = gpu_info['use_gpu']
         ptu.device = torch.device("cuda:" + str(gpu_id) if use_gpu else "cpu")
         self.vae.to(ptu.device)
 
@@ -388,7 +384,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             ).transpose()
             cv2.imshow('env', img)
             cv2.waitKey(1)
-            reconstruction = self._reconstruct_img(obs['image_observation'])
+            reconstruction = self._reconstruct_img(obs['image_observation']).transpose()
             cv2.imshow('env_reconstruction', reconstruction)
             cv2.waitKey(1)
             init_img = self._initial_obs['image_observation'].reshape(
@@ -400,7 +396,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             cv2.waitKey(1)
             init_reconstruction = self._reconstruct_img(
                 self._initial_obs['image_observation']
-            )
+            ).transpose()
             cv2.imshow('init_reconstruction', init_reconstruction)
             cv2.waitKey(1)
 
@@ -444,7 +440,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
         imgs = ptu.get_numpy(self.vae.decode(zs))
         imgs = imgs.reshape(
             1, self.input_channels, self.imsize, self.imsize
-        ).transpose([0, 3, 2, 1])
+        )
         return imgs[0]
 
     def _image_and_proprio_from_decoded_one(self, decoded):
@@ -504,7 +500,6 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_local_or_remote_file(vae)
         else:
             self.vae = vae
-        vae.to(ptu.device)
         self.representation_size = self.vae.representation_size
         self._use_vae_goals = use_vae_goals
         self.sample_from_true_prior = sample_from_true_prior
@@ -526,6 +521,7 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
         latent_space = Box(
             -10 * np.ones(self.representation_size),
             10 * np.ones(self.representation_size),
+            dtype=np.float32,
         )
         spaces = self.wrapped_env.observation_space.spaces
         spaces['observation'] = latent_space
