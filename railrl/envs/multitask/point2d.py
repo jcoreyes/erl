@@ -123,9 +123,7 @@ class MultitaskVAEPoint2DEnv(MultitaskImagePoint2DEnv, MultitaskEnv):
 
     def _get_observation(self):
         img = Variable(ptu.from_numpy(self.get_image()))
-        # import pdb; pdb.set_trace()
-        if ptu.gpu_enabled():
-            self.vae.to(ptu.device)
+        self.vae.to(ptu.device)
         e = self.vae.encode(img)[0]
         return ptu.get_numpy(e).flatten()
 
