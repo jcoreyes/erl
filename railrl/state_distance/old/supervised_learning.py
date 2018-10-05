@@ -93,8 +93,8 @@ class SupervisedLearning(object):
             replay_buffer=self.replay_buffer,
         )
 
-    def cuda(self):
-        self.qf.to(ptu.device)
+    def to(self, device=ptu.device):
+        self.qf.to(device)
 
     def _do_training(self):
         batch = self.get_batch()

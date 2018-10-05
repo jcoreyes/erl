@@ -76,10 +76,10 @@ class DdpgQfCombiner(object):
             logger.save_itr_params(epoch, params)
             logger.pop_prefix()
 
-    def cuda(self):
-        self.policy.to(ptu.device)
-        self.qf1.to(ptu.device)
-        self.qf2.to(ptu.device)
+    def to(self, device=ptu.device):
+        self.policy.to(device)
+        self.qf1.to(device)
+        self.qf2.to(device)
 
     def get_batch(self):
         sample_size = self.batch_size // 2

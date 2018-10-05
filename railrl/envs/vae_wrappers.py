@@ -43,8 +43,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_local_or_remote_file(vae)
         else:
             self.vae = vae
-        if ptu.gpu_enabled():
-            vae.cuda()
+        vae.to(ptu.device)
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self._use_vae_goals = use_vae_goals
@@ -505,8 +504,7 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_local_or_remote_file(vae)
         else:
             self.vae = vae
-        if ptu.gpu_enabled():
-            vae.cuda()
+        vae.to(ptu.device)
         self.representation_size = self.vae.representation_size
         self._use_vae_goals = use_vae_goals
         self.sample_from_true_prior = sample_from_true_prior
