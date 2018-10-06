@@ -1,7 +1,5 @@
 import argparse
 import math
-
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv, SawyerReachXYZEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_experiment
@@ -10,7 +8,7 @@ import railrl.misc.hyperparameter as hyp
 variant = dict(
     algo_kwargs=dict(
         base_kwargs=dict(
-            num_epochs=300,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             max_path_length=100,
@@ -26,7 +24,7 @@ variant = dict(
             soft_target_tau=1e-3,  # 1e-2
             policy_update_period=1,
             target_update_period=1,  # 1
-            use_automated_entropy_tuning=True,
+            use_automatic_entropy_tuning=True,
         ),
     ),
     qf_kwargs=dict(
@@ -40,9 +38,9 @@ variant = dict(
     ),
     exploration_noise=0,
     exploration_type='ou',
-    replay_kwargs=dict(
+    replay_buffer_kwargs=dict(
         max_size=int(1E6),
-        fraction_goals_are_rollout_goals=0.2,
+        fraction_goals_are_rollout_goals=0,
         fraction_resampled_goals_are_env_goals=0.5,
     ),
     algorithm="HER-Twin-SAC",
@@ -59,15 +57,15 @@ common_params = {
 env_params = {
     'door': {
         'env_id':['SawyerDoorHookResetFreeEnv-v6', 'SawyerDoorHookResetFreeEnv-v5', 'SawyerDoorHookResetFreeEnv-v3'],
-        'train_policy_with_reparameterization': [True, False],
+        'algo_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True, False],
     },
     'pusher': {
         'env_id':['SawyerPushAndReachFullArenaEnv-v0', 'SawyerPushAndReachFullArenaResetFreeEnv-v0'],
-        'train_policy_with_reparameterization': [True, False],
+        'algo_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True, False],
     },
     'reacher': {
-        'env_class': SawyerReachXYZEnv,
-        'algo_kwargs.base_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True, False],
+        'env_class': [SawyerReachXYEnv, SawyerReachXYZEnv],
+        'algo_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True, False],
     }
 }
 

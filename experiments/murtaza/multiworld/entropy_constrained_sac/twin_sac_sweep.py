@@ -35,7 +35,7 @@ COMMON_PARAMS = dict(
     vf_lr=3E-4,
     layer_size=256, # [256, 512]
     algorithm="Twin-SAC",
-    version="Twin-SAC-on-Q-no-delay-policyminq",
+    version="normal",
     env_class=HalfCheetahEnv,
 )
 
