@@ -42,7 +42,7 @@ class TwinSAC(TorchRLAlgorithm):
             eval_policy=None,
             exploration_policy=None,
 
-            use_automatic_entropy_tuning=False,
+            use_automatic_entropy_tuning=True,
             target_entropy=None,
             **kwargs
     ):
@@ -137,29 +137,23 @@ class TwinSAC(TorchRLAlgorithm):
             Alpha Loss
             """
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+            self.alpha_optimizer.zero_grad()
+            alpha_loss.backward()
+            self.alpha_optimizer.step()
             alpha = self.log_alpha.exp()
-
-            """
-            VF Loss
-            """
-            q1_new_actions = self.qf1(obs, new_actions)
-            q_new_actions = torch.min(
-                q1_new_actions,
-                self.qf2(obs, new_actions),
-            )
-            v_target = q_new_actions - alpha*log_pi
-            vf_loss = self.vf_criterion(v_pred, v_target.detach())
         else:
-            """
-            VF Loss
-            """
-            q1_new_actions = self.qf1(obs, new_actions)
-            q_new_actions = torch.min(
-                q1_new_actions,
-                self.qf2(obs, new_actions),
-            )
-            v_target = q_new_actions - log_pi
-            vf_loss = self.vf_criterion(v_pred, v_target.detach())
+            alpha = 1
+
+        """
+        VF Loss
+        """
+        q1_new_actions = self.qf1(obs, new_actions)
+        q_new_actions = torch.min(
+            q1_new_actions,
+            self.qf2(obs, new_actions),
+        )
+        v_target = q_new_actions - alpha*log_pi
+        vf_loss = self.vf_criterion(v_pred, v_target.detach())
 
         """
         Update networks
@@ -176,33 +170,19 @@ class TwinSAC(TorchRLAlgorithm):
         vf_loss.backward()
         self.vf_optimizer.step()
 
-        if self.use_automatic_entropy_tuning:
-            self.alpha_optimizer.zero_grad()
-            alpha_loss.backward()
-            self.alpha_optimizer.step()
-
         policy_loss = None
         if self._n_train_steps_total % self.policy_update_period == 0:
             """
             Policy Loss
             """
             # paper says to do + but apparently that's a typo. Do Q - V.
-            if self.use_automatic_entropy_tuning:
-                if self.train_policy_with_reparameterization:
-                    policy_loss = (alpha*log_pi - q_new_actions).mean()
-                else:
-                    log_policy_target = q_new_actions - v_pred
-                    policy_loss = (
-                        log_pi * (alpha*log_pi - log_policy_target).detach()
-                    ).mean()
+            if self.train_policy_with_reparameterization:
+                policy_loss = (alpha*log_pi - q_new_actions).mean()
             else:
-                if self.train_policy_with_reparameterization:
-                    policy_loss = (log_pi - q_new_actions).mean()
-                else:
-                    log_policy_target = q_new_actions - v_pred
-                    policy_loss = (
-                        log_pi * (log_pi - log_policy_target).detach()
-                    ).mean()
+                log_policy_target = q_new_actions - v_pred
+                policy_loss = (
+                    log_pi * (alpha*log_pi - log_policy_target).detach()
+                ).mean()
             mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
             std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
             pre_tanh_value = policy_outputs[-1]
