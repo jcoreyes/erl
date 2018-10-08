@@ -15,8 +15,10 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.state_distance.tdm_networks import (
     TdmPolicy,
     TdmQf,
-)
+    StochasticTdmPolicy, TdmVf)
+from railrl.state_distance.tdm_sac import TdmSac
 from railrl.state_distance.tdm_td3 import TdmTd3
+from railrl.state_distance.tdm_twin_sac import TdmTwinSAC
 from railrl.torch.grill.launcher import get_video_save_func
 from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
@@ -194,7 +196,7 @@ def tdm_td3_experiment(variant):
     algorithm.train()
 
 
-def tdm_td3_experiment(variant):
+def tdm_twin_sac_experiment(variant):
     if 'env_id' in variant:
         env = gym.make(variant['env_id'])
     else:
@@ -231,43 +233,30 @@ def tdm_td3_experiment(variant):
         vectorized=True,
         **variant['qf_kwargs']
     )
-    policy = TdmPolicy(
+    vf = TdmVf(
+        env=env,
+        observation_dim=obs_dim,
+        goal_dim=goal_dim,
+        vectorized=True,
+        **variant['vf_kwargs']
+    )
+    policy = StochasticTdmPolicy(
         env=env,
         observation_dim=obs_dim,
         action_dim=action_dim,
         goal_dim=goal_dim,
         **variant['policy_kwargs']
     )
-    exploration_type = variant['exploration_type']
-    if exploration_type == 'ou':
-        es = OUStrategy(action_space=env.action_space)
-    elif exploration_type == 'gaussian':
-        es = GaussianStrategy(
-            action_space=env.action_space,
-            max_sigma=0.1,
-            min_sigma=0.1,  # Constant sigma
-        )
-    elif exploration_type == 'epsilon':
-        es = EpsilonGreedy(
-            action_space=env.action_space,
-            prob_random_action=0.1,
-        )
-    else:
-        raise Exception("Invalid type: " + exploration_type)
-    exploration_policy = PolicyWrappedWithExplorationStrategy(
-        exploration_strategy=es,
-        policy=policy,
-    )
     algo_kwargs = variant['algo_kwargs']
     algo_kwargs['tdm_kwargs']['observation_key'] = observation_key
     algo_kwargs['tdm_kwargs']['desired_goal_key'] = desired_goal_key
-    algorithm = TdmTd3(
+    algorithm = TdmTwinSAC(
         env,
         qf1=qf1,
         qf2=qf2,
+        vf=vf,
         replay_buffer=replay_buffer,
         policy=policy,
-        exploration_policy=exploration_policy,
         **algo_kwargs
     )
     if ptu.gpu_enabled():

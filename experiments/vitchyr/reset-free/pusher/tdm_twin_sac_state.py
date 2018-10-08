@@ -1,7 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.experiments.vitchyr.multiworld import (
-    her_td3_experiment,
-    tdm_td3_experiment,
+    tdm_twin_sac_experiment,
 )
 from railrl.launchers.launcher_util import run_experiment
 
@@ -22,7 +21,7 @@ if __name__ == "__main__":
                 render=False,
             ),
             tdm_kwargs=dict(),
-            td3_kwargs=dict(),
+            twin_sac_kwargs=dict(),
         ),
         env_id='SawyerPushAndReachXYEnv-ResetFree-v0',
         replay_buffer_kwargs=dict(
@@ -31,6 +30,9 @@ if __name__ == "__main__":
             fraction_resampled_goals_are_env_goals=0.5,
         ),
         qf_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
+        vf_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
         policy_kwargs=dict(
@@ -51,14 +53,13 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_id': [
+            'SawyerPushXYEnv-CompleteResetFree-v1',
+            'SawyerPushAndReachXYEnv-CompleteResetFree-v0',
             'SawyerPushXYEnv-WithResets-v0',
             'SawyerPushAndReachXYEnv-WithResets-v0',
         ],
         'algo_kwargs.tdm_kwargs.max_tau': [
             50, 30,
-        ],
-        'algo_kwargs.base_kwargs.reward_scale': [
-            1, 50, 1000,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -71,16 +72,16 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'sss'
-    exp_prefix = 'push-tdm-td3-with-reset'
+    exp_prefix = 'push-tdm-twin-sac'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
             run_experiment(
-                tdm_td3_experiment,
+                tdm_twin_sac_experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                time_in_mins=20*60,
+                time_in_mins=23*60,
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
             )
