@@ -43,7 +43,8 @@ def experiment(variant):
         vf=vf,
         **variant['algo_params']
     )
-    algorithm.to(ptu.device)
+    if ptu.gpu_enabled():
+        algorithm.cuda()
     algorithm.train()
 
 
@@ -62,8 +63,9 @@ if __name__ == "__main__":
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
+            use_automatic_entropy_tuning=True,
         ),
         net_size=300,
     )
-    setup_logger('name-of-experiment', variant=variant)
+    setup_logger('test', variant=variant)
     experiment(variant)

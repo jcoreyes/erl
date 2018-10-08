@@ -1,22 +1,28 @@
-def her_td3_experiment(variant):
-    import gym
-    import multiworld.envs.mujoco
-    import multiworld.envs.pygame
-    import railrl.samplers.rollout_functions as rf
-    import railrl.torch.pytorch_util as ptu
-    from railrl.exploration_strategies.base import (
-        PolicyWrappedWithExplorationStrategy
-    )
-    from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-    from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-    from railrl.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.torch.grill.launcher import get_video_save_func
-    from railrl.torch.her.her_td3 import HerTd3
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-    from railrl.data_management.obs_dict_replay_buffer import (
-        ObsDictRelabelingBuffer
-    )
+import gym
 
+import multiworld.envs.mujoco
+import railrl.samplers.rollout_functions as rf
+import railrl.torch.pytorch_util as ptu
+from railrl.data_management.obs_dict_replay_buffer import (
+    ObsDictRelabelingBuffer
+)
+from railrl.exploration_strategies.base import (
+    PolicyWrappedWithExplorationStrategy
+)
+from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.state_distance.tdm_networks import (
+    TdmPolicy,
+    TdmQf,
+)
+from railrl.state_distance.tdm_td3 import TdmTd3
+from railrl.torch.grill.launcher import get_video_save_func
+from railrl.torch.her.her_td3 import HerTd3
+from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+
+
+def her_td3_experiment(variant):
     if 'presample_goals' in variant:
         raise NotImplementedError()
     if 'env_id' in variant:
@@ -103,4 +109,85 @@ def her_td3_experiment(variant):
         )
         algorithm.post_epoch_funcs.append(video_func)
     algorithm.to(ptu.device)
+    algorithm.train()
+
+
+def tdm_td3_experiment(variant):
+    if 'env_id' in variant:
+        env = gym.make(variant['env_id'])
+    else:
+        env = variant['env_class'](**variant['env_kwargs'])
+    observation_key = variant['observation_key']
+    desired_goal_key = variant['desired_goal_key']
+    if variant.get('normalize', False):
+        raise NotImplementedError()
+
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    replay_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_buffer_kwargs']
+    )
+    obs_dim = env.observation_space.spaces['observation'].low.size
+    action_dim = env.action_space.low.size
+    goal_dim = env.observation_space.spaces['desired_goal'].low.size
+    qf1 = TdmQf(
+        env=env,
+        observation_dim=obs_dim,
+        action_dim=action_dim,
+        goal_dim=goal_dim,
+        vectorized=True,
+        **variant['qf_kwargs']
+    )
+    qf2 = TdmQf(
+        env=env,
+        observation_dim=obs_dim,
+        action_dim=action_dim,
+        goal_dim=goal_dim,
+        vectorized=True,
+        **variant['qf_kwargs']
+    )
+    policy = TdmPolicy(
+        env=env,
+        observation_dim=obs_dim,
+        action_dim=action_dim,
+        goal_dim=goal_dim,
+        **variant['policy_kwargs']
+    )
+    exploration_type = variant['exploration_type']
+    if exploration_type == 'ou':
+        es = OUStrategy(action_space=env.action_space)
+    elif exploration_type == 'gaussian':
+        es = GaussianStrategy(
+            action_space=env.action_space,
+            max_sigma=0.1,
+            min_sigma=0.1,  # Constant sigma
+        )
+    elif exploration_type == 'epsilon':
+        es = EpsilonGreedy(
+            action_space=env.action_space,
+            prob_random_action=0.1,
+        )
+    else:
+        raise Exception("Invalid type: " + exploration_type)
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['tdm_kwargs']['observation_key'] = observation_key
+    algo_kwargs['tdm_kwargs']['desired_goal_key'] = desired_goal_key
+    algorithm = TdmTd3(
+        env,
+        qf1=qf1,
+        qf2=qf2,
+        replay_buffer=replay_buffer,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        **algo_kwargs
+    )
+    if ptu.gpu_enabled():
+        algorithm.cuda()
     algorithm.train()
