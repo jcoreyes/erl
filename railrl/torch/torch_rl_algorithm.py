@@ -19,6 +19,8 @@ class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         for net in self.networks:
             net.train(mode)
 
-    def to(self, device=ptu.device):
+    def to(self, device=None):
+        if device == None:
+            device = ptu.device 
         for net in self.networks:
             net.to(device)
