@@ -38,7 +38,7 @@ if __name__ == "__main__":
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
-        algorithm='TDM-TD3',
+        algorithm='TDM-TwinSAC',
         version='normal',
         es_kwargs=dict(
             max_sigma=.8,

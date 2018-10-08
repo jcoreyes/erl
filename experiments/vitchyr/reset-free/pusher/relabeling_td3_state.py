@@ -52,12 +52,11 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_id': [
-            'SawyerPushXYEnv-CompleteResetFree-v1',
-            'SawyerPushAndReachXYEnv-CompleteResetFree-v0',
+            'SawyerPushAndReachXYEnv-WithResets-v0',
         ],
         # 'env_kwargs.num_resets_before_puck_reset': [int(1e6)],
         # 'env_kwargs.num_resets_before_hand_reset': [20, int(1e6)],
-        'algo_kwargs.base_kwargs.max_path_length': [500],
+        'algo_kwargs.base_kwargs.max_path_length': [100, 500],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -67,9 +66,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 5
+    n_seeds = 4
     mode = 'sss'
-    exp_prefix = 'reset-free-push-state-full-vs-puck-reward'
+    exp_prefix = 'her-td3-push-state-reward-with-resets'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
@@ -78,7 +77,7 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                time_in_mins=20*60,
+                time_in_mins=23*60,
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
             )
