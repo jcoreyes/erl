@@ -21,6 +21,7 @@ Covariance
 from collections import OrderedDict
 
 import numpy as np
+import torch
 import torch.optim as optim
 from torch import nn as nn
 
@@ -53,6 +54,9 @@ class SoftActorCritic(TorchRLAlgorithm):
             target_hard_update_period=1,
             eval_policy=None,
             exploration_policy=None,
+
+            use_automatic_entropy_tuning=True,
+            target_entropy=None,
             **kwargs
     ):
         if eval_policy is None:
@@ -77,7 +81,17 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.train_policy_with_reparameterization = (
             train_policy_with_reparameterization
         )
-
+        self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
+        if self.use_automatic_entropy_tuning:
+            if target_entropy:
+                self.target_entropy = target_entropy
+            else:
+                self.target_entropy = -np.prod(self.env.action_space.shape).item()  # heuristic value from Tuomas
+            self.log_alpha = ptu.Variable(torch.zeros(1), requires_grad=True)
+            self.alpha_optimizer = optimizer_class(
+                [self.log_alpha],
+                lr=policy_lr,
+            )
         self.target_vf = vf.copy()
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
@@ -94,6 +108,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             self.vf.parameters(),
             lr=vf_lr,
         )
+
         self.target_hard_update_period = target_hard_update_period
 
     def _do_training(self):
@@ -119,23 +134,36 @@ class SoftActorCritic(TorchRLAlgorithm):
         q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_v_values
         qf_loss = self.qf_criterion(q_pred, q_target.detach())
 
+        if self.use_automatic_entropy_tuning:
+            """
+            Alpha Loss
+            """
+            alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+            self.alpha_optimizer.zero_grad()
+            alpha_loss.backward()
+            self.alpha_optimizer.step()
+            alpha = self.log_alpha.exp()
+        else:
+            alpha = 1
+
         """
         VF Loss
         """
         q_new_actions = self.qf(obs, new_actions)
-        v_target = q_new_actions - log_pi
+        v_target = q_new_actions - alpha * log_pi
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
 
         """
         Policy Loss
         """
         if self.train_policy_with_reparameterization:
-            policy_loss = (log_pi - q_new_actions).mean()
+            policy_loss = (alpha * log_pi - q_new_actions).mean()
         else:
             log_policy_target = q_new_actions - v_pred
             policy_loss = (
-                log_pi * (log_pi - log_policy_target).detach()
+                    log_pi * (alpha * log_pi - log_policy_target).detach()
             ).mean()
+
         mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
         std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
         pre_tanh_value = policy_outputs[-1]
@@ -193,6 +221,9 @@ class SoftActorCritic(TorchRLAlgorithm):
                 'Policy log std',
                 ptu.get_numpy(policy_log_std),
             ))
+            if self.use_automatic_entropy_tuning:
+                self.eval_statistics['Alpha'] = ptu.get_numpy(alpha)[0]
+                self.eval_statistics['Alpha Loss'] = ptu.get_numpy(alpha_loss)[0]
 
     @property
     def networks(self):

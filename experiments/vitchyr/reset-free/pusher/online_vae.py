@@ -13,19 +13,20 @@ import railrl.torch.vae.vae_schedules as vae_schedules
 if __name__ == "__main__":
     variant = dict(
         double_algo=False,
-        env_class=SawyerPushAndReachXYEnv,
-        env_kwargs=dict(
-            hide_goal_markers=True,
-            action_scale=.02,
-            puck_low=[-0.25, .4],
-            puck_high=[0.25, .8],
-            mocap_low=[-0.2, 0.45, 0.],
-            mocap_high=[0.2, 0.75, 0.5],
-            goal_low=[-0.2, 0.45, 0.02, -0.25, 0.4],
-            goal_high=[0.2, 0.75, 0.02, 0.25, 0.8],
-            num_resets_before_puck_reset=1,
-            num_resets_before_hand_reset=1,
-        ),
+        # env_class=SawyerPushAndReachXYEnv,
+        # env_kwargs=dict(
+        #     hide_goal_markers=True,
+        #     action_scale=.02,
+        #     puck_low=[-0.25, .4],
+        #     puck_high=[0.25, .8],
+        #     mocap_low=[-0.2, 0.45, 0.],
+        #     mocap_high=[0.2, 0.75, 0.5],
+        #     goal_low=[-0.2, 0.45, 0.02, -0.25, 0.4],
+        #     goal_high=[0.2, 0.75, 0.02, 0.25, 0.8],
+        #     num_resets_before_puck_reset=1000000,
+        #     num_resets_before_hand_reset=1000000,
+        # ),
+        env_id='SawyerPushAndReachXYEnv-ResetFree-v0',
         init_camera=sawyer_pusher_camera_top_down,
         grill_variant=dict(
             save_video=True,
