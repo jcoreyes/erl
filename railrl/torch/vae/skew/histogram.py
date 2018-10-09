@@ -28,9 +28,12 @@ def visualize_histogram_samples(
         projected_generated_samples[:, 0],
         projected_generated_samples[:, 1],
         '.',
-     )
-    plt.xlim(-1.5, 1.5)
-    plt.ylim(-1.5, 1.5)
+    )
+    xrange, yrange = histogram.xy_range
+    xdelta = (xrange[1] - xrange[0]) / 10.
+    ydelta = (yrange[1] - yrange[0]) / 10.
+    plt.xlim(xrange[0]-xdelta, xrange[1]+xdelta)
+    plt.ylim(yrange[0]-ydelta, yrange[1]+ydelta)
     plt.title(title)
 
     fig = plt.gcf()
@@ -87,7 +90,8 @@ class Histogram(object):
     In this code, x = first index (not necessarily left-right for visualization)
     """
 
-    def __init__(self, num_bins):
+    def __init__(self, num_bins, xy_range=((-1, 1), (-1, 1))):
+        self.xy_range = xy_range
         self.pvals = np.zeros((num_bins, num_bins))
         self.pvals[0, 0] = 1
         self.num_bins = num_bins
@@ -99,7 +103,7 @@ class Histogram(object):
         h, xedges, yedges = np.histogram2d(
             np.zeros(1), np.zeros(1),
             bins=self.num_bins,
-            range=[[-1, 1], [-1, 1]],
+            range=self.xy_range,
         )
         self.xedges = xedges
         self.yedges = yedges
@@ -123,17 +127,20 @@ class Histogram(object):
         samples = self.bin_centers_flat[idxs]
         return samples
 
-    def compute_pvals(self, data, weights=None):
+    def fit(self, data, weights=None):
         H, *_ = np.histogram2d(
             data[:, 0],
             data[:, 1],
             self.num_bins,
-            range=[[-1, 1], [-1, 1]],
+            range=self.xy_range,
             weights=weights,
         )
         if weights is None:
+            assert H.flatten().sum() == len(data), "Is the range wrong?"
             self.pvals = H.astype(np.float32) / len(data)
         else:
+            error = H.flatten().sum() == weights.flatten().sum()
+            assert np.abs(error) < 1e-5, "Is the range wrong?"
             self.pvals = H.astype(np.float32) / weights.sum()
 
     def compute_density(self, data):
@@ -142,12 +149,14 @@ class Histogram(object):
 
     def _get_indices(self, data):
         x_indices = np.digitize(data[:, 0], self.xedges)
-        # Because digitize well make index = len(self.xedges) if the value
+        # Because digitize will make index = len(self.xedges) if the value
         # equals self.xedges[-1], i.e. the value is on the right-most border.
-        x_indices = np.minimum(x_indices, 5)
+        max_x = len(self.xedges)-1
+        x_indices = np.minimum(x_indices, max_x)
         x_indices -= 1
         y_indices = np.digitize(data[:, 1], self.yedges)
-        y_indices = np.minimum(y_indices, 5)
+        max_y = len(self.yedges)-1
+        y_indices = np.minimum(y_indices, max_y)
         y_indices -= 1
         indices = x_indices * self.num_bins + y_indices
         return indices
@@ -246,7 +255,7 @@ def train(
             )
         weights = p_theta.compute_per_elem_weights(train_data)
         p_new = Histogram(num_bins, weight_type=weight_type)
-        p_new.compute_pvals(
+        p_new.fit(
             train_data,
             weights=weights,
         )
