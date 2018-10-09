@@ -26,7 +26,7 @@ if __name__ == "__main__":
         env_id='SawyerPushAndReachXYEnv-ResetFree-v0',
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_are_rollout_goals=0.5,
+            fraction_goals_are_rollout_goals=0.2,
             fraction_resampled_goals_are_env_goals=0.5,
         ),
         qf_kwargs=dict(
@@ -59,7 +59,10 @@ if __name__ == "__main__":
             'SawyerPushAndReachXYEnv-WithResets-v0',
         ],
         'algo_kwargs.tdm_kwargs.max_tau': [
-            50, 30,
+            100, 50, 30,
+        ],
+        'algo_kwargs.tdm_kwargs.dense_rewards': [
+            True,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -72,7 +75,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'sss'
-    exp_prefix = 'push-tdm-twin-sac'
+    exp_prefix = 'push-tdm-twin-sac-dense-rewards'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
