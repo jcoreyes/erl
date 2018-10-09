@@ -20,7 +20,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=505,
+                    num_epochs=0,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=4000,
@@ -34,9 +34,14 @@ if __name__ == "__main__":
                     ),
                     reward_scale=1,
                 ),
-                her_kwargs=dict(),
-                td3_kwargs=dict(
-                    tau=1e-2,
+                her_kwargs=dict(
+                ),
+                twin_sac_kwargs=dict(
+                    train_policy_with_reparameterization=True,
+                    soft_target_tau=1e-3,  # 1e-2
+                    policy_update_period=1,
+                    target_update_period=1,  # 1
+                    use_automatic_entropy_tuning=True,
                 ),
             ),
             replay_buffer_kwargs=dict(
@@ -44,10 +49,10 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
-            algorithm='OFFLINE-VAE-RECON-HER-TD3',
+            algorithm='OFFLINE-INV-BERNOULLI-HER-TD3',
             normalize=False,
             render=False,
-            exploration_noise=0.8,
+            exploration_noise=0,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -60,11 +65,12 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=False,
-                policy_file='09-26-sawyer-hook-door-sweep-envs/09-26-sawyer_hook_door_sweep_envs_2018_09_26_16_58_00_id000--s25573/params.pkl',
+                policy_file='10-06-her-twin-sac-door-auto-tune/10-06-her-twin-sac-door-auto_tune_2018_10_07_01_38_40_id001--s1850/params.pkl',
                 path_length=100,
                 show=False,
+                tag='_twin_sac'
             ),
-            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v6_N1000_imsize48goals.npy',
+            # presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v5_N1000_imsize48goals_twin_sac.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -74,7 +80,7 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=2.5,
-            num_epochs=1000,
+            num_epochs=0,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
@@ -83,12 +89,13 @@ if __name__ == "__main__":
                 use_cached=False,
                 oracle_dataset_from_policy=False,
                 random_and_oracle_policy_data=True,
-                random_and_oracle_policy_data_split=.99,
+                random_and_oracle_policy_data_split=0,
                 non_presampled_goal_img_is_garbage=True,
                 vae_dataset_specific_kwargs=dict(),
-                policy_file='09-26-sawyer-hook-door-sweep-envs/09-26-sawyer_hook_door_sweep_envs_2018_09_26_16_58_00_id000--s25573/params.pkl',
+                policy_file='10-06-her-twin-sac-door-auto-tune/10-06-her-twin-sac-door-auto_tune_2018_10_07_01_38_40_id001--s1850/params.pkl',
                 n_random_steps=100,
                 show=False,
+                tag='_twin_sac'
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -115,25 +122,26 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'train_vae_variant.beta':[1, 2.5],
-        'train_vae_variant.algo_kwargs.skew_dataset':[True, False],
-        'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
-            'datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9.npy',
-            'datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99.npy',
-            'datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1.npy',
-        ],
+        # 'train_vae_variant.beta':[1, 2.5],
+        # 'train_vae_variant.algo_kwargs.skew_dataset':[True, False],
+        'train_vae_variant.generate_vae_dataset_kwargs.random_and_oracle_policy_data_split':[.9, .99, 1],
+        # 'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
+        #     'datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9_twin_sac.npy',
+        #     'datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99_twin_sac.npy.npy',
+        #     'datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1_twin_sac.npy.npy',
+        # ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_offline_vae_inv_bernoulli_priority_sweep_HACK_vs_not'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_harder_door_offline_vae_inv_bernoulli_priority_sweep_HACK_vs_not'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

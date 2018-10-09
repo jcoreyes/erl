@@ -23,7 +23,7 @@ from multiworld.core.image_env import normalize_image
 from railrl.torch.core import PyTorchModule
 from railrl.core.serializable import Serializable
 
-def inv_gaussian_p_x_np_to_np(model, data):
+def inv_gaussian_p_x_np_to_np(model, data, normalize=False, normalize_max=False, normalize_mean=True, normalize_std=True, biased_sampling=False):
     ''' Assumes data is normalized images'''
     imgs = ptu.np_to_var(data)
     latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
@@ -34,12 +34,45 @@ def inv_gaussian_p_x_np_to_np(model, data):
     _, dec_mu, dec_var = model.decode_full(latents)
     decoder_dist = Normal(dec_mu, dec_var.pow(.5))
     log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
-    log_p_theta_x = -1 / 2 * (log_p_z - log_q_z_given_x + log_d_x_given_z)
-    log_p_theta_x_prime = log_p_theta_x - log_p_theta_x.max()
+
+    if biased_sampling:
+        log_inv_root_p_theta_x = -1 / 2 * (log_d_x_given_z)
+        log_p_theta_x_prime = log_inv_root_p_theta_x - log_inv_root_p_theta_x.max()
+        p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
+        return p_theta_x_shifted
+
+    if normalize:
+        log_p_z_mean = log_p_z.mean()
+        log_q_z_given_x_mean = log_q_z_given_x.mean()
+        log_d_x_given_z_mean = log_d_x_given_z.mean()
+
+        log_p_z_max = log_p_z.max()
+        log_q_z_given_x_max = log_q_z_given_x.max()
+        log_d_x_given_z_max = log_d_x_given_z.max()
+
+        log_p_z_std = log_p_z.std()
+        log_q_z_given_x_std = log_q_z_given_x.std()
+        log_d_x_given_z_std = log_d_x_given_z.std()
+
+        if normalize_mean:
+            log_p_z = (log_p_z - log_p_z_mean)
+            log_q_z_given_x = (log_q_z_given_x - log_q_z_given_x_mean)
+            log_d_x_given_z = (log_d_x_given_z - log_d_x_given_z_mean)
+        elif normalize_max:
+            log_p_z = (log_p_z - log_p_z_max)
+            log_q_z_given_x = (log_q_z_given_x - log_q_z_given_x_max)
+            log_d_x_given_z = (log_d_x_given_z - log_d_x_given_z_max)
+        if normalize_std:
+            log_p_z = log_p_z/log_p_z_std
+            log_q_z_given_x = log_q_z_given_x/log_q_z_given_x_std
+            log_d_x_given_z = log_d_x_given_z/log_d_x_given_z_std
+
+    log_inv_root_p_theta_x = -1 / 2 * (log_p_z - log_q_z_given_x + log_d_x_given_z)
+    log_p_theta_x_prime = log_inv_root_p_theta_x - log_inv_root_p_theta_x.max()
     p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
     return p_theta_x_shifted
 
-def inv_p_bernoulli_x_np_to_np(model, data, normalize=False, normalize_max=False, normalize_mean=True, normalize_std=False, biased_sampling=False):
+def inv_p_bernoulli_x_np_to_np(model, data, normalize=False, normalize_max=False, normalize_mean=True, normalize_std=True, biased_sampling=False):
     ''' Assumes data is normalized images'''
     imgs = ptu.np_to_var(data)
     latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
@@ -56,7 +89,6 @@ def inv_p_bernoulli_x_np_to_np(model, data, normalize=False, normalize_max=False
         p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
         return p_theta_x_shifted
 
-
     if normalize:
         log_p_z_mean = log_p_z.mean()
         log_q_z_given_x_mean = log_q_z_given_x.mean()
@@ -69,19 +101,6 @@ def inv_p_bernoulli_x_np_to_np(model, data, normalize=False, normalize_max=False
         log_p_z_std = log_p_z.std()
         log_q_z_given_x_std = log_q_z_given_x.std()
         log_d_x_given_z_std = log_d_x_given_z.std()
-
-        # print('log_p_z_mean', log_p_z_mean)
-        # print('log_p_z_max', log_p_z_max)
-        # print('log_p_z_std', log_p_z_std)
-        #
-        # print('log_q_z_given_x_mean', log_q_z_given_x_mean)
-        # print('log_q_z_given_x_max', log_q_z_given_x_max)
-        # print('log_q_z_given_x_std', log_q_z_given_x_std)
-        #
-        # print('log_d_x_given_z_mean', log_d_x_given_z_mean)
-        # print('log_d_x_given_z_max', log_d_x_given_z_max)
-        # print('log_d_x_given_z_std', log_d_x_given_z_std)
-
 
         if normalize_mean:
             log_p_z = (log_p_z - log_p_z_mean)

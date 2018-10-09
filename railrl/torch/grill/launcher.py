@@ -208,6 +208,7 @@ def generate_vae_dataset(variant):
     vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
     save_file_prefix = variant.get('save_file_prefix', None)
     non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
+    tag = variant.get('tag', '')
     from multiworld.core.image_env import ImageEnv, unormalize_image
     from railrl.misc.asset_loader import local_path_from_s3_or_local_path
     import railrl.torch.pytorch_util as ptu
@@ -223,12 +224,13 @@ def generate_vae_dataset(variant):
             save_file_prefix = env_id
         if save_file_prefix is None:
             save_file_prefix = env_class.__name__
-        filename = "/tmp/{}_N{}_{}_imsize{}_random_oracle_split_{}.npy".format(
+        filename = "/tmp/{}_N{}_{}_imsize{}_random_oracle_split_{}{}.npy".format(
             save_file_prefix,
             str(N),
             init_camera.__name__ if init_camera else '',
             imsize,
             random_and_oracle_policy_data_split,
+            tag,
         )
         if use_cached and osp.isfile(filename):
             dataset = np.load(filename)
