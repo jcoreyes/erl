@@ -2,7 +2,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
+from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
 
 if __name__ == "__main__":
@@ -20,6 +20,9 @@ if __name__ == "__main__":
                 hidden_sizes=[400, 300],
             ),
             policy_kwargs=dict(
+                hidden_sizes=[400, 300],
+            ),
+            vf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
             algo_kwargs=dict(
@@ -51,7 +54,7 @@ if __name__ == "__main__":
                     vae_training_schedule=vae_schedules.every_six,
                     oracle_data=False,
                     vae_save_period=50,
-                    parallel_vae_train=True,
+                    parallel_vae_train=False,
                 ),
             ),
             replay_buffer_kwargs=dict(
@@ -82,7 +85,7 @@ if __name__ == "__main__":
                 show=False,
                 tag='_twin_sac'
             ),
-            # presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v5_N1000_imsize48goals_twin_sac.npy',
+            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v5_N1000_imsize48goals_twin_sac.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -138,7 +141,7 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
-                grill_her_td3_online_vae_full_experiment,
+                grill_her_twin_sac_online_vae_full_experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,

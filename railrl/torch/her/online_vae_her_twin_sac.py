@@ -8,14 +8,21 @@ class OnlineVaeHerTwinSac(OnlineVaeAlgorithm, HerTwinSAC):
 
     def __init__(
         self,
-        online_vae_algo_kwargs,
-        algo_kwargs,
+        online_vae_kwargs,
+        base_kwargs,
+        her_kwargs,
+        twin_sac_kwargs,
     ):
         OnlineVaeAlgorithm.__init__(
             self,
-            **online_vae_algo_kwargs,
+            **online_vae_kwargs,
         )
-        HerTwinSAC.__init__(self, **algo_kwargs)
+        HerTwinSAC.__init__(
+            self,
+            base_kwargs=base_kwargs,
+            twin_sac_kwargs=twin_sac_kwargs,
+            her_kwargs=her_kwargs
+        )
 
         assert isinstance(self.replay_buffer, OnlineVaeRelabelingBuffer)
 
@@ -23,3 +30,8 @@ class OnlineVaeHerTwinSac(OnlineVaeAlgorithm, HerTwinSAC):
     def networks(self):
         return HerTwinSAC.networks.fget(self) + \
                OnlineVaeAlgorithm.networks.fget(self)
+
+    def get_epoch_snapshot(self, epoch):
+        snapshot = super().get_epoch_snapshot(epoch)
+        OnlineVaeAlgorithm.update_epoch_snapshot(self, snapshot)
+        return snapshot

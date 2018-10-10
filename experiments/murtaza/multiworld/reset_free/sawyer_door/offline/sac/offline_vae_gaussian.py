@@ -2,7 +2,8 @@ import railrl.misc.hyperparameter as hyp
 from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_full_experiment
+from railrl.torch.grill.launcher import grill_her_td3_full_experiment, grill_her_twin_sac_experiment, \
+    grill_her_twin_sac_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
@@ -18,9 +19,12 @@ if __name__ == "__main__":
             policy_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
+            vf_kwargs=dict(
+                hidden_sizes=[400, 300],
+            ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=505,
+                    num_epochs=1005,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=4000,
@@ -70,7 +74,7 @@ if __name__ == "__main__":
                 show=False,
                 tag='_twin_sac'
             ),
-            # presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v5_N1000_imsize48goals_twin_sac.npy',
+            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v5_N1000_imsize48goals_twin_sac.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -80,7 +84,7 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=1.0,
-            num_epochs=2500,
+            num_epochs=1000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
@@ -118,36 +122,36 @@ if __name__ == "__main__":
                 normalize_mean=True,
                 normalize_std=True,
                 normalize_max=False,
-                n_latents=1,
             ),
             save_period=50,
         ),
     )
 
     search_space = {
+        'train_vae_variant.beta':[1, 2.5],
         'train_vae_variant.algo_kwargs.skew_dataset':[True, False],
-        'train_vae_variant.generate_vae_dataset_kwargs.dataset_path':[
+        'train_vae_variant.generate_vae_dataset_kwargs.dataset_path': [
             'datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9_twin_sac.npy',
-            'datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99_twin_sac.npy.npy',
-            'datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1_twin_sac.npy.npy',
+            'datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.99_twin_sac.npy',
+            'datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1_twin_sac.npy',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_harder_door_offline_vae_inv_gaussian_priority_sweep_n_latents'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'sawyer_door_offline_vae_inv_gaussian_priority_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
-                grill_her_td3_full_experiment,
+                grill_her_twin_sac_full_experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
