@@ -31,9 +31,11 @@ if __name__ == "__main__":
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
+            structure='none',
         ),
         vf_kwargs=dict(
             hidden_sizes=[400, 300],
+            structure='none',
         ),
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -50,19 +52,26 @@ if __name__ == "__main__":
         save_video=False,
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
+        vectorized=False,
     )
     search_space = {
         'env_id': [
             'SawyerPushXYEnv-CompleteResetFree-v1',
-            'SawyerPushAndReachXYEnv-CompleteResetFree-v0',
+            # 'SawyerPushAndReachXYEnv-CompleteResetFree-v0',
             'SawyerPushXYEnv-WithResets-v0',
-            'SawyerPushAndReachXYEnv-WithResets-v0',
+            # 'SawyerPushAndReachXYEnv-WithResets-v0',
         ],
-        'algo_kwargs.tdm_kwargs.max_tau': [
-            100, 50, 30,
-        ],
+        # 'algo_kwargs.tdm_kwargs.max_tau': [
+        #     100, 50, 30,
+        # ],
         'algo_kwargs.tdm_kwargs.dense_rewards': [
             True,
+        ],
+        'algo_kwargs.tdm_kwargs.finite_horizon': [
+            False,
+        ],
+        'algo_kwargs.base_kwargs.discount': [
+            0.99,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -73,9 +82,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
+    n_seeds = 5
     mode = 'sss'
-    exp_prefix = 'push-tdm-twin-sac-dense-rewards'
+    exp_prefix = 'push-tdm-tsac-her-settings-test-no-structure'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):

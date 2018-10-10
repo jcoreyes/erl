@@ -212,12 +212,13 @@ def tdm_td3_experiment(variant):
     obs_dim = env.observation_space.spaces['observation'].low.size
     action_dim = env.action_space.low.size
     goal_dim = env.observation_space.spaces['desired_goal'].low.size
+    vectorized = variant['vectorized']
     qf1 = TdmQf(
         env=env,
         observation_dim=obs_dim,
         action_dim=action_dim,
         goal_dim=goal_dim,
-        vectorized=True,
+        vectorized=vectorized,
         **variant['qf_kwargs']
     )
     qf2 = TdmQf(
@@ -225,7 +226,7 @@ def tdm_td3_experiment(variant):
         observation_dim=obs_dim,
         action_dim=action_dim,
         goal_dim=goal_dim,
-        vectorized=True,
+        vectorized=vectorized,
         **variant['qf_kwargs']
     )
     policy = TdmPolicy(
@@ -256,8 +257,11 @@ def tdm_td3_experiment(variant):
         policy=policy,
     )
     algo_kwargs = variant['algo_kwargs']
-    algo_kwargs['tdm_kwargs']['observation_key'] = observation_key
-    algo_kwargs['tdm_kwargs']['desired_goal_key'] = desired_goal_key
+    tdm_kwargs = algo_kwargs['tdm_kwargs']
+    tdm_kwargs['observation_key'] = observation_key
+    tdm_kwargs['desired_goal_key'] = desired_goal_key
+    assert 'vectorized' not in algo_kwargs['tdm_kwargs']
+    tdm_kwargs['vectorized'] = vectorized
     algorithm = TdmTd3(
         env,
         qf1=qf1,
@@ -293,12 +297,13 @@ def tdm_twin_sac_experiment(variant):
     obs_dim = env.observation_space.spaces['observation'].low.size
     action_dim = env.action_space.low.size
     goal_dim = env.observation_space.spaces['desired_goal'].low.size
+    vectorized = variant['vectorized']
     qf1 = TdmQf(
         env=env,
         observation_dim=obs_dim,
         action_dim=action_dim,
         goal_dim=goal_dim,
-        vectorized=True,
+        vectorized=vectorized,
         **variant['qf_kwargs']
     )
     qf2 = TdmQf(
@@ -306,14 +311,14 @@ def tdm_twin_sac_experiment(variant):
         observation_dim=obs_dim,
         action_dim=action_dim,
         goal_dim=goal_dim,
-        vectorized=True,
+        vectorized=vectorized,
         **variant['qf_kwargs']
     )
     vf = TdmVf(
         env=env,
         observation_dim=obs_dim,
         goal_dim=goal_dim,
-        vectorized=True,
+        vectorized=vectorized,
         **variant['vf_kwargs']
     )
     policy = StochasticTdmPolicy(
@@ -324,8 +329,11 @@ def tdm_twin_sac_experiment(variant):
         **variant['policy_kwargs']
     )
     algo_kwargs = variant['algo_kwargs']
-    algo_kwargs['tdm_kwargs']['observation_key'] = observation_key
-    algo_kwargs['tdm_kwargs']['desired_goal_key'] = desired_goal_key
+    tdm_kwargs = algo_kwargs['tdm_kwargs']
+    tdm_kwargs['observation_key'] = observation_key
+    tdm_kwargs['desired_goal_key'] = desired_goal_key
+    assert 'vectorized' not in algo_kwargs['tdm_kwargs']
+    tdm_kwargs['vectorized'] = vectorized
     algorithm = TdmTwinSAC(
         env,
         qf1=qf1,

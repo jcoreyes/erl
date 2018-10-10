@@ -29,7 +29,7 @@ if __name__ == "__main__":
         env_id='SawyerPushAndReachXYEnv-ResetFree-v0',
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_are_rollout_goals=0.5,
+            fraction_goals_are_rollout_goals=0.2,
             fraction_resampled_goals_are_env_goals=0.5,
         ),
         qf_kwargs=dict(
@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'sss'
-    exp_prefix = 'her-tsac-push-state-sweep'
+    exp_prefix = 'her-tsac-push-state-sweep-2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
