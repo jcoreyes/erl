@@ -23,7 +23,7 @@ from multiworld.core.image_env import normalize_image
 from railrl.torch.core import PyTorchModule
 from railrl.core.serializable import Serializable
 
-def inv_gaussian_p_x_np_to_np(model, data, normalize=False, normalize_max=False, normalize_mean=True, normalize_std=True, biased_sampling=False):
+def inv_gaussian_p_x_np_to_np(model, data, normalize=True, normalize_max=False, normalize_mean=True, normalize_std=True, biased_sampling=False):
     ''' Assumes data is normalized images'''
     imgs = ptu.np_to_var(data)
     latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
@@ -34,7 +34,6 @@ def inv_gaussian_p_x_np_to_np(model, data, normalize=False, normalize_max=False,
     _, dec_mu, dec_var = model.decode_full(latents)
     decoder_dist = Normal(dec_mu, dec_var.pow(.5))
     log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
-
     if biased_sampling:
         log_inv_root_p_theta_x = -1 / 2 * (log_d_x_given_z)
         log_p_theta_x_prime = log_inv_root_p_theta_x - log_inv_root_p_theta_x.max()
@@ -72,7 +71,7 @@ def inv_gaussian_p_x_np_to_np(model, data, normalize=False, normalize_max=False,
     p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
     return p_theta_x_shifted
 
-def inv_p_bernoulli_x_np_to_np(model, data, normalize=False, normalize_max=False, normalize_mean=True, normalize_std=True, biased_sampling=False):
+def inv_p_bernoulli_x_np_to_np(model, data, normalize=True, normalize_max=False, normalize_mean=True, normalize_std=True, biased_sampling=False):
     ''' Assumes data is normalized images'''
     imgs = ptu.np_to_var(data)
     latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)

@@ -35,10 +35,10 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online-parallel',
-                    parallel_env_params=dict(
-                        num_workers=1,
-                    ),
+                    collection_mode='online',
+                    # parallel_env_params=dict(
+                    #     num_workers=1,
+                    # ),
                     reward_scale=1,
                 ),
                 her_kwargs=dict(
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_online_vae_inv_bernoulli_priority'
+    exp_prefix = 'sawyer_door_online_vae_inv_bernoulli_priority'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

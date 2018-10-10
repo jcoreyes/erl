@@ -124,19 +124,19 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_three, vae_schedules.every_six],
         'grill_variant.online_vae_beta': [1, 2.5],
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_gaussian_inv_prob'],
+        # 'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_gaussian_inv_prob'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_online_vae_inv_gaussian_priority'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_harder_door_online_vae_inv_gaussian_priority'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
