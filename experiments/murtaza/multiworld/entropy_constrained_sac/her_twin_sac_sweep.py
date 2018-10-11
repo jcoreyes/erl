@@ -1,5 +1,7 @@
 import argparse
 import math
+
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv, SawyerReachXYZEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_experiment
@@ -45,7 +47,17 @@ variant = dict(
     ),
     algorithm="HER-Twin-SAC",
     version="normal",
-    env_kwargs=dict(),
+    env_kwargs=dict(
+        hand_low=(-0.16, 0.4, 0.05),
+        hand_high=(0.16, 0.75, 0.3),
+        puck_low=(-.4, .2),
+        puck_high=(.4, 1),
+        goal_low=(-0.15, 0.4, 0.02, -.1, .5),
+        goal_high=(0.15, 0.74, 0.02, .1, .7),
+        xml_path='sawyer_xyz/sawyer_push_puck_smaller_arena.xml',
+        num_resets_before_puck_reset=int(1e6),
+        num_resets_before_hand_reset=int(1e6),
+    ),
     render=False,
     save_video=False,
     do_state_exp=True,
@@ -59,9 +71,11 @@ env_params = {
         'env_id':['SawyerDoorHookResetFreeEnv-v6', 'SawyerDoorHookResetFreeEnv-v5', 'SawyerDoorHookResetFreeEnv-v3'],
         'algo_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True, False],
     },
-    'pusher': {
-        'env_id':['SawyerPushAndReachFullArenaEnv-v0', 'SawyerPushAndReachFullArenaResetFreeEnv-v0'],
-        'algo_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True, False],
+    'small_pusher': {
+        'env_class':[SawyerPushAndReachXYEnv],
+        'algo_kwargs.base_kwargs.max_path_length':[100, 250, 500],
+        'env_kwargs.num_resets_before_puck_reset':[1, int(1e6)],
+        'env_kwargs.num_resets_before_hand_reset':[1, int(1e6)],
     },
     'reacher': {
         'env_class': [SawyerReachXYEnv, SawyerReachXYZEnv],
