@@ -16,6 +16,12 @@ def grill_tdm_twin_sac_full_experiment(variant):
     train_vae_and_update_variant(variant)
     grill_tdm_twin_sac_experiment(variant['grill_variant'])
 
+def grill_her_twin_sac_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    if not variant['grill_variant'].get('do_state_exp', False):
+        train_vae_and_update_variant(variant)
+    grill_her_twin_sac_experiment(variant['grill_variant'])
+
 
 def grill_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
@@ -208,6 +214,7 @@ def generate_vae_dataset(variant):
     vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
     save_file_prefix = variant.get('save_file_prefix', None)
     non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
+    tag = variant.get('tag', '')
     from multiworld.core.image_env import ImageEnv, unormalize_image
     from railrl.misc.asset_loader import local_path_from_s3_or_local_path
     import railrl.torch.pytorch_util as ptu
@@ -223,12 +230,13 @@ def generate_vae_dataset(variant):
             save_file_prefix = env_id
         if save_file_prefix is None:
             save_file_prefix = env_class.__name__
-        filename = "/tmp/{}_N{}_{}_imsize{}_random_oracle_split_{}.npy".format(
+        filename = "/tmp/{}_N{}_{}_imsize{}_random_oracle_split_{}{}.npy".format(
             save_file_prefix,
             str(N),
             init_camera.__name__ if init_camera else '',
             imsize,
             random_and_oracle_policy_data_split,
+            tag,
         )
         if use_cached and osp.isfile(filename):
             dataset = np.load(filename)
@@ -825,7 +833,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
-    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+    variant["algo_kwargs"]['base_kwargs']["replay_buffer"] = replay_buffer
 
     t = ConvVAETrainer(variant['vae_train_data'],
                        variant['vae_test_data'],
@@ -834,23 +842,29 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     render = variant["render"]
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     algorithm = OnlineVaeHerTwinSac(
-        algo_kwargs=dict(
+        online_vae_kwargs=dict(
+            vae=vae,
+            vae_trainer=t,
+            **variant['algo_kwargs']['online_vae_kwargs']
+        ),
+        base_kwargs=dict(
             env=env,
             training_env=env,
+            policy=policy,
+            exploration_policy=exploration_policy,
+            render=render,
+            render_during_eval=render,
+            **variant['algo_kwargs']['base_kwargs'],
+        ),
+        her_kwargs=dict(
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+        ),
+        twin_sac_kwargs=dict(
+            **variant['algo_kwargs']['twin_sac_kwargs'],
             qf1=qf1,
             qf2=qf2,
             vf=vf,
-            policy=policy,
-            render=render,
-            render_during_eval=render,
-            observation_key=observation_key,
-            desired_goal_key=desired_goal_key,
-            **variant['algo_kwargs']
-        ),
-        online_vae_algo_kwargs=dict(
-            vae=vae,
-            vae_trainer=t,
-            **variant['online_vae_algo_kwargs']
         )
     )
 
@@ -867,7 +881,6 @@ def grill_her_twin_sac_experiment_online_vae(variant):
             desired_goal_key=algorithm.desired_goal_key,
         )
         video_func = get_video_save_func(
-            algorithm,
             rollout_function,
             env,
             policy,

@@ -27,27 +27,15 @@ from railrl.core import logger
 from railrl.misc import visualization_util as vu
 from railrl.misc.html_report import HTMLReport
 from railrl.misc.ml_util import ConstantSchedule
+from railrl.torch.core import PyTorchModule
 from railrl.torch.vae.skew.datasets import project_samples_square_np
+import railrl.torch.pytorch_util as ptu
 
 K = 6
 
 """
 Plotting
 """
-
-
-def show_heatmap(
-        encoder, decoder, skew_config,
-        xlim=(-1.5, 1.5), ylim=(-1.5, 1.5),
-        resolution=20,
-):
-
-    def get_prob_batch(batch):
-        return compute_train_weights(batch, encoder, decoder, skew_config)
-
-    heat_map = vu.make_heat_map(get_prob_batch, xlim, ylim,
-                                resolution=resolution, batch=True)
-    vu.plot_heatmap(heat_map)
 
 
 def plot_weighted_histogram_sample(data, encoder, decoder, skew_config):
@@ -96,7 +84,7 @@ def visualize(epoch, vis_samples_np, encoder, decoder, full_variant,
     skew_config = full_variant['skew_config']
     dynamics_noise = full_variant['dynamics_noise']
     plt.figure()
-    show_heatmap(encoder, decoder, skew_config, xlim=xlim, ylim=ylim)
+    show_weight_heatmap(encoder, decoder, skew_config, xlim=xlim, ylim=ylim)
     fig = plt.gcf()
     heatmap_img = vu.save_image(fig)
     report.add_image(heatmap_img, "Epoch {} Heatmap".format(epoch))
@@ -328,9 +316,14 @@ class Encoder(nn.Sequential):
 
 
 class Decoder(nn.Sequential):
-    def __init__(self, *args, output_var=1):
+    def __init__(self, *args, output_var=1, output_offset=0):
         super().__init__(*args)
         self.output_var = output_var
+        self.output_offset = output_offset
+
+    def __call__(self, *args, **kwargs):
+        output = super().__call__(*args, **kwargs)
+        return output + self.output_offset
 
     def decode(self, input):
         output = self(input)
@@ -346,9 +339,94 @@ class Decoder(nn.Sequential):
         mu, _ = self.decode(input)
         return mu
 
-    def sample(self, input):
-        mu, var = self.decode(input)
+    def sample(self, latent):
+        mu, var = self.decode(latent)
         return Normal(mu, var.pow(0.5)).sample()
+
+
+class VAE(PyTorchModule):
+    def __init__(
+            self,
+            encoder,
+            decoder,
+            z_dim,
+            mode='importance_sampling',
+            min_prob=1e-7,
+            n_average=100,
+    ):
+        self.quick_init(locals())
+        super().__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+        self.z_dim = z_dim
+        self.mode = mode
+        self.min_log_prob = np.log(min_prob)
+        self.n_average = n_average
+
+    def sample_given_z(self, latent):
+        return self.decoder.sample(latent)
+
+    def sample(self, num_samples):
+        return self.sample_given_z(
+            Variable(torch.randn(num_samples, self.z_dim))
+        ).data.numpy()
+
+    def reconstruct(self, data):
+        latents = self.encoder.encode(ptu.np_to_var(data))
+        return self.decoder.reconstruct(latents).data.numpy()
+
+    def compute_density(self, data):
+        orig_data_length = len(data)
+        data = np.vstack([
+            data for _ in range(self.n_average)
+        ])
+        data = np_to_var(data)
+        if self.mode == 'biased_encoder':
+            latents, means, log_vars, stds = (
+                self.encoder.get_encoding_and_suff_stats(data)
+            )
+            importance_weights = ptu.Variable(torch.ones(data.shape[0]))
+        elif self.mode == 'prior':
+            latents = Variable(torch.randn(len(data), self.z_dim))
+            importance_weights = ptu.Variable(torch.ones(data.shape[0]))
+        elif self.mode == 'importance_sampling':
+            latents, means, log_vars, stds = (
+                self.encoder.get_encoding_and_suff_stats(data)
+            )
+            prior = Normal(0, 1)
+            prior_log_prob = prior.log_prob(latents).sum(dim=1)
+
+            encoder_distrib = Normal(means, stds)
+            encoder_log_prob = encoder_distrib.log_prob(latents).sum(dim=1)
+
+            importance_weights = (prior_log_prob - encoder_log_prob).exp()
+        else:
+            raise NotImplementedError()
+
+        unweighted_data_log_prob = compute_log_prob(
+            data, self.decoder, latents
+        ).squeeze(1)
+        unweighted_data_prob = unweighted_data_log_prob.exp()
+        unnormalized_data_prob = unweighted_data_prob * importance_weights
+        """
+        Average over `n_average`
+        """
+        dp_split = torch.split(unnormalized_data_prob, orig_data_length, dim=0)
+        # pre_avg.shape = ORIG_LEN x N_AVERAGE
+        dp_stacked = torch.stack(dp_split, dim=1)
+        # final.shape = ORIG_LEN
+        unnormalized_dp = torch.sum(dp_stacked, dim=1, keepdim=False)
+
+        """
+        Compute the importance weight denomintors.
+        This requires summing across the `n_average` dimension.
+        """
+        iw_split = torch.split(importance_weights, orig_data_length, dim=0)
+        iw_stacked = torch.stack(iw_split, dim=1)
+        iw_denominators = iw_stacked.sum(dim=1, keepdim=False)
+
+        final = unnormalized_dp / iw_denominators
+        return final.data.numpy()
 
 
 class IndexedData(Dataset):
@@ -360,90 +438,6 @@ class IndexedData(Dataset):
 
     def __getitem__(self, index):
         return index, self.dataset[index]
-
-
-def compute_train_weights(data, encoder, decoder, config):
-    """
-    :param data: PyTorch
-    :param encoder:
-    :param decoder:
-    :return: PyTorch
-    """
-    alpha = config.get('alpha', 0)
-    mode = config.get('mode', 'none')
-    n_average = config.get('n_average', 3)
-    temperature = config.get('temperature', 1)
-    orig_data_length = len(data)
-    if alpha == 0 or mode == 'none':
-        return np.ones(orig_data_length)
-    data = np.vstack([
-        data for _ in range(n_average)
-    ])
-    data = np_to_var(data)
-    z_dim = decoder._modules['0'].weight.shape[1]
-    """
-    Actually compute the weights
-    """
-    if mode == 'recon_mse':
-        latents, *_ = encoder.get_encoding_and_suff_stats(data)
-        reconstruction = decoder.reconstruct(latents)
-        weights = ((data - reconstruction) ** 2).sum(dim=1)
-    elif mode == 'exp_recon_mse':
-        latents, *_ = encoder.get_encoding_and_suff_stats(data)
-        reconstruction = decoder.reconstruct(latents)
-        weights = (temperature * (data - reconstruction) ** 2).sum(dim=1).exp()
-    else:
-        if mode == 'biased_encoder':
-            latents, means, log_vars, stds = encoder.get_encoding_and_suff_stats(
-                data
-            )
-            importance_weights = 1
-        elif mode == 'prior':
-            latents = Variable(torch.randn(len(data), z_dim))
-            importance_weights = 1
-        elif mode == 'importance_sampling':
-            latents, means, log_vars, stds = encoder.get_encoding_and_suff_stats(
-                data
-            )
-
-            prior = Normal(0, 1)
-            prior_log_prob = prior.log_prob(latents).sum(dim=1)
-
-            encoder_distrib = Normal(means, stds)
-            encoder_log_prob = encoder_distrib.log_prob(latents).sum(dim=1)
-
-            importance_weights = (prior_log_prob - encoder_log_prob).exp()
-        else:
-            raise NotImplementedError()
-
-        data_prob = compute_log_prob(data, decoder, latents).squeeze(1).exp()
-        weights = importance_weights * 1. / torch.clamp(
-            data_prob,
-            min=1e-6,
-        )
-    weights = weights ** alpha
-
-    """
-    Average over `n_average`
-    """
-
-    samples_of_results = torch.split(weights, orig_data_length, dim=0)
-    # pre_avg.shape = ORIG_LEN x N_AVERAGE
-    pre_avg = torch.cat(
-        [x.unsqueeze(1) for x in samples_of_results],
-        1,
-    )
-    # final.shape = ORIG_LEN
-    final = torch.mean(pre_avg, dim=1, keepdim=False)
-    return final.data.numpy()
-
-
-def generate_vae_samples_np(decoder, n_samples):
-    z_dim = decoder._modules['0'].weight.shape[1]
-    generated_samples = decoder.sample(
-        Variable(torch.randn(n_samples, z_dim))
-    )
-    return generated_samples.data.numpy()
 
 
 def train_from_variant(variant):

@@ -8,24 +8,30 @@ from railrl.torch.vae.skew.datasets import (
     uniform_truncated_data,
     four_corners,
     empty_dataset,
+    zeros_dataset,
+    negative_one_dataset,
     gaussian_data,
     small_gaussian_data,
     project_samples_square_np,
     project_samples_ell_np,
     project_square_border_np,
+    project_square_cap_np,
+    project_square_cap_split_np,
 )
 from railrl.torch.vae.skew.skewed_vae_with_histogram import train_from_variant
 
 if __name__ == '__main__':
     variant = dict(
-        dataset_generator=empty_dataset,
-        n_start_samples=4,
+        dataset_generator=negative_one_dataset,
         bs=32,
-        n_epochs=1000,
-        save_period=50,
-        # n_epochs=500,
-        # n_epochs=10,
-        n_samples_to_add_per_epoch=1000,
+        # n_epochs=1000,
+        # save_period=50,
+        save_period=1,
+        n_epochs=50,
+        n_samples_to_add_per_epoch=10000,
+        # n_epochs=5,
+        # n_samples_to_add_per_epoch=10,
+        n_start_samples=0,
         skew_sampling=False,
         weight_loss=False,
         z_dim=16,
@@ -35,18 +41,48 @@ if __name__ == '__main__':
         # beta_schedule_kwargs=dict(
         #     value=0.1,
         # )
+        vae_kwargs=dict(
+            mode='importance_sampling',
+            # mode='biased_encoder',
+            # mode='prior',
+            n_average=100,
+        ),
+        use_dataset_generator_first_epoch=True,
+        skew_config=dict(
+            minimum_prob=1e-6,
+        ),
     )
 
     n_seeds = 1
     mode = 'local'
     exp_prefix = 'dev'
 
-    # exp_prefix = 'skew-vae-biased-beta0.025-skew-weight-sweep'
+    exp_prefix = 'sv-square-full-method-is-learned'
+    # exp_prefix = 'sv-square-full-method-big-bs-inv-sqrt'
+    # exp_prefix = 'sv-square-weight-loss'
+    # exp_prefix = 'sv-zero-init-square-border'
+    # exp_prefix = 'sv-zero-init-square-cap'
+    # exp_prefix = 'sv-zero-init-square-cap-split'
 
     search_space = {
-        'projection': [
-            project_samples_square_np,
+        # Optimization hyperparameters
+        'bs': [
+            500,
         ],
+        'num_inner_vae_epochs': [10],
+        # Env hyperparameters
+        'dynamics_noise': [
+            # 0.2,
+            # 0.1,
+            0.05,
+        ],
+        'projection': [
+            # project_samples_square_np,
+            project_square_border_np,
+            # project_square_cap_np,
+            # project_square_cap_split_np,
+        ],
+        # Method hyperparameters
         'append_all_data': [
             False,
         ],
@@ -55,23 +91,42 @@ if __name__ == '__main__':
             False,
         ],
         'weight_loss': [
+            True,
+            # False,
+        ],
+        'beta_schedule_kwargs.value': [
+            1,
+        ],
+        'decoder_output_var': [
+            'learned',
+            # 0.05,
+            # 0.1,
+            # 0.2,
+            # 0.5,
+            # 5,
+        ],
+        'reset_vae_every_epoch': [
             # True,
             False,
         ],
-        'dynamics_noise': [
-            0.2,
+        'skew_config.weight_type': [
+            # 'inv_p',
+            'sqrt_inv_p',
+            # 'nll',
         ],
-        'beta_schedule_kwargs.value': [
-            0.1,
+        # Cheating hyperparameters
+        'num_bins': [60],
+        'train_vae_from_histogram': [
+            # True,
+            False,
         ],
-        'decoder_output_std': [
-            'learned'
+        'use_perfect_samples': [
+            # True,
+            False,
         ],
-        'num_bins': [20],
-        'train_vae_from_histogram': [True],
-        'weight_type': [
-            'inv_p',
-            # 'sqrt_inv_p',
+        'use_perfect_density': [
+            # True,
+            False,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

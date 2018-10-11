@@ -35,3 +35,49 @@ def plot_curves(names_and_data, report):
     fig = plt.gcf()
     img = vu.save_image(fig)
     report.add_image(img, "Final Distribution")
+
+
+def visualize_samples(
+        samples,
+        report,
+        title="Samples",
+):
+    plt.figure()
+    plt.plot(samples[:, 0], samples[:, 1], '.')
+    plt.xlim(-1.5, 1.5)
+    plt.ylim(-1.5, 1.5)
+    plt.title(title)
+
+    fig = plt.gcf()
+    sample_img = vu.save_image(fig)
+    report.add_image(sample_img, title)
+    return sample_img
+
+
+def visualize_samples_and_projection(
+        samples,
+        report,
+        post_dynamics_samples=None,
+        dynamics=None,
+        title="Samples",
+):
+    assert post_dynamics_samples is not None or dynamics is not None
+    plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.plot(samples[:, 0], samples[:, 1], '.')
+    plt.xlim(-1.5, 1.5)
+    plt.ylim(-1.5, 1.5)
+    plt.title(title)
+
+    if post_dynamics_samples is None:
+        post_dynamics_samples = dynamics(samples)
+    plt.subplot(1, 2, 2)
+    plt.plot(post_dynamics_samples[:, 0], post_dynamics_samples[:, 1], '.')
+    plt.xlim(-1.5, 1.5)
+    plt.ylim(-1.5, 1.5)
+    plt.title("Projected " + title)
+
+    fig = plt.gcf()
+    sample_img = vu.save_image(fig)
+    report.add_image(sample_img, title)
+    return sample_img

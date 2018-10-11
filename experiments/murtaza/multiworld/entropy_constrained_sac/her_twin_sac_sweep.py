@@ -10,7 +10,7 @@ import railrl.misc.hyperparameter as hyp
 variant = dict(
     algo_kwargs=dict(
         base_kwargs=dict(
-            num_epochs=300,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             max_path_length=100,
@@ -26,7 +26,7 @@ variant = dict(
             soft_target_tau=1e-3,  # 1e-2
             policy_update_period=1,
             target_update_period=1,  # 1
-            use_automated_entropy_tuning=True,
+            use_automatic_entropy_tuning=True,
         ),
     ),
     qf_kwargs=dict(
@@ -40,14 +40,24 @@ variant = dict(
     ),
     exploration_noise=0,
     exploration_type='ou',
-    replay_kwargs=dict(
+    replay_buffer_kwargs=dict(
         max_size=int(1E6),
-        fraction_goals_are_rollout_goals=0.2,
+        fraction_goals_are_rollout_goals=0,
         fraction_resampled_goals_are_env_goals=0.5,
     ),
     algorithm="HER-Twin-SAC",
     version="normal",
-    env_kwargs=dict(),
+    env_kwargs=dict(
+        hand_low=(-0.16, 0.4, 0.05),
+        hand_high=(0.16, 0.75, 0.3),
+        puck_low=(-.4, .2),
+        puck_high=(.4, 1),
+        goal_low=(-0.15, 0.4, 0.02, -.1, .5),
+        goal_high=(0.15, 0.74, 0.02, .1, .7),
+        xml_path='sawyer_xyz/sawyer_push_puck_smaller_arena.xml',
+        num_resets_before_puck_reset=int(1e6),
+        num_resets_before_hand_reset=int(1e6),
+    ),
     render=False,
     save_video=False,
     do_state_exp=True,
@@ -59,15 +69,17 @@ common_params = {
 env_params = {
     'door': {
         'env_id':['SawyerDoorHookResetFreeEnv-v6', 'SawyerDoorHookResetFreeEnv-v5', 'SawyerDoorHookResetFreeEnv-v3'],
-        'train_policy_with_reparameterization': [True, False],
+        'algo_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True, False],
     },
-    'pusher': {
-        'env_id':['SawyerPushAndReachFullArenaEnv-v0', 'SawyerPushAndReachFullArenaResetFreeEnv-v0'],
-        'train_policy_with_reparameterization': [True, False],
+    'small_pusher': {
+        'env_class':[SawyerPushAndReachXYEnv],
+        'algo_kwargs.base_kwargs.max_path_length':[100, 250, 500],
+        'env_kwargs.num_resets_before_puck_reset':[1, int(1e6)],
+        'env_kwargs.num_resets_before_hand_reset':[1, int(1e6)],
     },
     'reacher': {
-        'env_class': SawyerReachXYZEnv,
-        'algo_kwargs.base_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True, False],
+        'env_class': [SawyerReachXYEnv, SawyerReachXYZEnv],
+        'algo_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True, False],
     }
 }
 
