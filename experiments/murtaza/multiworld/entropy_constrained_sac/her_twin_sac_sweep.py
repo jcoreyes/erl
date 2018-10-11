@@ -73,6 +73,7 @@ env_params = {
     },
     'small_pusher': {
         'env_class':[SawyerPushAndReachXYEnv],
+        'env_kwargs.reward_type':['puck_distance'],
         'algo_kwargs.base_kwargs.max_path_length':[100, 250, 500],
         'env_kwargs.num_resets_before_puck_reset':[1, int(1e6)],
         'env_kwargs.num_resets_before_hand_reset':[1, int(1e6)],
