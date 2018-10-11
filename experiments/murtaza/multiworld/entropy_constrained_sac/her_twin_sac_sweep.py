@@ -1,6 +1,7 @@
 import argparse
 import math
 
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv, SawyerReachXYZEnv
 from railrl.launchers.launcher_util import run_experiment
@@ -47,19 +48,11 @@ variant = dict(
     ),
     algorithm="HER-Twin-SAC",
     version="normal",
-    env_kwargs=dict(
-        hand_low=(-0.16, 0.4, 0.05),
-        hand_high=(0.16, 0.75, 0.3),
-        puck_low=(-.4, .2),
-        puck_high=(.4, 1),
-        goal_low=(-0.15, 0.4, 0.02, -.1, .5),
-        goal_high=(0.15, 0.74, 0.02, .1, .7),
-        xml_path='sawyer_xyz/sawyer_push_puck_smaller_arena.xml',
-        num_resets_before_puck_reset=int(1e6),
-        num_resets_before_hand_reset=int(1e6),
-    ),
     render=False,
-    save_video=False,
+    save_video=True,
+    save_video_period=100,
+    imsize=48,
+    init_camera=sawyer_pusher_camera_upright_v2,
     do_state_exp=True,
 )
 
@@ -73,10 +66,38 @@ env_params = {
     },
     'small_pusher': {
         'env_class':[SawyerPushAndReachXYEnv],
-        'env_kwargs.reward_type':['puck_distance'],
-        'algo_kwargs.base_kwargs.max_path_length':[100, 250, 500],
-        'env_kwargs.num_resets_before_puck_reset':[1, int(1e6)],
-        'env_kwargs.num_resets_before_hand_reset':[1, int(1e6)],
+        'replay_buffer_kwargs.fraction_goals_are_rollout_goals':[1/2],
+        'algo_kwargs.base_kwargs.max_path_length':[500],
+        'algo_kwargs.base_kwargs.num_steps_per_eval':[5000],
+        'env_kwargs':[dict(
+        hand_low=(-0.16, 0.4, 0.05),
+        hand_high=(0.16, 0.75, 0.3),
+        puck_low=(-.4, .2),
+        puck_high=(.4, 1),
+        goal_low=(-0.15, 0.4, 0.02, -.1, .5),
+        goal_high=(0.15, 0.74, 0.02, .1, .7),
+        xml_path='sawyer_xyz/sawyer_push_puck_smaller_arena.xml',
+        num_resets_before_puck_reset=int(1e6),
+        num_resets_before_hand_reset=int(1e6),
+        reward_type='puck_distance',
+    )],
+    },
+    'pusher':{
+    'env_class':[SawyerPushAndReachXYEnv],
+    'algo_kwargs.base_kwargs.max_path_length':[500],
+    'algo_kwargs.base_kwargs.num_steps_per_eval':[5000],
+    'replay_buffer_kwargs.fraction_goals_are_rollout_goals':[1/2],
+    'env_kwargs':[dict(
+        reward_type='puck_distance',
+        hand_low=(-0.28, 0.3, 0.05),
+        hand_high=(0.28, 0.9, 0.3),
+        puck_low=(-.4, .2),
+        puck_high=(.4, 1),
+        goal_low=(-0.25, 0.3, 0.02, -.2, .4),
+        goal_high=(0.25, 0.875, 0.02, .2, .8),
+        num_resets_before_puck_reset=int(1e6),
+        num_resets_before_hand_reset=int(1e6),
+    )],
     },
     'reacher': {
         'env_class': [SawyerReachXYEnv, SawyerReachXYZEnv],

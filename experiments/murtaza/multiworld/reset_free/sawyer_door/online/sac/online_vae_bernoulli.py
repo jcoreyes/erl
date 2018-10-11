@@ -36,9 +36,9 @@ if __name__ == "__main__":
                     discount=0.99,
                     num_updates_per_env_step=2,
                     collection_mode='online',
-                    # parallel_env_params=dict(
-                    #     num_workers=1,
-                    # ),
+                    parallel_env_params=dict(
+                        num_workers=1,
+                    ),
                     reward_scale=1,
                 ),
                 her_kwargs=dict(
@@ -124,9 +124,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_three, vae_schedules.every_six],
-        'grill_variant.online_vae_beta': [1, 2.5],
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob']
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_six],
+        'grill_variant.online_vae_beta': [1],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -136,9 +136,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 2
+    n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'sawyer_door_online_vae_inv_bernoulli_priority'
+    exp_prefix = 'sawyer_door_online_vae_no_priority_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
