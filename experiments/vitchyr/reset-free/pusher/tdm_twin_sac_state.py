@@ -56,14 +56,17 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_id': [
-            'SawyerPushXYEnv-CompleteResetFree-v1',
+            # 'SawyerPushXYEnv-CompleteResetFree-v1',
             # 'SawyerPushAndReachXYEnv-CompleteResetFree-v0',
             'SawyerPushXYEnv-WithResets-v0',
-            # 'SawyerPushAndReachXYEnv-WithResets-v0',
+            'SawyerPushAndReachXYEnv-WithResets-v0',
         ],
         # 'algo_kwargs.tdm_kwargs.max_tau': [
         #     100, 50, 30,
         # ],
+        'algo_kwargs.base_kwargs.reward_scale': [
+            1, 100,
+        ],
         'algo_kwargs.tdm_kwargs.dense_rewards': [
             True,
         ],
@@ -82,9 +85,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 5
-    mode = 'sss'
-    exp_prefix = 'push-tdm-tsac-her-settings-test-no-structure'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'push-tdm-code-non-tdm-settings'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):

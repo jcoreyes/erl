@@ -48,20 +48,27 @@ if __name__ == "__main__":
         save_video=False,
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
+        vectorized=False,
     )
     search_space = {
         'env_id': [
             'SawyerPushXYEnv-WithResets-v0',
             'SawyerPushAndReachXYEnv-WithResets-v0',
         ],
-        'algo_kwargs.tdm_kwargs.max_tau': [
-            100, 50, 30,
+        # 'algo_kwargs.tdm_kwargs.max_tau': [
+        #     100, 50, 30,
+        # ],
+        'algo_kwargs.base_kwargs.reward_scale': [
+            1, 100,
         ],
         'algo_kwargs.tdm_kwargs.dense_rewards': [
             True,
         ],
-        'algo_kwargs.base_kwargs.reward_scale': [
-            1, 100,
+        'algo_kwargs.tdm_kwargs.finite_horizon': [
+            False,
+        ],
+        'algo_kwargs.base_kwargs.discount': [
+            0.99,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -73,8 +80,8 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     n_seeds = 3
-    mode = 'sss'
-    exp_prefix = 'push-tdm-td3-with-reset-dense-rewards'
+    mode = 'ec2'
+    exp_prefix = 'push-tdm-code-non-tdm-settings'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
