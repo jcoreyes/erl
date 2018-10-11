@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3, sawyer_pusher_camera_upright_v2
+from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_pusher
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v3
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
@@ -23,7 +23,7 @@ if __name__ == "__main__":
             num_resets_before_puck_reset=int(1e6),
             num_resets_before_hand_reset=int(1e6),
         ),
-        init_camera=sawyer_pusher_camera_upright_v2,
+        init_camera=sawyer_pusher_camera_upright_v3,
         grill_variant=dict(
             save_video=True,
             online_vae_beta=2.5,
@@ -47,7 +47,10 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online',
+                    collection_mode='online-parallel',
+                    parallel_env_params=dict(
+                        num_workers=1,
+                    ),
                     reward_scale=1,
                 ),
                 her_kwargs=dict(
@@ -74,6 +77,15 @@ if __name__ == "__main__":
                 vae_priority_type='image_bernoulli_inv_prob',
                 power=1,
             ),
+            generate_goal_dataset_fctn=generate_goal_dataset_pusher,
+            goal_generation_kwargs=dict(
+                num_goals=1000,
+                use_cached_dataset=False,
+                show=False,
+                tag='_twin_sac'
+            ),
+            presampled_goals_path='goals/SawyerPushAndReachXYEnv_N1000_imsize48goals_twin_sac.npy',
+            presample_goals=True,
             normalize=False,
             render=False,
             exploration_noise=0,
@@ -98,10 +110,10 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 N=100,
                 test_p=.9,
-                use_cached=False,
+                use_cached=True,
                 show=False,
                 oracle_dataset=False,
-                n_random_steps=1,
+                n_random_steps=100,
                 non_presampled_goal_img_is_garbage=True,
             ),
             vae_kwargs=dict(
@@ -125,9 +137,9 @@ if __name__ == "__main__":
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_six],
         'grill_variant.online_vae_beta': [1, 2.5],
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length': [250],
         'env_kwargs.num_resets_before_puck_reset': [1, int(1e6)],
-        'env_kwargs.num_resets_before_hand_reset': [1, int(1e6)],
+        'grill_variant.replay_buffer_kwargs.fraction_goals_are_rollout_goals':[0, 1/2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

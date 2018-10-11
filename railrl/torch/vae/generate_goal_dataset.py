@@ -136,3 +136,59 @@ def generate_goal_dataset_using_policy(
     np.save(filename, goal_dict)
     print("Saving file to {}".format(filename))
     return goal_dict
+
+def generate_goal_dataset_pusher(
+        env=None,
+        num_goals=1000,
+        use_cached_dataset=False,
+        show=False,
+        save_file_prefix=None,
+        env_id=None,
+        tag='',
+):
+    env_class = type(env.wrapped_env.wrapped_env)
+    if save_file_prefix is None and env_id is not None:
+        save_file_prefix = env_id
+    elif save_file_prefix is None:
+        save_file_prefix = env_class.__name__
+    filename = "/tmp/{}_N{}_imsize{}goals{}.npy".format(
+        save_file_prefix,
+        str(num_goals),
+        env.imsize,
+        tag,
+    )
+    if use_cached_dataset and osp.isfile(filename):
+        goal_dict = np.load(filename).item()
+        print("Loaded data from {}".format(filename))
+        return goal_dict
+
+    goal_generation_dict = dict()
+    for goal_key, obs_key in [
+        ('image_desired_goal', 'image_achieved_goal'),
+        ('state_desired_goal', 'state_achieved_goal'),
+    ]:
+        goal_size = env.observation_space.spaces[goal_key].low.size
+        goal_generation_dict[goal_key] = [goal_size, obs_key]
+
+    goal_dict = dict()
+    for goal_key in goal_generation_dict:
+        goal_size, obs_key = goal_generation_dict[goal_key]
+        goal_dict[goal_key] = np.zeros((num_goals, goal_size))
+    print('Generating Random Goals')
+    for j in range(num_goals):
+        goal = env.wrapped_env.wrapped_env.sample_goal()
+        env.set_to_goal(goal)
+        obs, _, _, _ = env.step(env.action_space.sample())
+        if show:
+            img = obs['image_observation']
+            img = img.reshape(3, env.imsize, env.imsize).transpose()
+            img = img[::-1, :, ::-1]
+            cv2.imshow('img', img)
+            cv2.waitKey(1)
+        print(j)
+        for goal_key in goal_generation_dict:
+            goal_size, obs_key = goal_generation_dict[goal_key]
+            goal_dict[goal_key][j, :] = obs[obs_key]
+    np.save(filename, goal_dict)
+    print("Saving file to {}".format(filename))
+    return goal_dict
