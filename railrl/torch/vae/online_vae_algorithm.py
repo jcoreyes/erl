@@ -24,6 +24,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         vae_training_schedule=vae_schedules.never_train,
         oracle_data=False,
         parallel_vae_train=True,
+        vae_min_num_steps_before_training=0,
     ):
         self.vae = vae
         self.vae_trainer = vae_trainer
@@ -36,6 +37,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.vae_training_process = None
         self.process_vae_update_thread = None
         self.parallel_vae_train = parallel_vae_train
+        self.vae_min_num_steps_before_training = vae_min_num_steps_before_training
 
     def _post_epoch(self, epoch):
         super()._post_epoch(epoch)
@@ -45,7 +47,10 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         should_train, amount_to_train = self.vae_training_schedule(epoch)
         if self.replay_buffer._prioritize_vae_samples:
             self.log_priority_weights()
-        if should_train and self._n_env_steps_total >= self.min_num_steps_before_training:
+        rl_start_epoch = int(self.min_num_steps_before_training / self.num_env_steps_per_epoch)
+        if should_train \
+                and self.replay_buffer.num_steps_can_sample() >= self.vae_min_num_steps_before_training\
+                or epoch >= (rl_start_epoch-1):
             if self.parallel_vae_train:
                 assert self.vae_training_process.is_alive()
                 # Make sure the last vae update has finished before starting
