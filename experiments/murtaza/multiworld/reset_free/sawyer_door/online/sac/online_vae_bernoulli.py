@@ -114,22 +114,19 @@ if __name__ == "__main__":
                 do_scatterplot=False,
                 use_linear_dynamics=False,
                 lr=1e-3,
-                normalize_log_probs=True,
-                normalize_mean=True,
-                normalize_std=True,
-                normalize_max=False,
             ),
             save_period=5,
         ),
     )
 
     search_space = {
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other, vae_schedules.every_six],
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other],
         'grill_variant.online_vae_beta': [.5, 2.5],
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
-        'grill_variant.num_uniform_steps':[0, 10000],
-        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[4000, 10000],
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_min_num_steps_before_training':[0, 7500],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
+        'grill_variant.num_uniform_steps':[0],
+        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[10000],
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_min_num_steps_before_training':[0],
+        'grill_variant.replay_buffer_kwargs.power':[0, 1, 2, 4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -139,12 +136,12 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'test'
 
-    # n_seeds = 2
+    # n_seeds = 5
     # mode = 'ec2'
-    # exp_prefix = 'sawyer_door_online_vae_bernoulli_reduce_variance'
+    # exp_prefix = 'sawyer_door_online_vae_bernoulli_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if variant['grill_variant']['algo_kwargs']['online_vae_kwargs']['vae_min_num_steps_before_training'] < variant['grill_variant']['algo_kwargs']['base_kwargs']['min_num_steps_before_training']:
+        if variant['grill_variant']['algo_kwargs']['online_vae_kwargs']['vae_min_num_steps_before_training'] > variant['grill_variant']['algo_kwargs']['base_kwargs']['min_num_steps_before_training']:
             continue
 
         for _ in range(n_seeds):
