@@ -39,8 +39,8 @@ variant = dict(
     policy_kwargs=dict(
         hidden_sizes=[400, 300],
     ),
-    exploration_noise=0,
-    exploration_type='ou',
+    num_uniform_steps=1000,
+    exploration_type='uniform_for_k',
     replay_buffer_kwargs=dict(
         max_size=int(1E6),
         fraction_goals_are_rollout_goals=0,

@@ -452,6 +452,7 @@ def get_exploration_strategy(variant, env):
     from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
     from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
     from railrl.exploration_strategies.ou_strategy import OUStrategy
+    from railrl.exploration_strategies.uniform_for_k_strategy import UniformforKStrategy
     exploration_type = variant['exploration_type']
     exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
@@ -470,6 +471,11 @@ def get_exploration_strategy(variant, env):
         es = EpsilonGreedy(
             action_space=env.action_space,
             prob_random_action=exploration_noise,
+        )
+    elif exploration_type == 'uniform_for_k':
+        es = UniformforKStrategy(
+            action_space=env.action_space,
+            num_uniform_steps=variant['num_uniform_steps']
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
