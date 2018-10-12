@@ -66,8 +66,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                 )
                 self.vae.eval()
                 self.replay_buffer.refresh_latents(epoch)
-                if self.replay_buffer._prioritize_vae_samples:
-                    self.log_priority_weights()
+                self.log_priority_weights()
                 _test_vae(
                     self.vae_trainer,
                     self.epoch,

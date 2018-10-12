@@ -17,7 +17,7 @@ class UniformforKStrategy(RawExplorationStrategy, Serializable):
         self.reset()
 
     def set_num_steps_total(self, t):
-        self._n_env_steps_total = t 
+        self._n_env_steps_total = t
 
     def get_action_from_raw_action(self, action, t=0, **kwargs):
         if self._n_env_steps_total < self.num_uniform_steps:
