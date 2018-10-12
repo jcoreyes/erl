@@ -384,10 +384,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
             table_keys = logger.get_table_key_set()
-            if self._old_table_keys is not None:
-                assert table_keys == self._old_table_keys, (
-                    "Table keys cannot change from iteration to iteration."
-                )
+            #HACK REMOVE LATER 
+            # if self._old_table_keys is not None:
+            #     assert table_keys == self._old_table_keys, (
+            #         "Table keys cannot change from iteration to iteration."
+            #     )
             self._old_table_keys = table_keys
 
             logger.record_tabular(
