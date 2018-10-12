@@ -35,7 +35,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online',
+                    collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -68,9 +68,7 @@ if __name__ == "__main__":
             normalize=False,
             render=False,
             num_uniform_steps=1000,
-            exploration_noise=0,
             exploration_type='uniform_for_k',
-            # exploration_type='ou',
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
@@ -126,9 +124,11 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_six],
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other, vae_schedules.every_three, vae_schedules.every_six],
         'grill_variant.online_vae_beta': [.25, .5, 1, 2.5],
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob']
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
+        'grill_variant.num_uniform_steps':[0, 4000, 10000],
+        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[4000, 10000],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
