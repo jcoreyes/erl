@@ -1,8 +1,8 @@
-from eval_util import create_stats_ordered_dict
 from railrl.core import logger
 from railrl.data_management.shared_obs_dict_replay_buffer \
         import SharedObsDictRelabelingBuffer
 import railrl.torch.vae.vae_schedules as vae_schedules
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.vae.conv_vae import ConvVAE
 import railrl.torch.pytorch_util as ptu
