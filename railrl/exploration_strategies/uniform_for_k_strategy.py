@@ -14,14 +14,17 @@ class UniformforKStrategy(RawExplorationStrategy, Serializable):
         Serializable.quick_init(self, locals())
         self.action_space=action_space
         self.num_uniform_steps=num_uniform_steps
+        self._n_env_steps_total=0
         self.reset()
 
     def set_num_steps_total(self, t):
         self._n_env_steps_total = t
 
-    def get_action_from_raw_action(self, action, t=0, **kwargs):
+    def get_action_from_raw_action(self, action, **kwargs):
+        sampled_ac = self.action_space.sample()
         if self._n_env_steps_total < self.num_uniform_steps:
-            action = self.action_space.sample()
+            action = sampled_ac
+        print(self._n_env_steps_total)
         return action
 
 
