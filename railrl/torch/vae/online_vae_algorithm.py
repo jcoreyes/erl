@@ -80,8 +80,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         vae_sample_priorities = self.replay_buffer._vae_sample_priorities[:self.replay_buffer_size]
         vae_sample_probs = vae_sample_priorities ** self.replay_buffer.power
         p_sum = np.sum(vae_sample_probs)
-        assert p_sum > 0, "Unnormalized p sum is {}".format(p_sum)
-        vae_sample_probs /= np.sum(vae_sample_probs)
+        vae_sample_probs /= (np.sum(vae_sample_probs)+1e-8)
         vae_sample_probs = vae_sample_probs.flatten()
         stats = create_stats_ordered_dict(
             'VAE Sample Probability',

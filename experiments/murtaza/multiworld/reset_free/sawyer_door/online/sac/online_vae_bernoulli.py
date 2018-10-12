@@ -30,7 +30,7 @@ if __name__ == "__main__":
                     num_epochs=1005,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=500,
-                    min_num_steps_before_training=10000,
+                    min_num_steps_before_training=1000,
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
@@ -67,8 +67,10 @@ if __name__ == "__main__":
             ),
             normalize=False,
             render=False,
-            num_uniform_steps=1000,
-            exploration_type='uniform_for_k',
+            # num_uniform_steps=1000,
+            exploration_noise=0,
+            # exploration_type='uniform_for_k',
+            exploration_type='ou',
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
@@ -132,13 +134,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 5
-    mode = 'ec2'
-    exp_prefix = 'sawyer_door_online_vae_inv_bernoulli_priority_reduce_variance'
+    # n_seeds = 5
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_door_online_vae_inv_bernoulli_priority_reduce_variance'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
