@@ -14,7 +14,6 @@ import dateutil.tz
 import csv
 import json
 import pickle
-import base64
 import errno
 
 from railrl.core.tabulate import tabulate
