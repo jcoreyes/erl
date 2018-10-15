@@ -115,13 +115,13 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
 
 def torch_ify(np_array_or_other):
     if isinstance(np_array_or_other, np.ndarray):
-        return ptu.np_to_var(np_array_or_other)
+        return ptu.from_numpy(np_array_or_other)
     else:
         return np_array_or_other
 
 
 def np_ify(tensor_or_other):
-    if isinstance(tensor_or_other, ptu.TorchVariable):
+    if isinstance(tensor_or_other, torch.autograd.Variable):
         return ptu.get_numpy(tensor_or_other)
     else:
         return tensor_or_other
@@ -132,8 +132,7 @@ def _elem_or_tuple_to_variable(elem_or_tuple):
         return tuple(
             _elem_or_tuple_to_variable(e) for e in elem_or_tuple
         )
-    return Variable(ptu.from_numpy(elem_or_tuple).float(), requires_grad=False)
-
+    return ptu.from_numpy(elem_or_tuple).float()
 
 def _filter_batch(np_batch):
     for k, v in np_batch.items():

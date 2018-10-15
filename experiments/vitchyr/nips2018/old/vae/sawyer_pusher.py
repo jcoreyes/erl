@@ -17,7 +17,7 @@ def experiment(variant):
     beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     m = ConvVAE(representation_size, input_channels=3)
     if ptu.gpu_enabled():
-        m.cuda()
+        m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
     for epoch in range(variant['num_epochs']):

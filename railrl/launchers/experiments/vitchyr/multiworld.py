@@ -112,8 +112,7 @@ def her_td3_experiment(variant):
             variant,
         )
         algorithm.post_epoch_funcs.append(video_func)
-    if ptu.gpu_enabled():
-        algorithm.cuda()
+    algorithm.to(ptu.device)
     algorithm.train()
 
 

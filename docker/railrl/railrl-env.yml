@@ -15,7 +15,7 @@ dependencies:
   - pybox2d=2.3.1post2=py35_0
   - python=3.5.2
   - python-dateutil=2.6.1=py35_0
-  - pytorch-cpu=0.3.0
+  - pytorch-cpu=0.4.0
   - scipy=1.0.1
   - patchelf
   - pip:
@@ -36,6 +36,11 @@ dependencies:
     - catkin_pkg==0.3.9
     - ipdb==0.10.3
     - rospkg==1.1.4
+    - gtimer
+    - pygame
+    - mujoco_py==1.50.1.56
+    - scikit-video
+    - opencv-python
     # Can't get this to work, but you should install this if you want to run
     # fanova analysis
     #- pyrfr

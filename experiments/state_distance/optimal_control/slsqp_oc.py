@@ -23,8 +23,8 @@ def experiment(variant):
     env = data['env']
     qf_policy = data['policy']
     if ptu.gpu_enabled():
-        qf.cuda()
-        qf_policy.cuda()
+        qf.to(ptu.device)
+        qf_policy.to(ptu.device)
     policy_class = variant['policy_class']
     if policy_class == StateOnlySdqBasedSqpOcPolicy:
         policy = policy_class(

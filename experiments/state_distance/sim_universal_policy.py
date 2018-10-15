@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     if args.gpu:
         ptu.set_gpu_mode(True)
-        policy.cuda()
+        policy.to(ptu.device)
     if args.enable_render:
         # some environments need to be reconfigured for visualization
         env.enable_render()

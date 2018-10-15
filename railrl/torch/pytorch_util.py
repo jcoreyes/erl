@@ -1,8 +1,6 @@
 import torch
 import numpy as np
-from torch.autograd import Variable as TorchVariable
 from torch.nn import functional as F
-
 
 def soft_update_from_to(source, target, tau):
     for target_param, param in zip(target.parameters(), source.parameters()):
@@ -10,11 +8,9 @@ def soft_update_from_to(source, target, tau):
             target_param.data * (1.0 - tau) + param.data * tau
         )
 
-
 def copy_model_params_from_to(source, target):
     for target_param, param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(param.data)
-
 
 def maximum_2d(t1, t2):
     # noinspection PyArgumentList
@@ -22,7 +18,6 @@ def maximum_2d(t1, t2):
         torch.cat((t1.unsqueeze(2), t2.unsqueeze(2)), dim=2),
         dim=2,
     )[0].squeeze(2)
-
 
 def kronecker_product(t1, t2):
     """
@@ -45,7 +40,6 @@ def kronecker_product(t1, t2):
 
     return expanded_t1 * tiled_t2
 
-
 def selu(
         x,
         alpha=1.6732632423543772848170429916717,
@@ -58,13 +52,11 @@ def selu(
         F.relu(x) + alpha * (F.elu(-1 * F.relu(-1 * x)))
     )
 
-
 def softplus(x):
     """
     PyTorch's softplus isn't (easily) serializable.
     """
     return F.softplus(x)
-
 
 def alpha_dropout(
         x,
@@ -84,16 +76,14 @@ def alpha_dropout(
     keep_prob = 1 - p
 
     random_tensor = keep_prob + torch.rand(x.size())
-    binary_tensor = Variable(torch.floor(random_tensor))
+    binary_tensor = torch.floor(random_tensor)
     x = x.mul(binary_tensor)
     ret = x + alpha * (1 - binary_tensor)
     ret.mul_(a).add_(b)
     return ret
 
-
 def alpha_selu(x, training=False):
     return alpha_dropout(selu(x), training=training)
-
 
 def double_moments(x, y):
     """
@@ -110,8 +100,8 @@ def double_moments(x, y):
     """
     batch_size, x_dim = x.size()
     _, y_dim = x.size()
-    x = torch.cat((x, Variable(torch.ones(batch_size, 1))), dim=1)
-    y = torch.cat((y, Variable(torch.ones(batch_size, 1))), dim=1)
+    x = torch.cat((x, torch.ones(batch_size, 1)), dim=1)
+    y = torch.cat((y, torch.ones(batch_size, 1)), dim=1)
     x_dim += 1
     y_dim += 1
     x = x.unsqueeze(2)
@@ -122,7 +112,6 @@ def double_moments(x, y):
     )
     return outer_prod.view(batch_size, -1)
 
-
 def batch_diag(diag_values, diag_mask=None):
     batch_size, dim = diag_values.size()
     if diag_mask is None:
@@ -131,7 +120,6 @@ def batch_diag(diag_values, diag_mask=None):
     batch_diag_values = diag_values.unsqueeze(1).expand(batch_size, dim, dim)
     return batch_diag_values * batch_diag_mask
 
-
 def batch_square_vector(vector, M):
     """
     Compute x^T M x
@@ -139,10 +127,7 @@ def batch_square_vector(vector, M):
     vector = vector.unsqueeze(2)
     return torch.bmm(torch.bmm(vector.transpose(2, 1), M), vector).squeeze(2)
 
-
 def fanin_init(tensor):
-    if isinstance(tensor, TorchVariable):
-        return fanin_init(tensor.data)
     size = tensor.size()
     if len(size) == 2:
         fan_in = size[0]
@@ -151,12 +136,9 @@ def fanin_init(tensor):
     else:
         raise Exception("Shape must be have dimension at least 2.")
     bound = 1. / np.sqrt(fan_in)
-    return tensor.uniform_(-bound, bound)
-
+    return tensor.data.uniform_(-bound, bound)
 
 def fanin_init_weights_like(tensor):
-    if isinstance(tensor, TorchVariable):
-        return fanin_init(tensor.data)
     size = tensor.size()
     if len(size) == 2:
         fan_in = size[0]
@@ -169,7 +151,6 @@ def fanin_init_weights_like(tensor):
     new_tensor.uniform_(-bound, bound)
     return new_tensor
 
-
 def almost_identity_weights_like(tensor):
     """
     Set W = I + lambda * Gaussian no
@@ -180,7 +161,6 @@ def almost_identity_weights_like(tensor):
     init_value = np.eye(*shape)
     init_value += 0.01 * np.random.rand(*shape)
     return FloatTensor(init_value)
-
 
 def clip1(x):
     return torch.clamp(x, -1, 1)
@@ -217,70 +197,49 @@ def compute_deconv_layer_sizes(h_in, w_in, kernel_sizes, strides, paddings=None)
             h_in, w_in = compute_deconv_output_size(h_in, w_in, kernel, stride, padding=padding)
             print('Output Size:', (h_in, w_in))
 
-
 """
 GPU wrappers
 """
+
 _use_gpu = False
+device = None
 
-
-def set_gpu_mode(mode):
+def set_gpu_mode(mode, gpu_id=0):
     global _use_gpu
+    global device
+    global _gpu_id
+    _gpu_id = gpu_id
     _use_gpu = mode
-
+    device = torch.device("cuda:"+str(gpu_id) if _use_gpu else "cpu")
 
 def gpu_enabled():
     return _use_gpu
 
-
 def set_device(gpu_id):
     torch.cuda.set_device(gpu_id)
 
-
 # noinspection PyPep8Naming
 def FloatTensor(*args, **kwargs):
-    if _use_gpu:
-        return torch.cuda.FloatTensor(*args, **kwargs)
-    else:
-        # noinspection PyArgumentList
-        return torch.FloatTensor(*args, **kwargs)
-
-
-def Variable(tensor, **kwargs):
-    if _use_gpu and not tensor.is_cuda:
-        return TorchVariable(tensor.cuda(), **kwargs)
-    else:
-        return TorchVariable(tensor, **kwargs)
-
+    return torch.FloatTensor(*args, **kwargs).to(device)
 
 def from_numpy(*args, **kwargs):
-    if _use_gpu:
-        return torch.from_numpy(*args, **kwargs).float().cuda()
-    else:
-        return torch.from_numpy(*args, **kwargs).float()
-
+    return torch.from_numpy(*args, **kwargs).float().to(device)
 
 def get_numpy(tensor):
-    if isinstance(tensor, TorchVariable):
-        return get_numpy(tensor.data)
-    if _use_gpu:
-        return tensor.cpu().numpy()
-    return tensor.numpy()
-
-
-def np_to_var(np_array, **kwargs):
-    return Variable(from_numpy(np_array), **kwargs)
-
+    #not sure if I should do detach or not here
+    return tensor.to('cpu').detach().numpy()
 
 def zeros(*sizes, out=None):
-    tensor = torch.zeros(*sizes, out=out)
-    if _use_gpu:
-        tensor = tensor.cuda()
-    return tensor
-
+    return torch.zeros(*sizes, out=out).to(device)
 
 def ones(*sizes, out=None):
-    tensor = torch.ones(*sizes, out=out)
-    if _use_gpu:
-        tensor = tensor.cuda()
-    return tensor
+    return torch.ones(*sizes, out=out).to(device)
+
+def randn(*args, **kwargs):
+    return torch.randn(*args, **kwargs).to(device)
+
+def zeros_like(*args, **kwargs):
+    return torch.zeros_like(*args, **kwargs).to(device)
+
+def normal(*args, **kwargs):
+    return torch.normal(*args, **kwargs).to(device)

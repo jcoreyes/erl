@@ -315,7 +315,7 @@ EPS_DECAY = 200
 model = DQN()
 
 if use_cuda:
-    model.cuda()
+    model.to(ptu.device)
 
 optimizer = optim.RMSprop(model.parameters())
 memory = ReplayMemory(10000)
@@ -331,8 +331,10 @@ def select_action(state):
         math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
     if sample > eps_threshold:
-        return model(
-            Variable(state, volatile=True).type(FloatTensor)).data.max(1)[1]
+        with torch.no_grad():
+            action = model(
+            Variable(state).type(FloatTensor)).data.max(1)[1]
+        return action
     else:
         return LongTensor([[random.randrange(2)]])
 
@@ -390,12 +392,12 @@ def optimize_model():
     non_final_mask = ByteTensor(tuple(map(lambda s: s is not None,
                                           batch.next_state)))
 
-    # We don't want to backprop through the expected action values and volatile
+    # We don't want to backprop through the expected action values and torch.no_grad()
     # will save us on temporarily changing the model parameters'
     # requires_grad to False!
-    non_final_next_states = Variable(torch.cat([s for s in batch.next_state
-                                                if s is not None]),
-                                     volatile=True)
+    with torch.no_grad():
+        non_final_next_states = Variable(torch.cat([s for s in batch.next_state
+                                                    if s is not None]))
     state_batch = Variable(torch.cat(batch.state))
     action_batch = Variable(torch.cat(batch.action))
     reward_batch = Variable(torch.cat(batch.reward))
@@ -407,10 +409,8 @@ def optimize_model():
     # Compute V(s_{t+1}) for all next states.
     next_state_values = Variable(torch.zeros(BATCH_SIZE).type(Tensor))
     next_state_values[non_final_mask] = model(non_final_next_states).max(1)[0]
-    # Now, we don't want to mess up the loss with a volatile flag, so let's
-    # clear it. After this, we'll just end up with a Variable that has
-    # requires_grad=False
-    next_state_values.volatile = False
+
+    assert next_state_values.requires_grad == False
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 

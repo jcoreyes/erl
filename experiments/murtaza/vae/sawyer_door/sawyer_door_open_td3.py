@@ -47,8 +47,7 @@ def experiment(variant):
         **variant['algo_kwargs']
     )
     env.set_goal(variant['goal'])
-    if ptu.gpu_enabled():
-        algorithm.cuda()
+    algorithm.to(ptu.device)
     algorithm.train()
 
 if __name__ == "__main__":

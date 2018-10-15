@@ -36,9 +36,9 @@ def simulate_policy(args):
 
     if args.gpu:
         set_gpu_mode(True)
-        policy.cuda()
+        policy.to(ptu.device)
         if hasattr(env, "vae"):
-            env.vae.cuda()
+            env.vae.to(ptu.device)
     else:
         # make sure everything is on the CPU
         set_gpu_mode(False)

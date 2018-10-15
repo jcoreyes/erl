@@ -50,7 +50,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                     self.process_vae_update_thread.join()
                 self.process_vae_update_thread = Thread(
                     target=OnlineVaeAlgorithm.process_vae_update_thread,
-                    args=(self,)
+                    args=(self, ptu.device)
                 )
                 self.process_vae_update_thread.start()
                 self.vae_conn_pipe.send((amount_to_train, epoch))
@@ -104,10 +104,9 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.vae_training_process.start()
         self.vae_conn_pipe.send(self.vae_trainer)
 
-    def process_vae_update_thread(self):
+    def process_vae_update_thread(self, device):
         self.vae.__setstate__(self.vae_conn_pipe.recv())
-        if ptu.gpu_enabled():
-            self.vae.cuda()
+        self.vae.to(device)
         _test_vae(
             self.vae_trainer,
             self.epoch,

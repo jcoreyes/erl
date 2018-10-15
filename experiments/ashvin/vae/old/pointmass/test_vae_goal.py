@@ -89,8 +89,8 @@ def experiment(variant):
         gpu_id = variant["gpu_id"]
         ptu.set_gpu_mode(True)
         ptu.set_device(gpu_id)
-        algorithm.cuda()
-        env._wrapped_env.vae.cuda()
+        algorithm.to(ptu.device)
+        env._wrapped_env.vae.to(ptu.device)
     algorithm.train()
 
 

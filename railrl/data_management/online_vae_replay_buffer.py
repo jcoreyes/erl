@@ -199,11 +199,11 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
         next_obs = normalize_image(self._next_obs[self.decoded_obs_key][indices])
         return dict(
-            next_obs=ptu.np_to_var(next_obs),
+            next_obs=ptu.from_numpy(next_obs)
         )
 
     def reconstruction_mse(self, next_vae_obs, indices):
-        torch_input = ptu.np_to_var(next_vae_obs)
+        torch_input = ptu.from_numpy(next_vae_obs)
         recon_next_vae_obs, _, _ = self.vae(torch_input)
 
         error = torch_input - recon_next_vae_obs
@@ -214,7 +214,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         return np.exp(self.reconstruction_mse(next_vae_obs, indices))
 
     def binary_cross_entropy(self, next_vae_obs, indices):
-        torch_input = ptu.np_to_var(next_vae_obs)
+        torch_input = ptu.from_numpy(next_vae_obs)
         recon_next_vae_obs, _, _ = self.vae(torch_input)
 
         error = - torch_input * torch.log(
@@ -240,9 +240,9 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         next_obs = self._next_obs[self.observation_key][indices]
         actions = self._actions[indices]
 
-        state_action_pair = ptu.np_to_var(np.c_[obs, actions])
+        state_action_pair = ptu.from_numpy(np.c_[obs, actions])
         prediction = self.dynamics_model(state_action_pair)
-        mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
+        mse = self.dynamics_loss(prediction, ptu.from_numpy(next_obs))
         return ptu.get_numpy(mse)
 
     def latent_novelty(self, next_vae_obs, indices):
@@ -272,7 +272,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             input_size=obs_dim + self._action_dim,
         )
         if ptu.gpu_enabled():
-            self.dynamics_model.cuda()
+            self.dynamics_model.to(ptu.device)
         self.dynamics_optimizer = Adam(self.dynamics_model.parameters())
         self.dynamics_loss = MSELoss()
 
@@ -288,9 +288,9 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             if self.exploration_rewards_type == 'inverse_model_error':
                 obs, next_obs = next_obs, obs
 
-            state_action_pair = ptu.np_to_var(np.c_[obs, actions])
+            state_action_pair = ptu.from_numpy(np.c_[obs, actions])
             prediction = self.dynamics_model(state_action_pair)
-            mse = self.dynamics_loss(prediction, ptu.np_to_var(next_obs))
+            mse = self.dynamics_loss(prediction, ptu.from_numpy(next_obs))
 
             mse.backward()
             self.dynamics_optimizer.step()
