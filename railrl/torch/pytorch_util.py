@@ -229,11 +229,11 @@ def get_numpy(tensor):
     #not sure if I should do detach or not here
     return tensor.to('cpu').detach().numpy()
 
-def zeros(*sizes, out=None):
-    return torch.zeros(*sizes, out=out).to(device)
+def zeros(*sizes, **kwargs):
+    return torch.zeros(*sizes, **kwargs).to(device)
 
-def ones(*sizes, out=None):
-    return torch.ones(*sizes, out=out).to(device)
+def ones(*sizes, **kwargs):
+    return torch.ones(*sizes, **kwargs).to(device)
 
 def randn(*args, **kwargs):
     return torch.randn(*args, **kwargs).to(device)
