@@ -29,6 +29,7 @@ dependencies:
     - pygame==1.9.2
     - sk-video==1.1.10
     - torchvision==0.2.0
+    - scikit-image
     # For doodad:
     - awscli==1.11.179
     - boto3==1.4.8

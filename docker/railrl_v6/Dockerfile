@@ -94,3 +94,8 @@ RUN python -c 'import mujoco_py'
 RUN pip install opencv-python==3.4.0.12
 RUN pip install torchvision==0.2.0
 RUN pip install sk-video==1.1.10
+RUN pip install matplotlib==2.2.2
+RUN pip install numpy-stl==2.7.0
+RUN pip install pyquaternion==0.9.2
+RUN pip install moviepy==0.2.3.5
+RUN pip install scikit-image
