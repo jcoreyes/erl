@@ -1,6 +1,6 @@
 """
 General classes, functions, utilities that are used throughout railrl.
 """
-from railrl.core.logging import Logger
+from railrl.core.logging import logger
 
-logger = Logger()
+__all__ = ["logger"]
