@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 import torch
 import numpy as np
 import torch.optim as optim
@@ -261,6 +259,7 @@ class TwinSAC(TorchRLAlgorithm):
             if self.use_automatic_entropy_tuning:
                 self.eval_statistics['Alpha'] = alpha.item()
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
+
     @property
     def networks(self):
         return [
