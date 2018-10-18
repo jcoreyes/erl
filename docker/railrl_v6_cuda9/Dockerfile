@@ -41,7 +41,7 @@ RUN mkdir -p /root/.mujoco \
     && wget https://www.roboti.us/download/mjpro150_linux.zip -O mujoco.zip \
     && unzip mujoco.zip -d /root/.mujoco \
     && rm mujoco.zip
-COPY mjkey.txt /root/.mujoco/
+COPY ./mjkey.txt /root/.mujoco/
 ENV LD_LIBRARY_PATH /root/.mujoco/mjpro150/bin:${LD_LIBRARY_PATH}
 ENV LD_LIBRARY_PATH /usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
 
@@ -61,7 +61,6 @@ RUN pip install -r requirements.dev.txt
 RUN pip install cloudpickle==0.5.2
 RUN pip install cached-property==1.3.1
 # For atari-py
-RUN apt-get update && apt-get install -y libav-tools
 RUN apt-get install -y zlib1g-dev swig cmake
 RUN pip install gym[all]==0.10.5
 RUN pip install gitpython==2.1.7
@@ -81,9 +80,11 @@ RUN pip install joblib==0.9.4
 #RUN apt-get purge nvidia*
 #RUN add-apt-repository --yes ppa:graphics-drivers && apt-get update
 
+RUN apt-get update && apt-get install -y libav-tools
+
 # For some reason this works despite an error showing up...
-RUN DEBIAN_FRONTEND=noninteractive apt-get -qy install nvidia-384; exit 0
-ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/usr/lib/nvidia-384
+# RUN DEBIAN_FRONTEND=noninteractive apt-get -qy install nvidia-384; exit 0
+# ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/usr/lib/nvidia-384
 
 RUN mkdir /root/code
 WORKDIR /root/code
