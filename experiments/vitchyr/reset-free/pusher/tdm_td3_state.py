@@ -59,7 +59,7 @@ if __name__ == "__main__":
         #     100, 50, 30,
         # ],
         'algo_kwargs.base_kwargs.reward_scale': [
-            1, 100,
+            100,
         ],
         'algo_kwargs.tdm_kwargs.dense_rewards': [
             True,
@@ -79,9 +79,14 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'push-tdm-code-non-tdm-settings-again-no-crash-hopefully'
+
     n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'push-tdm-code-non-tdm-settings'
+    mode = 'sss'
+    exp_prefix = 'sss-push-tdm-code-non-tdm-settings-again-no-crash-hopefully' \
+                 '-with-matplotlib-set'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
@@ -91,6 +96,6 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 time_in_mins=20*60,
-                snapshot_mode='gap_and_last',
-                snapshot_gap=100,
+                snapshot_mode='last',
+                # snapshot_gap=100,
             )
