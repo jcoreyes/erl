@@ -1,7 +1,7 @@
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.samplers.util import rollout
 from railrl.torch.core import PyTorchModule
-from railrl.torch.pytorch_util import set_gpu_mode
+import railrl.torch.pytorch_util as ptu
 import argparse
 import pickle
 import uuid
@@ -40,16 +40,11 @@ def simulate_policy(args):
         env.pause_on_goal = True
 
     if args.gpu:
-        set_gpu_mode(True)
+        ptu.set_gpu_mode(True)
+    if hasattr(policy, "to"):
         policy.to(ptu.device)
-        if hasattr(env, "vae"):
-            env.vae.to(ptu.device)
-    else:
-        # make sure everything is on the CPU
-        set_gpu_mode(False)
-        policy.cpu()
-        if hasattr(env, "vae"):
-            env.vae.cpu()
+    if hasattr(env, "vae"):
+        env.vae.to(ptu.device)
 
     if args.pause:
         import ipdb; ipdb.set_trace()
