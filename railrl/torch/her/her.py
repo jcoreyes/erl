@@ -39,6 +39,7 @@ class HER(TorchRLAlgorithm):
     ):
         self.observation_key = observation_key
         self.desired_goal_key = desired_goal_key
+        self._rollout_goal_vector = None
 
     def init_rollout_function(self):
         from railrl.samplers.rollout_functions \
@@ -49,13 +50,6 @@ class HER(TorchRLAlgorithm):
             desired_goal_key=self.desired_goal_key
         )
         self.eval_rollout_function = self.train_rollout_function
-
-    def _start_new_rollout(self):
-        self.exploration_policy.reset()
-        # Note: we assume we're using a silent env.
-        o = self.training_env.reset()
-        self._rollout_goal = self.training_env.get_goal()
-        return o
 
     def _handle_step(
             self,
@@ -75,7 +69,6 @@ class HER(TorchRLAlgorithm):
             terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
-            goals=self._rollout_goal,
         )
 
     def _handle_path(self, path):
@@ -113,12 +106,10 @@ class HER(TorchRLAlgorithm):
         :return:
         """
         self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
-        goal = self._rollout_goal
-        if self.observation_key:
-            observation = observation[self.observation_key]
-        if self.desired_goal_key:
-            goal = self._rollout_goal[self.desired_goal_key]
-        new_obs = np.hstack((observation, goal))
+        new_obs = np.hstack((
+            observation[self.observation_key],
+            observation[self.desired_goal_key],
+        ))
         return self.exploration_policy.get_action(new_obs)
 
     def get_eval_paths(self):

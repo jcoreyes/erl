@@ -94,7 +94,7 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
     def reset(self):
         obs = self.wrapped_env.reset()
-        goal = self.wrapped_env.get_goal()
+        goal = {}
 
         if self.use_vae_goals:
             if self.use_replay_buffer_goals:
@@ -104,8 +104,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
             latent_goal = latent_goals[0]
         else:
             if self.num_goals_presampled > 0:
+                # TODO: hack for now. There's no documentation on set_goal
                 goal = self.sample_goal()
-                latent_goal= goal['latent_desired_goal']
+                latent_goal = goal['latent_desired_goal']
                 self.wrapped_env.set_goal(goal)
             else:
                 latent_goal = self._encode_one(obs[self.vae_input_desired_goal_key])
@@ -253,9 +254,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
     @property
     def goal_dim(self):
         return self.representation_size
-
-    def get_goal(self):
-        return self.desired_goal
 
     def set_goal(self, goal):
         """
@@ -687,12 +685,6 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
     """
     Multitask functions
     """
-
-    def get_goal(self):
-        goal = self.wrapped_env.get_goal()
-        goal['desired_goal'] = self._latent_goal
-        goal['latent_desired_goal'] = self._latent_goal
-        return goal
 
     def get_diagnostics(self, paths, **kwargs):
         statistics = self.wrapped_env.get_diagnostics(paths, **kwargs)

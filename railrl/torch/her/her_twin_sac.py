@@ -1,6 +1,4 @@
 import numpy as np
-from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer, \
-    RelabelingReplayBuffer
 from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
 from railrl.torch.her.her import HER
@@ -22,10 +20,6 @@ class HerTwinSAC(HER, TwinSAC):
         )
         TwinSAC.__init__(self, *args, **kwargs, **twin_sac_kwargs, **base_kwargs)
         assert isinstance(
-            self.replay_buffer, SimpleHerReplayBuffer
-        ) or isinstance(
-            self.replay_buffer, RelabelingReplayBuffer
-        ) or isinstance(
             self.replay_buffer, ObsDictRelabelingBuffer
         )
 

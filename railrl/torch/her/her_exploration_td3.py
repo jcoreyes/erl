@@ -1,5 +1,3 @@
-from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer, \
-    RelabelingReplayBuffer
 from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
 from railrl.torch.her.her_exploration import HERExploration
@@ -21,9 +19,5 @@ class HerExplorationTd3(HERExploration, TD3EnsembleQs):
         )
         TD3EnsembleQs.__init__(self, *args, **kwargs, **td3_kwargs, **base_kwargs)
         assert isinstance(
-            self.replay_buffer, SimpleHerReplayBuffer
-        ) or isinstance(
-            self.replay_buffer, RelabelingReplayBuffer
-        ) or isinstance(
             self.replay_buffer, ObsDictRelabelingBuffer
         )
