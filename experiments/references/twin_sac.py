@@ -47,7 +47,7 @@ ENV_PARAMS = {
     'walker': {  # 6 DoF
         'env_class': Walker2dEnv,
         'num_epochs': 3000,
-        'train_policy_with_reparameterization': [True],
+        'train_policy_with_reparameterization': True,
     },
 }
 
@@ -140,8 +140,8 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     n_seeds = 3
-    mode = 'sss'
-    exp_prefix = 'sweep-twin-sac-torch-v4'
+    mode = 'ec2'
+    exp_prefix = 'reference-twin-sac-sweep'
 
     search_space = {
         'env': [
@@ -150,7 +150,7 @@ if __name__ == "__main__":
             'pendulum',
             'ant',
             'walker',
-        ]
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -163,5 +163,5 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-                time_in_mins=24*60,
+                time_in_mins=2*24*60,  # if you use mode=sss
             )
