@@ -27,7 +27,7 @@ if __name__ == "__main__":
             ),
             twin_sac_kwargs=dict(),
         ),
-        env_id='SawyerPushAndReachXYEnv-ResetFree-v0',
+        env_id='FetchPush-v1',
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_goals_are_rollout_goals=0.2,
@@ -47,11 +47,7 @@ if __name__ == "__main__":
         observation_key='observation',
         desired_goal_key='desired_goal',
     )
-    search_space = {
-        'env_id': [
-            'FetchPush-v1',
-        ],
-    }
+    search_space = {}
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
