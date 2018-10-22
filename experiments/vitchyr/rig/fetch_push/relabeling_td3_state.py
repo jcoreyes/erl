@@ -1,7 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.launchers.experiments.vitchyr.multiworld import (
-    relabeling_tsac_experiment,
-)
+from railrl.launchers.experiments.vitchyr.multiworld import her_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
@@ -17,34 +15,40 @@ if __name__ == "__main__":
                 batch_size=128,
                 discount=0.99,
                 min_num_steps_before_training=10000,
-                reward_scale=1,
+                reward_scale=100,
                 render=False,
             ),
             her_kwargs=dict(
                 observation_key='state_observation',
                 desired_goal_key='state_desired_goal',
             ),
-            twin_sac_kwargs=dict(),
+            td3_kwargs=dict(),
         ),
         env_id='FetchPush-v1',
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_are_rollout_goals=0.2,
-            fraction_resampled_goals_are_env_goals=0,
+            fraction_goals_are_rollout_goals=0.,
+            fraction_resampled_goals_are_env_goals=0.,
         ),
         qf_kwargs=dict(
-            hidden_sizes=[400, 300],
-        ),
-        vf_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
-        algorithm='HER-tSAC',
+        algorithm='HER-TD3',
         version='normal',
-        observation_key='observation',
-        desired_goal_key='desired_goal',
+        es_kwargs=dict(
+            max_sigma=.8,
+        ),
+        exploration_type='ou',
+        save_video_period=100,
+        do_state_exp=True,
+        # init_camera=sawyer_pusher_camera_upright_v2,
+        imsize=48,
+        save_video=False,
+        observation_key='state_observation',
+        desired_goal_key='state_desired_goal',
     )
     search_space = {}
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -55,14 +59,14 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'fetch-push-test'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'her-push-sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
             run_experiment(
-                relabeling_tsac_experiment,
+                her_td3_experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
