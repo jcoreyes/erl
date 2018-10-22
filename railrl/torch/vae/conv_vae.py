@@ -337,7 +337,7 @@ class ConvVAETrainer(Serializable):
             loss.backward()
 
             losses.append(loss.item())
-            log_probs.append(log_probs.item())
+            log_probs.append(log_prob.item())
             kles.append(kle.item())
 
             self.optimizer.step()
@@ -398,7 +398,7 @@ class ConvVAETrainer(Serializable):
             for i in range(len(z_data)):
                 zs.append(z_data[i, :])
             losses.append(loss.item())
-            log_prob.append(log_prob.item())
+            log_probs.append(log_prob.item())
             kles.append(kle.item())
 
             if batch_idx == 0 and save_reconstruction:
