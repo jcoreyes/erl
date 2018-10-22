@@ -1,5 +1,4 @@
-from railrl.data_management.obs_dict_replay_buffer import \
-        flatten_dict
+from railrl.data_management.obs_dict_replay_buffer import flatten_dict
 from railrl.data_management.shared_obs_dict_replay_buffer import \
         SharedObsDictRelabelingBuffer
 from multiworld.core.image_env import normalize_image
@@ -8,12 +7,10 @@ import numpy as np
 import torch
 from torch.optim import Adam
 from torch.nn import MSELoss
-
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import inv_gaussian_p_x_np_to_np, inv_p_bernoulli_x_np_to_np
-
 
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
@@ -99,7 +96,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.vae_prioritization_func = (
             type_to_function[self.vae_priority_type]
         )
-
         self.epoch = 0
         self._register_mp_array("_exploration_rewards")
         self._register_mp_array("_vae_sample_priorities")
@@ -135,14 +131,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             batch['rewards'] += exploration_rewards_scale * batch['exploration_rewards']
         return batch
 
-    def get_dataset_stats(self, data):
-        torch_input = ptu.np_to_var(data)
-        mus, log_vars = self.vae.encode(torch_input)
-        mus = ptu.get_numpy(mus)
-        mean = np.mean(mus, axis=0)
-        std = np.std(mus, axis=0)
-        return mus, mean, std
-
     def refresh_latents(self, epoch):
         self.epoch = epoch
         batch_size = 1024
@@ -170,7 +158,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 normalize_image(self._next_obs[self.decoded_obs_key][idxs])
             )
             if self._give_explr_reward_bonus:
-                _, mean, std = self.get_dataset_stats(normalized_imgs)
                 rewards = self.exploration_reward_func(
                     normalized_imgs,
                     idxs,
