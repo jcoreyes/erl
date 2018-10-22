@@ -162,7 +162,7 @@ def main():
 
     if args.gpu:
         ptu.set_gpu_mode(True)
-        policy.cuda()
+        policy.to(ptu.device)
 
     if args.mtau is None:
         print("Defaulting max tau to 10.")

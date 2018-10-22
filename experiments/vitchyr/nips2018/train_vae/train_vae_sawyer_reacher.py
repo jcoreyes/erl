@@ -21,7 +21,7 @@ def experiment(variant):
         beta_schedule = None
     m = ConvVAE(representation_size, input_channels=3, **variant['conv_vae_kwargs'])
     if ptu.gpu_enabled():
-        m.cuda()
+        m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
     save_period = variant['save_period']

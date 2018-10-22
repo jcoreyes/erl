@@ -111,8 +111,7 @@ class MultitaskVAEPoint2DEnv(MultitaskImagePoint2DEnv, MultitaskEnv):
     ):
         Serializable.quick_init(self, locals())
         self.vae = joblib.load("/home/ashvin/data/s3doodad/ashvin/vae/point2d-conv/run2/id0/params.pkl")
-        if ptu.gpu_enabled():
-            self.vae.cuda()
+        self.vae.to(ptu.device)
         super().__init__(render_size=render_size, ball_radius=ball_radius, **kwargs)
 
         self.representation_size = representation_size
@@ -124,9 +123,7 @@ class MultitaskVAEPoint2DEnv(MultitaskImagePoint2DEnv, MultitaskEnv):
 
     def _get_observation(self):
         img = Variable(ptu.from_numpy(self.get_image()))
-        # import pdb; pdb.set_trace()
-        if ptu.gpu_enabled():
-            self.vae.cuda()
+        self.vae.to(ptu.device)
         e = self.vae.encode(img)[0]
         return ptu.get_numpy(e).flatten()
 

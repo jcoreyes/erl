@@ -32,7 +32,7 @@ def experiment(variant):
         policy_params['model_learns_deltas'] = False
     env = data['env']
     if ptu.gpu_enabled():
-        model.cuda()
+        model.to(ptu.device)
     policy = variant['policy_class'](
         model,
         env,

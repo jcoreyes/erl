@@ -29,6 +29,7 @@ class SawyerReachTorqueEnv(MujocoEnv, Serializable, MultitaskEnv):
         self.goal_space = Box(
             np.array([-0.2, 0.5, 0]),
             np.array([0.2, 0.7, 0.5]),
+            dtype=np.float32,
         )
         self.reset()
         self.reset_mocap_welds()

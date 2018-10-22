@@ -245,7 +245,7 @@ def main():
         FakeDataset(obs_dim, action_dim, test_size, state_bounds, action_bounds),
         batch_size=batch_size, shuffle=True)
 
-    model.cuda()
+    model.to(ptu.device)
 
     def eval_model(state, action):
         state = ptu.Variable(state, requires_grad=False)
@@ -294,8 +294,8 @@ def main():
         report.new_row()
 
     def eval_model_np(state, action):
-        state = ptu.Variable(ptu.FloatTensor([[state]]), volatile=True)
-        action = ptu.Variable(ptu.FloatTensor([[action]]), volatile=True)
+        state = ptu.Variable(ptu.FloatTensor([[state]]), requires_grad=False)
+        action = ptu.Variable(ptu.FloatTensor([[action]]), requires_grad=False)
         a, v = model(state, action)
         q = a + v
         return ptu.get_numpy(q)[0]

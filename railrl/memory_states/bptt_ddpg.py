@@ -171,12 +171,6 @@ class BpttDdpg(RLAlgorithm):
             self.saved_grads = {}
             self.save_hook = self.create_save_grad_hook('dl_dmemory')
 
-    def cuda(self):
-        self.policy.cuda()
-        self.target_policy.cuda()
-        self.qf.cuda()
-        self.target_qf.cuda()
-
     """
     Training functions
     """

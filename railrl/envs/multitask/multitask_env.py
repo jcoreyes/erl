@@ -290,7 +290,7 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
             wrapped_high,
             self._wrapped_env.goal_space.high,
         ))
-        self.observation_space = Box(low, high)
+        self.observation_space = Box(low, high, dtype=np.float32)
         self.pause_on_goal = pause_on_goal
 
     def step(self, action):

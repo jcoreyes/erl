@@ -22,8 +22,8 @@ def experiment(variant):
     env = data['env']
     qf_policy = data['policy']
     if ptu.gpu_enabled():
-        qf.cuda()
-        qf_policy.cuda()
+        qf.to(ptu.device)
+        qf_policy.to(ptu.device)
     if isinstance(qf, VectorizedGoalStructuredUniversalQfunction):
         policy = UnconstrainedOcWithImplicitModel(
             qf,

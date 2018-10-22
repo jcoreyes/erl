@@ -3,6 +3,9 @@ from railrl.launchers.launcher_util import run_experiment_here
 import torch.multiprocessing as mp
 
 if __name__ == "__main__":
+    import matplotlib
+    matplotlib.use('agg')
+
     mp.set_start_method('forkserver')
     args_dict = dd.get_args()
     method_call = args_dict['method_call']

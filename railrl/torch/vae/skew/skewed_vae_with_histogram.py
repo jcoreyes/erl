@@ -269,7 +269,7 @@ def train(
                 vae_samples = p_new.sample(n_samples_to_add_per_epoch)
             else:
                 vae_samples = vae.sample(n_samples_to_add_per_epoch)
-        p_theta.compute_pvals(vae_samples)
+        p_theta.fit(vae_samples)
         projected_samples = dynamics(vae_samples)
         if append_all_data:
             train_data = np.vstack((train_data, projected_samples))
@@ -281,7 +281,7 @@ def train(
         else:
             prob = vae.compute_density(train_data)
         all_weights = prob_to_weight(prob, skew_config)
-        p_new.compute_pvals(train_data, weights=all_weights)
+        p_new.fit(train_data, weights=all_weights)
         if epoch == 0 or (epoch + 1) % save_period == 0:
             epochs.append(epoch)
             report.add_text("Epoch {}".format(epoch))
@@ -491,6 +491,8 @@ def get_vae(decoder_output_var, hidden_size, z_dim, vae_kwargs):
 def visualize_histogram(histogram, skew_config, report):
     prob = histogram.pvals
     weights = prob_to_weight(prob, skew_config)
+    xrange, yrange = histogram.xy_range
+    extent = [xrange[0], xrange[1], yrange[0], yrange[1]]
     for name, values in [
         ('Weight Heatmap', weights),
         ('Prob Heatmap', prob),
@@ -500,7 +502,7 @@ def visualize_histogram(histogram, skew_config, report):
         ax = plt.gca()
         heatmap_img = ax.imshow(
             np.swapaxes(values, 0, 1),  # imshow uses first axis as y-axis
-            extent=[-1, 1, -1, 1],
+            extent=extent,
             cmap=plt.get_cmap('plasma'),
             interpolation='nearest',
             aspect='auto',

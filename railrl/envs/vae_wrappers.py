@@ -1,4 +1,5 @@
 import random
+import torch
 
 import cv2
 import numpy as np
@@ -42,8 +43,6 @@ class VAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_local_or_remote_file(vae)
         else:
             self.vae = vae
-        if ptu.gpu_enabled():
-            vae.cuda()
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self._use_vae_goals = use_vae_goals
@@ -154,10 +153,10 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
     def _update_info(self, info, obs):
         latent_obs, logvar = self.vae.encode(
-            ptu.np_to_var(obs[self.vae_input_observation_key])
+            ptu.from_numpy(obs[self.vae_input_observation_key])
         )
         latent_obs, logvar = ptu.get_numpy(latent_obs)[0], ptu.get_numpy(logvar)[0]
-        assert (latent_obs == obs['latent_observation']).all()
+        # assert (latent_obs == obs['latent_observation']).all()
         latent_goal = self.desired_goal['latent_desired_goal']
         dist = latent_goal - latent_obs
         var = np.exp(logvar.flatten())
@@ -350,12 +349,20 @@ class VAEWrappedEnv(ProxyEnv, Env):
         """
         return dict(
             mode_map=self._mode_map,
+            gpu_info=dict(
+                use_gpu=ptu._use_gpu,
+                gpu_id=ptu._gpu_id,
+            ),
             vae_state=self.vae.__getstate__(),
         )
 
-    def update_env(self, mode_map, vae_state):
+    def update_env(self, mode_map, vae_state, gpu_info):
         self._mode_map = mode_map
         self.vae.__setstate__(vae_state)
+        gpu_id = gpu_info['gpu_id']
+        use_gpu = gpu_info['use_gpu']
+        ptu.device = torch.device("cuda:" + str(gpu_id) if use_gpu else "cpu")
+        self.vae.to(ptu.device)
 
     def enable_render(self):
         self._use_vae_goals = False
@@ -419,17 +426,17 @@ class VAEWrappedEnv(ProxyEnv, Env):
 
     def _decode(self, latents):
         batch_size = latents.shape[0]
-        decoded = ptu.get_numpy(self.vae.decode(ptu.np_to_var(latents)))
+        decoded = ptu.get_numpy(self.vae.decode(ptu.from_numpy(latents)))
         return decoded
 
     def _encode_one(self, img):
         return self._encode(img[None])[0]
 
     def _encode(self, imgs):
-        return ptu.get_numpy(self.vae.encode(ptu.np_to_var(imgs))[0])
+        return ptu.get_numpy(self.vae.encode(ptu.from_numpy(imgs))[0])
 
     def _reconstruct_img(self, flat_img):
-        zs = self.vae.encode(ptu.np_to_var(flat_img[None]))[0]
+        zs = self.vae.encode(ptu.from_numpy(flat_img[None]))[0]
         imgs = ptu.get_numpy(self.vae.decode(zs))
         imgs = imgs.reshape(
             1, self.input_channels, self.imsize, self.imsize
@@ -493,8 +500,6 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
             self.vae = load_local_or_remote_file(vae)
         else:
             self.vae = vae
-        if ptu.gpu_enabled():
-            vae.cuda()
         self.representation_size = self.vae.representation_size
         self._use_vae_goals = use_vae_goals
         self.sample_from_true_prior = sample_from_true_prior
@@ -547,9 +552,9 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
         return new_obs, reward, done, info
 
     def _update_info(self, info, obs):
-        latent_obs, logvar = self.vae.encode(ptu.np_to_var(obs['state_observation']))
+        latent_obs, logvar = self.vae.encode(ptu.from_numpy(obs['state_observation']))
         latent_obs, logvar = ptu.get_numpy(latent_obs), ptu.get_numpy(logvar)
-        assert (latent_obs == obs['latent_observation']).all()
+        # assert (latent_obs == obs['latent_observation']).all()
         latent_goal = self._latent_goal
         dist = latent_goal - latent_obs
         var = np.exp(logvar.flatten())
@@ -584,7 +589,7 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
         return obs
 
     def _decode(self, latents):
-        states = ptu.get_numpy(self.vae.decode(ptu.np_to_var(latents)))
+        states = ptu.get_numpy(self.vae.decode(ptu.from_numpy(latents)))
         return states
 
     def sample_goals(self, batch_size):
@@ -676,7 +681,8 @@ class StateVAEWrappedEnv(ProxyEnv, Env):
         return self._encode(img[None])[0]
 
     def _encode(self, imgs):
-        return ptu.get_numpy(self.vae.encode(ptu.np_to_var(imgs))[0])
+        return ptu.get_numpy(self.vae.encode(ptu.from_numpy(imgs))[0])
+
 
     """
     Multitask functions

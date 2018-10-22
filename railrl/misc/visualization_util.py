@@ -6,7 +6,6 @@ import tempfile
 import scipy.misc
 from collections import namedtuple
 
-from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 # import seaborn as sns
@@ -195,6 +194,7 @@ def gif(filename, array, fps=10):
     fps : int
         frames per second (default: 10)
     """
+    from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 
     # ensure that the file has the .gif extension
     fname, _ = os.path.splitext(filename)

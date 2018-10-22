@@ -19,7 +19,7 @@ class SupervisedAlgorithm():
     ):
         self.batch_size = batch_size
         if ptu.gpu_enabled():
-            model.cuda()
+            model.to(ptu.device)
         self.model = model
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)

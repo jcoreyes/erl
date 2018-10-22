@@ -178,7 +178,7 @@ if __name__ == "__main__":
     policy = data['policy']
 
     # ptu.set_gpu_mode(True)
-    # qf.cuda()
+    # qf.to(ptu.device)
 
     implicit_model = TdmToImplicitModel(
         env,

@@ -644,14 +644,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def cuda(self):
-        """
-        Turn cuda on.
-        :return:
-        """
-        pass
-
-    @abc.abstractmethod
     def _do_training(self):
         """
         Perform some update, e.g. perform one gradient step.
