@@ -233,7 +233,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         else:  # Assuming it's a (possibly wrapped) gym GoalEnv
             new_rewards = np.ones((batch_size, 1))
             for i in range(batch_size):
-                new_rewards = self.env.compute_reward(
+                new_rewards[i] = self.env.compute_reward(
                     new_next_obs_dict[self.achieved_goal_key][i],
                     new_next_obs_dict[self.desired_goal_key][i],
                     None

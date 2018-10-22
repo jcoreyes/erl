@@ -7,10 +7,10 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=1000,
+                num_epochs=5000,
                 num_steps_per_epoch=1000,
-                num_steps_per_eval=5000,
-                max_path_length=500,
+                num_steps_per_eval=1000,
+                max_path_length=50,
                 num_updates_per_env_step=1,
                 batch_size=128,
                 discount=0.99,
@@ -18,10 +18,7 @@ if __name__ == "__main__":
                 reward_scale=100,
                 render=False,
             ),
-            her_kwargs=dict(
-                observation_key='state_observation',
-                desired_goal_key='state_desired_goal',
-            ),
+            her_kwargs=dict(),
             td3_kwargs=dict(),
         ),
         env_id='FetchPush-v1',
@@ -39,16 +36,17 @@ if __name__ == "__main__":
         algorithm='HER-TD3',
         version='normal',
         es_kwargs=dict(
-            max_sigma=.8,
+            max_sigma=.2,
+            epsilon=.3,
         ),
-        exploration_type='ou',
+        exploration_type='gaussian_and_epsilon',
         save_video_period=100,
         do_state_exp=True,
         # init_camera=sawyer_pusher_camera_upright_v2,
         imsize=48,
         save_video=False,
-        observation_key='state_observation',
-        desired_goal_key='state_desired_goal',
+        observation_key='observation',
+        desired_goal_key='desired_goal',
     )
     search_space = {}
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -59,9 +57,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'her-push-sweep'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'fetch-push-test-post-rb-fix'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
