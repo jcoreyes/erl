@@ -14,7 +14,7 @@ def experiment(variant):
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
     net = CNN(**variant['cnn_kwargs'])
-    net.to(ptu.device)
+    net.cuda()
     num_divisions = variant['num_divisions']
     images = np.zeros((num_divisions * 10000, 21168))
     states = np.zeros((num_divisions*10000, 7))

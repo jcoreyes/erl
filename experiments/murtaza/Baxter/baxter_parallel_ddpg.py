@@ -59,7 +59,7 @@ def example(variant):
         **variant['algo_params'],
     )
     if use_gpu:
-        algorithm.to(ptu.device)
+        algorithm.cuda()
     algorithm.train()
 
 experiments=[

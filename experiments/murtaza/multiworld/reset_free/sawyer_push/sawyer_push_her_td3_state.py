@@ -70,7 +70,7 @@ if __name__ == "__main__":
     search_space = {
         'env_kwargs.num_resets_before_puck_reset':[int(1e6)],
         'env_kwargs.num_resets_before_hand_reset':[1, 100, 500, int(1e6)],
-        'algo_kwargs.base_kwargs.max_path_length':[100, 500, 1000],
+        'algo_kwargs.base_kwargs.max_path_length':[500],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

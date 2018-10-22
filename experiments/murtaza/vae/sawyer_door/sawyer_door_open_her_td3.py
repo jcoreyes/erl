@@ -15,7 +15,7 @@ if __name__ == "__main__":
             batch_size=128,
             discount=0.99,
             min_num_steps_before_training=128,
-            render=False,
+            render=True
         ),
         env_class=SawyerDoorPushOpenEnv,
         env_kwargs=dict(
@@ -31,9 +31,6 @@ if __name__ == "__main__":
         ),
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
-        ),
-        es_kwargs=dict(
-            max_sigma=.4,
         ),
         normalize=True,
         algorithm='HER-TD3',
@@ -80,5 +77,4 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-                use_gpu=True,
             )

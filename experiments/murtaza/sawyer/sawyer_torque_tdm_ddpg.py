@@ -54,7 +54,8 @@ def experiment(variant):
         exploration_policy=exploration_policy,
         **variant['ddpg_tdm_kwargs']
     )
-    algorithm.to(ptu.device)
+    if ptu.gpu_enabled():
+        algorithm.cuda()
     algorithm.train()
 
 
