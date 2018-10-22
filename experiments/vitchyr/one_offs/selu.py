@@ -81,7 +81,7 @@ class selu(nn.Module):
             F.relu(x) + self.alpha * (F.elu(-1 * F.relu(-1 * x)))
         )
         # temp1 = self.scale * F.relu(x)
-        # temp2 = self.scale * self.power * (F.elu(-1 * F.relu(-1 * x)))
+        # temp2 = self.scale * self.alpha * (F.elu(-1 * F.relu(-1 * x)))
         # return temp1 + temp2
 
 
@@ -121,7 +121,7 @@ class dropout(nn.Module):
 
 class DeepSNTanhNet(nn.Module):
     """
-    ~98% test accuracy with power dropout
+    ~98% test accuracy with alpha dropout
     ~40% test accuracy with dropout
     """
     def __init__(self):
@@ -173,7 +173,7 @@ class DeepSNTanhNet(nn.Module):
 
 class DeepTanhNet(nn.Module):
     """
-    ~11% test accuracy with power dropout
+    ~11% test accuracy with alpha dropout
     ~45% test accuracy with dropout
     """
     def __init__(self):
@@ -225,7 +225,7 @@ class DeepTanhNet(nn.Module):
 
 class DeepSeluNet(nn.Module):
     """
-    ~98% test accuracy with power dropout
+    ~98% test accuracy with alpha dropout
     ~47% test accuracy with dropout
     """
     def __init__(self):
@@ -278,7 +278,7 @@ class DeepSeluNet(nn.Module):
 
 class DeepReluNet(nn.Module):
     """
-    ~11% test accuracy with power dropout
+    ~11% test accuracy with alpha dropout
     ~11% test accuracy with dropout
     """
     def __init__(self):

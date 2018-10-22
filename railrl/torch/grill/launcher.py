@@ -305,12 +305,11 @@ def generate_vae_dataset(variant):
                 elif oracle_dataset:
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
-                    obs = env.step(env.action_space.sample())[0]
                 else:
                     env.reset()
                     for _ in range(n_random_steps):
-                        obs = env.step(env.action_space.sample())[0]
-                print(i)
+                        env.step(env.action_space.sample())
+                obs = env.step(env.action_space.sample())[0]
                 img = obs['image_observation']
                 dataset[i, :] = unormalize_image(img)
                 if show:
@@ -542,8 +541,8 @@ def grill_her_td3_experiment(variant):
     algo_kwargs['replay_buffer'] = replay_buffer
     base_kwargs = algo_kwargs['base_kwargs']
     base_kwargs['training_env'] = env
-    # base_kwargs['render'] = variant["render"]
-    # base_kwargs['render_during_eval'] = variant["render"]
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
     her_kwargs = algo_kwargs['her_kwargs']
     her_kwargs['observation_key'] = observation_key
     her_kwargs['desired_goal_key'] = desired_goal_key
