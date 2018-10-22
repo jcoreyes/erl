@@ -8,7 +8,6 @@ from torch.distributions import Normal
 from torch.nn import functional as F
 from torchvision.utils import save_image
 
-from railrl.exploration_strategies.count_based.count_based import CountExplorationCountGoalSampler
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.pythonplusplus import identity
@@ -77,9 +76,8 @@ class ConvVAETrainer(Serializable):
             train_data_workers=2,
             skew_dataset=False,
             skew_config=None,
+            mean_squared_error_loss=False,
             gaussian_decoder_loss=False,
-            full_gaussian_decoder=False,
-            exploration_counter_kwargs=None,
     ):
         self.quick_init(locals())
         if skew_config is None:
@@ -120,17 +118,8 @@ class ConvVAETrainer(Serializable):
         self.train_data_workers = train_data_workers
         self.skew_dataset = skew_dataset
         self.skew_config = skew_config
-        self.gaussian_decoder_loss = gaussian_decoder_loss
-        self.full_gaussian_decoder=full_gaussian_decoder
-        if skew_dataset and skew_config.get('method') == 'hash_count':
-            if exploration_counter_kwargs is None:
-                exploration_counter_kwargs = dict()
-            _, mean, std = self.get_dataset_stats()
-            self.exploration_counter = CountExplorationCountGoalSampler(
-                normalize_obs = True,
-                obs_mean=mean,
-                obs_std=std,
-                **exploration_counter_kwargs)
+        self.mean_sqaured_error_loss = mean_squared_error_loss
+        self.gaussian_decoder_loss=gaussian_decoder_loss
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
                 train_dataset,
@@ -224,13 +213,6 @@ class ConvVAETrainer(Serializable):
             data = normalize_image(data)
             inv_bernoulli_p_x = inv_p_bernoulli_x_np_to_np(self.model, data)
             return inv_bernoulli_p_x
-        elif method == 'hash_count':
-            self.exploration_counter.clear_counter()
-            mus, mean, std = self.get_dataset_stats(data)
-            self.exploration_counter.set_mean_std(mean=mean, std=std)
-            self.exploration_counter.increment_counts(mus)
-            priority = self.exploration_counter.compute_count_based_reward(mus)**power
-            return priority.reshape(-1)
         else:
             raise NotImplementedError('Method {} not supported'.format(method))
 
@@ -283,7 +265,7 @@ class ConvVAETrainer(Serializable):
         # Divide by batch_size rather than setting size_average=True because
         # otherwise the averaging will also happen across dim 1 (the
         # pixels)
-        if self.gaussian_decoder_loss:
+        if self.mean_sqaured_error_loss:
             return ((recon_x - x) ** 2).sum() / self.batch_size
         else:
             # Divide by batch_size rather than setting size_average=True because
@@ -333,7 +315,7 @@ class ConvVAETrainer(Serializable):
                 obs = None
                 actions = None
             self.optimizer.zero_grad()
-            if self.full_gaussian_decoder:
+            if self.gaussian_decoder_loss:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(next_obs)
                 recon_batch, dec_mu, dec_var = self.model.decode_full(latents)
                 log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
@@ -400,7 +382,7 @@ class ConvVAETrainer(Serializable):
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(10):
             data = self.get_batch(train=False)
-            if self.full_gaussian_decoder:
+            if self.gaussian_decoder_loss:
                 latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(data)
                 recon_batch, dec_mu, dec_var = self.model.decode_full(latents)
                 log_prob = self.compute_gaussian_log_prob(data, dec_mu, dec_var)
