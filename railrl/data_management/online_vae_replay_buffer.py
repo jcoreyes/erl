@@ -1,7 +1,5 @@
-from torch.distributions import Normal
-
 from railrl.data_management.obs_dict_replay_buffer import \
-        ObsDictRelabelingBuffer, flatten_dict
+        flatten_dict
 from railrl.data_management.shared_obs_dict_replay_buffer import \
         SharedObsDictRelabelingBuffer
 from multiworld.core.image_env import normalize_image
@@ -11,7 +9,6 @@ import torch
 from torch.optim import Adam
 from torch.nn import MSELoss
 
-from railrl.exploration_strategies.count_based.count_based import CountExplorationCountGoalSampler
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
@@ -33,7 +30,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         power=1.0,
         internal_keys=None,
         exploration_schedule_kwargs=None,
-        exploration_counter_kwargs=None,
         **kwargs
     ):
         self.quick_init(locals())
@@ -94,7 +90,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'bernoulli_inv_prob':           self.bernoulli_inv_prob,
             'image_gaussian_inv_prob':      self.image_gaussian_inv_prob,
             'image_bernoulli_inv_prob':     self.image_bernoulli_inv_prob,
-            'hash_count':                   self.hash_count,
             'None':                         self.no_reward,
         }
 
@@ -104,11 +99,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.vae_prioritization_func = (
             type_to_function[self.vae_priority_type]
         )
-
-        if self.exploration_rewards_type == 'hash_count':
-            if exploration_counter_kwargs is None:
-                exploration_counter_kwargs = dict()
-            self.exploration_counter = CountExplorationCountGoalSampler(env=self.env, **exploration_counter_kwargs)
 
         self.epoch = 0
         self._register_mp_array("_exploration_rewards")
@@ -158,8 +148,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         batch_size = 1024
         next_idx = min(batch_size, self._size)
         cur_idx = 0
-        if self.exploration_rewards_type == 'hash_count':
-            self.exploration_counter.clear_counter()  # to ensure you don't count latents under previous VAE
         while cur_idx < self._size:
             idxs = np.arange(cur_idx, next_idx)
             self._obs[self.observation_key][idxs] = \
@@ -183,13 +171,11 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             )
             if self._give_explr_reward_bonus:
                 _, mean, std = self.get_dataset_stats(normalized_imgs)
-                self.exploration_counter.set_mean_std(mean, std)
                 rewards = self.exploration_reward_func(
                     normalized_imgs,
                     idxs,
                 )
-                if rewards is not None:
-                    self._exploration_rewards[idxs] = rewards.reshape(-1, 1)
+                self._exploration_rewards[idxs] = rewards.reshape(-1, 1)
             if self._prioritize_vae_samples:
                 if (
                     self.exploration_rewards_type == self.vae_priority_type
@@ -231,13 +217,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         return dict(
             next_obs=ptu.from_numpy(next_obs)
         )
-
-    def hash_count(self, next_vae_obs, indices):
-        torch_input = ptu.np_to_var(next_vae_obs)
-        mus, log_vars = self.vae.encode(torch_input)
-        mus = ptu.get_numpy(mus)
-        self.exploration_counter.increment_counts(mus)
-        return None
 
     def reconstruction_mse(self, next_vae_obs, indices):
         torch_input = ptu.from_numpy(next_vae_obs)
