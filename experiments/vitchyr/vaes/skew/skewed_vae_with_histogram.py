@@ -23,7 +23,7 @@ from railrl.torch.vae.skew.skewed_vae_with_histogram import train_from_variant
 if __name__ == '__main__':
     variant = dict(
         dataset_generator=negative_one_dataset,
-        bs=32,
+        dynamics_noise=0.05,
         # n_epochs=1000,
         # save_period=50,
         save_period=1,
@@ -32,101 +32,42 @@ if __name__ == '__main__':
         # n_epochs=5,
         # n_samples_to_add_per_epoch=10,
         n_start_samples=0,
-        skew_sampling=False,
-        weight_loss=False,
         z_dim=16,
         hidden_size=32,
         append_all_data=False,
-        beta_schedule_class=ConstantSchedule,
-        # beta_schedule_kwargs=dict(
-        #     value=0.1,
-        # )
         vae_kwargs=dict(
             mode='importance_sampling',
             # mode='biased_encoder',
             # mode='prior',
+            min_prob=1e-6,
             n_average=100,
+            batch_size=500,
+            weight_loss=True,
+            skew_sampling=False,
+            num_inner_vae_epochs=10,
         ),
         use_dataset_generator_first_epoch=True,
         skew_config=dict(
+            weight_type='sqrt_inv_p',
             minimum_prob=1e-6,
         ),
+        reset_vae_every_epoch=False,
+        decoder_output_var='learned',
+        num_bins=60,
+        use_perfect_samples=False,
+        use_perfect_density=False,
     )
 
     n_seeds = 1
     mode = 'local'
     exp_prefix = 'dev'
 
-    exp_prefix = 'sv-square-full-method-is-learned'
-    # exp_prefix = 'sv-square-full-method-big-bs-inv-sqrt'
-    # exp_prefix = 'sv-square-weight-loss'
-    # exp_prefix = 'sv-zero-init-square-border'
-    # exp_prefix = 'sv-zero-init-square-cap'
-    # exp_prefix = 'sv-zero-init-square-cap-split'
-
     search_space = {
-        # Optimization hyperparameters
-        'bs': [
-            500,
-        ],
-        'num_inner_vae_epochs': [10],
-        # Env hyperparameters
-        'dynamics_noise': [
-            # 0.2,
-            # 0.1,
-            0.05,
-        ],
         'projection': [
             # project_samples_square_np,
             project_square_border_np,
             # project_square_cap_np,
             # project_square_cap_split_np,
-        ],
-        # Method hyperparameters
-        'append_all_data': [
-            False,
-        ],
-        'skew_sampling': [
-            # True,
-            False,
-        ],
-        'weight_loss': [
-            True,
-            # False,
-        ],
-        'beta_schedule_kwargs.value': [
-            1,
-        ],
-        'decoder_output_var': [
-            'learned',
-            # 0.05,
-            # 0.1,
-            # 0.2,
-            # 0.5,
-            # 5,
-        ],
-        'reset_vae_every_epoch': [
-            # True,
-            False,
-        ],
-        'skew_config.weight_type': [
-            # 'inv_p',
-            'sqrt_inv_p',
-            # 'nll',
-        ],
-        # Cheating hyperparameters
-        'num_bins': [60],
-        'train_vae_from_histogram': [
-            # True,
-            False,
-        ],
-        'use_perfect_samples': [
-            # True,
-            False,
-        ],
-        'use_perfect_density': [
-            # True,
-            False,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

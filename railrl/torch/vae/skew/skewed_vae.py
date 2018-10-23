@@ -1,16 +1,10 @@
 """
 Skew the dataset so that it turns into generating a uniform distribution.
 """
-import copy
-import json
-import sys
 from collections import defaultdict
 
-import matplotlib.pyplot as plt
 import numpy as np
-from skvideo.io import vwrite
 import torch
-from scipy.stats import chisquare
 from torch import nn as nn
 from torch.autograd import Variable
 from torch.distributions import Normal
@@ -22,14 +16,8 @@ from torch.utils.data.sampler import (
     RandomSampler,
 )
 
-import railrl.pythonplusplus as ppp
-from railrl.core import logger
-from railrl.misc import visualization_util as vu
-from railrl.misc.html_report import HTMLReport
-from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch.core import PyTorchModule
-from railrl.torch.vae.skew.datasets import project_samples_square_np
 import railrl.torch.pytorch_util as ptu
+from railrl.torch.core import PyTorchModule
 
 
 class Encoder(nn.Sequential):
