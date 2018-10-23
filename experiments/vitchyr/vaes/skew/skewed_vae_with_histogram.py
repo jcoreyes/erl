@@ -37,8 +37,6 @@ if __name__ == '__main__':
         append_all_data=False,
         vae_kwargs=dict(
             mode='importance_sampling',
-            # mode='biased_encoder',
-            # mode='prior',
             min_prob=1e-6,
             n_average=100,
             batch_size=500,
@@ -51,6 +49,7 @@ if __name__ == '__main__':
             weight_type='sqrt_inv_p',
             minimum_prob=1e-6,
         ),
+        projection=project_square_border_np,
         reset_vae_every_epoch=False,
         decoder_output_var='learned',
         num_bins=60,
@@ -61,13 +60,23 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = 'local'
     exp_prefix = 'dev'
+    exp_prefix = '2d-fitskew-toggle-append-all-data-2'
 
     search_space = {
-        'projection': [
-            # project_samples_square_np,
-            project_square_border_np,
-            # project_square_cap_np,
-            # project_square_cap_split_np,
+        # 'vae_kwargs.mode': [
+            # 'importance_sampling',
+            # 'biased',
+            # 'prior',
+        # ],
+        # 'vae_kwargs.n_average': [
+            # 1,
+            # 2,
+            # 5,
+            # 10,
+        # ],
+        'append_all_data': [
+            True,
+            False,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -81,5 +90,5 @@ if __name__ == '__main__':
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-                # skip_wait=True,
+                skip_wait=True,
             )
