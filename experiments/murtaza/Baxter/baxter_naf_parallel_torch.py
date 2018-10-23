@@ -48,7 +48,7 @@ def example(variant):
         **variant['algo_params'],
     )
     if use_gpu and ptu.gpu_enabled():
-        algorithm.to(ptu.device)
+        algorithm.cuda()
     algorithm.train()
 
 experiments=[
