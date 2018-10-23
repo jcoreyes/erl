@@ -52,7 +52,7 @@ if __name__ == "__main__":
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
         init_camera=sawyer_door_env_camera_v3,
-        env_id='SawyerDoorHookResetFreeEnv-v5',
+        env_id='SawyerDoorHookEnv-v5',
         imsize=48,
         do_state_exp=True,
         save_video_period=50,
@@ -61,12 +61,10 @@ if __name__ == "__main__":
         presampled_goals_path='goals/sawyer_hook_door_goals.npy',
     )
     search_space = {
-        'algo_kwargs.base_kwargs.max_path_length': [100, 200, 500],
+        'algo_kwargs.base_kwargs.max_path_length': [100],
         'env_kwargs.reward_type': [
             'angle_diff_and_hand_distance',
         ],
-        'env_kwargs.reset_free':[True],
-        'env_kwargs.target_pos_scale':[.5, .75, 1, 1.25]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
