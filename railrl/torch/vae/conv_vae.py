@@ -61,8 +61,10 @@ def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_giv
 
 def get_encoding_and_suff_stats(model, imgs):
     mu, logvar = model.encode(imgs)
+    mu = mu.view((mu.size()[0], 1, mu.size()[1]))
     stds = (0.5 * logvar).exp()
-    epsilon = ptu.randn(*mu.size())
+    stds = stds.view(stds.size()[0], 1, stds.size()[1])
+    epsilon = ptu.randn((mu.size()[0], model.num_latents_to_sample, mu.size()[1]))
     if ptu.gpu_enabled():
         epsilon = epsilon.cuda()
     latents = epsilon * stds + mu
@@ -275,22 +277,16 @@ class ConvVAETrainer(Serializable):
         Y = Y[ind, :]
         return ptu.from_numpy(X), ptu.from_numpy(Y)
 
-    def logprob(self, recon_x, x, mu, logvar):
+    def compute_bernoulli_log_prob(self, recon_x, x, mu, logvar):
         # Divide by batch_size rather than setting size_average=True because
         # otherwise the averaging will also happen across dim 1 (the
         # pixels)
-        if self.mean_squared_error_loss:
-            return ((recon_x - x) ** 2).sum() / self.batch_size
-        else:
-            # Divide by batch_size rather than setting size_average=True because
-            # otherwise the averaging will also happen across dimension 1 (the
-            # pixels)
-            return F.binary_cross_entropy(
-                recon_x,
-                x.narrow(start=0, length=self.imlength,
-                         dim=1).contiguous().view(-1, self.imlength),
-                size_average=False,
-            ) / self.batch_size
+        return -1* F.binary_cross_entropy(
+            recon_x,
+            x.narrow(start=0, length=self.imlength,
+                     dim=1).contiguous().view(-1, self.imlength),
+            size_average=False,
+        ) / self.batch_size
 
     def kl_divergence(self, recon_x, x, mu, logvar):
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
@@ -311,6 +307,16 @@ class ConvVAETrainer(Serializable):
         vals = log_probs.sum(dim=1, keepdim=True)
         return vals.mean()
 
+    def logprob_and_stats(self, next_obs):
+        if self.gaussian_decoder_loss:
+            latents, mu, logvar, stds = get_encoding_and_suff_stats(self.model, next_obs)
+            recon_batch, dec_mu, dec_var = self.model.decode_full(latents)
+            log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
+        else:
+            recon_batch, mu, logvar = self.model(next_obs)
+            log_prob = self.compute_bernoulli_log_prob(recon_batch, next_obs, mu, logvar)
+        return log_prob, recon_batch, next_obs, mu, logvar
+
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
         self.model.train()
         losses = []
@@ -329,25 +335,17 @@ class ConvVAETrainer(Serializable):
                 obs = None
                 actions = None
             self.optimizer.zero_grad()
-            if self.gaussian_decoder_loss:
-                latents, mu, logvar, stds = get_encoding_and_suff_stats(self.model, next_obs)
-                recon_batch, dec_mu, dec_var = self.model.decode_full(latents)
-                log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
-                kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
-                loss = -1*log_prob + beta * kle
-            else:
-                recon_batch, mu, logvar = self.model(next_obs)
-                log_prob = self.logprob(recon_batch, next_obs, mu, logvar)
-                kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
+            log_prob, recon_batch, next_obs, mu, logvar = self.logprob_and_stats(next_obs)
+            kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
 
-                if self.use_linear_dynamics:
-                    linear_dynamics_loss = self.state_linearity_loss(
-                        obs, next_obs, actions
-                    )
-                    loss = log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
-                    linear_losses.append(linear_dynamics_loss.data[0])
-                else:
-                    loss = log_prob + beta * kle
+            if self.use_linear_dynamics:
+                linear_dynamics_loss = self.state_linearity_loss(
+                    obs, next_obs, actions
+                )
+                loss = log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
+                linear_losses.append(linear_dynamics_loss.data[0])
+            else:
+                loss = -1*log_prob + beta * kle
             loss.backward()
 
             losses.append(loss.item())
@@ -395,18 +393,10 @@ class ConvVAETrainer(Serializable):
         zs = []
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(10):
-            data = self.get_batch(train=False)
-            if self.gaussian_decoder_loss:
-                latents, mu, logvar, stds = get_encoding_and_suff_stats(self.model, data)
-                recon_batch, dec_mu, dec_var = self.model.decode_full(latents)
-                log_prob = self.compute_gaussian_log_prob(data, dec_mu, dec_var)
-                kle = self.kl_divergence(recon_batch, data, mu, logvar)
-                loss = -1*log_prob + beta * kle
-            else:
-                recon_batch, mu, logvar = self.model(data)
-                log_prob = self.logprob(recon_batch, data, mu, logvar)
-                kle = self.kl_divergence(recon_batch, data, mu, logvar)
-                loss = log_prob + beta * kle
+            next_obs = self.get_batch(train=False)
+            log_prob, recon_batch, next_obs, mu, logvar = self.logprob_and_stats(next_obs)
+            kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
+            loss = -1*log_prob + beta * kle
 
             z_data = ptu.get_numpy(mu.cpu())
             for i in range(len(z_data)):
@@ -416,9 +406,9 @@ class ConvVAETrainer(Serializable):
             kles.append(kle.item())
 
             if batch_idx == 0 and save_reconstruction:
-                n = min(data.size(0), 8)
+                n = min(next_obs.size(0), 8)
                 comparison = torch.cat([
-                    data[:n].narrow(start=0, length=self.imlength, dim=1)
+                    next_obs[:n].narrow(start=0, length=self.imlength, dim=1)
                     .contiguous().view(
                         -1, self.input_channels, self.imsize, self.imsize
                     ),
