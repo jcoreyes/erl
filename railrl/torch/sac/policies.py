@@ -285,3 +285,6 @@ class MakeDeterministic(SerializablePolicy):
         return self.stochastic_policy.get_action(
             *args, deterministic=True, **kwargs
         )
+
+    def to(self, device):
+        self.stochastic_policy.to(device)

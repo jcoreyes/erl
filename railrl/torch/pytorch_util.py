@@ -219,27 +219,38 @@ def set_device(gpu_id):
     torch.cuda.set_device(gpu_id)
 
 # noinspection PyPep8Naming
-def FloatTensor(*args, **kwargs):
-    return torch.FloatTensor(*args, **kwargs).to(device)
+def FloatTensor(*args, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.FloatTensor(*args, **kwargs, device=torch_device)
 
 def from_numpy(*args, **kwargs):
     return torch.from_numpy(*args, **kwargs).float().to(device)
 
 def get_numpy(tensor):
-    #not sure if I should do detach or not here
     return tensor.to('cpu').detach().numpy()
 
-def zeros(*sizes, **kwargs):
-    return torch.zeros(*sizes, **kwargs).to(device)
+def zeros(*sizes, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.zeros(*sizes, **kwargs, device=torch_device)
 
-def ones(*sizes, **kwargs):
-    return torch.ones(*sizes, **kwargs).to(device)
+def ones(*sizes, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.ones(*sizes, **kwargs, device=torch_device)
 
-def randn(*args, **kwargs):
-    return torch.randn(*args, **kwargs).to(device)
+def randn(*args, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.randn(*args, **kwargs, device=torch_device)
 
-def zeros_like(*args, **kwargs):
-    return torch.zeros_like(*args, **kwargs).to(device)
+def zeros_like(*args, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.zeros_like(*args, **kwargs, device=torch_device)
 
-def normal(*args, **kwargs):
-    return torch.normal(*args, **kwargs).to(device)
+def normal(*args, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.normal(*args, **kwargs, device=torch_device)
