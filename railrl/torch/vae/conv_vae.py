@@ -23,36 +23,41 @@ from railrl.core.serializable import Serializable
 
 def inv_gaussian_p_x_np_to_np(model, data):
     ''' Assumes data is normalized images'''
-    imgs = ptu.np_to_var(data)
+    imgs = ptu.from_numpy(data)
     latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
-    true_prior = Normal(0, 1)
+    true_prior = Normal(ptu.zeros(1), ptu.ones(1))
     vae_dist = Normal(mus, stds)
-    log_p_z = true_prior.log_prob(latents).sum(dim=1)
-    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
+    log_p_z = true_prior.log_prob(latents).sum(dim=2)
+    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
     _, dec_mu, dec_var = model.decode_full(latents)
+    dec_mu = dec_mu.view(dec_mu.shape[0] // latents.shape[1], latents.shape[1], dec_mu.shape[1])
+    dec_var = dec_var.view(dec_var.shape[0] // latents.shape[1], latents.shape[1], dec_var.shape[1])
     decoder_dist = Normal(dec_mu, dec_var.pow(.5))
-    log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
+    log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=2)
     return compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
 
 def inv_p_bernoulli_x_np_to_np(model, data):
     ''' Assumes data is normalized images'''
-    imgs = ptu.np_to_var(data)
+    imgs = ptu.from_numpy(data)
     latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
-    true_prior = Normal(0, 1)
+    true_prior = Normal(ptu.zeros(1), ptu.ones(1))
     vae_dist = Normal(mus, stds)
-    log_p_z = true_prior.log_prob(latents).sum(dim=1)
-    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
+    log_p_z = true_prior.log_prob(latents).sum(dim=2)
+    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
     decoded = model.decode(latents)
-    log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
-    return compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
+    decoded = decoded.view(decoded.shape[0]//latents.shape[1], latents.shape[1], decoded.shape[1])
+    imgs = imgs.view(imgs.shape[0], 1, imgs.shape[1])
+    log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=2)
+    inv_p_x_shifted = compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
+    return inv_p_x_shifted
 
 def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z):
-    log_p_theta_x = log_p_z - log_q_z_given_x + log_d_x_given_z
-    log_p_theta_x = (log_p_theta_x - log_p_theta_x.mean()) / log_p_theta_x.std()
-    log_inv_root_p_theta_x = -1 / 2 * log_p_theta_x
-    log_p_theta_x_prime = log_inv_root_p_theta_x - log_inv_root_p_theta_x.max()
-    p_theta_x_shifted = ptu.get_numpy(log_p_theta_x_prime.exp())
-    return p_theta_x_shifted
+    log_p_x = log_p_z - log_q_z_given_x + log_d_x_given_z
+    log_p_x = ((log_p_x - log_p_x.mean(dim=0)) / (log_p_x.std(dim=0)+1e-8)).mean(dim=1) # averages to gather all the samples num_latents_sampled
+    log_inv_root_p_x = -1 / 2 * log_p_x
+    log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
+    inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
+    return inv_p_x_shifted
 
 class ConvVAETrainer(Serializable):
     def __init__(
@@ -607,6 +612,7 @@ class ConvVAESmall(PyTorchModule):
             decoder_activation='identity',
             min_variance=1e-3,
             state_size=0,
+            num_latents_to_sample=1,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -627,6 +633,7 @@ class ConvVAESmall(PyTorchModule):
             self.decoder_activation = nn.Sigmoid()
         else:
             raise EnvironmentError()
+        self.num_latents_to_sample=num_latents_to_sample
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize ** 2 * self.input_channels
@@ -698,8 +705,10 @@ class ConvVAESmall(PyTorchModule):
 
     def get_encoding_and_suff_stats(self, input):
         mu, logvar = self.encode(input)
+        mu = mu.view((mu.size()[0], 1, mu.size()[1]))
         stds = (0.5 * logvar).exp()
-        epsilon = Variable(torch.randn(*mu.size()))
+        stds = stds.view(stds.size()[0], 1, stds.size()[1])
+        epsilon = ptu.randn((mu.size()[0], self.num_latents_to_sample, mu.size()[1]))
         if ptu.gpu_enabled():
             epsilon = epsilon.cuda()
         latents = epsilon * stds + mu
@@ -856,7 +865,7 @@ class ConvVAESmallDouble(PyTorchModule):
     def get_encoding_and_suff_stats(self, input):
         mu, logvar = self.encode(input)
         stds = (0.5 * logvar).exp()
-        epsilon = Variable(torch.randn(*mu.size()))
+        epsilon = ptu.randn(*mu.size())
         if ptu.gpu_enabled():
             epsilon = epsilon.cuda()
         latents = epsilon * stds + mu
@@ -865,7 +874,7 @@ class ConvVAESmallDouble(PyTorchModule):
     def reparameterize(self, mu, logvar):
         if self.training:
             std = logvar.mul(0.5).exp_()
-            eps = ptu.Variable(std.data.new(std.size()).normal_())
+            eps = std.data.new(std.size()).normal_()
             return eps.mul(std).add_(mu)
         else:
             return mu

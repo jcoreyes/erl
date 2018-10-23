@@ -13,7 +13,7 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookResetFreeEnv-v5',
         init_camera=sawyer_door_env_camera_v3,
         grill_variant=dict(
-            save_video=True,
+            save_video=False,
             online_vae_beta=2.5,
             save_video_period=50,
             qf_kwargs=dict(
@@ -109,6 +109,7 @@ if __name__ == "__main__":
             vae_kwargs=dict(
                 input_channels=3,
                 decoder_activation='sigmoid',
+                num_latents_to_sample=1,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -126,7 +127,7 @@ if __name__ == "__main__":
         'grill_variant.num_uniform_steps':[0],
         'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[10000],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_min_num_steps_before_training':[0],
-        'grill_variant.replay_buffer_kwargs.power':[0, 1, 2, 4],
+        'grill_variant.replay_buffer_kwargs.power':[ 1, 2, 4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
