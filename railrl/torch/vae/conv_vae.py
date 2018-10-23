@@ -132,7 +132,7 @@ class ConvVAETrainer(Serializable):
         self.train_data_workers = train_data_workers
         self.skew_dataset = skew_dataset
         self.skew_config = skew_config
-        self.mean_sqaured_error_loss = mean_squared_error_loss
+        self.mean_squared_error_loss = mean_squared_error_loss
         self.gaussian_decoder_loss=gaussian_decoder_loss
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
@@ -279,7 +279,7 @@ class ConvVAETrainer(Serializable):
         # Divide by batch_size rather than setting size_average=True because
         # otherwise the averaging will also happen across dim 1 (the
         # pixels)
-        if self.mean_sqaured_error_loss:
+        if self.mean_squared_error_loss:
             return ((recon_x - x) ** 2).sum() / self.batch_size
         else:
             # Divide by batch_size rather than setting size_average=True because
@@ -330,7 +330,7 @@ class ConvVAETrainer(Serializable):
                 actions = None
             self.optimizer.zero_grad()
             if self.gaussian_decoder_loss:
-                latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(next_obs)
+                latents, mu, logvar, stds = get_encoding_and_suff_stats(self.model, next_obs)
                 recon_batch, dec_mu, dec_var = self.model.decode_full(latents)
                 log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
                 kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
@@ -397,7 +397,7 @@ class ConvVAETrainer(Serializable):
         for batch_idx in range(10):
             data = self.get_batch(train=False)
             if self.gaussian_decoder_loss:
-                latents, mu, logvar, stds = self.model.get_encoding_and_suff_stats(data)
+                latents, mu, logvar, stds = get_encoding_and_suff_stats(self.model, data)
                 recon_batch, dec_mu, dec_var = self.model.decode_full(latents)
                 log_prob = self.compute_gaussian_log_prob(data, dec_mu, dec_var)
                 kle = self.kl_divergence(recon_batch, data, mu, logvar)
