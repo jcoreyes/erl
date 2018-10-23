@@ -136,6 +136,8 @@ def train_vae(variant, return_data=False):
     )
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
+    from railrl.pythonplusplus import identity
+    import torch
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
@@ -150,6 +152,14 @@ def train_vae(variant, return_data=False):
             **variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
+    if variant.get('decoder_activation', None) == 'identity':
+        decoder_activation = identity
+    else:
+        decoder_activation = torch.nn.Sigmoid()
+    if variant.get('encoder_activation', None) == 'identity':
+        encoder_activation = identity
+    else:
+        raise EnvironmentError()
     if variant['algo_kwargs'].get('is_auto_encoder', False):
         m = AutoEncoder(representation_size, input_channels=3)
     elif variant.get('use_spatial_auto_encoder', False):
@@ -160,9 +170,14 @@ def train_vae(variant, return_data=False):
             m = ConvVAE(representation_size, **variant['vae_kwargs'])
         elif variant.get('imsize') == 48:
             if variant['algo_kwargs'].get('full_gaussian_decoder', False):
-                m = ConvVAESmallDouble(representation_size, **variant['vae_kwargs'])
+                m = ConvVAESmallDouble(representation_size,
+                                       encoder_activation=encoder_activation,
+                                       decoder_activation=decoder_activation,
+                                       **variant['vae_kwargs']
+                                       )
             else:
-                m = ConvVAESmall(representation_size, **variant['vae_kwargs'])
+                m = ConvVAESmall(representation_size, encoder_activation=encoder_activation,
+                                 decoder_activation=decoder_activation, **variant['vae_kwargs'])
         else:
             raise NotImplementedError('Only support 84 and 48 images.')
     m.to(ptu.device)

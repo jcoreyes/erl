@@ -122,24 +122,25 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other],
-        'grill_variant.online_vae_beta': [.5, 2.5],
+        'grill_variant.online_vae_beta': [2.5],
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
         'grill_variant.num_uniform_steps':[0],
         'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[10000],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_min_num_steps_before_training':[0],
-        'grill_variant.replay_buffer_kwargs.power':[ 1, 2, 4],
+        'grill_variant.replay_buffer_kwargs.power':[1],
+        'train_vae_variant.vae_kwargs.num_latents_to_sample':[1, 5, 10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 5
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_door_online_vae_bernoulli_final'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'sawyer_door_online_vae_bernoulli_sample_more_latents'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['grill_variant']['algo_kwargs']['online_vae_kwargs']['vae_min_num_steps_before_training'] > variant['grill_variant']['algo_kwargs']['base_kwargs']['min_num_steps_before_training']:
