@@ -24,7 +24,7 @@ from railrl.core.serializable import Serializable
 def inv_gaussian_p_x_np_to_np(model, data):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
-    latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
+    latents, mus, logvar, stds = get_encoding_and_suff_stats(model, imgs)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))
     vae_dist = Normal(mus, stds)
     log_p_z = true_prior.log_prob(latents).sum(dim=2)
@@ -39,7 +39,7 @@ def inv_gaussian_p_x_np_to_np(model, data):
 def inv_p_bernoulli_x_np_to_np(model, data):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
-    latents, mus, logvar, stds = model.get_encoding_and_suff_stats(imgs)
+    latents, mus, logvar, stds = get_encoding_and_suff_stats(model, imgs)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))
     vae_dist = Normal(mus, stds)
     log_p_z = true_prior.log_prob(latents).sum(dim=2)
@@ -58,6 +58,15 @@ def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_giv
     log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
     inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
     return inv_p_x_shifted
+
+def get_encoding_and_suff_stats(model, imgs):
+    mu, logvar = model.encode(imgs)
+    stds = (0.5 * logvar).exp()
+    epsilon = ptu.randn(*mu.size())
+    if ptu.gpu_enabled():
+        epsilon = epsilon.cuda()
+    latents = epsilon * stds + mu
+    return latents, mu, logvar, stds
 
 class ConvVAETrainer(Serializable):
     def __init__(
@@ -703,17 +712,6 @@ class ConvVAESmall(PyTorchModule):
 
         return mu, logvar
 
-    def get_encoding_and_suff_stats(self, input):
-        mu, logvar = self.encode(input)
-        mu = mu.view((mu.size()[0], 1, mu.size()[1]))
-        stds = (0.5 * logvar).exp()
-        stds = stds.view(stds.size()[0], 1, stds.size()[1])
-        epsilon = ptu.randn((mu.size()[0], self.num_latents_to_sample, mu.size()[1]))
-        if ptu.gpu_enabled():
-            epsilon = epsilon.cuda()
-        latents = epsilon * stds + mu
-        return latents, mu, logvar, stds
-
     def reparameterize(self, mu, logvar):
         if self.training:
             std = logvar.mul(0.5).exp_()
@@ -861,15 +859,6 @@ class ConvVAESmallDouble(PyTorchModule):
             logvar = self.log_min_variance + torch.abs(self.fc2(h))
 
         return mu, logvar
-
-    def get_encoding_and_suff_stats(self, input):
-        mu, logvar = self.encode(input)
-        stds = (0.5 * logvar).exp()
-        epsilon = ptu.randn(*mu.size())
-        if ptu.gpu_enabled():
-            epsilon = epsilon.cuda()
-        latents = epsilon * stds + mu
-        return latents, mu, logvar, stds
 
     def reparameterize(self, mu, logvar):
         if self.training:
