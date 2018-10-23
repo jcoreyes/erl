@@ -1,8 +1,8 @@
 """
 Skew the dataset so that it turns into generating a uniform distribution.
 """
-import copy
 import json
+import sys
 from collections import defaultdict
 
 from PIL import Image
@@ -141,6 +141,23 @@ def show_prob_heatmap(
     vu.plot_heatmap(heat_map)
 
 
+def progressbar(it, prefix="", size=60):
+    count = len(it)
+
+    def _show(_i):
+        x = int(size * _i / count)
+        sys.stdout.write(
+            "%s[%s%s] %i/%i\r" % (prefix, "#" * x, "." * (size - x), _i, count))
+        sys.stdout.flush()
+
+    _show(0)
+    for i, item in enumerate(it):
+        yield item
+        _show(i + 1)
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+
+
 def train_from_variant(variant):
     variant.pop('seed')
     variant.pop('exp_id')
@@ -260,7 +277,7 @@ def train(
 
     orig_train_data = dataset_generator(n_start_samples)
     train_data = orig_train_data
-    for epoch in sv.progressbar(range(n_epochs)):
+    for epoch in progressbar(range(n_epochs)):
         epoch_stats = defaultdict(list)
         p_theta = Histogram(num_bins)
         if epoch == 0 and use_dataset_generator_first_epoch:
@@ -373,8 +390,9 @@ def train(
                     batch
                 )
                 beta = float(beta_schedule.get_value(epoch))
-                kl = sv.kl_to_prior(means, log_vars, stds)
-                reconstruction_log_prob = sv.compute_log_prob(batch, decoder, latents)
+                kl = vae.kl_to_prior(means, log_vars, stds)
+                reconstruction_log_prob = vae.compute_log_prob(batch, decoder,
+                                                             latents)
 
                 elbo = - kl * beta + reconstruction_log_prob
                 if weight_loss:
