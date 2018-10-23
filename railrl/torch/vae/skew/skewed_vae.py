@@ -353,6 +353,13 @@ class VAE(PyTorchModule):
             mode='importance_sampling',
             min_prob=1e-7,
             n_average=100,
+
+            xy_range=((-1, 1), (-1, 1)),
+
+            reset_vae_every_epoch=False,
+            num_inner_vae_epochs=10,
+            weight_loss=False,
+            batch_size=32,
     ):
         self.quick_init(locals())
         super().__init__()
@@ -363,16 +370,25 @@ class VAE(PyTorchModule):
         self.min_log_prob = np.log(min_prob)
         self.n_average = n_average
 
+        self.xy_range = xy_range
+
+        self.reset_vae_every_epoch = reset_vae_every_epoch
+        self.num_inner_vae_epochs = num_inner_vae_epochs
+        self.weight_loss = weight_loss
+        self.batch_size = batch_size
+        self.encoder_opt = Adam(self.encoder.parameters())
+        self.decoder_opt = Adam(self.decoder.parameters())
+
     def sample_given_z(self, latent):
         return self.decoder.sample(latent)
 
     def sample(self, num_samples):
         return self.sample_given_z(
-            Variable(torch.randn(num_samples, self.z_dim))
+            ptu.randn(num_samples, self.z_dim)
         ).data.numpy()
 
     def reconstruct(self, data):
-        latents = self.encoder.encode(ptu.np_to_var(data))
+        latents = self.encoder.encode(ptu.from_numpy(data))
         return self.decoder.reconstruct(latents).data.numpy()
 
     def compute_density(self, data):
@@ -381,14 +397,14 @@ class VAE(PyTorchModule):
             data for _ in range(self.n_average)
         ])
         data = np_to_var(data)
-        if self.mode == 'biased_encoder':
+        if self.mode == 'biased':
             latents, means, log_vars, stds = (
                 self.encoder.get_encoding_and_suff_stats(data)
             )
-            importance_weights = ptu.Variable(torch.ones(data.shape[0]))
+            importance_weights = ptu.ones(data.shape[0])
         elif self.mode == 'prior':
-            latents = Variable(torch.randn(len(data), self.z_dim))
-            importance_weights = ptu.Variable(torch.ones(data.shape[0]))
+            latents = ptu.randn(len(data), self.z_dim)
+            importance_weights = ptu.ones(data.shape[0])
         elif self.mode == 'importance_sampling':
             latents, means, log_vars, stds = (
                 self.encoder.get_encoding_and_suff_stats(data)
@@ -427,6 +443,63 @@ class VAE(PyTorchModule):
 
         final = unnormalized_dp / iw_denominators
         return final.data.numpy()
+
+    def fit(self, data, weights=None):
+        if weights is None:
+            weights = np.ones(len(data))
+        all_weights_pt = ptu.from_numpy(weights)
+
+        indexed_train_data = IndexedData(data)
+        base_sampler = WeightedRandomSampler(weights, len(weights))
+
+        train_dataloader = DataLoader(
+            indexed_train_data,
+            sampler=BatchSampler(
+                base_sampler,
+                batch_size=self.batch_size,
+                drop_last=False,
+            ),
+        )
+        if self.reset_vae_every_epoch:
+            raise NotImplementedError()
+
+        for _ in range(self.num_inner_vae_epochs):
+            for _, indexed_batch in enumerate(train_dataloader):
+                idxs, batch = indexed_batch
+                batch = Variable(batch[0].float())
+
+                latents, means, log_vars, stds = (
+                    self.encoder.get_encoding_and_suff_stats(
+                        batch
+                    )
+                )
+                beta = 1
+                kl = kl_to_prior(means, log_vars, stds)
+                reconstruction_log_prob = compute_log_prob(
+                    batch, self.decoder, latents
+                )
+
+                elbo = - kl * beta + reconstruction_log_prob
+                if self.weight_loss:
+                    idxs = torch.cat(idxs)
+                    batch_weights = all_weights_pt[idxs].unsqueeze(1)
+                    loss = -(batch_weights * elbo).mean()
+                else:
+                    loss = - elbo.mean()
+                self.encoder_opt.zero_grad()
+                self.decoder_opt.zero_grad()
+                loss.backward()
+                self.encoder_opt.step()
+                self.decoder_opt.step()
+
+    def get_plot_ranges(self):
+        xrange, yrange = self.xy_range
+        xdelta = (xrange[1] - xrange[0]) / 10.
+        ydelta = (yrange[1] - yrange[0]) / 10.
+        return (
+            (xrange[0]-xdelta, xrange[1]+xdelta),
+            (yrange[0]-ydelta, yrange[1]+ydelta)
+        )
 
 
 class IndexedData(Dataset):

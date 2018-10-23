@@ -6,7 +6,6 @@ import json
 from collections import defaultdict
 
 from PIL import Image
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -97,16 +96,15 @@ def visualize_vae_samples(
 
 def visualize_vae(vae, skew_config, report,
                   resolution=20,
-                  xlim=(-1.5, 1.5),
-                  ylim=(-1.5, 1.5),
                   title="VAE Heatmap"):
+    xlim, ylim = vae.get_plot_ranges()
     show_prob_heatmap(vae, xlim=xlim, ylim=ylim, resolution=resolution)
     fig = plt.gcf()
     prob_heatmap_img = vu.save_image(fig)
     report.add_image(prob_heatmap_img, "Prob " + title)
 
     show_weight_heatmap(
-        vae, skew_config,xlim=xlim, ylim=ylim, resolution=resolution,
+        vae, skew_config, xlim=xlim, ylim=ylim, resolution=resolution,
     )
     fig = plt.gcf()
     heatmap_img = vu.save_image(fig)
@@ -155,7 +153,8 @@ def train_from_variant(variant):
 def prob_to_weight(prob, skew_config):
     weight_type = skew_config['weight_type']
     min_prob = skew_config['minimum_prob']
-    prob = np.maximum(prob, min_prob)
+    if min_prob:
+        prob = np.maximum(prob, min_prob)
     with np.errstate(divide='ignore', invalid='ignore'):
         if weight_type == 'inv_p':
             weights = 1. / prob
@@ -163,6 +162,9 @@ def prob_to_weight(prob, skew_config):
             weights = - np.log(prob)
         elif weight_type == 'sqrt_inv_p':
             weights = (1. / prob) ** 0.5
+        elif weight_type == 'exp':
+            exp = skew_config['alpha']
+            weights = prob ** exp
         else:
             raise NotImplementedError()
     weights[weights == np.inf] = 0
@@ -269,8 +271,8 @@ def train(
                 vae_samples = p_new.sample(n_samples_to_add_per_epoch)
             else:
                 vae_samples = vae.sample(n_samples_to_add_per_epoch)
-        p_theta.fit(vae_samples)
         projected_samples = dynamics(vae_samples)
+        p_theta.fit(projected_samples)
         if append_all_data:
             train_data = np.vstack((train_data, projected_samples))
         else:
@@ -289,8 +291,6 @@ def train(
             vae_heatmap_img = visualize_vae(
                 vae, skew_config, report,
                 resolution=num_bins,
-                xlim=(-1, 1),
-                ylim=(-1, 1),
             )
             sample_img = visualize_vae_samples(
                 epoch, train_data, vae, report, dynamics,
@@ -336,7 +336,7 @@ def train(
         """
         if sum(all_weights) == 0:
             all_weights[:] = 1
-        all_weights_pt = ptu.np_to_var(all_weights, requires_grad=False)
+        all_weights_pt = ptu.from_numpy(all_weights)
 
         indexed_train_data = sv.IndexedData(train_data)
         if skew_sampling:
@@ -363,7 +363,7 @@ def train(
             for _, indexed_batch in enumerate(train_dataloader):
                 idxs, batch = indexed_batch
                 if train_vae_from_histogram:
-                    batch = ptu.np_to_var(p_new.sample(
+                    batch = ptu.from_numpy(p_new.sample(
                         batch[0].shape[0]
                     ))
                 else:
@@ -382,7 +382,7 @@ def train(
                         weights_np = p_theta.compute_per_elem_weights(
                             ptu.get_numpy(batch)
                         )
-                        batch_weights = ptu.np_to_var(weights_np).unsqueeze(1)
+                        batch_weights = ptu.from_numpy(weights_np).unsqueeze(1)
                     else:
                         idxs = torch.cat(idxs)
                         batch_weights = all_weights_pt[idxs].unsqueeze(1)
@@ -488,7 +488,7 @@ def get_vae(decoder_output_var, hidden_size, z_dim, vae_kwargs):
     return vae, decoder, decoder_opt, encoder, encoder_opt
 
 
-def visualize_histogram(histogram, skew_config, report):
+def visualize_histogram(histogram, skew_config, report, title=""):
     prob = histogram.pvals
     weights = prob_to_weight(prob, skew_config)
     xrange, yrange = histogram.xy_range
@@ -500,6 +500,8 @@ def visualize_histogram(histogram, skew_config, report):
         plt.figure()
         fig = plt.gcf()
         ax = plt.gca()
+        values = values.copy()
+        values[values == 0] = np.nan
         heatmap_img = ax.imshow(
             np.swapaxes(values, 0, 1),  # imshow uses first axis as y-axis
             extent=extent,
@@ -507,6 +509,7 @@ def visualize_histogram(histogram, skew_config, report):
             interpolation='nearest',
             aspect='auto',
             origin='bottom',  # <-- Important! By default top left is (0, 0)
+            # norm=LogNorm(),
         )
         divider = make_axes_locatable(ax)
         legend_axis = divider.append_axes('right', size='5%', pad=0.05)
@@ -515,5 +518,5 @@ def visualize_histogram(histogram, skew_config, report):
         if histogram.num_bins < 5:
             pvals_str = np.array2string(histogram.pvals, precision=3)
             report.add_text(pvals_str)
-        report.add_image(heatmap_img, name)
+        report.add_image(heatmap_img, "{} {}".format(title, name))
     return heatmap_img
