@@ -24,6 +24,7 @@ dependencies:
     - gitpython==2.1.7
     - gtimer==1.0.0b5
     - gym[all]==0.10.5
+    - moviepy==0.2.3.5
     - opencv-python==3.4.0.12
     - plotly==1.9.6
     - pygame==1.9.2
