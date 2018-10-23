@@ -219,10 +219,10 @@ def set_device(gpu_id):
     torch.cuda.set_device(gpu_id)
 
 # noinspection PyPep8Naming
-def FloatTensor(*args, device=None, **kwargs):
-    if device is None:
-        device = device
-    return torch.FloatTensor(*args, **kwargs, device=device)
+def FloatTensor(*args, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.FloatTensor(*args, **kwargs, device=torch_device)
 
 def from_numpy(*args, **kwargs):
     return torch.from_numpy(*args, **kwargs).float().to(device)
@@ -230,27 +230,27 @@ def from_numpy(*args, **kwargs):
 def get_numpy(tensor):
     return tensor.to('cpu').detach().numpy()
 
-def zeros(*sizes,  device=None, **kwargs):
-    if device is None:
-        device = device
-    return torch.zeros(*sizes, **kwargs, device=device)
+def zeros(*sizes, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.zeros(*sizes, **kwargs, device=torch_device)
 
-def ones(*sizes, device=None, **kwargs):
-    if device is None:
-        device = device
-    return torch.ones(*sizes, **kwargs, device=device)
+def ones(*sizes, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.ones(*sizes, **kwargs, device=torch_device)
 
-def randn(*args,  device=None, **kwargs):
-    if device is None:
-        device = device
-    return torch.randn(*args, **kwargs, device=device)
+def randn(*args, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.randn(*args, **kwargs, device=torch_device)
 
-def zeros_like(*args,  device=None, **kwargs):
-    if device is None:
-        device = device
-    return torch.zeros_like(*args, **kwargs, device=device)
+def zeros_like(*args, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.zeros_like(*args, **kwargs, device=torch_device)
 
-def normal(*args, device=None, **kwargs):
-    if device is None:
-        device = device
-    return torch.normal(*args, **kwargs, device=device)
+def normal(*args, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.normal(*args, **kwargs, device=torch_device)
