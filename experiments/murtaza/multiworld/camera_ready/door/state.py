@@ -1,9 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.experiments.murtaza.multiworld import her_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
@@ -55,28 +53,21 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookEnv-v5',
         imsize=48,
         do_state_exp=True,
-        save_video_period=50,
         save_video=False,
-        presample_goals=True,
-        presampled_goals_path='goals/sawyer_hook_door_goals.npy',
     )
     search_space = {
-        'algo_kwargs.base_kwargs.max_path_length': [100],
-        'env_kwargs.reward_type': [
-            'angle_diff_and_hand_distance',
-        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_door_new_door_60_reset_free_hard_space-v5_sweep'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_door_new_door_60_reset_free_hard_space-v5_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
