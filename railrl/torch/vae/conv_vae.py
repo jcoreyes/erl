@@ -956,6 +956,7 @@ class SpatialVAE(ConvVAE):
         self.conv3 = nn.Conv2d(32, self.num_feat_points, kernel_size=5,
                                stride=3)
         #        self.bn3 = nn.BatchNorm2d(32)
+        self.to(ptu.device)
 
         test_mat = torch.zeros(1, self.input_channels, self.imsize, self.imsize)
         test_mat = self.conv1(test_mat)
@@ -1030,6 +1031,8 @@ class SpatialVAE(ConvVAE):
         logvar = self.output_activation(self.fc2(h))
         return mu, logvar
 
+    def reparameterize(self, mu, logvar):
+        return mu
 
 class ImageDataset(Dataset):
 
