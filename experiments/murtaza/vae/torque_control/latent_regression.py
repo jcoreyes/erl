@@ -29,7 +29,7 @@ def experiment(variant):
         print(mu, std)
     net = FlattenMlp(input_size=32, hidden_sizes=variant['hidden_sizes'], output_size=states.shape[1])
     vae = variant['vae']
-    vae.to(ptu.device)
+    vae.cuda()
     tensor = ptu.np_to_var(images)
     images, log_var = vae.encode(tensor)
     images = ptu.get_numpy(images)

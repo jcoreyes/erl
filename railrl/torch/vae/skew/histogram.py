@@ -20,20 +20,20 @@ def visualize_histogram_samples(
         dynamics,
         n_vis=1000,
         title="Histogram Samples",
+        samples=None,
 ):
     plt.figure()
-    generated_samples = histogram.sample(n_vis)
-    projected_generated_samples = dynamics(generated_samples)
+    if samples is None:
+        generated_samples = histogram.sample(n_vis)
+        samples = dynamics(generated_samples)
     plt.plot(
-        projected_generated_samples[:, 0],
-        projected_generated_samples[:, 1],
+        samples[:, 0],
+        samples[:, 1],
         '.',
     )
-    xrange, yrange = histogram.xy_range
-    xdelta = (xrange[1] - xrange[0]) / 10.
-    ydelta = (yrange[1] - yrange[0]) / 10.
-    plt.xlim(xrange[0]-xdelta, xrange[1]+xdelta)
-    plt.ylim(yrange[0]-ydelta, yrange[1]+ydelta)
+    xlim, ylim = histogram.get_plot_ranges()
+    plt.xlim(*xlim)
+    plt.ylim(*ylim)
     plt.title(title)
 
     fig = plt.gcf()
@@ -90,10 +90,10 @@ class Histogram(object):
     In this code, x = first index (not necessarily left-right for visualization)
     """
 
-    def __init__(self, num_bins, xy_range=((-1, 1), (-1, 1))):
+    def __init__(self, num_bins, xy_range=((-1, 1), (-1, 1)), init_idx=(0, 0)):
         self.xy_range = xy_range
         self.pvals = np.zeros((num_bins, num_bins))
-        self.pvals[0, 0] = 1
+        self.pvals[init_idx] = 1
         self.num_bins = num_bins
         self.num_bins_total = num_bins*num_bins
         self.uniform_distrib = (
@@ -115,6 +115,15 @@ class Histogram(object):
                 bin_centers[xi, yi, 1] = y
         self.bin_centers_flat = bin_centers.reshape(
             self.num_bins_total, 2
+        )
+
+    def get_plot_ranges(self):
+        xrange, yrange = self.xy_range
+        xdelta = (xrange[1] - xrange[0]) / 10.
+        ydelta = (yrange[1] - yrange[0]) / 10.
+        return (
+            (xrange[0]-xdelta, xrange[1]+xdelta),
+            (yrange[0]-ydelta, yrange[1]+ydelta)
         )
 
     def sample(self, n_samples):
@@ -139,9 +148,9 @@ class Histogram(object):
             assert H.flatten().sum() == len(data), "Is the range wrong?"
             self.pvals = H.astype(np.float32) / len(data)
         else:
-            error = H.flatten().sum() == weights.flatten().sum()
-            assert np.abs(error) < 1e-5, "Is the range wrong?"
-            self.pvals = H.astype(np.float32) / weights.sum()
+            # error = H.flatten().sum() == weights.flatten().sum()
+            # assert np.abs(error) < 1e-5, "Is the range wrong?"
+            self.pvals = H.astype(np.float32) / H.flatten().sum()
 
     def compute_density(self, data):
         indices = self._get_indices(data)

@@ -19,7 +19,7 @@ def example(variant):
         epochs = data['epoch']
         use_gpu = variant['use_gpu']
         if use_gpu and ptu.gpu_enabled():
-            algorithm.to(ptu.device)
+            algorithm.cuda()
         algorithm.train(start_epoch=epochs)
     else:
         arm_name = variant['arm_name']
@@ -70,7 +70,7 @@ def example(variant):
             naf_policy_learning_rate=1e-3,
         )
         if use_gpu and ptu.gpu_enabled():
-            algorithm.to(ptu.device)
+            algorithm.cuda()
         algorithm.train()
 
 experiments=[

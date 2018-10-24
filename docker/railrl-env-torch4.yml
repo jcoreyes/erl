@@ -7,7 +7,7 @@ dependencies:
   - flask=0.12.2=py35_0
   - joblib=0.9.4
   - mako=1.0.6=py35_0
-  - matplotlib=3.0.0
+  - matplotlib=2.2.2
   - mkl=2018.0.2  # Need to add explicit dependence for pytorch
   - numba=0.35.0=np111py35_0
   - numpy=1.11.3
@@ -24,6 +24,7 @@ dependencies:
     - gitpython==2.1.7
     - gtimer==1.0.0b5
     - gym[all]==0.10.5
+    - moviepy==0.2.3.5
     - opencv-python==3.4.0.12
     - plotly==1.9.6
     - pygame==1.9.2

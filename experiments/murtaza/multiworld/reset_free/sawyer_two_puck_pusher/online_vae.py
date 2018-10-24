@@ -97,7 +97,7 @@ if __name__ == "__main__":
         'env_kwargs.num_resets_before_puck_reset':[1, int(1e6)],
         'env_kwargs.num_resets_before_hand_reset':[1, int(1e6)],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100, 500],
-        'grill_variant.replay_buffer_kwargs.alpha': [3],
+        'grill_variant.replay_buffer_kwargs.power': [3],
         'grill_variant.online_vae_beta': [2.5],
         'env_kwargs.always_start_on_same_side': [True, False]
     }

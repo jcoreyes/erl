@@ -21,10 +21,11 @@ if __name__ == "__main__":
             puck_high=(.4, 1),
             goal_low=(-0.25, 0.3, 0.02, -.2, .4),
             goal_high=(0.25, 0.875, 0.02, .2, .8),
+            num_resets_before_puck_reset=int(1e6)
         ),
         init_camera=sawyer_pusher_camera_upright_v2,
         grill_variant=dict(
-            save_video=False,
+            # save_video=true,
             online_vae_beta=2.5,
             save_video_period=250,
             qf_kwargs=dict(
@@ -43,10 +44,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online',
-                    parallel_env_params=dict(
-                        num_workers=1,
-                    )
+                    collection_mode='online'
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
@@ -55,7 +53,6 @@ if __name__ == "__main__":
                    vae_training_schedule=vae_schedules.every_six,
                     oracle_data=False,
                     vae_save_period=25,
-                    parallel_vae_train=True,
                 ),
             ),
             replay_buffer_kwargs=dict(
@@ -66,7 +63,7 @@ if __name__ == "__main__":
                 exploration_rewards_type='reconstruction_error',
                 alpha=3,
             ),
-            algorithm='GRILL-HER-TD3',
+            algorithm='grill-her-td3',
             normalize=False,
             render=False,
             exploration_noise=0.8,
@@ -83,7 +80,6 @@ if __name__ == "__main__":
             representation_size=16,
             beta=1.0,
             num_epochs=0,
-            dump_skew_debug_plots=True,
             generate_vae_dataset_kwargs=dict(
                 N=100,
                 test_p=.9,
@@ -94,6 +90,7 @@ if __name__ == "__main__":
                     goal_low=(-0.28, 0.3, 0.02, -.2, .4),
                     goal_high=(0.28, 0.9, 0.02, .2, .8),
                 ),
+
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -110,10 +107,9 @@ if __name__ == "__main__":
     search_space = {
         'env_kwargs.num_resets_before_puck_reset': [1],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
-        'grill_variant.replay_buffer_kwargs.alpha': [3],
+        'grill_variant.replay_buffer_kwargs.power': [3],
+        'num_exps_per_instance':[3, 5, 7],
         'grill_variant.algo_kwargs.base_kwargs.collection_mode':['online', 'online-parallel'],
-        'grill_variant.algo_kwargs.base_kwargs.parallel_env_params.num_workers':[1, 2],
-        'grill_variant.algo_kwargs.online_vae_kwargs.parallel_vae_train':[True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -123,9 +119,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 3
+    n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'torch4cuda9-online-vae-sweep'
+    exp_prefix = 'sawyer_pusher_steven_sweep'
     
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -136,6 +132,6 @@ if __name__ == "__main__":
                 variant=variant,
                 use_gpu=True,
                 snapshot_gap=200,
-                num_exps_per_instance=2,
                 snapshot_mode='gap_and_last',
+                num_exps_per_instance=variant['num_exps_per_instance'],
             )

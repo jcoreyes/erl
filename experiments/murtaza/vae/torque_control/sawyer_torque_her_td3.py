@@ -35,9 +35,6 @@ if __name__ == "__main__":
         normalize=True,
         algorithm='HER-TD3',
         version='normal',
-        es_kwargs=dict(
-            max_sigma=.3,
-        )
     )
 
     n_seeds = 1

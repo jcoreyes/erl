@@ -17,13 +17,13 @@ if __name__ == "__main__":
                 batch_size=128,
                 discount=1,
                 min_num_steps_before_training=10000,
-                reward_scale=100,
+                reward_scale=1,
                 render=False,
             ),
             tdm_kwargs=dict(),
             twin_sac_kwargs=dict(),
         ),
-        env_id='SawyerPushAndReachXYEnv-ResetFree-v0',
+        env_id='FetchPush-v1',
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_goals_are_rollout_goals=0.2,
@@ -47,12 +47,6 @@ if __name__ == "__main__":
         vectorized=False,
     )
     search_space = {
-        'env_id': [
-            'FetchPush-v1',
-        ],
-        'algo_kwargs.base_kwargs.reward_scale': [
-            1,
-        ],
         'algo_kwargs.tdm_kwargs.dense_rewards': [
             True,
         ],

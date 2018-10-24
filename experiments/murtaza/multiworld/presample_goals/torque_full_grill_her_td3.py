@@ -7,13 +7,13 @@ from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 from railrl.torch.vae.sawyer_torque_control_data import generate_vae_dataset
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_torque_multiworld_her_td3_grill_presampled_goals'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_torque_multiworld_her_td3_grill_presampled_goals'
 
     grill_variant = dict(
         algo_kwargs=dict(
@@ -65,10 +65,10 @@ if __name__ == "__main__":
     train_vae_variant = dict(
         generate_vae_data_fctn=generate_vae_dataset,
         beta=1,
-        num_epochs=1,
+        num_epochs=1000,
         generate_vae_dataset_kwargs=dict(
-            N=100,
-            use_cached=True,
+            N=20000,
+            use_cached=True ,
         ),
         algo_kwargs=dict(
             batch_size=64,
@@ -104,6 +104,5 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                gpu_id=0,
-                num_exps_per_instance=1,
+                num_exps_per_instance=3,
             )

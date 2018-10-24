@@ -13,8 +13,8 @@ import datetime
 import dateutil.tz
 import numpy as np
 
+from railrl.core import logger
 import railrl.pythonplusplus as ppp
-from railrl.core import logger as default_logger
 from railrl.launchers import config
 
 GitInfo = namedtuple(
@@ -83,7 +83,6 @@ def run_experiment(
         region='us-east-1',
         instance_type=None,
         spot_price=None,
-        logger=default_logger,
         verbose=False,
         trial_dir_suffix=None,
         num_exps_per_instance=1,
@@ -122,8 +121,8 @@ def run_experiment(
     :param prepend_date_to_exp_prefix: If False, do not prepend the date to
     the experiment directory.
     :param use_gpu:
-    :param snapshot_mode: See rllab.logger
-    :param snapshot_gap: See rllab.logger
+    :param snapshot_mode: See railrl.core.logging.logger
+    :param snapshot_gap: See railrl.core.logging.logger
     :param base_log_dir: Will over
     :param sync_interval: How often to sync s3 data (in seconds).
     :param local_input_dir_to_mount_point_dict: Dictionary for doodad.
@@ -220,7 +219,6 @@ def run_experiment(
         snapshot_gap=snapshot_gap,
         git_infos=git_infos,
         script_name=main.__file__,
-        logger=logger,
         trial_dir_suffix=trial_dir_suffix,
     )
     if mode == 'here_no_doodad':
@@ -605,7 +603,6 @@ def run_experiment_here(
         snapshot_gap=1,
         git_infos=None,
         script_name=None,
-        logger=default_logger,
         trial_dir_suffix=None,
         randomize_seed=False,
         **setup_logger_kwargs
@@ -632,7 +629,7 @@ def run_experiment_here(
     if randomize_seed or (seed is None and 'seed' not in variant):
         seed = random.randint(0, 100000)
         variant['seed'] = str(seed)
-    reset_execution_environment(logger=logger)
+    reset_execution_environment()
 
     actual_log_dir = setup_logger(
         exp_prefix=exp_prefix,
@@ -643,7 +640,6 @@ def run_experiment_here(
         snapshot_gap=snapshot_gap,
         git_infos=git_infos,
         script_name=script_name,
-        logger=logger,
         trial_dir_suffix=trial_dir_suffix,
         **setup_logger_kwargs
     )
@@ -733,7 +729,6 @@ def setup_logger(
         log_dir=None,
         git_infos=None,
         script_name=None,
-        logger=default_logger,
         **create_log_dir_kwargs
 ):
     """
@@ -830,31 +825,17 @@ def setup_logger(
 def set_seed(seed):
     """
     Set the seed for all the possible random number generators.
-    :param seed:
-    :return: None
     """
     seed = int(seed)
     random.seed(seed)
     np.random.seed(seed)
-    try:
-        import tensorflow as tf
-        tf.set_random_seed(seed)
-    except ImportError as e:
-        print("Could not import tensorflow. Skipping tf.set_random_seed")
 
 
-def reset_execution_environment(logger=default_logger):
+def reset_execution_environment():
     """
     Call this between calls to separate experiments.
-    :return:
     """
-    try:
-        import tensorflow as tf
-        tf.reset_default_graph()
-    except ImportError as e:
-        print("Could not import tensorflow. Skipping tf.reset_default_graph")
-    import importlib
-    importlib.reload(logger)
+    logger.reset()
 
 
 def create_run_experiment_multiple_seeds(n_seeds, experiment, **kwargs):
