@@ -6,7 +6,7 @@ from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
-        imsize=48,
+        imsize=84,
         init_camera=sawyer_door_env_camera_v3,
         env_id='SawyerDoorHookEnv-v5',
         grill_variant=dict(
@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_offline_vae_recon_priority'
+    exp_prefix = 'sawyer_harder_door_offline_vae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

@@ -51,23 +51,24 @@ if __name__ == "__main__":
         desired_goal_key='state_desired_goal',
         init_camera=sawyer_door_env_camera_v3,
         env_id='SawyerDoorHookEnv-v5',
-        imsize=48,
+        imsize=84,
         do_state_exp=True,
         save_video=False,
     )
     search_space = {
+        'es_kwargs.max_sigma':[.3, .5, .8]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_door_new_door_60_reset_free_hard_space-v5_sweep'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_door_v5_es_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
@@ -79,5 +80,5 @@ if __name__ == "__main__":
                 snapshot_gap=50,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=3,
+                num_exps_per_instance=4,
             )
