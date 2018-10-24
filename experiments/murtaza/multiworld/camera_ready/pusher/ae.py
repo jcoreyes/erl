@@ -48,7 +48,7 @@ if __name__ == "__main__":
             render=False,
             exploration_noise=0.3,
             exploration_type='ou',
-            training_mode='train',
+            training_mode='test',
             testing_mode='test',
             reward_params=dict(
                 type='latent_distance',
