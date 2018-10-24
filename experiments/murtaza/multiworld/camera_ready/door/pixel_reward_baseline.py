@@ -2,7 +2,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_full_experiment
+from railrl.torch.grill.launcher import HER_baseline_her_td3_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
@@ -10,8 +10,7 @@ if __name__ == "__main__":
         init_camera=sawyer_door_env_camera_v3,
         env_id='SawyerDoorHookEnv-v5',
         grill_variant=dict(
-            save_video=True,
-            save_video_period=50,
+            save_video=False,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -28,7 +27,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=4,
-                    collection_mode='online-parallel',
+                    collection_mode='online',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -40,22 +39,19 @@ if __name__ == "__main__":
                 ),
             ),
             replay_buffer_kwargs=dict(
-                max_size=int(1e6),
+                max_size=int(1e4),
                 fraction_goals_are_rollout_goals=0,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
-            algorithm='OFFLINE-VAE-RECON-HER-TD3',
+            algorithm='PIX-REWARD-BASELINE-HER-TD3',
             normalize=False,
             render=False,
             exploration_noise=0.3,
             exploration_type='ou',
-            training_mode='train',
+            training_mode='test',
             testing_mode='test',
-            reward_params=dict(
-                type='latent_distance',
-            ),
-            observation_key='latent_observation',
-            desired_goal_key='latent_desired_goal',
+            observation_key='image_observation',
+            desired_goal_key='image_desired_goal',
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
                 num_goals=1000,
@@ -65,9 +61,15 @@ if __name__ == "__main__":
                 show=False,
             ),
             presample_goals=True,
-            vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=True,
-            )
+            cnn_params=dict(
+                kernel_sizes=[5, 5, 5],
+                n_channels=[16, 32, 32],
+                strides=[3, 3, 3],
+                pool_sizes=[1, 1, 1],
+                hidden_sizes=[32, 32],
+                paddings=[0, 0, 0],
+                use_batch_norm=False,
+            ),
         ),
         train_vae_variant=dict(
             vae_path=None,
@@ -113,12 +115,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'sawyer_door_offline_vae_final'
+    exp_prefix = 'sawyer_door_pix_reward_baseline_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
-                grill_her_td3_full_experiment,
+                HER_baseline_her_td3_full_experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,

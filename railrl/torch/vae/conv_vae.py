@@ -958,7 +958,7 @@ class SpatialVAE(ConvVAE):
         #        self.bn3 = nn.BatchNorm2d(32)
         self.to(ptu.device)
 
-        test_mat = ptu.zeros(1, self.input_channels, self.imsize, self.imsize)
+        test_mat = torch.zeros(1, self.input_channels, self.imsize, self.imsize)
         test_mat = self.conv1(test_mat)
         test_mat = self.conv2(test_mat)
         test_mat = self.conv3(test_mat)

@@ -49,7 +49,7 @@ if __name__ == "__main__":
             render=False,
             exploration_noise=0.3,
             exploration_type='ou',
-            training_mode='train',
+            training_mode='test',
             testing_mode='test',
             reward_params=dict(
                 type='latent_distance',
@@ -79,7 +79,7 @@ if __name__ == "__main__":
                 test_p=.9,
                 N=5000,
                 oracle_dataset=False,
-                use_cached=False,
+                use_cached=True,
                 oracle_dataset_from_policy=True,
                 non_presampled_goal_img_is_garbage=True,
                 vae_dataset_specific_kwargs=dict(),
@@ -90,9 +90,9 @@ if __name__ == "__main__":
                 input_channels=3,
             ),
             algo_kwargs=dict(
+                is_auto_encoder=True,
                 do_scatterplot=False,
                 use_linear_dynamics=False,
-                is_auto_encoder=False,
                 batch_size=64,
                 lr=1e-3,
             ),
@@ -107,13 +107,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'sawyer_door_offline_vae_final'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_door_offline_dsae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

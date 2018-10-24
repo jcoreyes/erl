@@ -52,6 +52,9 @@ def grill_tdm_td3_online_vae_full_experiment(variant):
     train_vae_and_update_variant(variant)
     grill_tdm_td3_experiment_online_vae(variant['grill_variant'])
 
+def HER_baseline_her_td3_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    HER_baseline_her_td3_experiment(variant['grill_variant'])
 
 def full_experiment_variant_preprocess(variant):
     train_vae_variant = variant['train_vae_variant']
@@ -195,16 +198,22 @@ def generate_vae_dataset(variant):
     init_camera = variant.get('init_camera', None)
     dataset_path = variant.get('dataset_path', None)
     oracle_dataset = variant.get('oracle_dataset', False)
+    oracle_dataset_from_policy=variant.get('oracle_dataset_from_policy', False)
+    random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
+    random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
+    policy_file = variant.get('policy_file', None)
     n_random_steps = variant.get('n_random_steps', 100)
     vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
     save_file_prefix = variant.get('save_file_prefix', None)
     non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
+    tag = variant.get('tag', '')
     from multiworld.core.image_env import ImageEnv, unormalize_image
     from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+    import railrl.torch.pytorch_util as ptu
+    from railrl.misc.asset_loader import load_local_or_remote_file
     info = {}
     if dataset_path is not None:
-        filename = local_path_from_s3_or_local_path(dataset_path)
-        dataset = np.load(filename)
+        dataset = load_local_or_remote_file(dataset_path)
         N = dataset.shape[0]
     else:
         if env_kwargs is None:
@@ -213,12 +222,13 @@ def generate_vae_dataset(variant):
             save_file_prefix = env_id
         if save_file_prefix is None:
             save_file_prefix = env_class.__name__
-        filename = "/tmp/{}_N{}_{}_imsize{}_oracle{}.npy".format(
+        filename = "/tmp/{}_N{}_{}_imsize{}_random_oracle_split_{}{}.npy".format(
             save_file_prefix,
             str(N),
             init_camera.__name__ if init_camera else '',
             imsize,
-            oracle_dataset,
+            random_and_oracle_policy_data_split,
+            tag,
         )
         if use_cached and osp.isfile(filename):
             dataset = np.load(filename)
@@ -252,17 +262,47 @@ def generate_vae_dataset(variant):
                 env.non_presampled_goal_img_is_garbage = non_presampled_goal_img_is_garbage
             env.reset()
             info['env'] = env
-
+            if oracle_dataset_from_policy or random_and_oracle_policy_data:
+                policy_file = load_local_or_remote_file(policy_file)
+                policy = policy_file['policy']
+                if ptu.gpu_enabled():
+                    policy.cuda()
             dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
             for i in range(N):
-                if oracle_dataset:
+                if random_and_oracle_policy_data:
+                    num_random_steps = int(N*random_and_oracle_policy_data_split)
+                    if i < num_random_steps:
+                        env.reset()
+                        for _ in range(n_random_steps):
+                            obs = env.step(env.action_space.sample())[0]
+                    else:
+                        obs = env.reset()
+                        policy.reset()
+                        for _ in range(n_random_steps):
+                            policy_obs = np.hstack((
+                                obs['state_observation'],
+                                obs['state_desired_goal'],
+                            ))
+                            action, _ = policy.get_action(policy_obs)
+                            obs = env.step(action)[0]
+                elif oracle_dataset_from_policy:
+                    obs = env.reset()
+                    policy.reset()
+                    for _ in range(n_random_steps):
+                        policy_obs = np.hstack((
+                            obs['state_observation'],
+                            obs['state_desired_goal'],
+                        ))
+                        action, _ = policy.get_action(policy_obs)
+                        obs = env.step(action)[0]
+                elif oracle_dataset:
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
+                    obs = env._get_obs()
                 else:
                     env.reset()
                     for _ in range(n_random_steps):
                         obs = env.step(env.action_space.sample())[0]
-                obs = env.step(env.action_space.sample())[0]
                 img = obs['image_observation']
                 dataset[i, :] = unormalize_image(img)
                 if show:
@@ -278,7 +318,6 @@ def generate_vae_dataset(variant):
     train_dataset = dataset[:n, :]
     test_dataset = dataset[n:, :]
     return train_dataset, test_dataset, info
-
 
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv
@@ -1323,6 +1362,123 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
             variant,
         )
         algorithm.post_epoch_funcs.append(video_func)
+    algorithm.train()
+
+def HER_baseline_her_td3_experiment(variant):
+    import railrl.samplers.rollout_functions as rf
+    import railrl.torch.pytorch_util as ptu
+    from railrl.data_management.obs_dict_replay_buffer import \
+        ObsDictRelabelingBuffer
+    from railrl.exploration_strategies.base import (
+        PolicyWrappedWithExplorationStrategy
+    )
+    from railrl.torch.her.her_td3 import HerTd3
+    from railrl.torch.networks import MergedCNN, CNNPolicy
+    import torch
+    from multiworld.core.image_env import ImageEnv
+
+    init_camera = variant.get("init_camera", None)
+    presample_goals = variant.get('presample_goals', False)
+    presampled_goals_path = variant.get('presampled_goals_path', None)
+
+    if 'env_id' in variant:
+        import gym
+        from gym.envs import registration
+        # trigger registration
+        import multiworld.envs.pygame
+        import multiworld.envs.mujoco
+        env = gym.make(variant['env_id'])
+    else:
+        env = variant["env_class"](**variant['env_kwargs'])
+    image_env = ImageEnv(
+        env,
+        variant.get('imsize'),
+        reward_type='image_distance',
+        init_camera=init_camera,
+        transpose=True,
+        normalize=True,
+    )
+    if presample_goals:
+        if presampled_goals_path is None:
+            image_env.non_presampled_goal_img_is_garbage = True
+            presampled_goals = variant['generate_goal_dataset_fctn'](
+                env=image_env,
+                **variant['goal_generation_kwargs']
+            )
+            del image_env
+            env = ImageEnv(
+                env,
+                variant.get('imsize'),
+                reward_type='image_distance',
+                init_camera=init_camera,
+                transpose=True,
+                normalize=True,
+                presampled_goals=presampled_goals
+            )
+    else:
+        env = image_env
+
+    es = get_exploration_strategy(variant, env)
+
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    imsize=variant['imsize']
+    action_dim = env.action_space.low.size
+    qf1 = MergedCNN(input_width=imsize,
+                    input_height=imsize,
+                    output_size=1,
+                    input_channels=3 * 2,
+                    added_fc_input_size=action_dim,
+                    **variant['cnn_params']
+                    )
+    qf2 = MergedCNN(input_width=imsize,
+                    input_height=imsize,
+                    output_size=1,
+                    input_channels=3 * 2,
+                    added_fc_input_size=action_dim,
+                    **variant['cnn_params']
+                    )
+
+    policy = CNNPolicy(input_width=imsize,
+                       input_height=imsize,
+                       added_fc_input_size=0,
+                       output_size=action_dim,
+                       input_channels=3 * 2,
+                       output_activation=torch.tanh,
+                       **variant['cnn_params'],
+                       )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+
+    replay_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_buffer_kwargs']
+    )
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['replay_buffer'] = replay_buffer
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = env
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
+    her_kwargs = algo_kwargs['her_kwargs']
+    her_kwargs['observation_key'] = observation_key
+    her_kwargs['desired_goal_key'] = desired_goal_key
+    algorithm = HerTd3(
+        env,
+        qf1=qf1,
+        qf2=qf2,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        **variant['algo_kwargs']
+    )
+
+    algorithm.to(ptu.device)
     algorithm.train()
 
 
