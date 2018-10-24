@@ -1,6 +1,7 @@
 import gym
 
 import multiworld.envs.mujoco
+import multiworld.envs.pygame
 import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.obs_dict_replay_buffer import (
