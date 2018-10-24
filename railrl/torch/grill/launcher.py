@@ -195,16 +195,22 @@ def generate_vae_dataset(variant):
     init_camera = variant.get('init_camera', None)
     dataset_path = variant.get('dataset_path', None)
     oracle_dataset = variant.get('oracle_dataset', False)
+    oracle_dataset_from_policy=variant.get('oracle_dataset_from_policy', False)
+    random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
+    random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
+    policy_file = variant.get('policy_file', None)
     n_random_steps = variant.get('n_random_steps', 100)
     vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
     save_file_prefix = variant.get('save_file_prefix', None)
     non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
+    tag = variant.get('tag', '')
     from multiworld.core.image_env import ImageEnv, unormalize_image
     from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+    import railrl.torch.pytorch_util as ptu
+    from railrl.misc.asset_loader import load_local_or_remote_file
     info = {}
     if dataset_path is not None:
-        filename = local_path_from_s3_or_local_path(dataset_path)
-        dataset = np.load(filename)
+        dataset = load_local_or_remote_file(dataset_path)
         N = dataset.shape[0]
     else:
         if env_kwargs is None:
@@ -213,12 +219,13 @@ def generate_vae_dataset(variant):
             save_file_prefix = env_id
         if save_file_prefix is None:
             save_file_prefix = env_class.__name__
-        filename = "/tmp/{}_N{}_{}_imsize{}_oracle{}.npy".format(
+        filename = "/tmp/{}_N{}_{}_imsize{}_random_oracle_split_{}{}.npy".format(
             save_file_prefix,
             str(N),
             init_camera.__name__ if init_camera else '',
             imsize,
-            oracle_dataset,
+            random_and_oracle_policy_data_split,
+            tag,
         )
         if use_cached and osp.isfile(filename):
             dataset = np.load(filename)
@@ -252,16 +259,46 @@ def generate_vae_dataset(variant):
                 env.non_presampled_goal_img_is_garbage = non_presampled_goal_img_is_garbage
             env.reset()
             info['env'] = env
-
+            if oracle_dataset_from_policy or random_and_oracle_policy_data:
+                policy_file = load_local_or_remote_file(policy_file)
+                policy = policy_file['policy']
+                if ptu.gpu_enabled():
+                    policy.cuda()
             dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
             for i in range(N):
-                if oracle_dataset:
+                if random_and_oracle_policy_data:
+                    num_random_steps = int(N*random_and_oracle_policy_data_split)
+                    if i < num_random_steps:
+                        env.reset()
+                        for _ in range(n_random_steps):
+                            obs = env.step(env.action_space.sample())[0]
+                    else:
+                        obs = env.reset()
+                        policy.reset()
+                        for _ in range(n_random_steps):
+                            policy_obs = np.hstack((
+                                obs['state_observation'],
+                                obs['state_desired_goal'],
+                            ))
+                            action, _ = policy.get_action(policy_obs)
+                            obs, _, _, _ = env.step(action)
+                elif oracle_dataset_from_policy:
+                    obs = env.reset()
+                    policy.reset()
+                    for _ in range(n_random_steps):
+                        policy_obs = np.hstack((
+                            obs['state_observation'],
+                            obs['state_desired_goal'],
+                        ))
+                        action, _ = policy.get_action(policy_obs)
+                        obs, _, _, _ = env.step(action)
+                elif oracle_dataset:
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
                 else:
                     env.reset()
                     for _ in range(n_random_steps):
-                        obs = env.step(env.action_space.sample())[0]
+                        env.step(env.action_space.sample())
                 obs = env.step(env.action_space.sample())[0]
                 img = obs['image_observation']
                 dataset[i, :] = unormalize_image(img)
@@ -278,7 +315,6 @@ def generate_vae_dataset(variant):
     train_dataset = dataset[:n, :]
     test_dataset = dataset[n:, :]
     return train_dataset, test_dataset, info
-
 
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv

@@ -47,7 +47,7 @@ if __name__ == "__main__":
             algorithm='OFFLINE-VAE-RECON-HER-TD3',
             normalize=False,
             render=False,
-            exploration_noise=0.8,
+            exploration_noise=0.3,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -60,8 +60,8 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=False,
-                # policy_file='09-26-sawyer-hook-door-sweep-envs/09-26-sawyer_hook_door_sweep_envs_2018_09_26_16_58_00_id000--s25573/params.pkl',
                 path_length=100,
+                policy_file='10-23-sawyer-door-v5-es-sweep/10-23-sawyer_door_v5_es_sweep_2018_10_24_00_13_10_id000--s3382/params.pkl',
                 show=False,
             ),
             presample_goals=True,
@@ -80,14 +80,11 @@ if __name__ == "__main__":
                 N=5000,
                 oracle_dataset=False,
                 use_cached=False,
-                oracle_dataset_from_policy=False,
-                random_and_oracle_policy_data=True,
-                random_and_oracle_policy_data_split=0,
+                oracle_dataset_from_policy=True,
                 non_presampled_goal_img_is_garbage=True,
                 vae_dataset_specific_kwargs=dict(),
-                # policy_file='09-26-sawyer-hook-door-sweep-envs/09-26-sawyer_hook_door_sweep_envs_2018_09_26_16_58_00_id000--s25573/params.pkl', #train state based policy to solve reset door task
-                n_random_steps=100,
-                show=False,
+                policy_file='10-23-sawyer-door-v5-es-sweep/10-23-sawyer_door_v5_es_sweep_2018_10_24_00_13_10_id000--s3382/params.pkl',
+                show=True,
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -110,13 +107,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'sawyer_harder_door_offline_vae_final'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_harder_door_offline_vae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
