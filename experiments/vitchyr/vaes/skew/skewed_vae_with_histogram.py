@@ -38,11 +38,11 @@ if __name__ == '__main__':
         vae_kwargs=dict(
             mode='importance_sampling',
             min_prob=1e-6,
-            n_average=100,
-            batch_size=500,
+            n_average=10,
+            batch_size=32,
             weight_loss=True,
             skew_sampling=False,
-            num_inner_vae_epochs=10,
+            num_inner_vae_epochs=100,
         ),
         use_dataset_generator_first_epoch=True,
         skew_config=dict(
@@ -72,13 +72,19 @@ if __name__ == '__main__':
         # ],
         # 'vae_kwargs.n_average': [
         #     1,
-            # 2,
-            # 5,
-            # 10,
+        #     2,
+        #     5,
+        #     10,
         # ],
-        'append_all_data': [
+        'vae_kwargs.weight_loss': [
             True,
-            # False,
+        ],
+        'vae_kwargs.skew_sampling': [
+            False,
+        ],
+        'append_all_data': [
+            # True,
+            False,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

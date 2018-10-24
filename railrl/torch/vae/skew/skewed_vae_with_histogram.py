@@ -31,8 +31,9 @@ K = 6
 Plotting
 """
 
+
 def visualize_vae_samples(
-        epoch, vis_samples_np, vae,
+        epoch, training_data, vae,
         report, dynamics,
         n_vis=1000,
         xlim=(-1.5, 1.5),
@@ -40,10 +41,10 @@ def visualize_vae_samples(
 ):
     plt.figure()
     plt.suptitle("Epoch {}".format(epoch))
-    n_samples = len(vis_samples_np)
+    n_samples = len(training_data)
     skip_factor = max(n_samples // n_vis, 1)
-    vis_samples_np = vis_samples_np[::skip_factor]
-    reconstructed_samples = vae.reconstruct(vis_samples_np)
+    training_data = training_data[::skip_factor]
+    reconstructed_samples = vae.reconstruct(training_data)
     generated_samples = vae.sample(n_vis)
     projected_generated_samples = dynamics(generated_samples)
     plt.subplot(2, 2, 1)
@@ -62,19 +63,19 @@ def visualize_vae_samples(
         plt.ylim(*ylim)
     plt.title("Projected Generated Samples")
     plt.subplot(2, 2, 3)
+    plt.plot(training_data[:, 0], training_data[:, 1], '.')
+    if xlim is not None:
+        plt.xlim(*xlim)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    plt.title("Training Data")
+    plt.subplot(2, 2, 4)
     plt.plot(reconstructed_samples[:, 0], reconstructed_samples[:, 1], '.')
     if xlim is not None:
         plt.xlim(*xlim)
     if ylim is not None:
         plt.ylim(*ylim)
     plt.title("Reconstruction")
-    plt.subplot(2, 2, 4)
-    plt.plot(vis_samples_np[:, 0], vis_samples_np[:, 1], '.')
-    if xlim is not None:
-        plt.xlim(*xlim)
-    if ylim is not None:
-        plt.ylim(*ylim)
-    plt.title("Original Samples")
 
     fig = plt.gcf()
     sample_img = vu.save_image(fig)
@@ -262,12 +263,12 @@ def train(
             else:
                 vae_samples = vae.sample(n_samples_to_add_per_epoch)
         projected_samples = dynamics(vae_samples)
-        p_theta.fit(projected_samples)
         if append_all_data:
             train_data = np.vstack((train_data, projected_samples))
         else:
             train_data = np.vstack((orig_train_data, projected_samples))
 
+        p_theta.fit(train_data)
         if use_perfect_density:
             prob = p_theta.compute_density(train_data)
         else:
@@ -286,16 +287,6 @@ def train(
                 epoch, train_data, vae, report, dynamics,
             )
 
-            visualize_samples(
-                vae_samples,
-                report,
-                title="VAE Samples"
-            )
-            visualize_samples(
-                train_data,
-                report,
-                title="Projected VAE Samples"
-            )
             visualize_samples(
                 p_theta.sample(n_samples_to_add_per_epoch),
                 report,
