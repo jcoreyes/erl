@@ -72,7 +72,7 @@ RUN pip install dominate==2.3.1
 RUN pip install ray==0.2.2
 RUN pip install path.py==10.3.1
 
-RUN pip install http://download.pytorch.org/whl/cu80/torch-0.4.0-cp35-cp35m-linux_x86_64.whl
+RUN pip install http://download.pytorch.org/whl/cu80/torch-0.4.1-cp35-cp35m-linux_x86_64.whl
 RUN pip install joblib==0.9.4
 
 # If you're curious what the DEBIAN_FRONTEND is all about:
