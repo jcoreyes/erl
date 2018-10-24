@@ -9,15 +9,14 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=1000,
+                num_epochs=150,
                 num_steps_per_epoch=1000,
-                num_steps_per_eval=5000,
+                num_steps_per_eval=1000,
                 max_path_length=50,
                 num_updates_per_env_step=1,
                 batch_size=128,
                 discount=0.99,
-                # min_num_steps_before_training=1000,
-                min_num_steps_before_training=1,
+                min_num_steps_before_training=10000,
                 reward_scale=1,
                 render=False,
             ),
@@ -55,7 +54,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'sss'
-    exp_prefix = 'fetch-reach-test'
+    exp_prefix = 'fetch-reach-her-vs-tdm-her-mode'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):

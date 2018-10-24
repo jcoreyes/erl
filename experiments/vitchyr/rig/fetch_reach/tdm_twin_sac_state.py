@@ -9,10 +9,10 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=1000,
+                num_epochs=150,
                 num_steps_per_epoch=1000,
-                num_steps_per_eval=5000,
-                max_path_length=500,
+                num_steps_per_eval=1000,
+                max_path_length=50,
                 num_updates_per_env_step=1,
                 batch_size=128,
                 discount=1,
@@ -65,9 +65,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 5
-    mode = 'ec2'
-    exp_prefix = 'fetch-reach-test'
+    n_seeds = 3
+    mode = 'sss'
+    exp_prefix = 'fetch-reach-her-vs-tdm-her-mode'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
