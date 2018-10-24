@@ -28,9 +28,9 @@ if __name__ == '__main__':
         # save_period=50,
         save_period=1,
         n_epochs=50,
-        n_samples_to_add_per_epoch=10000,
+        # n_samples_to_add_per_epoch=10000,
         # n_epochs=5,
-        # n_samples_to_add_per_epoch=10,
+        n_samples_to_add_per_epoch=200,
         n_start_samples=0,
         z_dim=16,
         hidden_size=32,
@@ -46,7 +46,9 @@ if __name__ == '__main__':
         ),
         use_dataset_generator_first_epoch=True,
         skew_config=dict(
-            weight_type='sqrt_inv_p',
+            # weight_type='sqrt_inv_p',
+            weight_type='exp',
+            alpha=-1.,
             minimum_prob=1e-6,
         ),
         projection=project_square_border_np,
@@ -60,7 +62,7 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = 'local'
     exp_prefix = 'dev'
-    exp_prefix = '2d-fitskew-toggle-append-all-data-2'
+    exp_prefix = '2d-fitskew-append-all-data-fix'
 
     search_space = {
         # 'vae_kwargs.mode': [
@@ -69,14 +71,14 @@ if __name__ == '__main__':
             # 'prior',
         # ],
         # 'vae_kwargs.n_average': [
-            # 1,
+        #     1,
             # 2,
             # 5,
             # 10,
         # ],
         'append_all_data': [
             True,
-            False,
+            # False,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -90,5 +92,5 @@ if __name__ == '__main__':
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-                skip_wait=True,
+                # skip_wait=True,
             )
