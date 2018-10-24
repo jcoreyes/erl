@@ -195,7 +195,7 @@ class VAE(PyTorchModule):
         for _ in range(self.num_inner_vae_epochs):
             for _, indexed_batch in enumerate(train_dataloader):
                 idxs, batch = indexed_batch
-                batch = Variable(batch[0].float())
+                batch = batch[0].float().to(ptu.device)
 
                 latents, means, log_vars, stds = (
                     self.encoder.get_encoding_and_suff_stats(

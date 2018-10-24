@@ -240,6 +240,11 @@ def ones(*sizes, torch_device=None, **kwargs):
         torch_device = device
     return torch.ones(*sizes, **kwargs, device=torch_device)
 
+def ones_like(*args, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.ones_like(*args, **kwargs, device=torch_device)
+
 def randn(*args, torch_device=None, **kwargs):
     if torch_device is None:
         torch_device = device
