@@ -2,14 +2,21 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place \
         import get_image_presampled_goals
 import numpy as np
 import cv2
+import os.path as osp
+import random
 
 def setup_pickup_image_env(image_env, num_presampled_goals):
     """
     Image env and pickup env will have presampled goals. VAE wrapper should
     encode whatever presampled goal is sampled.
     """
-    goals = get_image_presampled_goals(image_env, num_presampled_goals)
-    image_env.set_presampled_goals(goals)
+    presampled_goals = get_image_presampled_goals(image_env, num_presampled_goals)
+    image_env._presampled_goals = presampled_goals
+    image_env.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
+
+def get_image_presampled_goals_from_vae_env(env, num_presampled_goals):
+    image_env = env.wrapped_env
+    return get_image_presampled_goals(image_env, num_presampled_goals)
 
 def generate_vae_dataset(
         env_class=None,
