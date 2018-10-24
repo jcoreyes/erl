@@ -77,8 +77,8 @@ class CNN(PyTorchModule):
             self.conv_layers.append(conv_layer)
             input_channels = out_channels
 
-        # find output dimension of conv_layers by trial and add normalization conv layers
-        test_mat = ptu.zeros(1, self.input_channels, self.input_width, self.input_height)
+        # find output dim of conv_layers by trial and add normalization conv layers
+        test_mat = torch.zeros(1, self.input_channels, self.input_width, self.input_height) #initially the model is on CPU (caller should then move it to GPU if
         for conv_layer in self.conv_layers:
             test_mat = conv_layer(test_mat)
             self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
@@ -106,11 +106,11 @@ class CNN(PyTorchModule):
 
         conv_input = input.narrow(start=0,
                                   length=self.conv_input_length,
-                                  dimension=1).contiguous()
+                                  dim=1).contiguous()
         if fc_input:
             extra_fc_input = input.narrow(start=self.conv_input_length,
                                         length=self.added_fc_input_size,
-                                        dimension=1)
+                                        dim=1)
         # need to reshape from batch of flattened images into (channsls, w, h)
         h = conv_input.view(conv_input.shape[0],
                        self.input_channels,
@@ -251,7 +251,7 @@ class Mlp(PyTorchModule):
 
 class FlattenMlp(Mlp):
     """
-    Flatten inputs along dimension 1 and then pass through MLP.
+    Flatten inputs along dim 1 and then pass through MLP.
     """
 
     def forward(self, *inputs, **kwargs):
