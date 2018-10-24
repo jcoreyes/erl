@@ -1,14 +1,13 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
         imsize=84,
-        init_camera=sawyer_door_env_camera_v3,
-        env_id='SawyerDoorHookEnv-v5',
+        init_camera=sawyer_pusher_camera_upright_v2,
+        env_id='SawyerPushAndReachXYEnv-v0',
         grill_variant=dict(
             save_video=True,
             save_video_period=50,
@@ -44,7 +43,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
-            algorithm='OFFLINE-VAE-RECON-HER-TD3',
+            algorithm='OFFLINE-VAE-HER-TD3',
             normalize=False,
             render=False,
             exploration_noise=0.3,
@@ -56,15 +55,6 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
-            generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
-            goal_generation_kwargs=dict(
-                num_goals=1000,
-                use_cached_dataset=False,
-                path_length=100,
-                policy_file='10-23-sawyer-door-v5-es-sweep/10-23-sawyer_door_v5_es_sweep_2018_10_24_00_13_10_id000--s3382/params.pkl',
-                show=False,
-            ),
-            presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             )
@@ -78,12 +68,9 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=5000,
-                oracle_dataset=False,
+                oracle_dataset=True,
                 use_cached=False,
-                oracle_dataset_from_policy=True,
-                non_presampled_goal_img_is_garbage=True,
                 vae_dataset_specific_kwargs=dict(),
-                policy_file='10-23-sawyer-door-v5-es-sweep/10-23-sawyer_door_v5_es_sweep_2018_10_24_00_13_10_id000--s3382/params.pkl',
                 show=False,
             ),
             vae_kwargs=dict(
@@ -113,7 +100,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'sawyer_door_offline_vae_final'
+    exp_prefix = 'sawyer_pusher_offline_vae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

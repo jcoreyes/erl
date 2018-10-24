@@ -281,7 +281,7 @@ def generate_vae_dataset(variant):
                                 obs['state_desired_goal'],
                             ))
                             action, _ = policy.get_action(policy_obs)
-                            obs, _, _, _ = env.step(action)
+                            obs = env.step(action)[0]
                 elif oracle_dataset_from_policy:
                     obs = env.reset()
                     policy.reset()
@@ -291,15 +291,15 @@ def generate_vae_dataset(variant):
                             obs['state_desired_goal'],
                         ))
                         action, _ = policy.get_action(policy_obs)
-                        obs, _, _, _ = env.step(action)
+                        obs = env.step(action)[0]
                 elif oracle_dataset:
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
+                    obs = env._get_obs()
                 else:
                     env.reset()
                     for _ in range(n_random_steps):
-                        env.step(env.action_space.sample())
-                obs = env.step(env.action_space.sample())[0]
+                        obs = env.step(env.action_space.sample())[0]
                 img = obs['image_observation']
                 dataset[i, :] = unormalize_image(img)
                 if show:
