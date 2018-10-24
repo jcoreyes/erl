@@ -24,7 +24,7 @@ if __name__ == "__main__":
         env_id='FetchPush-v1',
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_are_rollout_goals=0.,
+            fraction_goals_are_rollout_goals=0.2,
             fraction_resampled_goals_are_env_goals=0.,
         ),
         qf_kwargs=dict(
@@ -48,7 +48,13 @@ if __name__ == "__main__":
         observation_key='observation',
         desired_goal_key='desired_goal',
     )
-    search_space = {}
+    search_space = {
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [
+            1,
+            4,
+            8,
+        ],
+    }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
@@ -58,8 +64,8 @@ if __name__ == "__main__":
     exp_prefix = 'dev'
 
     n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'fetch-push-test-post-rb-fix'
+    mode = 'sss'
+    exp_prefix = 'fetch-push-test-her-td3-with-her'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
@@ -68,7 +74,7 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                time_in_mins=23*60,
+                time_in_mins=int(2.5*24*60),
                 snapshot_mode='gap_and_last',
-                snapshot_gap=100,
+                snapshot_gap=250,
             )

@@ -7,7 +7,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=1000,
+                num_epochs=300,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=50,
@@ -24,7 +24,7 @@ if __name__ == "__main__":
         env_id='FetchReach-v1',
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_are_rollout_goals=0.,
+            fraction_goals_are_rollout_goals=0.2,
             fraction_resampled_goals_are_env_goals=0.,
         ),
         qf_kwargs=dict(
@@ -43,7 +43,14 @@ if __name__ == "__main__":
         observation_key='observation',
         desired_goal_key='desired_goal',
     )
-    search_space = {}
+    search_space = {
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [
+            1,
+            2,
+            4,
+            8,
+        ],
+    }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
@@ -54,7 +61,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'sss'
-    exp_prefix = 'fetch-reach-test'
+    exp_prefix = 'fetch-reach-her-td3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
