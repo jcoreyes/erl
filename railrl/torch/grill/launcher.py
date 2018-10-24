@@ -112,7 +112,7 @@ def train_vae_and_update_variant(variant):
     else:
         if grill_variant.get('save_vae_data', False):
             vae_train_data, vae_test_data, info = generate_vae_dataset(
-                train_vae_variant['generate_vae_dataset_kwargs']
+                **train_vae_variant['generate_vae_dataset_kwargs']
             )
             grill_variant['vae_train_data'] = vae_train_data
             grill_variant['vae_test_data'] = vae_test_data
@@ -134,7 +134,7 @@ def train_vae(variant, return_data=False):
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
                                             generate_vae_dataset)
     train_data, test_data, info = generate_vae_dataset_fctn(
-        variant['generate_vae_dataset_kwargs']
+        **variant['generate_vae_dataset_kwargs']
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
