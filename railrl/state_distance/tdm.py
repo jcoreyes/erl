@@ -116,13 +116,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         )
         self.pretrain_obs = None
 
-        # the rl_algorithm constructor is called before the tdm's, so
-        # initializing the rollout function must be done here instead of
-        # overriding the function
-        from railrl.samplers.rollout_functions import \
-                create_rollout_function, tdm_rollout, tau_sampling_tdm_rollout
-
-
         # Serializing this eval_rollout_function creates an infinite loop for
         # some reason. Calling cloudpickle.dumps(self.eval_rollout_function) will
         # literally fill your entire RAM/swap.
