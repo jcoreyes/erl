@@ -50,6 +50,7 @@ class HERExploration(TorchRLAlgorithm):
         self.observation_key = observation_key
         self.desired_goal_key = desired_goal_key
         self.rollout_goal_params = rollout_goal_params
+        self._rollout_goal = None
 
         self.train_rollout_function = create_rollout_function(
             multitask_rollout,
@@ -65,7 +66,7 @@ class HERExploration(TorchRLAlgorithm):
 
         rgp = self.rollout_goal_params
         if rgp is None:
-            self._rollout_goal = self.training_env.get_goal()
+            self._rollout_goal = o[self.desired_goal_key]
         elif rgp["strategy"] == "ensemble_qs":
             exploration_temperature = rgp["exploration_temperature"]
             assert len(self.ensemble_qs) > 0
@@ -99,6 +100,7 @@ class HERExploration(TorchRLAlgorithm):
             agent_info,
             env_info,
     ):
+        observation[self.desired_goal_key] = self._rollout_goal
         self._current_path_builder.add_all(
             observations=observation,
             actions=action,
@@ -107,7 +109,6 @@ class HERExploration(TorchRLAlgorithm):
             terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
-            goals=self._rollout_goal,
         )
 
     def _handle_path(self, path):
@@ -145,12 +146,10 @@ class HERExploration(TorchRLAlgorithm):
         :return:
         """
         self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
-        goal = self._rollout_goal
-        if self.observation_key:
-            observation = observation[self.observation_key]
-        if self.desired_goal_key:
-            goal = self._rollout_goal[self.desired_goal_key]
-        new_obs = np.hstack((observation, goal))
+        new_obs = np.hstack((
+            observation[self.observation_key],
+            self._rollout_goal,
+        ))
         return self.exploration_policy.get_action(new_obs)
 
     def get_eval_paths(self):

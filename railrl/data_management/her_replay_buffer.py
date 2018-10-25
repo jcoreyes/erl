@@ -35,6 +35,9 @@ class HerReplayBuffer(EnvReplayBuffer):
         - 'uniform': Sample them uniformly
         - 'truncated_geometric': Used a truncated geometric distribution
         """
+        raise DeprecationWarning(
+            "Are you sure you're not supposed to use ObsDictRelabelingBuffer?"
+        )
         assert resampling_strategy in [
             'uniform',
             'truncated_geometric',
