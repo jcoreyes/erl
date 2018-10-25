@@ -55,9 +55,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'fetch-push-test-post-rb-fix'
+    # n_seeds = 5
+    # mode = 'ec2'
+    # exp_prefix = 'fetch-push-test'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):

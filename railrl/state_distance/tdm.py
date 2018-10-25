@@ -10,6 +10,11 @@ from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc.np_util import truncated_geometric
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.policies.base import SerializablePolicy
+
+from railrl.samplers.rollout_functions import (
+    create_rollout_function,
+    tdm_rollout,
+)
 from railrl.state_distance.policies import UniversalPolicy
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
     multitask_rollout
@@ -111,22 +116,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         )
         self.pretrain_obs = None
 
-        # the rl_algorithm constructor is called before the tdm's, so
-        # initializing the rollout function must be done here instead of
-        # overriding the function
-        from railrl.samplers.rollout_functions import \
-                create_rollout_function, tdm_rollout, tau_sampling_tdm_rollout
-
-        self.train_rollout_function = create_rollout_function(
-            tdm_rollout,
-            init_tau=self.max_tau,
-            cycle_tau=self.cycle_taus_for_rollout,
-            decrement_tau=self.cycle_taus_for_rollout,
-            observation_key=self.observation_key,
-            desired_goal_key=self.desired_goal_key,
-        )
-        self.eval_rollout_function = self.train_rollout_function
-
         # Serializing this eval_rollout_function creates an infinite loop for
         # some reason. Calling cloudpickle.dumps(self.eval_rollout_function) will
         # literally fill your entire RAM/swap.
@@ -139,6 +128,28 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         #     observation_key=self.observation_key,
         #     desired_goal_key=self.desired_goal_key,
         # )
+
+    @property
+    def train_rollout_function(self):
+        return create_rollout_function(
+            tdm_rollout,
+            init_tau=self.max_tau,
+            cycle_tau=self.cycle_taus_for_rollout,
+            decrement_tau=self.cycle_taus_for_rollout,
+            observation_key=self.observation_key,
+            desired_goal_key=self.desired_goal_key,
+        )
+
+    @property
+    def eval_rollout_function(self):
+        return create_rollout_function(
+            tdm_rollout,
+            init_tau=self.max_tau,
+            cycle_tau=self.cycle_taus_for_rollout,
+            decrement_tau=self.cycle_taus_for_rollout,
+            observation_key=self.observation_key,
+            desired_goal_key=self.desired_goal_key,
+        )
 
     def _start_epoch(self, epoch):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)

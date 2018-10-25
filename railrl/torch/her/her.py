@@ -1,6 +1,10 @@
 import numpy as np
 import torch
 from railrl.data_management.path_builder import PathBuilder
+from railrl.samplers.rollout_functions import (
+    create_rollout_function,
+    multitask_rollout,
+)
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
 
@@ -41,15 +45,21 @@ class HER(TorchRLAlgorithm):
         self.desired_goal_key = desired_goal_key
         self._rollout_goal_vector = None
 
-    def init_rollout_function(self):
-        from railrl.samplers.rollout_functions \
-                import multitask_rollout, create_rollout_function
-        self.train_rollout_function = create_rollout_function(
+    @property
+    def train_rollout_function(self):
+        return create_rollout_function(
             multitask_rollout,
             observation_key=self.observation_key,
             desired_goal_key=self.desired_goal_key
         )
-        self.eval_rollout_function = self.train_rollout_function
+
+    @property
+    def eval_rollout_function(self):
+        return create_rollout_function(
+            multitask_rollout,
+            observation_key=self.observation_key,
+            desired_goal_key=self.desired_goal_key
+        )
 
     def _handle_step(
             self,
