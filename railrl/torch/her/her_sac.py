@@ -3,6 +3,10 @@ from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer, \
     RelabelingReplayBuffer
 from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
+from railrl.samplers.rollout_functions import (
+    create_rollout_function,
+    multitask_rollout,
+)
 from railrl.torch.her.her import HER
 from railrl.torch.sac.sac import SoftActorCritic
 
@@ -27,6 +31,12 @@ class HerSac(HER, SoftActorCritic):
             self.replay_buffer, RelabelingReplayBuffer
         ) or isinstance(
             self.replay_buffer, ObsDictRelabelingBuffer
+        )
+        self.eval_rollout_function = create_rollout_function(
+            multitask_rollout,
+            observation_key=self.observation_key,
+            desired_goal_key=self.desired_goal_key,
+            get_action_kwargs=dict(deterministic=True),
         )
 
     def get_eval_action(self, observation, goal):
