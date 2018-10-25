@@ -14,6 +14,7 @@ from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc import eval_util
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
+from railrl.samplers.rollout_functions import rollout
 import railrl.envs.env_utils as env_utils
 
 
@@ -153,12 +154,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.parallel_step_ratio = parallel_step_ratio
         self.sim_throttle = sim_throttle
         self.parallel_env_params = parallel_env_params or {}
-        self.init_rollout_function()
+        self.train_rollout_function = rollout
+        self.eval_rollout_function = self.train_rollout_function
         self.post_epoch_funcs = []
-
-        # Needed for train-parallel
-        self.train_rollout_function = None
-        self.eval_rollout_function = None
 
     def train(self, start_epoch=0):
         self.pretrain()
@@ -287,11 +285,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._try_to_eval(epoch)
             gt.stamp('eval')
             self._end_epoch()
-
-    def init_rollout_function(self):
-        from railrl.samplers.rollout_functions import rollout
-        self.train_rollout_function = rollout
-        self.eval_rollout_function = self.train_rollout_function
 
     def train_parallel(self, start_epoch=0):
         self.parallel_env = RemoteRolloutEnv(
