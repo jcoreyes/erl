@@ -154,8 +154,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.parallel_step_ratio = parallel_step_ratio
         self.sim_throttle = sim_throttle
         self.parallel_env_params = parallel_env_params or {}
-        self.train_rollout_function = rollout
-        self.eval_rollout_function = self.train_rollout_function
         self.post_epoch_funcs = []
 
     def train(self, start_epoch=0):
@@ -354,6 +352,14 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._post_epoch(epoch)
             self._try_to_eval(epoch, eval_paths=eval_paths)
             self._end_epoch()
+
+    @property
+    def train_rollout_function(self):
+        return rollout
+
+    @property
+    def eval_rollout_function(self):
+        return rollout
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)

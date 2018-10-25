@@ -44,12 +44,21 @@ class HER(TorchRLAlgorithm):
         self.observation_key = observation_key
         self.desired_goal_key = desired_goal_key
 
-        self.train_rollout_function = create_rollout_function(
+    @property
+    def train_rollout_function(self):
+        return create_rollout_function(
             multitask_rollout,
             observation_key=self.observation_key,
             desired_goal_key=self.desired_goal_key
         )
-        self.eval_rollout_function = self.train_rollout_function
+
+    @property
+    def eval_rollout_function(self):
+        return create_rollout_function(
+            multitask_rollout,
+            observation_key=self.observation_key,
+            desired_goal_key=self.desired_goal_key
+        )
 
     def _start_new_rollout(self):
         self.exploration_policy.reset()

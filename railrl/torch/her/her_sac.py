@@ -32,7 +32,10 @@ class HerSac(HER, SoftActorCritic):
         ) or isinstance(
             self.replay_buffer, ObsDictRelabelingBuffer
         )
-        self.eval_rollout_function = create_rollout_function(
+
+    @property
+    def eval_rollout_function(self):
+        return create_rollout_function(
             multitask_rollout,
             observation_key=self.observation_key,
             desired_goal_key=self.desired_goal_key,
