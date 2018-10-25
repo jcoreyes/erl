@@ -156,10 +156,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.init_rollout_function()
         self.post_epoch_funcs = []
 
-        # Needed for train-parallel
-        self.train_rollout_function = None
-        self.eval_rollout_function = None
-
     def train(self, start_epoch=0):
         self.pretrain()
         if start_epoch == 0:
