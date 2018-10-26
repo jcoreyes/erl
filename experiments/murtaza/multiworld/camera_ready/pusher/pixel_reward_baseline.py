@@ -43,7 +43,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
-            algorithm='PIX-REWARD-BASELINE-HER-TD3',
+            algorithm='PIX-REWARD-HER-TD3',
             normalize=False,
             render=False,
             exploration_noise=0.3,

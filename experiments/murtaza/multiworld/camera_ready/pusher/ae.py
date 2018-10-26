@@ -2,6 +2,7 @@ import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
+from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_set_to_goal
 
 if __name__ == "__main__":
     variant = dict(
@@ -43,7 +44,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
-            algorithm='OFFLINE-VAE-HER-TD3',
+            algorithm='OFFLINE-AE-HER-TD3',
             normalize=False,
             render=False,
             exploration_noise=0.3,
@@ -55,6 +56,13 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
+            generate_goal_dataset_fctn=generate_goal_dataset_using_set_to_goal,
+            goal_generation_kwargs=dict(
+                num_goals=1000,
+                use_cached_dataset=False,
+                show=False,
+            ),
+            presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             )
