@@ -53,11 +53,17 @@ if __name__ == "__main__":
         desired_goal_key='state_desired_goal',
         env_class=SawyerPushAndReachXYEnv,
         env_kwargs=dict(
-            hide_goal_markers=True,
-            action_scale=.02,
             reward_type='state_distance',
             norm_order=2,
-            num_resets_before_puck_reset=int(1)
+            reset_free=False,
+            hand_low=(-0.28, 0.3, 0.05),
+            hand_high=(0.28, 0.9, 0.3),
+            puck_low=(-.4, .2),
+            puck_high=(.4, 1),
+            goal_low=(-0.25, 0.3, 0.02, -.2, .4),
+            goal_high=(0.25, 0.875, 0.02, .2, .8),
+            num_resets_before_puck_reset=int(1),
+            num_resets_before_hand_reset=int(1),
         ),
         init_camera=sawyer_pusher_camera_upright_v2,
         do_state_exp=True,
@@ -74,13 +80,13 @@ if __name__ == "__main__":
     )
 
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_state_final'
+    mode = 'local'
+    exp_prefix = 'pusher_state'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_pusher_state_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
