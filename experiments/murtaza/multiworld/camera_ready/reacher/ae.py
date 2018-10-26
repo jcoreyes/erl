@@ -76,11 +76,11 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=.5,
-            num_epochs=1,
+            num_epochs=1000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=100,
+                N=5000,
                 oracle_dataset=True,
                 use_cached=False,
                 vae_dataset_specific_kwargs=dict(),
@@ -106,13 +106,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_xy_reacher_offline_ae_final'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'sawyer_xy_reacher_offline_ae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
