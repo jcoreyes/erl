@@ -1393,7 +1393,7 @@ def HER_baseline_her_td3_experiment(variant):
     image_env = ImageEnv(
         env,
         variant.get('imsize'),
-        reward_type='image_distance',
+        reward_type='image_sparse',
         init_camera=init_camera,
         transpose=True,
         normalize=True,

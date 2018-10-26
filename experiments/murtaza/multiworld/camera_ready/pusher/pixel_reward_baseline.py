@@ -26,7 +26,7 @@ if __name__ == "__main__":
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
-                    num_updates_per_env_step=4,
+                    num_updates_per_env_step=1,
                     collection_mode='online',
                     parallel_env_params=dict(
                         num_workers=1,

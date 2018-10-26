@@ -26,7 +26,7 @@ if __name__ == "__main__":
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
-                    num_updates_per_env_step=4,
+                    num_updates_per_env_step=1,
                     collection_mode='online',
                     parallel_env_params=dict(
                         num_workers=1,
@@ -55,7 +55,7 @@ if __name__ == "__main__":
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
                 num_goals=1000,
-                use_cached_dataset=False,
+                use_cached_dataset=True,
                 path_length=100,
                 policy_file='10-23-sawyer-door-v5-es-sweep/10-23-sawyer_door_v5_es_sweep_2018_10_24_00_13_10_id000--s3382/params.pkl',
                 show=False,
@@ -104,6 +104,7 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.exploration_noise':[.3, .5],
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 4]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

@@ -1,5 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import HER_baseline_her_td3_full_experiment
 
@@ -7,7 +8,10 @@ if __name__ == "__main__":
     variant = dict(
         imsize=84,
         init_camera=sawyer_xyz_reacher_camera,
-        env_id='SawyerReachXYEnv-v1',
+        env_class=SawyerReachXYEnv,
+        env_kwargs=dict(
+            norm_order=2,
+        ),
         grill_variant=dict(
             save_video=False,
             qf_kwargs=dict(
@@ -25,8 +29,8 @@ if __name__ == "__main__":
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
-                    num_updates_per_env_step=4,
-                    collection_mode='online-parallel',
+                    num_updates_per_env_step=1,
+                    collection_mode='online',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -93,7 +97,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.exploration_noise':[.3, .5],
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step':[1, 4]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -105,7 +109,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'ec2'
-    exp_prefix = 'sawyer_reacher_pix_reward_baseline_final'
+    exp_prefix = 'sawyer_xy_reacher_pix_reward_baseline_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
