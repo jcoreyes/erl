@@ -67,6 +67,7 @@ if __name__ == "__main__":
                 show=False,
             ),
             presample_goals=True,
+            presampled_goals_path='goals/goals_n5000_VAEWrappedEnv(ImageEnv(<SawyerReachXYEnv instance>)).npy',
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             )
