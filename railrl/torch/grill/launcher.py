@@ -1376,6 +1376,7 @@ def HER_baseline_her_td3_experiment(variant):
     from railrl.torch.networks import MergedCNN, CNNPolicy
     import torch
     from multiworld.core.image_env import ImageEnv
+    from railrl.misc.asset_loader import load_local_or_remote_file
 
     init_camera = variant.get("init_camera", None)
     presample_goals = variant.get('presample_goals', False)
@@ -1405,16 +1406,20 @@ def HER_baseline_her_td3_experiment(variant):
                 env=image_env,
                 **variant['goal_generation_kwargs']
             )
-            del image_env
-            env = ImageEnv(
-                env,
-                variant.get('imsize'),
-                reward_type='image_distance',
-                init_camera=init_camera,
-                transpose=True,
-                normalize=True,
-                presampled_goals=presampled_goals
-            )
+        else:
+            presampled_goals = load_local_or_remote_file(
+                presampled_goals_path
+            ).item()
+        del image_env
+        env = ImageEnv(
+            env,
+            variant.get('imsize'),
+            reward_type='image_distance',
+            init_camera=init_camera,
+            transpose=True,
+            normalize=True,
+            presampled_goals=presampled_goals
+        )
     else:
         env = image_env
 
