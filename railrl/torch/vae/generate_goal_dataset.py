@@ -159,7 +159,6 @@ def generate_goal_dataset_using_set_to_goal(
             goal = env.wrapped_env.sample_goal()
         else:
             goal = env.sample_goal()
-        goal = env.sample_goal()
         env.set_to_goal(goal)
         obs = env._get_obs()
         if show:
