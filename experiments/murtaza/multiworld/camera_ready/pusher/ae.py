@@ -58,7 +58,7 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
             generate_goal_dataset_fctn=generate_goal_dataset_using_set_to_goal,
             goal_generation_kwargs=dict(
-                num_goals=1000,
+                num_goals=5000,
                 use_cached_dataset=False,
                 show=False,
             ),
