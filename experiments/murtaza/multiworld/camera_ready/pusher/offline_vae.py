@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v3
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
@@ -7,8 +7,20 @@ from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 if __name__ == "__main__":
     variant = dict(
         imsize=84,
-        init_camera=sawyer_pusher_camera_upright_v3,
-        env_id='SawyerPushAndReachXYEnv-No-Arena-v0',
+        init_camera=sawyer_pusher_camera_upright_v2,
+        env_class=SawyerPushAndReachXYEnv,
+        env_kwargs=dict(
+            reward_type='puck_distance',
+            reset_free=False,
+            hand_low=(-0.28, 0.3, 0.05),
+            hand_high=(0.28, 0.9, 0.3),
+            puck_low=(-.4, .2),
+            puck_high=(.4, 1),
+            goal_low=(-0.25, 0.3, 0.02, -.2, .4),
+            goal_high=(0.25, 0.875, 0.02, .2, .8),
+            num_resets_before_puck_reset=int(1),
+            num_resets_before_hand_reset=int(1),
+        ),
         grill_variant=dict(
             save_video=True,
             save_video_period=50,
@@ -47,7 +59,7 @@ if __name__ == "__main__":
             algorithm='OFFLINE-VAE-HER-TD3',
             normalize=False,
             render=False,
-            exploration_noise=0.3,
+            exploration_noise=0.8,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -64,13 +76,13 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=.5,
-            num_epochs=2500,
+            num_epochs=5000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=1000,
+                N=10000,
                 oracle_dataset=True,
-                use_cached=True,
+                use_cached=False,
                 vae_dataset_specific_kwargs=dict(),
                 show=False,
             ),
@@ -89,21 +101,19 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.exploration_noise':[.3, .5, .8],
-        'train_vae_variant.beta':[.5, 1, 2.5],
-        'env_id':['SawyerPushAndReachXYEnv-No-Arena-v0','SawyerPushAndReachXYEnv-No-Arena-v1','SawyerPushAndReachXYEnv-No-Arena-v2',]
+        'train_vae_variant.beta':[5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_offline_vae_no_arena'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_pusher_offline_vae_no_arena'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
