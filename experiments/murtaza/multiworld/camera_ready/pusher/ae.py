@@ -102,13 +102,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_offline_ae_final'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_pusher_offline_ae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

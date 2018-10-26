@@ -1,6 +1,7 @@
 import cv2
-
 import railrl.torch.pytorch_util as ptu
+from multiworld.core.image_env import ImageEnv
+from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -152,6 +153,12 @@ def generate_goal_dataset_using_set_to_goal(
         goal_dict[goal_key] = np.zeros((num_goals, goal_size))
     print('Generating Random Goals')
     for j in range(num_goals):
+        if type(env) == VAEWrappedEnv:
+            goal = env.wrapped_env.wrapped_env.sample_goal()
+        elif type(env) == ImageEnv:
+            goal = env.wrapped_env.sample_goal()
+        else:
+            goal = env.sample_goal()
         goal = env.sample_goal()
         env.set_to_goal(goal)
         obs = env._get_obs()
