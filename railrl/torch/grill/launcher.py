@@ -162,7 +162,7 @@ def train_vae(variant, return_data=False):
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
     save_period = variant['save_period']
-    dump_skew_debug_plots = variant['dump_skew_debug_plots']
+    dump_skew_debug_plots = variant.get('dump_skew_debug_plots', False)
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
         t.train_epoch(epoch)

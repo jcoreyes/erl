@@ -1,40 +1,29 @@
 """
 Skew the dataset so that it turns into generating a uniform distribution.
 """
-import copy
 import json
-from collections import defaultdict
+import sys
 
-from PIL import Image
 import numpy as np
-import torch
+from PIL import Image
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from skvideo.io import vwrite
 from torch import nn as nn
-from torch.autograd import Variable
 from torch.optim import Adam
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import (
-    BatchSampler, WeightedRandomSampler,
-    RandomSampler,
-)
 
 import railrl.pythonplusplus as ppp
-import railrl.torch.pytorch_util as ptu
 import railrl.torch.vae.skew.skewed_vae as sv
 from railrl.core import logger
 from railrl.misc import visualization_util as vu
 from railrl.misc.html_report import HTMLReport
-from railrl.misc.ml_util import ConstantSchedule
+from railrl.misc.visualization_util import gif
 from railrl.torch.vae.skew.common import (
     Dynamics, plot_curves,
     visualize_samples,
-    visualize_samples_and_projection,
 )
 from railrl.torch.vae.skew.datasets import project_samples_square_np
 from railrl.torch.vae.skew.histogram import Histogram
-from railrl.misc.visualization_util import gif
 
 K = 6
 
@@ -42,8 +31,9 @@ K = 6
 Plotting
 """
 
+
 def visualize_vae_samples(
-        epoch, vis_samples_np, vae,
+        epoch, training_data, vae,
         report, dynamics,
         n_vis=1000,
         xlim=(-1.5, 1.5),
@@ -51,10 +41,10 @@ def visualize_vae_samples(
 ):
     plt.figure()
     plt.suptitle("Epoch {}".format(epoch))
-    n_samples = len(vis_samples_np)
+    n_samples = len(training_data)
     skip_factor = max(n_samples // n_vis, 1)
-    vis_samples_np = vis_samples_np[::skip_factor]
-    reconstructed_samples = vae.reconstruct(vis_samples_np)
+    training_data = training_data[::skip_factor]
+    reconstructed_samples = vae.reconstruct(training_data)
     generated_samples = vae.sample(n_vis)
     projected_generated_samples = dynamics(generated_samples)
     plt.subplot(2, 2, 1)
@@ -73,19 +63,19 @@ def visualize_vae_samples(
         plt.ylim(*ylim)
     plt.title("Projected Generated Samples")
     plt.subplot(2, 2, 3)
+    plt.plot(training_data[:, 0], training_data[:, 1], '.')
+    if xlim is not None:
+        plt.xlim(*xlim)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    plt.title("Training Data")
+    plt.subplot(2, 2, 4)
     plt.plot(reconstructed_samples[:, 0], reconstructed_samples[:, 1], '.')
     if xlim is not None:
         plt.xlim(*xlim)
     if ylim is not None:
         plt.ylim(*ylim)
     plt.title("Reconstruction")
-    plt.subplot(2, 2, 4)
-    plt.plot(vis_samples_np[:, 0], vis_samples_np[:, 1], '.')
-    if xlim is not None:
-        plt.xlim(*xlim)
-    if ylim is not None:
-        plt.ylim(*ylim)
-    plt.title("Original Samples")
 
     fig = plt.gcf()
     sample_img = vu.save_image(fig)
@@ -141,6 +131,23 @@ def show_prob_heatmap(
     vu.plot_heatmap(heat_map)
 
 
+def progressbar(it, prefix="", size=60):
+    count = len(it)
+
+    def _show(_i):
+        x = int(size * _i / count)
+        sys.stdout.write(
+            "%s[%s%s] %i/%i\r" % (prefix, "#" * x, "." * (size - x), _i, count))
+        sys.stdout.flush()
+
+    _show(0)
+    for i, item in enumerate(it):
+        yield item
+        _show(i + 1)
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+
+
 def train_from_variant(variant):
     variant.pop('seed')
     variant.pop('exp_id')
@@ -177,13 +184,8 @@ def train(
         dataset_generator,
         n_start_samples,
         projection=project_samples_square_np,
-        bs=32,
         n_samples_to_add_per_epoch=1000,
         n_epochs=100,
-        weight_loss=False,
-        skew_sampling=False,
-        beta_schedule_class=None,
-        beta_schedule_kwargs=None,
         z_dim=1,
         hidden_size=32,
         save_period=10,
@@ -192,12 +194,10 @@ def train(
         dynamics_noise=0,
         decoder_output_var='learned',
         num_bins=5,
-        train_vae_from_histogram=False,
         skew_config=None,
         use_perfect_samples=False,
         use_perfect_density=False,
         reset_vae_every_epoch=False,
-        num_inner_vae_epochs=1,
         vae_kwargs=None,
         use_dataset_generator_first_epoch=True,
 ):
@@ -210,13 +210,6 @@ def train(
         assert vae_kwargs is not None
     if vae_kwargs is None:
         vae_kwargs = {}
-    if beta_schedule_class is None:
-        beta_schedule = ConstantSchedule(1)
-    else:
-        beta_schedule = beta_schedule_class(**beta_schedule_kwargs)
-    if train_vae_from_histogram:
-        # assert not weight_loss
-        assert not skew_sampling
 
     report = HTMLReport(
         logger.get_snapshot_dir() + '/report.html',
@@ -233,7 +226,6 @@ def train(
                 indent=2,
             )
         )
-
 
     vae, decoder, decoder_opt, encoder, encoder_opt = get_vae(
         decoder_output_var,
@@ -260,8 +252,7 @@ def train(
 
     orig_train_data = dataset_generator(n_start_samples)
     train_data = orig_train_data
-    for epoch in sv.progressbar(range(n_epochs)):
-        epoch_stats = defaultdict(list)
+    for epoch in progressbar(range(n_epochs)):
         p_theta = Histogram(num_bins)
         if epoch == 0 and use_dataset_generator_first_epoch:
             vae_samples = dataset_generator(n_samples_to_add_per_epoch)
@@ -272,12 +263,12 @@ def train(
             else:
                 vae_samples = vae.sample(n_samples_to_add_per_epoch)
         projected_samples = dynamics(vae_samples)
-        p_theta.fit(projected_samples)
         if append_all_data:
             train_data = np.vstack((train_data, projected_samples))
         else:
             train_data = np.vstack((orig_train_data, projected_samples))
 
+        p_theta.fit(train_data)
         if use_perfect_density:
             prob = p_theta.compute_density(train_data)
         else:
@@ -296,16 +287,6 @@ def train(
                 epoch, train_data, vae, report, dynamics,
             )
 
-            visualize_samples(
-                vae_samples,
-                report,
-                title="VAE Samples"
-            )
-            visualize_samples(
-                train_data,
-                report,
-                title="Projected VAE Samples"
-            )
             visualize_samples(
                 p_theta.sample(n_samples_to_add_per_epoch),
                 report,
@@ -336,22 +317,6 @@ def train(
         """
         if sum(all_weights) == 0:
             all_weights[:] = 1
-        all_weights_pt = ptu.from_numpy(all_weights)
-
-        indexed_train_data = sv.IndexedData(train_data)
-        if skew_sampling:
-            base_sampler = WeightedRandomSampler(all_weights, len(all_weights))
-        else:
-            base_sampler = RandomSampler(indexed_train_data)
-
-        train_dataloader = DataLoader(
-            indexed_train_data,
-            sampler=BatchSampler(
-                base_sampler,
-                batch_size=bs,
-                drop_last=False,
-            ),
-        )
         if reset_vae_every_epoch:
             vae, decoder, decoder_opt, encoder, encoder_opt = get_vae(
                 decoder_output_var,
@@ -359,47 +324,8 @@ def train(
                 z_dim,
                 vae_kwargs,
             )
-        for _ in range(num_inner_vae_epochs):
-            for _, indexed_batch in enumerate(train_dataloader):
-                idxs, batch = indexed_batch
-                if train_vae_from_histogram:
-                    batch = ptu.from_numpy(p_new.sample(
-                        batch[0].shape[0]
-                    ))
-                else:
-                    batch = Variable(batch[0].float())
-
-                latents, means, log_vars, stds = encoder.get_encoding_and_suff_stats(
-                    batch
-                )
-                beta = float(beta_schedule.get_value(epoch))
-                kl = sv.kl_to_prior(means, log_vars, stds)
-                reconstruction_log_prob = sv.compute_log_prob(batch, decoder, latents)
-
-                elbo = - kl * beta + reconstruction_log_prob
-                if weight_loss:
-                    if train_vae_from_histogram:
-                        weights_np = p_theta.compute_per_elem_weights(
-                            ptu.get_numpy(batch)
-                        )
-                        batch_weights = ptu.from_numpy(weights_np).unsqueeze(1)
-                    else:
-                        idxs = torch.cat(idxs)
-                        batch_weights = all_weights_pt[idxs].unsqueeze(1)
-                    loss = -(batch_weights * elbo).mean()
-                else:
-                    loss = - elbo.mean()
-                encoder_opt.zero_grad()
-                decoder_opt.zero_grad()
-                loss.backward()
-                encoder_opt.step()
-                decoder_opt.step()
-
-                epoch_stats['losses'].append(loss.data.numpy())
-                epoch_stats['kls'].append(kl.mean().data.numpy())
-                epoch_stats['log_probs'].append(
-                    reconstruction_log_prob.mean().data.numpy()
-                )
+        vae.fit(train_data, weights=all_weights)
+        epoch_stats = vae.get_epoch_stats()
 
         losses.append(np.mean(epoch_stats['losses']))
         kls.append(np.mean(epoch_stats['kls']))
@@ -423,7 +349,6 @@ def train(
             'train_data': train_data,
             'vae_samples': vae_samples,
         })
-
 
     report.add_header("Training Curves")
     plot_curves(

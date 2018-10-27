@@ -1,5 +1,3 @@
-from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer, \
-    RelabelingReplayBuffer
 from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
 from railrl.torch.her.her import HER
@@ -22,9 +20,5 @@ class HerJointAlgo(HER, JointAlgo):
         self.policy = policy
         JointAlgo.__init__(self, *args, **kwargs)
         assert isinstance(
-            self.replay_buffer, SimpleHerReplayBuffer
-        ) or isinstance(
-            self.replay_buffer, RelabelingReplayBuffer
-        ) or isinstance(
             self.replay_buffer, ObsDictRelabelingBuffer
         )

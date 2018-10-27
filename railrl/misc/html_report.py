@@ -98,14 +98,14 @@ class HTMLReport:
                             style="width:%dpx" % width,
                             src=r'data:image/png;base64,' + self._encode_image(im)
                         )
-                        br()
-                        p(
-                            txt,
-                            style='width:{}px; word-wrap: break-word; white-space: pre-wrap; font-size: {}%;'.format(
-                                width,
-                                font_pct
-                            )
+                    br()
+                    p(
+                        txt,
+                        style='width:{}px; word-wrap: break-word; white-space: pre-wrap; font-size: {}%;'.format(
+                            width,
+                            font_pct
                         )
+                    )
         self.row_image_count += 1
 
     def new_row(self):

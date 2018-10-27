@@ -100,10 +100,7 @@ class TD3(TorchRLAlgorithm):
         """
 
         next_actions = self.target_policy(next_obs)
-        noise = ptu.normal(
-            ptu.zeros_like(next_actions),
-            self.target_policy_noise,
-        )
+        noise = ptu.randn(next_actions.shape) * self.target_policy_noise
         noise = torch.clamp(
             noise,
             -self.target_policy_noise_clip,
