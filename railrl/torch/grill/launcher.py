@@ -265,8 +265,7 @@ def generate_vae_dataset(variant):
             if oracle_dataset_from_policy or random_and_oracle_policy_data:
                 policy_file = load_local_or_remote_file(policy_file)
                 policy = policy_file['policy']
-                if ptu.gpu_enabled():
-                    policy.cuda()
+                policy.to(ptu.device)
             dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
             for i in range(N):
                 if random_and_oracle_policy_data:
