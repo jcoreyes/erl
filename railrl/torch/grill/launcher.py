@@ -219,7 +219,7 @@ def generate_vae_dataset(variant):
     show = variant.get('show', False)
     init_camera = variant.get('init_camera', None)
     dataset_path = variant.get('dataset_path', None)
-    oracle_dataset = variant.get('oracle_dataset', False)
+    oracle_dataset_using_set_to_goal = variant.get('oracle_dataset_using_set_to_goal', False)
     oracle_dataset_from_policy=variant.get('oracle_dataset_from_policy', False)
     random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
     random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
@@ -287,8 +287,7 @@ def generate_vae_dataset(variant):
             if oracle_dataset_from_policy or random_and_oracle_policy_data:
                 policy_file = load_local_or_remote_file(policy_file)
                 policy = policy_file['policy']
-                if ptu.gpu_enabled():
-                    policy.cuda()
+                policy.to(ptu.device)
             dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
             for i in range(N):
                 if random_and_oracle_policy_data:
@@ -307,17 +306,7 @@ def generate_vae_dataset(variant):
                             ))
                             action, _ = policy.get_action(policy_obs)
                             obs, _, _, _ = env.step(action)
-                elif oracle_dataset_from_policy:
-                    obs = env.reset()
-                    policy.reset()
-                    for _ in range(n_random_steps):
-                        policy_obs = np.hstack((
-                            obs['state_observation'],
-                            obs['state_desired_goal'],
-                        ))
-                        action, _ = policy.get_action(policy_obs)
-                        obs, _, _, _ = env.step(action)
-                elif oracle_dataset:
+                elif oracle_dataset_using_set_to_goal:
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
                 else:
