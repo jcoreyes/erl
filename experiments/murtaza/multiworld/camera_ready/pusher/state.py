@@ -20,7 +20,7 @@ if __name__ == "__main__":
                 min_num_steps_before_training=4000,
                 reward_scale=100,
                 render=False,
-                collection_mode='online-parallel',
+                collection_mode='online',
                 parallel_env_params=dict(
                     num_workers=1,
                 )
@@ -46,25 +46,11 @@ if __name__ == "__main__":
         algorithm='HER-TD3',
         version='normal',
         es_kwargs=dict(
-            max_sigma=.5,
+            max_sigma=.8,
         ),
         exploration_type='ou',
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
-        env_class=SawyerPushAndReachXYEnv,
-        env_kwargs=dict(
-            reward_type='state_distance',
-            norm_order=2,
-            reset_free=False,
-            hand_low=(-0.28, 0.3, 0.05),
-            hand_high=(0.28, 0.9, 0.3),
-            puck_low=(-.4, .2),
-            puck_high=(.4, 1),
-            goal_low=(-0.25, 0.3, 0.02, -.2, .4),
-            goal_high=(0.25, 0.875, 0.02, .2, .8),
-            num_resets_before_puck_reset=int(1),
-            num_resets_before_hand_reset=int(1),
-        ),
         init_camera=sawyer_pusher_camera_upright_v2,
         do_state_exp=True,
         save_video=False,
@@ -72,7 +58,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'es_kwargs.max_sigma':[.3, .5]
+        'env_id': ['SawyerPushAndReachXYEnv-No-Arena-v0', 'SawyerPushAndReachXYEnv-No-Arena-v1']
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -80,13 +66,13 @@ if __name__ == "__main__":
     )
 
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'pusher_state'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_pusher_state_final'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_pusher_state_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):

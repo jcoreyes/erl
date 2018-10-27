@@ -1,14 +1,12 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3, sawyer_pusher_camera_upright_v2
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v3
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import HER_baseline_her_td3_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
         imsize=84,
-        init_camera=sawyer_pusher_camera_upright_v2,
-        env_id='SawyerPushAndReachXYEnv-v0',
+        init_camera=sawyer_pusher_camera_upright_v3,
         grill_variant=dict(
             save_video=False,
             qf_kwargs=dict(
@@ -46,12 +44,19 @@ if __name__ == "__main__":
             algorithm='PIX-REWARD-HER-TD3',
             normalize=False,
             render=False,
-            exploration_noise=0.3,
+            exploration_noise=0.8,
             exploration_type='ou',
             training_mode='test',
             testing_mode='test',
             observation_key='image_observation',
             desired_goal_key='image_desired_goal',
+            goal_generation_kwargs=dict(
+                num_goals=5000,
+                use_cached_dataset=False,
+                show=False,
+            ),
+            presample_goals=True,
+            presampled_goals_path='goals/goals_n5000_VAEWrappedEnv(ImageEnv(<SawyerPushAndReachXYEnv<SawyerPushAndReachXYEnv-No-Arena-v1>>)).npy',
             cnn_params=dict(
                 kernel_sizes=[5, 5, 5],
                 n_channels=[16, 32, 32],
@@ -94,7 +99,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.exploration_noise':[.3, .5],
+        'env_id': ['SawyerPushAndReachXYEnv-No-Arena-v0', 'SawyerPushAndReachXYEnv-No-Arena-v1'],
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 4]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -109,6 +115,16 @@ if __name__ == "__main__":
     exp_prefix = 'sawyer_pusher_pix_reward_baseline_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['env_id'] == 'SawyerPushAndReachXYEnv-No-Arena-v0':
+            variant['train_vae_variant']['generate_vae_dataset_kwargs']['dataset_path'] = \
+                'datasets/SawyerPushAndReachXYEnv-No-Arena-v0_N5000_sawyer_pusher_camera_upright_v3_imsize84_random_oracle_split_0.npy'
+            variant['grill_variant'][
+                'presampled_goals_path'] = 'goals/goals_n5000_VAEWrappedEnv(ImageEnv(<SawyerPushAndReachXYEnv<SawyerPushAndReachXYEnv-No-Arena-v0>>)).npy'
+        else:
+            variant['train_vae_variant']['generate_vae_dataset_kwargs']['dataset_path'] = \
+                'datasets/SawyerPushAndReachXYEnv-No-Arena-v1_N5000_sawyer_pusher_camera_upright_v3_imsize84_random_oracle_split_0.npy'
+            variant['grill_variant'][
+                'presampled_goals_path'] = 'goals/goals_n5000_VAEWrappedEnv(ImageEnv(<SawyerPushAndReachXYEnv<SawyerPushAndReachXYEnv-No-Arena-v1>>)).npy'
         for _ in range(n_seeds):
             run_experiment(
                 HER_baseline_her_td3_full_experiment,

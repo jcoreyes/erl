@@ -1,26 +1,12 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v3
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
         imsize=84,
-        init_camera=sawyer_pusher_camera_upright_v2,
-        env_class=SawyerPushAndReachXYEnv,
-        env_kwargs=dict(
-            reward_type='puck_distance',
-            reset_free=False,
-            hand_low=(-0.28, 0.3, 0.05),
-            hand_high=(0.28, 0.9, 0.3),
-            puck_low=(-.4, .2),
-            puck_high=(.4, 1),
-            goal_low=(-0.25, 0.3, 0.02, -.2, .4),
-            goal_high=(0.25, 0.875, 0.02, .2, .8),
-            num_resets_before_puck_reset=int(1),
-            num_resets_before_hand_reset=int(1),
-        ),
+        init_camera=sawyer_pusher_camera_upright_v3,
         grill_variant=dict(
             save_video=True,
             save_video_period=50,
@@ -76,15 +62,16 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=.5,
-            num_epochs=5000,
+            num_epochs=2500,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=10000,
+                N=5000,
                 oracle_dataset=True,
                 use_cached=False,
                 vae_dataset_specific_kwargs=dict(),
                 show=False,
+                dataset_path='datasets/SawyerPushAndReachXYEnv-No-Arena-v1_N5000_sawyer_pusher_camera_upright_v3_imsize84_random_oracle_split_0.npy',
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -101,21 +88,28 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'train_vae_variant.beta':[5],
+        'train_vae_variant.beta':[.5, 2.5],
+        'env_id':['SawyerPushAndReachXYEnv-No-Arena-v0', 'SawyerPushAndReachXYEnv-No-Arena-v1']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_pusher_offline_vae_no_arena'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'sawyer_pusher_offline_vae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['env_id'] == 'SawyerPushAndReachXYEnv-No-Arena-v0':
+            variant['train_vae_variant']['generate_vae_dataset_kwargs']['dataset_path'] = \
+                'datasets/SawyerPushAndReachXYEnv-No-Arena-v0_N5000_sawyer_pusher_camera_upright_v3_imsize84_random_oracle_split_0.npy'
+        else:
+            variant['train_vae_variant']['generate_vae_dataset_kwargs']['dataset_path'] = \
+                'datasets/SawyerPushAndReachXYEnv-No-Arena-v1_N5000_sawyer_pusher_camera_upright_v3_imsize84_random_oracle_split_0.npy'
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_td3_full_experiment,

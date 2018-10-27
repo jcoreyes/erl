@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2, sawyer_pusher_camera_upright_v3
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_set_to_goal
@@ -7,8 +7,7 @@ from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_s
 if __name__ == "__main__":
     variant = dict(
         imsize=84,
-        init_camera=sawyer_pusher_camera_upright_v2,
-        env_id='SawyerPushAndReachXYEnv-v0',
+        init_camera=sawyer_pusher_camera_upright_v3,
         grill_variant=dict(
             save_video=True,
             save_video_period=50,
@@ -28,7 +27,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=4,
-                    collection_mode='online-parallel',
+                    collection_mode='online',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -47,7 +46,7 @@ if __name__ == "__main__":
             algorithm='OFFLINE-DSAE-HER-TD3',
             normalize=False,
             render=False,
-            exploration_noise=0.3,
+            exploration_noise=0.8,
             exploration_type='ou',
             training_mode='test',
             testing_mode='test',
@@ -63,6 +62,7 @@ if __name__ == "__main__":
                 show=False,
             ),
             presample_goals=True,
+            presampled_goals_path='goals/goals_n5000_VAEWrappedEnv(ImageEnv(<SawyerPushAndReachXYEnv<SawyerPushAndReachXYEnv-No-Arena-v1>>)).npy',
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             )
@@ -72,7 +72,7 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=0,
-            num_epochs=1000,
+            num_epochs=2500,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
@@ -81,6 +81,7 @@ if __name__ == "__main__":
                 use_cached=False,
                 vae_dataset_specific_kwargs=dict(),
                 show=False,
+                dataset_path='datasets/SawyerPushAndReachXYEnv-No-Arena-v1_N5000_sawyer_pusher_camera_upright_v3_imsize84_random_oracle_split_0.npy',
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -97,7 +98,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.exploration_noise':[.3, .5],
+        'env_id': ['SawyerPushAndReachXYEnv-No-Arena-v0', 'SawyerPushAndReachXYEnv-No-Arena-v1']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -112,6 +113,16 @@ if __name__ == "__main__":
     exp_prefix = 'sawyer_pusher_offline_dsae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['env_id'] == 'SawyerPushAndReachXYEnv-No-Arena-v0':
+            variant['train_vae_variant']['generate_vae_dataset_kwargs']['dataset_path'] = \
+                'datasets/SawyerPushAndReachXYEnv-No-Arena-v0_N5000_sawyer_pusher_camera_upright_v3_imsize84_random_oracle_split_0.npy'
+            variant['grill_variant'][
+                'presampled_goals_path'] = 'goals/goals_n5000_VAEWrappedEnv(ImageEnv(<SawyerPushAndReachXYEnv<SawyerPushAndReachXYEnv-No-Arena-v0>>)).npy'
+        else:
+            variant['train_vae_variant']['generate_vae_dataset_kwargs']['dataset_path'] = \
+                'datasets/SawyerPushAndReachXYEnv-No-Arena-v1_N5000_sawyer_pusher_camera_upright_v3_imsize84_random_oracle_split_0.npy'
+            variant['grill_variant'][
+                'presampled_goals_path'] = 'goals/goals_n5000_VAEWrappedEnv(ImageEnv(<SawyerPushAndReachXYEnv<SawyerPushAndReachXYEnv-No-Arena-v1>>)).npy'
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_td3_full_experiment,

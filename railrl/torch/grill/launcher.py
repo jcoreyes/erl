@@ -1418,7 +1418,7 @@ def HER_baseline_her_td3_experiment(variant):
             init_camera=init_camera,
             transpose=True,
             normalize=True,
-            presampled_goals=presampled_goals
+            presampled_goals=presampled_goals,
         )
     else:
         env = image_env

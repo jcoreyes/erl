@@ -1,7 +1,7 @@
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env_two_pucks import SawyerPushAndReachXYDoublePuckEnv
 from railrl.launchers.experiments.murtaza.multiworld import her_td3_experiment
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2, sawyer_pusher_camera_upright_v3
 from railrl.launchers.launcher_util import run_experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
@@ -44,35 +44,19 @@ if __name__ == "__main__":
         algorithm='HER-TD3',
         version='normal',
         es_kwargs=dict(
-            max_sigma=.5,
+            max_sigma=.8,
         ),
         exploration_type='ou',
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
-        env_class=SawyerPushAndReachXYDoublePuckEnv,
-        env_kwargs=dict(
-            hide_goal_markers=True,
-            action_scale=.02,
-            reward_type='state_distance',
-            norm_order=2,
-            num_resets_before_puck_reset=int(1),
-            num_resets_before_hand_reset=int(1),
-            hand_low=(-0.16, 0.4, 0.05),
-            hand_high=(0.16, 0.75, 0.3),
-            puck_low=(-.4, .2),
-            puck_high=(.4, 1),
-            goal_low=(-0.15, 0.4, 0.02, -.1, .5, 0.075, .5),
-            goal_high=(0.15, 0.74, 0.02, -0.075, .7, .1, .7),
-            xml_path='sawyer_xyz/sawyer_push_two_puck_smaller_arena.xml',
-        ),
-        init_camera=sawyer_pusher_camera_upright_v2,
+        env_id='SawyerPushAndReachXYDOoublePuckEnv-No-Arena-v0',
+        init_camera=sawyer_pusher_camera_upright_v3,
         do_state_exp=True,
         save_video=False,
 
     )
 
     search_space = {
-        'es_kwargs.max_sigma':[.8],
         'algo_kwargs.base_kwargs.max_path_length':[100, 250, 500],
     }
 
@@ -87,7 +71,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_two_puck_small_pusher_state_path_sweep_.8_ou'
+    exp_prefix = 'sawyer_two_puck_no_arena_state'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
