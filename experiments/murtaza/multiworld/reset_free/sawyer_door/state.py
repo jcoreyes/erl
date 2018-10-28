@@ -72,13 +72,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_door_new_door_60_reset_free_hard_space-v5_sweep'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_door_new_door_60_reset_free_hard_space-v5_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
