@@ -607,8 +607,8 @@ class ConvVAESmall(PyTorchModule):
             input_channels=1,
             imsize=48,
             hidden_init=ptu.fanin_init,
-            encoder_activation='identity',
-            decoder_activation='identity',
+            encoder_activation=identity,
+            decoder_activation=identity,
             min_variance=1e-3,
             state_size=0,
             num_latents_to_sample=1,
@@ -622,16 +622,8 @@ class ConvVAESmall(PyTorchModule):
 
         self.representation_size = representation_size
         self.hidden_init = hidden_init
-        if encoder_activation == 'identity':
-            self.encoder_activation = identity
-        else:
-            raise EnvironmentError()
-        if decoder_activation == 'identity':
-            self.decoder_activation = identity
-        elif decoder_activation == 'sigmoid':
-            self.decoder_activation = nn.Sigmoid()
-        else:
-            raise EnvironmentError()
+        self.encoder_activation = encoder_activation
+        self.decoder_activation = decoder_activation
         self.num_latents_to_sample=num_latents_to_sample
         self.input_channels = input_channels
         self.imsize = imsize
@@ -745,8 +737,8 @@ class ConvVAESmallDouble(PyTorchModule):
             input_channels=1,
             imsize=48,
             hidden_init=ptu.fanin_init,
-            encoder_activation='identity',
-            decoder_activation='sigmoid',
+            encoder_activation=identity,
+            decoder_activation=identity,
             min_variance=1e-3,
             state_size=0,
             unit_variance=False,
@@ -763,18 +755,8 @@ class ConvVAESmallDouble(PyTorchModule):
         self.representation_size = representation_size
         self.variance_scaling=variance_scaling
         self.hidden_init = hidden_init
-        if encoder_activation == 'identity':
-            self.encoder_activation = identity
-        else:
-            raise EnvironmentError()
-        if decoder_activation == 'identity':
-            self.decoder_activation = identity
-        elif decoder_activation == 'sigmoid':
-            self.decoder_activation = nn.Sigmoid()
-        elif decoder_activation == 'tanh':
-            self.decoder_activation = nn.Tanh()
-        else:
-            raise EnvironmentError()
+        self.encoder_activation = encoder_activation
+        self.decoder_activation = decoder_activation
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize ** 2 * self.input_channels
