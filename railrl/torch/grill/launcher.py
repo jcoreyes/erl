@@ -156,7 +156,7 @@ def train_vae(variant, return_data=False):
         decoder_activation = identity
     else:
         decoder_activation = torch.nn.Sigmoid()
-    if variant.get('encoder_activation', None) == 'identity':
+    if variant.get('encoder_activation', 'identity') == 'identity':
         encoder_activation = identity
     else:
         raise EnvironmentError()

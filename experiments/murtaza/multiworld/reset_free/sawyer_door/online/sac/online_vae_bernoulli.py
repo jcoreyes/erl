@@ -97,6 +97,7 @@ if __name__ == "__main__":
             beta=1.0,
             num_epochs=0,
             dump_skew_debug_plots=False,
+            decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
                 N=100,
                 test_p=.9,
@@ -108,7 +109,6 @@ if __name__ == "__main__":
             ),
             vae_kwargs=dict(
                 input_channels=3,
-                decoder_activation='sigmoid',
                 num_latents_to_sample=1,
             ),
             algo_kwargs=dict(
@@ -134,13 +134,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'sawyer_door_online_vae_bernoulli_sample_more_latents'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_door_online_vae_bernoulli_sample_more_latents'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['grill_variant']['algo_kwargs']['online_vae_kwargs']['vae_min_num_steps_before_training'] > variant['grill_variant']['algo_kwargs']['base_kwargs']['min_num_steps_before_training']:
