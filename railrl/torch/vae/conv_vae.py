@@ -852,7 +852,7 @@ class ConvVAESmallDouble(PyTorchModule):
         var = logvar.exp()
         if self.unit_variance:
             var = ptu.ones_like(var)
-        return self.decoder_activation(mu), self.decoder_mean_activation(mu), self.decoder_variance_activation(var)*self.variance_scaling
+        return self.decoder_mean_activation(mu), self.decoder_mean_activation(mu), self.decoder_variance_activation(var)*self.variance_scaling
 
     def forward(self, x):
         mu, logvar = self.encode(x)
