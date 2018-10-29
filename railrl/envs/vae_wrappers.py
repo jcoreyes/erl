@@ -6,12 +6,13 @@ import numpy as np
 from gym import Env
 from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
+from multiworld.core.multitask_env import MultitaskEnv
 from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
 from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
 
 
-class VAEWrappedEnv(ProxyEnv, Env):
+class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
     """This class wraps an image-based environment with a VAE.
     Assumes you get flattened (channels,84,84) observations from wrapped_env.
     This class adheres to the "Silent Multitask Env" semantics: on reset,
@@ -217,6 +218,9 @@ class VAEWrappedEnv(ProxyEnv, Env):
     def sample_goal(self):
         goals = self.sample_goals(1)
         return self.unbatchify_dict(goals, 0)
+
+    def get_goal(self):
+        return self.desired_goal
 
     def compute_reward(self, action, obs):
         actions = action[None]
