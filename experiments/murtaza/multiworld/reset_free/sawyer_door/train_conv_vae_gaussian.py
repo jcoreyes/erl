@@ -29,16 +29,7 @@ def experiment(variant):
     else:
         beta_schedule = None
 
-    if variant.get('decoder_activation', None) == 'identity':
-        decoder_activation = identity
-    else:
-        decoder_activation = torch.nn.Sigmoid()
-    if variant.get('encoder_activation', 'identity') == 'identity':
-        encoder_activation = identity
-    else:
-        raise EnvironmentError()
-
-    m = variant['vae'](representation_size, decoder_activation=decoder_activation,  encoder_activation=encoder_activation, **variant['vae_kwargs'])
+    m = variant['vae'](representation_size, **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
@@ -83,7 +74,7 @@ if __name__ == "__main__":
             ),
             skew_dataset=True,
         ),
-        vae=ConvVAESmall,
+        vae=ConvVAESmallDouble,
         dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
@@ -104,7 +95,6 @@ if __name__ == "__main__":
             imsize=48,
             num_latents_to_sample=1,
         ),
-        decoder_activation='sigmoid',
         save_period=10,
         beta=2.5,
         representation_size=16,
