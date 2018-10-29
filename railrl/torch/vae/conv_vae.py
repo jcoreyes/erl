@@ -188,7 +188,7 @@ class ConvVAETrainer(Serializable):
         self._extra_stats_to_log = None
 
     def get_dataset_stats(self, data):
-        torch_input = ptu.np_to_var(normalize_image(data))
+        torch_input = ptu.from_numpy(normalize_image(data))
         mus, log_vars = self.model.encode(torch_input)
         mus = ptu.get_numpy(mus)
         mean = np.mean(mus, axis=0)
@@ -199,17 +199,15 @@ class ConvVAETrainer(Serializable):
         # TODO: update the weights of the sampler rather than recreating loader
         if self.skew_dataset:
             self._train_weights = self._compute_train_weights()
-            self.train_dataloader = iter(DataLoader(
+            self.train_dataloader = DataLoader(
                 self.train_dataset_pt,
-                sampler=BatchSampler(
-                    InfiniteWeightedRandomSampler(self.train_dataset,
-                                                  self._train_weights),
-                    batch_size=self.batch_size,
-                    drop_last=False,
-                ),
+                sampler=InfiniteWeightedRandomSampler(self.train_dataset, self._train_weights),
+                batch_size=self.batch_size,
+                drop_last=False,
                 num_workers=self.train_data_workers,
                 pin_memory=True,
-            ))
+                )
+            self.train_dataloader = iter(self.train_dataloader)
 
     def _compute_train_weights(self):
         method = self.skew_config.get('method', 'squared_error')
@@ -234,14 +232,14 @@ class ConvVAETrainer(Serializable):
 
 
     def _kl_np_to_np(self, np_imgs):
-        torch_input = ptu.np_to_var(normalize_image(np_imgs))
+        torch_input = ptu.from_numpy(normalize_image(np_imgs))
         mu, log_var = self.model.encode(torch_input)
         return ptu.get_numpy(
             - torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1)
         )
 
     def _reconstruction_squared_error_np_to_np(self, np_imgs):
-        torch_input = ptu.np_to_var(normalize_image(np_imgs))
+        torch_input = ptu.from_numpy(normalize_image(np_imgs))
         recons, *_ = self.model(torch_input)
         error = torch_input - recons
         return ptu.get_numpy((error ** 2).sum(dim=1))
@@ -314,7 +312,10 @@ class ConvVAETrainer(Serializable):
             log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
         else:
             recon_batch, mu, logvar = self.model(next_obs)
-            log_prob = self.compute_bernoulli_log_prob(recon_batch, next_obs, mu, logvar)
+            try:
+                log_prob = self.compute_bernoulli_log_prob(recon_batch, next_obs, mu, logvar)
+            except:
+                import ipdb; ipdb.set_trace()
         return log_prob, recon_batch, next_obs, mu, logvar
 
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
@@ -540,7 +541,7 @@ class ConvVAETrainer(Serializable):
         recons = []
         for i in idxs:
             img_np = self.train_dataset[i]
-            img_torch = ptu.np_to_var(normalize_image(img_np))
+            img_torch = ptu.from_numpy(normalize_image(img_np))
             recon, *_ = self.model(img_torch)
 
             img = img_torch.view(self.input_channels, self.imsize, self.imsize)
@@ -744,6 +745,7 @@ class ConvVAESmallDouble(PyTorchModule):
             unit_variance=False,
             is_auto_encoder=False,
             variance_scaling=1,
+            num_latents_to_sample=1,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -760,6 +762,7 @@ class ConvVAESmallDouble(PyTorchModule):
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize ** 2 * self.input_channels
+        self.num_latents_to_sample = num_latents_to_sample
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)
         self.unit_variance = unit_variance

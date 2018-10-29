@@ -1,8 +1,11 @@
+import torch
+
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
+from railrl.pythonplusplus import identity
 from railrl.torch.vae.conv_vae import ConvVAETrainer, ConvVAESmallDouble
 from railrl.torch.grill.launcher import generate_vae_dataset
 
@@ -25,7 +28,17 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = variant['vae'](representation_size, is_auto_encoder=variant['algo_kwargs']['is_auto_encoder'], **variant['vae_kwargs'])
+
+    if variant.get('decoder_activation', None) == 'identity':
+        decoder_activation = identity
+    else:
+        decoder_activation = torch.nn.Sigmoid()
+    if variant.get('encoder_activation', 'identity') == 'identity':
+        encoder_activation = identity
+    else:
+        raise EnvironmentError()
+
+    m = variant['vae'](representation_size, decoder_activation=decoder_activation,  encoder_activation=encoder_activation, is_auto_encoder=variant['algo_kwargs']['is_auto_encoder'], **variant['vae_kwargs'])
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -48,7 +61,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'normalized'
+    exp_prefix = 'test'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -70,18 +83,13 @@ if __name__ == "__main__":
                 method='inv_bernoulli_p_x',
             ),
             skew_dataset=True,
-            # normalize_log_probs=True,
-            # normalize_mean=True,
-            # normalize_std=False,
-            # normalize_max=True,
-            biased_sampling=True,
         ),
         vae=ConvVAESmallDouble,
         dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
             N=5000,
-            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v6_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_1.npy',
+            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9_twin_sac.npy',
             oracle_dataset=False,
             use_cached=True,
             oracle_dataset_from_policy=True,
@@ -95,8 +103,9 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
-            decoder_activation='sigmoid',
+            num_latents_to_sample=1,
         ),
+        decoder_activation='sigmoid',
         save_period=10,
         beta=2.5,
         representation_size=16,
