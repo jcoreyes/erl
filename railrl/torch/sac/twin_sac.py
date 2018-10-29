@@ -2,8 +2,6 @@ import torch
 import numpy as np
 import torch.optim as optim
 from torch import nn as nn
-from torch.autograd import Variable
-
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.sac.policies import MakeDeterministic
