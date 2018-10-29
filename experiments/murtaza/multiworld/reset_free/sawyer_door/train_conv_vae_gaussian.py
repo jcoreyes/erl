@@ -70,9 +70,10 @@ if __name__ == "__main__":
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                method='inv_bernoulli_p_x',
+                method='inv_gaussian_p_x',
             ),
             skew_dataset=True,
+            gaussian_decoder_loss=True,
         ),
         vae=ConvVAESmallDouble,
         dump_skew_debug_plots=False,
