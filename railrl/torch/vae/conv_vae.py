@@ -199,17 +199,10 @@ class ConvVAETrainer(Serializable):
         # TODO: update the weights of the sampler rather than recreating loader
         if self.skew_dataset:
             self._train_weights = self._compute_train_weights()
-            self.train_dataloader = iter(DataLoader(
-                self.train_dataset_pt,
-                sampler=BatchSampler(
-                    InfiniteWeightedRandomSampler(self.train_dataset,
-                                                  self._train_weights),
-                    batch_size=self.batch_size,
-                    drop_last=False,
-                ),
-                num_workers=self.train_data_workers,
-                pin_memory=True,
-            ))
+            sampler = InfiniteWeightedRandomSampler(self.train_dataset, self._train_weights)
+            self.train_dataloader.sampler = sampler
+            self.train_dataloader = iter(self.train_dataloader)
+
 
     def _compute_train_weights(self):
         method = self.skew_config.get('method', 'squared_error')
@@ -223,11 +216,11 @@ class ConvVAETrainer(Serializable):
             return self._kl_np_to_np(data) ** power
         elif method == 'inv_gaussian_p_x':
             data = normalize_image(data)
-            inv_gaussian_p_x = inv_gaussian_p_x_np_to_np(self.model, data)
+            inv_gaussian_p_x = inv_gaussian_p_x_np_to_np(self.model, data) ** power
             return inv_gaussian_p_x
         elif method == 'inv_bernoulli_p_x':
             data = normalize_image(data)
-            inv_bernoulli_p_x = inv_p_bernoulli_x_np_to_np(self.model, data)
+            inv_bernoulli_p_x = inv_p_bernoulli_x_np_to_np(self.model, data) ** power
             return inv_bernoulli_p_x
         else:
             raise NotImplementedError('Method {} not supported'.format(method))
@@ -277,7 +270,7 @@ class ConvVAETrainer(Serializable):
         Y = Y[ind, :]
         return ptu.from_numpy(X), ptu.from_numpy(Y)
 
-    def compute_bernoulli_log_prob(self, recon_x, x, mu, logvar):
+    def compute_bernoulli_log_prob(self, recon_x, x):
         # Divide by batch_size rather than setting size_average=True because
         # otherwise the averaging will also happen across dim 1 (the
         # pixels)
@@ -314,7 +307,7 @@ class ConvVAETrainer(Serializable):
             log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
         else:
             recon_batch, mu, logvar = self.model(next_obs)
-            log_prob = self.compute_bernoulli_log_prob(recon_batch, next_obs, mu, logvar)
+            log_prob = self.compute_bernoulli_log_prob(recon_batch, next_obs)
         return log_prob, recon_batch, next_obs, mu, logvar
 
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
