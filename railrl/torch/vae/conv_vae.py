@@ -33,7 +33,9 @@ def inv_gaussian_p_x_np_to_np(model, data):
     dec_mu = dec_mu.view(dec_mu.shape[0] // latents.shape[1], latents.shape[1], dec_mu.shape[1])
     dec_var = dec_var.view(dec_var.shape[0] // latents.shape[1], latents.shape[1], dec_var.shape[1])
     decoder_dist = Normal(dec_mu, dec_var.pow(.5))
-    log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=2)
+    imgs = imgs.view(imgs.shape[0], 1, imgs.shape[1])
+    log_d_x_given_z = decoder_dist.log_prob(imgs)
+    log_d_x_given_z = log_d_x_given_z.sum(dim=2)
     return compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
 
 def inv_p_bernoulli_x_np_to_np(model, data):
@@ -92,7 +94,6 @@ class ConvVAETrainer(Serializable):
             train_data_workers=2,
             skew_dataset=False,
             skew_config=None,
-            mean_squared_error_loss=False,
             gaussian_decoder_loss=False,
     ):
         self.quick_init(locals())
@@ -134,7 +135,6 @@ class ConvVAETrainer(Serializable):
         self.train_data_workers = train_data_workers
         self.skew_dataset = skew_dataset
         self.skew_config = skew_config
-        self.mean_squared_error_loss = mean_squared_error_loss
         self.gaussian_decoder_loss=gaussian_decoder_loss
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
@@ -207,24 +207,32 @@ class ConvVAETrainer(Serializable):
     def _compute_train_weights(self):
         method = self.skew_config.get('method', 'squared_error')
         power = self.skew_config.get('power', 1)
-        data = self.train_dataset
-        if method == 'squared_error':
-            return self._reconstruction_squared_error_np_to_np(
-                data,
-            ) ** power
-        elif method == 'kl':
-            return self._kl_np_to_np(data) ** power
-        elif method == 'inv_gaussian_p_x':
-            data = normalize_image(data)
-            inv_gaussian_p_x = inv_gaussian_p_x_np_to_np(self.model, data) ** power
-            return inv_gaussian_p_x
-        elif method == 'inv_bernoulli_p_x':
-            data = normalize_image(data)
-            inv_bernoulli_p_x = inv_p_bernoulli_x_np_to_np(self.model, data) ** power
-            return inv_bernoulli_p_x
-        else:
-            raise NotImplementedError('Method {} not supported'.format(method))
-
+        batch_size = 1024
+        size = self.train_dataset.shape[0]
+        next_idx = min(batch_size, size)
+        cur_idx = 0
+        weights = np.zeros(size)
+        while cur_idx < self.train_dataset.shape[0]:
+            idxs = np.arange(cur_idx, next_idx)
+            data = self.train_dataset[idxs, :]
+            if method == 'squared_error':
+                weights[idxs] = self._reconstruction_squared_error_np_to_np(
+                    data,
+                ) ** power
+            elif method == 'kl':
+                weights[idxs] = self._kl_np_to_np(data) ** power
+            elif method == 'inv_gaussian_p_x':
+                data = normalize_image(data)
+                weights[idxs] = inv_gaussian_p_x_np_to_np(self.model, data) ** power
+            elif method == 'inv_bernoulli_p_x':
+                data = normalize_image(data)
+                weights[idxs] = inv_p_bernoulli_x_np_to_np(self.model, data) ** power
+            else:
+                raise NotImplementedError('Method {} not supported'.format(method))
+            cur_idx = next_idx
+            next_idx += batch_size
+            next_idx = min(next_idx, size)
+        return weights
 
     def _kl_np_to_np(self, np_imgs):
         torch_input = ptu.np_to_var(normalize_image(np_imgs))
