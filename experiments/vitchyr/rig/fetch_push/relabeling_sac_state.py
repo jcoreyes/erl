@@ -11,13 +11,12 @@ if __name__ == "__main__":
             base_kwargs=dict(
                 num_epochs=1000,
                 num_steps_per_epoch=1000,
-                num_steps_per_eval=5000,
-                max_path_length=500,
+                num_steps_per_eval=1000,
+                max_path_length=50,
                 num_updates_per_env_step=1,
                 batch_size=128,
                 discount=0.99,
-                # min_num_steps_before_training=1000,
-                min_num_steps_before_training=1,
+                min_num_steps_before_training=10000,
                 reward_scale=1,
                 render=False,
             ),
@@ -56,9 +55,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 5
-    mode = 'ec2'
-    exp_prefix = 'fetch-push-test'
+    # n_seeds = 5
+    # mode = 'ec2'
+    # exp_prefix = 'fetch-push-test'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):

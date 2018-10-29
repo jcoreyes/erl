@@ -1,6 +1,7 @@
 import gym
 
 import multiworld.envs.mujoco
+import multiworld.envs.pygame
 import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.obs_dict_replay_buffer import (
@@ -10,6 +11,8 @@ from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from railrl.exploration_strategies.gaussian_and_epislon import \
+    GaussianAndEpislonStrategy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.state_distance.tdm_networks import (
@@ -65,6 +68,11 @@ def her_td3_experiment(variant):
         )
     elif exploration_type == 'epsilon':
         es = EpsilonGreedy(
+            action_space=env.action_space,
+            **variant['es_kwargs'],
+        )
+    elif exploration_type == 'gaussian_and_epsilon':
+        es = GaussianAndEpislonStrategy(
             action_space=env.action_space,
             **variant['es_kwargs'],
         )
@@ -185,8 +193,7 @@ def relabeling_tsac_experiment(variant):
             variant,
         )
         algorithm.post_epoch_funcs.append(video_func)
-    if ptu.gpu_enabled():
-        algorithm.cuda()
+    algorithm.to(ptu.device)
     algorithm.train()
 
 
