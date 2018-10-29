@@ -199,14 +199,8 @@ class ConvVAETrainer(Serializable):
         # TODO: update the weights of the sampler rather than recreating loader
         if self.skew_dataset:
             self._train_weights = self._compute_train_weights()
-            self.train_dataloader = DataLoader(
-                self.train_dataset_pt,
-                sampler=InfiniteWeightedRandomSampler(self.train_dataset, self._train_weights),
-                batch_size=self.batch_size,
-                drop_last=False,
-                num_workers=self.train_data_workers,
-                pin_memory=True,
-                )
+            sampler = InfiniteWeightedRandomSampler(self.train_dataset, self._train_weights)
+            self.train_dataloader.sampler = sampler #breaks abstractions a bit, but couldn't find better solution outside of re-creating the object (which is too slow)
             self.train_dataloader = iter(self.train_dataloader)
 
     def _compute_train_weights(self):
