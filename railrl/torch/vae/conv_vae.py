@@ -29,7 +29,7 @@ def inv_gaussian_p_x_np_to_np(model, data):
     vae_dist = Normal(mus, stds)
     log_p_z = true_prior.log_prob(latents).sum(dim=2)
     log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
-    _, dec_mu, dec_var = model.decode_full(latents)
+    _, dec_mu, dec_var = model.decode_mean_and_var(latents)
     dec_mu = dec_mu.view(dec_mu.shape[0] // latents.shape[1], latents.shape[1], dec_mu.shape[1])
     dec_var = dec_var.view(dec_var.shape[0] // latents.shape[1], latents.shape[1], dec_var.shape[1])
     decoder_dist = Normal(dec_mu, dec_var.pow(.5))
@@ -200,8 +200,9 @@ class ConvVAETrainer(Serializable):
         if self.skew_dataset:
             self._train_weights = self._compute_train_weights()
             sampler = InfiniteWeightedRandomSampler(self.train_dataset, self._train_weights)
-            self.train_dataloader.sampler = sampler #breaks abstractions a bit, but couldn't find better solution outside of re-creating the object (which is too slow)
+            self.train_dataloader.sampler = sampler
             self.train_dataloader = iter(self.train_dataloader)
+
 
     def _compute_train_weights(self):
         method = self.skew_config.get('method', 'squared_error')
@@ -215,11 +216,11 @@ class ConvVAETrainer(Serializable):
             return self._kl_np_to_np(data) ** power
         elif method == 'inv_gaussian_p_x':
             data = normalize_image(data)
-            inv_gaussian_p_x = inv_gaussian_p_x_np_to_np(self.model, data)
+            inv_gaussian_p_x = inv_gaussian_p_x_np_to_np(self.model, data) ** power
             return inv_gaussian_p_x
         elif method == 'inv_bernoulli_p_x':
             data = normalize_image(data)
-            inv_bernoulli_p_x = inv_p_bernoulli_x_np_to_np(self.model, data)
+            inv_bernoulli_p_x = inv_p_bernoulli_x_np_to_np(self.model, data) ** power
             return inv_bernoulli_p_x
         else:
             raise NotImplementedError('Method {} not supported'.format(method))
@@ -269,7 +270,7 @@ class ConvVAETrainer(Serializable):
         Y = Y[ind, :]
         return ptu.from_numpy(X), ptu.from_numpy(Y)
 
-    def compute_bernoulli_log_prob(self, recon_x, x, mu, logvar):
+    def compute_bernoulli_log_prob(self, recon_x, x):
         # Divide by batch_size rather than setting size_average=True because
         # otherwise the averaging will also happen across dim 1 (the
         # pixels)
@@ -302,14 +303,11 @@ class ConvVAETrainer(Serializable):
     def logprob_and_stats(self, next_obs):
         if self.gaussian_decoder_loss:
             latents, mu, logvar, stds = get_encoding_and_suff_stats(self.model, next_obs)
-            recon_batch, dec_mu, dec_var = self.model.decode_full(latents)
+            recon_batch, dec_mu, dec_var = self.model.decode_mean_and_var(latents)
             log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
         else:
             recon_batch, mu, logvar = self.model(next_obs)
-            try:
-                log_prob = self.compute_bernoulli_log_prob(recon_batch, next_obs, mu, logvar)
-            except:
-                import ipdb; ipdb.set_trace()
+            log_prob = self.compute_bernoulli_log_prob(recon_batch, next_obs)
         return log_prob, recon_batch, next_obs, mu, logvar
 
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
@@ -733,7 +731,8 @@ class ConvVAESmallDouble(PyTorchModule):
             imsize=48,
             hidden_init=ptu.fanin_init,
             encoder_activation=identity,
-            decoder_activation=identity,
+            decoder_mean_activation=identity,
+            decoder_variance_activation=identity,
             min_variance=1e-3,
             state_size=0,
             unit_variance=False,
@@ -752,7 +751,8 @@ class ConvVAESmallDouble(PyTorchModule):
         self.variance_scaling=variance_scaling
         self.hidden_init = hidden_init
         self.encoder_activation = encoder_activation
-        self.decoder_activation = decoder_activation
+        self.decoder_mean_activation = decoder_mean_activation
+        self.decoder_variance_activation = decoder_variance_activation
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize ** 2 * self.input_channels
@@ -836,17 +836,11 @@ class ConvVAESmallDouble(PyTorchModule):
             return eps.mul(std).add_(mu)
         else:
             return mu
-
+    
     def decode(self, z):
-        h3 = self.relu(self.fc3(z))
-        h = h3.view(-1, self.kernel_out, 3, 3)
-        x = F.relu(self.conv4(h))
-        h = F.relu(self.conv5(x))
-        mu = self.dec_mu(h).view(-1,
-                                self.imsize * self.imsize * self.input_channels)
-        return self.decoder_activation(mu)
+        return self.decode_mean_and_var(z)[0]
 
-    def decode_full(self, z):
+    def decode_mean_and_var(self, z):
         h3 = self.relu(self.fc3(z))
         h = h3.view(-1, self.kernel_out, 3, 3)
         x = F.relu(self.conv4(h))
@@ -857,8 +851,8 @@ class ConvVAESmallDouble(PyTorchModule):
                                    self.imsize * self.imsize * self.input_channels)
         var = logvar.exp()
         if self.unit_variance:
-            var = torch.ones_like(var)
-        return self.decoder_activation(mu), self.decoder_activation(mu), self.decoder_activation(var)*self.variance_scaling
+            var = ptu.ones_like(var)
+        return self.decoder_activation(mu), self.decoder_mean_activation(mu), self.decoder_variance_activation(var)*self.variance_scaling
 
     def forward(self, x):
         mu, logvar = self.encode(x)
@@ -1028,7 +1022,7 @@ class ConvVAE(PyTorchModule):
         self.dist_std = d["_dist_std"]
 
 
-class ConvVAELarge(ConvVAE):
+class ConvVAELarge(PyTorchModule):
     def __init__(
             self,
             representation_size,
@@ -1082,8 +1076,6 @@ class ConvVAELarge(ConvVAE):
 
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
 
-        # self.fc4 = nn.Linear(self.conv_output_dim, imsize * imsize)
-
         self.conv7 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=2)
         self.conv8 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
         self.conv9 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
@@ -1133,10 +1125,6 @@ class ConvVAELarge(ConvVAE):
         self.fc3.bias.data.fill_(0)
         self.fc3.weight.data.uniform_(-init_w, init_w)
         self.fc3.bias.data.uniform_(-init_w, init_w)
-        self.hidden_init(self.fc4.weight)
-        self.fc4.bias.data.fill_(0)
-        self.fc4.weight.data.uniform_(-init_w, init_w)
-        self.fc4.bias.data.uniform_(-init_w, init_w)
 
     def encode(self, input):
         input = input.view(-1, self.imlength + self.added_fc_size)
@@ -1174,6 +1162,30 @@ class ConvVAELarge(ConvVAE):
                                 self.imsize * self.imsize * self.input_channels)
         return self.sigmoid(x)
 
+    def reparameterize(self, mu, logvar):
+        if self.training:
+            std = logvar.mul(0.5).exp_()
+            eps = std.data.new(std.size()).normal_()
+            return eps.mul(std).add_(mu)
+        else:
+            return mu
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        return self.decode(z), mu, logvar
+
+    def __getstate__(self):
+        d = super().__getstate__()
+        # Add these explicitly in case they were modified
+        d["_dist_mu"] = self.dist_mu
+        d["_dist_std"] = self.dist_std
+        return d
+
+    def __setstate__(self, d):
+        super().__setstate__(d)
+        self.dist_mu = d["_dist_mu"]
+        self.dist_std = d["_dist_std"]
 
 class AutoEncoder(ConvVAE):
     def forward(self, x):
@@ -1182,7 +1194,7 @@ class AutoEncoder(ConvVAE):
         return self.decode(z), mu, logvar
 
 
-class SpatialVAE(ConvVAE):
+class SpatialAutoEncoder(ConvVAE):
     def __init__(
             self,
             representation_size,
@@ -1198,7 +1210,7 @@ class SpatialVAE(ConvVAE):
                                stride=3)
         #        self.bn3 = nn.BatchNorm2d(32)
 
-        test_mat = ptu.zeros(1, self.input_channels, self.imsize, self.imsize)
+        test_mat = torch.zeros(1, self.input_channels, self.imsize, self.imsize)
         test_mat = self.conv1(test_mat)
         test_mat = self.conv2(test_mat)
         test_mat = self.conv3(test_mat)
@@ -1270,6 +1282,9 @@ class SpatialVAE(ConvVAE):
         mu = self.output_activation(self.fc1(h))
         logvar = self.output_activation(self.fc2(h))
         return mu, logvar
+
+    def reparameterize(self, mu, logvar):
+        return mu
 
 class ImageDataset(Dataset):
 

@@ -58,6 +58,9 @@ def grill_tdm_td3_online_vae_full_experiment(variant):
     train_vae_and_update_variant(variant)
     grill_tdm_td3_experiment_online_vae(variant['grill_variant'])
 
+def HER_baseline_her_td3_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    HER_baseline_her_td3_experiment(variant['grill_variant'])
 
 def full_experiment_variant_preprocess(variant):
     train_vae_variant = variant['train_vae_variant']
@@ -130,7 +133,7 @@ def train_vae(variant, return_data=False):
         ConvVAE,
         ConvVAESmall,
         ConvVAESmallDouble,
-        SpatialVAE,
+        SpatialAutoEncoder,
         AutoEncoder,
         ConvVAETrainer,
     )
@@ -163,8 +166,8 @@ def train_vae(variant, return_data=False):
     if variant['algo_kwargs'].get('is_auto_encoder', False):
         m = AutoEncoder(representation_size, input_channels=3)
     elif variant.get('use_spatial_auto_encoder', False):
-        m = SpatialVAE(representation_size, int(representation_size / 2),
-                       input_channels=3)
+        m = SpatialAutoEncoder(representation_size, int(representation_size / 2),
+                               input_channels=3)
     else:
         if variant.get('imsize') == 84:
             m = ConvVAE(representation_size, **variant['vae_kwargs'])
@@ -172,7 +175,7 @@ def train_vae(variant, return_data=False):
             if variant['algo_kwargs'].get('full_gaussian_decoder', False):
                 m = ConvVAESmallDouble(representation_size,
                                        encoder_activation=encoder_activation,
-                                       decoder_activation=decoder_activation,
+                                       decoder_mean_activation=decoder_activation,
                                        **variant['vae_kwargs']
                                        )
             else:
@@ -309,11 +312,11 @@ def generate_vae_dataset(variant):
                 elif oracle_dataset_using_set_to_goal:
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
+                    obs = env._get_obs()
                 else:
                     env.reset()
                     for _ in range(n_random_steps):
-                        env.step(env.action_space.sample())
-                obs = env.step(env.action_space.sample())[0]
+                        obs = env.step(env.action_space.sample())[0]
                 img = obs['image_observation']
                 dataset[i, :] = unormalize_image(img)
                 if show:
@@ -329,7 +332,6 @@ def generate_vae_dataset(variant):
     train_dataset = dataset[:n, :]
     test_dataset = dataset[n:, :]
     return train_dataset, test_dataset, info
-
 
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv
@@ -1380,6 +1382,128 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
             variant,
         )
         algorithm.post_epoch_funcs.append(video_func)
+    algorithm.train()
+
+def HER_baseline_her_td3_experiment(variant):
+    import railrl.samplers.rollout_functions as rf
+    import railrl.torch.pytorch_util as ptu
+    from railrl.data_management.obs_dict_replay_buffer import \
+        ObsDictRelabelingBuffer
+    from railrl.exploration_strategies.base import (
+        PolicyWrappedWithExplorationStrategy
+    )
+    from railrl.torch.her.her_td3 import HerTd3
+    from railrl.torch.networks import MergedCNN, CNNPolicy
+    import torch
+    from multiworld.core.image_env import ImageEnv
+    from railrl.misc.asset_loader import load_local_or_remote_file
+
+    init_camera = variant.get("init_camera", None)
+    presample_goals = variant.get('presample_goals', False)
+    presampled_goals_path = variant.get('presampled_goals_path', None)
+
+    if 'env_id' in variant:
+        import gym
+        from gym.envs import registration
+        # trigger registration
+        import multiworld.envs.pygame
+        import multiworld.envs.mujoco
+        env = gym.make(variant['env_id'])
+    else:
+        env = variant["env_class"](**variant['env_kwargs'])
+    image_env = ImageEnv(
+        env,
+        variant.get('imsize'),
+        reward_type='image_sparse',
+        init_camera=init_camera,
+        transpose=True,
+        normalize=True,
+    )
+    if presample_goals:
+        if presampled_goals_path is None:
+            image_env.non_presampled_goal_img_is_garbage = True
+            presampled_goals = variant['generate_goal_dataset_fctn'](
+                env=image_env,
+                **variant['goal_generation_kwargs']
+            )
+        else:
+            presampled_goals = load_local_or_remote_file(
+                presampled_goals_path
+            ).item()
+        del image_env
+        env = ImageEnv(
+            env,
+            variant.get('imsize'),
+            reward_type='image_distance',
+            init_camera=init_camera,
+            transpose=True,
+            normalize=True,
+            presampled_goals=presampled_goals,
+        )
+    else:
+        env = image_env
+
+    es = get_exploration_strategy(variant, env)
+
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    imsize=variant['imsize']
+    action_dim = env.action_space.low.size
+    qf1 = MergedCNN(input_width=imsize,
+                    input_height=imsize,
+                    output_size=1,
+                    input_channels=3 * 2,
+                    added_fc_input_size=action_dim,
+                    **variant['cnn_params']
+                    )
+    qf2 = MergedCNN(input_width=imsize,
+                    input_height=imsize,
+                    output_size=1,
+                    input_channels=3 * 2,
+                    added_fc_input_size=action_dim,
+                    **variant['cnn_params']
+                    )
+
+    policy = CNNPolicy(input_width=imsize,
+                       input_height=imsize,
+                       added_fc_input_size=0,
+                       output_size=action_dim,
+                       input_channels=3 * 2,
+                       output_activation=torch.tanh,
+                       **variant['cnn_params'],
+                       )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+
+    replay_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_buffer_kwargs']
+    )
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['replay_buffer'] = replay_buffer
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = env
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
+    her_kwargs = algo_kwargs['her_kwargs']
+    her_kwargs['observation_key'] = observation_key
+    her_kwargs['desired_goal_key'] = desired_goal_key
+    algorithm = HerTd3(
+        env,
+        qf1=qf1,
+        qf2=qf2,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        **variant['algo_kwargs']
+    )
+
+    algorithm.to(ptu.device)
     algorithm.train()
 
 

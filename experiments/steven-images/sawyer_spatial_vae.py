@@ -1,6 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.conv_vae import ConvVAE, SpatialVAE, ConvVAETrainer
+from railrl.torch.vae.conv_vae import ConvVAE, SpatialAutoEncoder, ConvVAETrainer
 from railrl.torch.vae.sawyer2d_reach_data import get_data
 
 
@@ -13,7 +13,7 @@ def experiment(variant):
     print('finish collecting data')
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
-    m = SpatialVAE(2*num_feat_points, num_feat_points, input_channels=3)
+    m = SpatialAutoEncoder(2 * num_feat_points, num_feat_points, input_channels=3)
 #    m = ConvVAE(2*num_feat_points, input_channels=3)
     t = ConvVAETrainer(train_data, test_data, m,  lr=variant['lr'], beta=beta)
     for epoch in range(variant['num_epochs']):
