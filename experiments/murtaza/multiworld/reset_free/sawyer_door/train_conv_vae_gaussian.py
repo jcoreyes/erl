@@ -72,7 +72,7 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_gaussian_p_x',
             ),
-            skew_dataset=True,
+            skew_dataset=False,
             gaussian_decoder_loss=True,
         ),
         vae=ConvVAESmallDouble,

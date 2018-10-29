@@ -255,5 +255,12 @@ def zeros_like(*args, torch_device=None, **kwargs):
         torch_device = device
     return torch.zeros_like(*args, **kwargs, device=torch_device)
 
+def tensor(*args, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.tensor(*args, **kwargs, device=torch_device)
+
 def normal(*args, **kwargs):
     return torch.normal(*args, **kwargs).to(device)
+
+
