@@ -35,8 +35,8 @@ def make_heat_map(eval_func, x_bounds, y_bounds, *, resolution=10, info=None, ba
 
     if batch:
         inputs = []
-        for j in range(resolution):
-            for i in range(resolution):
+        for i in range(resolution):
+            for j in range(resolution):
                 inputs.append([x_values[i], y_values[j]])
         inputs = np.array(inputs)
         map = eval_func(inputs).reshape((resolution, resolution))

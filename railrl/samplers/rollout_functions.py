@@ -34,7 +34,10 @@ def multitask_rollout(
     animated=False,
     observation_key=None,
     desired_goal_key=None,
+    get_action_kwargs=None,
 ):
+    if get_action_kwargs is None:
+        get_action_kwargs = {}
     full_observations = []
     observations = []
     actions = []
@@ -48,15 +51,13 @@ def multitask_rollout(
     o = env.reset()
     if animated:
         env.render()
-    goal = env.get_goal()
-    if desired_goal_key:
-        goal = goal[desired_goal_key]
+    goal = o[desired_goal_key]
     while path_length < max_path_length:
         full_observations.append(o)
         if observation_key:
             o = o[observation_key]
         new_obs = np.hstack((o, goal))
-        a, agent_info = agent.get_action(new_obs)
+        a, agent_info = agent.get_action(new_obs, **get_action_kwargs)
         next_o, r, d, env_info = env.step(a)
         if animated:
             env.render()
@@ -192,10 +193,7 @@ def tdm_rollout(
 
     tau = np.array([init_tau])
     o = env.reset()
-    goal = env.get_goal()
-    agent_goal = goal
-    if desired_goal_key:
-        agent_goal = agent_goal[desired_goal_key]
+    agent_goal = o[desired_goal_key]
     while path_length < max_path_length:
         full_observations.append(o)
         agent_o = o
