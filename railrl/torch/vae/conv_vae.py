@@ -29,7 +29,7 @@ def inv_gaussian_p_x_np_to_np(model, data):
     vae_dist = Normal(mus, stds)
     log_p_z = true_prior.log_prob(latents).sum(dim=2)
     log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
-    _, dec_mu, dec_var = model.decode_full(latents)
+    _, dec_mu, dec_var = model.decode_mean_and_var(latents)
     dec_mu = dec_mu.view(dec_mu.shape[0] // latents.shape[1], latents.shape[1], dec_mu.shape[1])
     dec_var = dec_var.view(dec_var.shape[0] // latents.shape[1], latents.shape[1], dec_var.shape[1])
     decoder_dist = Normal(dec_mu, dec_var.pow(.5))
@@ -303,7 +303,7 @@ class ConvVAETrainer(Serializable):
     def logprob_and_stats(self, next_obs):
         if self.gaussian_decoder_loss:
             latents, mu, logvar, stds = get_encoding_and_suff_stats(self.model, next_obs)
-            recon_batch, dec_mu, dec_var = self.model.decode_full(latents)
+            recon_batch, dec_mu, dec_var = self.model.decode_mean_and_var(latents)
             log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_var)
         else:
             recon_batch, mu, logvar = self.model(next_obs)
@@ -731,7 +731,8 @@ class ConvVAESmallDouble(PyTorchModule):
             imsize=48,
             hidden_init=ptu.fanin_init,
             encoder_activation=identity,
-            decoder_activation=identity,
+            decoder_mean_activation=identity,
+            decoder_variance_activation=identity,
             min_variance=1e-3,
             state_size=0,
             unit_variance=False,
@@ -749,7 +750,8 @@ class ConvVAESmallDouble(PyTorchModule):
         self.variance_scaling=variance_scaling
         self.hidden_init = hidden_init
         self.encoder_activation = encoder_activation
-        self.decoder_activation = decoder_activation
+        self.decoder_mean_activation = decoder_mean_activation
+        self.decoder_variance_activation = decoder_variance_activation
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize ** 2 * self.input_channels
@@ -832,17 +834,11 @@ class ConvVAESmallDouble(PyTorchModule):
             return eps.mul(std).add_(mu)
         else:
             return mu
-
+    
     def decode(self, z):
-        h3 = self.relu(self.fc3(z))
-        h = h3.view(-1, self.kernel_out, 3, 3)
-        x = F.relu(self.conv4(h))
-        h = F.relu(self.conv5(x))
-        mu = self.dec_mu(h).view(-1,
-                                self.imsize * self.imsize * self.input_channels)
-        return self.decoder_activation(mu)
+        return self.decode_mean_and_var(z)[0]
 
-    def decode_full(self, z):
+    def decode_mean_and_var(self, z):
         h3 = self.relu(self.fc3(z))
         h = h3.view(-1, self.kernel_out, 3, 3)
         x = F.relu(self.conv4(h))
@@ -853,8 +849,8 @@ class ConvVAESmallDouble(PyTorchModule):
                                    self.imsize * self.imsize * self.input_channels)
         var = logvar.exp()
         if self.unit_variance:
-            var = torch.ones_like(var)
-        return self.decoder_activation(mu), self.decoder_activation(mu), self.decoder_activation(var)*self.variance_scaling
+            var = ptu.ones_like(var)
+        return self.decoder_activation(mu), self.decoder_mean_activation(mu), self.decoder_variance_activation(var)*self.variance_scaling
 
     def forward(self, x):
         mu, logvar = self.encode(x)
@@ -1196,7 +1192,7 @@ class AutoEncoder(ConvVAE):
         return self.decode(z), mu, logvar
 
 
-class SpatialVAE(ConvVAE):
+class SpatialAutoEncoder(ConvVAE):
     def __init__(
             self,
             representation_size,

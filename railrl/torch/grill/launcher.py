@@ -133,7 +133,7 @@ def train_vae(variant, return_data=False):
         ConvVAE,
         ConvVAESmall,
         ConvVAESmallDouble,
-        SpatialVAE,
+        SpatialAutoEncoder,
         AutoEncoder,
         ConvVAETrainer,
     )
@@ -166,8 +166,8 @@ def train_vae(variant, return_data=False):
     if variant['algo_kwargs'].get('is_auto_encoder', False):
         m = AutoEncoder(representation_size, input_channels=3)
     elif variant.get('use_spatial_auto_encoder', False):
-        m = SpatialVAE(representation_size, int(representation_size / 2),
-                       input_channels=3)
+        m = SpatialAutoEncoder(representation_size, int(representation_size / 2),
+                               input_channels=3)
     else:
         if variant.get('imsize') == 84:
             m = ConvVAE(representation_size, **variant['vae_kwargs'])
@@ -175,7 +175,7 @@ def train_vae(variant, return_data=False):
             if variant['algo_kwargs'].get('full_gaussian_decoder', False):
                 m = ConvVAESmallDouble(representation_size,
                                        encoder_activation=encoder_activation,
-                                       decoder_activation=decoder_activation,
+                                       decoder_mean_activation=decoder_activation,
                                        **variant['vae_kwargs']
                                        )
             else:
