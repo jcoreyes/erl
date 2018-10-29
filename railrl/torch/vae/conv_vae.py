@@ -1031,7 +1031,7 @@ class ConvVAE(PyTorchModule):
         self.dist_std = d["_dist_std"]
 
 
-class ConvVAELarge(ConvVAE):
+class ConvVAELarge(PyTorchModule):
     def __init__(
             self,
             representation_size,
@@ -1085,8 +1085,6 @@ class ConvVAELarge(ConvVAE):
 
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
 
-        # self.fc4 = nn.Linear(self.conv_output_dim, imsize * imsize)
-
         self.conv7 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=2)
         self.conv8 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
         self.conv9 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=3)
@@ -1136,10 +1134,6 @@ class ConvVAELarge(ConvVAE):
         self.fc3.bias.data.fill_(0)
         self.fc3.weight.data.uniform_(-init_w, init_w)
         self.fc3.bias.data.uniform_(-init_w, init_w)
-        self.hidden_init(self.fc4.weight)
-        self.fc4.bias.data.fill_(0)
-        self.fc4.weight.data.uniform_(-init_w, init_w)
-        self.fc4.bias.data.uniform_(-init_w, init_w)
 
     def encode(self, input):
         input = input.view(-1, self.imlength + self.added_fc_size)
@@ -1177,6 +1171,30 @@ class ConvVAELarge(ConvVAE):
                                 self.imsize * self.imsize * self.input_channels)
         return self.sigmoid(x)
 
+    def reparameterize(self, mu, logvar):
+        if self.training:
+            std = logvar.mul(0.5).exp_()
+            eps = std.data.new(std.size()).normal_()
+            return eps.mul(std).add_(mu)
+        else:
+            return mu
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        return self.decode(z), mu, logvar
+
+    def __getstate__(self):
+        d = super().__getstate__()
+        # Add these explicitly in case they were modified
+        d["_dist_mu"] = self.dist_mu
+        d["_dist_std"] = self.dist_std
+        return d
+
+    def __setstate__(self, d):
+        super().__setstate__(d)
+        self.dist_mu = d["_dist_mu"]
+        self.dist_std = d["_dist_std"]
 
 class AutoEncoder(ConvVAE):
     def forward(self, x):
@@ -1201,7 +1219,7 @@ class SpatialVAE(ConvVAE):
                                stride=3)
         #        self.bn3 = nn.BatchNorm2d(32)
 
-        test_mat = ptu.zeros(1, self.input_channels, self.imsize, self.imsize)
+        test_mat = torch.zeros(1, self.input_channels, self.imsize, self.imsize)
         test_mat = self.conv1(test_mat)
         test_mat = self.conv2(test_mat)
         test_mat = self.conv3(test_mat)
@@ -1273,6 +1291,9 @@ class SpatialVAE(ConvVAE):
         mu = self.output_activation(self.fc1(h))
         logvar = self.output_activation(self.fc2(h))
         return mu, logvar
+
+    def reparameterize(self, mu, logvar):
+        return mu
 
 class ImageDataset(Dataset):
 

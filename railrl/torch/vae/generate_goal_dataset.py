@@ -1,6 +1,7 @@
 import cv2
-
 import railrl.torch.pytorch_util as ptu
+from multiworld.core.image_env import ImageEnv
+from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -67,7 +68,6 @@ def generate_goal_data_set(env=None, num_goals=1000, use_cached_dataset=False,
             goal_dict[goal_key][i, :] = obs[obs_key]
     np.save('/tmp/goals' + str(num_goals) + '.npy', goal_dict)
     return goal_dict
-
 
 def generate_goal_dataset_using_policy(
         env=None,
@@ -137,26 +137,14 @@ def generate_goal_dataset_using_policy(
     print("Saving file to {}".format(filename))
     return goal_dict
 
-def generate_goal_dataset_pusher(
+def generate_goal_dataset_using_set_to_goal(
         env=None,
         num_goals=1000,
         use_cached_dataset=False,
         show=False,
-        save_file_prefix=None,
-        env_id=None,
-        tag='',
+        save_filename=None,
 ):
-    env_class = type(env.wrapped_env.wrapped_env)
-    if save_file_prefix is None and env_id is not None:
-        save_file_prefix = env_id
-    elif save_file_prefix is None:
-        save_file_prefix = env_class.__name__
-    filename = "/tmp/{}_N{}_imsize{}goals{}.npy".format(
-        save_file_prefix,
-        str(num_goals),
-        env.imsize,
-        tag,
-    )
+    filename = save_filename or '/tmp/goals_n{}_{}.npy'.format(num_goals, env)
     if use_cached_dataset and osp.isfile(filename):
         goal_dict = np.load(filename).item()
         print("Loaded data from {}".format(filename))
@@ -176,16 +164,20 @@ def generate_goal_dataset_pusher(
         goal_dict[goal_key] = np.zeros((num_goals, goal_size))
     print('Generating Random Goals')
     for j in range(num_goals):
-        goal = env.wrapped_env.wrapped_env.sample_goal()
+        if type(env) == VAEWrappedEnv:
+            goal = env.wrapped_env.wrapped_env.sample_goal()
+        elif type(env) == ImageEnv:
+            goal = env.wrapped_env.sample_goal()
+        else:
+            goal = env.sample_goal()
         env.set_to_goal(goal)
-        obs, _, _, _ = env.step(env.action_space.sample())
+        obs = env._get_obs()
         if show:
             img = obs['image_observation']
             img = img.reshape(3, env.imsize, env.imsize).transpose()
             img = img[::-1, :, ::-1]
             cv2.imshow('img', img)
             cv2.waitKey(1)
-        print(j)
         for goal_key in goal_generation_dict:
             goal_size, obs_key = goal_generation_dict[goal_key]
             goal_dict[goal_key][j, :] = obs[obs_key]
