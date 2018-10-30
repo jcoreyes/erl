@@ -60,10 +60,6 @@ if __name__ == "__main__":
     use_gpu = True
 
     variant = dict(
-        # beta_schedule_kwargs=dict(
-        #     x_values=[0, 800, 1700],
-        #     y_values=[0, 0, .5],
-        # ),
         num_epochs=2500,
         algo_kwargs=dict(
             is_auto_encoder=False,
@@ -96,14 +92,14 @@ if __name__ == "__main__":
             imsize=48,
             num_latents_to_sample=1,
         ),
-        save_period=10,
+        save_period=50,
         beta=2.5,
         representation_size=16,
     )
 
     search_space = {
-        'algo_kwargs.lr':[1e-3],
-        # 'algo_kwargs.normalize_log_probs':[True],
+        'algo_kwargs.lr':[5e-4, 1e-3, 5e-3],
+        'beta':[.5, 1, 2.5, 5, 10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
