@@ -49,13 +49,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'normalized-sampling'
+    # mode = 'local'
+    # exp_prefix = 'gaussian_decoder'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'gaussian_decoder'
 
     use_gpu = True
 

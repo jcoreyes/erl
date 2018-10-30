@@ -68,8 +68,6 @@ def get_encoding_and_suff_stats(model, imgs):
     stds = (0.5 * logvar).exp()
     stds = stds.view(stds.size()[0], 1, stds.size()[1])
     epsilon = ptu.randn((mu.size()[0], model.num_latents_to_sample, mu.size()[1]))
-    if ptu.gpu_enabled():
-        epsilon = epsilon.cuda()
     latents = epsilon * stds + mu
     return latents, mu, logvar, stds
 
