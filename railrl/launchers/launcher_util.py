@@ -302,7 +302,7 @@ def run_experiment(
     Create mode
     """
     if mode == 'local':
-        dmode = doodad.mode.Local()
+        dmode = doodad.mode.Local(skip_wait=skip_wait)
     elif mode == 'local_docker':
         dmode = doodad.mode.LocalDocker(
             image=docker_image,
@@ -339,6 +339,8 @@ def run_experiment(
                 image=singularity_image,
                 gpu=use_gpu,
                 time_in_mins=time_in_mins,
+                skip_wait=skip_wait,
+                pre_cmd=config.SINGULARITY_PRE_CMDS,
                 **kwargs
             )
         else:
@@ -346,6 +348,7 @@ def run_experiment(
                 image=singularity_image,
                 gpu=use_gpu,
                 time_in_mins=time_in_mins,
+                skip_wait=skip_wait,
                 **kwargs
             )
     elif mode == 'ec2':
@@ -363,6 +366,7 @@ def run_experiment(
             s3_log_name="",
             gpu=use_gpu,
             aws_s3_path=aws_s3_path,
+            num_exps=num_exps_per_instance,
             **mode_kwargs
         )
     else:
@@ -381,13 +385,11 @@ def run_experiment(
     """
     Get the outputs
     """
-    mode_specific_kwargs = {}
     launch_locally = None
     target = config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH
     if mode == 'ec2':
         # Ignored since I'm setting the snapshot dir directly
         base_log_dir_for_script = None
-        mode_specific_kwargs['num_exps'] = num_exps_per_instance
         run_experiment_kwargs['randomize_seed'] = True
         # The snapshot dir needs to be specified for S3 because S3 will
         # automatically create the experiment director and sub-directory.
@@ -396,7 +398,6 @@ def run_experiment(
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
-        mode_specific_kwargs['skip_wait'] = skip_wait
     elif mode == 'local_docker':
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
@@ -409,11 +410,9 @@ def run_experiment(
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
-        mode_specific_kwargs['pre_cmd'] = config.SINGULARITY_PRE_CMDS
         launch_locally = True
         if mode == 'sss':
-            mode_specific_kwargs['first_launch_command'] = first_sss_launch
-        if mode == 'sss':
+            dmode.set_first_time(first_sss_launch)
             first_sss_launch = False
             target = config.SSS_RUN_DOODAD_EXPERIMENT_SCRIPT_PATH
     elif mode == 'here_no_doodad':
@@ -437,7 +436,6 @@ def run_experiment(
         target_mount=target_mount,
         verbose=verbose,
         launch_locally=launch_locally,
-        **mode_specific_kwargs
     )
 
 
