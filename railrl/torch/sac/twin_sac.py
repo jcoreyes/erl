@@ -2,8 +2,6 @@ import torch
 import numpy as np
 import torch.optim as optim
 from torch import nn as nn
-from torch.autograd import Variable
-
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.sac.policies import MakeDeterministic
@@ -271,11 +269,12 @@ class TwinSAC(TorchRLAlgorithm):
             self.target_vf,
         ]
 
-    def get_epoch_snapshot(self, epoch):
-        snapshot = super().get_epoch_snapshot(epoch)
-        snapshot['qf1'] = self.qf1
-        snapshot['qf2'] = self.qf2
-        snapshot['policy'] = self.policy
-        snapshot['vf'] = self.vf
-        snapshot['target_vf'] = self.target_vf
-        return snapshot
+    def update_epoch_snapshot(self, snapshot):
+        snapshot.update(
+            qf1=self.qf1,
+            qf2=self.qf2,
+            policy=self.eval_policy,
+            trained_policy=self.policy,
+            target_vf=self.target_vf,
+            exploration_policy=self.exploration_policy,
+        )

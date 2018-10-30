@@ -103,7 +103,7 @@ if __name__ == "__main__":
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
 
         'grill_variant.replay_kwargs.exploration_rewards_scale': [0],
-        'grill_variant.replay_kwargs.alpha': [0, 1, 2],
+        'grill_variant.replay_kwargs.power': [0, 1, 2],
         'grill_variant.algo_kwargs.num_updates_per_env_step': [4],
         'grill_variant.replay_kwargs.exploration_rewards_type':
                 ['reconstruction_error'],

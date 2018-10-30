@@ -108,7 +108,7 @@ if __name__ == "__main__":
             # 30000,
             # 3000,
         ],
-        'grill_variant.replay_kwargs.alpha': [3],
+        'grill_variant.replay_kwargs.power': [3],
         'grill_variant.exploration_noise': [.8],
         'grill_variant.algo_kwargs.vae_training_schedule':
             [

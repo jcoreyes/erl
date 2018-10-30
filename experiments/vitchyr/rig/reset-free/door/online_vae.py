@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.algo_kwargs.base_kwargs.max_path_length': [100],
-        'grill_variant.replay_kwargs.alpha': [
+        'grill_variant.replay_kwargs.power': [
             2,
             # 1,
             # 0,
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'ec2'
-    # exp_prefix = 'online-vae-new-door-sweep-alpha'
+    # exp_prefix = 'online-vae-new-door-sweep-power'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

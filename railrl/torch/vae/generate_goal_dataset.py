@@ -76,9 +76,21 @@ def generate_goal_dataset_using_policy(
         policy_file=None,
         show=False,
         path_length=500,
-        save_filename=None,
+        save_file_prefix=None,
+        env_id=None,
+        tag='',
 ):
-    filename = save_filename or '/tmp/goals_n{}_{}.npy'.format(num_goals, env)
+    env_class = type(env.wrapped_env.wrapped_env)
+    if save_file_prefix is None and env_id is not None:
+        save_file_prefix = env_id
+    elif save_file_prefix is None:
+        save_file_prefix = env_class.__name__
+    filename = "/tmp/{}_N{}_imsize{}goals{}.npy".format(
+        save_file_prefix,
+        str(num_goals),
+        env.imsize,
+        tag,
+    )
     if use_cached_dataset and osp.isfile(filename):
         goal_dict = np.load(filename).item()
         print("Loaded data from {}".format(filename))
@@ -125,7 +137,6 @@ def generate_goal_dataset_using_policy(
     print("Saving file to {}".format(filename))
     return goal_dict
 
-
 def generate_goal_dataset_using_set_to_goal(
         env=None,
         num_goals=1000,
@@ -167,7 +178,6 @@ def generate_goal_dataset_using_set_to_goal(
             img = img[::-1, :, ::-1]
             cv2.imshow('img', img)
             cv2.waitKey(1)
-
         for goal_key in goal_generation_dict:
             goal_size, obs_key = goal_generation_dict[goal_key]
             goal_dict[goal_key][j, :] = obs[obs_key]

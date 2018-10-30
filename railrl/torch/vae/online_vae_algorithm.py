@@ -2,6 +2,7 @@ from railrl.core import logger
 from railrl.data_management.shared_obs_dict_replay_buffer \
         import SharedObsDictRelabelingBuffer
 import railrl.torch.vae.vae_schedules as vae_schedules
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.vae.conv_vae import ConvVAE
 import railrl.torch.pytorch_util as ptu
@@ -11,6 +12,7 @@ from multiprocessing.connection import wait
 
 from threading import Thread
 from time import sleep
+import numpy as np
 
 class OnlineVaeAlgorithm(TorchRLAlgorithm):
 
@@ -22,6 +24,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         vae_training_schedule=vae_schedules.never_train,
         oracle_data=False,
         parallel_vae_train=True,
+        vae_min_num_steps_before_training=0,
     ):
         self.vae = vae
         self.vae_trainer = vae_trainer
@@ -34,6 +37,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.vae_training_process = None
         self.process_vae_update_thread = None
         self.parallel_vae_train = parallel_vae_train
+        self.vae_min_num_steps_before_training = vae_min_num_steps_before_training
 
     def _post_epoch(self, epoch):
         super()._post_epoch(epoch)
@@ -41,7 +45,12 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
             self.init_vae_training_subproces()
 
         should_train, amount_to_train = self.vae_training_schedule(epoch)
-        if should_train:
+        if self.replay_buffer._prioritize_vae_samples:
+            self.log_priority_weights()
+        rl_start_epoch = int(self.min_num_steps_before_training / self.num_env_steps_per_epoch)
+        if should_train \
+                and self.replay_buffer.num_steps_can_sample() >= self.vae_min_num_steps_before_training\
+                or epoch >= (rl_start_epoch-1):
             if self.parallel_vae_train:
                 assert self.vae_training_process.is_alive()
                 # Make sure the last vae update has finished before starting
@@ -71,6 +80,19 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                 )
         # very hacky
         self.epoch = epoch + 1
+
+    def log_priority_weights(self):
+        vae_sample_priorities = self.replay_buffer._vae_sample_priorities[:self.replay_buffer_size]
+        vae_sample_probs = vae_sample_priorities ** self.replay_buffer.power
+        p_sum = np.sum(vae_sample_probs)
+        vae_sample_probs /= (np.sum(vae_sample_probs)+1e-8)
+        vae_sample_probs = vae_sample_probs.flatten()
+        stats = create_stats_ordered_dict(
+            'VAE Sample Probability',
+            vae_sample_probs,
+        )
+        for key, value in stats.items():
+            logger.record_tabular(key, value)
 
     def reset_vae(self):
         self.vae.init_weights(self.vae.init_w)

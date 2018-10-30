@@ -1,5 +1,4 @@
-from railrl.data_management.obs_dict_replay_buffer import \
-        ObsDictRelabelingBuffer, flatten_dict
+from railrl.data_management.obs_dict_replay_buffer import flatten_dict
 from railrl.data_management.shared_obs_dict_replay_buffer import \
         SharedObsDictRelabelingBuffer
 from multiworld.core.image_env import normalize_image
@@ -11,6 +10,7 @@ from torch.nn import MSELoss
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
+from railrl.torch.vae.conv_vae import inv_gaussian_p_x_np_to_np, inv_p_bernoulli_x_np_to_np
 
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
@@ -24,7 +24,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         exploration_rewards_type='None',
         exploration_rewards_scale=1.0,
         vae_priority_type='None',
-        alpha=1.0,
+        power=1.0,
         internal_keys=None,
         exploration_schedule_kwargs=None,
         **kwargs
@@ -37,7 +37,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.exploration_rewards_type = exploration_rewards_type
         self.exploration_rewards_scale = exploration_rewards_scale
         self.vae_priority_type = vae_priority_type
-        self.alpha = alpha
+        self.power = power
 
         if exploration_schedule_kwargs is None:
             self.explr_reward_scale_schedule = \
@@ -66,7 +66,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self._exploration_rewards = np.zeros((self.max_size, 1))
         self._prioritize_vae_samples = (
             vae_priority_type != 'None'
-            and alpha != 0.
+            and power != 0.
         )
         self._vae_sample_priorities = np.zeros((self.max_size, 1))
         self._vae_sample_probs = None
@@ -85,6 +85,8 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'forward_model_error':          self.forward_model_error,
             'gaussian_inv_prob':            self.gaussian_inv_prob,
             'bernoulli_inv_prob':           self.bernoulli_inv_prob,
+            'image_gaussian_inv_prob':      self.image_gaussian_inv_prob,
+            'image_bernoulli_inv_prob':     self.image_bernoulli_inv_prob,
             'None':                         self.no_reward,
         }
 
@@ -156,10 +158,11 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 normalize_image(self._next_obs[self.decoded_obs_key][idxs])
             )
             if self._give_explr_reward_bonus:
-                self._exploration_rewards[idxs] = self.exploration_reward_func(
+                rewards = self.exploration_reward_func(
                     normalized_imgs,
                     idxs,
-                ).reshape(-1, 1)
+                )
+                self._exploration_rewards[idxs] = rewards.reshape(-1, 1)
             if self._prioritize_vae_samples:
                 if (
                     self.exploration_rewards_type == self.vae_priority_type
@@ -181,7 +184,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             next_idx = min(next_idx, self._size)
         if self._prioritize_vae_samples:
             vae_sample_priorities = self._vae_sample_priorities[:self._size]
-            self._vae_sample_probs = vae_sample_priorities ** self.alpha
+            self._vae_sample_probs = vae_sample_priorities ** self.power
             p_sum = np.sum(self._vae_sample_probs)
             assert p_sum > 0, "Unnormalized p sum is {}".format(p_sum)
             self._vae_sample_probs /= np.sum(self._vae_sample_probs)
@@ -234,6 +237,12 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             + (1 - torch_input) * (1 - recon_next_vae_obs)
         ).prod(dim=1)
         return ptu.get_numpy(1 / prob)
+
+    def image_gaussian_inv_prob(self, next_vae_obs, indices):
+        return inv_gaussian_p_x_np_to_np(self.vae, next_vae_obs)
+
+    def image_bernoulli_inv_prob(self, next_vae_obs, indices):
+        return inv_p_bernoulli_x_np_to_np(self.vae, next_vae_obs)
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]

@@ -23,6 +23,6 @@ generate_goal_dataset_using_policy(
     policy_file='manual-upload/SawyerDoorEnv_policy_params.pkl',
     path_length=30,
     show=True,
-    save_filename='/home/vitchyr/git/railrl/data/doodads3/manual-upload'
+    save_file_prefix='/home/vitchyr/git/railrl/data/doodads3/manual-upload'
                   '/goals_n1000_SawyerDoorEnv_max_angle_30.npy'
 )
