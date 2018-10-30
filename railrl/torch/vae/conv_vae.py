@@ -188,7 +188,7 @@ class ConvVAETrainer(Serializable):
         self.vae_logger_stats_for_rl = {}
         self._extra_stats_to_log = None
         if self.gaussian_decoder_loss:
-            self.max_logvar = ptu.tensor(np.ones(3*self.model.imsize**2, dtype=np.float32)*1e-4, requires_grad=True)
+            self.max_logvar = ptu.tensor(np.ones(3*self.model.imsize**2, dtype=np.float32)*1/2, requires_grad=True)
             self.max_logvar_optimizer = optim.Adam([self.max_logvar], lr=self.lr)
 
     def get_dataset_stats(self, data):
@@ -314,7 +314,7 @@ class ConvVAETrainer(Serializable):
         log_probs = decoder_dist.log_prob(input)
         vals = log_probs.sum(dim=1, keepdim=True)
 
-        max_logvar_loss = (self.max_logvar * 1e-8).sum()
+        max_logvar_loss = (self.max_logvar * .01).sum()
         self.max_logvar_optimizer.zero_grad()
         max_logvar_loss.backward()
         self.max_logvar_optimizer.step()
