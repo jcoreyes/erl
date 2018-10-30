@@ -9,10 +9,7 @@ if __name__ == "__main__":
     variant = dict(
         imsize=84,
         init_camera=sawyer_xyz_reacher_camera,
-        env_class=SawyerReachXYEnv,
-        env_kwargs=dict(
-            norm_order=2,
-        ),
+        env_id='SawyerReachXYEnv-v0',
         grill_variant=dict(
             save_video=True,
             save_video_period=50,
