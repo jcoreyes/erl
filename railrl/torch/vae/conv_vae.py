@@ -12,14 +12,18 @@ from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data.sampler import Sampler, BatchSampler
+from torch.utils.data import DataLoader
 from railrl.core import logger
 import os.path as osp
 import numpy as np
 from multiworld.core.image_env import normalize_image
 from railrl.torch.core import PyTorchModule
 from railrl.core.serializable import Serializable
+from railrl.torch.data import (
+    ImageDataset, InfiniteRandomSampler,
+    InfiniteWeightedRandomSampler,
+)
+
 
 def inv_gaussian_p_x_np_to_np(model, data):
     ''' Assumes data is normalized images'''
@@ -842,7 +846,7 @@ class ConvVAESmallDouble(PyTorchModule):
             return eps.mul(std).add_(mu)
         else:
             return mu
-    
+
     def decode(self, z):
         return self.decode_mean_and_var(z)[0]
 
@@ -1291,81 +1295,6 @@ class SpatialAutoEncoder(ConvVAE):
 
     def reparameterize(self, mu, logvar):
         return mu
-
-class ImageDataset(Dataset):
-
-    def __init__(self, images, should_normalize=True):
-        super().__init__()
-        self.dataset = images
-        self.dataset_len = len(self.dataset)
-        assert should_normalize == (images.dtype == np.uint8)
-        self.should_normalize = should_normalize
-
-    def __len__(self):
-        return self.dataset_len
-
-    def __getitem__(self, idxs):
-        samples = self.dataset[idxs, :]
-        if self.should_normalize:
-            samples = normalize_image(samples)
-        return np.float32(samples)
-
-
-class InfiniteRandomSampler(Sampler):
-
-    def __init__(self, data_source):
-        self.data_source = data_source
-        self.iter = iter(torch.randperm(len(self.data_source)).tolist())
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        try:
-            idx = next(self.iter)
-        except StopIteration:
-            self.iter = iter(torch.randperm(len(self.data_source)).tolist())
-            idx = next(self.iter)
-        return idx
-
-    def __len__(self):
-        return 2 ** 62
-
-
-class InfiniteWeightedRandomSampler(Sampler):
-
-    def __init__(self, data_source, weights):
-        assert len(data_source) == len(weights)
-        assert len(weights.shape) == 1
-        self.data_source = data_source
-        # Always use CPU
-        self._weights = torch.from_numpy(weights)
-        self.iter = self._create_iterator()
-
-    def update_weights(self, weights):
-        self._weights = weights
-        self.iter = self._create_iterator()
-
-    def _create_iterator(self):
-        return iter(
-            torch.multinomial(
-                self._weights, len(self._weights), replacement=True
-            ).tolist()
-        )
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        try:
-            idx = next(self.iter)
-        except StopIteration:
-            self.iter = self._create_iterator()
-            idx = next(self.iter)
-        return idx
-
-    def __len__(self):
-        return 2 ** 62
 
 
 if __name__ == "__main__":
