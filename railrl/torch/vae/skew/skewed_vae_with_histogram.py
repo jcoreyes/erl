@@ -196,10 +196,10 @@ def train(
         entropy_gain = p_new.entropy() - p_theta.entropy()
         entropy_gains_from_reweighting.append(entropy_gain)
 
+        for k in sorted(epoch_stats.keys()):
+            logger.record_tabular(k, epoch_stats[k])
+
         logger.record_tabular("Epoch", epoch)
-        logger.record_tabular("VAE Loss", np.mean(epoch_stats['losses']))
-        logger.record_tabular("VAE KL", np.mean(epoch_stats['kls']))
-        logger.record_tabular("VAE Log Prob", np.mean(epoch_stats['log_probs']))
         logger.record_tabular('Entropy ', p_theta.entropy())
         logger.record_tabular('KL from uniform', p_theta.kl_from_uniform())
         logger.record_tabular('TV to uniform', p_theta.tv_to_uniform())
