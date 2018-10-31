@@ -1,12 +1,6 @@
-import torch
-
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.pythonplusplus import identity
-from railrl.torch.vae.conv_vae import ConvVAETrainer, ConvVAESmallDouble, ConvVAESmall
+from railrl.torch.vae.conv_vae import ConvVAETrainer, ConvVAESmallDouble
 from railrl.torch.grill.launcher import generate_vae_dataset
 
 def experiment(variant):
@@ -19,16 +13,7 @@ def experiment(variant):
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
-    if 'beta_schedule_kwargs' in variant:
-        # kwargs = variant['beta_schedule_kwargs']
-        # kwargs['y_values'][2] = variant['beta']
-        # kwargs['x_values'][1] = variant['flat_x']
-        # kwargs['x_values'][2] = variant['ramp_x'] + variant['flat_x']
-        variant['beta_schedule_kwargs']['y_values'][-1] = variant['beta']
-        beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
-    else:
-        beta_schedule = None
-
+    beta_schedule = None
     m = variant['vae'](representation_size, **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -49,13 +34,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'gaussian_decoder'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'gaussian_decoder'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'gaussian_decoder'
 
     use_gpu = True
 
@@ -115,5 +100,4 @@ if __name__ == "__main__":
                 num_exps_per_instance=2,
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
-                # skip_wait=True,
             )

@@ -308,8 +308,9 @@ class ConvVAETrainer(Serializable):
     def compute_gaussian_log_prob(self, input, dec_mu, dec_logvar):
         dec_mu = dec_mu.view(-1, self.input_channels*self.imsize**2)
         dec_logvar = dec_logvar.view(-1, self.input_channels*self.imsize**2)
-        dec_logvar = self.max_logvar - torch.nn.functional.softplus(self.max_logvar-dec_logvar)
-        dec_logvar = self.min_logvar + torch.nn.functional.softplus(dec_logvar-self.min_logvar)
+        dec_logvar = torch.clamp(dec_logvar, -20, 2)
+        # dec_logvar = self.max_logvar - torch.nn.functional.softplus(self.max_logvar-dec_logvar)
+        # dec_logvar = self.min_logvar + torch.nn.functional.softplus(dec_logvar-self.min_logvar)
         dec_var = dec_logvar.exp()
         decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
         input = input.view(-1, self.input_channels*self.imsize**2)
@@ -359,18 +360,18 @@ class ConvVAETrainer(Serializable):
             else:
                 loss = -1*log_prob + beta * kle
 
-            max_logvar_loss = (self.max_logvar*.01).sum() + loss
-            min_logvar_loss = (self.min_logvar*-1*.01).sum() + loss
-            max_logvar_losses.append(max_logvar_loss.item())
-            min_logvar_losses.append(min_logvar_loss.item())
-
-            self.max_logvar_optimizer.zero_grad()
-            max_logvar_loss.backward(retain_graph=True)
-            self.max_logvar_optimizer.step()
-
-            self.min_logvar_optimizer.zero_grad()
-            min_logvar_loss.backward(retain_graph=True)
-            self.min_logvar_optimizer.step()
+            # max_logvar_loss = (self.max_logvar*.01).sum() + loss
+            # min_logvar_loss = (self.min_logvar*-1*.01).sum() + loss
+            # max_logvar_losses.append(max_logvar_loss.item())
+            # min_logvar_losses.append(min_logvar_loss.item())
+            #
+            # self.max_logvar_optimizer.zero_grad()
+            # max_logvar_loss.backward(retain_graph=True)
+            # self.max_logvar_optimizer.step()
+            #
+            # self.min_logvar_optimizer.zero_grad()
+            # min_logvar_loss.backward(retain_graph=True)
+            # self.min_logvar_optimizer.step()
 
             self.optimizer.zero_grad()
             loss.backward()
