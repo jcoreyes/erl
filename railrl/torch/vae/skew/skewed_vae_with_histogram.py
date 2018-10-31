@@ -2,6 +2,7 @@
 Skew the dataset so that it turns into generating a uniform distribution.
 """
 import json
+import time
 
 import numpy as np
 from PIL import Image
@@ -19,6 +20,7 @@ from railrl.torch.vae.skew.common import (
     visualize_samples,
     prob_to_weight,
 )
+import railrl.torch.pytorch_util as ptu
 from railrl.torch.vae.skew.datasets import project_samples_square_np
 from railrl.torch.vae.skew.histogram import Histogram
 from railrl.torch.vae.skew.plotting import (
@@ -36,11 +38,6 @@ Plotting
 
 
 def train_from_variant(variant):
-    variant.pop('seed')
-    variant.pop('exp_id')
-    variant.pop('exp_prefix')
-    variant.pop('unique_id')
-    variant.pop('instance_type')
     train(full_variant=variant, **variant)
 
 
@@ -64,6 +61,7 @@ def train(
         reset_vae_every_epoch=False,
         vae_kwargs=None,
         use_dataset_generator_first_epoch=True,
+        **kwargs
 ):
 
     """
@@ -97,6 +95,7 @@ def train(
         z_dim,
         vae_kwargs,
     )
+    vae.to(ptu.device)
 
     epochs = []
     losses = []
@@ -108,14 +107,12 @@ def train(
     entropies = []
     tvs_to_uniform = []
     entropy_gains_from_reweighting = []
-    """
-    p_theta = VAE's distribution
-    """
     p_theta = Histogram(num_bins)
     p_new = Histogram(num_bins)
 
     orig_train_data = dataset_generator(n_start_samples)
     train_data = orig_train_data
+    start = time.time()
     for epoch in progressbar(range(n_epochs)):
         p_theta = Histogram(num_bins)
         if epoch == 0 and use_dataset_generator_first_epoch:
@@ -207,11 +204,13 @@ def train(
         logger.record_tabular('KL from uniform', p_theta.kl_from_uniform())
         logger.record_tabular('TV to uniform', p_theta.tv_to_uniform())
         logger.record_tabular('Entropy gain from reweight', entropy_gain)
+        logger.record_tabular('Total Time (s)', time.time() - start)
         logger.dump_tabular()
         logger.save_itr_params(epoch, {
             'vae': vae,
             'train_data': train_data,
             'vae_samples': vae_samples,
+            'dynamics': dynamics,
         })
 
     report.add_header("Training Curves")
