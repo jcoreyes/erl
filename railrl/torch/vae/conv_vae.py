@@ -135,6 +135,7 @@ class ConvVAETrainer(Serializable):
         self.skew_dataset = skew_dataset
         self.skew_config = skew_config
         self.gaussian_decoder_loss=gaussian_decoder_loss
+        self._old_table_keys = None
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
                 train_dataset,
@@ -389,6 +390,13 @@ class ConvVAETrainer(Serializable):
                     100. * batch_idx / len(self.train_loader),
                     loss.item() / len(next_obs)))
 
+        table_keys = logger.get_table_key_set()
+        if self._old_table_keys is not None:
+            assert table_keys == self._old_table_keys, (
+                "Table keys cannot change from iteration to iteration."
+            )
+        self._old_table_keys = table_keys
+
         if from_rl:
             self.vae_logger_stats_for_rl['Train VAE Epoch'] = epoch
             self.vae_logger_stats_for_rl['Train VAE Log Prob'] = np.mean(log_probs)
@@ -469,7 +477,6 @@ class ConvVAETrainer(Serializable):
         self.model.dist_std = zs.std(axis=0)
         if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
-
 
         if self.skew_dataset:
             train_weight_mean = np.mean(self._train_weights)
