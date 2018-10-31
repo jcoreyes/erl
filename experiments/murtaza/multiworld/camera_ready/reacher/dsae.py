@@ -3,7 +3,7 @@ from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_set_to_goal
+from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_set_to_goal
 
 if __name__ == "__main__":
     variant = dict(
