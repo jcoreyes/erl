@@ -1,7 +1,8 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
+from railrl.torch.vae.conv_vae import ConvVAE
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.vae.sawyer2d_multi_push_data import generate_vae_dataset
 
 from railrl.launchers.arglauncher import run_variants

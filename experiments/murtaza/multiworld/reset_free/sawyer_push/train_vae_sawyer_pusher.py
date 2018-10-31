@@ -4,7 +4,8 @@ from multiworld.envs.mujoco.cameras import init_sawyer_camera_v3, sawyer_pusher_
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
+from railrl.torch.vae.conv_vae import ConvVAE
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.grill.launcher import generate_vae_dataset
 
 def experiment(variant):

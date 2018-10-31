@@ -10,7 +10,11 @@ from torch.nn import MSELoss
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import inv_gaussian_p_x_np_to_np, inv_p_bernoulli_x_np_to_np
+from railrl.torch.vae.vae_trainer import (
+    inv_gaussian_p_x_np_to_np,
+    inv_p_bernoulli_x_np_to_np,
+)
+
 
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 

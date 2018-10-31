@@ -1,4 +1,5 @@
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
+from railrl.torch.vae.conv_vae import ConvVAE
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.vae.sawyer3D_data import get_data
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
