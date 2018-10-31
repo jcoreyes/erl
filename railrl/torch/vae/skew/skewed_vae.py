@@ -17,6 +17,7 @@ from torch.utils.data.sampler import (
 )
 
 import railrl.torch.pytorch_util as ptu
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.core import PyTorchModule
 
 
@@ -31,7 +32,7 @@ class Encoder(nn.Sequential):
             output[:, :z_dim], output[:, z_dim:]
         )
         stds = (0.5 * log_var).exp()
-        epsilon = Variable(torch.randn(*means.size()))
+        epsilon = ptu.randn(means.shape)
         latents = epsilon * stds + means
         return latents, means, log_var, stds
 
@@ -53,7 +54,7 @@ class Decoder(nn.Sequential):
             var = logvar.exp()
         else:
             mu = output
-            var = self.output_var * torch.ones_like(mu)
+            var = self.output_var * ptu.ones_like(mu)
         return mu, var
 
     def reconstruct(self, input):
@@ -108,13 +109,13 @@ class VAE(PyTorchModule):
         return self.decoder.sample(latent)
 
     def sample(self, num_samples):
-        return self.sample_given_z(
+        return ptu.get_numpy(self.sample_given_z(
             ptu.randn(num_samples, self.z_dim)
-        ).data.numpy()
+        ))
 
     def reconstruct(self, data):
         latents = self.encoder.encode(ptu.from_numpy(data))
-        return self.decoder.reconstruct(latents).data.numpy()
+        return ptu.get_numpy(self.decoder.reconstruct(latents))
 
     def compute_density(self, data):
         orig_data_length = len(data)
@@ -134,7 +135,7 @@ class VAE(PyTorchModule):
             latents, means, log_vars, stds = (
                 self.encoder.get_encoding_and_suff_stats(data)
             )
-            prior = Normal(0, 1)
+            prior = Normal(ptu.zeros(1), ptu.ones(1))
             prior_log_prob = prior.log_prob(latents).sum(dim=1)
 
             encoder_distrib = Normal(means, stds)
@@ -167,11 +168,13 @@ class VAE(PyTorchModule):
         iw_denominators = iw_stacked.sum(dim=1, keepdim=False)
 
         final = unnormalized_dp / iw_denominators
-        return final.data.numpy()
+        return ptu.get_numpy(final)
 
     def fit(self, data, weights=None):
         if weights is None:
             weights = np.ones(len(data))
+        sum_of_weights = weights.flatten().sum()
+        weights = weights / sum_of_weights
         all_weights_pt = ptu.from_numpy(weights)
 
         indexed_train_data = IndexedData(data)
@@ -191,7 +194,7 @@ class VAE(PyTorchModule):
         if self.reset_vae_every_epoch:
             raise NotImplementedError()
 
-        epoch_stats = defaultdict(list)
+        epoch_stats_list = defaultdict(list)
         for _ in range(self.num_inner_vae_epochs):
             for _, indexed_batch in enumerate(train_dataloader):
                 idxs, batch = indexed_batch
@@ -212,7 +215,7 @@ class VAE(PyTorchModule):
                 if self.weight_loss:
                     idxs = torch.cat(idxs)
                     batch_weights = all_weights_pt[idxs].unsqueeze(1)
-                    loss = -(batch_weights * elbo).mean()
+                    loss = -(batch_weights * elbo).sum()
                 else:
                     loss = - elbo.mean()
                 self.encoder_opt.zero_grad()
@@ -221,16 +224,28 @@ class VAE(PyTorchModule):
                 self.encoder_opt.step()
                 self.decoder_opt.step()
 
-                epoch_stats['losses'].append(loss.data.numpy())
-                epoch_stats['kls'].append(kl.mean().data.numpy())
-                epoch_stats['log_probs'].append(
-                    reconstruction_log_prob.mean().data.numpy()
+                epoch_stats_list['losses'].append(ptu.get_numpy(loss))
+                epoch_stats_list['kls'].append(ptu.get_numpy(kl.mean()))
+                epoch_stats_list['log_probs'].append(
+                    ptu.get_numpy(reconstruction_log_prob.mean())
                 )
+                epoch_stats_list['latent-mean'].append(
+                    ptu.get_numpy(latents.mean())
+                )
+                epoch_stats_list['latent-std'].append(
+                    ptu.get_numpy(latents.std())
+                )
+                for k, v in create_stats_ordered_dict(
+                    'weights',
+                    ptu.get_numpy(all_weights_pt)
+                ).items():
+                    epoch_stats_list[k].append(v)
 
-        for k in epoch_stats:
-            epoch_stats[k] = np.mean(epoch_stats[k])
-
-        self._epoch_stats = epoch_stats
+        self._epoch_stats = {
+            'unnormalized weight sum': sum_of_weights,
+        }
+        for k in epoch_stats_list:
+            self._epoch_stats[k] = np.mean(epoch_stats_list[k])
 
     def get_epoch_stats(self):
         return self._epoch_stats
@@ -255,7 +270,7 @@ class VAE(PyTorchModule):
         return 0.5 * (
                 - log_vars
                 - 1
-                + 2 * (stds ** 2)
+                + (stds ** 2)
                 + means ** 2
         ).sum(dim=1, keepdim=True)
 
