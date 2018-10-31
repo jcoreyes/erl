@@ -124,7 +124,7 @@ if __name__ == "__main__":
         'env_kwargs.reset_free': [
             True, False
         ],
-        'grill_variant.replay_buffer_kwargs.alpha': [
+        'grill_variant.replay_buffer_kwargs.power': [
             0, 1, 2, 5
         ],
     }

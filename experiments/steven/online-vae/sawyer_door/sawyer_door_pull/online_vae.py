@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.algo_kwargs.oracle_data': [True, False],
-        'grill_variant.replay_kwargs.alpha': [0, 1, 2],
+        'grill_variant.replay_kwargs.power': [0, 1, 2],
         'train_vae_variant.representation_size': [6],
         'grill_variant.training_mode': ['train'],
         # 'grill_variant.replay_kwargs.fraction_resampled_goals_are_env_goals': [.5, 1],

@@ -257,4 +257,3 @@ def zeros_like(*args, torch_device=None, **kwargs):
 
 def normal(*args, **kwargs):
     return torch.normal(*args, **kwargs).to(device)
-

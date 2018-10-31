@@ -13,7 +13,7 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookResetFreeEnv-v5',
         init_camera=sawyer_door_env_camera_v3,
         grill_variant=dict(
-            save_video=True,
+            save_video=False,
             online_vae_beta=2.5,
             save_video_period=50,
             qf_kwargs=dict(
@@ -35,7 +35,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online-parallel',
+                    collection_mode='online',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -67,8 +67,8 @@ if __name__ == "__main__":
             ),
             normalize=False,
             render=False,
-            num_uniform_steps=1000,
-            exploration_type='uniform_for_k',
+            exploration_noise=0,
+            exploration_type='ou',
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
@@ -97,6 +97,7 @@ if __name__ == "__main__":
             beta=1.0,
             num_epochs=0,
             dump_skew_debug_plots=False,
+            decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
                 N=100,
                 test_p=.9,
@@ -108,7 +109,7 @@ if __name__ == "__main__":
             ),
             vae_kwargs=dict(
                 input_channels=3,
-                decoder_activation='sigmoid',
+                num_latents_to_sample=1,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -121,12 +122,13 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other],
-        'grill_variant.online_vae_beta': [.5, 2.5],
+        'grill_variant.online_vae_beta': [2.5],
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
         'grill_variant.num_uniform_steps':[0],
         'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[10000],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_min_num_steps_before_training':[0],
-        'grill_variant.replay_buffer_kwargs.power':[0, 1, 2, 4],
+        'grill_variant.replay_buffer_kwargs.power':[1],
+        'train_vae_variant.vae_kwargs.num_latents_to_sample':[1, 5, 10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -136,9 +138,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'test'
 
-    # n_seeds = 5
+    # n_seeds = 2
     # mode = 'ec2'
-    # exp_prefix = 'sawyer_door_online_vae_bernoulli_final'
+    # exp_prefix = 'sawyer_door_online_vae_bernoulli_sample_more_latents'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['grill_variant']['algo_kwargs']['online_vae_kwargs']['vae_min_num_steps_before_training'] > variant['grill_variant']['algo_kwargs']['base_kwargs']['min_num_steps_before_training']:

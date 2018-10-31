@@ -117,7 +117,7 @@ if __name__ == "__main__":
             'reconstruction_error',
             # 'None',
         ],
-        'grill_variant.replay_buffer_kwargs.alpha': [
+        'grill_variant.replay_buffer_kwargs.power': [
             0, 1, 5
         ],
     }

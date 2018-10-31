@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, SpatialVAE
+from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, SpatialAutoEncoder
 from railrl.torch.vae.sawyer2d_push_new_easy_data_wider import generate_vae_dataset
 
 from railrl.launchers.arglauncher import run_variants
@@ -20,7 +20,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = SpatialVAE(representation_size, num_feat_points=representation_size//2, input_channels=3)
+    m = SpatialAutoEncoder(representation_size, num_feat_points=representation_size // 2, input_channels=3)
     if ptu.gpu_enabled():
         m.to(ptu.device)
         gpu_id = variant.get("gpu_id", None)

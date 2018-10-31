@@ -16,6 +16,12 @@ def grill_tdm_twin_sac_full_experiment(variant):
     train_vae_and_update_variant(variant)
     grill_tdm_twin_sac_experiment(variant['grill_variant'])
 
+def grill_her_twin_sac_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    if not variant['grill_variant'].get('do_state_exp', False):
+        train_vae_and_update_variant(variant)
+    grill_her_twin_sac_experiment(variant['grill_variant'])
+
 
 def grill_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
@@ -126,12 +132,15 @@ def train_vae(variant, return_data=False):
     from railrl.torch.vae.conv_vae import (
         ConvVAE,
         ConvVAESmall,
-        SpatialVAE,
+        ConvVAESmallDouble,
+        SpatialAutoEncoder,
         AutoEncoder,
         ConvVAETrainer,
     )
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
+    from railrl.pythonplusplus import identity
+    import torch
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
@@ -146,16 +155,32 @@ def train_vae(variant, return_data=False):
             **variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
+    if variant.get('decoder_activation', None) == 'identity':
+        decoder_activation = identity
+    else:
+        decoder_activation = torch.nn.Sigmoid()
+    if variant.get('encoder_activation', 'identity') == 'identity':
+        encoder_activation = identity
+    else:
+        raise EnvironmentError()
     if variant['algo_kwargs'].get('is_auto_encoder', False):
         m = AutoEncoder(representation_size, input_channels=3)
     elif variant.get('use_spatial_auto_encoder', False):
-        m = SpatialVAE(representation_size, int(representation_size / 2),
-                       input_channels=3)
+        m = SpatialAutoEncoder(representation_size, int(representation_size / 2),
+                               input_channels=3)
     else:
         if variant.get('imsize') == 84:
             m = ConvVAE(representation_size, **variant['vae_kwargs'])
         elif variant.get('imsize') == 48:
-            m = ConvVAESmall(representation_size, **variant['vae_kwargs'])
+            if variant['algo_kwargs'].get('full_gaussian_decoder', False):
+                m = ConvVAESmallDouble(representation_size,
+                                       encoder_activation=encoder_activation,
+                                       decoder_mean_activation=decoder_activation,
+                                       **variant['vae_kwargs']
+                                       )
+            else:
+                m = ConvVAESmall(representation_size, encoder_activation=encoder_activation,
+                                 decoder_activation=decoder_activation, **variant['vae_kwargs'])
         else:
             raise NotImplementedError('Only support 84 and 48 images.')
     m.to(ptu.device)
@@ -197,7 +222,7 @@ def generate_vae_dataset(variant):
     show = variant.get('show', False)
     init_camera = variant.get('init_camera', None)
     dataset_path = variant.get('dataset_path', None)
-    oracle_dataset = variant.get('oracle_dataset', False)
+    oracle_dataset_using_set_to_goal = variant.get('oracle_dataset_using_set_to_goal', False)
     oracle_dataset_from_policy=variant.get('oracle_dataset_from_policy', False)
     random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
     random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
@@ -283,18 +308,8 @@ def generate_vae_dataset(variant):
                                 obs['state_desired_goal'],
                             ))
                             action, _ = policy.get_action(policy_obs)
-                            obs = env.step(action)[0]
-                elif oracle_dataset_from_policy:
-                    obs = env.reset()
-                    policy.reset()
-                    for _ in range(n_random_steps):
-                        policy_obs = np.hstack((
-                            obs['state_observation'],
-                            obs['state_desired_goal'],
-                        ))
-                        action, _ = policy.get_action(policy_obs)
-                        obs = env.step(action)[0]
-                elif oracle_dataset:
+                            obs, _, _, _ = env.step(action)
+                elif oracle_dataset_using_set_to_goal:
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
                     obs = env._get_obs()
@@ -372,6 +387,7 @@ def get_envs(variant):
                 )
                 presampled_goals = variant['generate_goal_dataset_fctn'](
                     env=vae_env,
+                    env_id=variant.get('env_id', None),
                     **variant['goal_generation_kwargs']
                 )
                 del vae_env
@@ -815,7 +831,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
-    variant["algo_kwargs"]["replay_buffer"] = replay_buffer
+    variant["algo_kwargs"]['base_kwargs']["replay_buffer"] = replay_buffer
 
     t = ConvVAETrainer(variant['vae_train_data'],
                        variant['vae_test_data'],
@@ -824,23 +840,29 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     render = variant["render"]
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     algorithm = OnlineVaeHerTwinSac(
-        algo_kwargs=dict(
+        online_vae_kwargs=dict(
+            vae=vae,
+            vae_trainer=t,
+            **variant['algo_kwargs']['online_vae_kwargs']
+        ),
+        base_kwargs=dict(
             env=env,
             training_env=env,
+            policy=policy,
+            exploration_policy=exploration_policy,
+            render=render,
+            render_during_eval=render,
+            **variant['algo_kwargs']['base_kwargs'],
+        ),
+        her_kwargs=dict(
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+        ),
+        twin_sac_kwargs=dict(
+            **variant['algo_kwargs']['twin_sac_kwargs'],
             qf1=qf1,
             qf2=qf2,
             vf=vf,
-            policy=policy,
-            render=render,
-            render_during_eval=render,
-            observation_key=observation_key,
-            desired_goal_key=desired_goal_key,
-            **variant['algo_kwargs']
-        ),
-        online_vae_algo_kwargs=dict(
-            vae=vae,
-            vae_trainer=t,
-            **variant['online_vae_algo_kwargs']
         )
     )
 
@@ -855,7 +877,6 @@ def grill_her_twin_sac_experiment_online_vae(variant):
             desired_goal_key=algorithm.desired_goal_key,
         )
         video_func = get_video_save_func(
-            algorithm,
             rollout_function,
             env,
             policy,
@@ -1495,7 +1516,6 @@ def get_video_save_func(rollout_function, env, policy, variant):
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)
     dump_video_kwargs = variant.get("dump_video_kwargs", dict())
-
     if do_state_exp:
         imsize = variant.get('imsize')
         dump_video_kwargs['imsize'] = imsize

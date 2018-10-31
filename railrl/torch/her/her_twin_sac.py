@@ -43,3 +43,8 @@ class HerTwinSAC(HER, TwinSAC):
             goal = goal[self.desired_goal_key]
         new_obs = np.hstack((observation, goal))
         return self.policy.get_action(new_obs, deterministic=True)
+
+    def get_epoch_snapshot(self, epoch):
+        snapshot = super().get_epoch_snapshot(epoch)
+        HerTwinSAC.update_epoch_snapshot(self, snapshot)
+        return snapshot
