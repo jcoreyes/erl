@@ -14,7 +14,7 @@ if __name__ == "__main__":
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=100,
-                num_updates_per_env_step=4,
+                num_updates_per_env_step=1,
                 batch_size=128,
                 discount=0.99,
                 min_num_steps_before_training=4000,

@@ -1,5 +1,5 @@
-from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera_v0
 import railrl.misc.hyperparameter as hyp
+from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
@@ -7,10 +7,10 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         imsize=84,
-        init_camera=sawyer_xyz_reacher_camera_v0,
-        env_id='SawyerReachXYEnv-v0',
+        init_camera=sawyer_door_env_camera_v0,
+        env_id='SawyerDoorHookEnv-v0',
         grill_variant=dict(
-            save_video=True,
+            save_video=False, #neet to have pre-sampled goals to do this
             save_video_period=50,
             do_state_exp=True,
             qf_kwargs=dict(
@@ -29,7 +29,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=1,
-                    collection_mode='online',
+                    collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -85,22 +85,21 @@ if __name__ == "__main__":
             save_period=10,
         ),
     )
-
     search_space = {
+        'env_id':['SawyerDoorHookEnv-v0', 'SawyerDoorHookResetFreeEnv-v0'],
+        'grill_variant.exploration_noise':[0.3, .8],
     }
-
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
     n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
-    # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_xy_reacher_her_td3_state'
+    mode = 'ec2'
+    exp_prefix = 'sawyer_door_state_her_td3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
@@ -112,5 +111,5 @@ if __name__ == "__main__":
                 snapshot_gap=50,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=5,
+                num_exps_per_instance=4,
             )
