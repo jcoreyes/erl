@@ -29,7 +29,7 @@ if __name__ == "__main__":
                 base_kwargs=dict(
                     num_epochs=1010,
                     num_steps_per_epoch=1000,
-                    num_steps_per_eval=500,
+                    num_steps_per_eval=1000,
                     min_num_steps_before_training=1000,
                     batch_size=128,
                     max_path_length=100,
@@ -79,7 +79,7 @@ if __name__ == "__main__":
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
                 num_goals=1000,
-                use_cached_dataset=False,
+                use_cached_dataset=True,
                 policy_file='10-30-sawyer-door-state-her-td3/10-30-sawyer_door_state_her_td3_2018_10_31_00_59_18_id000--s93299/params.pkl',
                 path_length=100,
                 show=False,
@@ -120,9 +120,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other, vae_schedules.always_train],
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.always_train],
         'grill_variant.online_vae_beta': [.5],
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
         'grill_variant.num_uniform_steps':[0],
         'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[10000],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_min_num_steps_before_training':[0],
@@ -131,9 +131,9 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
+    n_seeds = 10
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'sawyer_door_online_vae_bernoulli_train_vae_more'
 
     # n_seeds = 3
     # mode = 'ec2'
