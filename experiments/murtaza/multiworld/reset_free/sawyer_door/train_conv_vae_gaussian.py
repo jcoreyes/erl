@@ -1,5 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
+from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAETrainer, ConvVAESmallDouble
 from railrl.torch.grill.launcher import generate_vae_dataset
 
@@ -13,7 +14,7 @@ def experiment(variant):
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
-    beta_schedule = None
+    beta_schedule = beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     m = variant['vae'](representation_size, **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -34,18 +35,27 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'gaussian_decoder'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'gaussian_decoder_scheduled_beta'
 
     use_gpu = True
+    beta_schedule_one=dict(
+        x_values=[0, 1000, 2500, 4000],
+        y_values=[0, 1, 1000, 10000],
+    )
 
+    beta_schedule_two = dict(
+        x_values=[0, 1000, 2500, 4000],
+        y_values=[0, 1, 10, 100],
+    )
     variant = dict(
-        num_epochs=2500,
+        beta_schedule_kwargs=beta_schedule_one,
+        num_epochs=5000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
@@ -84,7 +94,7 @@ if __name__ == "__main__":
 
     search_space = {
         'algo_kwargs.lr':[5e-4, 1e-3, 5e-3],
-        'beta':[.5, 1, 2.5, 5, 10],
+        'beta_schedule_kwargs':[beta_schedule_one, beta_schedule_two]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

@@ -122,7 +122,11 @@ class ConvVAETrainer(Serializable):
         self.imlength = model.imlength
 
         self.lr = lr
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        self.max_logvar = ptu.tensor(np.ones(3 * self.model.imsize ** 2, dtype=np.float32) * 1/2, requires_grad=True)
+        self.min_logvar = ptu.tensor(np.ones(3 * self.model.imsize ** 2, dtype=np.float32) * -1/2, requires_grad=True)
+        params = list(self.model.parameters())
+        params += [self.min_logvar] + [self.max_logvar]
+        self.optimizer = optim.Adam(params, lr=self.lr)
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
         assert self.train_dataset.dtype == np.uint8
         assert self.test_dataset.dtype == np.uint8
@@ -186,13 +190,7 @@ class ConvVAETrainer(Serializable):
         self.use_linear_dynamics = use_linear_dynamics
         self.vae_logger_stats_for_rl = {}
         self._extra_stats_to_log = None
-        if self.gaussian_decoder_loss:
-            self.max_logvar = ptu.tensor(np.ones(3*self.model.imsize**2, dtype=np.float32)*1/2, requires_grad=True)
-            self.max_logvar_optimizer = optim.Adam([self.max_logvar], lr=self.lr)
 
-            self.min_logvar = ptu.tensor(np.ones(3 * self.model.imsize ** 2, dtype=np.float32) * -1 / 2,
-                                         requires_grad=True)
-            self.min_logvar_optimizer = optim.Adam([self.min_logvar], lr=self.lr)
 
     def get_dataset_stats(self, data):
         torch_input = ptu.from_numpy(normalize_image(data))
@@ -309,9 +307,9 @@ class ConvVAETrainer(Serializable):
     def compute_gaussian_log_prob(self, input, dec_mu, dec_logvar):
         dec_mu = dec_mu.view(-1, self.input_channels*self.imsize**2)
         dec_logvar = dec_logvar.view(-1, self.input_channels*self.imsize**2)
-        dec_logvar = torch.clamp(dec_logvar, -20, 2)
-        # dec_logvar = self.max_logvar - torch.nn.functional.softplus(self.max_logvar-dec_logvar)
-        # dec_logvar = self.min_logvar + torch.nn.functional.softplus(dec_logvar-self.min_logvar)
+        # dec_logvar = torch.clamp(dec_logvar, -10, 5)
+        dec_logvar = torch.max(self.min_logvar, self.max_logvar) - torch.nn.functional.softplus(torch.max(self.min_logvar, self.max_logvar)-dec_logvar)
+        dec_logvar = torch.min(self.min_logvar, self.max_logvar) + torch.nn.functional.softplus(dec_logvar-torch.min(self.min_logvar, self.max_logvar))
         dec_var = dec_logvar.exp()
         decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
         input = input.view(-1, self.input_channels*self.imsize**2)
@@ -336,8 +334,6 @@ class ConvVAETrainer(Serializable):
         log_probs = []
         kles = []
         linear_losses = []
-        max_logvar_losses=[]
-        min_logvar_losses=[]
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
             if sample_batch is not None:
@@ -361,22 +357,9 @@ class ConvVAETrainer(Serializable):
             else:
                 loss = -1*log_prob + beta * kle
 
-            # max_logvar_loss = (self.max_logvar*.01).sum() + loss
-            # min_logvar_loss = (self.min_logvar*-1*.01).sum() + loss
-            # max_logvar_losses.append(max_logvar_loss.item())
-            # min_logvar_losses.append(min_logvar_loss.item())
-            #
-            # self.max_logvar_optimizer.zero_grad()
-            # max_logvar_loss.backward(retain_graph=True)
-            # self.max_logvar_optimizer.step()
-            #
-            # self.min_logvar_optimizer.zero_grad()
-            # min_logvar_loss.backward(retain_graph=True)
-            # self.min_logvar_optimizer.step()
-
+            loss += .01*(self.max_logvar.sum()) -.01*(self.min_logvar.sum())
             self.optimizer.zero_grad()
             loss.backward()
-
             losses.append(loss.item())
             log_probs.append(log_prob.item())
             kles.append(kle.item())
@@ -389,13 +372,6 @@ class ConvVAETrainer(Serializable):
                     len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
                     loss.item() / len(next_obs)))
-
-        table_keys = logger.get_table_key_set()
-        if self._old_table_keys is not None:
-            assert table_keys == self._old_table_keys, (
-                "Table keys cannot change from iteration to iteration."
-            )
-        self._old_table_keys = table_keys
 
         if from_rl:
             self.vae_logger_stats_for_rl['Train VAE Epoch'] = epoch
@@ -413,10 +389,7 @@ class ConvVAETrainer(Serializable):
             if self.use_linear_dynamics:
                 logger.record_tabular("train/linear_loss",
                                       np.mean(linear_losses))
-        if self.gaussian_decoder_loss:
-            logger.record_tabular("train/max_logvar_loss", np.mean(max_logvar_losses))
             logger.record_tabular("train/max_logvar_mean", self.max_logvar.mean().item())
-            logger.record_tabular("train/min_logvar_loss", np.mean(min_logvar_losses))
             logger.record_tabular("train/min_logvar_mean", self.min_logvar.mean().item())
 
 
@@ -434,8 +407,6 @@ class ConvVAETrainer(Serializable):
         kles = []
         zs = []
         beta = float(self.beta_schedule.get_value(epoch))
-        max_logvar_losses = []
-        min_logvar_losses = []
         for batch_idx in range(10):
             next_obs = self.get_batch(train=False)
             log_prob, recon_batch, next_obs, mu, logvar = self.logprob_and_stats(next_obs)
@@ -449,11 +420,7 @@ class ConvVAETrainer(Serializable):
             log_probs.append(log_prob.item())
             kles.append(kle.item())
 
-            max_logvar_loss = (self.max_logvar * .01).sum() + loss
-            min_logvar_loss = (self.min_logvar * -1 * .01).sum() + loss
-            max_logvar_losses.append(max_logvar_loss.item())
-            min_logvar_losses.append(min_logvar_loss.item())
-
+            loss += .01 * (self.max_logvar.sum()) - .01 * (self.min_logvar.sum())
             if batch_idx == 0 and save_reconstruction:
                 n = min(next_obs.size(0), 8)
                 comparison = torch.cat([
@@ -478,11 +445,6 @@ class ConvVAETrainer(Serializable):
         if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
 
-        if self.skew_dataset:
-            train_weight_mean = np.mean(self._train_weights)
-            num_above_avg = np.sum(np.where(self._train_weights >= train_weight_mean, 1, 0))
-            logger.record_tabular("% train weights above average", num_above_avg/self.train_dataset.shape[0])
-
         if from_rl:
             self.vae_logger_stats_for_rl['Test VAE Epoch'] = epoch
             self.vae_logger_stats_for_rl['Test VAE Log Prob'] = np.mean(log_probs)
@@ -497,17 +459,17 @@ class ConvVAETrainer(Serializable):
             logger.record_tabular("test/KL", np.mean(kles))
             logger.record_tabular("test/loss", np.mean(losses))
             logger.record_tabular("beta", beta)
+
+            logger.record_tabular("test/max_logvar_mean", self.max_logvar.mean().item())
+            logger.record_tabular("test/min_logvar_mean", self.min_logvar.mean().item())
             logger.dump_tabular()
             if save_vae:
                 logger.save_itr_params(epoch, self.model)  # slow...
         # logdir = logger.get_snapshot_dir()
         # filename = osp.join(logdir, 'params.pkl')
         # torch.save(self.model, filename)
-        if self.gaussian_decoder_loss:
-            logger.record_tabular("test/max_logvar_loss", np.mean(max_logvar_losses))
-            logger.record_tabular("test/max_logvar_mean", self.max_logvar.mean().item())
-            logger.record_tabular("test/min_logvar_loss", np.mean(min_logvar_losses))
-            logger.record_tabular("test/min_logvar_mean", self.min_logvar.mean().item())
+        # if self.gaussian_decoder_loss:
+
 
 
     def debug_statistics(self):
