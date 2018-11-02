@@ -1,6 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v2
+from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_tdm_td3_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules

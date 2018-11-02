@@ -6,7 +6,8 @@ from railrl.images.camera import (
     sawyer_init_camera_zoomed_in_fixed)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
+from railrl.torch.vae.conv_vae import ConvVAE
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.vae.sawyer2d_reset_free_push_img_data import generate_vae_dataset
 
 

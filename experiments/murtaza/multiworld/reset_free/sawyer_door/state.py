@@ -1,9 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.experiments.murtaza.multiworld import her_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker

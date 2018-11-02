@@ -1,9 +1,8 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
+from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_full_experiment, grill_her_twin_sac_experiment, \
-    grill_her_twin_sac_full_experiment
+from railrl.torch.grill.launcher import grill_her_twin_sac_full_experiment
 
 if __name__ == "__main__":
     variant = dict(

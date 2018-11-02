@@ -2,7 +2,7 @@ import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v3
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_set_to_goal
+from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_set_to_goal
 
 if __name__ == "__main__":
     variant = dict(

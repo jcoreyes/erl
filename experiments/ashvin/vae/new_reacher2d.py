@@ -3,7 +3,8 @@
 # import mnist_data
 # import os
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
+from railrl.torch.vae.conv_vae import ConvVAE
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.vae.reacher2d_data import get_data
 # import plot_utils
 # import glob

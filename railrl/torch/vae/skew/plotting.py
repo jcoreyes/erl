@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from railrl.misc import visualization_util as vu
-from railrl.torch.vae.skew.skewed_vae_with_histogram import prob_to_weight
+from railrl.torch.vae.skew.common import prob_to_weight
 
 
 def visualize_vae_samples(

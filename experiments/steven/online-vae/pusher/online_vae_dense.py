@@ -4,7 +4,8 @@ from railrl.envs.mujoco.sawyer_push_and_reach_env import SawyerPushAndReachXYEas
 from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
 from railrl.envs.multitask.pusher2d import FullPusher2DEnv
 from railrl.images.camera import sawyer_init_camera, sawyer_init_camera_zoomed_in
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
+from railrl.torch.vae.conv_vae import ConvVAE
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
 
 from railrl.launchers.arglauncher import run_variants
 import railrl.misc.hyperparameter as hyp

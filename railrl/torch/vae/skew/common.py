@@ -81,3 +81,26 @@ def visualize_samples_and_projection(
     sample_img = vu.save_image(fig)
     report.add_image(sample_img, title)
     return sample_img
+
+
+def prob_to_weight(prob, skew_config):
+    weight_type = skew_config['weight_type']
+    min_prob = skew_config['minimum_prob']
+    if min_prob:
+        prob = np.maximum(prob, min_prob)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        if weight_type == 'inv_p':
+            weights = 1. / prob
+        elif weight_type == 'nll':
+            weights = - np.log(prob)
+        elif weight_type == 'sqrt_inv_p':
+            weights = (1. / prob) ** 0.5
+        elif weight_type == 'exp':
+            exp = skew_config['alpha']
+            weights = prob ** exp
+        else:
+            raise NotImplementedError()
+    weights[weights == np.inf] = 0
+    weights[weights == -np.inf] = 0
+    weights[weights == -np.nan] = 0
+    return weights / weights.flatten().sum()

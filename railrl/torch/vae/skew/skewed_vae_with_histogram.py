@@ -2,6 +2,7 @@
 Skew the dataset so that it turns into generating a uniform distribution.
 """
 import json
+import time
 
 import numpy as np
 from PIL import Image
@@ -17,11 +18,14 @@ from railrl.misc.visualization_util import gif
 from railrl.torch.vae.skew.common import (
     Dynamics, plot_curves,
     visualize_samples,
+    prob_to_weight,
 )
+import railrl.torch.pytorch_util as ptu
 from railrl.torch.vae.skew.datasets import project_samples_square_np
 from railrl.torch.vae.skew.histogram import Histogram
 from railrl.torch.vae.skew.plotting import (
-    visualize_vae_samples, visualize_vae,
+    visualize_vae_samples,
+    visualize_vae,
     visualize_histogram,
     progressbar,
 )
@@ -34,35 +38,7 @@ Plotting
 
 
 def train_from_variant(variant):
-    variant.pop('seed')
-    variant.pop('exp_id')
-    variant.pop('exp_prefix')
-    variant.pop('unique_id')
-    variant.pop('instance_type')
     train(full_variant=variant, **variant)
-
-
-def prob_to_weight(prob, skew_config):
-    weight_type = skew_config['weight_type']
-    min_prob = skew_config['minimum_prob']
-    if min_prob:
-        prob = np.maximum(prob, min_prob)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        if weight_type == 'inv_p':
-            weights = 1. / prob
-        elif weight_type == 'nll':
-            weights = - np.log(prob)
-        elif weight_type == 'sqrt_inv_p':
-            weights = (1. / prob) ** 0.5
-        elif weight_type == 'exp':
-            exp = skew_config['alpha']
-            weights = prob ** exp
-        else:
-            raise NotImplementedError()
-    weights[weights == np.inf] = 0
-    weights[weights == -np.inf] = 0
-    weights[weights == -np.nan] = 0
-    return weights / weights.flatten().sum()
 
 
 def train(
@@ -85,6 +61,7 @@ def train(
         reset_vae_every_epoch=False,
         vae_kwargs=None,
         use_dataset_generator_first_epoch=True,
+        **kwargs
 ):
 
     """
@@ -118,6 +95,7 @@ def train(
         z_dim,
         vae_kwargs,
     )
+    vae.to(ptu.device)
 
     epochs = []
     losses = []
@@ -129,14 +107,12 @@ def train(
     entropies = []
     tvs_to_uniform = []
     entropy_gains_from_reweighting = []
-    """
-    p_theta = VAE's distribution
-    """
     p_theta = Histogram(num_bins)
     p_new = Histogram(num_bins)
 
     orig_train_data = dataset_generator(n_start_samples)
     train_data = orig_train_data
+    start = time.time()
     for epoch in progressbar(range(n_epochs)):
         p_theta = Histogram(num_bins)
         if epoch == 0 and use_dataset_generator_first_epoch:
@@ -220,19 +196,21 @@ def train(
         entropy_gain = p_new.entropy() - p_theta.entropy()
         entropy_gains_from_reweighting.append(entropy_gain)
 
+        for k in sorted(epoch_stats.keys()):
+            logger.record_tabular(k, epoch_stats[k])
+
         logger.record_tabular("Epoch", epoch)
-        logger.record_tabular("VAE Loss", np.mean(epoch_stats['losses']))
-        logger.record_tabular("VAE KL", np.mean(epoch_stats['kls']))
-        logger.record_tabular("VAE Log Prob", np.mean(epoch_stats['log_probs']))
         logger.record_tabular('Entropy ', p_theta.entropy())
         logger.record_tabular('KL from uniform', p_theta.kl_from_uniform())
         logger.record_tabular('TV to uniform', p_theta.tv_to_uniform())
         logger.record_tabular('Entropy gain from reweight', entropy_gain)
+        logger.record_tabular('Total Time (s)', time.time() - start)
         logger.dump_tabular()
         logger.save_itr_params(epoch, {
             'vae': vae,
             'train_data': train_data,
             'vae_samples': vae_samples,
+            'dynamics': dynamics,
         })
 
     report.add_header("Training Curves")

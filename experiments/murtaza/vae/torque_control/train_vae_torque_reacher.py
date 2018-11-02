@@ -1,9 +1,8 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
-from railrl.torch.vae.sawyer_torque_control_data import generate_vae_dataset
-from railrl.torch.vae.sawyer3d_reach_data_sim import generate_vae_dataset
+from railrl.torch.vae.conv_vae import ConvVAE
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
 import numpy as np
 
 def experiment(variant):

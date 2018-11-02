@@ -105,8 +105,9 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         snapshot.update(vae=self.vae)
 
     def cleanup(self):
-        self.vae_conn_pipe.close()
-        self.vae_training_process.terminate()
+        if self.parallel_vae_train:
+            self.vae_conn_pipe.close()
+            self.vae_training_process.terminate()
 
     def init_vae_training_subproces(self):
         assert isinstance(self.replay_buffer, SharedObsDictRelabelingBuffer)
@@ -134,6 +135,11 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
             self.epoch,
             vae_save_period=self.vae_save_period
         )
+
+    def evaluate(self, epoch, eval_paths=None):
+        for k, v in self.vae_trainer.vae_logger_stats_for_rl.items():
+            logger.record_tabular(k, v)
+        super().evaluate(epoch, eval_paths=eval_paths)
 
 def _train_vae(vae_trainer, replay_buffer, epoch, batches=50, oracle_data=False):
     batch_sampler = replay_buffer.random_vae_training_data
