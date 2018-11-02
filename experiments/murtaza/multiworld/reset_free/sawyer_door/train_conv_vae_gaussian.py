@@ -35,13 +35,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'gaussian_decoder_scheduled_beta'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'gaussian_decoder_scheduled_beta'
 
     use_gpu = True
     beta_schedule_one=dict(
@@ -87,7 +87,7 @@ if __name__ == "__main__":
             imsize=48,
             num_latents_to_sample=1,
         ),
-        save_period=50,
+        save_period=10,
         beta=2.5,
         representation_size=16,
     )

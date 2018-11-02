@@ -305,9 +305,6 @@ class ConvVAETrainer(Serializable):
         return torch.norm(prediction - latent_next_obs) ** 2 / self.batch_size
 
     def compute_gaussian_log_prob(self, input, dec_mu, dec_logvar):
-        dec_mu = dec_mu.view(-1, self.input_channels*self.imsize**2)
-        dec_logvar = dec_logvar.view(-1, self.input_channels*self.imsize**2)
-        # dec_logvar = torch.clamp(dec_logvar, -10, 5)
         dec_logvar = torch.max(self.min_logvar, self.max_logvar) - torch.nn.functional.softplus(torch.max(self.min_logvar, self.max_logvar)-dec_logvar)
         dec_logvar = torch.min(self.min_logvar, self.max_logvar) + torch.nn.functional.softplus(dec_logvar-torch.min(self.min_logvar, self.max_logvar))
         dec_var = dec_logvar.exp()
@@ -754,8 +751,7 @@ class ConvVAESmallDouble(PyTorchModule):
             imsize=48,
             hidden_init=ptu.fanin_init,
             encoder_activation=identity,
-            decoder_mean_activation=identity,
-            decoder_logvar_activation=identity,
+            decoder_activation=nn.Sigmoid(),
             min_variance=1e-3,
             state_size=0,
             unit_variance=False,
@@ -774,8 +770,7 @@ class ConvVAESmallDouble(PyTorchModule):
         self.variance_scaling=variance_scaling
         self.hidden_init = hidden_init
         self.encoder_activation = encoder_activation
-        self.decoder_mean_activation = decoder_mean_activation
-        self.decoder_logvar_activation = decoder_logvar_activation
+        self.decoder_activation = decoder_activation
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize ** 2 * self.input_channels
@@ -874,7 +869,9 @@ class ConvVAESmallDouble(PyTorchModule):
                                     self.imsize * self.imsize * self.input_channels)
         if self.unit_variance:
             logvar = ptu.zeros_like(logvar)
-        return self.decoder_mean_activation(mu), self.decoder_mean_activation(mu), self.decoder_logvar_activation(logvar)
+        decoder_dist = Normal(mu, logvar.exp().pow(.5))
+        output = decoder_dist.sample()
+        return self.decoder_activation(output), mu, logvar
 
     def forward(self, x):
         mu, logvar = self.encode(x)
