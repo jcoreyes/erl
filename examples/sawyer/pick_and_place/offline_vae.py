@@ -2,7 +2,7 @@ import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1
 from multiworld.envs.mujoco.cameras import sawyer_pick_and_place_camera
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
+from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place \
         import SawyerPickAndPlaceEnv, SawyerPickAndPlaceEnvYZ
@@ -14,17 +14,12 @@ from multiworld.envs.mujoco.cameras import \
 if __name__ == "__main__":
     num_images = 1
     variant = dict(
-        imsize=48,
+        imsize=84,
         double_algo=False,
         env_id="SawyerPickupEnv-v0",
-        init_camera=sawyer_pick_and_place_camera,
         grill_variant=dict(
-            vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=True,
-            ),
             save_video=True,
-            save_video_period=25,
-            online_vae_beta=1.0,
+            save_video_period=50,
             presample_goals=True,
             generate_goal_dataset_fctn=get_image_presampled_goals_from_vae_env,
             goal_generation_kwargs=dict(
@@ -32,22 +27,20 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    save_environment=False,
-                    num_epochs=600,
+                    num_epochs=505,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
                     batch_size=128,
                     max_path_length=50,
                     discount=0.99,
-                    num_updates_per_env_step=2,
-                    parallel_env_params=dict(),
+                    num_updates_per_env_step=4,
+                    collection_mode='online-parallel',
                 ),
                 td3_kwargs=dict(
                     tau=1e-2,
                 ),
                 her_kwargs=dict(),
-                online_vae_kwargs=dict(),
             ),
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
@@ -55,8 +48,8 @@ if __name__ == "__main__":
             policy_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
-            replay_kwargs=dict(
-                max_size=int(40000),
+            replay_buffer_kwargs=dict(
+                max_size=int(1e6),
                 fraction_goals_are_rollout_goals=0.0,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
@@ -72,28 +65,24 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
-            dump_video_kwargs=dict(
-                num_images=num_images,
-            )
         ),
         train_vae_variant=dict(
-            dump_skew_debug_plots=False,
             generate_vae_data_fctn=generate_vae_dataset,
-            representation_size=8,
-            beta=5.0,
-            num_epochs=0,
+            dump_skew_debug_plots=False,
+            representation_size=16,
+            beta=0.5,
+            num_epochs=1000,
             generate_vae_dataset_kwargs=dict(
-                N=50,
-                test_p=.9,
+                N=5000,
                 oracle_dataset=True,
-                show=False,
-                use_cached=False,
+                use_cached=True,
                 num_channels=3*num_images,
             ),
             vae_kwargs=dict(
                 input_channels=3*num_images,
             ),
             algo_kwargs=dict(
+                train_data_workers=4,
                 do_scatterplot=False,
                 lr=1e-3,
             ),
@@ -107,28 +96,28 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.training_mode': ['train'],
-        'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
-        'grill_variant.online_vae_beta': [0.5],
-        'grill_variant.replay_kwargs.alpha': [0],
-        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
-        'grill_variant.algo_kwargs.base_kwargs.collection_mode': ['online'],
-        'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
-        # 'grill_variant.algo_kwargs.online_vae_kwargs.parallel_vae_train': [True],
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':
-            [vae_schedules.every_six],
+        'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0],
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [4],
+        'grill_variant.exploration_noise': [.3, .5],
+        'env_kwargs.random_init': [False],
+        'env_kwargs.action_scale': [.02],
+        'init_camera': [
+            sawyer_pick_and_place_camera,
+        ],
+
 
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 2
-    mode = 'local'
-    exp_prefix = 'pick-and-place'
+    n_seeds = 4
+    mode = 'ec2'
+    exp_prefix = 'pickup-offline-vae-grill-paper-final'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
-                grill_her_td3_online_vae_full_experiment,
+                grill_her_td3_full_experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
