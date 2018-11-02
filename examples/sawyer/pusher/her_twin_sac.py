@@ -9,12 +9,8 @@ from railrl.torch.grill.launcher import grill_her_twin_sac_full_experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=84,
+        imsize=48,
         init_camera=sawyer_pusher_camera_upright_v2,
-        env_class=SawyerPushAndReachXYEnv,
-        env_kwargs=dict(
-            norm_order=2,
-        ),
         grill_variant=dict(
             save_video=True,
             save_video_period=50,
@@ -30,7 +26,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=2005,
+                    num_epochs=5005,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -38,7 +34,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=1,
-                    collection_mode='online',
+                    collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -55,7 +51,7 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(1e6),
-                fraction_goals_are_rollout_goals=0,
+                fraction_goals_are_rollout_goals=0.5,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
             algorithm='STATE-HER-TWIN-SAC',
@@ -65,6 +61,8 @@ if __name__ == "__main__":
             testing_mode='test',
             observation_key='state_observation',
             desired_goal_key='state_desired_goal',
+            exploration_noise=0,
+            exploration_type='ou',
         ),
         train_vae_variant=dict(
             vae_path=None,
@@ -95,10 +93,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env_kwargs.reward_type':['puck_distance', 'state_distance', 'hand_and_puck_distance'],
-        'env_kwargs.reset_free':[True, False],
-        'grill_variant.replay_buffer_kwargs.fraction_goals_are_rollout_goals':[0, .5],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length':[100, 500],
+         'env_id':['SawyerPushAndReachEnvEasy-v0', 'SawyerPushAndReachEnvMedium-v0', 'SawyerPushAndReachEnvHard-v0'],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -112,7 +107,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_state_her_twin_sac_finalized_lengthy_sweep'
+    exp_prefix = 'sawyer_pusher_state_her_twin_sac_sweep_difficulty'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
@@ -121,8 +116,8 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 snapshot_mode='gap_and_last',
-                snapshot_gap=50,
+                snapshot_gap=500,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=5,
+                num_exps_per_instance=3,
             )

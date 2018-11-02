@@ -84,7 +84,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env_id':['SawyerPushAndReachEnvEasy-v0', 'SawyerPushAndReachEnvMedium-v0', 'SawyerPushAndReachEnvHard-v0']
+        'env_id':['SawyerPushAndReachEnvEasy-v0', 'SawyerPushAndReachEnvMedium-v0', 'SawyerPushAndReachEnvHard-v0'],
+        'grill_variant.exploration_noise':[.3, .5]
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -92,13 +93,13 @@ if __name__ == "__main__":
     )
 
 
-    n_seeds = 5
-    mode = 'local'
-    exp_prefix = 'sawyer_pusher_state_her_td3_sweep_difficulty'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 5
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_pusher_state_her_td3_finalized_sweep'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_pusher_state_her_td3_sweep_difficulty'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
@@ -109,7 +110,6 @@ if __name__ == "__main__":
                 snapshot_mode='gap_and_last',
                 snapshot_gap=500,
                 variant=variant,
-                use_gpu=False,
-                num_exps_per_instance=5,
-                skip_wait=True
+                use_gpu=True,
+                num_exps_per_instance=3,
             )

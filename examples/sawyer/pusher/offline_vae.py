@@ -1,12 +1,12 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
-        imsize=84,
-        init_camera=sawyer_pusher_camera_upright_v2,
+        imsize=48,
+        init_camera=sawyer_pusher_camera_upright_v0,
         env_id='SawyerPushAndReachEnvEasy-v0',
         grill_variant=dict(
             save_video=True,
@@ -19,7 +19,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1005,
+                    num_epochs=505,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -27,7 +27,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=1,
-                    collection_mode='online',
+                    collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -63,7 +63,7 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=1,
-            num_epochs=1,
+            num_epochs=500,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
@@ -89,19 +89,21 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'train_vae_variant.beta':[.5, 1],
         'grill_variant.exploration_noise':[0.3, .5],
+        'train_vae_variant.representation_size':[8, 16],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_pusher_offline_vae_easy'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_pusher_offline_vae_easy_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -111,5 +113,5 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=2,
+                num_exps_per_instance=4,
           )

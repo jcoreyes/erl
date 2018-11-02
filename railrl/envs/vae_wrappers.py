@@ -123,9 +123,8 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             proprio_goal = goal.get('proprio_desired_goal', None)
         else:
             image_goal = obs.get('image_desired_goal', None)
-            decoded_goal=None
+            decoded_goal=obs.get('image_desired_goal', None)
             proprio_goal=None
-
 
         goal['desired_goal'] = latent_goal
         goal['latent_desired_goal'] = latent_goal
