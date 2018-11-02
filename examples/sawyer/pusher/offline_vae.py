@@ -19,7 +19,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=505,
+                    num_epochs=1005,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -27,7 +27,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=1,
-                    collection_mode='online-parallel',
+                    collection_mode='online',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -63,14 +63,15 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=1,
-            num_epochs=1000,
+            num_epochs=1,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=1000,
                 oracle_dataset_using_set_to_goal=True,
                 use_cached=True,
-                vae_dataset_specific_kwargs=dict(),
+                vae_dataset_specific_kwargs=dict(
+                ),
                 show=False,
             ),
             vae_kwargs=dict(
@@ -88,19 +89,19 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.exploration_noise.beta':[0.3, .5],
+        'grill_variant.exploration_noise':[0.3, .5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_offline_vae_easy'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_pusher_offline_vae_easy'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
