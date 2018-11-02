@@ -1,20 +1,14 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
-    SawyerPushAndReachXYEnv
-)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=84,
+        imsize=48,
         init_camera=sawyer_pusher_camera_upright_v2,
-        env_class=SawyerPushAndReachXYEnv,
-        env_kwargs=dict(
-            norm_order=2,
-        ),
+        env_id='SawyerPushAndReachArenaEnv-v0',
         grill_variant=dict(
             save_video=True,
             save_video_period=500,
@@ -90,9 +84,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env_kwargs.reward_type':['puck_distance', 'state_distance'],
-        'env_kwargs.reset_free':[True, False],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length':[100, 250],
+        'env_id':['SawyerPushAndReachEnvEasy-v0', 'SawyerPushAndReachEnvMedium-v0', 'SawyerPushAndReachEnvHard-v0']
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -100,13 +92,13 @@ if __name__ == "__main__":
     )
 
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 5
+    mode = 'local'
+    exp_prefix = 'sawyer_pusher_state_her_td3_sweep_difficulty'
 
-    n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_state_her_td3_finalized_sweep'
+    # n_seeds = 5
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_pusher_state_her_td3_finalized_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
@@ -117,6 +109,7 @@ if __name__ == "__main__":
                 snapshot_mode='gap_and_last',
                 snapshot_gap=500,
                 variant=variant,
-                use_gpu=True,
+                use_gpu=False,
                 num_exps_per_instance=5,
+                skip_wait=True
             )
