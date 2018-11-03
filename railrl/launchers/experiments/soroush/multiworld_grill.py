@@ -29,7 +29,8 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.grill.video_gen import dump_video
 from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer
+from railrl.torch.vae.conv_vae import ConvVAE
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
 
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.her.her_twin_sac import HerTwinSac

@@ -1,6 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_pusher
+from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_pusher
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v3
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment

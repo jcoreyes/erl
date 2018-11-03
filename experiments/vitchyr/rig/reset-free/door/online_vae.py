@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
+from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerDoorEnv
 from railrl.launchers.launcher_util import run_experiment

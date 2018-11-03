@@ -66,7 +66,7 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = 'local'
     exp_prefix = 'dev'
-    exp_prefix = 'check-it-works-consistently'
+    exp_prefix = 'check-sensitivity'
 
     search_space = {
         # 'vae_kwargs.mode': [
@@ -82,7 +82,6 @@ if __name__ == '__main__':
         # ],
         'vae_kwargs.weight_loss': [
             True,
-            # False,
         ],
         'vae_kwargs.skew_sampling': [
             False,

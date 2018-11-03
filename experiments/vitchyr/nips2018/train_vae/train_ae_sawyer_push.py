@@ -6,7 +6,8 @@ from railrl.images.camera import (
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE, ConvVAETrainer, AutoEncoder
+from railrl.torch.vae.conv_vae import ConvVAE, AutoEncoder
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.vae.sawyer2d_push_new_easy_data import generate_vae_dataset
 
 

@@ -135,8 +135,8 @@ def train_vae(variant, return_data=False):
         ConvVAESmallDouble,
         SpatialAutoEncoder,
         AutoEncoder,
-        ConvVAETrainer,
     )
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
     from railrl.pythonplusplus import identity
@@ -781,7 +781,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     )
     from railrl.torch.her.online_vae_her_twin_sac import OnlineVaeHerTwinSac
     from railrl.torch.networks import FlattenMlp
-    from railrl.torch.vae.conv_vae import ConvVAETrainer
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.sac.policies import TanhGaussianPolicy
     grill_preprocess_variant(variant)
     env = get_envs(variant)
@@ -895,7 +895,7 @@ def grill_tdm_td3_experiment_online_vae(variant):
         PolicyWrappedWithExplorationStrategy
     )
     from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy
-    from railrl.torch.vae.conv_vae import ConvVAETrainer
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.online_vae.online_vae_tdm_td3 import OnlineVaeTdmTd3
     grill_preprocess_variant(variant)
     env = get_envs(variant)
@@ -1139,7 +1139,7 @@ def grill_her_td3_experiment_online_vae(variant):
     )
     from railrl.torch.her.online_vae_her_td3 import OnlineVaeHerTd3
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-    from railrl.torch.vae.conv_vae import ConvVAETrainer
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer
     grill_preprocess_variant(variant)
     env = get_envs(variant)
     es = get_exploration_strategy(variant, env)
@@ -1253,7 +1253,7 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
     from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
     from railrl.torch.td3.td3 import TD3
-    from railrl.torch.vae.conv_vae import ConvVAETrainer
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer
     grill_preprocess_variant(variant)
     env = get_envs(variant)
     es = get_exploration_strategy(variant, env)
