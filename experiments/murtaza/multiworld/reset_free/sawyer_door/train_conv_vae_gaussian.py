@@ -39,7 +39,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = '300'
 
     # n_seeds = 1
     # mode = 'ec2'

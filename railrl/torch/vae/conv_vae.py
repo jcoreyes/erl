@@ -186,8 +186,9 @@ class ConvVAESmallDouble(PyTorchModule):
         self.conv3 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
         self.kernel_out = 64
         self.conv_output_dim = self.kernel_out * 9
-        self.fc1 = nn.Linear(self.conv_output_dim, representation_size)
-        self.fc2 = nn.Linear(self.conv_output_dim, representation_size)
+        self.fc0 = nn.Linear(self.conv_output_dim, 300)
+        self.fc1 = nn.Linear(300, representation_size)
+        self.fc2 = nn.Linear(300, representation_size)
         self.fc3 = nn.Linear(representation_size, self.conv_output_dim)
         self.conv4 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2)
         self.conv5 = nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2)
@@ -215,6 +216,11 @@ class ConvVAESmallDouble(PyTorchModule):
         self.hidden_init(self.conv7.weight)
         self.conv7.bias.data.fill_(0)
 
+        self.hidden_init(self.fc0.weight)
+        self.fc0.bias.data.fill_(0)
+        self.fc0.weight.data.uniform_(-init_w, init_w)
+        self.fc0.bias.data.uniform_(-init_w, init_w)
+
         self.hidden_init(self.fc1.weight)
         self.fc1.bias.data.fill_(0)
         self.fc1.weight.data.uniform_(-init_w, init_w)
@@ -240,6 +246,7 @@ class ConvVAESmallDouble(PyTorchModule):
         x = F.relu(self.conv3(x))
         h = x.view(-1, self.conv_output_dim)  # flatten
         # h = self.relu(self.fc4(h))
+        h = F.relu(self.fc0(h))
         mu = self.encoder_activation(self.fc1(h))
         if self.log_min_variance is None:
             logvar = self.encoder_activation(self.fc2(h))
