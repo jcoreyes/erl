@@ -15,7 +15,8 @@ def experiment(variant):
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
-    beta_schedule = beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
+    # beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
+    beta_schedule = None
     m = variant['vae'](representation_size, **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -45,17 +46,17 @@ if __name__ == "__main__":
     # exp_prefix = 'gaussian_decoder_scheduled_beta'
 
     use_gpu = True
-    beta_schedule_one=dict(
-        x_values=[0, 1000, 2500, 4000],
-        y_values=[0, 1, 1000, 10000],
-    )
-
-    beta_schedule_two = dict(
-        x_values=[0, 1000, 2500, 4000],
-        y_values=[0, 1, 10, 100],
-    )
+    # beta_schedule_one=dict(
+    #     x_values=[0, 1000, 2500, 4000],
+    #     y_values=[0, 1, 1000, 10000],
+    # )
+    #
+    # beta_schedule_two = dict(
+    #     x_values=[0, 1000, 2500, 4000],
+    #     y_values=[0, 1, 10, 100],
+    # )
     variant = dict(
-        beta_schedule_kwargs=beta_schedule_one,
+        # beta_schedule_kwargs=beta_schedule_one,
         num_epochs=5000,
         algo_kwargs=dict(
             is_auto_encoder=False,
@@ -87,6 +88,7 @@ if __name__ == "__main__":
             input_channels=3,
             imsize=48,
             num_latents_to_sample=1,
+            # unit_variance=True,
         ),
         save_period=10,
         beta=2.5,
@@ -94,8 +96,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'algo_kwargs.lr':[5e-4, 1e-3, 5e-3],
-        'beta_schedule_kwargs':[beta_schedule_one, beta_schedule_two]
+        # 'algo_kwargs.lr':[5e-4, 1e-3, 5e-3],
+        # 'beta_schedule_kwargs':[beta_schedule_one, beta_schedule_two]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

@@ -4,6 +4,7 @@ from __future__ import print_function
 import torch
 import torch.utils.data
 from torch import nn
+from torch.distributions import Normal
 from torch.nn import functional as F
 
 from railrl.pythonplusplus import identity
@@ -151,7 +152,7 @@ class ConvVAESmallDouble(PyTorchModule):
             imsize=48,
             hidden_init=ptu.fanin_init,
             encoder_activation=identity,
-            decoder_activation=nn.Sigmoid(),
+            decoder_activation=identity,
             min_variance=1e-3,
             state_size=0,
             unit_variance=False,
@@ -269,9 +270,7 @@ class ConvVAESmallDouble(PyTorchModule):
                                     self.imsize * self.imsize * self.input_channels)
         if self.unit_variance:
             logvar = ptu.zeros_like(logvar)
-        decoder_dist = Normal(mu, logvar.exp().pow(.5))
-        output = decoder_dist.sample()
-        return self.decoder_activation(output), mu, logvar
+        return self.decoder_activation(mu), mu, logvar
 
     def forward(self, x):
         mu, logvar = self.encode(x)
