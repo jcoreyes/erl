@@ -19,7 +19,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=505,
+                    num_epochs=1005,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -40,7 +40,7 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(1e6),
-                fraction_goals_are_rollout_goals=0,
+                fraction_goals_are_rollout_goals=0.5,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
             algorithm='OFFLINE-VAE-HER-TD3',
@@ -63,13 +63,13 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=1,
-            num_epochs=500,
+            num_epochs=1000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=1000,
                 oracle_dataset_using_set_to_goal=True,
-                use_cached=True,
+                use_cached=False,
                 vae_dataset_specific_kwargs=dict(
                 ),
                 show=False,
@@ -89,9 +89,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'train_vae_variant.beta':[.5, 1],
-        'grill_variant.exploration_noise':[0.3, .5],
-        'train_vae_variant.representation_size':[8, 16],
+        'train_vae_variant.beta':[1, 2.5, 5],
+        'grill_variant.exploration_noise':[.3, .5],
+        'train_vae_variant.representation_size':[16],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_offline_vae_easy_sweep'
+    exp_prefix = 'sawyer_pusher_offline_vae_easy_sweep_fixed_spaces'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -113,5 +113,5 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=4,
+                num_exps_per_instance=3,
           )
