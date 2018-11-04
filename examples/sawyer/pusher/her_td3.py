@@ -84,9 +84,14 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env_id':['SawyerPushAndReachEnvEasy-v0', 'SawyerPushAndReachEnvMedium-v0', 'SawyerPushAndReachEnvHard-v0'],
-        'grill_variant.exploration_noise':[.3, .5],
-        'grill_variant.replay_buffer_kwargs.fraction_goals_are_rollout_goals':[0, .5]
+        'env_id':[
+            'SawyerPushAndReachArenaEnv-v0',
+            'SawyerPushAndReachArenaResetFreeEnv-v0',
+            'SawyerPushAndReachSmallArenaEnv-v0',
+            'SawyerPushAndReachSmallArenaResetFreeEnv-v0',
+        ],
+        'grill_variant.exploration_noise':[.5, .8],
+        'grill_variant.replay_buffer_kwargs.fraction_goals_are_rollout_goals':[.5]
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
