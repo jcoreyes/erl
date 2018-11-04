@@ -5,7 +5,7 @@ from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
-        imsize=48,
+        imsize=84,
         init_camera=sawyer_pusher_camera_upright_v0,
         env_id='SawyerPushAndReachEnvEasy-v0',
         grill_variant=dict(
@@ -19,14 +19,14 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1005,
+                    num_epochs=505,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
-                    num_updates_per_env_step=1,
+                    num_updates_per_env_step=4,
                     collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
@@ -43,10 +43,10 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0.5,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
-            algorithm='OFFLINE-VAE-HER-TD3',
+            algorithm='RIG-HER-TD3',
             normalize=False,
             render=False,
-            exploration_noise=0.8,
+            exploration_noise=0.3,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -89,9 +89,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'train_vae_variant.beta':[1, 2.5, 5],
-        'grill_variant.exploration_noise':[.3, .5],
-        'train_vae_variant.representation_size':[16],
+        'train_vae_variant.beta':[2.5],
+        'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.0, .5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -101,9 +100,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 1
+    n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_offline_vae_easy_sweep_fixed_spaces'
+    exp_prefix = 'sawyer_pusher_offline_vae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
