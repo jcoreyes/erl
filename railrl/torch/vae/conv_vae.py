@@ -24,7 +24,6 @@ class ConvVAESmall(PyTorchModule):
             decoder_activation=identity,
             min_variance=1e-3,
             state_size=0,
-            num_latents_to_sample=1,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -37,7 +36,6 @@ class ConvVAESmall(PyTorchModule):
         self.hidden_init = hidden_init
         self.encoder_activation = encoder_activation
         self.decoder_activation = decoder_activation
-        self.num_latents_to_sample=num_latents_to_sample
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize ** 2 * self.input_channels
