@@ -585,9 +585,12 @@ def grill_her_twin_sac_experiment(variant):
     from railrl.torch.her.her_twin_sac import HerTwinSAC
     from railrl.torch.networks import FlattenMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
+    from railrl.exploration_strategies.base import (
+        PolicyWrappedWithExplorationStrategy
+    )
     grill_preprocess_variant(variant)
     env = get_envs(variant)
-
+    es = get_exploration_strategy(variant, env)
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
@@ -624,7 +627,10 @@ def grill_her_twin_sac_experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
-
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
     algo_kwargs = variant['algo_kwargs']
     algo_kwargs['replay_buffer'] = replay_buffer
     base_kwargs = algo_kwargs['base_kwargs']
@@ -640,6 +646,7 @@ def grill_her_twin_sac_experiment(variant):
         qf2=qf2,
         vf=vf,
         policy=policy,
+        exploration_policy=exploration_policy,
         **variant['algo_kwargs']
     )
 
