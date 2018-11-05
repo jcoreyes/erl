@@ -475,6 +475,10 @@ def get_exploration_strategy(variant, env):
             action_space=env.action_space,
             prob_random_action=exploration_noise,
         )
+    elif exploration_type == 'noop':
+        es = NoopStrategy(
+            action_space=env.action_space
+        )
     else:
         raise Exception("Invalid type: " + exploration_type)
     return es
