@@ -60,8 +60,6 @@ if __name__ == "__main__":
         kernel_sizes=[5, 3, 3],
         n_channels=[16, 32, 64],
         strides=[3, 2, 2],
-        pool_sizes=[1,1,1],
-        paddings=[0,0,0],
     )
     conv_kwargs=dict(
         hidden_sizes=[],

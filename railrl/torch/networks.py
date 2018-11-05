@@ -669,7 +669,6 @@ class DCNN(PyTorchModule):
                 kernel_sizes,
                 n_channels,
                 strides,
-                pool_sizes,
                 paddings,
 
                 use_batch_norm=False,
@@ -710,8 +709,8 @@ class DCNN(PyTorchModule):
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-        for out_channels, kernel_size, stride, pool, padding in \
-            zip(n_channels, kernel_sizes, strides, pool_sizes, paddings):
+        for out_channels, kernel_size, stride, padding in \
+            zip(n_channels, kernel_sizes, strides, paddings):
 
             deconv = nn.ConvTranspose2d(deconv_input_channels,
                              out_channels,

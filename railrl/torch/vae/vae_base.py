@@ -112,6 +112,41 @@ class ConvVAE(GaussianLatentVAE):
             hidden_init=ptu.fanin_init,
 
     ):
+        """
+
+        :param representation_size:
+        :param conv_args:
+        must be a dictionary specifying the following:
+            kernel_sizes
+            n_channels
+            strides
+        :param conv_kwargs:
+        a dictionary specifying the following:
+            hidden_sizes
+        :param deconv_args:
+        must be a dictionary specifying the following:
+            hidden_sizes
+            deconv_input_width
+            deconv_input_height
+            deconv_input_channels
+            deconv_output_kernel_size
+            deconv_output_strides
+            deconv_output_channels
+            kernel_sizes
+            n_channels
+            strides
+        :param deconv_kwargs:
+        :param encoder_class:
+        :param decoder_class:
+        :param decoder_output_activation:
+        :param decoder_distribution:
+        :param input_channels:
+        :param imsize:
+        :param init_w:
+        :param min_variance:
+        :param num_latents_to_sample:
+        :param hidden_init:
+        """
         self.save_init_params(locals())
         super().__init__(representation_size)
         if min_variance is None:
@@ -125,8 +160,11 @@ class ConvVAE(GaussianLatentVAE):
         conv_output_size=deconv_args['deconv_input_width']*\
                          deconv_args['deconv_input_height']*\
                          deconv_args['deconv_input_channels']
+
         self.encoder=encoder_class(
             **conv_args,
+            pool_sizes=np.ones(len(conv_args['kernel_sizes'])),
+            paddings=np.zeros(len(conv_args['kernel_sizes'])),
             input_height=self.imsize,
             input_width=self.imsize,
             input_channels=self.input_channels,
@@ -149,7 +187,9 @@ class ConvVAE(GaussianLatentVAE):
             fc_input_size=representation_size,
             init_w=init_w,
             output_activation=decoder_output_activation,
+            paddings=np.zeros(len(conv_args['kernel_sizes'])),
             **deconv_kwargs)
+
         self.epoch = 0
         self.num_latents_to_sample = num_latents_to_sample
         self.decoder_distribution=decoder_distribution
