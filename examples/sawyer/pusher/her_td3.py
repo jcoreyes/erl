@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
@@ -7,8 +7,8 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         imsize=48,
-        init_camera=sawyer_pusher_camera_upright_v2,
-        env_id='SawyerPushAndReachArenaEnv-v0',
+        init_camera=sawyer_pusher_camera_upright_v0,
+        env_id='SawyerPushAndReachEnvEasy-v0',
         grill_variant=dict(
             save_video=True,
             save_video_period=500,
@@ -21,7 +21,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=5005,
+                    num_epochs=1005,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -48,7 +48,7 @@ if __name__ == "__main__":
             algorithm='STATE-HER-TD3',
             normalize=False,
             render=False,
-            exploration_noise=0.8,
+            exploration_noise=0.5,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -84,9 +84,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env_id':['SawyerPushAndReachEnvEasy-v0', 'SawyerPushAndReachEnvMedium-v0', 'SawyerPushAndReachEnvHard-v0'],
-        'grill_variant.exploration_noise':[.3, .5],
-        'grill_variant.replay_buffer_kwargs.fraction_goals_are_rollout_goals':[0, .5]
+        'env_id':['SawyerPushAndReachEnvEasy-v0'],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

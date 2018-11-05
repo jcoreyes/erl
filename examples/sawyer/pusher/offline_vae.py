@@ -10,7 +10,7 @@ if __name__ == "__main__":
         env_id='SawyerPushAndReachEnvEasy-v0',
         grill_variant=dict(
             save_video=True,
-            save_video_period=50,
+            save_video_period=100,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -46,7 +46,7 @@ if __name__ == "__main__":
             algorithm='OFFLINE-VAE-HER-TD3',
             normalize=False,
             render=False,
-            exploration_noise=0.8,
+            exploration_noise=0.5,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -62,12 +62,12 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             vae_path=None,
             representation_size=16,
-            beta=1,
+            beta=2.5,
             num_epochs=1000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=1000,
+                N=5000,
                 oracle_dataset_using_set_to_goal=True,
                 use_cached=False,
                 vae_dataset_specific_kwargs=dict(
@@ -84,14 +84,13 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
             ),
-            save_period=50,
+            save_period=100,
         ),
     )
 
     search_space = {
-        'train_vae_variant.beta':[1, 2.5, 5],
-        'grill_variant.exploration_noise':[.3, .5],
-        'train_vae_variant.representation_size':[16],
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step':[1,4],
+        'imsize':[48, 84]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -101,9 +100,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 1
+    n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_offline_vae_easy_sweep_fixed_spaces'
+    exp_prefix = 'sawyer_pusher_offline_vae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
