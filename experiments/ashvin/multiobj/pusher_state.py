@@ -4,6 +4,7 @@ from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_multiple_objects import MultiSawyerEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 
@@ -25,8 +26,7 @@ if __name__ == "__main__":
                 collection_mode='online',
                 parallel_env_params=dict(
                     num_workers=1,
-                )
-
+                ),
             ),
             her_kwargs=dict(
                 observation_key='state_observation',
@@ -59,10 +59,13 @@ if __name__ == "__main__":
 
         snapshot_mode='gap_and_last',
         snapshot_gap=50,
+
+        env_class=MultiSawyerEnv,
+        env_kwargs=dict(),
     )
 
     search_space = {
-        'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
+        # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
         'seedid': range(5),
     }
 
@@ -79,7 +82,7 @@ if __name__ == "__main__":
     mode = 'ec2'
     exp_prefix = 'sawyer_pusher_state_final'
 
-    run_variants(her_td3_experiment, sweeper.iterate_hyperparameters(), run_id=1)
+    run_variants(her_td3_experiment, sweeper.iterate_hyperparameters(), run_id=0)
     # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
     #     for i in range(n_seeds):
     #         run_experiment(

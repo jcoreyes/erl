@@ -63,6 +63,7 @@ def run_variant(experiment, variant):
         snapshot_mode=variant["snapshot_mode"],
         snapshot_gap=variant["snapshot_gap"],
         base_log_dir=variant["base_log_dir"],
+        num_exps_per_instance=variant.get("num_exps_per_instance", 1),
         prepend_date_to_exp_prefix=False,
         # spot_price=variant["spot_price"],
     )
@@ -132,7 +133,7 @@ def process_variant_cmd(variant):
         variant["use_gpu"] = True
     if "use_gpu" in variant and variant["use_gpu"]:
         if "instance_type" not in variant:
-            variant["instance_type"] = "g2.2xlarge"
+            variant["instance_type"] = "g3.4xlarge"
         if "gpu_id" not in variant:
             variant["gpu_id"] = 0
 
