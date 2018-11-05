@@ -1,4 +1,6 @@
 import torch
+
+from railrl.pythonplusplus import identity
 from railrl.torch.core import PyTorchModule
 import numpy as np
 import abc
@@ -40,9 +42,9 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    def kl_divergence(self, distribution_params):
+    def kl_divergence(self, input):
         """
-        :param distribution_params:
+        :param input:
         :return:
         """
         raise NotImplementedError()
@@ -70,8 +72,8 @@ class GaussianLatentVAE(VAEBase):
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
 
-    def kl_divergence(self, distribution_params):
-        mu, logvar = distribution_params
+    def kl_divergence(self, input):
+        mu, logvar = self.encode(input)
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
     def __getstate__(self):
@@ -94,14 +96,19 @@ class ConvVAE(GaussianLatentVAE):
             conv_kwargs,
             deconv_args,
             deconv_kwargs,
+
             encoder_class=CNN,
             decoder_class=DCNN,
+            decoder_output_activation=identity,
+            decoder_distribution='bernoulli',
+
             input_channels=1,
             imsize=48,
             init_w=1e-3,
             min_variance=1e-3,
             num_latents_to_sample=1,
-            decoder_distribution='bernoulli',
+            hidden_init=ptu.fanin_init,
+
     ):
         self.save_init_params(locals())
         super().__init__(representation_size)
@@ -112,26 +119,34 @@ class ConvVAE(GaussianLatentVAE):
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize*self.imsize*self.input_channels
+
+        conv_output_size=deconv_args['deconv_input_width']*\
+                         deconv_args['deconv_input_height']*\
+                         deconv_args['deconv_input_channels']
         self.encoder=encoder_class(
-            self.imsize,
-            self.imsize,
-            self.input_channels,
-            *conv_args,
+            **conv_args,
+            input_height=self.imsize,
+            input_width=self.imsize,
+            input_channels=self.input_channels,
+            output_size=conv_output_size,
+            init_w=init_w,
             **conv_kwargs)
 
         self.fc1 = nn.Linear(self.encoder.output_size, representation_size)
         self.fc2 = nn.Linear(self.encoder.output_size, representation_size)
 
-        self.hidden_init(self.fc1.weight)
+        hidden_init(self.fc1.weight)
         self.fc1.weight.data.uniform_(-init_w, init_w)
         self.fc1.bias.data.uniform_(-init_w, init_w)
-        self.hidden_init(self.fc2.weight)
+        hidden_init(self.fc2.weight)
         self.fc2.weight.data.uniform_(-init_w, init_w)
         self.fc2.bias.data.uniform_(-init_w, init_w)
 
         self.decoder = decoder_class(
-            *deconv_args,
+            **deconv_args,
             fc_input_size=representation_size,
+            init_w=init_w,
+            output_activation=decoder_output_activation,
             **deconv_kwargs)
         self.epoch = 0
         self.num_latents_to_sample = num_latents_to_sample
@@ -159,15 +174,13 @@ class ConvVAE(GaussianLatentVAE):
         return latents, mu, logvar, stds
 
     def compute_bernoulli_log_prob(self, recon_x, x):
-        # Divide by batch_size rather than setting size_average=True because
-        # otherwise the averaging will also happen across dim 1 (the
-        # pixels)
+        # Multiply back in the image length so the cross entropy is only averaged over the batch size
         return -1* F.binary_cross_entropy(
             recon_x,
             x.narrow(start=0, length=self.imlength,
                      dim=1).contiguous().view(-1, self.imlength),
-            size_average=False,
-        ) / self.batch_size
+            size_average=True,
+        ) * self.imlength
 
     def logprob(self, input):
         """
@@ -189,13 +202,18 @@ class ConvVAEDouble(ConvVAE):
             conv_kwargs,
             deconv_args,
             deconv_kwargs,
+
             encoder_class=CNN,
-            decoder_class=TwoHeadDCNN,
+            decoder_class=DCNN,
+            decoder_output_activation=identity,
+            decoder_distribution='bernoulli',
+
             input_channels=1,
             imsize=48,
             init_w=1e-3,
             min_variance=1e-3,
             num_latents_to_sample=1,
+            hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())
         super().__init__(
@@ -204,8 +222,12 @@ class ConvVAEDouble(ConvVAE):
             conv_kwargs,
             deconv_args,
             deconv_kwargs,
+
             encoder_class=encoder_class,
             decoder_class=decoder_class,
+            decoder_output_activation=decoder_output_activation,
+            decoder_distribution=decoder_distribution,
+
             input_channels=input_channels,
             imsize=imsize,
             init_w=init_w,

@@ -656,6 +656,7 @@ class FeatPointMlp(PyTorchModule):
 class DCNN(PyTorchModule):
     def __init__(self,
                 fc_input_size,
+                hidden_sizes,
 
                 deconv_input_width,
                 deconv_input_height,
@@ -665,13 +666,12 @@ class DCNN(PyTorchModule):
                 deconv_output_strides,
                 deconv_output_channels,
 
-                deconv_input_size,
                 kernel_sizes,
                 n_channels,
                 strides,
                 pool_sizes,
                 paddings,
-                hidden_sizes=[],
+
                 use_batch_norm=False,
                 init_w=1e-4,
                 hidden_activation=nn.ReLU(),
@@ -693,6 +693,7 @@ class DCNN(PyTorchModule):
         self.deconv_input_height = deconv_input_height
         self.deconv_input_channels = deconv_input_channels
 
+        deconv_input_size = self.deconv_input_channels*self.deconv_input_height*self.deconv_input_width
         self.deconv_layers = nn.ModuleList()
         self.fc_layers = nn.ModuleList()
 
@@ -712,17 +713,13 @@ class DCNN(PyTorchModule):
         for out_channels, kernel_size, stride, pool, padding in \
             zip(n_channels, kernel_sizes, strides, pool_sizes, paddings):
 
-            conv = nn.ConvTranspose2d(deconv_input_channels,
+            deconv = nn.ConvTranspose2d(deconv_input_channels,
                              out_channels,
                              kernel_size,
                              stride=stride,
                              padding=padding)
-            nn.init.xavier_uniform(conv.weight)
-
-            deconv_layer = nn.Sequential(
-                            conv,
-                            nn.MaxUnpool2d(pool, pool),
-            )
+            nn.init.xavier_uniform(deconv.weight)
+            deconv_layer = deconv
             self.deconv_layers.append(deconv_layer)
             deconv_input_channels = out_channels
         self.last_deconv = nn.ConvTranspose2d(
@@ -735,6 +732,7 @@ class DCNN(PyTorchModule):
 
     def forward(self, input):
         h = self.apply_forward(input, self.fc_layers)
+        h = self.hidden_activation(self.last_fc(h))
         h = h.view(-1, self.deconv_input_channels, self.deconv_input_width, self.deconv_input_height)
         h = self.apply_forward(h, self.deconv_layers)
         output = self.output_activation(self.last_deconv(h))
@@ -742,7 +740,7 @@ class DCNN(PyTorchModule):
 
     def apply_forward(self, input, hidden_layers):
         h = input
-        for layer, norm_layer in zip(hidden_layers):
+        for layer in hidden_layers:
             h = layer(h)
             h = self.hidden_activation(h)
         return h
@@ -838,6 +836,7 @@ class TwoHeadDCNN(PyTorchModule):
 
     def forward(self, input):
         h = self.apply_forward(input, self.fc_layers)
+        h = self.hidden_activation(self.last_fc(h))
         h = h.view(-1, self.deconv_input_channels, self.deconv_input_width, self.deconv_input_height)
         h = self.apply_forward(h, self.deconv_layers)
         first_output = self.output_activation(self.first_deconv_output_layer(h))
@@ -846,7 +845,7 @@ class TwoHeadDCNN(PyTorchModule):
 
     def apply_forward(self, input, hidden_layers):
         h = input
-        for layer, norm_layer in zip(hidden_layers):
+        for layer in hidden_layers:
             h = layer(h)
             h = self.hidden_activation(h)
         return h

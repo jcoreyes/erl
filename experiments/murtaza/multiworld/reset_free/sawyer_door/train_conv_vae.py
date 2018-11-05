@@ -1,9 +1,9 @@
 from torch import nn
-
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAESmallDouble, ConvVAESmall
+from railrl.pythonplusplus import identity
+from railrl.torch.vae.vae_base import ConvVAE
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.grill.launcher import generate_vae_dataset
 
@@ -26,9 +26,8 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = variant['vae'](representation_size, decoder_activation=nn.Sigmoid(), **variant['vae_kwargs'])
-    if ptu.gpu_enabled():
-        m.cuda()
+    m = variant['vae'](representation_size, decoder_output_activation=nn.Sigmoid(), **variant['vae_kwargs'])
+    m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
     save_period = variant['save_period']
@@ -57,11 +56,38 @@ if __name__ == "__main__":
 
     use_gpu = True
 
+    conv_args = dict(
+        kernel_sizes=[5, 3, 3],
+        n_channels=[16, 32, 64],
+        strides=[3, 2, 2],
+        pool_sizes=[1,1,1],
+        paddings=[0,0,0],
+    )
+    conv_kwargs=dict(
+        hidden_sizes=[],
+    )
+
+    deconv_args=dict(
+        hidden_sizes=[],
+
+        deconv_input_width=3,
+        deconv_input_height=3,
+        deconv_input_channels=64,
+
+        deconv_output_kernel_size=6,
+        deconv_output_strides=3,
+        deconv_output_channels=3,
+
+        kernel_sizes=[3,3],
+        n_channels=[32, 16],
+        strides=[2,2],
+        pool_sizes=[1,1],
+        paddings=[0,0],
+    )
+
+    deconv_kwargs=dict(
+    )
     variant = dict(
-        # beta_schedule_kwargs=dict(
-        #     x_values=[0, 800, 1700],
-        #     y_values=[0, 0, .5],
-        # ),
         num_epochs=2500,
         algo_kwargs=dict(
             is_auto_encoder=False,
@@ -72,7 +98,7 @@ if __name__ == "__main__":
             ),
             skew_dataset=False,
         ),
-        vae=ConvVAESmall,
+        vae=ConvVAE,
         dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
@@ -91,6 +117,10 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
+            conv_args=conv_args,
+            conv_kwargs=conv_kwargs,
+            deconv_args=deconv_args,
+            deconv_kwargs=deconv_kwargs,
         ),
         save_period=10,
         beta=2.5,
