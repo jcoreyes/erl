@@ -25,7 +25,6 @@ class CNN(PyTorchModule):
                 kernel_sizes,
                 n_channels,
                 strides,
-                pool_sizes,
                 paddings,
                 hidden_sizes=[],
                 added_fc_input_size=0,
@@ -37,7 +36,6 @@ class CNN(PyTorchModule):
         assert len(kernel_sizes) == \
                len(n_channels) == \
                len(strides) == \
-               len(pool_sizes) == \
                len(paddings)
         self.save_init_params(locals())
         super().__init__()
@@ -58,20 +56,16 @@ class CNN(PyTorchModule):
         self.fc_layers = nn.ModuleList()
         self.fc_norm_layers = nn.ModuleList()
 
-        for out_channels, kernel_size, stride, pool, padding in \
-            zip(n_channels, kernel_sizes, strides, pool_sizes, paddings):
-
+        for out_channels, kernel_size, stride, padding in \
+            zip(n_channels, kernel_sizes, strides, paddings):
             conv = nn.Conv2d(input_channels,
-                             out_channels,
-                             kernel_size,
-                             stride=stride,
-                             padding=padding)
+                         out_channels,
+                         kernel_size,
+                         stride=stride,
+                         padding=padding)
             nn.init.xavier_uniform_(conv.weight)
 
-            conv_layer = nn.Sequential(
-                            conv,
-                            nn.MaxPool2d(pool, pool),
-            )
+            conv_layer = conv
             self.conv_layers.append(conv_layer)
             input_channels = out_channels
 
@@ -679,7 +673,6 @@ class DCNN(PyTorchModule):
         assert len(kernel_sizes) == \
                len(n_channels) == \
                len(strides) == \
-               len(pool_sizes) == \
                len(paddings)
         self.save_init_params(locals())
         super().__init__()
@@ -691,10 +684,13 @@ class DCNN(PyTorchModule):
         self.deconv_input_width = deconv_input_width
         self.deconv_input_height = deconv_input_height
         self.deconv_input_channels = deconv_input_channels
-
         deconv_input_size = self.deconv_input_channels*self.deconv_input_height*self.deconv_input_width
+        self.use_batch_norm = use_batch_norm
+
         self.deconv_layers = nn.ModuleList()
+        self.deconv_norm_layers = nn.ModuleList()
         self.fc_layers = nn.ModuleList()
+        self.fc_norm_layers = nn.ModuleList()
 
         for idx, hidden_size in enumerate(hidden_sizes):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
@@ -703,6 +699,7 @@ class DCNN(PyTorchModule):
             nn.init.xavier_uniform_(fc_layer.weight)
 
             self.fc_layers.append(fc_layer)
+            self.fc_norm_layers.append(norm_layer)
             fc_input_size = hidden_size
 
         self.last_fc = nn.Linear(fc_input_size, deconv_input_size)
@@ -721,6 +718,13 @@ class DCNN(PyTorchModule):
             deconv_layer = deconv
             self.deconv_layers.append(deconv_layer)
             deconv_input_channels = out_channels
+
+        test_mat = torch.zeros(1, self.deconv_input_channels, self.deconv_input_width,
+                               self.deconv_input_height)  # initially the model is on CPU (caller should then move it to GPU if
+        for deconv_layer in self.deconv_layers:
+            test_mat = deconv_layer(test_mat)
+            self.deconv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
+
         self.last_deconv = nn.ConvTranspose2d(
             deconv_input_channels,
             deconv_output_channels,
@@ -730,17 +734,19 @@ class DCNN(PyTorchModule):
         nn.init.xavier_uniform_(self.last_deconv.weight)
 
     def forward(self, input):
-        h = self.apply_forward(input, self.fc_layers)
+        h = self.apply_forward(input, self.fc_layers, self.fc_norm_layers)
         h = self.hidden_activation(self.last_fc(h))
         h = h.view(-1, self.deconv_input_channels, self.deconv_input_width, self.deconv_input_height)
-        h = self.apply_forward(h, self.deconv_layers)
+        h = self.apply_forward(h, self.deconv_layers, self.deconv_norm_layers)
         output = self.output_activation(self.last_deconv(h))
         return output
 
-    def apply_forward(self, input, hidden_layers):
+    def apply_forward(self, input, hidden_layers, norm_layers):
         h = input
-        for layer in hidden_layers:
+        for layer, norm_layer in zip(hidden_layers, norm_layers):
             h = layer(h)
+            if self.use_batch_norm:
+                h = norm_layer(h)
             h = self.hidden_activation(h)
         return h
 

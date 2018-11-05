@@ -79,8 +79,6 @@ if __name__ == "__main__":
         kernel_sizes=[3,3],
         n_channels=[32, 16],
         strides=[2,2],
-        pool_sizes=[1,1],
-        paddings=[0,0],
     )
 
     deconv_kwargs=dict(

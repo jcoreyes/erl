@@ -23,7 +23,25 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
     def encode(self, input):
         """
         :param input:
-        :return: mu, logvar
+        :return: latent_distribution_params
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def rsample(self, latent_distribution_params):
+        """
+
+        :param latent_distribution_params:
+        :return: latents
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def reparameterize(self, latent_distribution_params):
+        """
+
+        :param latent_distribution_params:
+        :return:
         """
         raise NotImplementedError()
 
@@ -31,22 +49,21 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
     def decode(self, latents):
         """
         :param latents:
-        :return: reconstruction
+        :return: reconstruction, obs_distribution_params
         """
         raise NotImplementedError()
 
-    def logprob(self, inputs, reconstructions, distribution_params):
+    def logprob(self, inputs, obs_distribution_params):
         """
         :param inputs:
-        :param reconstructions:
-        :param distribution_params:
+        :param obs_distribution_params:
         :return: log probability of input under decoder
         """
         raise NotImplementedError()
 
-    def kl_divergence(self, distribution_params):
+    def kl_divergence(self, latent_distribution_params):
         """
-        :param distribution_params:
+        :param latent_distribution_params:
         :return:
         """
         raise NotImplementedError()
@@ -61,18 +78,28 @@ class GaussianLatentVAE(VAEBase):
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)
 
-    def reparameterize(self, mu, logvar):
+    def rsample(self, latent_distribution_params):
+        mu, logvar = latent_distribution_params
+        std = logvar.mul(0.5).exp_()
+        eps = std.data.new(std.size()).normal_()
+        return eps.mul(std).add_(mu)
+
+    def reparameterize(self, latent_distribution_params):
         if self.training:
-            std = logvar.mul(0.5).exp_()
-            eps = std.data.new(std.size()).normal_()
-            return eps.mul(std).add_(mu)
+            return self.rsample(latent_distribution_params)
         else:
-            return mu
+            return latent_distribution_params[0]
 
     def forward(self, input):
+        """
+
+        :param input:
+        :return: reconstructed input, latent_distribution_params
+        """
         mu, logvar = self.encode(input)
-        z = self.reparameterize(mu, logvar)
-        return self.decode(z), mu, logvar
+        z = self.reparameterize((mu, logvar))
+        reconstructions, obs_distribution_params = self.decode(z)
+        return reconstructions, obs_distribution_params, (mu, logvar)
 
     def kl_divergence(self, distribution_params):
         mu, logvar = distribution_params
@@ -163,8 +190,7 @@ class ConvVAE(GaussianLatentVAE):
 
         self.encoder=encoder_class(
             **conv_args,
-            pool_sizes=np.ones(len(conv_args['kernel_sizes'])),
-            paddings=np.zeros(len(conv_args['kernel_sizes'])),
+            paddings=np.zeros(len(conv_args['kernel_sizes']), dtype=np.int64),
             input_height=self.imsize,
             input_width=self.imsize,
             input_channels=self.input_channels,
@@ -187,7 +213,7 @@ class ConvVAE(GaussianLatentVAE):
             fc_input_size=representation_size,
             init_w=init_w,
             output_activation=decoder_output_activation,
-            paddings=np.zeros(len(conv_args['kernel_sizes'])),
+            paddings=np.zeros(len(deconv_args['kernel_sizes']), dtype=np.int64),
             **deconv_kwargs)
 
         self.epoch = 0
@@ -201,10 +227,14 @@ class ConvVAE(GaussianLatentVAE):
             logvar = self.fc2(h)
         else:
             logvar = self.log_min_variance + torch.abs(self.fc2(h))
-        return mu, logvar
+        return (mu, logvar)
 
     def decode(self, latents):
-        return self.decoder(latents).view(-1, self.imsize*self.imsize*self.input_channels)
+        decoded = self.decoder(latents).view(-1, self.imsize*self.imsize*self.input_channels)
+        if self.decoder_distribution == 'bernoulli':
+            return decoded, [decoded]
+        else:
+            raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
     def get_sampled_latents_and_latent_distributions(self, input):
         mu, logvar = self.encode(input)
@@ -215,7 +245,7 @@ class ConvVAE(GaussianLatentVAE):
         latents = epsilon * stds + mu
         return latents, mu, logvar, stds
 
-    def compute_bernoulli_log_prob(self, recon_x, x):
+    def compute_bernoulli_log_prob(self, x, recon_x):
         # Multiply back in the image length so the cross entropy is only averaged over the batch size
         return -1* F.binary_cross_entropy(
             recon_x,
@@ -224,9 +254,9 @@ class ConvVAE(GaussianLatentVAE):
             reduction='elementwise_mean',
         ) * self.imlength
 
-    def logprob(self, inputs, reconstructions, latent_distribution_params):
+    def logprob(self, inputs, obs_distribution_params):
         if self.decoder_distribution == 'bernoulli':
-            log_prob = self.compute_bernoulli_log_prob(reconstructions, inputs)
+            log_prob = self.compute_bernoulli_log_prob(inputs, obs_distribution_params[0])
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
@@ -241,7 +271,7 @@ class ConvVAEDouble(ConvVAE):
             deconv_kwargs,
 
             encoder_class=CNN,
-            decoder_class=DCNN,
+            decoder_class=TwoHeadDCNN,
             decoder_output_activation=identity,
             decoder_distribution='bernoulli',
 
@@ -273,31 +303,27 @@ class ConvVAEDouble(ConvVAE):
         )
 
     def decode(self, latents):
-        return self.decode_all_outputs(latents)[0]
-
-    def decode_all_outputs(self, latents):
         first_output, second_output = self.decoder(latents)
         first_output = first_output.view(-1, self.imsize*self.imsize*self.input_channels)
         second_output = second_output.view(-1, self.imsize*self.imsize*self.input_channels)
-        return first_output, second_output
+        if self.decoder_distribution == 'gaussian':
+            return first_output, (first_output, second_output)
+        else:
+            raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
     def compute_gaussian_log_prob(self, input, dec_mu, dec_var):
-        dec_mu = dec_mu.view(-1, self.input_channels*self.imsize**2)
-        dec_var = dec_var.view(-1, self.input_channels*self.imsize**2)
+        dec_mu = dec_mu.view(-1, self.imlength)
+        dec_var = dec_var.view(-1, self.imlength)
         decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
-        input = input.view(-1, self.input_channels*self.imsize**2)
+        input = input.view(-1, self.imlength)
         log_probs = decoder_dist.log_prob(input)
         vals = log_probs.sum(dim=1, keepdim=True)
         return vals.mean()
 
-    def logprob(self, inputs, reconstructions, latent_distribution_params):
-        """
-        :param input:
-        :return: log probability of input under decoder
-        """
+    def logprob(self, inputs, obs_distribution_params):
         if self.decoder_distribution == 'gaussian':
             latents, mu, logvar, stds = self.get_sampled_latents_and_latent_distributions(inputs)
-            dec_mu, dec_var = self.model.decode_all_outputs(latents)
+            dec_mu, dec_var = self.model.decode(latents)[1]
             log_prob = self.compute_gaussian_log_prob(inputs, dec_mu, dec_var)
             return log_prob
         else:

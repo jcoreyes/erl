@@ -304,9 +304,9 @@ class ConvVAETrainer(Serializable):
                 obs = None
                 actions = None
             self.optimizer.zero_grad()
-            reconstructions, encoder_mean, encoder_logvar = self.model(next_obs)
-            log_prob = self.model.logprob(next_obs, reconstructions, (encoder_mean, encoder_logvar))
-            kle = self.model.kl_divergence((encoder_mean, encoder_logvar))
+            reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
+            log_prob = self.model.logprob(next_obs, obs_distribution_params)
+            kle = self.model.kl_divergence(latent_distribution_params)
 
             if self.use_linear_dynamics:
                 linear_dynamics_loss = self.state_linearity_loss(
@@ -364,11 +364,12 @@ class ConvVAETrainer(Serializable):
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(10):
             next_obs = self.get_batch(train=False)
-            reconstructions, encoder_mean, encoder_logvar = self.model(next_obs)
-            log_prob = self.model.logprob(next_obs, reconstructions, (encoder_mean, encoder_logvar))
-            kle = self.model.kl_divergence((encoder_mean, encoder_logvar))
+            reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
+            log_prob = self.model.logprob(next_obs, obs_distribution_params)
+            kle = self.model.kl_divergence(latent_distribution_params)
             loss = -1*log_prob + beta * kle
 
+            encoder_mean = latent_distribution_params[0]
             z_data = ptu.get_numpy(encoder_mean.cpu())
             for i in range(len(z_data)):
                 zs.append(z_data[i, :])
@@ -440,13 +441,13 @@ class ConvVAETrainer(Serializable):
         """
         debug_batch_size = 64
         data = self.get_batch(train=False)
-        recon_batch, mu, logvar = self.model(data)
+        reconstructions, _, _ = self.model(data)
         img = data[0]
-        recon_mse = ((recon_batch[0] - img)**2).mean().view(-1)
+        recon_mse = ((reconstructions[0] - img)**2).mean().view(-1)
         img_repeated = img.expand((debug_batch_size, img.shape[0]))
 
         samples = ptu.randn(debug_batch_size, self.representation_size)
-        random_imgs = self.model.decode(samples)
+        random_imgs, _ = self.model.decode(samples)
         random_mses = (random_imgs - img_repeated) ** 2
         mse_improvement = ptu.get_numpy(random_mses.mean(dim=1) - recon_mse)
         stats = create_stats_ordered_dict(
@@ -470,7 +471,7 @@ class ConvVAETrainer(Serializable):
     def dump_samples(self, epoch):
         self.model.eval()
         sample = ptu.randn(64, self.representation_size)
-        sample = self.model.decode(sample).cpu()
+        sample = self.model.decode(sample)[0].cpu()
         save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
         save_image(
             sample.data.view(64, self.input_channels, self.imsize, self.imsize),
