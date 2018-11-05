@@ -137,7 +137,6 @@ class ConvVAE(GaussianLatentVAE):
             min_variance=1e-3,
             num_latents_to_sample=1,
             hidden_init=ptu.fanin_init,
-
     ):
         """
 
@@ -150,6 +149,7 @@ class ConvVAE(GaussianLatentVAE):
         :param conv_kwargs:
         a dictionary specifying the following:
             hidden_sizes
+            batch_norm
         :param deconv_args:
         must be a dictionary specifying the following:
             hidden_sizes
@@ -163,6 +163,7 @@ class ConvVAE(GaussianLatentVAE):
             n_channels
             strides
         :param deconv_kwargs:
+            batch_norm
         :param encoder_class:
         :param decoder_class:
         :param decoder_output_activation:
@@ -245,18 +246,9 @@ class ConvVAE(GaussianLatentVAE):
         latents = epsilon * stds + mu
         return latents, mu, logvar, stds
 
-    def compute_bernoulli_log_prob(self, x, recon_x):
-        # Multiply back in the image length so the cross entropy is only averaged over the batch size
-        return -1* F.binary_cross_entropy(
-            recon_x,
-            x.narrow(start=0, length=self.imlength,
-                     dim=1).contiguous().view(-1, self.imlength),
-            reduction='elementwise_mean',
-        ) * self.imlength
-
     def logprob(self, inputs, obs_distribution_params):
         if self.decoder_distribution == 'bernoulli':
-            log_prob = self.compute_bernoulli_log_prob(inputs, obs_distribution_params[0])
+            log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0], vector_dimension=self.imlength)
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
@@ -311,20 +303,29 @@ class ConvVAEDouble(ConvVAE):
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
-    def compute_gaussian_log_prob(self, input, dec_mu, dec_var):
-        dec_mu = dec_mu.view(-1, self.imlength)
-        dec_var = dec_var.view(-1, self.imlength)
-        decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
-        input = input.view(-1, self.imlength)
-        log_probs = decoder_dist.log_prob(input)
-        vals = log_probs.sum(dim=1, keepdim=True)
-        return vals.mean()
-
     def logprob(self, inputs, obs_distribution_params):
         if self.decoder_distribution == 'gaussian':
             latents, mu, logvar, stds = self.get_sampled_latents_and_latent_distributions(inputs)
             dec_mu, dec_var = self.model.decode(latents)[1]
-            log_prob = self.compute_gaussian_log_prob(inputs, dec_mu, dec_var)
+            log_prob = compute_gaussian_log_prob(inputs, dec_mu, dec_var, vector_dimension=self.imlength)
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
+
+def compute_bernoulli_log_prob(x, recon_x, vector_dimension):
+    # Multiply back in the vector_dimension so the cross entropy is only averaged over the batch size
+    return -1* F.binary_cross_entropy(
+        recon_x,
+        x.narrow(start=0, length=vector_dimension,
+                 dim=1).contiguous().view(-1, vector_dimension),
+        reduction='elementwise_mean',
+    ) * vector_dimension
+
+def compute_gaussian_log_prob(input, dec_mu, dec_var, vector_dimension):
+    dec_mu = dec_mu.view(-1, vector_dimension)
+    dec_var = dec_var.view(-1, vector_dimension)
+    decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
+    input = input.view(-1, vector_dimension)
+    log_probs = decoder_dist.log_prob(input)
+    vals = log_probs.sum(dim=1, keepdim=True)
+    return vals.mean()
