@@ -40,6 +40,13 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    def kl_divergence(self, distribution_params):
+        """
+        :param distribution_params:
+        :return:
+        """
+        raise NotImplementedError()
+
 class GaussianLatentVAE(VAEBase):
     def __init__(
             self,
@@ -63,7 +70,8 @@ class GaussianLatentVAE(VAEBase):
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
 
-    def kl_divergence(self, mu, logvar):
+    def kl_divergence(self, distribution_params):
+        mu, logvar = distribution_params
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
     def __getstate__(self):
