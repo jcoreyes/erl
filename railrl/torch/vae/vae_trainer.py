@@ -304,8 +304,9 @@ class ConvVAETrainer(Serializable):
                 obs = None
                 actions = None
             self.optimizer.zero_grad()
-            log_prob = self.model.logprob(next_obs)
-            kle = self.model.kl_divergence(next_obs)
+            reconstructions, encoder_mean, encoder_logvar = self.model(next_obs)
+            log_prob = self.model.logprob(next_obs, reconstructions, (encoder_mean, encoder_logvar))
+            kle = self.model.kl_divergence((encoder_mean, encoder_logvar))
 
             if self.use_linear_dynamics:
                 linear_dynamics_loss = self.state_linearity_loss(
@@ -359,30 +360,30 @@ class ConvVAETrainer(Serializable):
         losses = []
         log_probs = []
         kles = []
-        # zs = []
+        zs = []
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(10):
             next_obs = self.get_batch(train=False)
-            log_prob = self.model.logprob(next_obs)
-            kle = self.model.kl_divergence(next_obs)
+            reconstructions, encoder_mean, encoder_logvar = self.model(next_obs)
+            log_prob = self.model.logprob(next_obs, reconstructions, (encoder_mean, encoder_logvar))
+            kle = self.model.kl_divergence((encoder_mean, encoder_logvar))
             loss = -1*log_prob + beta * kle
 
-            # z_data = ptu.get_numpy(mu.cpu())
-            # for i in range(len(z_data)):
-            #     zs.append(z_data[i, :])
+            z_data = ptu.get_numpy(encoder_mean.cpu())
+            for i in range(len(z_data)):
+                zs.append(z_data[i, :])
             losses.append(loss.item())
             log_probs.append(log_prob.item())
             kles.append(kle.item())
 
             if batch_idx == 0 and save_reconstruction:
-                recon_batch, _, _ = self.model(next_obs)
                 n = min(next_obs.size(0), 8)
                 comparison = torch.cat([
                     next_obs[:n].narrow(start=0, length=self.imlength, dim=1)
                     .contiguous().view(
                         -1, self.input_channels, self.imsize, self.imsize
                     ),
-                    recon_batch.view(
+                    reconstructions.view(
                         self.batch_size,
                         self.input_channels,
                         self.imsize,
@@ -393,11 +394,11 @@ class ConvVAETrainer(Serializable):
                                     'r%d.png' % epoch)
                 save_image(comparison.data.cpu(), save_dir, nrow=n)
 
-        # zs = np.array(zs)
-        # self.model.dist_mu = zs.mean(axis=0)
-        # self.model.dist_std = zs.std(axis=0)
-        # if self.do_scatterplot and save_scatterplot:
-        #     self.plot_scattered(np.array(zs), epoch)
+        zs = np.array(zs)
+        self.model.dist_mu = zs.mean(axis=0)
+        self.model.dist_std = zs.std(axis=0)
+        if self.do_scatterplot and save_scatterplot:
+            self.plot_scattered(np.array(zs), epoch)
 
 
         if self.skew_dataset:

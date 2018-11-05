@@ -35,16 +35,18 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    def logprob(self, input):
+    def logprob(self, inputs, reconstructions, distribution_params):
         """
-        :param input:
+        :param inputs:
+        :param reconstructions:
+        :param distribution_params:
         :return: log probability of input under decoder
         """
         raise NotImplementedError()
 
-    def kl_divergence(self, input):
+    def kl_divergence(self, distribution_params):
         """
-        :param input:
+        :param distribution_params:
         :return:
         """
         raise NotImplementedError()
@@ -72,8 +74,8 @@ class GaussianLatentVAE(VAEBase):
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
 
-    def kl_divergence(self, input):
-        mu, logvar = self.encode(input)
+    def kl_divergence(self, distribution_params):
+        mu, logvar = distribution_params
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
     def __getstate__(self):
@@ -182,14 +184,9 @@ class ConvVAE(GaussianLatentVAE):
             reduction='elementwise_mean',
         ) * self.imlength
 
-    def logprob(self, input):
-        """
-        :param input:
-        :return: log probability of input under decoder
-        """
+    def logprob(self, inputs, reconstructions, latent_distribution_params):
         if self.decoder_distribution == 'bernoulli':
-            recon_batch, _, _ = self(input)
-            log_prob = self.compute_bernoulli_log_prob(recon_batch, input)
+            log_prob = self.compute_bernoulli_log_prob(reconstructions, inputs)
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
@@ -253,15 +250,15 @@ class ConvVAEDouble(ConvVAE):
         vals = log_probs.sum(dim=1, keepdim=True)
         return vals.mean()
 
-    def logprob(self, input):
+    def logprob(self, inputs, reconstructions, latent_distribution_params):
         """
         :param input:
         :return: log probability of input under decoder
         """
         if self.decoder_distribution == 'gaussian':
-            latents, mu, logvar, stds = self.get_sampled_latents_and_latent_distributions(input)
+            latents, mu, logvar, stds = self.get_sampled_latents_and_latent_distributions(inputs)
             dec_mu, dec_var = self.model.decode_all_outputs(latents)
-            log_prob = self.compute_gaussian_log_prob(input, dec_mu, dec_var)
+            log_prob = self.compute_gaussian_log_prob(inputs, dec_mu, dec_var)
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
