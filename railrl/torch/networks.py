@@ -655,15 +655,23 @@ class FeatPointMlp(PyTorchModule):
 
 class DCNN(PyTorchModule):
     def __init__(self,
-                input_size,
-                output_size,
+                fc_input_size,
+
+                deconv_input_width,
+                deconv_input_height,
+                deconv_input_channels,
+
+                deconv_output_kernel_size,
+                deconv_output_strides,
+                deconv_output_channels,
+
+                deconv_input_size,
                 kernel_sizes,
                 n_channels,
                 strides,
                 pool_sizes,
                 paddings,
                 hidden_sizes=[],
-                added_fc_input_size=0,
                 use_batch_norm=False,
                 init_w=1e-4,
                 hidden_activation=nn.ReLU(),
@@ -678,47 +686,15 @@ class DCNN(PyTorchModule):
         super().__init__()
 
         self.hidden_sizes = hidden_sizes
-        self.input_width = input_width
-        self.input_height = input_height
-        self.input_channels = input_channels
-        self.output_size = output_size
         self.output_activation = output_activation
         self.hidden_activation = hidden_activation
-        self.use_batch_norm = use_batch_norm
-        self.added_fc_input_size = added_fc_input_size
-        self.conv_input_length = self.input_width * self.input_height * self.input_channels
 
-        self.conv_layers = nn.ModuleList()
-        self.conv_norm_layers = nn.ModuleList()
+        self.deconv_input_width = deconv_input_width
+        self.deconv_input_height = deconv_input_height
+        self.deconv_input_channels = deconv_input_channels
+
+        self.deconv_layers = nn.ModuleList()
         self.fc_layers = nn.ModuleList()
-        self.fc_norm_layers = nn.ModuleList()
-
-        for out_channels, kernel_size, stride, pool, padding in \
-            zip(n_channels, kernel_sizes, strides, pool_sizes, paddings):
-
-            conv = nn.Conv2d(input_channels,
-                             out_channels,
-                             kernel_size,
-                             stride=stride,
-                             padding=padding)
-            nn.init.xavier_uniform(conv.weight)
-
-            conv_layer = nn.Sequential(
-                            conv,
-                            nn.MaxPool2d(pool, pool),
-            )
-            self.conv_layers.append(conv_layer)
-            input_channels = out_channels
-
-        # find output dim of conv_layers by trial and add normalization conv layers
-        test_mat = torch.zeros(1, self.input_channels, self.input_width, self.input_height) #initially the model is on CPU (caller should then move it to GPU if
-        for conv_layer in self.conv_layers:
-            test_mat = conv_layer(test_mat)
-            self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
-
-        fc_input_size = int(np.prod(test_mat.shape))
-        # used only for injecting input directly into fc layers
-        fc_input_size += added_fc_input_size
 
         for idx, hidden_size in enumerate(hidden_sizes):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
@@ -727,46 +703,46 @@ class DCNN(PyTorchModule):
             nn.init.xavier_uniform(fc_layer.weight)
 
             self.fc_layers.append(fc_layer)
-            self.fc_norm_layers.append(norm_layer)
             fc_input_size = hidden_size
 
-        self.last_fc = nn.Linear(fc_input_size, output_size)
+        self.last_fc = nn.Linear(fc_input_size, deconv_input_size)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
+        for out_channels, kernel_size, stride, pool, padding in \
+            zip(n_channels, kernel_sizes, strides, pool_sizes, paddings):
+
+            conv = nn.ConvTranspose2d(deconv_input_channels,
+                             out_channels,
+                             kernel_size,
+                             stride=stride,
+                             padding=padding)
+            nn.init.xavier_uniform(conv.weight)
+
+            deconv_layer = nn.Sequential(
+                            conv,
+                            nn.MaxUnpool2d(pool, pool),
+            )
+            self.deconv_layers.append(deconv_layer)
+            deconv_input_channels = out_channels
+        self.last_deconv = nn.ConvTranspose2d(
+            deconv_input_channels,
+            deconv_output_channels,
+            deconv_output_kernel_size,
+            stride=deconv_output_strides,
+        )
+        nn.init.xavier_uniform(self.last_deconv.weight)
+
     def forward(self, input):
-        fc_input = (self.added_fc_input_size != 0)
-
-        conv_input = input.narrow(start=0,
-                                  length=self.conv_input_length,
-                                  dim=1).contiguous()
-        if fc_input:
-            extra_fc_input = input.narrow(start=self.conv_input_length,
-                                        length=self.added_fc_input_size,
-                                        dim=1)
-        # need to reshape from batch of flattened images into (channsls, w, h)
-        h = conv_input.view(conv_input.shape[0],
-                       self.input_channels,
-                       self.input_height,
-                       self.input_width)
-
-        #from PIL import Image
-        #import pdb; pdb.set_trace()
-        h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
-        # flatten channels for fc layers
-        h = h.view(h.size(0), -1)
-        if fc_input:
-            h = torch.cat((h, extra_fc_input), dim=1)
-        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
-
-        output = self.output_activation(self.last_fc(h))
+        h = self.apply_forward(input, self.fc_layers)
+        h = h.view(-1, self.deconv_input_channels, self.deconv_input_width, self.deconv_input_height)
+        h = self.apply_forward(h, self.deconv_layers)
+        output = self.output_activation(self.last_deconv(h))
         return output
 
-    def apply_forward(self, input, hidden_layers, norm_layers):
+    def apply_forward(self, input, hidden_layers):
         h = input
-        for layer, norm_layer in zip(hidden_layers, norm_layers):
+        for layer, norm_layer in zip(hidden_layers):
             h = layer(h)
-            if self.use_batch_norm:
-                h = norm_layer(h)
             h = self.hidden_activation(h)
         return h

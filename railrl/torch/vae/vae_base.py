@@ -1,11 +1,10 @@
 import torch
-
 from railrl.torch.core import PyTorchModule
 import numpy as np
 import abc
-
-from railrl.torch.networks import CNN
+from railrl.torch.networks import CNN, DCNN
 from torch import nn
+import railrl.torch.pytorch_util as ptu
 
 
 class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
@@ -36,17 +35,27 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
             return mu
 
     @abc.abstractmethod
-    def decode(self, z):
+    def decode(self, latents):
         """
-        :param z:
+        :param latents:
         :return: reconstruction
         """
         raise NotImplementedError()
 
-    def forward(self, x):
-        mu, logvar = self.encode(x)
+    def forward(self, input):
+        mu, logvar = self.encode(input)
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
+
+    def logprob(self, input):
+        """
+        :param input:
+        :return: log probability of input under decoder
+        """
+        raise NotImplementedError()
+
+    def kl_divergence(self, mu, logvar):
+        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
     def __getstate__(self):
         d = super().__getstate__()
@@ -72,6 +81,7 @@ class ConvVAE(VAEBase):
             imsize=48,
             init_w=1e-3,
             min_variance=1e-3,
+            num_latents_to_sample=1,
     ):
         self.save_init_params(locals())
         super().__init__(representation_size)
@@ -87,6 +97,7 @@ class ConvVAE(VAEBase):
             self.input_channels,
             *conv_args,
             **conv_kwargs)
+
         self.fc1 = nn.Linear(self.encoder.output_size, representation_size)
         self.fc2 = nn.Linear(self.encoder.output_size, representation_size)
         self.hidden_init(self.fc1.weight)
@@ -95,11 +106,13 @@ class ConvVAE(VAEBase):
         self.hidden_init(self.fc2.weight)
         self.fc2.weight.data.uniform_(-init_w, init_w)
         self.fc2.bias.data.uniform_(-init_w, init_w)
+
         self.decoder = DCNN(
             *deconv_args,
-            input_size=representation_size,
+            fc_input_size=representation_size,
             **deconv_kwargs)
         self.epoch = 0
+        self.num_latents_to_sample = num_latents_to_sample
 
     def encode(self, input):
         h = self.encoder(input)
@@ -110,5 +123,14 @@ class ConvVAE(VAEBase):
             logvar = self.log_min_variance + torch.abs(self.fc2(h))
         return mu, logvar
 
-    def decode(self, z):
-        return self.decoder(z)
+    def decode(self, latents):
+        return self.decoder(latents).view(-1, self.imsize*self.imsize*self.input_channels)
+
+    def get_sampled_latents_and_latent_distributions(self, input):
+        mu, logvar = self.encode(input)
+        mu = mu.view((mu.size()[0], 1, mu.size()[1]))
+        stds = (0.5 * logvar).exp()
+        stds = stds.view(stds.size()[0], 1, stds.size()[1])
+        epsilon = ptu.randn((mu.size()[0], self.num_latents_to_sample, mu.size()[1]))
+        latents = epsilon * stds + mu
+        return latents, mu, logvar, stds
