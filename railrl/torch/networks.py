@@ -66,7 +66,7 @@ class CNN(PyTorchModule):
                              kernel_size,
                              stride=stride,
                              padding=padding)
-            nn.init.xavier_uniform(conv.weight)
+            nn.init.xavier_uniform_(conv.weight)
 
             conv_layer = nn.Sequential(
                             conv,
@@ -89,7 +89,7 @@ class CNN(PyTorchModule):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
 
             norm_layer = nn.BatchNorm1d(hidden_size)
-            nn.init.xavier_uniform(fc_layer.weight)
+            nn.init.xavier_uniform_(fc_layer.weight)
 
             self.fc_layers.append(fc_layer)
             self.fc_norm_layers.append(norm_layer)
@@ -701,7 +701,7 @@ class DCNN(PyTorchModule):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
 
             norm_layer = nn.BatchNorm1d(hidden_size)
-            nn.init.xavier_uniform(fc_layer.weight)
+            nn.init.xavier_uniform_(fc_layer.weight)
 
             self.fc_layers.append(fc_layer)
             fc_input_size = hidden_size
@@ -718,7 +718,7 @@ class DCNN(PyTorchModule):
                              kernel_size,
                              stride=stride,
                              padding=padding)
-            nn.init.xavier_uniform(deconv.weight)
+            nn.init.xavier_uniform_(deconv.weight)
             deconv_layer = deconv
             self.deconv_layers.append(deconv_layer)
             deconv_input_channels = out_channels
@@ -728,7 +728,7 @@ class DCNN(PyTorchModule):
             deconv_output_kernel_size,
             stride=deconv_output_strides,
         )
-        nn.init.xavier_uniform(self.last_deconv.weight)
+        nn.init.xavier_uniform_(self.last_deconv.weight)
 
     def forward(self, input):
         h = self.apply_forward(input, self.fc_layers)
@@ -792,7 +792,7 @@ class TwoHeadDCNN(PyTorchModule):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
 
             norm_layer = nn.BatchNorm1d(hidden_size)
-            nn.init.xavier_uniform(fc_layer.weight)
+            nn.init.xavier_uniform_(fc_layer.weight)
 
             self.fc_layers.append(fc_layer)
             fc_input_size = hidden_size
@@ -809,7 +809,7 @@ class TwoHeadDCNN(PyTorchModule):
                              kernel_size,
                              stride=stride,
                              padding=padding)
-            nn.init.xavier_uniform(conv.weight)
+            nn.init.xavier_uniform_(conv.weight)
 
             deconv_layer = nn.Sequential(
                             conv,
@@ -824,7 +824,7 @@ class TwoHeadDCNN(PyTorchModule):
             deconv_output_kernel_size,
             stride=deconv_output_strides,
         )
-        nn.init.xavier_uniform(self.first_deconv_output_layer.weight)
+        nn.init.xavier_uniform_(self.first_deconv_output_layer.weight)
 
         self.second_deconv_output_layer = nn.ConvTranspose2d(
             deconv_input_channels,
@@ -832,7 +832,7 @@ class TwoHeadDCNN(PyTorchModule):
             deconv_output_kernel_size,
             stride=deconv_output_strides,
         )
-        nn.init.xavier_uniform(self.second_deconv_output_layer.weight)
+        nn.init.xavier_uniform_(self.second_deconv_output_layer.weight)
 
     def forward(self, input):
         h = self.apply_forward(input, self.fc_layers)

@@ -179,7 +179,7 @@ class ConvVAE(GaussianLatentVAE):
             recon_x,
             x.narrow(start=0, length=self.imlength,
                      dim=1).contiguous().view(-1, self.imlength),
-            size_average=True,
+            reduction='elementwise_mean',
         ) * self.imlength
 
     def logprob(self, input):
