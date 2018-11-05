@@ -456,6 +456,8 @@ def get_exploration_strategy(variant, env):
     from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
     from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
     from railrl.exploration_strategies.ou_strategy import OUStrategy
+    from railrl.exploration_strategies.noop import NoopStrategy
+    
     exploration_type = variant['exploration_type']
     exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
