@@ -92,7 +92,7 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_bernoulli_p_x',
             ),
-            skew_dataset=False,
+            skew_dataset=True,
         ),
         vae=ConvVAE,
         dump_skew_debug_plots=False,

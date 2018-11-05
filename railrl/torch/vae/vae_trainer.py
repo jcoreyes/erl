@@ -23,12 +23,13 @@ from railrl.torch.data import (
 def inv_gaussian_p_x_np_to_np(model, data):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
-    latents, mus, logvar, stds = get_encoding_and_suff_stats(model, imgs)
+    latents, mus, logvar, stds = model.get_sampled_latents_and_latent_distributions(imgs)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))
     vae_dist = Normal(mus, stds)
     log_p_z = true_prior.log_prob(latents).sum(dim=2)
     log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
-    _, dec_mu, dec_var = model.decode_mean_and_var(latents)
+    _, obs_distribution_params = model.decode(latents)
+    dec_mu, dec_var = obs_distribution_params
     dec_mu = dec_mu.view(dec_mu.shape[0] // latents.shape[1], latents.shape[1], dec_mu.shape[1])
     dec_var = dec_var.view(dec_var.shape[0] // latents.shape[1], latents.shape[1], dec_var.shape[1])
     decoder_dist = Normal(dec_mu, dec_var.pow(.5))
@@ -41,12 +42,12 @@ def inv_gaussian_p_x_np_to_np(model, data):
 def inv_p_bernoulli_x_np_to_np(model, data):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
-    latents, mus, logvar, stds = get_encoding_and_suff_stats(model, imgs)
+    latents, mus, logvar, stds = model.get_sampled_latents_and_latent_distributions(imgs)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))
     vae_dist = Normal(mus, stds)
     log_p_z = true_prior.log_prob(latents).sum(dim=2)
     log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
-    decoded = model.decode(latents)
+    decoded = model.decode(latents)[0]
     decoded = decoded.view(decoded.shape[0]//latents.shape[1], latents.shape[1], decoded.shape[1])
     imgs = imgs.view(imgs.shape[0], 1, imgs.shape[1])
     log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=2)
@@ -61,18 +62,6 @@ def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_giv
     log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
     inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
     return inv_p_x_shifted
-
-
-def get_encoding_and_suff_stats(model, imgs):
-    mu, logvar = model.encode(imgs)
-    mu = mu.view((mu.size()[0], 1, mu.size()[1]))
-    stds = (0.5 * logvar).exp()
-    stds = stds.view(stds.size()[0], 1, stds.size()[1])
-    epsilon = ptu.randn((mu.size()[0], model.num_latents_to_sample, mu.size()[1]))
-    if ptu.gpu_enabled():
-        epsilon = epsilon.cuda()
-    latents = epsilon * stds + mu
-    return latents, mu, logvar, stds
 
 
 class ConvVAETrainer(Serializable):
