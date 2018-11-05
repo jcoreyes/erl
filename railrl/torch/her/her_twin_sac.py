@@ -33,7 +33,6 @@ class HerTwinSAC(HER, TwinSAC):
             multitask_rollout,
             observation_key=self.observation_key,
             desired_goal_key=self.desired_goal_key,
-            get_action_kwargs=dict(deterministic=True),
         )
 
     def get_eval_action(self, observation, goal):

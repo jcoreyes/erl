@@ -456,6 +456,8 @@ def get_exploration_strategy(variant, env):
     from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
     from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
     from railrl.exploration_strategies.ou_strategy import OUStrategy
+    from railrl.exploration_strategies.noop import NoopStrategy
+    
     exploration_type = variant['exploration_type']
     exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
@@ -474,6 +476,10 @@ def get_exploration_strategy(variant, env):
         es = EpsilonGreedy(
             action_space=env.action_space,
             prob_random_action=exploration_noise,
+        )
+    elif exploration_type == 'noop':
+        es = NoopStrategy(
+            action_space=env.action_space
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
@@ -585,9 +591,12 @@ def grill_her_twin_sac_experiment(variant):
     from railrl.torch.her.her_twin_sac import HerTwinSAC
     from railrl.torch.networks import FlattenMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
+    from railrl.exploration_strategies.base import (
+        PolicyWrappedWithExplorationStrategy
+    )
     grill_preprocess_variant(variant)
     env = get_envs(variant)
-
+    es = get_exploration_strategy(variant, env)
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
@@ -624,7 +633,10 @@ def grill_her_twin_sac_experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
-
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
     algo_kwargs = variant['algo_kwargs']
     algo_kwargs['replay_buffer'] = replay_buffer
     base_kwargs = algo_kwargs['base_kwargs']
@@ -640,6 +652,7 @@ def grill_her_twin_sac_experiment(variant):
         qf2=qf2,
         vf=vf,
         policy=policy,
+        exploration_policy=exploration_policy,
         **variant['algo_kwargs']
     )
 

@@ -199,7 +199,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             self.eval_rollout_function = cloudpickle.loads(eval_rollout_function)
             ptu.device = torch.device("cuda:" + str(gpu_id) if use_gpu else "cpu")
             self._policy.to(ptu.device)
-            self._exploration_policy.policy.to(ptu.device)
+            self._exploration_policy.to(ptu.device)
 
         def rollout(self, policy_params, use_exploration_strategy):
             if use_exploration_strategy:
