@@ -1,9 +1,9 @@
+from torch import nn
+
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAESmallDouble
+from railrl.torch.vae.conv_vae import ConvVAESmallDouble, ConvVAESmall
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.grill.launcher import generate_vae_dataset
 
@@ -26,7 +26,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = variant['vae'](representation_size, is_auto_encoder=variant['algo_kwargs']['is_auto_encoder'], **variant['vae_kwargs'])
+    m = variant['vae'](representation_size, decoder_activation=nn.Sigmoid(), **variant['vae_kwargs'])
     if ptu.gpu_enabled():
         m.cuda()
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -49,7 +49,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'normalized'
+    exp_prefix = 'test'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -70,14 +70,9 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_bernoulli_p_x',
             ),
-            skew_dataset=True,
-            # normalize_log_probs=True,
-            # normalize_mean=True,
-            # normalize_std=False,
-            # normalize_max=True,
-            biased_sampling=True,
+            skew_dataset=False,
         ),
-        vae=ConvVAESmallDouble,
+        vae=ConvVAESmall,
         dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
@@ -96,7 +91,6 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
-            decoder_activation='sigmoid',
         ),
         save_period=10,
         beta=2.5,
