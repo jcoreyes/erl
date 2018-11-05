@@ -16,8 +16,6 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         self.save_init_params(locals())
         super().__init__()
         self.representation_size = representation_size
-        self.dist_mu = np.zeros(self.representation_size)
-        self.dist_std = np.ones(self.representation_size)
 
     @abc.abstractmethod
     def encode(self, input):
@@ -27,14 +25,6 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    def reparameterize(self, mu, logvar):
-        if self.training:
-            std = logvar.mul(0.5).exp_()
-            eps = std.data.new(std.size()).normal_()
-            return eps.mul(std).add_(mu)
-        else:
-            return mu
-
     @abc.abstractmethod
     def decode(self, latents):
         """
@@ -43,17 +33,35 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    def forward(self, input):
-        mu, logvar = self.encode(input)
-        z = self.reparameterize(mu, logvar)
-        return self.decode(z), mu, logvar
-
     def logprob(self, input):
         """
         :param input:
         :return: log probability of input under decoder
         """
         raise NotImplementedError()
+
+class GaussianLatentVAE(VAEBase):
+    def __init__(
+            self,
+            representation_size,
+    ):
+        self.save_init_params(locals())
+        super().__init__(representation_size)
+        self.dist_mu = np.zeros(self.representation_size)
+        self.dist_std = np.ones(self.representation_size)
+
+    def reparameterize(self, mu, logvar):
+        if self.training:
+            std = logvar.mul(0.5).exp_()
+            eps = std.data.new(std.size()).normal_()
+            return eps.mul(std).add_(mu)
+        else:
+            return mu
+
+    def forward(self, input):
+        mu, logvar = self.encode(input)
+        z = self.reparameterize(mu, logvar)
+        return self.decode(z), mu, logvar
 
     def kl_divergence(self, mu, logvar):
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
@@ -70,7 +78,7 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         self.dist_mu = d["_dist_mu"]
         self.dist_std = d["_dist_std"]
 
-class ConvVAE(VAEBase):
+class ConvVAE(GaussianLatentVAE):
     def __init__(
             self,
             representation_size,
