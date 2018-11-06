@@ -117,10 +117,14 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             image_goal, proprio_goal = self._image_and_proprio_from_decoded_one(
                 decoded_goal
             )
-        else:
+        elif self.num_goals_presampled > 0:
             decoded_goal = goal.get(self.vae_input_desired_goal_key, None)
             image_goal = goal.get('image_desired_goal', None)
             proprio_goal = goal.get('proprio_desired_goal', None)
+        else:
+            image_goal = obs.get('image_desired_goal', None)
+            decoded_goal = obs.get('image_desired_goal', None)
+            proprio_goal = None
 
 
         goal['desired_goal'] = latent_goal
@@ -155,7 +159,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
 
     def _update_info(self, info, obs):
         latent_distribution_params = self.vae.encode(
-            ptu.from_numpy(obs[self.vae_input_observation_key])
+            ptu.from_numpy(obs[self.vae_input_observation_key].reshape(1,-1))
         )
         latent_obs, logvar = ptu.get_numpy(latent_distribution_params[0])[0], ptu.get_numpy(latent_distribution_params[1])[0]
         # assert (latent_obs == obs['latent_observation']).all()
@@ -439,7 +443,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         return ptu.get_numpy(latent_distribution_params[0])
 
     def _reconstruct_img(self, flat_img):
-        latent_distribution_params = self.vae.encode(ptu.from_numpy(flat_img))
+        latent_distribution_params = self.vae.encode(ptu.from_numpy(flat_img.reshape(1,-1)))
         reconstructions, _ = self.vae.decode(latent_distribution_params[0])
         imgs = ptu.get_numpy(reconstructions)
         imgs = imgs.reshape(
@@ -470,3 +474,14 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             return decoded, None
         else:
             raise AssertionError("Bad prefix for the vae input key.")
+
+def temporary_mode(env, mode, func, args=None, kwargs=None):
+    if args is None:
+        args = []
+    if kwargs is None:
+        kwargs = {}
+    cur_mode = env.cur_mode
+    env.mode(env._mode_map[mode])
+    return_val = func(*args, **kwargs)
+    env.mode(cur_mode)
+    return return_val

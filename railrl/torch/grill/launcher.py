@@ -131,11 +131,10 @@ def train_vae(variant, return_data=False):
     from railrl.misc.ml_util import PiecewiseLinearSchedule
     from railrl.torch.vae.conv_vae import (
         ConvVAE,
-        ConvVAESmall,
-        ConvVAESmallDouble,
         SpatialAutoEncoder,
         AutoEncoder,
     )
+    import railrl.torch.vae.conv_vae as conv_vae
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
@@ -159,10 +158,7 @@ def train_vae(variant, return_data=False):
         decoder_activation = identity
     else:
         decoder_activation = torch.nn.Sigmoid()
-    if variant.get('encoder_activation', 'identity') == 'identity':
-        encoder_activation = identity
-    else:
-        raise EnvironmentError()
+    use_default_architecture = variant.get('use_default_architecture', True)
     if variant['algo_kwargs'].get('is_auto_encoder', False):
         m = AutoEncoder(representation_size, input_channels=3)
     elif variant.get('use_spatial_auto_encoder', False):
@@ -170,17 +166,15 @@ def train_vae(variant, return_data=False):
                                input_channels=3)
     else:
         if variant.get('imsize') == 84:
-            m = ConvVAE(representation_size, **variant['vae_kwargs'])
+            if use_default_architecture:
+                architecture = conv_vae.imsize84_default_architecture
+                variant['vae_kwargs']['architecture'] = architecture
+            m = ConvVAE(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
         elif variant.get('imsize') == 48:
-            if variant['algo_kwargs'].get('full_gaussian_decoder', False):
-                m = ConvVAESmallDouble(representation_size,
-                                       encoder_activation=encoder_activation,
-                                       decoder_mean_activation=decoder_activation,
-                                       **variant['vae_kwargs']
-                                       )
-            else:
-                m = ConvVAESmall(representation_size, encoder_activation=encoder_activation,
-                                 decoder_activation=decoder_activation, **variant['vae_kwargs'])
+            if use_default_architecture:
+                architecture = conv_vae.imsize48_default_architecture
+                variant['vae_kwargs']['architecture'] = architecture
+            m = ConvVAE(representation_size, decoder_output_activation=decoder_activation, **variant['vae_kwargs'])
         else:
             raise NotImplementedError('Only support 84 and 48 images.')
     m.to(ptu.device)

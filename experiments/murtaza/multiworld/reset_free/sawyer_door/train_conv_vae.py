@@ -2,8 +2,7 @@ from torch import nn
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.pythonplusplus import identity
-from railrl.torch.vae.vae_base import ConvVAE
+from railrl.torch.vae.conv_vae import imsize48_default_architecture, ConvVAE
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.grill.launcher import generate_vae_dataset
 
@@ -56,33 +55,6 @@ if __name__ == "__main__":
 
     use_gpu = True
 
-    conv_args = dict(
-        kernel_sizes=[5, 3, 3],
-        n_channels=[16, 32, 64],
-        strides=[3, 2, 2],
-    )
-    conv_kwargs=dict(
-        hidden_sizes=[],
-    )
-
-    deconv_args=dict(
-        hidden_sizes=[],
-
-        deconv_input_width=3,
-        deconv_input_height=3,
-        deconv_input_channels=64,
-
-        deconv_output_kernel_size=6,
-        deconv_output_strides=3,
-        deconv_output_channels=3,
-
-        kernel_sizes=[3,3],
-        n_channels=[32, 16],
-        strides=[2,2],
-    )
-
-    deconv_kwargs=dict(
-    )
     variant = dict(
         num_epochs=2500,
         algo_kwargs=dict(
@@ -113,10 +85,8 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
-            conv_args=conv_args,
-            conv_kwargs=conv_kwargs,
-            deconv_args=deconv_args,
-            deconv_kwargs=deconv_kwargs,
+            architecture=imsize48_default_architecture,
+            decoder_activation='sigmoid',
         ),
         save_period=10,
         beta=2.5,
