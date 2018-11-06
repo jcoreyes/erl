@@ -14,7 +14,7 @@ if __name__ == "__main__":
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
             save_video=True,
-            online_vae_beta=.5,
+            online_vae_beta=2.5,
             save_video_period=50,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
