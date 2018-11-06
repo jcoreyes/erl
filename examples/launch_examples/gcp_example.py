@@ -59,8 +59,8 @@ if __name__ == "__main__":
     )
     run_experiment(
         example,
-        exp_prefix="gcp-test",
+        exp_prefix="gcp-test-gpu",
         mode='gcp',
         variant=variant,
-        use_gpu=False,
+        use_gpu=True,
     )
