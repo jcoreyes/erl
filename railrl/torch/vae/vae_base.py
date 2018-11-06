@@ -4,6 +4,7 @@ import numpy as np
 import abc
 from torch.distributions import Normal
 from torch.nn import functional as F
+from railrl.torch import pytorch_util as ptu
 
 class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
     def __init__(
@@ -100,6 +101,16 @@ class GaussianLatentVAE(VAEBase):
         mu, logvar = latent_distribution_params
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
+    def get_sampled_latents_and_latent_distributions(self, input):
+        mu, logvar = self.encode(input)
+        mu = mu.view((mu.size()[0], 1, mu.size()[1]))
+        stds = (0.5 * logvar).exp()
+        stds = stds.view(stds.size()[0], 1, stds.size()[1])
+        epsilon = ptu.randn((mu.size()[0], self.num_latents_to_sample, mu.size()[1]))
+        latents = epsilon * stds + mu
+        return latents, mu, logvar, stds
+
+
     def __getstate__(self):
         d = super().__getstate__()
         # Add these explicitly in case they were modified
@@ -112,20 +123,16 @@ class GaussianLatentVAE(VAEBase):
         self.dist_mu = d["_dist_mu"]
         self.dist_std = d["_dist_std"]
 
-def compute_bernoulli_log_prob(x, recon_x, vector_dimension):
+def compute_bernoulli_log_prob(x, reconstruction_of_x):
     # Multiply back in the vector_dimension so the cross entropy is only averaged over the batch size
     return -1* F.binary_cross_entropy(
-        recon_x,
-        x.narrow(start=0, length=vector_dimension,
-                 dim=1).contiguous().view(-1, vector_dimension),
+        reconstruction_of_x,
+        x,
         reduction='elementwise_mean',
-    ) * vector_dimension
+    )
 
-def compute_gaussian_log_prob(input, dec_mu, dec_var, vector_dimension):
-    dec_mu = dec_mu.view(-1, vector_dimension)
-    dec_var = dec_var.view(-1, vector_dimension)
+def compute_gaussian_log_prob(input, dec_mu, dec_var):
     decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
-    input = input.view(-1, vector_dimension)
     log_probs = decoder_dist.log_prob(input)
     vals = log_probs.sum(dim=1, keepdim=True)
     return vals.mean()

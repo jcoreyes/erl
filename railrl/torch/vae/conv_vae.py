@@ -192,18 +192,11 @@ class ConvVAE(GaussianLatentVAE):
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
-    def get_sampled_latents_and_latent_distributions(self, input):
-        mu, logvar = self.encode(input)
-        mu = mu.view((mu.size()[0], 1, mu.size()[1]))
-        stds = (0.5 * logvar).exp()
-        stds = stds.view(stds.size()[0], 1, stds.size()[1])
-        epsilon = ptu.randn((mu.size()[0], self.num_latents_to_sample, mu.size()[1]))
-        latents = epsilon * stds + mu
-        return latents, mu, logvar, stds
-
     def logprob(self, inputs, obs_distribution_params):
         if self.decoder_distribution == 'bernoulli':
-            log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0], vector_dimension=self.imlength)
+            inputs = inputs.narrow(start=0, length=self.imlength,
+                 dim=1).contiguous().view(-1, self.imlength),
+            log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0])*self.imlength #to ensure that we only have divided by the batch size
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
@@ -256,7 +249,10 @@ class ConvVAEDouble(ConvVAE):
         if self.decoder_distribution == 'gaussian':
             latents, mu, logvar, stds = self.get_sampled_latents_and_latent_distributions(inputs)
             dec_mu, dec_var = self.model.decode(latents)[1]
-            log_prob = compute_gaussian_log_prob(inputs, dec_mu, dec_var, vector_dimension=self.imlength)
+            dec_mu = dec_mu.view(-1, self.imlength)
+            dec_var = dec_var.view(-1, self.imlength)
+            inputs = inputs.view(-1, self.imlength)
+            log_prob = compute_gaussian_log_prob(inputs, dec_mu, dec_var)
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
