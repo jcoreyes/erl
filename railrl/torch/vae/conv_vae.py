@@ -195,7 +195,7 @@ class ConvVAE(GaussianLatentVAE):
     def logprob(self, inputs, obs_distribution_params):
         if self.decoder_distribution == 'bernoulli':
             inputs = inputs.narrow(start=0, length=self.imlength,
-                 dim=1).contiguous().view(-1, self.imlength),
+                 dim=1).contiguous().view(-1, self.imlength)
             log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0])*self.imlength #to ensure that we only have divided by the batch size
             return log_prob
         else:
@@ -210,7 +210,7 @@ class ConvVAEDouble(ConvVAE):
             encoder_class=CNN,
             decoder_class=TwoHeadDCNN,
             decoder_output_activation=identity,
-            decoder_distribution='bernoulli',
+            decoder_distribution='gaussian',
 
             input_channels=1,
             imsize=48,
@@ -248,9 +248,9 @@ class ConvVAEDouble(ConvVAE):
     def logprob(self, inputs, obs_distribution_params):
         if self.decoder_distribution == 'gaussian':
             latents, mu, logvar, stds = self.get_sampled_latents_and_latent_distributions(inputs)
-            dec_mu, dec_var = self.model.decode(latents)[1]
+            dec_mu, dec_logvar = self.decode(latents)[1]
             dec_mu = dec_mu.view(-1, self.imlength)
-            dec_var = dec_var.view(-1, self.imlength)
+            dec_var = dec_logvar.view(-1, self.imlength).exp()
             inputs = inputs.view(-1, self.imlength)
             log_prob = compute_gaussian_log_prob(inputs, dec_mu, dec_var)
             return log_prob

@@ -86,7 +86,6 @@ if __name__ == "__main__":
             input_channels=3,
             imsize=48,
             architecture=imsize48_default_architecture,
-            decoder_activation='sigmoid',
         ),
         save_period=10,
         beta=2.5,
