@@ -66,8 +66,8 @@ def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_giv
 def compute_inv_exp_elbo(model, data, beta=1):
     imgs = ptu.from_numpy(data)
     reconstructions, obs_distribution_params, latent_distribution_params = model(imgs)
-    log_prob = compute_vectorized_bernoulli_log_prob(imgs, obs_distribution_params[0], model.imlength).sum(dim=1)
-    kle = model.vector_kl_divergence(latent_distribution_params)
+    log_prob = compute_vectorized_bernoulli_log_prob(imgs, obs_distribution_params[0]).sum(dim=1)
+    kle = model.vectorized_kl_divergence(latent_distribution_params)
     elbo = log_prob - kle*beta
     elbo = (elbo - elbo.mean())/(elbo.std()+1e-8)
     inv_exp_elbo = 1/(elbo.exp()+1e-8)

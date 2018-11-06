@@ -1,12 +1,7 @@
-import torch
-
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.pythonplusplus import identity
-from railrl.torch.vae.conv_vae import ConvVAESmallDouble, ConvVAESmall
+from railrl.torch.vae.conv_vae import ConvVAEDouble, imsize48_default_architecture
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.grill.launcher import generate_vae_dataset
 
@@ -60,6 +55,34 @@ if __name__ == "__main__":
 
     use_gpu = True
 
+    architecture = dict(
+        conv_args=dict(
+            kernel_sizes=[5, 3, 3],
+            n_channels=[16, 32, 64],
+            strides=[3, 2, 2],
+        ),
+        conv_kwargs=dict(
+            hidden_sizes=[],
+        ),
+        deconv_args=dict(
+            hidden_sizes=[],
+
+            deconv_input_width=3,
+            deconv_input_height=3,
+            deconv_input_channels=64,
+
+            deconv_output_kernel_size=6,
+            deconv_output_strides=3,
+            deconv_output_channels=3,
+
+            kernel_sizes=[3, 3],
+            n_channels=[32, 16],
+            strides=[2, 2],
+        ),
+        deconv_kwargs=dict(
+        )
+    )
+
     variant = dict(
         # beta_schedule_kwargs=dict(
         #     x_values=[0, 800, 1700],
@@ -73,10 +96,9 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_gaussian_p_x',
             ),
-            skew_dataset=True,
-            gaussian_decoder_loss=True,
+            skew_dataset=False,
         ),
-        vae=ConvVAESmallDouble,
+        vae=ConvVAEDouble,
         dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
@@ -95,7 +117,7 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
-            num_latents_to_sample=1,
+            architecture=architecture,
         ),
         save_period=10,
         beta=2.5,

@@ -105,6 +105,12 @@ def project_square_border_np(data):
     return data
 
 
+def project_square_border_np_4x4(data):
+    new_data = data / 4.
+    new_data = project_square_border_np(new_data)
+    return new_data * 4.
+
+
 def project_square_border_positive_np(data):
     data = data - 1
     data = project_square_border_np(data)
