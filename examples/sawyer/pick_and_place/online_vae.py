@@ -55,7 +55,7 @@ if __name__ == "__main__":
             policy_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
-            replay_kwargs=dict(
+            replay_buffer_kwargs=dict(
                 max_size=int(40000),
                 fraction_goals_are_rollout_goals=0.0,
                 fraction_resampled_goals_are_env_goals=0.5,
@@ -73,7 +73,6 @@ if __name__ == "__main__":
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
             dump_video_kwargs=dict(
-                num_images=num_images,
             )
         ),
         train_vae_variant=dict(
