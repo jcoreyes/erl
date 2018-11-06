@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from torch import optim
 from torch.distributions import Normal
-from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
@@ -18,6 +17,7 @@ from railrl.torch.data import (
     ImageDataset, InfiniteWeightedRandomSampler,
     InfiniteRandomSampler,
 )
+from railrl.torch.vae.vae_base import compute_vectorized_bernoulli_log_prob
 
 
 def inv_gaussian_p_x_np_to_np(model, data):
@@ -63,6 +63,15 @@ def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_giv
     inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
     return inv_p_x_shifted
 
+def compute_inv_exp_elbo(model, data, beta=1):
+    imgs = ptu.from_numpy(data)
+    reconstructions, obs_distribution_params, latent_distribution_params = model(imgs)
+    log_prob = compute_vectorized_bernoulli_log_prob(imgs, obs_distribution_params[0], model.imlength).sum(dim=1)
+    kle = model.vector_kl_divergence(latent_distribution_params)
+    elbo = log_prob - kle*beta
+    elbo = (elbo - elbo.mean())/(elbo.std()+1e-8)
+    inv_exp_elbo = 1/(elbo.exp()+1e-8)
+    return ptu.get_numpy(inv_exp_elbo)
 
 class ConvVAETrainer(Serializable):
     def __init__(

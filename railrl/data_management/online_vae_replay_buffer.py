@@ -13,7 +13,7 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.vae_trainer import (
     inv_gaussian_p_x_np_to_np,
     inv_p_bernoulli_x_np_to_np,
-)
+    compute_inv_exp_elbo)
 
 
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
@@ -91,6 +91,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'bernoulli_inv_prob':           self.bernoulli_inv_prob,
             'image_gaussian_inv_prob':      self.image_gaussian_inv_prob,
             'image_bernoulli_inv_prob':     self.image_bernoulli_inv_prob,
+            'inv_exp_elbo':                 self.inv_exp_elbo,
             'None':                         self.no_reward,
         }
 
@@ -247,6 +248,9 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
     def image_bernoulli_inv_prob(self, next_vae_obs, indices):
         return inv_p_bernoulli_x_np_to_np(self.vae, next_vae_obs)
+
+    def inv_exp_elbo(self, next_vae_obs, indices):
+        return compute_inv_exp_elbo(self.vae, next_vae_obs)
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]

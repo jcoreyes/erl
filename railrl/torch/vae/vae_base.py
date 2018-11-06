@@ -96,9 +96,12 @@ class GaussianLatentVAE(VAEBase):
         reconstructions, obs_distribution_params = self.decode(z)
         return reconstructions, obs_distribution_params, (mu, logvar)
 
-    def kl_divergence(self, distribution_params):
-        mu, logvar = distribution_params
-        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
+    def vector_kl_divergence(self, latent_distribution_params):
+        mu, logvar = latent_distribution_params
+        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
+
+    def kl_divergence(self, latent_distribution_params):
+        return self.vector_kl_divergence(latent_distribution_params).mean()
 
     def __getstate__(self):
         d = super().__getstate__()
@@ -120,6 +123,15 @@ def compute_bernoulli_log_prob(x, recon_x, vector_dimension):
                  dim=1).contiguous().view(-1, vector_dimension),
         reduction='elementwise_mean',
     ) * vector_dimension
+
+def compute_vectorized_bernoulli_log_prob(x, recon_x, vector_dimension):
+    # Multiply back in the vector_dimension so the cross entropy is only averaged over the batch size
+    return -1* F.binary_cross_entropy(
+        recon_x,
+        x.narrow(start=0, length=vector_dimension,
+                 dim=1).contiguous().view(-1, vector_dimension),
+        reduction='none',
+    )
 
 def compute_gaussian_log_prob(input, dec_mu, dec_var, vector_dimension):
     dec_mu = dec_mu.view(-1, vector_dimension)
