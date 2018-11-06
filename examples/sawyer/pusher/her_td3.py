@@ -6,7 +6,7 @@ from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=48,
+        imsize=84,
         init_camera=sawyer_pusher_camera_upright_v0,
         env_id='SawyerPushAndReachEnvEasy-v0',
         grill_variant=dict(
