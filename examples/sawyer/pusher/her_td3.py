@@ -84,7 +84,6 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env_id':['SawyerPushAndReachEnvEasy-v0'],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

@@ -19,7 +19,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1005,
+                    num_epochs=505,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -43,7 +43,7 @@ if __name__ == "__main__":
                 fraction_goals_are_rollout_goals=0.5,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
-            algorithm='OFFLINE-VAE-HER-TD3',
+            algorithm='RIG-HER-TD3',
             normalize=False,
             render=False,
             exploration_noise=0.5,
@@ -89,8 +89,6 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step':[1,4],
-        'imsize':[48, 84]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

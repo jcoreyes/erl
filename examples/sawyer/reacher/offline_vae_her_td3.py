@@ -1,17 +1,13 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
+from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
         imsize=84,
-        init_camera=sawyer_xyz_reacher_camera,
-        env_class=SawyerReachXYEnv,
-        env_kwargs=dict(
-            norm_order=2,
-        ),
+        init_camera=sawyer_xyz_reacher_camera_v0,
+        env_id='SawyerReachXYEnv-v1',
         grill_variant=dict(
             save_video=True,
             save_video_period=50,
