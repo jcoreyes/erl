@@ -96,8 +96,8 @@ class GaussianLatentVAE(VAEBase):
         reconstructions, obs_distribution_params = self.decode(z)
         return reconstructions, obs_distribution_params, (mu, logvar)
 
-    def kl_divergence(self, distribution_params):
-        mu, logvar = distribution_params
+    def kl_divergence(self, latent_distribution_params):
+        mu, logvar = latent_distribution_params
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
     def __getstate__(self):
