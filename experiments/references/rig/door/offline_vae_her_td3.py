@@ -1,8 +1,8 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
+from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
 
 if __name__ == "__main__":
     variant = dict(
@@ -83,7 +83,7 @@ if __name__ == "__main__":
                 oracle_dataset_from_policy=True,
                 non_presampled_goal_img_is_garbage=True,
                 vae_dataset_specific_kwargs=dict(),
-                policy_file='10-23-sawyer-door-v5-es-sweep/10-23-sawyer_door_v5_es_sweep_2018_10_24_00_13_10_id000--s3382/params.pkl',
+                policy_file=None,  # you must train a state based policy first! put the path to the pkl file here
                 show=False,
             ),
             vae_kwargs=dict(
