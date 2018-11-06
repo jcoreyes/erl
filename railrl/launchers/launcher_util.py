@@ -368,6 +368,7 @@ def run_experiment(
             s3_log_name="",
             gpu=use_gpu,
             aws_s3_path=aws_s3_path,
+            num_exps_per_instance=num_exps_per_instance,
             **mode_kwargs
         )
     elif mode == 'gcp':

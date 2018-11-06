@@ -281,7 +281,7 @@ class MakeDeterministic(SerializablePolicy):
     def __init__(self, stochastic_policy):
         self.stochastic_policy = stochastic_policy
 
-    def get_action(self, *args, **kwargs):
+    def get_action(self, *args, deterministic=False, **kwargs):
         return self.stochastic_policy.get_action(
             *args, **kwargs
         )

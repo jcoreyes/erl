@@ -34,6 +34,8 @@ dependencies:
     # For doodad:
     - awscli==1.11.179
     - boto3==1.4.8
+    - google-api-python-client
+    - google-cloud-storage
     # I use these, but very rarely
     - dominate==2.3.1
     - ray==0.2.2
