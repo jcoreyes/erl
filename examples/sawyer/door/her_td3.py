@@ -2,6 +2,7 @@ import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
+from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
@@ -55,6 +56,15 @@ if __name__ == "__main__":
             reward_params=dict(
                 type='state_distance',
             ),
+            generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
+            goal_generation_kwargs=dict(
+                num_goals=1000,
+                use_cached_dataset=False,
+                path_length=100,
+                policy_file=None, # you must train a state based policy first! put the path to the pkl file here
+                show=False,
+            ),
+            presample_goals=True,
             observation_key='state_observation',
             desired_goal_key='state_desired_goal',
         ),
