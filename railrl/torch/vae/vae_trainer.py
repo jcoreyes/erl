@@ -20,11 +20,11 @@ from railrl.torch.data import (
 )
 
 
-def inv_gaussian_p_x_np_to_np(model, data):
+def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    latents = model.rsample(latent_distribution_params, num_latents_to_sample=model.num_latents_to_sample)
+    latents = model.rsample(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
     mus, logvars = latent_distribution_params
     stds = logvars.exp().pow(.5)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))
@@ -42,11 +42,11 @@ def inv_gaussian_p_x_np_to_np(model, data):
     return compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
 
 
-def inv_p_bernoulli_x_np_to_np(model, data):
+def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    latents = model.rsample(latent_distribution_params, num_latents_to_sample=model.num_latents_to_sample)
+    latents = model.rsample(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
     mus, logvars = latent_distribution_params
     stds = logvars.exp().pow(.5)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))
@@ -92,6 +92,7 @@ class ConvVAETrainer(Serializable):
             train_data_workers=2,
             skew_dataset=False,
             skew_config=None,
+            priority_function_kwargs=None,
     ):
         self.quick_init(locals())
         if skew_config is None:
@@ -132,6 +133,10 @@ class ConvVAETrainer(Serializable):
         self.train_data_workers = train_data_workers
         self.skew_dataset = skew_dataset
         self.skew_config = skew_config
+        if priority_function_kwargs is None:
+            self.priority_function_kwargs = dict()
+        else:
+            self.priority_function_kwargs = priority_function_kwargs
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
                 train_dataset,
@@ -183,6 +188,7 @@ class ConvVAETrainer(Serializable):
         self.vae_logger_stats_for_rl = {}
         self._extra_stats_to_log = None
 
+
     def get_dataset_stats(self, data):
         torch_input = ptu.from_numpy(normalize_image(data))
         mus, log_vars = self.model.encode(torch_input)
@@ -214,15 +220,16 @@ class ConvVAETrainer(Serializable):
             if method == 'squared_error':
                 weights[idxs] = self._reconstruction_squared_error_np_to_np(
                     data,
+                    **self.priority_function_kwargs
                 ) ** power
             elif method == 'kl':
-                weights[idxs] = self._kl_np_to_np(data) ** power
+                weights[idxs] = self._kl_np_to_np(data, **self.priority_function_kwargs) ** power
             elif method == 'inv_gaussian_p_x':
                 data = normalize_image(data)
-                weights[idxs] = inv_gaussian_p_x_np_to_np(self.model, data) ** power
+                weights[idxs] = inv_gaussian_p_x_np_to_np(self.model, data, **self.priority_function_kwargs) ** power
             elif method == 'inv_bernoulli_p_x':
                 data = normalize_image(data)
-                weights[idxs] = inv_p_bernoulli_x_np_to_np(self.model, data) ** power
+                weights[idxs] = inv_p_bernoulli_x_np_to_np(self.model, data, **self.priority_function_kwargs) ** power
             else:
                 raise NotImplementedError('Method {} not supported'.format(method))
             cur_idx = next_idx
