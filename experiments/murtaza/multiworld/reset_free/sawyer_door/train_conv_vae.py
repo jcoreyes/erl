@@ -1,4 +1,3 @@
-from torch import nn
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
@@ -25,7 +24,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = variant['vae'](representation_size, decoder_output_activation=nn.Sigmoid(), **variant['vae_kwargs'])
+    m = variant['vae'](representation_size, **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
@@ -47,7 +46,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'mse_loss'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -64,7 +63,7 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='squared_error',
             ),
-            skew_dataset=True,
+            skew_dataset=False,
         ),
         vae=ConvVAE,
         dump_skew_debug_plots=False,
@@ -86,8 +85,8 @@ if __name__ == "__main__":
             input_channels=3,
             imsize=48,
             architecture=imsize48_default_architecture,
+            decoder_distribution='gaussian_identity_variance'
         ),
-        decoder_activation='sigmoid',
         save_period=10,
         beta=2.5,
         representation_size=16,
@@ -95,7 +94,6 @@ if __name__ == "__main__":
 
     search_space = {
         'algo_kwargs.lr':[1e-3],
-        # 'algo_kwargs.normalize_log_probs':[True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

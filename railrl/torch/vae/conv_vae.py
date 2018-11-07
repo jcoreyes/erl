@@ -187,6 +187,8 @@ class ConvVAE(GaussianLatentVAE):
         decoded = self.decoder(latents).view(-1, self.imsize*self.imsize*self.input_channels)
         if self.decoder_distribution == 'bernoulli':
             return decoded, [decoded]
+        elif self.decoder_distribution == 'gaussian_identity_variance':
+            return decoded, [decoded]
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
@@ -195,6 +197,11 @@ class ConvVAE(GaussianLatentVAE):
             inputs = inputs.narrow(start=0, length=self.imlength,
                  dim=1).contiguous().view(-1, self.imlength)
             log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0])*self.imlength #to ensure that we only have divided by the batch size
+            return log_prob
+        if self.decoder_distribution == 'gaussian_identity_variance':
+            inputs = inputs.narrow(start=0, length=self.imlength,
+                                   dim=1).contiguous().view(-1, self.imlength)
+            log_prob = -1*F.mse_loss(inputs, obs_distribution_params[0], reduction='elementwise_mean')
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))

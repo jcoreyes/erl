@@ -1,5 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
+from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.conv_vae import ConvVAEDouble
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.grill.launcher import generate_vae_dataset
@@ -14,7 +15,10 @@ def experiment(variant):
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
-    beta_schedule = None
+    if variant.get('beta_schedule_kwargs'):
+        beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
+    else:
+        beta_schedule = None
     m = variant['vae'](representation_size, **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -37,7 +41,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'gaussian'
+    exp_prefix = 'large_fc_gaussian_scheduled_beta'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -51,10 +55,10 @@ if __name__ == "__main__":
             strides=[3, 2, 2],
         ),
         conv_kwargs=dict(
-            hidden_sizes=[],
+            hidden_sizes=[500, 300, 150],
         ),
         deconv_args=dict(
-            hidden_sizes=[],
+            hidden_sizes=[150, 300, 500],
 
             deconv_input_width=3,
             deconv_input_height=3,
@@ -71,9 +75,13 @@ if __name__ == "__main__":
         deconv_kwargs=dict(
         )
     )
+    beta_schedule_one=dict(
+        x_values=[0, 1500, 3000, 4500],
+        y_values=[0, 0, 5, 5]
+    )
 
     variant = dict(
-        num_epochs=5000,
+        num_epochs=4500,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
@@ -105,13 +113,12 @@ if __name__ == "__main__":
             architecture=architecture,
         ),
         save_period=10,
-        beta=2.5,
+        beta=5,
         representation_size=16,
     )
 
     search_space = {
-        # 'algo_kwargs.lr':[5e-4, 1e-3, 5e-3],
-        # 'beta_schedule_kwargs':[beta_schedule_one, beta_schedule_two]
+        'beta_schedule_kwargs':[beta_schedule_one]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
