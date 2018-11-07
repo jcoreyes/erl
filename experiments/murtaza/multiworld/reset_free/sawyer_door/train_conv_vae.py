@@ -62,7 +62,7 @@ if __name__ == "__main__":
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                method='inv_bernoulli_p_x',
+                method='squared_error',
             ),
             skew_dataset=True,
         ),

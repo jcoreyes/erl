@@ -87,7 +87,6 @@ class ConvVAE(GaussianLatentVAE):
             imsize=48,
             init_w=1e-3,
             min_variance=1e-3,
-            num_latents_to_sample=1,
             hidden_init=ptu.fanin_init,
     ):
         """
@@ -124,7 +123,6 @@ class ConvVAE(GaussianLatentVAE):
         :param imsize:
         :param init_w:
         :param min_variance:
-        :param num_latents_to_sample:
         :param hidden_init:
         """
         self.save_init_params(locals())
@@ -173,7 +171,6 @@ class ConvVAE(GaussianLatentVAE):
             **deconv_kwargs)
 
         self.epoch = 0
-        self.num_latents_to_sample = num_latents_to_sample
         self.decoder_distribution=decoder_distribution
 
     def encode(self, input):
@@ -216,7 +213,6 @@ class ConvVAEDouble(ConvVAE):
             imsize=48,
             init_w=1e-3,
             min_variance=1e-3,
-            num_latents_to_sample=1,
             hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())
@@ -233,7 +229,6 @@ class ConvVAEDouble(ConvVAE):
             imsize=imsize,
             init_w=init_w,
             min_variance=min_variance,
-            num_latents_to_sample=num_latents_to_sample,
         )
 
     def decode(self, latents):

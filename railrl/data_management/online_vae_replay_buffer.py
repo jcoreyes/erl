@@ -31,6 +31,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         power=1.0,
         internal_keys=None,
         exploration_schedule_kwargs=None,
+        priority_function_kwargs=None,
         **kwargs
     ):
         self.quick_init(locals())
@@ -101,6 +102,12 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.vae_prioritization_func = (
             type_to_function[self.vae_priority_type]
         )
+
+        if priority_function_kwargs is None:
+            self.priority_function_kwargs = dict()
+        else:
+            self.priority_function_kwargs = priority_function_kwargs
+
         self.epoch = 0
         self._register_mp_array("_exploration_rewards")
         self._register_mp_array("_vae_sample_priorities")
@@ -166,6 +173,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 rewards = self.exploration_reward_func(
                     normalized_imgs,
                     idxs,
+                    **self.priority_function_kwargs
                 )
                 self._exploration_rewards[idxs] = rewards.reshape(-1, 1)
             if self._prioritize_vae_samples:
@@ -181,6 +189,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                         self.vae_prioritization_func(
                             normalized_imgs,
                             idxs,
+                            **self.priority_function_kwargs
                         ).reshape(-1, 1)
                     )
 
@@ -243,14 +252,14 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         ).prod(dim=1)
         return ptu.get_numpy(1 / prob)
 
-    def image_gaussian_inv_prob(self, next_vae_obs, indices):
-        return inv_gaussian_p_x_np_to_np(self.vae, next_vae_obs)
+    def image_gaussian_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1):
+        return inv_gaussian_p_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample)
 
-    def image_bernoulli_inv_prob(self, next_vae_obs, indices):
-        return inv_p_bernoulli_x_np_to_np(self.vae, next_vae_obs)
+    def image_bernoulli_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1):
+        return inv_p_bernoulli_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample)
 
-    def inv_exp_elbo(self, next_vae_obs, indices):
-        return compute_inv_exp_elbo(self.vae, next_vae_obs)
+    def inv_exp_elbo(self, next_vae_obs, indices, beta):
+        return compute_inv_exp_elbo(self.vae, next_vae_obs, beta=beta)
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]

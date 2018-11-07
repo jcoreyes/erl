@@ -24,7 +24,7 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def rsample(self, latent_distribution_params):
+    def rsample(self, latent_distribution_params, num_latents_to_sample=1):
         """
 
         :param latent_distribution_params:
@@ -74,11 +74,14 @@ class GaussianLatentVAE(VAEBase):
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)
 
-    def rsample(self, latent_distribution_params):
+    def rsample(self, latent_distribution_params, num_latents_to_sample=1):
         mu, logvar = latent_distribution_params
-        std = logvar.mul(0.5).exp_()
-        eps = std.data.new(std.size()).normal_()
-        return eps.mul(std).add_(mu)
+        mu = mu.view((mu.size()[0], 1, mu.size()[1]))
+        stds = (0.5 * logvar).exp()
+        stds = stds.view(stds.size()[0], 1, stds.size()[1])
+        epsilon = ptu.randn((mu.size()[0], num_latents_to_sample, mu.size()[1]))
+        latents = epsilon * stds + mu
+        return latents
 
     def reparameterize(self, latent_distribution_params):
         if self.training:
@@ -102,16 +105,7 @@ class GaussianLatentVAE(VAEBase):
         return - 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
 
     def kl_divergence(self, latent_distribution_params):
-        return self.vector_kl_divergence(latent_distribution_params).mean()
-
-    def get_sampled_latents_and_latent_distributions(self, input):
-        mu, logvar = self.encode(input)
-        mu = mu.view((mu.size()[0], 1, mu.size()[1]))
-        stds = (0.5 * logvar).exp()
-        stds = stds.view(stds.size()[0], 1, stds.size()[1])
-        epsilon = ptu.randn((mu.size()[0], self.num_latents_to_sample, mu.size()[1]))
-        latents = epsilon * stds + mu
-        return latents, mu, logvar, stds
+        return self.vectorized_kl_divergence(latent_distribution_params).mean()
 
     def __getstate__(self):
         d = super().__getstate__()

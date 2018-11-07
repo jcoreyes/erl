@@ -760,12 +760,5 @@ class TwoHeadDCNN(PyTorchModule):
         return h
 
 class DCNN(TwoHeadDCNN):
-    def __init__(self,
-                *args,
-                 **kwargs
-        ):
-        self.save_init_params(locals())
-        super().__init__(*args, **kwargs)
-
     def forward(self, input):
         return super().forward(input)[0]
