@@ -1,7 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAEDouble, imsize48_default_architecture
+from railrl.torch.vae.conv_vae import ConvVAEDouble
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.grill.launcher import generate_vae_dataset
 
@@ -15,7 +14,6 @@ def experiment(variant):
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
-    # beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     beta_schedule = None
     m = variant['vae'](representation_size, **variant['vae_kwargs'])
     m.to(ptu.device)
@@ -39,7 +37,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = '300'
+    exp_prefix = 'gaussian'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -75,7 +73,6 @@ if __name__ == "__main__":
     )
 
     variant = dict(
-        # beta_schedule_kwargs=beta_schedule_one,
         num_epochs=5000,
         algo_kwargs=dict(
             is_auto_encoder=False,

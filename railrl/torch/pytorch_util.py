@@ -165,7 +165,7 @@ def almost_identity_weights_like(tensor):
 def clip1(x):
     return torch.clamp(x, -1, 1)
 
-def compute_conv_output_size(h_in, w_in, kernel_size, stride,padding=0):
+def compute_conv_output_size(h_in, w_in, kernel_size, stride, padding=0):
     h_out = (h_in + 2 * padding - (kernel_size-1) - 1)/stride + 1
     w_out = (w_in + 2 * padding - (kernel_size-1) - 1)/stride + 1
     return int(np.floor(h_out)), int(np.floor(w_out))
@@ -175,16 +175,14 @@ def compute_deconv_output_size(h_in, w_in, kernel_size, stride, padding=0):
     w_out = (w_in -1)*stride - 2*padding + kernel_size
     return int(np.floor(h_out)), int(np.floor(w_out))
 
-def compute_conv_layer_sizes(h_in, w_in, kernel_sizes, strides, pool_sizes, paddings=None):
+def compute_conv_layer_sizes(h_in, w_in, kernel_sizes, strides, paddings=None):
     if paddings==None:
-        for kernel, stride, pool in zip(kernel_sizes, strides, pool_sizes):
+        for kernel, stride in zip(kernel_sizes, strides):
             h_in, w_in = compute_conv_output_size(h_in, w_in, kernel, stride)
-            h_in, w_in = compute_conv_output_size(h_in, w_in, pool, pool)
             print('Output Size:', (h_in, w_in))
     else:
-        for kernel, stride, pool, padding in zip(kernel_sizes, strides, pool_sizes, paddings):
+        for kernel, stride, padding in zip(kernel_sizes, strides, paddings):
             h_in, w_in = compute_conv_output_size(h_in, w_in, kernel, stride, padding=padding)
-            h_in, w_in = compute_conv_output_size(h_in, w_in, pool, pool)
             print('Output Size:', (h_in, w_in))
 
 def compute_deconv_layer_sizes(h_in, w_in, kernel_sizes, strides, paddings=None):

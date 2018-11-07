@@ -119,10 +119,7 @@ class ConvVAETrainer(Serializable):
         self.imlength = model.imlength
 
         self.lr = lr
-        # self.max_logvar = ptu.tensor(np.ones(3 * self.model.imsize ** 2, dtype=np.float32) * 1/2, requires_grad=True)
-        # self.min_logvar = ptu.tensor(np.ones(3 * self.model.imsize ** 2, dtype=np.float32) * -1/2, requires_grad=True)
         params = list(self.model.parameters())
-        # params += [self.min_logvar] + [self.max_logvar]
         self.optimizer = optim.Adam(params, lr=self.lr)
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
         assert self.train_dataset.dtype == np.uint8
