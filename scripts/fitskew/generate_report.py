@@ -58,7 +58,10 @@ def main():
             continue
         print("Processing itration {}".format(itr))
         snapshot = pickle.load(open(path, "rb"))
-        vae = snapshot['p_theta']
+        if 'vae' in snapshot:
+            vae = snapshot['vae']
+        else:
+            vae = snapshot['p_theta']
         vae.to('cpu')
         vae_train_data = snapshot['train_data']
         dynamics = snapshot.get('dynamics', project_square_border_np_4x4)
