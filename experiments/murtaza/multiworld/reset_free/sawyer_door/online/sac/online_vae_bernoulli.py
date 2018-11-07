@@ -35,7 +35,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online',
+                    collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -136,7 +136,7 @@ if __name__ == "__main__":
 
     n_seeds = 6
     mode = 'gcp'
-    exp_prefix = 'sawyer_door_online_vae_elbo'
+    exp_prefix = 'sawyer_door_online_vae_elbo_parallel'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -146,7 +146,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=2,
+                num_exps_per_instance=1,
                 gcp_kwargs=dict(
                     zone='us-east4-a',
                 )
