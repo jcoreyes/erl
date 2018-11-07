@@ -118,6 +118,7 @@ if __name__ == "__main__":
             input_channels=3,
             imsize=48,
             architecture=architecture,
+            decoder_distribution='beta',
         ),
         save_period=10,
         beta=2.5,

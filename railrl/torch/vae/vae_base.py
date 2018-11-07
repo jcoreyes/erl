@@ -2,7 +2,7 @@ import torch
 from railrl.torch.core import PyTorchModule
 import numpy as np
 import abc
-from torch.distributions import Normal
+from torch.distributions import Normal, Beta
 from torch.nn import functional as F
 from railrl.torch import pytorch_util as ptu
 
@@ -128,6 +128,12 @@ def compute_bernoulli_log_prob(x, reconstruction_of_x):
 
 def compute_gaussian_log_prob(input, dec_mu, dec_var):
     decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
+    log_probs = decoder_dist.log_prob(input)
+    vals = log_probs.sum(dim=1, keepdim=True)
+    return vals.mean()
+
+def compute_beta_log_prob(input, alpha, beta):
+    decoder_dist = Beta(alpha, beta)
     log_probs = decoder_dist.log_prob(input)
     vals = log_probs.sum(dim=1, keepdim=True)
     return vals.mean()
