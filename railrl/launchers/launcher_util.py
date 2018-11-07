@@ -351,6 +351,7 @@ def run_experiment(
                 gpu=use_gpu,
                 time_in_mins=time_in_mins,
                 skip_wait=skip_wait,
+                pre_cmd=config.SSS_PRE_CMDS,
                 **kwargs
             )
     elif mode == 'ec2':
