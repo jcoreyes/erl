@@ -83,3 +83,25 @@ SSS_IMAGE = '/global/scratch/vitchyr/singularity_imgs/railrl-vitchyr-v2.img'
 SSS_RUN_DOODAD_EXPERIMENT_SCRIPT_PATH = (
     '/global/home/users/vitchyr/git/railrl/scripts/run_experiment_from_doodad.py'
 )
+SSS_PRE_CMDS = [
+    'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/global/home/users/vitchyr/.mujoco/mjpro150/bin'
+]
+
+"""
+GCP Settings
+"""
+GCP_IMAGE_NAME = 'railrl-torch-4-cpu'
+GCP_GPU_IMAGE_NAME = 'railrl-torch4cuda9'
+GCP_BUCKET_NAME = 'railrl-steven'
+
+GCP_DEFAULT_KWARGS = dict(
+    zone='us-west2-c',
+    instance_type='n1-standard-4',
+    image_project='railrl-private-gcp',
+    terminate=True,
+    preemptible=True,
+    gpu_kwargs=dict(
+        gpu_model='nvidia-tesla-p4',
+        num_gpu=1,
+    )
+)

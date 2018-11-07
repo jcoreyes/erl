@@ -351,6 +351,7 @@ def run_experiment(
                 gpu=use_gpu,
                 time_in_mins=time_in_mins,
                 skip_wait=skip_wait,
+                pre_cmd=config.SSS_PRE_CMDS,
                 **kwargs
             )
     elif mode == 'ec2':
@@ -368,7 +369,7 @@ def run_experiment(
             s3_log_name="",
             gpu=use_gpu,
             aws_s3_path=aws_s3_path,
-            num_exps_per_instance=num_exps_per_instance,
+            num_exps=num_exps_per_instance,
             **mode_kwargs
         )
     elif mode == 'gcp':
