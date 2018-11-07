@@ -37,7 +37,7 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         """
 
         :param latent_distribution_params:
-        :return:
+        :return: latents
         """
         raise NotImplementedError()
 
@@ -49,6 +49,7 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
     def logprob(self, inputs, obs_distribution_params):
         """
         :param inputs:
@@ -57,12 +58,24 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
     def kl_divergence(self, latent_distribution_params):
         """
         :param latent_distribution_params:
-        :return:
+        :return: kl div between latent_distribution_params and prior on latent space
         """
         raise NotImplementedError()
+
+    def forward(self, input):
+        """
+        :param input:
+        :return: reconstructed input, obs_distribution_params, latent_distribution_params
+        """
+        latent_distribution_params = self.encode(input)
+        latents = self.reparameterize(latent_distribution_params)
+        reconstructions, obs_distribution_params = self.decode(latents)
+        return reconstructions, obs_distribution_params, latent_distribution_params
+
 
 class GaussianLatentVAE(VAEBase):
     def __init__(
@@ -88,17 +101,6 @@ class GaussianLatentVAE(VAEBase):
             return self.rsample(latent_distribution_params)
         else:
             return latent_distribution_params[0]
-
-    def forward(self, input):
-        """
-
-        :param input:
-        :return: reconstructed input, latent_distribution_params
-        """
-        mu, logvar = self.encode(input)
-        z = self.reparameterize((mu, logvar))
-        reconstructions, obs_distribution_params = self.decode(z)
-        return reconstructions, obs_distribution_params, (mu, logvar)
 
     def vectorized_kl_divergence(self, latent_distribution_params):
         mu, logvar = latent_distribution_params
