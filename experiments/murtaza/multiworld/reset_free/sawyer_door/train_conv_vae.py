@@ -1,9 +1,8 @@
-import torch
-
+from torch import nn
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAESmall
+from railrl.torch.vae.conv_vae import imsize48_default_architecture, ConvVAE
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.grill.launcher import generate_vae_dataset
 
@@ -26,17 +25,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-
-    if variant.get('decoder_activation', None) == 'identity':
-        decoder_activation = identity
-    else:
-        decoder_activation = torch.nn.Sigmoid()
-    if variant.get('encoder_activation', 'identity') == 'identity':
-        encoder_activation = identity
-    else:
-        raise EnvironmentError()
-
-    m = variant['vae'](representation_size, decoder_activation=decoder_activation,  encoder_activation=encoder_activation, **variant['vae_kwargs'])
+    m = variant['vae'](representation_size, decoder_output_activation=nn.Sigmoid(), **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
@@ -67,21 +56,17 @@ if __name__ == "__main__":
     use_gpu = True
 
     variant = dict(
-        # beta_schedule_kwargs=dict(
-        #     x_values=[0, 800, 1700],
-        #     y_values=[0, 0, .5],
-        # ),
         num_epochs=2500,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                method='inv_bernoulli_p_x',
+                method='squared_error',
             ),
             skew_dataset=True,
         ),
-        vae=ConvVAESmall,
+        vae=ConvVAE,
         dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
@@ -100,7 +85,7 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
-            num_latents_to_sample=1,
+            architecture=imsize48_default_architecture,
         ),
         decoder_activation='sigmoid',
         save_period=10,

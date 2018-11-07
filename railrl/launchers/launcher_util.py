@@ -90,6 +90,8 @@ def run_experiment(
         time_in_mins=None,
         # ssh settings
         ssh_host=None,
+        # gcp
+        gcp_kwargs=None,
 ):
     """
     Usage:
@@ -232,14 +234,14 @@ def run_experiment(
     Safety Checks
     """
 
-    if mode == 'ec2':
+    if mode == 'ec2' or mode == 'gcp':
         if not ec2_okayed and not query_yes_no(
-                "EC2 costs money. Are you sure you want to run?"
+                "{} costs money. Are you sure you want to run?".format(mode)
         ):
             sys.exit(1)
         if not gpu_ec2_okayed and use_gpu:
             if not query_yes_no(
-                    "EC2 is more expensive with GPUs. Confirm?"
+                    "{} is more expensive with GPUs. Confirm?".format(mode)
             ):
                 sys.exit(1)
             gpu_ec2_okayed = True
@@ -274,7 +276,7 @@ def run_experiment(
     Get the mode
     """
     mode_kwargs = {}
-    if use_gpu:
+    if use_gpu and mode == 'ec2':
         image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
         if region == 'us-east-1':
             avail_zone = config.REGION_TO_GPU_AWS_AVAIL_ZONE.get(region, "us-east-1b")
@@ -349,6 +351,7 @@ def run_experiment(
                 gpu=use_gpu,
                 time_in_mins=time_in_mins,
                 skip_wait=skip_wait,
+                pre_cmd=config.SSS_PRE_CMDS,
                 **kwargs
             )
     elif mode == 'ec2':
@@ -368,6 +371,26 @@ def run_experiment(
             aws_s3_path=aws_s3_path,
             num_exps=num_exps_per_instance,
             **mode_kwargs
+        )
+    elif mode == 'gcp':
+        image_name = config.GCP_IMAGE_NAME
+        if use_gpu:
+            image_name = config.GCP_GPU_IMAGE_NAME
+
+        if gcp_kwargs is None:
+            gcp_kwargs = {}
+        config_kwargs = {
+            **config.GCP_DEFAULT_KWARGS,
+            **dict(image_name=image_name),
+            **gcp_kwargs
+        }
+        dmode = doodad.mode.GCPDocker(
+            image=docker_image,
+            gpu=use_gpu,
+            gcp_bucket_name=config.GCP_BUCKET_NAME,
+            gcp_log_prefix=exp_prefix,
+            gcp_log_name="",
+            **config_kwargs
         )
     else:
         raise NotImplementedError("Mode not supported: {}".format(mode))
@@ -419,6 +442,11 @@ def run_experiment(
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
+    elif mode == 'gcp':
+        # Ignored since I'm setting the snapshot dir directly
+        base_log_dir_for_script = None
+        run_experiment_kwargs['randomize_seed'] = True
+        snapshot_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
     else:
         raise NotImplementedError("Mode not supported: {}".format(mode))
     run_experiment_kwargs['base_log_dir'] = base_log_dir_for_script
@@ -479,6 +507,18 @@ def create_mounts(
                            '*.log', '*.pkl', '*.mp4', '*.png', '*.jpg',
                            '*.jpeg', '*.patch'),
         )
+    elif mode == 'gcp':
+        output_mount = mount.MountGCP(
+            gcp_path='',
+            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            output=True,
+            gcp_bucket_name=config.GCP_BUCKET_NAME,
+            sync_interval=sync_interval,
+            include_types=('*.txt', '*.csv', '*.json', '*.gz', '*.tar',
+                           '*.log', '*.pkl', '*.mp4', '*.png', '*.jpg',
+                           '*.jpeg', '*.patch'),
+        )
+
     elif mode in ['local', 'local_singularity', 'slurm_singularity', 'sss']:
         # To save directly to local files (singularity does this), skip mounting
         output_mount = mount.MountLocal(

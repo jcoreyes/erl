@@ -19,15 +19,19 @@ from railrl.torch.data import (
     InfiniteRandomSampler,
 )
 
-def inv_gaussian_p_x_np_to_np(model, data):
+def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
-    latents, mus, logvar, stds = get_encoding_and_suff_stats(model, imgs)
+    latent_distribution_params = model.encode(imgs)
+    latents = model.rsample(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
+    mus, logvars = latent_distribution_params
+    stds = logvars.exp().pow(.5)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))
     vae_dist = Normal(mus, stds)
     log_p_z = true_prior.log_prob(latents).sum(dim=2)
     log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
-    _, dec_mu, dec_logvar = model.decode_mean_and_logvar(latents)
+    _, obs_distribution_params = model.decode(latents)
+    dec_mu, dec_var = obs_distribution_params
     dec_mu = dec_mu.view(dec_mu.shape[0] // latents.shape[1], latents.shape[1], dec_mu.shape[1])
     dec_logvar = dec_logvar.view(dec_logvar.shape[0] // latents.shape[1], latents.shape[1], dec_logvar.shape[1])
     dec_var = dec_logvar.exp()
@@ -37,15 +41,19 @@ def inv_gaussian_p_x_np_to_np(model, data):
     log_d_x_given_z = log_d_x_given_z.sum(dim=2)
     return compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
 
-def inv_p_bernoulli_x_np_to_np(model, data):
+
+def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
-    latents, mus, logvar, stds = get_encoding_and_suff_stats(model, imgs)
+    latent_distribution_params = model.encode(imgs)
+    latents = model.rsample(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
+    mus, logvars = latent_distribution_params
+    stds = logvars.exp().pow(.5)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))
     vae_dist = Normal(mus, stds)
     log_p_z = true_prior.log_prob(latents).sum(dim=2)
     log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
-    decoded = model.decode(latents)
+    decoded = model.decode(latents)[0]
     decoded = decoded.view(decoded.shape[0]//latents.shape[1], latents.shape[1], decoded.shape[1])
     imgs = imgs.view(imgs.shape[0], 1, imgs.shape[1])
     log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=2)
@@ -59,15 +67,6 @@ def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_giv
     log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
     inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
     return inv_p_x_shifted
-
-def get_encoding_and_suff_stats(model, imgs):
-    mu, logvar = model.encode(imgs)
-    mu = mu.view((mu.size()[0], 1, mu.size()[1]))
-    stds = (0.5 * logvar).exp()
-    stds = stds.view(stds.size()[0], 1, stds.size()[1])
-    epsilon = ptu.randn((mu.size()[0], model.num_latents_to_sample, mu.size()[1]))
-    latents = epsilon * stds + mu
-    return latents, mu, logvar, stds
 
 class ConvVAETrainer(Serializable):
     def __init__(
@@ -91,7 +90,7 @@ class ConvVAETrainer(Serializable):
             train_data_workers=2,
             skew_dataset=False,
             skew_config=None,
-            gaussian_decoder_loss=False,
+            priority_function_kwargs=None,
     ):
         self.quick_init(locals())
         if skew_config is None:
@@ -136,8 +135,10 @@ class ConvVAETrainer(Serializable):
         self.train_data_workers = train_data_workers
         self.skew_dataset = skew_dataset
         self.skew_config = skew_config
-        self.gaussian_decoder_loss=gaussian_decoder_loss
-        self._old_table_keys = None
+        if priority_function_kwargs is None:
+            self.priority_function_kwargs = dict()
+        else:
+            self.priority_function_kwargs = priority_function_kwargs
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
                 train_dataset,
@@ -221,15 +222,16 @@ class ConvVAETrainer(Serializable):
             if method == 'squared_error':
                 weights[idxs] = self._reconstruction_squared_error_np_to_np(
                     data,
+                    **self.priority_function_kwargs
                 ) ** power
             elif method == 'kl':
-                weights[idxs] = self._kl_np_to_np(data) ** power
+                weights[idxs] = self._kl_np_to_np(data, **self.priority_function_kwargs) ** power
             elif method == 'inv_gaussian_p_x':
                 data = normalize_image(data)
-                weights[idxs] = inv_gaussian_p_x_np_to_np(self.model, data) ** power
+                weights[idxs] = inv_gaussian_p_x_np_to_np(self.model, data, **self.priority_function_kwargs) ** power
             elif method == 'inv_bernoulli_p_x':
                 data = normalize_image(data)
-                weights[idxs] = inv_p_bernoulli_x_np_to_np(self.model, data) ** power
+                weights[idxs] = inv_p_bernoulli_x_np_to_np(self.model, data, **self.priority_function_kwargs) ** power
             else:
                 raise NotImplementedError('Method {} not supported'.format(method))
             cur_idx = next_idx
@@ -281,47 +283,12 @@ class ConvVAETrainer(Serializable):
         Y = Y[ind, :]
         return ptu.from_numpy(X), ptu.from_numpy(Y)
 
-    def compute_bernoulli_log_prob(self, recon_x, x):
-        # Divide by batch_size rather than setting size_average=True because
-        # otherwise the averaging will also happen across dim 1 (the
-        # pixels)
-        return -1* F.binary_cross_entropy(
-            recon_x,
-            x.narrow(start=0, length=self.imlength,
-                     dim=1).contiguous().view(-1, self.imlength),
-            size_average=False,
-        ) / self.batch_size
-
-    def kl_divergence(self, recon_x, x, mu, logvar):
-        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
-
     def state_linearity_loss(self, obs, next_obs, actions):
         latent_obs = self.model.encode(obs)[0]
         latent_next_obs = self.model.encode(next_obs)[0]
         action_obs_pair = torch.cat([latent_obs, actions], dim=1)
         prediction = self.model.linear_constraint_fc(action_obs_pair)
         return torch.norm(prediction - latent_next_obs) ** 2 / self.batch_size
-
-    def compute_gaussian_log_prob(self, input, dec_mu, dec_logvar):
-        # dec_logvar = torch.max(self.min_logvar, self.max_logvar) - torch.nn.functional.softplus(torch.max(self.min_logvar, self.max_logvar)-dec_logvar)
-        # dec_logvar = torch.min(self.min_logvar, self.max_logvar) + torch.nn.functional.softplus(dec_logvar-torch.min(self.min_logvar, self.max_logvar))
-        dec_var = dec_logvar.exp()
-        decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
-        input = input.view(-1, self.input_channels*self.imsize**2)
-        log_probs = decoder_dist.log_prob(input)
-        vals = log_probs.sum(dim=1, keepdim=True)
-
-        return vals.mean()
-
-    def logprob_and_stats(self, next_obs):
-        if self.gaussian_decoder_loss:
-            latents, mu, logvar, stds = get_encoding_and_suff_stats(self.model, next_obs)
-            recon_batch, dec_mu, dec_logvar = self.model.decode_mean_and_logvar(latents)
-            log_prob = self.compute_gaussian_log_prob(next_obs, dec_mu, dec_logvar)
-        else:
-            recon_batch, mu, logvar = self.model(next_obs)
-            log_prob = self.compute_bernoulli_log_prob(recon_batch, next_obs)
-        return log_prob, recon_batch, next_obs, mu, logvar
 
     def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
         self.model.train()
@@ -340,8 +307,10 @@ class ConvVAETrainer(Serializable):
                 next_obs = self.get_batch()
                 obs = None
                 actions = None
-            log_prob, recon_batch, next_obs, mu, logvar = self.logprob_and_stats(next_obs)
-            kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
+            self.optimizer.zero_grad()
+            reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
+            log_prob = self.model.logprob(next_obs, obs_distribution_params)
+            kle = self.model.kl_divergence(latent_distribution_params)
 
             if self.use_linear_dynamics:
                 linear_dynamics_loss = self.state_linearity_loss(
@@ -404,11 +373,13 @@ class ConvVAETrainer(Serializable):
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(10):
             next_obs = self.get_batch(train=False)
-            log_prob, recon_batch, next_obs, mu, logvar = self.logprob_and_stats(next_obs)
-            kle = self.kl_divergence(recon_batch, next_obs, mu, logvar)
+            reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
+            log_prob = self.model.logprob(next_obs, obs_distribution_params)
+            kle = self.model.kl_divergence(latent_distribution_params)
             loss = -1*log_prob + beta * kle
 
-            z_data = ptu.get_numpy(mu.cpu())
+            encoder_mean = latent_distribution_params[0]
+            z_data = ptu.get_numpy(encoder_mean.cpu())
             for i in range(len(z_data)):
                 zs.append(z_data[i, :])
             losses.append(loss.item())
@@ -423,7 +394,7 @@ class ConvVAETrainer(Serializable):
                     .contiguous().view(
                         -1, self.input_channels, self.imsize, self.imsize
                     ),
-                    recon_batch.view(
+                    reconstructions.view(
                         self.batch_size,
                         self.input_channels,
                         self.imsize,
@@ -480,13 +451,13 @@ class ConvVAETrainer(Serializable):
         """
         debug_batch_size = 64
         data = self.get_batch(train=False)
-        recon_batch, mu, logvar = self.model(data)
+        reconstructions, _, _ = self.model(data)
         img = data[0]
-        recon_mse = ((recon_batch[0] - img)**2).mean().view(-1)
+        recon_mse = ((reconstructions[0] - img)**2).mean().view(-1)
         img_repeated = img.expand((debug_batch_size, img.shape[0]))
 
         samples = ptu.randn(debug_batch_size, self.representation_size)
-        random_imgs = self.model.decode(samples)
+        random_imgs, _ = self.model.decode(samples)
         random_mses = (random_imgs - img_repeated) ** 2
         mse_improvement = ptu.get_numpy(random_mses.mean(dim=1) - recon_mse)
         stats = create_stats_ordered_dict(
@@ -510,7 +481,7 @@ class ConvVAETrainer(Serializable):
     def dump_samples(self, epoch):
         self.model.eval()
         sample = ptu.randn(64, self.representation_size)
-        sample = self.model.decode(sample).cpu()
+        sample = self.model.decode(sample)[0].cpu()
         save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
         save_image(
             sample.data.view(64, self.input_channels, self.imsize, self.imsize),
