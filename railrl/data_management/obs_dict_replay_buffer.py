@@ -66,6 +66,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
 
         self._action_dim = env.action_space.low.size
         self._actions = np.zeros((max_size, self._action_dim))
+        self._rewards = np.zeros((max_size, 1))
         # Make everything a 2D np array to make it easier for other code to
         # reason about the shape of the data
         self.vectorized = vectorized
@@ -117,8 +118,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         actions = flatten_n(actions)
         obs = flatten_dict(obs, self.ob_keys_to_save + self.internal_keys)
         next_obs = flatten_dict(next_obs, self.ob_keys_to_save + self.internal_keys)
-        obs = preprocess_obs_dict(obs)
-        next_obs = preprocess_obs_dict(next_obs)
+        # obs = preprocess_obs_dict(obs)
+        # next_obs = preprocess_obs_dict(next_obs)
 
         if self._top + path_len >= self.max_size:
             num_pre_wrap_steps = self.max_size - self._top
@@ -136,6 +137,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 (post_wrap_buffer_slice, post_wrap_path_slice),
             ]:
                 self._actions[buffer_slice] = actions[path_slice]
+                self._rewards[buffer_slice] = rewards[path_slice]
                 self._terminals[buffer_slice] = terminals[path_slice]
                 for key in self.ob_keys_to_save + self.internal_keys:
                     self._obs[key][buffer_slice] = obs[key][path_slice]
@@ -157,6 +159,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         else:
             slc = np.s_[self._top:self._top + path_len, :]
             self._actions[slc] = actions
+            self._rewards[slc] = rewards
             self._terminals[slc] = terminals
             for key in self.ob_keys_to_save + self.internal_keys:
                 self._obs[key][slc] = obs[key]
@@ -225,21 +228,22 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         resampled_goals = new_next_obs_dict[self.desired_goal_key]
 
         new_actions = self._actions[indices]
-        if isinstance(self.env, MultitaskEnv):
-            new_rewards = self.env.compute_rewards(
-                new_actions,
-                new_next_obs_dict,
-            )
-        else:  # Assuming it's a (possibly wrapped) gym GoalEnv
-            new_rewards = np.ones((batch_size, 1))
-            for i in range(batch_size):
-                new_rewards[i] = self.env.compute_reward(
-                    new_next_obs_dict[self.achieved_goal_key][i],
-                    new_next_obs_dict[self.desired_goal_key][i],
-                    None
-                )
-        if not self.vectorized:
-            new_rewards = new_rewards.reshape(-1, 1)
+        new_rewards = self._rewards[indices]
+        # if isinstance(self.env, MultitaskEnv):
+        #     new_rewards = self.env.compute_rewards(
+        #         new_actions,
+        #         new_next_obs_dict,
+        #     )
+        # else:  # Assuming it's a (possibly wrapped) gym GoalEnv
+        #     new_rewards = np.ones((batch_size, 1))
+        #     for i in range(batch_size):
+        #         new_rewards[i] = self.env.compute_reward(
+        #             new_next_obs_dict[self.achieved_goal_key][i],
+        #             new_next_obs_dict[self.desired_goal_key][i],
+        #             None
+        #         )
+        # if not self.vectorized:
+        #     new_rewards = new_rewards.reshape(-1, 1)
 
         new_obs = new_obs_dict[self.observation_key]
         new_next_obs = new_next_obs_dict[self.observation_key]
