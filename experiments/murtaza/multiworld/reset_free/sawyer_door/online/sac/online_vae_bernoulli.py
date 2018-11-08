@@ -122,9 +122,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other, vae_schedules.always_train_less, vae_schedules.always_train],
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_six, vae_schedules.every_other, vae_schedules.always_train_less],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_min_num_steps_before_training':[0],
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['inv_exp_elbo']
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['inv_exp_elbo', 'image_bernoulli_inv_prob', 'None']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -134,9 +134,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 6
+    n_seeds = 2
     mode = 'gcp'
-    exp_prefix = 'sawyer_door_online_vae_elbo_parallel'
+    exp_prefix = 'door_online_vae_bernoulli_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -149,5 +149,9 @@ if __name__ == "__main__":
                 num_exps_per_instance=1,
                 gcp_kwargs=dict(
                     zone='us-east4-a',
+                    gpu_kwargs=dict(
+                        gpu_model='nvidia-tesla-p4',
+                        num_gpu=1,
+                    )
                 )
           )
