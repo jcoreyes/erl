@@ -19,7 +19,6 @@ from railrl.torch.data import (
     InfiniteRandomSampler,
 )
 
-
 def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
@@ -32,9 +31,9 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     log_p_z = true_prior.log_prob(latents).sum(dim=2)
     log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
     _, obs_distribution_params = model.decode(latents)
-    dec_mu, dec_var = obs_distribution_params
+    dec_mu, dec_logvar = obs_distribution_params
     dec_mu = dec_mu.view(dec_mu.shape[0] // latents.shape[1], latents.shape[1], dec_mu.shape[1])
-    dec_var = dec_var.view(dec_var.shape[0] // latents.shape[1], latents.shape[1], dec_var.shape[1])
+    dec_var = dec_logvar.view(dec_logvar.shape[0] // latents.shape[1], latents.shape[1], dec_logvar.shape[1]).exp()
     decoder_dist = Normal(dec_mu, dec_var.pow(.5))
     imgs = imgs.view(imgs.shape[0], 1, imgs.shape[1])
     log_d_x_given_z = decoder_dist.log_prob(imgs)
@@ -60,7 +59,6 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
     inv_p_x_shifted = compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
     return inv_p_x_shifted
 
-
 def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z):
     log_p_x = log_p_z - log_q_z_given_x + log_d_x_given_z
     log_p_x = ((log_p_x - log_p_x.mean(dim=0)) / (log_p_x.std(dim=0)+1e-8)).mean(dim=1) # averages to gather all the samples num_latents_sampled
@@ -68,7 +66,6 @@ def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_giv
     log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
     inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
     return inv_p_x_shifted
-
 
 class ConvVAETrainer(Serializable):
     def __init__(
@@ -121,7 +118,8 @@ class ConvVAETrainer(Serializable):
         self.imlength = model.imlength
 
         self.lr = lr
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        params = list(self.model.parameters())
+        self.optimizer = optim.Adam(params, lr=self.lr)
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
         assert self.train_dataset.dtype == np.uint8
         assert self.test_dataset.dtype == np.uint8
@@ -314,12 +312,14 @@ class ConvVAETrainer(Serializable):
                 linear_dynamics_loss = self.state_linearity_loss(
                     obs, next_obs, actions
                 )
-                loss = log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
+                loss = -1*log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
                 linear_losses.append(linear_dynamics_loss.data[0])
             else:
                 loss = -1*log_prob + beta * kle
-            loss.backward()
 
+            # loss += .01*(self.max_logvar.sum()) -.01*(self.min_logvar.sum())
+            self.optimizer.zero_grad()
+            loss.backward()
             losses.append(loss.item())
             log_probs.append(log_prob.item())
             kles.append(kle.item())
@@ -349,6 +349,9 @@ class ConvVAETrainer(Serializable):
             if self.use_linear_dynamics:
                 logger.record_tabular("train/linear_loss",
                                       np.mean(linear_losses))
+            # logger.record_tabular("train/max_logvar_mean", self.max_logvar.mean().item())
+            # logger.record_tabular("train/min_logvar_mean", self.min_logvar.mean().item())
+
 
     def test_epoch(
             self,
@@ -379,6 +382,7 @@ class ConvVAETrainer(Serializable):
             log_probs.append(log_prob.item())
             kles.append(kle.item())
 
+            # loss += .01 * (self.max_logvar.sum()) - .01 * (self.min_logvar.sum())
             if batch_idx == 0 and save_reconstruction:
                 n = min(next_obs.size(0), 8)
                 comparison = torch.cat([
@@ -403,12 +407,6 @@ class ConvVAETrainer(Serializable):
         if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
 
-
-        if self.skew_dataset:
-            train_weight_mean = np.mean(self._train_weights)
-            num_above_avg = np.sum(np.where(self._train_weights >= train_weight_mean, 1, 0))
-            logger.record_tabular("% train weights above average", num_above_avg/self.train_dataset.shape[0])
-
         if from_rl:
             self.vae_logger_stats_for_rl['Test VAE Epoch'] = epoch
             self.vae_logger_stats_for_rl['Test VAE Log Prob'] = np.mean(log_probs)
@@ -423,12 +421,18 @@ class ConvVAETrainer(Serializable):
             logger.record_tabular("test/KL", np.mean(kles))
             logger.record_tabular("test/loss", np.mean(losses))
             logger.record_tabular("beta", beta)
+
+            # logger.record_tabular("test/max_logvar_mean", self.max_logvar.mean().item())
+            # logger.record_tabular("test/min_logvar_mean", self.min_logvar.mean().item())
             logger.dump_tabular()
             if save_vae:
                 logger.save_itr_params(epoch, self.model)  # slow...
         # logdir = logger.get_snapshot_dir()
         # filename = osp.join(logdir, 'params.pkl')
         # torch.save(self.model, filename)
+        # if self.gaussian_decoder_loss:
+
+
 
     def debug_statistics(self):
         """

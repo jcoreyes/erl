@@ -15,16 +15,10 @@ def experiment(variant):
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
-    if 'beta_schedule_kwargs' in variant:
-        # kwargs = variant['beta_schedule_kwargs']
-        # kwargs['y_values'][2] = variant['beta']
-        # kwargs['x_values'][1] = variant['flat_x']
-        # kwargs['x_values'][2] = variant['ramp_x'] + variant['flat_x']
-        variant['beta_schedule_kwargs']['y_values'][-1] = variant['beta']
+    if variant.get('beta_schedule_kwargs', None):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-
     m = variant['vae'](representation_size, **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -47,14 +41,13 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'large_fc_gaussian_log_prob_fit_skew'
 
     # n_seeds = 1
     # mode = 'ec2'
-    # exp_prefix = 'normalized-sampling'
+    # exp_prefix = 'gaussian_decoder_scheduled_beta'
 
     use_gpu = True
-
     architecture = dict(
         conv_args=dict(
             kernel_sizes=[5, 3, 3],
@@ -62,10 +55,10 @@ if __name__ == "__main__":
             strides=[3, 2, 2],
         ),
         conv_kwargs=dict(
-            hidden_sizes=[],
+            hidden_sizes=[500, 300, 150],
         ),
         deconv_args=dict(
-            hidden_sizes=[],
+            hidden_sizes=[150, 300, 500],
 
             deconv_input_width=3,
             deconv_input_height=3,
@@ -82,13 +75,13 @@ if __name__ == "__main__":
         deconv_kwargs=dict(
         )
     )
+    # beta_schedule_one=dict(
+    #     x_values=[0, 1500, 3000, 4500],
+    #     y_values=[0, 0, 5, 5]
+    # )
 
     variant = dict(
-        # beta_schedule_kwargs=dict(
-        #     x_values=[0, 800, 1700],
-        #     y_values=[0, 0, .5],
-        # ),
-        num_epochs=2500,
+        num_epochs=5000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
@@ -96,7 +89,7 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_gaussian_p_x',
             ),
-            skew_dataset=False,
+            skew_dataset=True,
         ),
         vae=ConvVAEDouble,
         dump_skew_debug_plots=False,
@@ -121,13 +114,13 @@ if __name__ == "__main__":
             decoder_distribution='gaussian',
         ),
         save_period=10,
-        beta=2.5,
+        beta=5,
         representation_size=16,
     )
 
     search_space = {
-        'algo_kwargs.lr':[1e-3],
-        # 'algo_kwargs.normalize_log_probs':[True],
+        'beta':[.5, 1, 2.5, 5]
+        # 'beta_schedule_kwargs':[beta_schedule_one]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -143,5 +136,4 @@ if __name__ == "__main__":
                 num_exps_per_instance=2,
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
-                # skip_wait=True,
             )
