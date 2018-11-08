@@ -15,7 +15,7 @@ def experiment(variant):
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
-    if variant.get('beta_schedule_kwargs'):
+    if variant.get('beta_schedule_kwargs', None):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
@@ -41,7 +41,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'large_fc_gaussian_scheduled_beta'
+    exp_prefix = 'test'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -75,13 +75,13 @@ if __name__ == "__main__":
         deconv_kwargs=dict(
         )
     )
-    beta_schedule_one=dict(
-        x_values=[0, 1500, 3000, 4500],
-        y_values=[0, 0, 5, 5]
-    )
+    # beta_schedule_one=dict(
+    #     x_values=[0, 1500, 3000, 4500],
+    #     y_values=[0, 0, 5, 5]
+    # )
 
     variant = dict(
-        num_epochs=4500,
+        num_epochs=500,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
@@ -89,7 +89,7 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_gaussian_p_x',
             ),
-            skew_dataset=False,
+            skew_dataset=True,
         ),
         vae=ConvVAEDouble,
         dump_skew_debug_plots=False,
@@ -111,6 +111,7 @@ if __name__ == "__main__":
             input_channels=3,
             imsize=48,
             architecture=architecture,
+            decoder_distribution='gaussian',
         ),
         save_period=10,
         beta=5,
@@ -118,7 +119,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'beta_schedule_kwargs':[beta_schedule_one]
+        'beta':[.5, 1, 2.5, 5]
+        # 'beta_schedule_kwargs':[beta_schedule_one]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

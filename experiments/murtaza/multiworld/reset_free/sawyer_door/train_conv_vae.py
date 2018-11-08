@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import imsize48_default_architecture, ConvVAE
+from railrl.torch.vae.conv_vae import ConvVAE
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.grill.launcher import generate_vae_dataset
 
@@ -46,13 +46,14 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'mse_loss_large_fc'
+    exp_prefix = 'test'
 
     # n_seeds = 1
     # mode = 'ec2'
     # exp_prefix = 'normalized-sampling'
 
     use_gpu = True
+
     architecture = dict(
         conv_args=dict(
             kernel_sizes=[5, 3, 3],
@@ -80,16 +81,17 @@ if __name__ == "__main__":
         deconv_kwargs=dict(
         )
     )
+
     variant = dict(
-        num_epochs=2500,
+        num_epochs=500,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                method='squared_error',
+                method='inv_gaussian_p_x',
             ),
-            skew_dataset=False,
+            skew_dataset=True,
         ),
         vae=ConvVAE,
         dump_skew_debug_plots=False,
@@ -119,7 +121,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'algo_kwargs.lr':[1e-3],
+        'beta': [.5, 1, 2.5, 5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -132,8 +134,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=use_gpu,
-                num_exps_per_instance=2,
+                num_exps_per_instance=1,
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
-                # skip_wait=True,
             )

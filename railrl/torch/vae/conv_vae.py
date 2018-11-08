@@ -188,7 +188,7 @@ class ConvVAE(GaussianLatentVAE):
         if self.decoder_distribution == 'bernoulli':
             return decoded, [decoded]
         elif self.decoder_distribution == 'gaussian_identity_variance':
-            return decoded, [decoded]
+            return decoded, [decoded, torch.ones_like(decoded)]
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
