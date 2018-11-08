@@ -155,6 +155,6 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east4-a'
+                    zone='northeast1-a'
                 )
           )
