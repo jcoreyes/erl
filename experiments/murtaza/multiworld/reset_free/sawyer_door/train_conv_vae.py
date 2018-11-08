@@ -46,14 +46,40 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'mse_loss'
+    exp_prefix = 'mse_loss_large_fc'
 
     # n_seeds = 1
     # mode = 'ec2'
     # exp_prefix = 'normalized-sampling'
 
     use_gpu = True
+    architecture = dict(
+        conv_args=dict(
+            kernel_sizes=[5, 3, 3],
+            n_channels=[16, 32, 64],
+            strides=[3, 2, 2],
+        ),
+        conv_kwargs=dict(
+            hidden_sizes=[500, 300, 150],
+        ),
+        deconv_args=dict(
+            hidden_sizes=[150, 300, 500],
 
+            deconv_input_width=3,
+            deconv_input_height=3,
+            deconv_input_channels=64,
+
+            deconv_output_kernel_size=6,
+            deconv_output_strides=3,
+            deconv_output_channels=3,
+
+            kernel_sizes=[3, 3],
+            n_channels=[32, 16],
+            strides=[2, 2],
+        ),
+        deconv_kwargs=dict(
+        )
+    )
     variant = dict(
         num_epochs=2500,
         algo_kwargs=dict(
@@ -84,7 +110,7 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
-            architecture=imsize48_default_architecture,
+            architecture=architecture,
             decoder_distribution='gaussian_identity_variance'
         ),
         save_period=10,
