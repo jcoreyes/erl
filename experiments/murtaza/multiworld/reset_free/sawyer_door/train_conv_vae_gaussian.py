@@ -41,7 +41,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'large_fc_gaussian_log_prob_fit_skew'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     # )
 
     variant = dict(
-        num_epochs=500,
+        num_epochs=5000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
