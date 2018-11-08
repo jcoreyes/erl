@@ -242,8 +242,7 @@ class ConvVAEDouble(ConvVAE):
         elif self.decoder_distribution == 'beta':
             alpha = first_output.exp()
             beta = second_output.exp()
-            decoder_distribution = Beta(alpha, beta)
-            reconstructions = decoder_distribution.sample()
+            reconstructions = alpha/(alpha+beta)
             return reconstructions, (first_output, second_output)
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))

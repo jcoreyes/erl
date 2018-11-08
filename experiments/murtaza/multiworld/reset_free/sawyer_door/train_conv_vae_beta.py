@@ -47,7 +47,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'beta'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -62,10 +62,10 @@ if __name__ == "__main__":
             strides=[3, 2, 2],
         ),
         conv_kwargs=dict(
-            hidden_sizes=[],
+            hidden_sizes=[500, 300, 150],
         ),
         deconv_args=dict(
-            hidden_sizes=[],
+            hidden_sizes=[150, 300, 500],
 
             deconv_input_width=3,
             deconv_input_height=3,
@@ -118,7 +118,7 @@ if __name__ == "__main__":
             input_channels=3,
             imsize=48,
             architecture=architecture,
-            decoder_distribution='gaussian',
+            decoder_distribution='beta',
         ),
         save_period=10,
         beta=2.5,

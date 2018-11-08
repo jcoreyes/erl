@@ -133,6 +133,7 @@ def compute_gaussian_log_prob(input, dec_mu, dec_var):
     return vals.mean()
 
 def compute_beta_log_prob(input, alpha, beta):
+    input = torch.clamp(input, .0001, .9999)
     decoder_dist = Beta(alpha, beta)
     log_probs = decoder_dist.log_prob(input)
     vals = log_probs.sum(dim=1, keepdim=True)
