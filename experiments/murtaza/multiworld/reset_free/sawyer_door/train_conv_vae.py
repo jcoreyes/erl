@@ -46,7 +46,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'large_fc_gaussian_mse_fit_skew'
+    exp_prefix = 'no_sigmoid_mean_clamp_variance'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     )
 
     variant = dict(
-        num_epochs=5000,
+        num_epochs=100,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
@@ -91,7 +91,7 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_gaussian_p_x',
             ),
-            skew_dataset=True,
+            skew_dataset=False,
         ),
         vae=ConvVAE,
         dump_skew_debug_plots=False,
@@ -116,12 +116,11 @@ if __name__ == "__main__":
             decoder_distribution='gaussian_identity_variance'
         ),
         save_period=10,
-        beta=2.5,
+        beta=.5,
         representation_size=16,
     )
 
     search_space = {
-        'beta': [.5, 1, 2.5, 5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

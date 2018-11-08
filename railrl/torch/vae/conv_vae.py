@@ -203,7 +203,7 @@ class ConvVAE(GaussianLatentVAE):
         if self.decoder_distribution == 'gaussian_identity_variance':
             inputs = inputs.narrow(start=0, length=self.imlength,
                                    dim=1).contiguous().view(-1, self.imlength)
-            log_prob = -1*F.mse_loss(inputs, obs_distribution_params[0], reduction='elementwise_mean')
+            log_prob = -1*F.mse_loss(inputs, obs_distribution_params[0],reduction='elementwise_mean')
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
@@ -246,6 +246,8 @@ class ConvVAEDouble(ConvVAE):
         first_output = first_output.view(-1, self.imsize*self.imsize*self.input_channels)
         second_output = second_output.view(-1, self.imsize*self.imsize*self.input_channels)
         if self.decoder_distribution == 'gaussian':
+            # first_output = torch.sigmoid(first_output)
+            second_output = torch.clamp(second_output, -1/2, 1)
             return first_output, (first_output, second_output)
         elif self.decoder_distribution == 'beta':
             alpha = first_output.exp()
