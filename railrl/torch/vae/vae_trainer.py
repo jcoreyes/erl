@@ -32,9 +32,9 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     log_p_z = true_prior.log_prob(latents).sum(dim=2)
     log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
     _, obs_distribution_params = model.decode(latents)
-    dec_mu, dec_var = obs_distribution_params
+    dec_mu, dec_logvar = obs_distribution_params
     dec_mu = dec_mu.view(dec_mu.shape[0] // latents.shape[1], latents.shape[1], dec_mu.shape[1])
-    dec_var = dec_var.view(dec_var.shape[0] // latents.shape[1], latents.shape[1], dec_var.shape[1])
+    dec_var = dec_logvar.view(dec_logvar.shape[0] // latents.shape[1], latents.shape[1], dec_logvar.shape[1]).exp()
     decoder_dist = Normal(dec_mu, dec_var.pow(.5))
     imgs = imgs.view(imgs.shape[0], 1, imgs.shape[1])
     log_d_x_given_z = decoder_dist.log_prob(imgs)
@@ -314,7 +314,7 @@ class ConvVAETrainer(Serializable):
                 linear_dynamics_loss = self.state_linearity_loss(
                     obs, next_obs, actions
                 )
-                loss = log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
+                loss = -1*log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
                 linear_losses.append(linear_dynamics_loss.data[0])
             else:
                 loss = -1*log_prob + beta * kle
