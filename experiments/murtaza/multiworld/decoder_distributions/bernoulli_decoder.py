@@ -120,6 +120,7 @@ if __name__ == "__main__":
                 input_channels=3,
                 architecture=architecture,
             ),
+            decoder_activation='sigmoid',
             algo_kwargs=dict(
                 do_scatterplot=False,
                 use_linear_dynamics=False,
@@ -141,8 +142,8 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 3
-    mode = 'gcp'
+    n_seeds = 1
+    mode = 'ec2'
     exp_prefix = 'sawyer_door_offline_vae_bernoulli'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
@@ -153,7 +154,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=2,
+                num_exps_per_instance=3,
                 gcp_kwargs=dict(
                     zone='northeast1-a'
                 )

@@ -154,10 +154,10 @@ def train_vae(variant, return_data=False):
             **variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    if variant.get('decoder_activation', None) == 'identity':
-        decoder_activation = identity
-    else:
+    if variant.get('decoder_activation', None) == 'sigmoid':
         decoder_activation = torch.nn.Sigmoid()
+    else:
+        decoder_activation = identity
     architecture = variant['vae_kwargs'].get('architecture', None)
     if not architecture and variant.get('imsize') == 84:
         architecture = conv_vae.imsize84_default_architecture

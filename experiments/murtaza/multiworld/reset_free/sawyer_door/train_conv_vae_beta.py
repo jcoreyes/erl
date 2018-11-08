@@ -88,7 +88,7 @@ if __name__ == "__main__":
         #     x_values=[0, 800, 1700],
         #     y_values=[0, 0, .5],
         # ),
-        num_epochs=2500,
+        num_epochs=5000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'algo_kwargs.lr':[1e-3],
+        'beta':[.5, 1, 2.5, 5]
         # 'algo_kwargs.normalize_log_probs':[True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

@@ -1,3 +1,5 @@
+from torch import nn
+
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
@@ -41,7 +43,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'large_fc_gaussian_log_prob_fit_skew'
+    exp_prefix = '4hidden_layers_gaussian'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -75,10 +77,38 @@ if __name__ == "__main__":
         deconv_kwargs=dict(
         )
     )
-    # beta_schedule_one=dict(
-    #     x_values=[0, 1500, 3000, 4500],
-    #     y_values=[0, 0, 5, 5]
-    # )
+
+    architecture2 = dict(
+        conv_args=dict(
+            kernel_sizes=[5, 3, 3],
+            n_channels=[16, 32, 64],
+            strides=[3, 2, 2],
+        ),
+        conv_kwargs=dict(
+            hidden_sizes=[1000, 500, 300, 150],
+        ),
+        deconv_args=dict(
+            hidden_sizes=[150, 300, 500, 1000],
+
+            deconv_input_width=3,
+            deconv_input_height=3,
+            deconv_input_channels=64,
+
+            deconv_output_kernel_size=6,
+            deconv_output_strides=3,
+            deconv_output_channels=3,
+
+            kernel_sizes=[3, 3],
+            n_channels=[32, 16],
+            strides=[2, 2],
+        ),
+        deconv_kwargs=dict(
+        )
+    )
+    beta_schedule_one=dict(
+        x_values=[0, 1500, 3000, 4500],
+        y_values=[0, 0, 5, 5]
+    )
 
     variant = dict(
         num_epochs=5000,
@@ -89,7 +119,7 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_gaussian_p_x',
             ),
-            skew_dataset=True,
+            skew_dataset=False,
         ),
         vae=ConvVAEDouble,
         dump_skew_debug_plots=False,
@@ -110,7 +140,7 @@ if __name__ == "__main__":
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
-            architecture=architecture,
+            architecture=architecture2,
             decoder_distribution='gaussian',
         ),
         save_period=10,
@@ -119,8 +149,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'beta':[.5, 1, 2.5, 5]
-        # 'beta_schedule_kwargs':[beta_schedule_one]
+        'beta':[1, 5, 10, 100],
+        'algo_kwargs.lr':[1e-4, 5e-3, 1e-3],
+        'beta_schedule_kwargs':[beta_schedule_one]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
