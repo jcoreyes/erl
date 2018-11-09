@@ -171,7 +171,7 @@ def train_vae(variant, return_data=False):
         raise NotImplementedError('This is currently broken, please update SpatialAutoEncoder then remove this line')
         m = SpatialAutoEncoder(representation_size, int(representation_size / 2))
     else:
-        m = ConvVAE(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+        m = ConvVAE(representation_size, imsize=variant.get('imsize'), decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])

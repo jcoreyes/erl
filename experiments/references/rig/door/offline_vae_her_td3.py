@@ -59,7 +59,7 @@ if __name__ == "__main__":
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
                 num_goals=1000,
-                use_cached_dataset=False,
+                use_cached_dataset=True,
                 path_length=100,
                 policy_file='10-23-sawyer-door-v5-es-sweep/10-23-sawyer_door_v5_es_sweep_2018_10_24_00_13_10_id000--s3382/params.pkl',
                 show=False,
@@ -72,18 +72,19 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             vae_path=None,
             representation_size=16,
-            beta=.5,
+            beta=2.5,
             num_epochs=1000,
             dump_skew_debug_plots=False,
+            decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=5000,
-                oracle_dataset=False,
-                use_cached=False,
+                oracle_dataset_using_set_to_goal=True,
+                use_cached=True,
                 oracle_dataset_from_policy=True,
                 non_presampled_goal_img_is_garbage=True,
                 vae_dataset_specific_kwargs=dict(),
-                policy_file=None,  # you must train a state based policy first! put the path to the pkl file here
+                # policy_file=None,  # you must train a state based policy first! put the path to the pkl file here
                 show=False,
             ),
             vae_kwargs=dict(
