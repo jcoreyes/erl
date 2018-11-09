@@ -89,10 +89,10 @@ class GaussianLatentVAE(VAEBase):
 
     def rsample(self, latent_distribution_params, num_latents_to_sample=1):
         mu, logvar = latent_distribution_params
-        mu = mu.view((mu.size()[0], 1, mu.size()[1]))
+        mu = mu.view((mu.size()[0], mu.size()[1]))
         stds = (0.5 * logvar).exp()
-        stds = stds.view(stds.size()[0], 1, stds.size()[1])
-        epsilon = ptu.randn((mu.size()[0], num_latents_to_sample, mu.size()[1]))
+        stds = stds.view(stds.size()[0], stds.size()[1])
+        epsilon = ptu.randn((mu.size()[0], mu.size()[1]))
         latents = epsilon * stds + mu
         return latents
 
@@ -123,7 +123,7 @@ def compute_bernoulli_log_prob(x, reconstruction_of_x):
     return -1* F.binary_cross_entropy(
         reconstruction_of_x,
         x,
-        reduction='elementwise_mean',
+        reduction='elementwise_mean'
     )
 
 def compute_gaussian_log_prob(input, dec_mu, dec_var):

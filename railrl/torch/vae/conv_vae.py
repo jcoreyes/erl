@@ -158,10 +158,9 @@ class ConvVAE(GaussianLatentVAE):
         self.fc1 = nn.Linear(self.encoder.output_size, representation_size)
         self.fc2 = nn.Linear(self.encoder.output_size, representation_size)
 
-        hidden_init(self.fc1.weight)
         self.fc1.weight.data.uniform_(-init_w, init_w)
         self.fc1.bias.data.uniform_(-init_w, init_w)
-        hidden_init(self.fc2.weight)
+
         self.fc2.weight.data.uniform_(-init_w, init_w)
         self.fc2.bias.data.uniform_(-init_w, init_w)
 
@@ -198,7 +197,7 @@ class ConvVAE(GaussianLatentVAE):
         if self.decoder_distribution == 'bernoulli':
             inputs = inputs.narrow(start=0, length=self.imlength,
                  dim=1).contiguous().view(-1, self.imlength)
-            log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0])*self.imlength #to ensure that we only have divided by the batch size
+            log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0]) * self.imlength
             return log_prob
         if self.decoder_distribution == 'gaussian_identity_variance':
             inputs = inputs.narrow(start=0, length=self.imlength,
