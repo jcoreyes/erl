@@ -2,7 +2,7 @@ import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
-from railrl.torch.vae.conv_vae import ConvVAE, imsize48_default_architecture
+from railrl.torch.vae.conv_vae import ConvVAE
 from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
 
 architecture = dict(
@@ -133,7 +133,6 @@ if __name__ == "__main__":
 
     search_space = {
         'train_vae_variant.beta': [.5, 1, 2.5],
-        'train_vae_variant.vae_kwargs.architecture':[architecture, imsize48_default_architecture]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -145,7 +144,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_door_offline_vae_bernoulli_architecture_sweep'
+    exp_prefix = 'sawyer_door_offline_vae_bernoulli'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_prefix = 'sawyer_door_offline_vae_mse_no_sigmoid'
+    exp_prefix = 'sawyer_door_offline_vae_mse'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

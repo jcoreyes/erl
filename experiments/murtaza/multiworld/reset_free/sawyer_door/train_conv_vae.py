@@ -46,7 +46,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'no_sigmoid_mean_clamp_variance'
+    exp_prefix = 'test'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     )
 
     variant = dict(
-        num_epochs=100,
+        num_epochs=1000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
