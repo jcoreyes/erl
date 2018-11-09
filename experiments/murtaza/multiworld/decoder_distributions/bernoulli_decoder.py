@@ -4,7 +4,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 from railrl.torch.vae.conv_vae import ConvVAE, imsize48_default_architecture
 from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
-#
+
 architecture = dict(
         conv_args=dict(
             kernel_sizes=[5, 3, 3],

@@ -172,7 +172,7 @@ def train_vae(variant, return_data=False):
         m = SpatialAutoEncoder(representation_size, int(representation_size / 2))
     else:
         vae_class = variant.get('vae_class', ConvVAE)
-        m = vae_class(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+        m = vae_class(representation_size, imsize=variant.get('imsize'), decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])

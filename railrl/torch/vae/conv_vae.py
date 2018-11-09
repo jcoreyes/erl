@@ -246,8 +246,7 @@ class ConvVAEDouble(ConvVAE):
         first_output = first_output.view(-1, self.imsize*self.imsize*self.input_channels)
         second_output = second_output.view(-1, self.imsize*self.imsize*self.input_channels)
         if self.decoder_distribution == 'gaussian':
-            # first_output = torch.sigmoid(first_output)
-            second_output = torch.clamp(second_output, -1/2, 1)
+            second_output = torch.clamp(second_output, 0, 1)
             return first_output, (first_output, second_output)
         elif self.decoder_distribution == 'beta':
             alpha = first_output.exp()
