@@ -136,7 +136,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'gcp'
-    exp_prefix = 'door_online_vae_bernoulli_final'
+    exp_prefix = 'door_online_vae_bernoulli_final_fixed'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -146,7 +146,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=1,
+                num_exps_per_instance=2,
                 gcp_kwargs=dict(
                     zone='us-east4-a',
                     gpu_kwargs=dict(
