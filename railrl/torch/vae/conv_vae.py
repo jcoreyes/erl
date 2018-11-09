@@ -223,6 +223,7 @@ class ConvVAEDouble(ConvVAE):
             init_w=1e-3,
             min_variance=1e-3,
             hidden_init=ptu.fanin_init,
+            min_log_clamp=0,
     ):
         self.save_init_params(locals())
         super().__init__(
@@ -239,13 +240,14 @@ class ConvVAEDouble(ConvVAE):
             init_w=init_w,
             min_variance=min_variance,
         )
+        self.min_log_var = min_log_clamp
 
     def decode(self, latents):
         first_output, second_output = self.decoder(latents)
         first_output = first_output.view(-1, self.imsize*self.imsize*self.input_channels)
         second_output = second_output.view(-1, self.imsize*self.imsize*self.input_channels)
         if self.decoder_distribution == 'gaussian':
-            second_output = torch.clamp(second_output, 0, 1)
+            second_output = torch.clamp(second_output, self.min_log_var, 1)
             return first_output, (first_output, second_output)
         elif self.decoder_distribution == 'beta':
             alpha = first_output.exp()

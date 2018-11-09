@@ -43,7 +43,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'log_clamp_sweep_fit_skew'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -119,7 +119,7 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_gaussian_p_x',
             ),
-            skew_dataset=False,
+            skew_dataset=True,
         ),
         vae=ConvVAEDouble,
         dump_skew_debug_plots=False,
@@ -142,6 +142,7 @@ if __name__ == "__main__":
             imsize=48,
             architecture=architecture,
             decoder_distribution='gaussian',
+            min_log_clamp=0,
         ),
         save_period=10,
         beta=.5,
@@ -149,6 +150,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'vae_kwargs.min_log_clamp':[0, -1/2, -1, -10]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
