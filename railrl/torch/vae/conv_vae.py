@@ -259,7 +259,6 @@ class ConvVAEDouble(ConvVAE):
 
     def logprob(self, inputs, obs_distribution_params):
         if self.decoder_distribution == 'gaussian':
-            reconstructions, obs_distribution_params, _ = self(inputs)
             dec_mu, dec_logvar = obs_distribution_params
             dec_mu = dec_mu.view(-1, self.imlength)
             dec_var = dec_logvar.view(-1, self.imlength).exp()
@@ -267,7 +266,6 @@ class ConvVAEDouble(ConvVAE):
             log_prob = compute_gaussian_log_prob(inputs, dec_mu, dec_var)
             return log_prob
         elif self.decoder_distribution == 'beta':
-            reconstructions, obs_distribution_params, _ = self(inputs)
             log_alpha, log_beta = obs_distribution_params
             alpha = log_alpha.view(-1, self.imlength).exp()
             beta = log_beta.view(-1, self.imlength).exp()

@@ -1,13 +1,10 @@
 from os import path as osp
-
 import numpy as np
 import torch
 from torch import optim
 from torch.distributions import Normal
-from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
-
 from multiworld.core.image_env import normalize_image
 from railrl.core import logger
 from railrl.core.serializable import Serializable
@@ -39,7 +36,6 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     log_d_x_given_z = decoder_dist.log_prob(imgs)
     log_d_x_given_z = log_d_x_given_z.sum(dim=2)
     return compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
-
 
 def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
@@ -293,8 +289,6 @@ class ConvVAETrainer(Serializable):
         kles = []
         linear_losses = []
         beta = float(self.beta_schedule.get_value(epoch))
-        log_vars=[]
-        mus = []
         for batch_idx in range(batches):
             if sample_batch is not None:
                 data = sample_batch(self.batch_size)
@@ -319,8 +313,6 @@ class ConvVAETrainer(Serializable):
             else:
                 loss = -1*log_prob + beta * kle
 
-            log_vars.append(obs_distribution_params[1].mean().item())
-            mus.append(obs_distribution_params[0].mean().item())
             self.optimizer.zero_grad()
             loss.backward()
             losses.append(loss.item())
@@ -349,13 +341,9 @@ class ConvVAETrainer(Serializable):
             logger.record_tabular("train/Log Prob", np.mean(log_probs))
             logger.record_tabular("train/KL", np.mean(kles))
             logger.record_tabular("train/loss", np.mean(losses))
-            logger.record_tabular("train/logvars", np.mean(log_vars))
-            logger.record_tabular("train/mus", np.mean(mus))
             if self.use_linear_dynamics:
                 logger.record_tabular("train/linear_loss",
                                       np.mean(linear_losses))
-            # logger.record_tabular("train/max_logvar_mean", self.max_logvar.mean().item())
-            # logger.record_tabular("train/min_logvar_mean", self.min_logvar.mean().item())
 
 
     def test_epoch(
@@ -387,7 +375,6 @@ class ConvVAETrainer(Serializable):
             log_probs.append(log_prob.item())
             kles.append(kle.item())
 
-            # loss += .01 * (self.max_logvar.sum()) - .01 * (self.min_logvar.sum())
             if batch_idx == 0 and save_reconstruction:
                 n = min(next_obs.size(0), 8)
                 comparison = torch.cat([
@@ -427,15 +414,12 @@ class ConvVAETrainer(Serializable):
             logger.record_tabular("test/loss", np.mean(losses))
             logger.record_tabular("beta", beta)
 
-            # logger.record_tabular("test/max_logvar_mean", self.max_logvar.mean().item())
-            # logger.record_tabular("test/min_logvar_mean", self.min_logvar.mean().item())
             logger.dump_tabular()
             if save_vae:
                 logger.save_itr_params(epoch, self.model)  # slow...
         # logdir = logger.get_snapshot_dir()
         # filename = osp.join(logdir, 'params.pkl')
         # torch.save(self.model, filename)
-        # if self.gaussian_decoder_loss:
 
 
 

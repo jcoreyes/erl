@@ -1,17 +1,12 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
-from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=84,
-        init_camera=sawyer_door_env_camera_v0,
         env_id='SawyerDoorHookEnv-v0',
         grill_variant=dict(
-            save_video=False, #neet to have pre-sampled goals to do this
             save_video_period=50,
             do_state_exp=True,
             qf_kwargs=dict(
@@ -56,14 +51,6 @@ if __name__ == "__main__":
             reward_params=dict(
                 type='state_distance',
             ),
-            generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
-            goal_generation_kwargs=dict(
-                num_goals=1000,
-                use_cached_dataset=False,
-                path_length=100,
-                policy_file=None, # you must train a state based policy first! put the path to the pkl file here
-                show=False,
-            ),
             presample_goals=True,
             observation_key='state_observation',
             desired_goal_key='state_desired_goal',
@@ -96,7 +83,7 @@ if __name__ == "__main__":
         ),
     )
     search_space = {
-        'env_id':['SawyerDoorHookEnv-v0', 'SawyerDoorHookResetFreeEnv-v0'],
+        'env_id':['SawyerDoorHookEnv-v0'],
         'grill_variant.exploration_noise':[0.3, .8],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -121,5 +108,5 @@ if __name__ == "__main__":
                 snapshot_gap=50,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=4,
+                num_exps_per_instance=3,
             )

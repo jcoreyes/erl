@@ -87,7 +87,7 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
-                num_goals=1000,
+                num_goals=1,
                 use_cached_dataset=False,
                 path_length=100,
                 policy_file='10-30-sawyer-door-state-her-td3/10-30-sawyer_door_state_her_td3_2018_10_31_00_58_40_id000--s1078/params.pkl',
@@ -102,13 +102,13 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=.5,
-            num_epochs=500,
+            num_epochs=10,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=5000,
+                N=100,
                 oracle_dataset=False,
-                use_cached=False,
+                use_cached=True,
                 oracle_dataset_from_policy=True,
                 non_presampled_goal_img_is_garbage=True,
                 vae_dataset_specific_kwargs=dict(),
@@ -139,13 +139,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_door_offline_vae_mse'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_door_offline_vae_mse'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
