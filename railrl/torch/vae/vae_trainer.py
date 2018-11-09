@@ -23,7 +23,7 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    latents = model.rsample(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
+    latents = model.rsample_multiple_latents(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
     mus, logvars = latent_distribution_params
     stds = logvars.exp().pow(.5)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))
@@ -45,7 +45,7 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    latents = model.rsample(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
+    latents = model.rsample_multiple_latents(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
     mus, logvars = latent_distribution_params
     stds = logvars.exp().pow(.5)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))
@@ -319,8 +319,8 @@ class ConvVAETrainer(Serializable):
             else:
                 loss = -1*log_prob + beta * kle
 
-            # log_vars.append(obs_distribution_params[1].mean().item())
-            # mus.append(obs_distribution_params[0].mean().item())
+            log_vars.append(obs_distribution_params[1].mean().item())
+            mus.append(obs_distribution_params[0].mean().item())
             self.optimizer.zero_grad()
             loss.backward()
             losses.append(loss.item())
@@ -349,8 +349,8 @@ class ConvVAETrainer(Serializable):
             logger.record_tabular("train/Log Prob", np.mean(log_probs))
             logger.record_tabular("train/KL", np.mean(kles))
             logger.record_tabular("train/loss", np.mean(losses))
-            # logger.record_tabular("train/logvars", np.mean(log_vars))
-            # logger.record_tabular("train/mus", np.mean(mus))
+            logger.record_tabular("train/logvars", np.mean(log_vars))
+            logger.record_tabular("train/mus", np.mean(mus))
             if self.use_linear_dynamics:
                 logger.record_tabular("train/linear_loss",
                                       np.mean(linear_losses))
