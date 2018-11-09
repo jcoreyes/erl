@@ -59,7 +59,7 @@ if __name__ == "__main__":
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
                 num_goals=1000,
-                use_cached_dataset=True,
+                use_cached_dataset=False,
                 path_length=100,
                 policy_file='11-09-sawyer-door-state-her-td3/11-09-sawyer_door_state_her_td3_2018_11_09_19_17_28_id000--s92604/params.pkl',
                 show=False,

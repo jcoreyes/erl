@@ -24,7 +24,7 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def rsample(self, latent_distribution_params, num_latents_to_sample=1):
+    def rsample(self, latent_distribution_params):
         """
 
         :param latent_distribution_params:
@@ -87,7 +87,7 @@ class GaussianLatentVAE(VAEBase):
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)
 
-    def rsample(self, latent_distribution_params, num_latents_to_sample=1):
+    def rsample(self, latent_distribution_params):
         mu, logvar = latent_distribution_params
         mu = mu.view((mu.size()[0], mu.size()[1]))
         stds = (0.5 * logvar).exp()
