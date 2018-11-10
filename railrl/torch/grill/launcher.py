@@ -154,10 +154,10 @@ def train_vae(variant, return_data=False):
             **variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    if variant.get('decoder_activation', None) == 'identity':
-        decoder_activation = identity
-    else:
+    if variant.get('decoder_activation', None) == 'sigmoid':
         decoder_activation = torch.nn.Sigmoid()
+    else:
+        decoder_activation = identity
     architecture = variant['vae_kwargs'].get('architecture', None)
     if not architecture and variant.get('imsize') == 84:
         architecture = conv_vae.imsize84_default_architecture
@@ -171,7 +171,8 @@ def train_vae(variant, return_data=False):
         raise NotImplementedError('This is currently broken, please update SpatialAutoEncoder then remove this line')
         m = SpatialAutoEncoder(representation_size, int(representation_size / 2))
     else:
-        m = ConvVAE(representation_size, imsize=variant.get('imsize'), decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+        vae_class = variant.get('vae_class', ConvVAE)
+        m = vae_class(representation_size, imsize=variant.get('imsize'), decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])

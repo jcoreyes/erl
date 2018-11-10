@@ -2,7 +2,7 @@ import torch
 from railrl.torch.core import PyTorchModule
 import numpy as np
 import abc
-from torch.distributions import Normal
+from torch.distributions import Normal, Beta
 from torch.nn import functional as F
 from railrl.torch import pytorch_util as ptu
 
@@ -24,7 +24,7 @@ class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def rsample(self, latent_distribution_params, num_latents_to_sample=1):
+    def rsample(self, latent_distribution_params):
         """
 
         :param latent_distribution_params:
@@ -87,12 +87,19 @@ class GaussianLatentVAE(VAEBase):
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)
 
-    def rsample(self, latent_distribution_params, num_latents_to_sample=1):
+    def rsample(self, latent_distribution_params):
         mu, logvar = latent_distribution_params
-        mu = mu.view((mu.size()[0], mu.size()[1]))
         stds = (0.5 * logvar).exp()
-        stds = stds.view(stds.size()[0], stds.size()[1])
-        epsilon = ptu.randn((mu.size()[0], mu.size()[1]))
+        epsilon = ptu.randn(*mu.size())
+        latents = epsilon * stds + mu
+        return latents
+
+    def rsample_multiple_latents(self, latent_distribution_params, num_latents_to_sample=1):
+        mu, logvar = latent_distribution_params
+        mu = mu.view((mu.size()[0], 1, mu.size()[1]))
+        stds = (0.5 * logvar).exp()
+        stds = stds.view(stds.size()[0], 1, stds.size()[1])
+        epsilon = ptu.randn((mu.size()[0], num_latents_to_sample, mu.size()[1]))
         latents = epsilon * stds + mu
         return latents
 
@@ -142,6 +149,13 @@ def compute_vectorized_bernoulli_log_prob(x, recon_x):
 
 def compute_gaussian_log_prob(input, dec_mu, dec_var):
     decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
+    log_probs = decoder_dist.log_prob(input)
+    vals = log_probs.sum(dim=1, keepdim=True)
+    return vals.mean()
+
+def compute_beta_log_prob(input, alpha, beta):
+    input = torch.clamp(input, .0001, .9999)
+    decoder_dist = Beta(alpha, beta)
     log_probs = decoder_dist.log_prob(input)
     vals = log_probs.sum(dim=1, keepdim=True)
     return vals.mean()

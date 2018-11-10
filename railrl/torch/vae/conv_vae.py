@@ -1,16 +1,13 @@
-# Adapted from pytorch examples
-
-from __future__ import print_function
 import torch
 import torch.utils.data
 from torch import nn
 from torch.nn import functional as F
-
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 import numpy as np
 from railrl.torch.networks import CNN, TwoHeadDCNN, DCNN
-from railrl.torch.vae.vae_base import compute_bernoulli_log_prob, compute_gaussian_log_prob, GaussianLatentVAE
+from railrl.torch.vae.vae_base import compute_bernoulli_log_prob, compute_gaussian_log_prob, GaussianLatentVAE, \
+    compute_beta_log_prob
 
 ###### DEFAULT ARCHITECTURES #########
 
@@ -22,6 +19,8 @@ imsize48_default_architecture=dict(
         ),
         conv_kwargs=dict(
             hidden_sizes=[],
+            batch_norm_conv=False,
+            batch_norm_fc=False,
         ),
         deconv_args=dict(
             hidden_sizes=[],
@@ -39,6 +38,8 @@ imsize48_default_architecture=dict(
             strides=[2,2],
         ),
         deconv_kwargs=dict(
+            batch_norm_deconv=False,
+            batch_norm_fc=False,
         )
     )
 
@@ -50,7 +51,8 @@ imsize84_default_architecture=dict(
         ),
         conv_kwargs=dict(
             hidden_sizes=[],
-            use_batch_norm=True,
+            batch_norm_conv=True,
+            batch_norm_fc=False,
         ),
         deconv_args=dict(
             hidden_sizes=[],
@@ -68,6 +70,8 @@ imsize84_default_architecture=dict(
             strides=[3,3],
         ),
         deconv_kwargs=dict(
+            batch_norm_deconv=False,
+            batch_norm_fc=False,
         )
     )
 
@@ -86,7 +90,7 @@ class ConvVAE(GaussianLatentVAE):
             input_channels=1,
             imsize=48,
             init_w=1e-3,
-            min_variance=1e-3,
+            min_variance=1e-4,
             hidden_init=ptu.fanin_init,
     ):
         """
@@ -150,16 +154,17 @@ class ConvVAE(GaussianLatentVAE):
             input_channels=self.input_channels,
             output_size=conv_output_size,
             init_w=init_w,
+            hidden_init=hidden_init,
             **conv_kwargs)
 
         self.fc1 = nn.Linear(self.encoder.output_size, representation_size)
         self.fc2 = nn.Linear(self.encoder.output_size, representation_size)
 
-        self.fc1.weight.data.uniform_(-init_w, init_w)
-        self.fc1.bias.data.uniform_(-init_w, init_w)
+        hidden_init(self.fc1.weight)
+        self.fc1.bias.data.fill_(0)
 
-        self.fc2.weight.data.uniform_(-init_w, init_w)
-        self.fc2.bias.data.uniform_(-init_w, init_w)
+        hidden_init(self.fc2.weight)
+        self.fc2.bias.data.fill_(0)
 
         self.decoder = decoder_class(
             **deconv_args,
@@ -167,6 +172,7 @@ class ConvVAE(GaussianLatentVAE):
             init_w=init_w,
             output_activation=decoder_output_activation,
             paddings=np.zeros(len(deconv_args['kernel_sizes']), dtype=np.int64),
+            hidden_init=hidden_init,
             **deconv_kwargs)
 
         self.epoch = 0
@@ -185,6 +191,8 @@ class ConvVAE(GaussianLatentVAE):
         decoded = self.decoder(latents).view(-1, self.imsize*self.imsize*self.input_channels)
         if self.decoder_distribution == 'bernoulli':
             return decoded, [decoded]
+        elif self.decoder_distribution == 'gaussian_identity_variance':
+            return decoded, [decoded, torch.ones_like(decoded)]
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
@@ -193,6 +201,11 @@ class ConvVAE(GaussianLatentVAE):
             inputs = inputs.narrow(start=0, length=self.imlength,
                  dim=1).contiguous().view(-1, self.imlength)
             log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0]) * self.imlength
+            return log_prob
+        if self.decoder_distribution == 'gaussian_identity_variance':
+            inputs = inputs.narrow(start=0, length=self.imlength,
+                                   dim=1).contiguous().view(-1, self.imlength)
+            log_prob = -1*F.mse_loss(inputs, obs_distribution_params[0],reduction='elementwise_mean')
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
@@ -211,8 +224,9 @@ class ConvVAEDouble(ConvVAE):
             input_channels=1,
             imsize=48,
             init_w=1e-3,
-            min_variance=1e-3,
+            min_variance=1e-4,
             hidden_init=ptu.fanin_init,
+            min_log_clamp=0,
     ):
         self.save_init_params(locals())
         super().__init__(
@@ -228,25 +242,39 @@ class ConvVAEDouble(ConvVAE):
             imsize=imsize,
             init_w=init_w,
             min_variance=min_variance,
+            hidden_init=hidden_init,
         )
+        self.min_log_var = min_log_clamp
 
     def decode(self, latents):
         first_output, second_output = self.decoder(latents)
         first_output = first_output.view(-1, self.imsize*self.imsize*self.input_channels)
         second_output = second_output.view(-1, self.imsize*self.imsize*self.input_channels)
         if self.decoder_distribution == 'gaussian':
+            second_output = torch.clamp(second_output, self.min_log_var, 1)
             return first_output, (first_output, second_output)
+        elif self.decoder_distribution == 'beta':
+            alpha = first_output.exp()
+            beta = second_output.exp()
+            reconstructions = alpha/(alpha+beta)
+            return reconstructions, (first_output, second_output)
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
     def logprob(self, inputs, obs_distribution_params):
         if self.decoder_distribution == 'gaussian':
-            reconstructions, obs_distribution_params, _ = self(inputs)
             dec_mu, dec_logvar = obs_distribution_params
             dec_mu = dec_mu.view(-1, self.imlength)
             dec_var = dec_logvar.view(-1, self.imlength).exp()
             inputs = inputs.view(-1, self.imlength)
             log_prob = compute_gaussian_log_prob(inputs, dec_mu, dec_var)
+            return log_prob
+        elif self.decoder_distribution == 'beta':
+            log_alpha, log_beta = obs_distribution_params
+            alpha = log_alpha.view(-1, self.imlength).exp()
+            beta = log_beta.view(-1, self.imlength).exp()
+            inputs = inputs.view(-1, self.imlength)
+            log_prob = compute_beta_log_prob(inputs, alpha, beta)
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
@@ -349,11 +377,3 @@ class SpatialAutoEncoder(ConvVAE):
 
     def reparameterize(self, mu, logvar):
         return mu
-
-
-if __name__ == "__main__":
-    m = ConvVAE(2)
-    for epoch in range(10):
-        m.train_epoch(epoch)
-        m.test_epoch(epoch)
-        m.dump_samples(epoch)

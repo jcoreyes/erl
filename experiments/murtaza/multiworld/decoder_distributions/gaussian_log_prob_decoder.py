@@ -2,11 +2,40 @@ import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
+from railrl.torch.vae.conv_vae import ConvVAE, ConvVAEDouble
 from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
+
+architecture = dict(
+        conv_args=dict(
+            kernel_sizes=[5, 3, 3],
+            n_channels=[16, 32, 64],
+            strides=[3, 2, 2],
+        ),
+        conv_kwargs=dict(
+            hidden_sizes=[500, 300, 150],
+        ),
+        deconv_args=dict(
+            hidden_sizes=[150, 300, 500],
+
+            deconv_input_width=3,
+            deconv_input_height=3,
+            deconv_input_channels=64,
+
+            deconv_output_kernel_size=6,
+            deconv_output_strides=3,
+            deconv_output_channels=3,
+
+            kernel_sizes=[3, 3],
+            n_channels=[32, 16],
+            strides=[2, 2],
+        ),
+        deconv_kwargs=dict(
+        )
+    )
 
 if __name__ == "__main__":
     variant = dict(
-        imsize=84,
+        imsize=48,
         init_camera=sawyer_door_env_camera_v0,
         env_id='SawyerDoorHookEnv-v0',
         grill_variant=dict(
@@ -27,7 +56,7 @@ if __name__ == "__main__":
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
-                    num_updates_per_env_step=4,
+                    num_updates_per_env_step=1,
                     collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
@@ -59,9 +88,9 @@ if __name__ == "__main__":
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
                 num_goals=1000,
-                use_cached_dataset=True,
+                use_cached_dataset=False,
                 path_length=100,
-                policy_file='11-09-sawyer-door-state-her-td3/11-09-sawyer_door_state_her_td3_2018_11_09_19_17_28_id000--s92604/params.pkl',
+                policy_file='10-30-sawyer-door-state-her-td3/10-30-sawyer_door_state_her_td3_2018_10_31_00_58_40_id000--s1078/params.pkl',
                 show=False,
             ),
             presample_goals=True,
@@ -72,24 +101,25 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             vae_path=None,
             representation_size=16,
-            beta=2.5,
-            num_epochs=1000,
+            beta=.5,
+            num_epochs=500,
             dump_skew_debug_plots=False,
-            decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=1000,
+                N=5000,
+                oracle_dataset=False,
                 use_cached=False,
                 oracle_dataset_from_policy=True,
-                random_and_oracle_policy_data=True,
                 non_presampled_goal_img_is_garbage=True,
-                random_and_oracle_policy_data_split=0,
                 vae_dataset_specific_kwargs=dict(),
-                policy_file='11-09-sawyer-door-state-her-td3/11-09-sawyer_door_state_her_td3_2018_11_09_19_17_28_id000--s92604/params.pkl',
+                policy_file='10-30-sawyer-door-state-her-td3/10-30-sawyer_door_state_her_td3_2018_10_31_00_58_40_id000--s1078/params.pkl',
                 show=False,
             ),
+            vae_class=ConvVAEDouble,
             vae_kwargs=dict(
                 input_channels=3,
+                architecture=architecture,
+                decoder_distribution='gaussian',
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -103,18 +133,19 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'train_vae_variant.beta': [.5, 1, 2.5, 5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
+    #
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
     n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_door_offline_vae_final'
+    mode = 'ec2'
+    exp_prefix = 'sawyer_door_offline_vae_gaussian_log_prob_no_sigmoid'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -124,5 +155,8 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=2,
+                num_exps_per_instance=3,
+                gcp_kwargs=dict(
+                    zone='northeast1-a'
+                )
           )
