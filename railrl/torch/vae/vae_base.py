@@ -89,10 +89,8 @@ class GaussianLatentVAE(VAEBase):
 
     def rsample(self, latent_distribution_params):
         mu, logvar = latent_distribution_params
-        mu = mu.view((mu.size()[0], mu.size()[1]))
         stds = (0.5 * logvar).exp()
-        stds = stds.view(stds.size()[0], stds.size()[1])
-        epsilon = ptu.randn((mu.size()[0], mu.size()[1]))
+        epsilon = ptu.randn(*mu.size())
         latents = epsilon * stds + mu
         return latents
 
@@ -128,7 +126,6 @@ class GaussianLatentVAE(VAEBase):
         self.dist_std = d["_dist_std"]
 
 def compute_bernoulli_log_prob(x, reconstruction_of_x):
-    # Multiply back in the vector_dimension so the cross entropy is only averaged over the batch size
     return -1* F.binary_cross_entropy(
         reconstruction_of_x,
         x,

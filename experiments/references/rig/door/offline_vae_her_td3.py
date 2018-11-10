@@ -59,7 +59,7 @@ if __name__ == "__main__":
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
                 num_goals=1000,
-                use_cached_dataset=False,
+                use_cached_dataset=True,
                 path_length=100,
                 policy_file='11-09-sawyer-door-state-her-td3/11-09-sawyer_door_state_her_td3_2018_11_09_19_17_28_id000--s92604/params.pkl',
                 show=False,
@@ -72,17 +72,18 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             vae_path=None,
             representation_size=16,
-            beta=.5,
+            beta=2.5,
             num_epochs=1000,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=5000,
-                oracle_dataset=False,
-                use_cached=True,
+                N=1000,
+                use_cached=False,
                 oracle_dataset_from_policy=True,
+                random_and_oracle_policy_data=True,
                 non_presampled_goal_img_is_garbage=True,
+                random_and_oracle_policy_data_split=0,
                 vae_dataset_specific_kwargs=dict(),
                 policy_file='11-09-sawyer-door-state-her-td3/11-09-sawyer_door_state_her_td3_2018_11_09_19_17_28_id000--s92604/params.pkl',
                 show=False,
@@ -109,7 +110,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'rig-replicate-door-hidden-inits'
+    exp_prefix = 'test'
 
     # n_seeds = 3
     # mode = 'ec2'

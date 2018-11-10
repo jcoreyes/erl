@@ -107,10 +107,11 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=1000,
-                oracle_dataset=False,
-                use_cached=False,
+                use_cached=True,
                 oracle_dataset_from_policy=True,
+                random_and_oracle_policy_data=True,
                 non_presampled_goal_img_is_garbage=True,
+                random_and_oracle_policy_data_split=0,
                 vae_dataset_specific_kwargs=dict(),
                 policy_file='11-09-sawyer-door-state-her-td3/11-09-sawyer_door_state_her_td3_2018_11_09_19_17_28_id000--s92604/params.pkl',
                 show=False,

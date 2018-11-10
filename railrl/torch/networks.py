@@ -28,7 +28,8 @@ class CNN(PyTorchModule):
                 paddings,
                 hidden_sizes=[],
                 added_fc_input_size=0,
-                use_batch_norm=False,
+                batch_norm_conv=False,
+                batch_norm_fc=False,
                 init_w=1e-4,
                 hidden_init=nn.init.xavier_uniform_,
                 hidden_activation=nn.ReLU(),
@@ -48,7 +49,8 @@ class CNN(PyTorchModule):
         self.output_size = output_size
         self.output_activation = output_activation
         self.hidden_activation = hidden_activation
-        self.use_batch_norm = use_batch_norm
+        self.batch_norm_conv = batch_norm_conv
+        self.batch_norm_fc = batch_norm_fc
         self.added_fc_input_size = added_fc_input_size
         self.conv_input_length = self.input_width * self.input_height * self.input_channels
 
@@ -112,23 +114,21 @@ class CNN(PyTorchModule):
                        self.input_height,
                        self.input_width)
 
-        #from PIL import Image
-        #import pdb; pdb.set_trace()
-        h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
+        h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers, use_batch_norm=self.batch_norm_conv)
         # flatten channels for fc layers
         h = h.view(h.size(0), -1)
         if fc_input:
             h = torch.cat((h, extra_fc_input), dim=1)
-        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
+        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers, use_batch_norm=self.batch_norm_fc)
 
         output = self.output_activation(self.last_fc(h))
         return output
 
-    def apply_forward(self, input, hidden_layers, norm_layers):
+    def apply_forward(self, input, hidden_layers, norm_layers, use_batch_norm=False):
         h = input
         for layer, norm_layer in zip(hidden_layers, norm_layers):
             h = layer(h)
-            if self.use_batch_norm:
+            if use_batch_norm:
                 h = norm_layer(h)
             h = self.hidden_activation(h)
         return h
@@ -668,7 +668,8 @@ class TwoHeadDCNN(PyTorchModule):
                 strides,
                 paddings,
 
-                use_batch_norm=False,
+                batch_norm_deconv=False,
+                batch_norm_fc=False,
                 init_w=1e-4,
                 hidden_init=nn.init.xavier_uniform_,
                 hidden_activation=nn.ReLU(),
@@ -689,7 +690,8 @@ class TwoHeadDCNN(PyTorchModule):
         self.deconv_input_height = deconv_input_height
         self.deconv_input_channels = deconv_input_channels
         deconv_input_size = self.deconv_input_channels*self.deconv_input_height*self.deconv_input_width
-        self.use_batch_norm = use_batch_norm
+        self.batch_norm_deconv = batch_norm_deconv
+        self.batch_norm_fc = batch_norm_fc
 
         self.deconv_layers = nn.ModuleList()
         self.deconv_norm_layers = nn.ModuleList()
@@ -751,19 +753,19 @@ class TwoHeadDCNN(PyTorchModule):
         self.second_deconv_output.bias.data.fill_(0)
 
     def forward(self, input):
-        h = self.apply_forward(input, self.fc_layers, self.fc_norm_layers)
+        h = self.apply_forward(input, self.fc_layers, self.fc_norm_layers, use_batch_norm=self.batch_norm_fc)
         h = self.hidden_activation(self.last_fc(h))
         h = h.view(-1, self.deconv_input_channels, self.deconv_input_width, self.deconv_input_height)
-        h = self.apply_forward(h, self.deconv_layers, self.deconv_norm_layers)
+        h = self.apply_forward(h, self.deconv_layers, self.deconv_norm_layers, use_batch_norm=self.batch_norm_deconv)
         first_output = self.output_activation(self.first_deconv_output(h))
         second_output = self.output_activation(self.second_deconv_output(h))
         return first_output, second_output
 
-    def apply_forward(self, input, hidden_layers, norm_layers):
+    def apply_forward(self, input, hidden_layers, norm_layers, use_batch_norm=False):
         h = input
         for layer, norm_layer in zip(hidden_layers, norm_layers):
             h = layer(h)
-            if self.use_batch_norm:
+            if use_batch_norm:
                 h = norm_layer(h)
             h = self.hidden_activation(h)
         return h

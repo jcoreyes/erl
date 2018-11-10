@@ -1,13 +1,7 @@
-# Adapted from pytorch examples
-
-from __future__ import print_function
 import torch
 import torch.utils.data
 from torch import nn
-from torch.distributions import Beta
-from torch.distributions import Normal
 from torch.nn import functional as F
-
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 import numpy as np
@@ -25,6 +19,8 @@ imsize48_default_architecture=dict(
         ),
         conv_kwargs=dict(
             hidden_sizes=[],
+            batch_norm_conv=False,
+            batch_norm_fc=False,
         ),
         deconv_args=dict(
             hidden_sizes=[],
@@ -42,6 +38,8 @@ imsize48_default_architecture=dict(
             strides=[2,2],
         ),
         deconv_kwargs=dict(
+            batch_norm_deconv=False,
+            batch_norm_fc=False,
         )
     )
 
@@ -53,7 +51,8 @@ imsize84_default_architecture=dict(
         ),
         conv_kwargs=dict(
             hidden_sizes=[],
-            use_batch_norm=True,
+            batch_norm_conv=True,
+            batch_norm_fc=False,
         ),
         deconv_args=dict(
             hidden_sizes=[],
@@ -71,6 +70,8 @@ imsize84_default_architecture=dict(
             strides=[3,3],
         ),
         deconv_kwargs=dict(
+            batch_norm_deconv=False,
+            batch_norm_fc=False,
         )
     )
 
@@ -89,7 +90,7 @@ class ConvVAE(GaussianLatentVAE):
             input_channels=1,
             imsize=48,
             init_w=1e-3,
-            min_variance=1e-3,
+            min_variance=1e-4,
             hidden_init=ptu.fanin_init,
     ):
         """
@@ -223,7 +224,7 @@ class ConvVAEDouble(ConvVAE):
             input_channels=1,
             imsize=48,
             init_w=1e-3,
-            min_variance=1e-3,
+            min_variance=1e-4,
             hidden_init=ptu.fanin_init,
             min_log_clamp=0,
     ):
@@ -376,11 +377,3 @@ class SpatialAutoEncoder(ConvVAE):
 
     def reparameterize(self, mu, logvar):
         return mu
-
-
-if __name__ == "__main__":
-    m = ConvVAE(2)
-    for epoch in range(10):
-        m.train_epoch(epoch)
-        m.test_epoch(epoch)
-        m.dump_samples(epoch)
