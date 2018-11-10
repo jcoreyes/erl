@@ -13,6 +13,8 @@ architecture = dict(
         ),
         conv_kwargs=dict(
             hidden_sizes=[500, 300, 150],
+            batch_norm_conv=False,
+            batch_norm_fc=False,
         ),
         deconv_args=dict(
             hidden_sizes=[150, 300, 500],
@@ -30,6 +32,8 @@ architecture = dict(
             strides=[2, 2],
         ),
         deconv_kwargs=dict(
+            batch_norm_deconv=False,
+            batch_norm_fc=False,
         )
     )
 
@@ -142,7 +146,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'bigger_architecture_mse'
 
     # n_seeds = 1
     # mode = 'ec2'
