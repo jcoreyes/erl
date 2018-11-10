@@ -80,11 +80,12 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=True,
-                policy_file='10-30-sawyer-door-state-her-td3/10-30-sawyer_door_state_her_td3_2018_10_31_00_59_18_id000--s93299/params.pkl',
+                policy_file='data/doodads3/11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
                 path_length=100,
                 show=False,
                 tag='_twin_sac'
             ),
+            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48goals_twin_sac.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -119,6 +120,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'grill_variant.online_vae_beta':[.5, 1, 2.5],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_six, vae_schedules.every_other],
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob', 'None']
     }
@@ -126,13 +128,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 4
-    mode = 'gcp'
-    exp_prefix = 'door_online_vae_bernoulli'
+    # n_seeds = 4
+    # mode = 'gcp'
+    # exp_prefix = 'door_online_vae_bernoulli'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

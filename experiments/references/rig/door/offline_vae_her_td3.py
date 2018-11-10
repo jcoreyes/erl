@@ -103,6 +103,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'train_vae_variant.beta':[.5, 1, 2.5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -112,8 +113,8 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 3
-    mode = 'gcp'
+    n_seeds = 1
+    mode = 'ec2'
     exp_prefix = 'sawyer_door_offline_vae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
@@ -124,7 +125,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=1,
+                num_exps_per_instance=4,
                 gcp_kwargs=dict(
                     zone='us-central1-a',
                     gpu_kwargs=dict(
