@@ -78,8 +78,8 @@ if __name__ == "__main__":
             decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=1000,
-                use_cached=False,
+                N=5000,
+                use_cached=True,
                 oracle_dataset_from_policy=True,
                 random_and_oracle_policy_data=True,
                 non_presampled_goal_img_is_garbage=True,
@@ -108,13 +108,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_door_offline_vae_final'
+    n_seeds = 3
+    mode = 'gcp'
+    exp_prefix = 'sawyer_door_offline_vae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -124,5 +124,12 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=2,
+                num_exps_per_instance=1,
+                gcp_kwargs=dict(
+                    zone='us-central1-a',
+                    gpu_kwargs=dict(
+                        gpu_model='nvidia-tesla-v100',
+                        num_gpu=1,
+                    )
+                )
           )

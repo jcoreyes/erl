@@ -1,6 +1,5 @@
 import argparse
 import math
-
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv, SawyerReachXYZEnv
@@ -39,8 +38,8 @@ variant = dict(
     policy_kwargs=dict(
         hidden_sizes=[400, 300],
     ),
-    num_uniform_steps=1000,
-    exploration_type='uniform_for_k',
+    exploration_noise=0,
+    exploration_type='ou',
     replay_buffer_kwargs=dict(
         max_size=int(1E6),
         fraction_goals_are_rollout_goals=0,
@@ -61,8 +60,9 @@ common_params = {
 
 env_params = {
     'door': {
-        'env_id':['SawyerDoorHookResetFreeEnv-v6', 'SawyerDoorHookResetFreeEnv-v5', 'SawyerDoorHookResetFreeEnv-v3'],
-        'algo_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True, False],
+        'env_id':['SawyerDoorHookResetFreeEnv-v0'],
+        'algo_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True],
+        'save_video':[False]
     },
     'small_pusher': {
         'env_class':[SawyerPushAndReachXYEnv],
