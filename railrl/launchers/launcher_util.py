@@ -697,7 +697,12 @@ def create_log_dir(
     """
     if variant and "run_id" in variant and variant["run_id"] is not None:
         run_id, exp_id = variant["run_id"], variant["exp_id"]
-        trial_name = "run{}/id{}".format(run_id, exp_id)
+        if variant.get("num_exps_per_instance", 0) > 1:
+            now = datetime.datetime.now(dateutil.tz.tzlocal())
+            timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
+            trial_name = "run%s/id%s/%s--s%d" % (run_id, exp_id, timestamp, seed)
+        else:
+            trial_name = "run{}/id{}".format(run_id, exp_id)
     else:
         trial_name = create_trial_name(exp_prefix, exp_id=exp_id,
                                        seed=seed)

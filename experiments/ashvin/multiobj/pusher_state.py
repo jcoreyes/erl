@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     search_space = {
         # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
-        'seedid': range(1),
+        'seedid': range(3),
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 4, 16],
     }
 
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     mode = 'ec2'
     exp_prefix = 'sawyer_pusher_state_final'
 
-    run_variants(her_td3_experiment, sweeper.iterate_hyperparameters(), run_id=2)
+    run_variants(her_td3_experiment, sweeper.iterate_hyperparameters(), run_id=3)
     # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
     #     for i in range(n_seeds):
     #         run_experiment(
