@@ -202,7 +202,6 @@ class ConvVAETrainer(Serializable):
         return mus, mean, std
 
     def update_train_weights(self):
-        # TODO: update the weights of the sampler rather than recreating loader
         if self.skew_dataset:
             self._train_weights = self._compute_train_weights()
             sampler = InfiniteWeightedRandomSampler(self.train_dataset, self._train_weights)

@@ -87,16 +87,16 @@ class CNN(PyTorchModule):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
 
             norm_layer = nn.BatchNorm1d(hidden_size)
-            hidden_init(fc_layer.weight)
-            fc_layer.bias.data.fill_(0)
+            fc_layer.weight.data.uniform_(-init_w, init_w)
+            fc_layer.bias.data.uniform_(-init_w, init_w)
 
             self.fc_layers.append(fc_layer)
             self.fc_norm_layers.append(norm_layer)
             fc_input_size = hidden_size
 
         self.last_fc = nn.Linear(fc_input_size, output_size)
-        hidden_init(self.last_fc.weight)
-        self.last_fc.bias.data.fill_(0)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, input):
         fc_input = (self.added_fc_input_size != 0)
@@ -670,7 +670,7 @@ class TwoHeadDCNN(PyTorchModule):
 
                 batch_norm_deconv=False,
                 batch_norm_fc=False,
-                init_w=1e-4,
+                init_w=1e-3,
                 hidden_init=nn.init.xavier_uniform_,
                 hidden_activation=nn.ReLU(),
                 output_activation=identity
@@ -702,16 +702,16 @@ class TwoHeadDCNN(PyTorchModule):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
 
             norm_layer = nn.BatchNorm1d(hidden_size)
-            hidden_init(fc_layer.weight)
-            fc_layer.bias.data.fill_(0)
+            fc_layer.weight.data.uniform_(-init_w, init_w)
+            fc_layer.bias.data.uniform_(-init_w, init_w)
 
             self.fc_layers.append(fc_layer)
             self.fc_norm_layers.append(norm_layer)
             fc_input_size = hidden_size
 
         self.last_fc = nn.Linear(fc_input_size, deconv_input_size)
-        hidden_init(self.last_fc.weight)
-        self.last_fc.bias.data.fill_(0)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
         for out_channels, kernel_size, stride, padding in \
             zip(n_channels, kernel_sizes, strides, paddings):

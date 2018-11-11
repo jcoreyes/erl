@@ -118,7 +118,7 @@ class ConvVAE(GaussianLatentVAE):
             input_channels=1,
             imsize=48,
             init_w=1e-3,
-            min_variance=1e-4,
+            min_variance=1e-3,
             hidden_init=ptu.fanin_init,
     ):
         """
@@ -188,11 +188,11 @@ class ConvVAE(GaussianLatentVAE):
         self.fc1 = nn.Linear(self.encoder.output_size, representation_size)
         self.fc2 = nn.Linear(self.encoder.output_size, representation_size)
 
-        hidden_init(self.fc1.weight)
-        self.fc1.bias.data.fill_(0)
+        self.fc1.weight.data.uniform_(-init_w, init_w)
+        self.fc1.bias.data.uniform_(-init_w, init_w)
 
-        hidden_init(self.fc2.weight)
-        self.fc2.bias.data.fill_(0)
+        self.fc2.weight.data.uniform_(-init_w, init_w)
+        self.fc2.bias.data.uniform_(-init_w, init_w)
 
         self.decoder = decoder_class(
             **deconv_args,
