@@ -13,7 +13,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=505,
+                num_epochs=1001,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=100,
@@ -36,7 +36,7 @@ if __name__ == "__main__":
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_are_rollout_goals=0,
+            fraction_goals_are_rollout_goals=0.2,
             fraction_resampled_goals_are_env_goals=0.5,
         ),
         qf_kwargs=dict(
@@ -67,11 +67,14 @@ if __name__ == "__main__":
             num_objects=3,
             object_meshes=None,
         ),
+
+        num_exps_per_instance=3,
     )
 
     search_space = {
         # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
-        'seedid': range(5),
+        'seedid': range(1),
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 4, 16],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -87,7 +90,7 @@ if __name__ == "__main__":
     mode = 'ec2'
     exp_prefix = 'sawyer_pusher_state_final'
 
-    run_variants(her_td3_experiment, sweeper.iterate_hyperparameters(), run_id=0)
+    run_variants(her_td3_experiment, sweeper.iterate_hyperparameters(), run_id=2)
     # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
     #     for i in range(n_seeds):
     #         run_experiment(
