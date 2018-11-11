@@ -42,23 +42,22 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    latents = model.rsample_multiple_latents(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
+    latents = model.rsample(latent_distribution_params)
     mus, logvars = latent_distribution_params
     stds = logvars.exp().pow(.5)
     true_prior = Normal(ptu.zeros_like(mus), ptu.ones_like(logvars))
     vae_dist = Normal(mus, stds)
-    log_p_z = true_prior.log_prob(latents).sum(dim=2)
-    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
+    log_p_z = true_prior.log_prob(latents).sum(dim=1)
+    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
     decoded = model.decode(latents)[0]
-    decoded = decoded.view(decoded.shape[0]//latents.shape[1], latents.shape[1], decoded.shape[1])
-    imgs = imgs.view(imgs.shape[0], 1, imgs.shape[1])
-    log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=2)
+    log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
     inv_p_x_shifted = compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
     return inv_p_x_shifted
 
 def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z):
     log_p_x = log_p_z - log_q_z_given_x + log_d_x_given_z
-    log_p_x = ((log_p_x - log_p_x.mean(dim=0))/ (log_p_x.std(dim=0)+1e-8)).mean(dim=1) # averages together all the samples num_latents_sampled
+    # log_p_x = ((log_p_x - log_p_x.mean(dim=0))/ (log_p_x.std(dim=0)+1e-8)).mean(dim=1) # averages together all the samples num_latents_sampled
+    log_p_x = ((log_p_x - log_p_x.mean())/ (log_p_x.std()+1e-8))
     log_inv_root_p_x = -1 / 2 * log_p_x
     log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
     inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())

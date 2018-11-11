@@ -123,22 +123,23 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.online_vae_beta':[.5, 2.5],
+        'grill_variant.online_vae_beta':[2.5],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other],
-        'grill_variant.replay_buffer_kwargs.power':[1/2, 1],
-        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10],
+        'grill_variant.replay_buffer_kwargs.power':[1],
+        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[1],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
-    n_seeds = 2
-    mode = 'gcp'
+    n_seeds = 1
+    mode = 'local'
     exp_prefix = 'door_online_vae_bernoulli_sac'
+
+
+    # n_seeds = 2
+    # mode = 'gcp'
+    # exp_prefix = 'door_online_vae_bernoulli_sac'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
