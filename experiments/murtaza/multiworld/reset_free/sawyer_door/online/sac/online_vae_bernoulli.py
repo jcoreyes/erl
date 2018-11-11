@@ -3,6 +3,7 @@ from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
+from railrl.torch.vae.conv_vae import imsize48_default_architecture
 from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
 
 if __name__ == "__main__":
@@ -64,9 +65,6 @@ if __name__ == "__main__":
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
                 power=1,
-                priority_function_kwargs=dict(
-                    num_latents_to_sample=1,
-                )
             ),
             normalize=False,
             render=False,
@@ -112,6 +110,7 @@ if __name__ == "__main__":
             ),
             vae_kwargs=dict(
                 input_channels=3,
+                architecture=imsize48_default_architecture,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -123,10 +122,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.online_vae_beta':[2.5],
+        'grill_variant.online_vae_beta':[.5, 1, 2.5, 5],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other],
-        'grill_variant.replay_buffer_kwargs.power':[1],
-        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[1],
+        'grill_variant.replay_buffer_kwargs.power':[1, 2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -137,9 +135,9 @@ if __name__ == "__main__":
     exp_prefix = 'test'
 
 
-    # n_seeds = 2
-    # mode = 'gcp'
-    # exp_prefix = 'door_online_vae_bernoulli_sac'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'door_online_vae_bernoulli_sac'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -149,7 +147,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=1,
+                num_exps_per_instance=2,
                 gcp_kwargs=dict(
                     zone='us-central1-a',
                     gpu_kwargs=dict(

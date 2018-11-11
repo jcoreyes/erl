@@ -260,7 +260,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         return inv_p_bernoulli_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample)
 
     def inv_exp_elbo(self, next_vae_obs, indices, beta):
-        return compute_inv_exp_elbo(self.vae, next_vae_obs, beta=beta)
+        pass
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]

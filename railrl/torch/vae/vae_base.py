@@ -103,27 +103,15 @@ class GaussianLatentVAE(VAEBase):
         latents = epsilon * stds + mu
         return latents
 
-    def rsample_multiple_latents(self, latent_distribution_params, num_latents_to_sample=1):
-        mu, logvar = latent_distribution_params
-        mu = mu.view((mu.size()[0], 1, mu.size()[1]))
-        stds = (0.5 * logvar).exp()
-        stds = stds.view(stds.size()[0], 1, stds.size()[1])
-        epsilon = ptu.randn((mu.size()[0], num_latents_to_sample, mu.size()[1]))
-        latents = epsilon * stds + mu
-        return latents
-
     def reparameterize(self, latent_distribution_params):
         if self.training:
             return self.rsample(latent_distribution_params)
         else:
             return latent_distribution_params[0]
 
-    def vectorized_kl_divergence(self, latent_distribution_params):
-        mu, logvar = latent_distribution_params
-        return - 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
-
     def kl_divergence(self, latent_distribution_params):
-        return self.vectorized_kl_divergence(latent_distribution_params).mean()
+        mu, logvar = latent_distribution_params
+        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
     def __getstate__(self):
         d = super().__getstate__()
@@ -138,14 +126,11 @@ class GaussianLatentVAE(VAEBase):
         self.dist_std = d["_dist_std"]
 
 def compute_bernoulli_log_prob(x, reconstruction_of_x):
-    return compute_vectorized_bernoulli_log_prob(x, reconstruction_of_x).mean()
-
-def compute_vectorized_bernoulli_log_prob(x, recon_x):
-    return -1* F.binary_cross_entropy(
-        recon_x,
+    return -1 * F.binary_cross_entropy(
+        reconstruction_of_x,
         x,
-        reduction='none',
-    )
+        size_average=False,
+    ) / 64
 
 def compute_gaussian_log_prob(input, dec_mu, dec_var):
     decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
