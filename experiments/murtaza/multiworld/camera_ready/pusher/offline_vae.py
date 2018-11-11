@@ -71,7 +71,7 @@ if __name__ == "__main__":
                 test_p=.9,
                 N=5000,
                 oracle_dataset_using_set_to_goal=True,
-                use_cached=False,
+                use_cached=True,
                 vae_dataset_specific_kwargs=dict(
                 ),
                 show=False,
@@ -86,6 +86,7 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
             ),
+            decoder_activation='sigmoid',
             save_period=100,
         ),
     )
