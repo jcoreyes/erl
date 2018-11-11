@@ -60,7 +60,7 @@ common_params = {
 
 env_params = {
     'door': {
-        'env_id':['SawyerDoorHookResetFreeEnv-v0'],
+        'env_id':['SawyerDoorHookResetFreeEnv-v1'],
         'algo_kwargs.twin_sac_kwargs.train_policy_with_reparameterization': [True],
         'save_video':[False]
     },
