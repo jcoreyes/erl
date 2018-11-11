@@ -203,6 +203,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             assert p_sum > 0, "Unnormalized p sum is {}".format(p_sum)
             self._vae_sample_probs /= np.sum(self._vae_sample_probs)
             self._vae_sample_probs = self._vae_sample_probs.flatten()
+            assert np.min(self._vae_sample_probs) > 0, "probs should not be 0"
 
     def random_vae_training_data(self, batch_size):
         if self._prioritize_vae_samples and self._vae_sample_probs is not None:

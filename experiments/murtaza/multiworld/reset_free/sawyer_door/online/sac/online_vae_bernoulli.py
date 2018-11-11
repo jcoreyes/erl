@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'door_online_vae_bernoulli_sac'
+    exp_prefix = 'test'
 
 
     # n_seeds = 2

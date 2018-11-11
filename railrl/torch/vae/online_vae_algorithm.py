@@ -82,14 +82,16 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.epoch = epoch + 1
 
     def log_priority_weights(self):
-        vae_sample_priorities = self.replay_buffer._vae_sample_priorities[:self.replay_buffer_size]
-        vae_sample_probs = vae_sample_priorities ** self.replay_buffer.power
-        vae_sample_probs /= (np.sum(vae_sample_probs)+1e-8)
-        vae_sample_probs = vae_sample_probs.flatten()
-        stats = create_stats_ordered_dict(
-            'VAE Sample Probability',
-            vae_sample_probs,
-        )
+        if self.replay_buffer._vae_sample_probs is None:
+            stats = create_stats_ordered_dict(
+                'VAE Sample Probability',
+                np.zeros(self.replay_buffer._size),
+            )
+        else:
+            stats = create_stats_ordered_dict(
+                'VAE Sample Probability',
+                self.replay_buffer._vae_sample_probs,
+            )
         for key, value in stats.items():
             logger.record_tabular(key, value)
 
