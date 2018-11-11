@@ -61,7 +61,12 @@ if __name__ == "__main__":
         snapshot_gap=50,
 
         env_class=MultiSawyerEnv,
-        env_kwargs=dict(),
+        env_kwargs=dict(
+            do_render=False,
+            finger_sensors=False,
+            num_objects=3,
+            object_meshes=None,
+        ),
     )
 
     search_space = {
