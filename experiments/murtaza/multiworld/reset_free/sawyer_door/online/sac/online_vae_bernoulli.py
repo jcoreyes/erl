@@ -51,7 +51,7 @@ if __name__ == "__main__":
                     use_automatic_entropy_tuning=True,
                 ),
                 online_vae_kwargs=dict(
-                   vae_training_schedule=vae_schedules.every_six,
+                   vae_training_schedule=vae_schedules.every_other,
                     oracle_data=False,
                     vae_save_period=50,
                     parallel_vae_train=False,
@@ -64,6 +64,9 @@ if __name__ == "__main__":
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
                 power=1,
+                priority_function_kwargs=dict(
+                    num_latents_to_sample=1,
+                )
             ),
             normalize=False,
             render=False,
@@ -90,7 +93,7 @@ if __name__ == "__main__":
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             ),
-            algorithm='ONLINE-VAE-BERNOULLI-HER-TD3',
+            algorithm='ONLINE-VAE-SAC-BERNOULLI-HER-TD3',
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -120,21 +123,22 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.online_vae_beta':[.5, 1, 2.5],
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_six, vae_schedules.every_other],
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob', 'None']
+        'grill_variant.online_vae_beta':[.5, 2.5],
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other],
+        'grill_variant.replay_buffer_kwargs.power':[1/2, 1],
+        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 4
-    # mode = 'gcp'
-    # exp_prefix = 'door_online_vae_bernoulli'
+    n_seeds = 2
+    mode = 'gcp'
+    exp_prefix = 'door_online_vae_bernoulli_sac'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

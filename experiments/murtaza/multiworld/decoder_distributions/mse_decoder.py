@@ -44,7 +44,7 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookEnv-v0',
         grill_variant=dict(
             save_video=True,
-            save_video_period=50,
+            save_video_period=100,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -53,7 +53,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=505,
+                    num_epochs=510,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -91,8 +91,8 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
-                num_goals=1000,
-                use_cached_dataset=False,
+                num_goals=5000,
+                use_cached_dataset=True,
                 path_length=100,
                 policy_file='11-09-sawyer-door-state-her-td3/11-09-sawyer_door_state_her_td3_2018_11_09_19_17_28_id000--s92604/params.pkl',
                 show=False,
@@ -105,13 +105,13 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             vae_path=None,
             representation_size=16,
-            beta=.5,
-            num_epochs=1000,
+            beta=5,
+            num_epochs=0,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=1000,
-                use_cached=True,
+                N=5000,
+                use_cached=False,
                 oracle_dataset_from_policy=True,
                 random_and_oracle_policy_data=True,
                 non_presampled_goal_img_is_garbage=True,
@@ -119,6 +119,7 @@ if __name__ == "__main__":
                 vae_dataset_specific_kwargs=dict(),
                 policy_file='11-09-sawyer-door-state-her-td3/11-09-sawyer_door_state_her_td3_2018_11_09_19_17_28_id000--s92604/params.pkl',
                 show=False,
+                dataset_path='datasets/SawyerDoorHookEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.npy'
             ),
             vae_class=ConvVAE,
             vae_kwargs=dict(
@@ -133,24 +134,25 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
             ),
-            save_period=10,
+            save_period=50,
         ),
     )
 
     search_space = {
-        'train_vae_variant.beta':[.5, 1, 2.5, 5]
+        'grill_variant.algo_kwargs.base_kwargs.reward_scale':[1, 10, 100],
+        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[4000, 10000]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 3
-    mode = 'gcp'
-    exp_prefix = 'sawyer_door_offline_vae_mse'
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'sawyer_door_offline_vae_mse_fixed'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -160,7 +162,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=1,
+                num_exps_per_instance=5,
                 gcp_kwargs=dict(
                     zone='us-west1-a',
                     gpu_kwargs=dict(

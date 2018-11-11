@@ -45,7 +45,7 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
     latents = model.rsample_multiple_latents(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
     mus, logvars = latent_distribution_params
     stds = logvars.exp().pow(.5)
-    true_prior = Normal(ptu.zeros(1), ptu.ones(1))
+    true_prior = Normal(ptu.zeros_like(mus), ptu.ones_like(logvars))
     vae_dist = Normal(mus, stds)
     log_p_z = true_prior.log_prob(latents).sum(dim=2)
     log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
@@ -58,7 +58,7 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
 
 def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z):
     log_p_x = log_p_z - log_q_z_given_x + log_d_x_given_z
-    log_p_x = ((log_p_x - log_p_x.mean(dim=0)) / (log_p_x.std(dim=0)+1e-8)).mean(dim=1) # averages to gather all the samples num_latents_sampled
+    log_p_x = ((log_p_x - log_p_x.mean(dim=0))/ (log_p_x.std(dim=0)+1e-8)).mean(dim=1) # averages together all the samples num_latents_sampled
     log_inv_root_p_x = -1 / 2 * log_p_x
     log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
     inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
