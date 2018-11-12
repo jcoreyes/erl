@@ -20,21 +20,19 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    latents = model.rsample_multiple_latents(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
+    latents = model.rsample(latent_distribution_params)
     mus, logvars = latent_distribution_params
     stds = logvars.exp().pow(.5)
-    true_prior = Normal(ptu.zeros(1), ptu.ones(1))
+    true_prior = Normal(ptu.zeros_like(mus), ptu.ones_like(logvars))
     vae_dist = Normal(mus, stds)
-    log_p_z = true_prior.log_prob(latents).sum(dim=2)
-    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=2)
+    log_p_z = true_prior.log_prob(latents).sum(dim=1)
+    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
     _, obs_distribution_params = model.decode(latents)
     dec_mu, dec_logvar = obs_distribution_params
-    dec_mu = dec_mu.view(dec_mu.shape[0] // latents.shape[1], latents.shape[1], dec_mu.shape[1])
-    dec_var = dec_logvar.view(dec_logvar.shape[0] // latents.shape[1], latents.shape[1], dec_logvar.shape[1]).exp()
+    dec_var = dec_logvar.exp()
     decoder_dist = Normal(dec_mu, dec_var.pow(.5))
-    imgs = imgs.view(imgs.shape[0], 1, imgs.shape[1])
     log_d_x_given_z = decoder_dist.log_prob(imgs)
-    log_d_x_given_z = log_d_x_given_z.sum(dim=2)
+    log_d_x_given_z = log_d_x_given_z.sum(dim=1)
     return compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
 
 def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
@@ -55,7 +53,6 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
 
 def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z):
     log_p_x = log_p_z - log_q_z_given_x + log_d_x_given_z
-    # log_p_x = ((log_p_x - log_p_x.mean(dim=0))/ (log_p_x.std(dim=0)+1e-8)).mean(dim=1) # averages together all the samples num_latents_sampled
     log_p_x = ((log_p_x - log_p_x.mean())/ (log_p_x.std()+1e-8))
     log_inv_root_p_x = -1 / 2 * log_p_x
     log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
