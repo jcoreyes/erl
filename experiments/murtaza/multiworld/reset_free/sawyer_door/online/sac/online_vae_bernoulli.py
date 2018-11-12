@@ -11,7 +11,7 @@ if __name__ == "__main__":
         double_algo=False,
         online_vae_exploration=False,
         imsize=48,
-        env_id='SawyerDoorHookResetFreeEnv-v0',
+        env_id='SawyerDoorHookResetFreeEnv-v1',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
             save_video=True,
@@ -81,12 +81,12 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=True,
-                policy_file='data/doodads3/11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
+                policy_file='data/local/11-11-her-twin-sac-door-v1/11-11-her-twin-sac-door-v1_2018_11_11_14_17_07_id000--s99786/params.pkl',
                 path_length=100,
                 show=False,
                 tag='_twin_sac'
             ),
-            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48goals_twin_sac.npy',
+            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v1_N1000_imsize48goals_twin_sac.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -122,22 +122,23 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.online_vae_beta':[.5, 1, 2.5, 5],
+        'grill_variant.online_vae_beta':[.5, 1, 2.5],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other],
-        'grill_variant.replay_buffer_kwargs.power':[1, 2],
+        'grill_variant.replay_buffer_kwargs.power':[1],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob', 'None'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'door_online_vae_bernoulli_sac'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'door_online_vae_bernoulli_sac-v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
