@@ -17,6 +17,9 @@ if __name__ == "__main__":
             policy_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
+            vf_kwargs=dict(
+                hidden_sizes=[400, 300],
+            ),
             algo_kwargs=dict(
                 base_kwargs=dict(
                     num_epochs=1005,
@@ -102,13 +105,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_pusher_offline_vae_twin_sac_easier_envs'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 3
+    mode = 'gcp'
+    exp_prefix = 'sawyer_pusher_offline_vae_twin_sac_easier_envs'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -118,5 +121,8 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=4,
+                num_exps_per_instance=1,
+                gcp_kwargs=dict(
+                    zone='us-west2-b',
+                )
           )
