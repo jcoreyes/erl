@@ -93,6 +93,9 @@ def process_variant_cmd(variant):
 
     if "--render" in sys.argv:
         variant["render"] = True
+        if "algo_kwargs" in variant:
+            if "base_kwargs" in variant["algo_kwargs"]:
+                variant["algo_kwargs"]["base_kwargs"]["render"] = True
     if "--norender" in sys.argv:
         variant["render"] = False
 

@@ -1,18 +1,13 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera_v0
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
-from railrl.torch.vae.conv_vae import imsize48_default_architecture
 
 if __name__ == "__main__":
     variant = dict(
-        imsize=48,
+        imsize=84,
         init_camera=sawyer_xyz_reacher_camera_v0,
-        env_class=SawyerReachXYEnv,
-        env_kwargs=dict(
-            norm_order=2,
-        ),
+        env_id='SawyerReachXYEnv-v1',
         grill_variant=dict(
             save_video=True,
             save_video_period=50,
@@ -68,11 +63,11 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=.5,
-            num_epochs=0,
+            num_epochs=1000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=100,
+                N=5000,
                 oracle_dataset=True,
                 use_cached=True,
                 vae_dataset_specific_kwargs=dict(),
@@ -80,7 +75,6 @@ if __name__ == "__main__":
             ),
             vae_kwargs=dict(
                 input_channels=3,
-                architecture=imsize48_default_architecture,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -99,13 +93,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_xy_reacher_offline_vae_final'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'sawyer_xy_reacher_offline_vae'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

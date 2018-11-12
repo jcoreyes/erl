@@ -131,11 +131,10 @@ def train_vae(variant, return_data=False):
     from railrl.misc.ml_util import PiecewiseLinearSchedule
     from railrl.torch.vae.conv_vae import (
         ConvVAE,
-        ConvVAESmall,
-        ConvVAESmallDouble,
         SpatialAutoEncoder,
         AutoEncoder,
     )
+    import railrl.torch.vae.conv_vae as conv_vae
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
@@ -159,30 +158,20 @@ def train_vae(variant, return_data=False):
         decoder_activation = identity
     else:
         decoder_activation = torch.nn.Sigmoid()
-    if variant.get('encoder_activation', 'identity') == 'identity':
-        encoder_activation = identity
-    else:
-        raise EnvironmentError()
+    architecture = variant['vae_kwargs'].get('architecture', None)
+    if not architecture and variant.get('imsize') == 84:
+        architecture = conv_vae.imsize84_default_architecture
+    elif not architecture and variant.get('imsize') == 48:
+        architecture = conv_vae.imsize48_default_architecture
+    variant['vae_kwargs']['architecture'] = architecture
+
     if variant['algo_kwargs'].get('is_auto_encoder', False):
-        m = AutoEncoder(representation_size, input_channels=3)
+        m = AutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     elif variant.get('use_spatial_auto_encoder', False):
-        m = SpatialAutoEncoder(representation_size, int(representation_size / 2),
-                               input_channels=3)
+        raise NotImplementedError('This is currently broken, please update SpatialAutoEncoder then remove this line')
+        m = SpatialAutoEncoder(representation_size, int(representation_size / 2))
     else:
-        if variant.get('imsize') == 84:
-            m = ConvVAE(representation_size, **variant['vae_kwargs'])
-        elif variant.get('imsize') == 48:
-            if variant['algo_kwargs'].get('full_gaussian_decoder', False):
-                m = ConvVAESmallDouble(representation_size,
-                                       encoder_activation=encoder_activation,
-                                       decoder_mean_activation=decoder_activation,
-                                       **variant['vae_kwargs']
-                                       )
-            else:
-                m = ConvVAESmall(representation_size, encoder_activation=encoder_activation,
-                                 decoder_activation=decoder_activation, **variant['vae_kwargs'])
-        else:
-            raise NotImplementedError('Only support 84 and 48 images.')
+        m = ConvVAE(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
@@ -456,6 +445,8 @@ def get_exploration_strategy(variant, env):
     from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
     from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
     from railrl.exploration_strategies.ou_strategy import OUStrategy
+    from railrl.exploration_strategies.noop import NoopStrategy
+    
     exploration_type = variant['exploration_type']
     exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
@@ -474,6 +465,10 @@ def get_exploration_strategy(variant, env):
         es = EpsilonGreedy(
             action_space=env.action_space,
             prob_random_action=exploration_noise,
+        )
+    elif exploration_type == 'noop':
+        es = NoopStrategy(
+            action_space=env.action_space
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
@@ -585,9 +580,12 @@ def grill_her_twin_sac_experiment(variant):
     from railrl.torch.her.her_twin_sac import HerTwinSAC
     from railrl.torch.networks import FlattenMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
+    from railrl.exploration_strategies.base import (
+        PolicyWrappedWithExplorationStrategy
+    )
     grill_preprocess_variant(variant)
     env = get_envs(variant)
-
+    es = get_exploration_strategy(variant, env)
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
@@ -624,7 +622,10 @@ def grill_her_twin_sac_experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
-
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
     algo_kwargs = variant['algo_kwargs']
     algo_kwargs['replay_buffer'] = replay_buffer
     base_kwargs = algo_kwargs['base_kwargs']
@@ -640,6 +641,7 @@ def grill_her_twin_sac_experiment(variant):
         qf2=qf2,
         vf=vf,
         policy=policy,
+        exploration_policy=exploration_policy,
         **variant['algo_kwargs']
     )
 

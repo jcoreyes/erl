@@ -4,17 +4,22 @@ from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_multiple_objects import MultiSawyerEnv
 from railrl.launchers.launcher_util import run_experiment
+from railrl.launchers.arglauncher import run_variants
+
+import numpy as np
+
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=505,
+                num_epochs=1001,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=100,
-                num_updates_per_env_step=1,
+                num_updates_per_env_step=4,
                 batch_size=128,
                 discount=0.99,
                 min_num_steps_before_training=4000,
@@ -23,8 +28,7 @@ if __name__ == "__main__":
                 collection_mode='online',
                 parallel_env_params=dict(
                     num_workers=1,
-                )
-
+                ),
             ),
             her_kwargs=dict(
                 observation_key='state_observation',
@@ -34,7 +38,7 @@ if __name__ == "__main__":
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_are_rollout_goals=0,
+            fraction_goals_are_rollout_goals=0.2,
             fraction_resampled_goals_are_env_goals=0.5,
         ),
         qf_kwargs=dict(
@@ -55,10 +59,29 @@ if __name__ == "__main__":
         do_state_exp=True,
         save_video=False,
 
+        snapshot_mode='gap_and_last',
+        snapshot_gap=50,
+
+        env_class=MultiSawyerEnv,
+        env_kwargs=dict(
+            do_render=False,
+            finger_sensors=False,
+            num_objects=1,
+            object_meshes=None,
+            # workspace_low = np.array([-0.2, 0.4, 0.05]),
+            # workspace_high = np.array([0.2, 0.8, 0.1]),
+            # hand_low = np.array([-0.2, 0.4, 0.05]),
+            # hand_high = np.array([0.2, 0.8, 0.1]),
+        ),
+
+        num_exps_per_instance=3,
     )
 
     search_space = {
-        'env_id': ['SawyerPushAndReachXYEnv-No-Arena-v0', 'SawyerPushAndReachXYEnv-No-Arena-v1']
+        # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
+        'seedid': range(3),
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
+        'workspace_size': [0.05, 0.1, 0.15, 0.2],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -74,15 +97,25 @@ if __name__ == "__main__":
     mode = 'ec2'
     exp_prefix = 'sawyer_pusher_state_final'
 
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for i in range(n_seeds):
-            run_experiment(
-                her_td3_experiment,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                snapshot_mode='gap_and_last',
-                snapshot_gap=50,
-                variant=variant,
-                use_gpu=True,
-                num_exps_per_instance=5,
-            )
+    variants = []
+    for variant in sweeper.iterate_hyperparameters():
+        size = variant["workspace_size"]
+        variant["workspace_low"] = (-size, 0.6 - size, 0.05)
+        variant["workspace_high"] = (size, 0.6 + size, 0.1)
+        variant["hand_low"] = (-size, 0.6 - size, 0.05)
+        variant["hand_high"] = (size, 0.6 + size, 0.1)
+        variants.append(variant)
+
+    run_variants(her_td3_experiment, variants, run_id=1)
+    # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+    #     for i in range(n_seeds):
+    #         run_experiment(
+    #             her_td3_experiment,
+    #             exp_prefix=exp_prefix,
+    #             mode=mode,
+    #             snapshot_mode='gap_and_last',
+    #             snapshot_gap=50,
+    #             variant=variant,
+    #             use_gpu=True,
+    #             num_exps_per_instance=5,
+    #         )

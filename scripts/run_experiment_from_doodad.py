@@ -27,6 +27,7 @@ if __name__ == "__main__":
         except Exception as e:
             print("Could not get instance ID. Error was...")
             print(e)
+    if run_mode and (run_mode == 'ec2' or run_mode == 'gcp'):
         # Do this in case base_log_dir was already set
         run_experiment_kwargs['base_log_dir'] = output_dir
         run_experiment_here(

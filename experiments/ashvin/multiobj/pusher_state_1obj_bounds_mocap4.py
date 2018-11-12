@@ -8,6 +8,8 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_multiple_objects import MultiSawye
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 
+import numpy as np
+
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
@@ -55,7 +57,9 @@ if __name__ == "__main__":
         desired_goal_key='state_desired_goal',
         init_camera=sawyer_pusher_camera_upright_v2,
         do_state_exp=True,
+
         save_video=False,
+        imsize=84,
 
         snapshot_mode='gap_and_last',
         snapshot_gap=50,
@@ -64,8 +68,17 @@ if __name__ == "__main__":
         env_kwargs=dict(
             do_render=False,
             finger_sensors=False,
-            num_objects=3,
+            num_objects=1,
             object_meshes=None,
+            # workspace_low = np.array([-0.2, 0.4, 0.05]),
+            # workspace_high = np.array([0.2, 0.8, 0.1]),
+            # hand_low = np.array([-0.2, 0.4, 0.05]),
+            # hand_high = np.array([0.2, 0.8, 0.1]),
+            fix_z=True,
+            fix_gripper=True,
+            fix_rotation=True,
+            cylinder_radius=0.02,
+            maxlen=0.04,
         ),
 
         num_exps_per_instance=3,
@@ -74,7 +87,10 @@ if __name__ == "__main__":
     search_space = {
         # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
         'seedid': range(3),
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1, 4, 16],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
+        'workspace_size': [0.05, 0.1],
+        'replay_buffer_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
+        'replay_buffer_kwargs.fraction_resampled_goals_are_env_goals': [0.0, 0.5],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -90,7 +106,16 @@ if __name__ == "__main__":
     mode = 'ec2'
     exp_prefix = 'sawyer_pusher_state_final'
 
-    run_variants(her_td3_experiment, sweeper.iterate_hyperparameters(), run_id=3)
+    variants = []
+    for variant in sweeper.iterate_hyperparameters():
+        size = variant["workspace_size"]
+        variant["env_kwargs"]["workspace_low"] = (-size, 0.7 - size, 0.05)
+        variant["env_kwargs"]["workspace_high"] = (size, 0.7 + size, 0.1)
+        variant["env_kwargs"]["hand_low"] = (-size, 0.7 - size, 0.05)
+        variant["env_kwargs"]["hand_high"] = (size, 0.7 + size, 0.1)
+        variants.append(variant)
+
+    run_variants(her_td3_experiment, variants, run_id=2)
     # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
     #     for i in range(n_seeds):
     #         run_experiment(
