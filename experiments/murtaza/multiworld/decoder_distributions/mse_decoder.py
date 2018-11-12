@@ -140,8 +140,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.algo_kwargs.base_kwargs.reward_scale':[1, 10, 100],
-        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[4000, 10000]
+        'train_vae_variant.beta':[.5, 1, 2.5, 5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -151,9 +150,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_door_offline_vae_mse_fixed'
+    n_seeds = 3
+    mode = 'gcp'
+    exp_prefix = 'sawyer_door_offline_vae_mse_beta_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
