@@ -1,4 +1,5 @@
 import railrl.misc.hyperparameter as hyp
+from railrl.torch.vae.conv_vae import imsize48_default_architecture
 from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
@@ -60,9 +61,6 @@ if __name__ == "__main__":
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
                 power=1,
-                priority_function_kwargs=dict(
-                    num_latents_to_sample=1,
-                )
             ),
             normalize=False,
             render=False,
@@ -108,6 +106,7 @@ if __name__ == "__main__":
             ),
             vae_kwargs=dict(
                 input_channels=3,
+                architecture=imsize48_default_architecture,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -120,9 +119,9 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.online_vae_beta':[.5, 2.5],
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other],
-        'grill_variant.replay_buffer_kwargs.power':[1/2, 1],
-        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10],
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_six, vae_schedules.every_other],
+        'grill_variant.replay_buffer_kwargs.power':[0, 1],
+        'grill_variant.exploration_noise':[.3, .5]
 
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -133,7 +132,7 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 2
+    n_seeds = 1
     mode = 'gcp'
     exp_prefix = 'door_online_vae_bernoulli_td3'
 
@@ -147,7 +146,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west1-a',
+                    zone='us-central1-c',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p100',
                         num_gpu=1,

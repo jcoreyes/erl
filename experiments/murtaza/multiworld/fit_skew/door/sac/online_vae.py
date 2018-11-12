@@ -3,7 +3,6 @@ from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.torch.vae.conv_vae import imsize48_default_architecture
 from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
 
 if __name__ == "__main__":
@@ -14,7 +13,7 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookResetFreeEnv-v0',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
-            save_video=True,
+            save_video=False,
             online_vae_beta=2.5,
             save_video_period=50,
             qf_kwargs=dict(
@@ -31,7 +30,7 @@ if __name__ == "__main__":
                     num_epochs=1010,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
-                    min_num_steps_before_training=10000,
+                    min_num_steps_before_training=128,
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
@@ -52,7 +51,7 @@ if __name__ == "__main__":
                     use_automatic_entropy_tuning=True,
                 ),
                 online_vae_kwargs=dict(
-                   vae_training_schedule=vae_schedules.every_other,
+                   vae_training_schedule=vae_schedules.every_six,
                     oracle_data=False,
                     vae_save_period=50,
                     parallel_vae_train=False,
@@ -91,7 +90,7 @@ if __name__ == "__main__":
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             ),
-            algorithm='ONLINE-VAE-SAC-BERNOULLI-HER-TD3',
+            algorithm='ONLINE-VAE-BERNOULLI-HER-TD3',
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -110,7 +109,6 @@ if __name__ == "__main__":
             ),
             vae_kwargs=dict(
                 input_channels=3,
-                architecture=imsize48_default_architecture,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -122,22 +120,20 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.online_vae_beta':[.5, 2.5],
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_six, vae_schedules.every_other],
-        'grill_variant.replay_buffer_kwargs.power':[0],
+        'grill_variant.online_vae_beta':[.5, 1, 2.5],
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.always_train],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-
-    n_seeds = 3
-    mode = 'gcp'
-    exp_prefix = 'door_online_vae_bernoulli_sac'
+    # n_seeds = 4
+    # mode = 'gcp'
+    # exp_prefix = 'door_online_vae_bernoulli'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -147,11 +143,11 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=2,
+                num_exps_per_instance=1,
                 gcp_kwargs=dict(
-                    zone='us-west2-c',
+                    zone='us-central1-a',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p4',
+                        gpu_model='nvidia-tesla-v100',
                         num_gpu=1,
                     )
                 )
