@@ -86,7 +86,7 @@ if __name__ == "__main__":
         # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
         'seedid': range(3),
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
-        'workspace_size': [0.05],
+        'workspace_size': [0.05, 0.1],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -111,7 +111,7 @@ if __name__ == "__main__":
         variant["env_kwargs"]["hand_high"] = (size, 0.7 + size, 0.1)
         variants.append(variant)
 
-    run_variants(her_td3_experiment, variants, run_id=1)
+    run_variants(her_td3_experiment, variants, run_id=7)
     # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
     #     for i in range(n_seeds):
     #         run_experiment(

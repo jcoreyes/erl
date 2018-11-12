@@ -57,7 +57,9 @@ if __name__ == "__main__":
         desired_goal_key='state_desired_goal',
         init_camera=sawyer_pusher_camera_upright_v2,
         do_state_exp=True,
+
         save_video=False,
+        imsize=84,
 
         snapshot_mode='gap_and_last',
         snapshot_gap=50,
@@ -86,7 +88,9 @@ if __name__ == "__main__":
         # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
         'seedid': range(3),
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
-        'workspace_size': [0.05],
+        'workspace_size': [0.05, 0.1],
+        'replay_buffer_kwargs.fraction_goals_are_rollout_goals': [0.2, 1.0],
+        'replay_buffer_kwargs.fraction_resampled_goals_are_env_goals': [0.0, 0.5],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -111,7 +115,7 @@ if __name__ == "__main__":
         variant["env_kwargs"]["hand_high"] = (size, 0.7 + size, 0.1)
         variants.append(variant)
 
-    run_variants(her_td3_experiment, variants, run_id=1)
+    run_variants(her_td3_experiment, variants, run_id=2)
     # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
     #     for i in range(n_seeds):
     #         run_experiment(
