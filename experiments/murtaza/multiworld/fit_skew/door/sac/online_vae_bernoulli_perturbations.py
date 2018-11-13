@@ -81,7 +81,7 @@ if __name__ == "__main__":
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
                 num_goals=1000,
-                use_cached_dataset=True,
+                use_cached_dataset=False,
                 policy_file='data/doodads3/11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
                 path_length=100,
                 show=False,
@@ -137,31 +137,31 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'door_online_vae_bernoulli_sac_perturbations'
+    n_seeds = 2
+    mode = 'gcp'
+    exp_prefix = 'door_online_vae_bernoulli_sac_perturbations'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v0' and not (
+        if variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v0' and (
                 variant['grill_variant']['goal_generation_kwargs'][
-                    'policy_file'] == '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_08_24_id000--s89280/params.pkl'):
+                    'policy_file'] != '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_08_24_id000--s89280/params.pkl'):
             continue
-        elif variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v1' and not (
+        elif variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v1' and (
                 variant['grill_variant']['goal_generation_kwargs'][
-                    'policy_file'] == '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_48_id001--s65141/params.pkl'):
+                    'policy_file'] != '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_48_id001--s65141/params.pkl'):
             continue
-        elif variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v2' and not (
+        elif variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v2' and (
                 variant['grill_variant']['goal_generation_kwargs'][
-                    'policy_file'] == '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_58_id002--s99241/params.pkl'):
+                    'policy_file'] != '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_58_id002--s99241/params.pkl'):
             continue
-        elif variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v2' and not (
+        elif variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v3' and (
                 variant['grill_variant']['goal_generation_kwargs'][
-                    'policy_file'] == '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_40_id003--s81156/params.pkl'):
+                    'policy_file'] != '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_40_id003--s81156/params.pkl'):
             continue
         else:
             for _ in range(n_seeds):
@@ -171,9 +171,9 @@ if __name__ == "__main__":
                     mode=mode,
                     variant=variant,
                     use_gpu=True,
-                    num_exps_per_instance=2,
+                    num_exps_per_instance=1,
                     gcp_kwargs=dict(
-                        zone='us-west2-c',
+                        zone='us-east4-a',
                         gpu_kwargs=dict(
                             gpu_model='nvidia-tesla-p4',
                             num_gpu=1,
