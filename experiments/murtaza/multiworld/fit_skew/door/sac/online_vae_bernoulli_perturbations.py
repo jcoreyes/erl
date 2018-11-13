@@ -87,7 +87,7 @@ if __name__ == "__main__":
                 show=False,
                 tag='_twin_sac'
             ),
-            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48goals_twin_sac.npy',
+            # presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48goals_twin_sac.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -137,14 +137,14 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'door_online_vae_bernoulli_sac_perturbations'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'door_online_vae_bernoulli_sac_perturbations'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v0' and not (
