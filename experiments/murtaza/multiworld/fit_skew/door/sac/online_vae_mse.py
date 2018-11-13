@@ -119,7 +119,6 @@ if __name__ == "__main__":
                 do_scatterplot=False,
                 use_linear_dynamics=False,
                 lr=1e-3,
-                full_gaussian_decoder=True,
             ),
             save_period=5,
         ),
@@ -134,13 +133,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = '_door_online_vae_inv_gaussian_priority'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'door_online_vae_inv_gaussian_priority'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
