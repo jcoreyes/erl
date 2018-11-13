@@ -1,9 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v1
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_full_experiment
-from railrl.torch.vae.conv_vae import imsize48_default_architecture, \
-    imsize48_default_architecture_with_more_hidden_layers
+from railrl.torch.grill.launcher import grill_her_td3_full_experiment, grill_her_twin_sac_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
@@ -17,6 +15,9 @@ if __name__ == "__main__":
                 hidden_sizes=[400, 300],
             ),
             policy_kwargs=dict(
+                hidden_sizes=[400, 300],
+            ),
+            vf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
             algo_kwargs=dict(
@@ -35,9 +36,14 @@ if __name__ == "__main__":
                     ),
                     reward_scale=1,
                 ),
-                her_kwargs=dict(),
-                td3_kwargs=dict(
-                    tau=1e-2,
+                her_kwargs=dict(
+                ),
+                twin_sac_kwargs=dict(
+                    train_policy_with_reparameterization=True,
+                    soft_target_tau=1e-3,  # 1e-2
+                    policy_update_period=1,
+                    target_update_period=1,  # 1
+                    use_automatic_entropy_tuning=True,
                 ),
             ),
             replay_buffer_kwargs=dict(
@@ -48,7 +54,7 @@ if __name__ == "__main__":
             algorithm='RIG-HER-TD3',
             normalize=False,
             render=False,
-            exploration_noise=0.5,
+            exploration_noise=0,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -92,7 +98,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.exploration_noise':[.5, .8],
+        'grill_variant.exploration_noise':[0, .1, .3],
         'env_id':['SawyerPushAndReachSmallArenaEnv-v0', 'SawyerPushAndReachSmallArenaResetFreeEnv-v0', 'SawyerPushAndReachEnvEasy-v0']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -103,17 +109,20 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_offline_vae_easier_envs'
+    n_seeds = 3
+    mode = 'gcp'
+    exp_prefix = 'sawyer_pusher_offline_vae_twin_sac_easier_envs'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
-                grill_her_td3_full_experiment,
+                grill_her_twin_sac_full_experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=4,
+                num_exps_per_instance=1,
+                gcp_kwargs=dict(
+                    zone='us-west2-b',
+                )
           )

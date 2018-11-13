@@ -228,7 +228,7 @@ class ConvVAE(GaussianLatentVAE):
         if self.decoder_distribution == 'bernoulli':
             inputs = inputs.narrow(start=0, length=self.imlength,
                  dim=1).contiguous().view(-1, self.imlength)
-            log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0])
+            log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0]) * self.imlength
             return log_prob
         if self.decoder_distribution == 'gaussian_identity_variance':
             inputs = inputs.narrow(start=0, length=self.imlength,
