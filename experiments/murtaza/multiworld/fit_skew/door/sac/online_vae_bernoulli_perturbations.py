@@ -123,9 +123,15 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob', 'None'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
         'env_id':['SawyerDoorHookResetFreeEnv-v0', 'SawyerDoorHookResetFreeEnv-v1', 'SawyerDoorHookResetFreeEnv-v2', 'SawyerDoorHookResetFreeEnv-v3'],
-        'init_camera':[sawyer_door_env_camera_v0, sawyer_door_env_camera_v1, sawyer_door_env_camera_v2]
+        'init_camera':[sawyer_door_env_camera_v0, sawyer_door_env_camera_v1, sawyer_door_env_camera_v2],
+        'grill_variant.goal_generation_kwargs.policy_file':[
+            '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_08_24_id000--s89280/params.pkl', #v0
+            '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_48_id001--s65141/params.pkl', #v1
+            '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_58_id002--s99241/params.pkl', #v2
+            '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_40_id003--s81156/params.pkl', #v3
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -136,24 +142,41 @@ if __name__ == "__main__":
     # exp_prefix = 'test'
 
 
-    n_seeds = 3
-    mode = 'gcp'
+    n_seeds = 2
+    mode = 'ec2'
     exp_prefix = 'door_online_vae_bernoulli_sac_perturbations'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
-            run_experiment(
-                grill_her_twin_sac_online_vae_full_experiment,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                variant=variant,
-                use_gpu=True,
-                num_exps_per_instance=2,
-                gcp_kwargs=dict(
-                    zone='us-west2-c',
-                    gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p4',
-                        num_gpu=1,
+        if variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v0' and not (
+                variant['grill_variant']['goal_generation_kwargs'][
+                    'policy_file'] == '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_08_24_id000--s89280/params.pkl'):
+            continue
+        elif variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v1' and not (
+                variant['grill_variant']['goal_generation_kwargs'][
+                    'policy_file'] == '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_48_id001--s65141/params.pkl'):
+            continue
+        elif variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v2' and not (
+                variant['grill_variant']['goal_generation_kwargs'][
+                    'policy_file'] == '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_58_id002--s99241/params.pkl'):
+            continue
+        elif variant['env_id'] == 'SawyerDoorHookResetFreeEnv-v2' and not (
+                variant['grill_variant']['goal_generation_kwargs'][
+                    'policy_file'] == '11-12-her-twin-sac-door-perturbed/11-12-her-twin-sac-door-perturbed_2018_11_12_19_07_40_id003--s81156/params.pkl'):
+            continue
+        else:
+            for _ in range(n_seeds):
+                run_experiment(
+                    grill_her_twin_sac_online_vae_full_experiment,
+                    exp_prefix=exp_prefix,
+                    mode=mode,
+                    variant=variant,
+                    use_gpu=True,
+                    num_exps_per_instance=2,
+                    gcp_kwargs=dict(
+                        zone='us-west2-c',
+                        gpu_kwargs=dict(
+                            gpu_model='nvidia-tesla-p4',
+                            num_gpu=1,
+                        )
                     )
-                )
-          )
+              )
