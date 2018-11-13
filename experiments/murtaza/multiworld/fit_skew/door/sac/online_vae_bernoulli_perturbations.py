@@ -1,5 +1,6 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
+from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0, sawyer_door_env_camera_v1, \
+    sawyer_door_env_camera_v2
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
@@ -123,6 +124,8 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob', 'None'],
+        'env_id':['SawyerDoorHookResetFreeEnv-v0', 'SawyerDoorHookResetFreeEnv-v1', 'SawyerDoorHookResetFreeEnv-v2', 'SawyerDoorHookResetFreeEnv-v3'],
+        'init_camera':[sawyer_door_env_camera_v0, sawyer_door_env_camera_v1, sawyer_door_env_camera_v2]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -135,7 +138,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'door_online_vae_bernoulli_sac'
+    exp_prefix = 'door_online_vae_bernoulli_sac_perturbations'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
