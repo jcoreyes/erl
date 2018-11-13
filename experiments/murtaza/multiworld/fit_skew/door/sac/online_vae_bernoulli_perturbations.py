@@ -125,7 +125,10 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob', 'None'],
         'env_id':['SawyerDoorHookResetFreeEnv-v0', 'SawyerDoorHookResetFreeEnv-v1', 'SawyerDoorHookResetFreeEnv-v2', 'SawyerDoorHookResetFreeEnv-v3'],
-        'init_camera':[sawyer_door_env_camera_v0, sawyer_door_env_camera_v1, sawyer_door_env_camera_v2]
+        'init_camera':[sawyer_door_env_camera_v0, sawyer_door_env_camera_v1, sawyer_door_env_camera_v2],
+        'grill_variant.goal_generation_kwargs.policy_file':[
+            'data/doodads3/11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl'
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
