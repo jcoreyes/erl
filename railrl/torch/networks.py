@@ -26,13 +26,15 @@ class CNN(PyTorchModule):
                 n_channels,
                 strides,
                 paddings,
-                hidden_sizes=[],
+                 hidden_sizes=None,
                 added_fc_input_size=0,
                 use_batch_norm=False,
                 init_w=1e-4,
                 hidden_activation=nn.ReLU(),
                 output_activation=identity
         ):
+        if hidden_sizes is None:
+            hidden_sizes = []
         assert len(kernel_sizes) == \
                len(n_channels) == \
                len(strides) == \
