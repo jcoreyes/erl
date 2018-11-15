@@ -123,20 +123,20 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None'],
+        'grill_variant.replay_buffer_kwargs.power':[1/2, 1, 2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'sawyer_online_vae_door_dataset_collect'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
 
-    # n_seeds = 3
-    # mode = 'gcp'
-    # exp_prefix = 'door_online_vae_bernoulli_sac'
+    n_seeds = 4
+    mode = 'gcp'
+    exp_prefix = 'door_online_vae_bernoulli_sac_priority_power_sweep-no-max'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -148,7 +148,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west2-c',
+                    zone='us-east4-a',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
