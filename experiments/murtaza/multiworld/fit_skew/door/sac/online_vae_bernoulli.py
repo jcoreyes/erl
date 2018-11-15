@@ -134,8 +134,8 @@ if __name__ == "__main__":
     # exp_prefix = 'test'
 
 
-    n_seeds = 4
-    mode = 'gcp'
+    n_seeds = 2
+    mode = 'ec2'
     exp_prefix = 'door_online_vae_bernoulli_sac_priority_power_sweep-no-max'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
