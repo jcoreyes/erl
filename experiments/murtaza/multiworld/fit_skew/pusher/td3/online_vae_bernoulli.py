@@ -23,7 +23,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1010,
+                    num_epochs=3010,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=10000,
@@ -51,7 +51,7 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(100000),
-                fraction_goals_are_rollout_goals=0,
+                fraction_goals_are_rollout_goals=0.5,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
@@ -59,7 +59,7 @@ if __name__ == "__main__":
             ),
             normalize=False,
             render=False,
-            exploration_noise=0.5,
+            exploration_noise=0.8,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob', 'None'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
         'env_id': ['SawyerPushAndReachSmallArenaEnv-v0', 'SawyerPushAndReachArenaEnv-v0'],
         'init_camera':[sawyer_pusher_camera_upright_v1, sawyer_pusher_camera_upright_v2]
     }

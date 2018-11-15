@@ -91,7 +91,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
             )
         else:
             stats = create_stats_ordered_dict(
-                'VAE Sample Probability',
+                'VAE Sample Weights',
                 vae_sample_probs,
             )
         for key, value in stats.items():
