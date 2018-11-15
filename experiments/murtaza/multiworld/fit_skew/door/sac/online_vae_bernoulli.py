@@ -40,6 +40,7 @@ if __name__ == "__main__":
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
+                    save_replay_buffer=True,
                     reward_scale=1,
                 ),
                 her_kwargs=dict(
@@ -128,14 +129,14 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
 
-    n_seeds = 3
-    mode = 'gcp'
-    exp_prefix = 'door_online_vae_bernoulli_sac'
+    # n_seeds = 3
+    # mode = 'gcp'
+    # exp_prefix = 'door_online_vae_bernoulli_sac'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

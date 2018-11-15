@@ -55,9 +55,8 @@ def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_giv
     log_p_x = log_p_z - log_q_z_given_x + log_d_x_given_z
     log_p_x = ((log_p_x - log_p_x.mean())/ (log_p_x.std()+1e-8))
     log_inv_root_p_x = -1 / 2 * log_p_x
-    log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
-    inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
-    return inv_p_x_shifted
+    inv_p_x = ptu.get_numpy(log_inv_root_p_x.exp())
+    return inv_p_x
 
 class ConvVAETrainer(Serializable):
     def __init__(
