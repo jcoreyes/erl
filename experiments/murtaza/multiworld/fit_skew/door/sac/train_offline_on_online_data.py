@@ -40,7 +40,8 @@ def experiment(variant):
                 t.dump_best_reconstruction(epoch)
                 t.dump_worst_reconstruction(epoch)
                 t.dump_sampling_histogram(epoch)
-        t.update_train_weights()
+        if epoch % 400 == 0:
+            t.update_train_weights()
 
 
 if __name__ == "__main__":
@@ -54,7 +55,7 @@ if __name__ == "__main__":
     use_gpu=True
 
     variant = dict(
-        file='/home/murtaza/research/railrl/data/local/11-14-test/11-14-test_2018_11_14_20_44_47_id000--s46211/extra_data.pkl',
+        file='/home/murtaza/research/railrl/data/local/11-14-sawyer-online-vae-door-dataset-collect/11-14-sawyer_online_vae_door_dataset_collect_2018_11_14_21_44_36_id000--s96506/extra_data.pkl',
         num_epochs=5000,
         algo_kwargs=dict(
             is_auto_encoder=False,
