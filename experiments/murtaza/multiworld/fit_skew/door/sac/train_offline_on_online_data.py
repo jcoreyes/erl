@@ -3,7 +3,6 @@ from torch import nn
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.grill.launcher import generate_vae_dataset
 from railrl.torch.vae.conv_vae import imsize48_default_architecture, ConvVAE
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 
@@ -63,6 +62,7 @@ if __name__ == "__main__":
             lr=1e-3,
             skew_config=dict(
                 method='inv_bernoulli_p_x',
+                power=1/2,
             ),
             skew_dataset=True,
         ),
@@ -80,6 +80,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'algo_kwargs.skew_config.power':[2]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
