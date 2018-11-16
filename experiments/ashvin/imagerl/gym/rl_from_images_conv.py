@@ -18,7 +18,7 @@ from railrl.torch.td3.td3 import TD3
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
 
-from multiworld.core.gym_to_multi_env import GymToMultiEnv
+from multiworld.core.gym_to_multi_env import MujocoGymToMultiEnv
 from multiworld.core.image_env import ImageEnv
 
 import gym
@@ -47,8 +47,8 @@ def her_td3_experiment(variant):
         env = variant['env_class'](**variant['env_kwargs'])
 
     imsize = 84
-    env = GymToMultiEnv(env.env) # unwrap TimeLimit
-    env = ImageEnv(env, non_presampled_goal_img_is_garbage=True)
+    env = MujocoGymToMultiEnv(env.env) # unwrap TimeLimit
+    env = ImageEnv(env, non_presampled_goal_img_is_garbage=True, recompute_reward=False)
 
     observation_key = variant['observation_key']
     desired_goal_key = variant['desired_goal_key']
@@ -267,7 +267,7 @@ if __name__ == "__main__":
             kernel_sizes=[3, 3],
             n_channels=[16, 16],
             strides=[2, 2],
-            pool_sizes=[1, 1],
+            # pool_sizes=[1, 1],
             hidden_sizes=[400, 300],
             paddings=[0, 0],
             use_batch_norm=False,
