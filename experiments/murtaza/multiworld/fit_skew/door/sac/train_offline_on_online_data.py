@@ -40,8 +40,7 @@ def experiment(variant):
                 t.dump_best_reconstruction(epoch)
                 t.dump_worst_reconstruction(epoch)
                 t.dump_sampling_histogram(epoch)
-        if epoch % 2 == 0:
-            t.update_train_weights()
+        t.update_train_weights()
 
 
 if __name__ == "__main__":
@@ -81,7 +80,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'algo_kwargs.skew_config.power':[1/2, 1, 2],
+        'algo_kwargs.skew_config.power':[4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

@@ -123,8 +123,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        # 'grill_variant.online_vae_batch_size':[64, 128],
-        # 'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other, vae_schedules.every_other_less, vae_schedules.always_train_less]
+        'grill_variant.online_vae_batch_size':[128],
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other_less, vae_schedules.every_other],
+        'grill_variant.algo_kwargs.online_vae_kwargs.num_vae_train_repeats':[1, 4, 8],
 
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

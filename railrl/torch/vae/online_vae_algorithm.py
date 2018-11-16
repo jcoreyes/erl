@@ -25,6 +25,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         oracle_data=False,
         parallel_vae_train=True,
         vae_min_num_steps_before_training=0,
+        num_vae_train_repeats=1,
     ):
         self.vae = vae
         self.vae_trainer = vae_trainer
@@ -38,6 +39,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.process_vae_update_thread = None
         self.parallel_vae_train = parallel_vae_train
         self.vae_min_num_steps_before_training = vae_min_num_steps_before_training
+        self.num_vae_train_repeats = num_vae_train_repeats
 
     def _post_epoch(self, epoch):
         super()._post_epoch(epoch)
@@ -64,20 +66,21 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                 self.process_vae_update_thread.start()
                 self.vae_conn_pipe.send((amount_to_train, epoch))
             else:
-                self.vae.train()
-                _train_vae(
-                    self.vae_trainer,
-                    self.replay_buffer,
-                    epoch,
-                    amount_to_train
-                )
-                self.vae.eval()
-                self.replay_buffer.refresh_latents(epoch)
-                _test_vae(
-                    self.vae_trainer,
-                    self.epoch,
-                    vae_save_period=self.vae_save_period
-                )
+                for i in range(self.num_vae_train_repeats):
+                    self.vae.train()
+                    _train_vae(
+                        self.vae_trainer,
+                        self.replay_buffer,
+                        epoch,
+                        amount_to_train
+                    )
+                    self.vae.eval()
+                    self.replay_buffer.refresh_latents(epoch)
+                    _test_vae(
+                        self.vae_trainer,
+                        self.epoch,
+                        vae_save_period=self.vae_save_period
+                    )
         # very hacky
         self.epoch = epoch + 1
 
