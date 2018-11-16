@@ -40,14 +40,14 @@ def experiment(variant):
                 t.dump_best_reconstruction(epoch)
                 t.dump_worst_reconstruction(epoch)
                 t.dump_sampling_histogram(epoch)
-        if epoch % 400 == 0:
+        if epoch % 2 == 0:
             t.update_train_weights()
 
 
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'first10K_samples_fit_skew'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -55,8 +55,8 @@ if __name__ == "__main__":
     use_gpu=True
 
     variant = dict(
-        file='/home/murtaza/research/railrl/data/local/11-14-sawyer-online-vae-door-dataset-collect/11-14-sawyer_online_vae_door_dataset_collect_2018_11_14_21_44_36_id000--s96506/extra_data.pkl',
-        num_epochs=5000,
+        file='/home/murtaza/research/railrl/data/local/11-15-test/11-15-test_2018_11_15_12_57_26_id000--s13644/extra_data.pkl',
+        num_epochs=1000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'algo_kwargs.skew_config.power':[2]
+        'algo_kwargs.skew_config.power':[1/2, 1, 2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

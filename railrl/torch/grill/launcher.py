@@ -835,11 +835,12 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         **variant['replay_buffer_kwargs']
     )
     variant["algo_kwargs"]['base_kwargs']["replay_buffer"] = replay_buffer
-
     t = ConvVAETrainer(variant['vae_train_data'],
                        variant['vae_test_data'],
                        vae,
-                       beta=variant['online_vae_beta'])
+                       beta=variant['online_vae_beta'],
+                       batch_size=variant.get('online_vae_batch_size', 128),
+                       )
     render = variant["render"]
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     algorithm = OnlineVaeHerTwinSac(
