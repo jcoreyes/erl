@@ -123,7 +123,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.online_vae_batch_size':[128],
+        'grill_variant.online_vae_batch_size':[64, 128],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other_less, vae_schedules.every_other],
         'grill_variant.algo_kwargs.online_vae_kwargs.num_vae_train_repeats':[1, 4, 8],
 
@@ -132,14 +132,14 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
 
-    # n_seeds = 4
-    # mode = 'gcp'
-    # exp_prefix = 'door_online_vae_bernoulli_sac_vae_training_amount'
+    n_seeds = 2
+    mode = 'gcp'
+    exp_prefix = 'door_online_vae_bernoulli_sac_skew_more'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -151,7 +151,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east4-a',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
