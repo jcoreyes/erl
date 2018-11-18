@@ -103,8 +103,25 @@ class GaussianLatentVAE(VAEBase):
             return latent_distribution_params[0]
 
     def kl_divergence(self, latent_distribution_params):
+        """
+        See Appendix B from VAE paper:
+        Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
+        https://arxiv.org/abs/1312.6114
+
+        Or just look it up.
+
+        0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
+
+        Note that sometimes people write log(sigma), but this is the same as
+        0.5 * log(sigma^2).
+
+        :param latent_distribution_params:
+        :return:
+        """
         mu, logvar = latent_distribution_params
-        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
+        return - 0.5 * torch.sum(
+            1 + logvar - mu.pow(2) - logvar.exp(), dim=1
+        ).mean()
 
     def __getstate__(self):
         d = super().__getstate__()
