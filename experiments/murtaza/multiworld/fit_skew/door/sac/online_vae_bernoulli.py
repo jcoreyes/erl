@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'door_online_vae_bernoulli_sac'
+    exp_prefix = 'door_online_vae_bernoulli_sac_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
