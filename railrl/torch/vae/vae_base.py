@@ -129,8 +129,8 @@ def compute_bernoulli_log_prob(x, reconstruction_of_x):
     return -1 * F.binary_cross_entropy(
         reconstruction_of_x,
         x,
-        size_average=False,
-    ) / 64
+        reduction='elementwise_mean'
+    )
 
 def compute_gaussian_log_prob(input, dec_mu, dec_var):
     decoder_dist = Normal(dec_mu, dec_var.pow(0.5))

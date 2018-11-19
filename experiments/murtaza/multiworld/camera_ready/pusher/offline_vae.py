@@ -21,14 +21,14 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=505,
+                    num_epochs=1005,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
-                    num_updates_per_env_step=4,
+                    num_updates_per_env_step=1,
                     collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
@@ -92,20 +92,20 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'train_vae_variant.vae_kwargs.architecture':[imsize48_default_architecture_with_more_hidden_layers, imsize48_default_architecture],
+        'grill_variant.exploration_noise':[.5, .8],
         'env_id':['SawyerPushAndReachSmallArenaEnv-v0', 'SawyerPushAndReachSmallArenaResetFreeEnv-v0', 'SawyerPushAndReachEnvEasy-v0']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'sawyer_pusher_offline_vae'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'sawyer_pusher_offline_vae_easier_envs'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -115,5 +115,5 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=3,
+                num_exps_per_instance=4,
           )
