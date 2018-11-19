@@ -28,7 +28,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1000,
+                    num_epochs=1010,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=10000,
@@ -125,19 +125,19 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.online_vae_batch_size':[64, 128],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other_less, vae_schedules.every_other],
-        'grill_variant.algo_kwargs.online_vae_kwargs.num_vae_train_repeats':[1, 4, 8],
+        'grill_variant.algo_kwargs.online_vae_kwargs.num_vae_train_repeats':[1, 4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
     #
-    # n_seeds = 2
-    # mode = 'gcp'
-    # exp_prefix = 'door_online_vae_bernoulli_sac_skew_more'
+    n_seeds = 4
+    mode = 'gcp'
+    exp_prefix = 'door_online_vae_bernoulli_sac_skew_more'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
