@@ -34,7 +34,7 @@ if __name__ == '__main__':
     env = MultiSawyerEnv(
         do_render=False,
         finger_sensors=False,
-        num_objects=5,
+        num_objects=1,
         object_meshes=None,
         workspace_low = np.array([-0.25, 0.45, 0.05]),
         workspace_high = np.array([0.25, 0.95, 0.45]),
@@ -69,7 +69,7 @@ if __name__ == '__main__':
         # grasp = grasp - 1.  # map 0 to -1 (open) and 1 to 0 (closed halfway)
         # action = np.concatenate([dpos, dquat, [grasp]])
 
-        a = dpos * 50
+        a = dpos
 
         # a[:3] = np.array((0, 0.7, 0.1)) - env.get_endeff_pos()
         # a = np.array([np.random.uniform(-0.05, 0.05), np.random.uniform(-0.05, 0.05), 0.1, 0 ,  1])
