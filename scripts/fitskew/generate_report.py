@@ -69,11 +69,14 @@ def main():
         vae_train_data = snapshot['train_data']
         dynamics = snapshot.get('dynamics', project_square_border_np_4x4)
         report.add_header("Iteration {}".format(itr))
+        vae.xy_range = ((-4, 4), (-4, 4))
         vae_heatmap_img = visualize_vae_samples(
             itr,
             vae_train_data,
             vae,
             report,
+            xlim=vae.get_plot_ranges()[0],
+            ylim=vae.get_plot_ranges()[1],
             dynamics=dynamics,
         )
         sample_img = visualize_vae(
