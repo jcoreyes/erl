@@ -33,9 +33,9 @@ def add_border(img, pad_length, pad_color, imsize=84):
 
 def get_image(goal, obs, recon_obs, imsize=84, pad_length=1, pad_color=255):
     if len(goal.shape) == 1:
-        goal = goal.reshape(-1, imsize, imsize).transpose()
-        obs = obs.reshape(-1, imsize, imsize).transpose()
-        recon_obs = recon_obs.reshape(-1, imsize, imsize).transpose()
+        goal = goal.reshape(-1, imsize, imsize).transpose(2, 1, 0)
+        obs = obs.reshape(-1, imsize, imsize).transpose(2,1,0)
+        recon_obs = recon_obs.reshape(-1, imsize, imsize).transpose(2,1,0)
     img = np.concatenate((goal, obs, recon_obs))
     img = np.uint8(255 * img)
     if pad_length > 0:

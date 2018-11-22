@@ -376,13 +376,13 @@ class ConvVAETrainer(Serializable):
                     next_obs[:n].narrow(start=0, length=self.imlength, dim=1)
                     .contiguous().view(
                         -1, self.input_channels, self.imsize, self.imsize
-                    ),
+                    ).transpose(2,3),
                     reconstructions.view(
                         self.batch_size,
                         self.input_channels,
                         self.imsize,
                         self.imsize,
-                    )[:n]
+                    )[:n].transpose(2, 3)
                 ])
                 save_dir = osp.join(logger.get_snapshot_dir(),
                                     'r%d.png' % epoch)
@@ -464,7 +464,7 @@ class ConvVAETrainer(Serializable):
         sample = self.model.decode(sample)[0].cpu()
         save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
         save_image(
-            sample.data.view(64, self.input_channels, self.imsize, self.imsize),
+            sample.data.view(64, self.input_channels, self.imsize, self.imsize).transpose(2,3),
             save_dir
         )
 
@@ -505,8 +505,8 @@ class ConvVAETrainer(Serializable):
             img_torch = ptu.from_numpy(normalize_image(img_np))
             recon, *_ = self.model(img_torch)
 
-            img = img_torch.view(self.input_channels, self.imsize, self.imsize)
-            rimg = recon.view(self.input_channels, self.imsize, self.imsize)
+            img = img_torch.view(self.input_channels, self.imsize, self.imsize).transpose(2,3)
+            rimg = recon.view(self.input_channels, self.imsize, self.imsize).transpose(2,3)
             imgs.append(img)
             recons.append(rimg)
         all_imgs = torch.stack(imgs + recons)
