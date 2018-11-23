@@ -1,3 +1,5 @@
+from torch import nn
+
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
@@ -25,7 +27,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = variant['vae'](representation_size, **variant['vae_kwargs'])
+    m = variant['vae'](representation_size, decoder_output_activation=nn.Sigmoid(), **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
@@ -64,10 +66,14 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_bernoulli_p_x',
             ),
-            skew_dataset=False,
+            skew_dataset=True,
+            priority_function_kwargs=dict(
+                num_latents_to_sample=10,
+                sampling_method='biased_sampling',
+            ),
         ),
         vae=ConvVAE,
-        dump_skew_debug_plots=False,
+        dump_skew_debug_plots=True,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
             env_id='SawyerDoorHookResetFreeEnv-v0',

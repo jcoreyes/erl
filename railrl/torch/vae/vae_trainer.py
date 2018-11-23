@@ -35,24 +35,47 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     log_d_x_given_z = log_d_x_given_z.sum(dim=1)
     return compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
 
-def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
+def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling'):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    latents = model.rsample(latent_distribution_params)
-    mus, logvars = latent_distribution_params
-    stds = logvars.exp().pow(.5)
-    true_prior = Normal(ptu.zeros_like(mus), ptu.ones_like(logvars))
-    vae_dist = Normal(mus, stds)
-    log_p_z = true_prior.log_prob(latents).sum(dim=1)
-    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
-    decoded = model.decode(latents)[0]
-    log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
-    inv_p_x_shifted = compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
+    log_p, log_q, log_d = ptu.zeros((data.shape[0], num_latents_to_sample)), ptu.zeros((data.shape[0], num_latents_to_sample)), ptu.zeros((data.shape[0], num_latents_to_sample))
+    true_prior = Normal(ptu.zeros((data.shape[0], model.representation_size)), ptu.ones((data.shape[0], model.representation_size)))
+    for i in range(num_latents_to_sample):
+        if sampling_method=='importance_sampling':
+            latents = model.rsample(latent_distribution_params)
+        elif sampling_method=='biased_sampling':
+            latents = model.rsample(latent_distribution_params)
+        else:
+            latents = true_prior.rsample()
+        mus, logvars = latent_distribution_params
+        stds = logvars.exp().pow(.5)
+        vae_dist = Normal(mus, stds)
+        log_p_z = true_prior.log_prob(latents).sum(dim=1)
+        log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
+        decoded = model.decode(latents)[0]
+        log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
+        log_p[:, i] = log_p_z
+        log_q[:, i] = log_q_z_given_x
+        log_d[:, i] = log_d_x_given_z
+    if sampling_method == 'importance_sampling':
+        inv_p_x_shifted = importance_sampled_inv_p_x(log_p, log_q, log_d)
+    elif sampling_method == 'biased_sampling':
+        inv_p_x_shifted = correct_inv_p_x(log_d)
+    else:
+        inv_p_x_shifted = correct_inv_p_x(log_d)
     return inv_p_x_shifted
 
-def compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z):
-    log_p_x = log_p_z - log_q_z_given_x + log_d_x_given_z
+def importance_sampled_inv_p_x(log_p_z, log_q_z_given_x, log_d_x_given_z):
+    log_p_x = (log_p_z - log_q_z_given_x + log_d_x_given_z).mean(dim=1)
+    log_p_x = ((log_p_x - log_p_x.mean())/ (log_p_x.std()+1e-8))
+    log_inv_root_p_x = -1 / 2 * log_p_x
+    log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
+    inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
+    return inv_p_x_shifted
+
+def correct_inv_p_x(log_d_x_given_z):
+    log_p_x = log_d_x_given_z.mean(dim=1)
     log_p_x = ((log_p_x - log_p_x.mean())/ (log_p_x.std()+1e-8))
     log_inv_root_p_x = -1 / 2 * log_p_x
     log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()

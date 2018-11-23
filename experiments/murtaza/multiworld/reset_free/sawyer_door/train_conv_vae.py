@@ -94,7 +94,7 @@ if __name__ == "__main__":
             skew_dataset=False,
         ),
         vae=ConvVAE,
-        dump_skew_debug_plots=False,
+        dump_skew_debug_plots=True,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
             N=5000,
