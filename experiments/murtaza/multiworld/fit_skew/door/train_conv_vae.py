@@ -58,13 +58,13 @@ if __name__ == "__main__":
     use_gpu = True
 
     variant = dict(
-        num_epochs=0,
+        num_epochs=10,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                method='inv_bernoulli_p_x',
+                method='inv_exp_elbo',
             ),
             skew_dataset=True,
             priority_function_kwargs=dict(
@@ -79,6 +79,7 @@ if __name__ == "__main__":
             env_id='SawyerDoorHookResetFreeEnv-v0',
             init_camera=sawyer_door_env_camera_v0,
             N=5000,
+            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9_twin_sac.npy',
             oracle_dataset=False,
             use_cached=True,
             random_and_oracle_policy_data=True,

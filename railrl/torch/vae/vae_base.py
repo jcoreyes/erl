@@ -113,6 +113,10 @@ class GaussianLatentVAE(VAEBase):
         mu, logvar = latent_distribution_params
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
+    def vectorized_kl_divergence(self, latent_distribution_params):
+        mu, logvar = latent_distribution_params
+        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
+
     def __getstate__(self):
         d = super().__getstate__()
         # Add these explicitly in case they were modified
@@ -130,6 +134,13 @@ def compute_bernoulli_log_prob(x, reconstruction_of_x):
         reconstruction_of_x,
         x,
         reduction='elementwise_mean'
+    )
+
+def compute_vectorized_bernoulli_log_prob(x, reconstruction_of_x):
+    return -1 * F.binary_cross_entropy(
+        reconstruction_of_x,
+        x,
+        reduction='none'
     )
 
 def compute_gaussian_log_prob(input, dec_mu, dec_var):

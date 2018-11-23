@@ -33,7 +33,7 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     decoder_dist = Normal(dec_mu, dec_var.pow(.5))
     log_d_x_given_z = decoder_dist.log_prob(imgs)
     log_d_x_given_z = log_d_x_given_z.sum(dim=1)
-    return compute_inv_p_x_given_log_space_values(log_p_z, log_q_z_given_x, log_d_x_given_z)
+    return importance_sampled_inv_p_x(log_p_z, log_q_z_given_x, log_d_x_given_z)
 
 def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling'):
     ''' Assumes data is normalized images'''
@@ -81,6 +81,16 @@ def correct_inv_p_x(log_d_x_given_z):
     log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
     inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
     return inv_p_x_shifted
+
+def inv_exp_elbo(model, data, beta=1):
+    imgs = ptu.from_numpy(data)
+    reconstructions, obs_distribution_params, latent_distribution_params = model(imgs)
+    log_prob = model.vectorized_logprob(imgs, obs_distribution_params).mean(dim=1)
+    kle = model.vectorized_kl_divergence(latent_distribution_params)
+    elbo = log_prob - beta*kle
+    elbo = ((elbo - elbo.mean())/(elbo.std()+1e-8))
+    inv_exp_elbo = (-elbo).exp()
+    return ptu.get_numpy(inv_exp_elbo)
 
 class ConvVAETrainer(Serializable):
     def __init__(
@@ -242,6 +252,9 @@ class ConvVAETrainer(Serializable):
             elif method == 'inv_bernoulli_p_x':
                 data = normalize_image(data)
                 weights[idxs] = inv_p_bernoulli_x_np_to_np(self.model, data, **self.priority_function_kwargs) ** power
+            elif method == 'inv_exp_elbo':
+                data = normalize_image(data)
+                weights[idxs] = inv_exp_elbo(self.model, data, beta=self.beta)
             else:
                 raise NotImplementedError('Method {} not supported'.format(method))
             cur_idx = next_idx
