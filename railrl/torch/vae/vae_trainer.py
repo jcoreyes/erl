@@ -503,10 +503,10 @@ class ConvVAETrainer(Serializable):
         for i in idxs:
             img_np = self.train_dataset[i]
             img_torch = ptu.from_numpy(normalize_image(img_np))
-            recon, *_ = self.model(img_torch)
+            recon, *_ = self.model(img_torch.view(1,-1))
 
-            img = img_torch.view(self.input_channels, self.imsize, self.imsize).transpose(2,3)
-            rimg = recon.view(self.input_channels, self.imsize, self.imsize).transpose(2,3)
+            img = img_torch.view(self.input_channels, self.imsize, self.imsize).transpose(1,2)
+            rimg = recon.view(self.input_channels, self.imsize, self.imsize).transpose(1,2)
             imgs.append(img)
             recons.append(rimg)
         all_imgs = torch.stack(imgs + recons)
