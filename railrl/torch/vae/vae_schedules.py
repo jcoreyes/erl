@@ -8,9 +8,6 @@ def always_train_less(epoch):
 def always_train(epoch):
     return True, 300
 
-def every_other_less(epoch):
-    return epoch % 2 == 0, 100
-
 def every_other(epoch):
     return epoch % 2 == 0, 400
 

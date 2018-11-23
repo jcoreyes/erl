@@ -40,7 +40,6 @@ if __name__ == "__main__":
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
-                    save_replay_buffer=True,
                     reward_scale=1,
                 ),
                 her_kwargs=dict(
@@ -123,9 +122,6 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.online_vae_batch_size':[64, 128],
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_other_less, vae_schedules.every_other],
-        'grill_variant.algo_kwargs.online_vae_kwargs.num_vae_train_repeats':[1, 4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
