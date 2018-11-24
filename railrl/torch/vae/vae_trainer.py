@@ -35,7 +35,7 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     log_d_x_given_z = log_d_x_given_z.sum(dim=1)
     return importance_sampled_inv_p_x(log_p_z, log_q_z_given_x, log_d_x_given_z)
 
-def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling'):
+def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling', decode_prob='bce'):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
@@ -54,7 +54,11 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_me
         log_p_z = true_prior.log_prob(latents).sum(dim=1)
         log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
         decoded = model.decode(latents)[0]
-        log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
+        if decode_prob=='bce':
+            reconstructions, obs_distribution_params = model.decode(latents)
+            log_d_x_given_z = model.vectorized_logprob(imgs, obs_distribution_params).mean(dim=1)
+        else:
+            log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
         log_p[:, i] = log_p_z
         log_q[:, i] = log_q_z_given_x
         log_d[:, i] = log_d_x_given_z

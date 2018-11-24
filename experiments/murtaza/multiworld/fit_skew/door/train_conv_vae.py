@@ -57,8 +57,8 @@ if __name__ == "__main__":
     # exp_prefix = 'test'
 
     n_seeds = 1
-    mode = 'gcp'
-    exp_prefix = 'fit-skew-elbo-sweep-datasets-power'
+    mode = 'ec2'
+    exp_prefix = 'fit-skew-sweep-sampling-methods-num-latents-datasets-power-bce'
 
     use_gpu = True
 
@@ -69,13 +69,14 @@ if __name__ == "__main__":
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                # method='inv_bernoulli_p_x',
-                method='inv_exp_elbo',
+                method='inv_bernoulli_p_x',
+                # method='inv_exp_elbo',
             ),
             skew_dataset=True,
             priority_function_kwargs=dict(
                 num_latents_to_sample=10,
                 sampling_method='biased_sampling',
+                decode_prob='bce',
             ),
         ),
         vae=ConvVAE,
@@ -119,13 +120,13 @@ if __name__ == "__main__":
 
     search_space = {
         'generate_vae_dataset_kwargs.dataset_path':[
-          'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.npy',
+          # 'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.npy',
           # 'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.5.npy',
           'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.9.npy',
           'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_1.npy',
         ],
-        # 'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'biased_sampling', 'correct'],
-        # 'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10, 20],
+        'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'biased_sampling', 'correct'],
+        'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10, 20],
         'algo_kwargs.skew_config.power':[1, 2, 4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
