@@ -1,6 +1,6 @@
 from torch import nn
-
 import railrl.misc.hyperparameter as hyp
+from experiments.murtaza.multiworld.fit_skew.door.generate_uniform_dataset import generate_uniform_dataset_door
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
@@ -15,6 +15,9 @@ def experiment(variant):
     representation_size = variant["representation_size"]
     train_data, test_data, info = variant['generate_vae_dataset_fn'](
         variant['generate_vae_dataset_kwargs']
+    )
+    uniform_dataset=generate_uniform_dataset_door(
+       **variant['generate_uniform_dataset_kwargs']
     )
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
@@ -35,6 +38,7 @@ def experiment(variant):
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
         t.train_epoch(epoch)
+        t.log_loss_under_uniform(uniform_dataset)
         t.test_epoch(epoch, save_reconstruction=should_save_imgs,
                      save_scatterplot=should_save_imgs)
         if should_save_imgs:
@@ -43,27 +47,29 @@ def experiment(variant):
                 t.dump_best_reconstruction(epoch)
                 t.dump_worst_reconstruction(epoch)
                 t.dump_sampling_histogram(epoch)
+                t.dump_uniform_imgs_and_reconstructions(dataset=uniform_dataset, epoch=epoch)
         t.update_train_weights()
 
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'normalized-sampling'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'gcp'
+    exp_prefix = 'fit-skew-elbo-sweep-datasets-power'
 
     use_gpu = True
 
     variant = dict(
-        num_epochs=10,
+        num_epochs=1000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
+                # method='inv_bernoulli_p_x',
                 method='inv_exp_elbo',
             ),
             skew_dataset=True,
@@ -79,11 +85,10 @@ if __name__ == "__main__":
             env_id='SawyerDoorHookResetFreeEnv-v0',
             init_camera=sawyer_door_env_camera_v0,
             N=5000,
-            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9_twin_sac.npy',
             oracle_dataset=False,
             use_cached=True,
             random_and_oracle_policy_data=True,
-            random_and_oracle_policy_data_split=1,
+            random_and_oracle_policy_data_split=.9,
             imsize=48,
             non_presampled_goal_img_is_garbage=True,
             vae_dataset_specific_kwargs=dict(),
@@ -97,13 +102,31 @@ if __name__ == "__main__":
             architecture=imsize48_default_architecture,
             decoder_distribution='bernoulli'
         ),
-        save_period=10,
-        beta=.5,
+        generate_uniform_dataset_kwargs=dict(
+            env_id='SawyerDoorHookResetFreeEnv-v0',
+            init_camera=sawyer_door_env_camera_v0,
+            num_imgs=1000,
+            use_cached_dataset=False,
+            policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
+            show=False,
+            path_length=100,
+            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48uniform_images_.npy',
+        ),
+        save_period=50,
+        beta=2.5,
         representation_size=16,
     )
 
     search_space = {
-        'generate_vae_dataset_kwargs.random_and_oracle_policy_data_split':[0, .5, .9, 1]
+        'generate_vae_dataset_kwargs.dataset_path':[
+          'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.npy',
+          # 'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.5.npy',
+          'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.9.npy',
+          'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_1.npy',
+        ],
+        # 'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'biased_sampling', 'correct'],
+        # 'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10, 20],
+        'algo_kwargs.skew_config.power':[1, 2, 4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -119,4 +142,11 @@ if __name__ == "__main__":
                 num_exps_per_instance=1,
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
+                gcp_kwargs=dict(
+                    zone='us-west2-b',
+                    gpu_kwargs=dict(
+                        gpu_model='nvidia-tesla-p4',
+                        num_gpu=1,
+                    )
+                )
             )

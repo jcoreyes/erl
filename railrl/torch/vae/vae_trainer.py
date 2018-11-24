@@ -58,10 +58,9 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_me
         log_p[:, i] = log_p_z
         log_q[:, i] = log_q_z_given_x
         log_d[:, i] = log_d_x_given_z
+
     if sampling_method == 'importance_sampling':
         inv_p_x_shifted = importance_sampled_inv_p_x(log_p, log_q, log_d)
-    elif sampling_method == 'biased_sampling':
-        inv_p_x_shifted = correct_inv_p_x(log_d)
     else:
         inv_p_x_shifted = correct_inv_p_x(log_d)
     return inv_p_x_shifted
@@ -254,7 +253,7 @@ class ConvVAETrainer(Serializable):
                 weights[idxs] = inv_p_bernoulli_x_np_to_np(self.model, data, **self.priority_function_kwargs) ** power
             elif method == 'inv_exp_elbo':
                 data = normalize_image(data)
-                weights[idxs] = inv_exp_elbo(self.model, data, beta=self.beta)
+                weights[idxs] = inv_exp_elbo(self.model, data, beta=self.beta)**power
             else:
                 raise NotImplementedError('Method {} not supported'.format(method))
             cur_idx = next_idx
@@ -538,6 +537,52 @@ class ConvVAETrainer(Serializable):
         recons = []
         for i in idxs:
             img_np = self.train_dataset[i]
+            img_torch = ptu.from_numpy(normalize_image(img_np))
+            recon, *_ = self.model(img_torch.view(1,-1))
+
+            img = img_torch.view(self.input_channels, self.imsize, self.imsize).transpose(1,2)
+            rimg = recon.view(self.input_channels, self.imsize, self.imsize).transpose(1,2)
+            imgs.append(img)
+            recons.append(rimg)
+        all_imgs = torch.stack(imgs + recons)
+        save_file = osp.join(logger.get_snapshot_dir(), filename)
+        save_image(
+            all_imgs.data,
+            save_file,
+            nrow=4,
+        )
+
+    def log_loss_under_uniform(self, data):
+        import torch.nn.functional as F
+        imgs = ptu.from_numpy(normalize_image(data))
+        log_probs = []
+        kles = []
+        losses = []
+        mses=[]
+        for i in range(0, data.shape[0], self.batch_size):
+            img = imgs[i:min(data.shape[0], i+self.batch_size), :]
+            reconstructions, obs_distribution_params, latent_distribution_params = self.model(img)
+            log_prob = self.model.logprob(img, obs_distribution_params)
+            kle = self.model.kl_divergence(latent_distribution_params)
+            loss = -1 * log_prob + self.beta * kle
+            mse = F.mse_loss(img, reconstructions,reduction='elementwise_mean')
+            mses.append(mse.item())
+            kles.append(kle.item())
+            losses.append(loss.item())
+            log_probs.append(log_prob.item())
+
+        logger.record_tabular("Uniform Data Log Prob", np.mean(log_probs))
+        logger.record_tabular("Uniform Data KL", np.mean(kles))
+        logger.record_tabular("Uniform Data Loss", np.mean(losses))
+        logger.record_tabular("Uniform Data MSE", np.mean(mses))
+
+    def dump_uniform_imgs_and_reconstructions(self, dataset, epoch):
+        idxs = np.random.choice(range(dataset.shape[0]), 4)
+        filename = 'uniform{}.png'.format(epoch)
+        imgs = []
+        recons = []
+        for i in idxs:
+            img_np = dataset[i]
             img_torch = ptu.from_numpy(normalize_image(img_np))
             recon, *_ = self.model(img_torch.view(1,-1))
 
