@@ -13,7 +13,7 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.vae_trainer import (
     inv_gaussian_p_x_np_to_np,
     inv_p_bernoulli_x_np_to_np,
-    )
+    inv_exp_elbo)
 
 
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
@@ -92,6 +92,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'bernoulli_inv_prob':           self.bernoulli_inv_prob,
             'image_gaussian_inv_prob':      self.image_gaussian_inv_prob,
             'image_bernoulli_inv_prob':     self.image_bernoulli_inv_prob,
+            'inv_exp_elbo':                 self.inv_exp_elbo,
             'None':                         self.no_reward,
         }
 
@@ -254,8 +255,11 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
     def image_gaussian_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1):
         return inv_gaussian_p_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample)
 
-    def image_bernoulli_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1):
-        return inv_p_bernoulli_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample)
+    def image_bernoulli_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1, decode_prob='bce', sampling_method='importance_sampling'):
+        return inv_p_bernoulli_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample, decode_prob=decode_prob, sampling_method=sampling_method)
+
+    def inv_exp_elbo(self, next_vae_obs, indices, beta=2.5):
+        return inv_exp_elbo(self.vae, next_vae_obs, beta=beta)
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]

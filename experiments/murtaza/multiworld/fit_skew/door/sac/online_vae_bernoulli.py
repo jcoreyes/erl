@@ -64,6 +64,11 @@ if __name__ == "__main__":
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
+                priority_function_kwargs=dict(
+                    sampling_method='correct',
+                    num_latents_to_sample=20,
+                    decode_prob='none',
+                ),
                 power=1,
             ),
             normalize=False,
@@ -122,18 +127,21 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        # 'grill_variant.replay_buffer_kwargs.priority_function_kwargs.sampling_method': ['importance_sampling', 'biased_sampling', 'correct'],
+        'grill_variant.replay_buffer_kwargs.power': [1, 2, 4],
+        # 'grill_variant.replay_buffer_kwargs.priority_function_kwargs.decode_prob':['bce', 'none']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-
+    #
     # n_seeds = 1
     # mode = 'local'
     # exp_prefix = 'test'
-    #
-    n_seeds = 4
+
+    n_seeds = 10
     mode = 'gcp'
-    exp_prefix = 'door_online_vae_bernoulli_sac_skew_more'
+    exp_prefix = 'door_online_vae_bernoulli_correct_sampling_power_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -145,7 +153,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west2-b',
+                    zone='us-east4-a',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
