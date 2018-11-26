@@ -48,17 +48,18 @@ def experiment(variant):
                 t.dump_worst_reconstruction(epoch)
                 t.dump_sampling_histogram(epoch)
                 t.dump_uniform_imgs_and_reconstructions(dataset=uniform_dataset, epoch=epoch)
-        t.update_train_weights()
+        if epoch % variant['train_weight_update_period'] == 0:
+            t.update_train_weights()
 
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'gcp'
-    # exp_prefix = 'normal-vae-dataset-sweep'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'gcp'
+    exp_prefix = 'sawyer_door_fit_skew_sweep_weight_update_period'
 
     use_gpu = True
 
@@ -71,7 +72,7 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_bernoulli_p_x',
                 # method='inv_exp_elbo',
-                power=2,
+                power=4,
             ),
             skew_dataset=True,
             priority_function_kwargs=dict(
@@ -119,17 +120,19 @@ if __name__ == "__main__":
         save_period=50,
         beta=2.5,
         representation_size=16,
+        train_weight_update_period=1,
     )
 
     search_space = {
         'generate_vae_dataset_kwargs.dataset_path':[
           # 'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.npy',
           # 'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.5.npy',
-          'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.9.npy',
+          # 'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.9.npy',
           'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_1.npy',
         ],
-        'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'biased_sampling', 'correct'],
-        'algo_kwargs.skew_config.power':[1, 2, 4],
+        # 'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'biased_sampling', 'correct'],
+        # 'algo_kwargs.skew_config.power':[1, 2, 4],
+        'train_weight_update_period':[1, 2, 4, 10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

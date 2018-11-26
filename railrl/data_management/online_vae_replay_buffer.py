@@ -1,3 +1,6 @@
+from torchvision.utils import save_image
+
+from railrl.core import logger
 from railrl.data_management.obs_dict_replay_buffer import flatten_dict
 from railrl.data_management.shared_obs_dict_replay_buffer import \
         SharedObsDictRelabelingBuffer
@@ -7,6 +10,7 @@ import numpy as np
 import torch
 from torch.optim import Adam
 from torch.nn import MSELoss
+
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
@@ -14,7 +18,7 @@ from railrl.torch.vae.vae_trainer import (
     inv_gaussian_p_x_np_to_np,
     inv_p_bernoulli_x_np_to_np,
     inv_exp_elbo)
-
+import os.path as osp 
 
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
@@ -320,3 +324,102 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
             mse.backward()
             self.dynamics_optimizer.step()
+            
+    ''' Fit Skew Debug Stats '''
+    def dump_sampling_histogram(self, epoch, batch_size):
+        import matplotlib.pyplot as plt
+        weights = torch.from_numpy(self._vae_sample_probs)
+        samples = torch.multinomial(
+            weights, batch_size, replacement=True
+        )
+        plt.clf()
+        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights)))
+        save_file = osp.join(logger.get_snapshot_dir(), 'hist{}.png'.format(
+            epoch))
+        plt.savefig(save_file)
+        data_save_file = osp.join(logger.get_snapshot_dir(), 'hist_data.txt')
+        with open(data_save_file, 'a') as f:
+            f.write(str(list(zip(bins, n))))
+            f.write('\n')
+
+    def dump_best_reconstruction(self, epoch, num_shown=4):
+        idx_and_weights = self._get_sorted_idx_and_train_weights()
+        idxs = [i for i, _ in idx_and_weights[:num_shown]]
+        self._dump_imgs_and_reconstructions(idxs, 'best{}.png'.format(epoch))
+
+    def dump_worst_reconstruction(self, epoch, num_shown=4):
+        idx_and_weights = self._get_sorted_idx_and_train_weights()
+        idx_and_weights = idx_and_weights[::-1]
+        idxs = [i for i, _ in idx_and_weights[:num_shown]]
+        self._dump_imgs_and_reconstructions(idxs, 'worst{}.png'.format(epoch))
+
+    def _dump_imgs_and_reconstructions(self, idxs, filename):
+        imgs = []
+        recons = []
+        for i in idxs:
+            img_np = self._obs['image_observation'][i]
+            img_torch = ptu.from_numpy(normalize_image(img_np))
+            recon, *_ = self.vae(img_torch.view(1,-1))
+
+            img = img_torch.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1,2)
+            rimg = recon.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1,2)
+            imgs.append(img)
+            recons.append(rimg)
+        all_imgs = torch.stack(imgs + recons)
+        save_file = osp.join(logger.get_snapshot_dir(), filename)
+        save_image(
+            all_imgs.data,
+            save_file,
+            nrow=4,
+        )
+
+    def log_loss_under_uniform(self, data, batch_size, beta):
+        import torch.nn.functional as F
+        imgs = ptu.from_numpy(normalize_image(data))
+        log_probs = []
+        kles = []
+        losses = []
+        mses=[]
+        for i in range(0, data.shape[0], batch_size):
+            img = imgs[i:min(data.shape[0], i+batch_size), :]
+            reconstructions, obs_distribution_params, latent_distribution_params = self.vae(img)
+            log_prob = self.vae.logprob(img, obs_distribution_params)
+            kle = self.vae.kl_divergence(latent_distribution_params)
+            loss = -1 * log_prob + beta * kle
+            mse = F.mse_loss(img, reconstructions,reduction='elementwise_mean')
+            mses.append(mse.item())
+            kles.append(kle.item())
+            losses.append(loss.item())
+            log_probs.append(log_prob.item())
+
+        logger.record_tabular("Uniform Data Log Prob", np.mean(log_probs))
+        logger.record_tabular("Uniform Data KL", np.mean(kles))
+        logger.record_tabular("Uniform Data Loss", np.mean(losses))
+        logger.record_tabular("Uniform Data MSE", np.mean(mses))
+
+    def dump_uniform_imgs_and_reconstructions(self, dataset, epoch):
+        idxs = np.random.choice(range(dataset.shape[0]), 4)
+        filename = 'uniform{}.png'.format(epoch)
+        imgs = []
+        recons = []
+        for i in idxs:
+            img_np = dataset[i]
+            img_torch = ptu.from_numpy(normalize_image(img_np))
+            recon, *_ = self.vae(img_torch.view(1,-1))
+
+            img = img_torch.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1,2)
+            rimg = recon.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1,2)
+            imgs.append(img)
+            recons.append(rimg)
+        all_imgs = torch.stack(imgs + recons)
+        save_file = osp.join(logger.get_snapshot_dir(), filename)
+        save_image(
+            all_imgs.data,
+            save_file,
+            nrow=4,
+        )
+
+    def _get_sorted_idx_and_train_weights(self):
+        idx_and_weights = zip(range(len(self._vae_sample_probs)),
+                              self._vae_sample_probs)
+        return sorted(idx_and_weights, key=lambda x: x[1])

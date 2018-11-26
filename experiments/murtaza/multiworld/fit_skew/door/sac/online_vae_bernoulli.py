@@ -1,4 +1,5 @@
 import railrl.misc.hyperparameter as hyp
+from experiments.murtaza.multiworld.fit_skew.door.generate_uniform_dataset import generate_uniform_dataset_door
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
@@ -14,7 +15,7 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookResetFreeEnv-v0',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
-            save_video=True,
+            save_video=False,
             online_vae_beta=2.5,
             save_video_period=50,
             qf_kwargs=dict(
@@ -97,6 +98,17 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI-HER-TD3',
+            generate_uniform_dataset_kwargs=dict(
+                env_id='SawyerDoorHookResetFreeEnv-v0',
+                init_camera=sawyer_door_env_camera_v0,
+                num_imgs=1000,
+                use_cached_dataset=False,
+                policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
+                show=False,
+                path_length=100,
+                dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48uniform_images_.npy',
+            ),
+            generate_uniform_dataset_fn=generate_uniform_dataset_door,
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -112,6 +124,7 @@ if __name__ == "__main__":
                 oracle_dataset=False,
                 n_random_steps=1,
                 non_presampled_goal_img_is_garbage=True,
+                dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.npy',
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -135,13 +148,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     #
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 10
-    mode = 'gcp'
-    exp_prefix = 'door_online_vae_bernoulli_correct_sampling_power_sweep'
+    # n_seeds = 10
+    # mode = 'gcp'
+    # exp_prefix = 'door_online_vae_bernoulli_correct_sampling_power_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
