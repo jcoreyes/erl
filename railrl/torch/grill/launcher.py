@@ -215,6 +215,7 @@ def generate_vae_dataset(variant):
     oracle_dataset_using_set_to_goal = variant.get('oracle_dataset_using_set_to_goal', False)
     random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
     random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
+    specific_angles_data = variant.get('specific_angles_data', False)
     policy_file = variant.get('policy_file', None)
     n_random_steps = variant.get('n_random_steps', 100)
     vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
@@ -276,7 +277,7 @@ def generate_vae_dataset(variant):
                 env.non_presampled_goal_img_is_garbage = non_presampled_goal_img_is_garbage
             env.reset()
             info['env'] = env
-            if random_and_oracle_policy_data:
+            if random_and_oracle_policy_data or specific_angles_data:
                 policy_file = load_local_or_remote_file(policy_file)
                 policy = policy_file['policy']
                 policy.to(ptu.device)
@@ -302,6 +303,21 @@ def generate_vae_dataset(variant):
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
                     obs = env._get_obs()
+                elif specific_angles_data:
+                    n_zero_angles = int(N * random_and_oracle_policy_data_split)
+                    obs = env.reset()
+                    policy.reset()
+                    for _ in range(n_random_steps):
+                        if i < n_zero_angles:
+                            obs['state_desired_goal'][-1] = env.goal_space.high[-1]
+                        else:
+                            obs['state_desired_goal'][-1] = 0
+                        policy_obs = np.hstack((
+                            obs['state_observation'],
+                            obs['state_desired_goal'],
+                        ))
+                        action, _ = policy.get_action(policy_obs)
+                        obs, _, _, _ = env.step(action)
                 else:
                     env.reset()
                     for _ in range(n_random_steps):

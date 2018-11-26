@@ -4,9 +4,9 @@ from experiments.murtaza.multiworld.fit_skew.door.generate_uniform_dataset impor
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
+from railrl.torch.grill.launcher import generate_vae_dataset
 from railrl.torch.vae.conv_vae import ConvVAE, imsize48_default_architecture
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
-from railrl.torch.grill.launcher import generate_vae_dataset
 
 def experiment(variant):
     from railrl.core import logger
@@ -52,13 +52,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'fit-skew-sweep-sampling-methods-num-latents-datasets-power-bce'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'gcp'
+    # exp_prefix = 'normal-vae-dataset-sweep'
 
     use_gpu = True
 
@@ -71,13 +71,15 @@ if __name__ == "__main__":
             skew_config=dict(
                 method='inv_bernoulli_p_x',
                 # method='inv_exp_elbo',
+                power=2,
             ),
             skew_dataset=True,
             priority_function_kwargs=dict(
-                num_latents_to_sample=10,
-                sampling_method='biased_sampling',
-                decode_prob='bce',
+                num_latents_to_sample=20,
+                sampling_method='correct',
+                decode_prob='none',
             ),
+            use_parallel_dataloading=False,
         ),
         vae=ConvVAE,
         dump_skew_debug_plots=True,
@@ -85,7 +87,7 @@ if __name__ == "__main__":
         generate_vae_dataset_kwargs=dict(
             env_id='SawyerDoorHookResetFreeEnv-v0',
             init_camera=sawyer_door_env_camera_v0,
-            N=5000,
+            N=100,
             oracle_dataset=False,
             use_cached=True,
             random_and_oracle_policy_data=True,
@@ -96,6 +98,7 @@ if __name__ == "__main__":
             policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
             n_random_steps=100,
             show=False,
+            # specific_angles_data=True,
         ),
         vae_kwargs=dict(
             input_channels=3,
@@ -126,7 +129,6 @@ if __name__ == "__main__":
           'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_1.npy',
         ],
         'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'biased_sampling', 'correct'],
-        'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10, 20],
         'algo_kwargs.skew_config.power':[1, 2, 4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

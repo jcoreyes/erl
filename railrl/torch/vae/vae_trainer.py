@@ -163,6 +163,12 @@ class ConvVAETrainer(Serializable):
             self.priority_function_kwargs = dict()
         else:
             self.priority_function_kwargs = priority_function_kwargs
+
+        if self.skew_dataset:
+            self._train_weights = self._compute_train_weights()
+        else:
+            self._train_weights = None
+
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
                 train_dataset,
@@ -174,12 +180,10 @@ class ConvVAETrainer(Serializable):
             )
 
             if self.skew_dataset:
-                self._train_weights = self._compute_train_weights()
                 base_sampler = InfiniteWeightedRandomSampler(
                     self.train_dataset, self._train_weights
                 )
             else:
-                self._train_weights = None
                 base_sampler = InfiniteRandomSampler(self.train_dataset)
             self.train_dataloader = DataLoader(
                 self.train_dataset_pt,
@@ -226,9 +230,16 @@ class ConvVAETrainer(Serializable):
     def update_train_weights(self):
         if self.skew_dataset:
             self._train_weights = self._compute_train_weights()
-            sampler = InfiniteWeightedRandomSampler(self.train_dataset, self._train_weights)
-            self.train_dataloader.sampler = sampler
-            self.train_dataloader = iter(self.train_dataloader)
+            if self.use_parallel_dataloading:
+                self.train_dataloader = DataLoader(
+                    self.train_dataset_pt,
+                    sampler=InfiniteWeightedRandomSampler(self.train_dataset, self._train_weights),
+                    batch_size=self.batch_size,
+                    drop_last=False,
+                    num_workers=self.train_data_workers,
+                    pin_memory=True,
+                )
+                self.train_dataloader = iter(self.train_dataloader)
 
 
     def _compute_train_weights(self):
@@ -292,7 +303,17 @@ class ConvVAETrainer(Serializable):
             return samples
 
         dataset = self.train_dataset if train else self.test_dataset
-        ind = np.random.randint(0, len(dataset), self.batch_size)
+        if train and self.skew_dataset:
+            probs = self._train_weights/np.sum(self._train_weights)
+            ind = np.random.choice(
+                    len(probs),
+                    self.batch_size,
+                    p=probs,
+                )
+            from scipy import stats
+            # print(stats.mode(ind))
+        else:
+            ind = np.random.randint(0, len(dataset), self.batch_size)
         samples = normalize_image(dataset[ind, :])
         if self.normalize:
             samples = ((samples - self.train_data_mean) + 1) / 2
@@ -513,7 +534,7 @@ class ConvVAETrainer(Serializable):
             self._train_weights = self._compute_train_weights()
         weights = torch.from_numpy(self._train_weights)
         samples = torch.multinomial(
-            weights, len(weights), replacement=True
+            weights, self.batch_size, replacement=True
         )
         plt.clf()
         n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights)))
@@ -607,7 +628,7 @@ class ConvVAETrainer(Serializable):
             self._train_weights = self._compute_train_weights()
         idx_and_weights = zip(range(len(self._train_weights)),
                               self._train_weights)
-        return sorted(idx_and_weights, key=lambda x: x[0])
+        return sorted(idx_and_weights, key=lambda x: x[1])
 
     def plot_scattered(self, z, epoch):
         try:
