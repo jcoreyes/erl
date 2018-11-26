@@ -175,13 +175,20 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         indices = self._sample_indices(batch_size)
         resampled_goals = self._next_obs[self.desired_goal_key][indices]
 
-        num_rollout_goals = int(
-            batch_size * self.fraction_goals_rollout_goals
-        )
         num_env_goals = int(
-            batch_size * (1 - self.fraction_goals_rollout_goals)
-            * self.fraction_resampled_goals_env_goals
+            batch_size * self.fraction_resampled_goals_env_goals
         )
+        num_rollout_goals = int(
+            batch_size * (1 - self.fraction_resampled_goals_env_goals) *
+                self.fraction_goals_rollout_goals
+        )
+        # num_rollout_goals = int(
+        #     batch_size * self.fraction_goals_rollout_goals
+        # )
+        # num_env_goals = int(
+        #     batch_size * (1 - self.fraction_goals_rollout_goals)
+        #     * self.fraction_resampled_goals_env_goals
+        # )
         num_future_goals = batch_size - (num_env_goals + num_rollout_goals)
         new_obs_dict = self._batch_obs_dict(indices)
         new_next_obs_dict = self._batch_next_obs_dict(indices)
