@@ -38,7 +38,7 @@ def experiment(variant):
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
         t.train_epoch(epoch)
-        t.log_loss_under_uniform(uniform_dataset)
+        t.log_loss_under_uniform(m, uniform_dataset)
         t.test_epoch(epoch, save_reconstruction=should_save_imgs,
                      save_scatterplot=should_save_imgs)
         if should_save_imgs:
@@ -99,6 +99,7 @@ if __name__ == "__main__":
             policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
             n_random_steps=100,
             show=False,
+            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_1.npy',
             # specific_angles_data=True,
         ),
         vae_kwargs=dict(
@@ -117,7 +118,7 @@ if __name__ == "__main__":
             path_length=100,
             dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48uniform_images_.npy',
         ),
-        save_period=50,
+        save_period=1,
         beta=2.5,
         representation_size=16,
         train_weight_update_period=1,

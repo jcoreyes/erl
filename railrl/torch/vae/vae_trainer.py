@@ -35,16 +35,17 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     log_d_x_given_z = log_d_x_given_z.sum(dim=1)
     return importance_sampled_inv_p_x(log_p_z, log_q_z_given_x, log_d_x_given_z)
 
-def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling', decode_prob='bce'):
-    ''' Assumes data is normalized images'''
+def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_method='importance_sampling', decode_prob='none'):
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    log_p, log_q, log_d = ptu.zeros((data.shape[0], num_latents_to_sample)), ptu.zeros((data.shape[0], num_latents_to_sample)), ptu.zeros((data.shape[0], num_latents_to_sample))
-    true_prior = Normal(ptu.zeros((data.shape[0], model.representation_size)), ptu.ones((data.shape[0], model.representation_size)))
+    log_p, log_q, log_d = ptu.zeros((data.shape[0], num_latents_to_sample)), ptu.zeros(
+        (data.shape[0], num_latents_to_sample)), ptu.zeros((data.shape[0], num_latents_to_sample))
+    true_prior = Normal(ptu.zeros((data.shape[0], model.representation_size)),
+                        ptu.ones((data.shape[0], model.representation_size)))
     for i in range(num_latents_to_sample):
-        if sampling_method=='importance_sampling':
+        if sampling_method == 'importance_sampling':
             latents = model.rsample(latent_distribution_params)
-        elif sampling_method=='biased_sampling':
+        elif sampling_method == 'biased_sampling':
             latents = model.rsample(latent_distribution_params)
         else:
             latents = true_prior.rsample()
@@ -54,7 +55,7 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_me
         log_p_z = true_prior.log_prob(latents).sum(dim=1)
         log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
         decoded = model.decode(latents)[0]
-        if decode_prob=='bce':
+        if decode_prob == 'bce':
             reconstructions, obs_distribution_params = model.decode(latents)
             log_d_x_given_z = model.vectorized_logprob(imgs, obs_distribution_params).mean(dim=1)
         else:
@@ -62,6 +63,11 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_me
         log_p[:, i] = log_p_z
         log_q[:, i] = log_q_z_given_x
         log_d[:, i] = log_d_x_given_z
+    return log_p, log_q, log_d
+
+def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling', decode_prob='none'):
+    ''' Assumes data is normalized images'''
+    log_p, log_q, log_d = compute_bernoulli_p_q_d(model, data, num_latents_to_sample, sampling_method, decode_prob)
 
     if sampling_method == 'importance_sampling':
         inv_p_x_shifted = importance_sampled_inv_p_x(log_p, log_q, log_d)
@@ -84,6 +90,7 @@ def correct_inv_p_x(log_d_x_given_z):
     log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
     inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
     return inv_p_x_shifted
+
 
 def inv_exp_elbo(model, data, beta=1):
     imgs = ptu.from_numpy(data)
@@ -577,28 +584,39 @@ class ConvVAETrainer(Serializable):
             nrow=4,
         )
 
-    def log_loss_under_uniform(self, data):
+    def log_loss_under_uniform(self, model, data):
         import torch.nn.functional as F
-        imgs = ptu.from_numpy(normalize_image(data))
-        log_probs = []
+        log_probs_prior = []
+        log_probs_biased = []
+        log_probs_importance = []
         kles = []
-        losses = []
         mses=[]
         for i in range(0, data.shape[0], self.batch_size):
-            img = imgs[i:min(data.shape[0], i+self.batch_size), :]
-            reconstructions, obs_distribution_params, latent_distribution_params = self.model(img)
-            log_prob = self.model.logprob(img, obs_distribution_params)
+            img = normalize_image(data[i:min(data.shape[0], i+self.batch_size), :])
+            torch_img = ptu.from_numpy(img)
+            reconstructions, obs_distribution_params, latent_distribution_params = self.model(torch_img)
+
+            log_p, log_q, log_d = compute_bernoulli_p_q_d(model, img, 20, 'prior', 'none')
+            log_prob_prior = log_d.mean()
+
+            log_p, log_q, log_d = compute_bernoulli_p_q_d(model, img, 20, 'biased', 'none')
+            log_prob_biased = log_d.mean()
+
+            log_p, log_q, log_d = compute_bernoulli_p_q_d(model, img, 20, 'importance', 'none')
+            log_prob_importance = (log_p - log_q + log_d).mean()
+
             kle = self.model.kl_divergence(latent_distribution_params)
-            loss = -1 * log_prob + self.beta * kle
-            mse = F.mse_loss(img, reconstructions,reduction='elementwise_mean')
+            mse = F.mse_loss(torch_img, reconstructions, reduction='elementwise_mean')
             mses.append(mse.item())
             kles.append(kle.item())
-            losses.append(loss.item())
-            log_probs.append(log_prob.item())
+            log_probs_prior.append(log_prob_prior.item())
+            log_probs_biased.append(log_prob_biased.item())
+            log_probs_importance.append(log_prob_importance.item())
 
-        logger.record_tabular("Uniform Data Log Prob", np.mean(log_probs))
+        logger.record_tabular("Uniform Data Log Prob (Prior)", np.mean(log_probs_prior))
+        logger.record_tabular("Uniform Data Log Prob (Biased)", np.mean(log_probs_biased))
+        logger.record_tabular("Uniform Data Log Prob (Importance)", np.mean(log_probs_importance))
         logger.record_tabular("Uniform Data KL", np.mean(kles))
-        logger.record_tabular("Uniform Data Loss", np.mean(losses))
         logger.record_tabular("Uniform Data MSE", np.mean(mses))
 
     def dump_uniform_imgs_and_reconstructions(self, dataset, epoch):
