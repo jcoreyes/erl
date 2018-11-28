@@ -53,13 +53,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'gcp'
-    exp_prefix = 'sawyer_door_fit_skew_sweep_weight_update_period'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'gcp'
+    # exp_prefix = 'sawyer_door_fit_skew_sweep_weight_update_period'
 
     use_gpu = True
 

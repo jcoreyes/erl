@@ -15,7 +15,7 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookResetFreeEnv-v0',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
-            save_video=False,
+            save_video=True,
             online_vae_beta=2.5,
             save_video_period=50,
             qf_kwargs=dict(
@@ -55,7 +55,7 @@ if __name__ == "__main__":
                 online_vae_kwargs=dict(
                    vae_training_schedule=vae_schedules.every_other,
                     oracle_data=False,
-                    vae_save_period=50,
+                    vae_save_period=25,
                     parallel_vae_train=False,
                 ),
             ),
@@ -70,7 +70,7 @@ if __name__ == "__main__":
                     num_latents_to_sample=20,
                     decode_prob='none',
                 ),
-                power=1,
+                power=2,
             ),
             normalize=False,
             render=False,
@@ -141,20 +141,21 @@ if __name__ == "__main__":
 
     search_space = {
         # 'grill_variant.replay_buffer_kwargs.priority_function_kwargs.sampling_method': ['importance_sampling', 'biased_sampling', 'correct'],
-        'grill_variant.replay_buffer_kwargs.power': [1, 2, 4],
+        # 'grill_variant.replay_buffer_kwargs.power': [1, 2, 4],
         # 'grill_variant.replay_buffer_kwargs.priority_function_kwargs.decode_prob':['bce', 'none']
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     #
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 10
-    # mode = 'gcp'
-    # exp_prefix = 'door_online_vae_bernoulli_correct_sampling_power_sweep'
+    n_seeds = 4
+    mode = 'ec2'
+    exp_prefix = 'door_online_vae_bernoulli_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -166,7 +167,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east4-a',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
