@@ -42,6 +42,7 @@ def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_metho
         (data.shape[0], num_latents_to_sample)), ptu.zeros((data.shape[0], num_latents_to_sample))
     true_prior = Normal(ptu.zeros((data.shape[0], model.representation_size)),
                         ptu.ones((data.shape[0], model.representation_size)))
+    mus, logvars = latent_distribution_params
     for i in range(num_latents_to_sample):
         if sampling_method == 'importance_sampling':
             latents = model.rsample(latent_distribution_params)
@@ -49,7 +50,6 @@ def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_metho
             latents = model.rsample(latent_distribution_params)
         else:
             latents = true_prior.rsample()
-        mus, logvars = latent_distribution_params
         stds = logvars.exp().pow(.5)
         vae_dist = Normal(mus, stds)
         log_p_z = true_prior.log_prob(latents).sum(dim=1)
