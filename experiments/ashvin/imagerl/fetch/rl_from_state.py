@@ -5,8 +5,6 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
 from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
-
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
@@ -55,17 +53,12 @@ if __name__ == "__main__":
         desired_goal_key='state_desired_goal',
         init_camera=sawyer_pusher_camera_upright_v2,
         do_state_exp=True,
+        save_video=False,
 
-        save_video=True,
-        imsize=84,
-
-        snapshot_mode='gap_and_last',
-        snapshot_gap=50,
     )
 
     search_space = {
-        'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
-        'seedid': range(5),
+        'env_id': ['SawyerPushAndReachXYEnv-No-Arena-v0', 'SawyerPushAndReachXYEnv-No-Arena-v1']
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -81,16 +74,15 @@ if __name__ == "__main__":
     mode = 'ec2'
     exp_prefix = 'sawyer_pusher_state_final'
 
-    run_variants(her_td3_experiment, sweeper.iterate_hyperparameters(), run_id=2)
-    # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-    #     for i in range(n_seeds):
-    #         run_experiment(
-    #             her_td3_experiment,
-    #             exp_prefix=exp_prefix,
-    #             mode=mode,
-    #             snapshot_mode='gap_and_last',
-    #             snapshot_gap=50,
-    #             variant=variant,
-    #             use_gpu=True,
-    #             num_exps_per_instance=5,
-    #         )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for i in range(n_seeds):
+            run_experiment(
+                her_td3_experiment,
+                exp_prefix=exp_prefix,
+                mode=mode,
+                snapshot_mode='gap_and_last',
+                snapshot_gap=50,
+                variant=variant,
+                use_gpu=True,
+                num_exps_per_instance=5,
+            )
