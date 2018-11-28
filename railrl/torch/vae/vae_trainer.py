@@ -540,15 +540,34 @@ class ConvVAETrainer(Serializable):
         if self._train_weights is None:
             self._train_weights = self._compute_train_weights()
         weights = torch.from_numpy(self._train_weights)
-        samples = torch.multinomial(
-            weights, self.batch_size, replacement=True
-        )
+        samples = ptu.get_numpy(torch.multinomial(
+            weights, len(weights), replacement=True
+        ))
         plt.clf()
-        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights)))
+        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights), 1))
+        plt.xlabel('Indices')
+        plt.ylabel('Number of Samples')
+        plt.title('VAE Priority Histogram')
         save_file = osp.join(logger.get_snapshot_dir(), 'hist{}.png'.format(
             epoch))
         plt.savefig(save_file)
         data_save_file = osp.join(logger.get_snapshot_dir(), 'hist_data.txt')
+        with open(data_save_file, 'a') as f:
+            f.write(str(list(zip(bins, n))))
+            f.write('\n')
+
+        samples = ptu.get_numpy(torch.multinomial(
+            weights, self.batch_size, replacement=True
+        ))
+        plt.clf()
+        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights), 1))
+        plt.xlabel('Indices')
+        plt.ylabel('Number of Samples')
+        plt.title('VAE Priority Histogram Batch')
+        save_file = osp.join(logger.get_snapshot_dir(), 'hist_batch{}.png'.format(
+            epoch))
+        plt.savefig(save_file)
+        data_save_file = osp.join(logger.get_snapshot_dir(), 'hist_batch_data.txt')
         with open(data_save_file, 'a') as f:
             f.write(str(list(zip(bins, n))))
             f.write('\n')
