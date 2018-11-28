@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'gcp'
-    # exp_prefix = 'sawyer_door_fit_skew_sweep_weight_update_period'
+    # exp_prefix = 'sawyer_door_fit_skew_finalized_tests'
 
     use_gpu = True
 
@@ -118,7 +118,7 @@ if __name__ == "__main__":
             path_length=100,
             dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48uniform_images_.npy',
         ),
-        save_period=1,
+        save_period=100,
         beta=2.5,
         representation_size=16,
         train_weight_update_period=1,
@@ -131,9 +131,11 @@ if __name__ == "__main__":
           # 'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.9.npy',
           'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_1.npy',
         ],
-        # 'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'biased_sampling', 'correct'],
-        # 'algo_kwargs.skew_config.power':[1, 2, 4],
-        'train_weight_update_period':[1, 2, 4, 10],
+        'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'biased_sampling', 'correct'],
+        'algo_kwargs.skew_config.power':[1, 2, 4],
+        'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10, 20],
+
+        # 'train_weight_update_period':[1, 2, 4, 10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

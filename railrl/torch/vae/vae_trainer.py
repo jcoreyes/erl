@@ -38,10 +38,12 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
 def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_method='importance_sampling', decode_prob='none'):
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    log_p, log_q, log_d = ptu.zeros((data.shape[0], num_latents_to_sample)), ptu.zeros(
-        (data.shape[0], num_latents_to_sample)), ptu.zeros((data.shape[0], num_latents_to_sample))
-    true_prior = Normal(ptu.zeros((data.shape[0], model.representation_size)),
-                        ptu.ones((data.shape[0], model.representation_size)))
+    batch_size = data.shape[0]
+    representation_size=model.representation_size
+    log_p, log_q, log_d = ptu.zeros((batch_size, num_latents_to_sample)), ptu.zeros(
+        (batch_size, num_latents_to_sample)), ptu.zeros((batch_size, num_latents_to_sample))
+    true_prior = Normal(ptu.zeros((batch_size, representation_size)),
+                        ptu.ones((batch_size, representation_size)))
     mus, logvars = latent_distribution_params
     for i in range(num_latents_to_sample):
         if sampling_method == 'importance_sampling':
@@ -68,27 +70,19 @@ def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_metho
 def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling', decode_prob='none'):
     ''' Assumes data is normalized images'''
     log_p, log_q, log_d = compute_bernoulli_p_q_d(model, data, num_latents_to_sample, sampling_method, decode_prob)
-
     if sampling_method == 'importance_sampling':
-        inv_p_x_shifted = importance_sampled_inv_p_x(log_p, log_q, log_d)
+        log_p_x = (log_p - log_q + log_d).mean(dim=1)
     else:
-        inv_p_x_shifted = correct_inv_p_x(log_d)
-    return inv_p_x_shifted
+        log_p_x = log_d.mean(dim=1)
+    # inv_p_x_shifted = compute_inv_p_x_shifted_from_log_p_x(log_p_x)
+    # return inv_p_x_shifted
+    return ptu.get_numpy(log_p_x)
 
-def importance_sampled_inv_p_x(log_p_z, log_q_z_given_x, log_d_x_given_z):
-    log_p_x = (log_p_z - log_q_z_given_x + log_d_x_given_z).mean(dim=1)
-    log_p_x = ((log_p_x - log_p_x.mean())/ (log_p_x.std()+1e-8))
+def compute_inv_p_x_shifted_from_log_p_x(log_p_x):
+    log_p_x = ((log_p_x - log_p_x.mean()) / (log_p_x.std() + 1e-8))
     log_inv_root_p_x = -1 / 2 * log_p_x
     log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
-    inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
-    return inv_p_x_shifted
-
-def correct_inv_p_x(log_d_x_given_z):
-    log_p_x = log_d_x_given_z.mean(dim=1)
-    log_p_x = ((log_p_x - log_p_x.mean())/ (log_p_x.std()+1e-8))
-    log_inv_root_p_x = -1 / 2 * log_p_x
-    log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
-    inv_p_x_shifted = ptu.get_numpy(log_inv_p_x_prime.exp())
+    inv_p_x_shifted = np.exp(log_inv_p_x_prime)
     return inv_p_x_shifted
 
 
@@ -266,13 +260,13 @@ class ConvVAETrainer(Serializable):
                     **self.priority_function_kwargs
                 ) ** power
             elif method == 'kl':
-                weights[idxs] = self._kl_np_to_np(data, **self.priority_function_kwargs) ** power
+                weights[idxs] = self._kl_np_to_np(data, **self.priority_function_kwargs)
             elif method == 'inv_gaussian_p_x':
                 data = normalize_image(data)
-                weights[idxs] = inv_gaussian_p_x_np_to_np(self.model, data, **self.priority_function_kwargs) ** power
+                weights[idxs] = inv_gaussian_p_x_np_to_np(self.model, data, **self.priority_function_kwargs)
             elif method == 'inv_bernoulli_p_x':
                 data = normalize_image(data)
-                weights[idxs] = inv_p_bernoulli_x_np_to_np(self.model, data, **self.priority_function_kwargs) ** power
+                weights[idxs] = inv_p_bernoulli_x_np_to_np(self.model, data, **self.priority_function_kwargs)
             elif method == 'inv_exp_elbo':
                 data = normalize_image(data)
                 weights[idxs] = inv_exp_elbo(self.model, data, beta=self.beta)**power
@@ -281,6 +275,8 @@ class ConvVAETrainer(Serializable):
             cur_idx = next_idx
             next_idx += batch_size
             next_idx = min(next_idx, size)
+        if method == 'inv_gaussian_p_x' or 'inv_bernoulli_p_x':
+            weights = compute_inv_p_x_shifted_from_log_p_x(weights)**power
         return weights
 
     def _kl_np_to_np(self, np_imgs):
