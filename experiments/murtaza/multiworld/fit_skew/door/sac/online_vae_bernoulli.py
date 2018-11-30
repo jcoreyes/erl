@@ -17,7 +17,7 @@ if __name__ == "__main__":
         grill_variant=dict(
             save_video=True,
             online_vae_beta=2.5,
-            save_video_period=50,
+            save_video_period=200,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -140,9 +140,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        # 'grill_variant.replay_buffer_kwargs.priority_function_kwargs.sampling_method': ['importance_sampling', 'correct'],
-        # 'grill_variant.replay_buffer_kwargs.power': [1, 2],
-        # 'grill_variant.replay_buffer_kwargs.priority_function_kwargs.decode_prob':['bce', 'none']
+        'grill_variant.replay_buffer_kwargs.power': [2, 4, 8, 10],
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -153,9 +151,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 10
+    n_seeds = 5
     mode = 'gcp'
-    exp_prefix = 'door_online_vae_bernoulli_fix_normalization_bug'
+    exp_prefix = 'door_online_vae_bernoulli_power_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -167,7 +165,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west2-b',
+                    zone='us-east4-a',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
