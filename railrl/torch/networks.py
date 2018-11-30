@@ -771,7 +771,7 @@ class TwoHeadDCNN(PyTorchModule):
             fc_input_size = hidden_size
 
         self.last_fc = nn.Linear(fc_input_size, deconv_input_size)
-        hidden_init(self.last_fc)
+        hidden_init(self.last_fc.weight)
         self.last_fc.bias.data.fill_(0)
 
         for out_channels, kernel_size, stride, padding in \
