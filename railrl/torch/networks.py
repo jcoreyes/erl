@@ -26,7 +26,7 @@ class CNN(PyTorchModule):
                 n_channels,
                 strides,
                 paddings,
-                hidden_sizes=[],
+                 hidden_sizes=None,
                 added_fc_input_size=0,
                 use_batch_norm=False,
                 init_w=1e-4,
@@ -34,6 +34,8 @@ class CNN(PyTorchModule):
                 hidden_activation=nn.ReLU(),
                 output_activation=identity
         ):
+        if hidden_sizes is None:
+            hidden_sizes = []
         assert len(kernel_sizes) == \
                len(n_channels) == \
                len(strides) == \
@@ -182,7 +184,6 @@ class CNNPolicy(CNN, Policy):
         return self.eval_np(obs)
 
 
-
 class Mlp(PyTorchModule):
     def __init__(
             self,
@@ -310,6 +311,68 @@ class TanhMlpPolicy(MlpPolicy):
     def __init__(self, *args, **kwargs):
         self.save_init_params(locals())
         super().__init__(*args, output_activation=torch.tanh, **kwargs)
+
+
+class ImageStatePolicy(PyTorchModule, Policy):
+    """Switches between image or state inputs"""
+
+    def __init__(
+        self,
+        image_conv_net,
+        state_fc_net,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        assert image_conv_net is None or state_fc_net is None
+        self.image_conv_net = image_conv_net
+        self.state_fc_net = state_fc_net
+
+    def forward(self, input, return_preactivations=False):
+        if self.image_conv_net is not None:
+            image = input[:, :21168]
+            return self.image_conv_net(image)
+        if self.state_fc_net is not None:
+            state = input[:, 21168:]
+            return self.state_fc_net(state)
+        error
+
+    def get_action(self, obs_np):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs):
+        return self.eval_np(obs)
+
+class ImageStateQ(PyTorchModule):
+    """Switches between image or state inputs"""
+
+    def __init__(
+        self,
+        # obs_dim,
+        # action_dim,
+        # goal_dim,
+        image_conv_net, # assumed to be a MergedCNN
+        state_fc_net,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        assert image_conv_net is None or state_fc_net is None
+        # self.obs_dim = obs_dim
+        # self.action_dim = action_dim
+        # self.goal_dim = goal_dim
+        self.image_conv_net = image_conv_net
+        self.state_fc_net = state_fc_net
+
+    def forward(self, input, action, return_preactivations=False):
+        if self.image_conv_net is not None:
+            image = input[:, :21168]
+            return self.image_conv_net(image, action)
+        if self.state_fc_net is not None:
+            state = input[:, 21168:] # action + state
+            return self.state_fc_net(state, action)
+        error
 
 
 class FeedForwardQFunction(PyTorchModule):

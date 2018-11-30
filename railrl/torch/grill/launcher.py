@@ -164,6 +164,7 @@ def train_vae(variant, return_data=False):
     elif not architecture and variant.get('imsize') == 48:
         architecture = conv_vae.imsize48_default_architecture
     variant['vae_kwargs']['architecture'] = architecture
+    variant['vae_kwargs']['imsize'] = variant.get('imsize')
 
     if variant['algo_kwargs'].get('is_auto_encoder', False):
         m = AutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])

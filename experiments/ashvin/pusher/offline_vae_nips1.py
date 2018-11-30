@@ -3,11 +3,13 @@ from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
+from railrl.launchers.arglauncher import run_variants
+
 if __name__ == "__main__":
     variant = dict(
         imsize=84,
         init_camera=sawyer_pusher_camera_upright_v0,
-        env_id='SawyerPushAndReachEnvEasy-v0',
+        env_id='SawyerPushNIPS-v0',
         grill_variant=dict(
             save_video=True,
             save_video_period=100,
@@ -40,7 +42,7 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(1e6),
-                fraction_goals_are_rollout_goals=0.5,
+                fraction_goals_are_rollout_goals=0.1,
                 fraction_resampled_goals_are_env_goals=0.5,
             ),
             algorithm='RIG-HER-TD3',
@@ -62,14 +64,14 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             vae_path=None,
             representation_size=16,
-            beta=5,
+            beta=2.5,
             num_epochs=1000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=5000,
                 oracle_dataset_using_set_to_goal=True,
-                use_cached=False,
+                use_cached=True,
                 vae_dataset_specific_kwargs=dict(
                 ),
                 show=False,
@@ -85,11 +87,11 @@ if __name__ == "__main__":
                 lr=1e-3,
             ),
             save_period=100,
-            decoder_activation='sigmoid',
         ),
     )
 
     search_space = {
+        'seedid': range(5),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -103,13 +105,8 @@ if __name__ == "__main__":
     mode = 'ec2'
     exp_prefix = 'sawyer_pusher_offline_vae'
 
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
-            run_experiment(
-                grill_her_td3_full_experiment,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                variant=variant,
-                use_gpu=True,
-                num_exps_per_instance=3,
-          )
+    variants = []
+    for variant in sweeper.iterate_hyperparameters():
+        variants.append(variant)
+
+    run_variants(grill_her_td3_full_experiment, variants, run_id=0)
