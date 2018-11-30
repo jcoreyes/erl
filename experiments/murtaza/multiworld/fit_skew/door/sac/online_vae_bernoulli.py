@@ -55,7 +55,7 @@ if __name__ == "__main__":
                 online_vae_kwargs=dict(
                    vae_training_schedule=vae_schedules.every_other,
                     oracle_data=False,
-                    vae_save_period=25,
+                    vae_save_period=50,
                     parallel_vae_train=False,
                 ),
             ),
@@ -67,7 +67,7 @@ if __name__ == "__main__":
                 vae_priority_type='image_bernoulli_inv_prob',
                 priority_function_kwargs=dict(
                     sampling_method='correct',
-                    num_latents_to_sample=20,
+                    num_latents_to_sample=10,
                     decode_prob='none',
                 ),
                 power=2,
@@ -140,10 +140,10 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        # 'grill_variant.replay_buffer_kwargs.priority_function_kwargs.sampling_method': ['importance_sampling', 'biased_sampling', 'correct'],
-        # 'grill_variant.replay_buffer_kwargs.power': [1, 2, 4],
+        # 'grill_variant.replay_buffer_kwargs.priority_function_kwargs.sampling_method': ['importance_sampling', 'correct'],
+        # 'grill_variant.replay_buffer_kwargs.power': [1, 2],
         # 'grill_variant.replay_buffer_kwargs.priority_function_kwargs.decode_prob':['bce', 'none']
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob']
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -153,9 +153,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 4
-    mode = 'ec2'
-    exp_prefix = 'door_online_vae_bernoulli_final'
+    n_seeds = 10
+    mode = 'gcp'
+    exp_prefix = 'door_online_vae_bernoulli_fix_normalization_bug'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

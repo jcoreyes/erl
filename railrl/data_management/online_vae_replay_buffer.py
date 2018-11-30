@@ -17,7 +17,7 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.vae_trainer import (
     inv_gaussian_p_x_np_to_np,
     inv_p_bernoulli_x_np_to_np,
-    inv_exp_elbo)
+    inv_exp_elbo, compute_inv_p_x_shifted_from_log_p_x, compute_bernoulli_p_q_d)
 import os.path as osp 
 
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
@@ -201,6 +201,8 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             next_idx += batch_size
             next_idx = min(next_idx, self._size)
         if self._prioritize_vae_samples:
+            if self.vae_priority_type == 'image_bernoulli_inv_prob' or 'image_gaussian_inv_prob':
+                self._vae_sample_priorities[:self._size] = compute_inv_p_x_shifted_from_log_p_x(self._vae_sample_priorities[:self._size])
             vae_sample_priorities = self._vae_sample_priorities[:self._size]
             self._vae_sample_probs = vae_sample_priorities ** self.power
             p_sum = np.sum(self._vae_sample_probs)
@@ -329,15 +331,34 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
     def dump_sampling_histogram(self, epoch, batch_size):
         import matplotlib.pyplot as plt
         weights = torch.from_numpy(self._vae_sample_probs)
-        samples = torch.multinomial(
-            weights, batch_size, replacement=True
-        )
+        samples = ptu.get_numpy(torch.multinomial(
+            weights, len(weights), replacement=True
+        ))
         plt.clf()
-        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights)))
+        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights), 1))
+        plt.xlabel('Indices')
+        plt.ylabel('Number of Samples')
+        plt.title('VAE Priority Histogram')
         save_file = osp.join(logger.get_snapshot_dir(), 'hist{}.png'.format(
             epoch))
         plt.savefig(save_file)
         data_save_file = osp.join(logger.get_snapshot_dir(), 'hist_data.txt')
+        with open(data_save_file, 'a') as f:
+            f.write(str(list(zip(bins, n))))
+            f.write('\n')
+
+        samples = ptu.get_numpy(torch.multinomial(
+            weights, batch_size, replacement=True
+        ))
+        plt.clf()
+        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights), 1))
+        plt.xlabel('Indices')
+        plt.ylabel('Number of Samples')
+        plt.title('VAE Priority Histogram Batch')
+        save_file = osp.join(logger.get_snapshot_dir(), 'hist_batch{}.png'.format(
+            epoch))
+        plt.savefig(save_file)
+        data_save_file = osp.join(logger.get_snapshot_dir(), 'hist_batch_data.txt')
         with open(data_save_file, 'a') as f:
             f.write(str(list(zip(bins, n))))
             f.write('\n')
@@ -374,27 +395,39 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         )
 
     def log_loss_under_uniform(self, data, batch_size, beta):
+        ''' HARDCODED FOR BERNOULLI ONLY FOR NOW '''
         import torch.nn.functional as F
-        imgs = ptu.from_numpy(normalize_image(data))
-        log_probs = []
+        log_probs_prior = []
+        log_probs_biased = []
+        log_probs_importance = []
         kles = []
-        losses = []
-        mses=[]
+        mses = []
         for i in range(0, data.shape[0], batch_size):
-            img = imgs[i:min(data.shape[0], i+batch_size), :]
-            reconstructions, obs_distribution_params, latent_distribution_params = self.vae(img)
-            log_prob = self.vae.logprob(img, obs_distribution_params)
+            img = normalize_image(data[i:min(data.shape[0], i + batch_size), :])
+            torch_img = ptu.from_numpy(img)
+            reconstructions, obs_distribution_params, latent_distribution_params = self.vae(torch_img)
+
+            log_p, log_q, log_d = compute_bernoulli_p_q_d(self.vae, img, 20, 'prior', 'none')
+            log_prob_prior = log_d.mean()
+
+            log_p, log_q, log_d = compute_bernoulli_p_q_d(self.vae, img, 20, 'biased', 'none')
+            log_prob_biased = log_d.mean()
+
+            log_p, log_q, log_d = compute_bernoulli_p_q_d(self.vae, img, 20, 'importance', 'none')
+            log_prob_importance = (log_p - log_q + log_d).mean()
+
             kle = self.vae.kl_divergence(latent_distribution_params)
-            loss = -1 * log_prob + beta * kle
-            mse = F.mse_loss(img, reconstructions,reduction='elementwise_mean')
+            mse = F.mse_loss(torch_img, reconstructions, reduction='elementwise_mean')
             mses.append(mse.item())
             kles.append(kle.item())
-            losses.append(loss.item())
-            log_probs.append(log_prob.item())
+            log_probs_prior.append(log_prob_prior.item())
+            log_probs_biased.append(log_prob_biased.item())
+            log_probs_importance.append(log_prob_importance.item())
 
-        logger.record_tabular("Uniform Data Log Prob", np.mean(log_probs))
+        logger.record_tabular("Uniform Data Log Prob (Prior)", np.mean(log_probs_prior))
+        logger.record_tabular("Uniform Data Log Prob (Biased)", np.mean(log_probs_biased))
+        logger.record_tabular("Uniform Data Log Prob (Importance)", np.mean(log_probs_importance))
         logger.record_tabular("Uniform Data KL", np.mean(kles))
-        logger.record_tabular("Uniform Data Loss", np.mean(losses))
         logger.record_tabular("Uniform Data MSE", np.mean(mses))
 
     def dump_uniform_imgs_and_reconstructions(self, dataset, epoch):

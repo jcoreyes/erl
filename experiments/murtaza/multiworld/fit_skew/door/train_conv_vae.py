@@ -53,13 +53,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'gcp'
-    # exp_prefix = 'sawyer_door_fit_skew_finalized_tests'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'gcp'
+    exp_prefix = 'sawyer_door_fit_skew_finalized_tests'
 
     use_gpu = True
 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
                 gcp_kwargs=dict(
-                    zone='us-west2-b',
+                    zone='us-east4-a    ',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
