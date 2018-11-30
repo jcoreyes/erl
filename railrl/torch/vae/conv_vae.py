@@ -150,17 +150,17 @@ class ConvVAE(GaussianLatentVAE):
             input_channels=self.input_channels,
             output_size=conv_output_size,
             init_w=init_w,
+            hidden_init=hidden_init,
             **conv_kwargs)
 
         self.fc1 = nn.Linear(self.encoder.output_size, representation_size)
         self.fc2 = nn.Linear(self.encoder.output_size, representation_size)
 
         hidden_init(self.fc1.weight)
-        self.fc1.weight.data.uniform_(-init_w, init_w)
-        self.fc1.bias.data.uniform_(-init_w, init_w)
+        self.fc1.bias.data.fill_(0)
+
         hidden_init(self.fc2.weight)
-        self.fc2.weight.data.uniform_(-init_w, init_w)
-        self.fc2.bias.data.uniform_(-init_w, init_w)
+        self.fc2.bias.data.fill_(0)
 
         self.decoder = decoder_class(
             **deconv_args,
@@ -168,6 +168,7 @@ class ConvVAE(GaussianLatentVAE):
             init_w=init_w,
             output_activation=decoder_output_activation,
             paddings=np.zeros(len(deconv_args['kernel_sizes']), dtype=np.int64),
+            hidden_init=hidden_init,
             **deconv_kwargs)
 
         self.epoch = 0
@@ -193,7 +194,7 @@ class ConvVAE(GaussianLatentVAE):
         if self.decoder_distribution == 'bernoulli':
             inputs = inputs.narrow(start=0, length=self.imlength,
                  dim=1).contiguous().view(-1, self.imlength)
-            log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0])*self.imlength #to ensure that we only have divided by the batch size
+            log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0]) * self.imlength
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
@@ -229,6 +230,7 @@ class ConvVAEDouble(ConvVAE):
             imsize=imsize,
             init_w=init_w,
             min_variance=min_variance,
+            hidden_init=hidden_init,
         )
 
     def decode(self, latents):
@@ -242,7 +244,6 @@ class ConvVAEDouble(ConvVAE):
 
     def logprob(self, inputs, obs_distribution_params):
         if self.decoder_distribution == 'gaussian':
-            reconstructions, obs_distribution_params, _ = self(inputs)
             dec_mu, dec_logvar = obs_distribution_params
             dec_mu = dec_mu.view(-1, self.imlength)
             dec_var = dec_logvar.view(-1, self.imlength).exp()

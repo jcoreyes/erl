@@ -30,6 +30,7 @@ class CNN(PyTorchModule):
                 added_fc_input_size=0,
                 use_batch_norm=False,
                 init_w=1e-4,
+                hidden_init=nn.init.xavier_uniform_,
                 hidden_activation=nn.ReLU(),
                 output_activation=identity
         ):
@@ -65,7 +66,8 @@ class CNN(PyTorchModule):
                          kernel_size,
                          stride=stride,
                          padding=padding)
-            nn.init.xavier_uniform_(conv.weight)
+            hidden_init(conv.weight)
+            conv.bias.data.fill_(0)
 
             conv_layer = conv
             self.conv_layers.append(conv_layer)
@@ -85,15 +87,16 @@ class CNN(PyTorchModule):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
 
             norm_layer = nn.BatchNorm1d(hidden_size)
-            nn.init.xavier_uniform_(fc_layer.weight)
+            hidden_init(fc_layer.weight)
+            fc_layer.bias.data.fill_(0)
 
             self.fc_layers.append(fc_layer)
             self.fc_norm_layers.append(norm_layer)
             fc_input_size = hidden_size
 
         self.last_fc = nn.Linear(fc_input_size, output_size)
-        self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
+        hidden_init(self.last_fc.weight)
+        self.last_fc.bias.data.fill_(0)
 
     def forward(self, input):
         fc_input = (self.added_fc_input_size != 0)
@@ -730,6 +733,7 @@ class TwoHeadDCNN(PyTorchModule):
 
                 use_batch_norm=False,
                 init_w=1e-4,
+                hidden_init=nn.init.xavier_uniform_,
                 hidden_activation=nn.ReLU(),
                 output_activation=identity
         ):
@@ -759,15 +763,16 @@ class TwoHeadDCNN(PyTorchModule):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
 
             norm_layer = nn.BatchNorm1d(hidden_size)
-            nn.init.xavier_uniform_(fc_layer.weight)
+            hidden_init(fc_layer.weight)
+            fc_layer.bias.data.fill_(0)
 
             self.fc_layers.append(fc_layer)
             self.fc_norm_layers.append(norm_layer)
             fc_input_size = hidden_size
 
         self.last_fc = nn.Linear(fc_input_size, deconv_input_size)
-        self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
+        hidden_init(self.last_fc.weight)
+        self.last_fc.bias.data.fill_(0)
 
         for out_channels, kernel_size, stride, padding in \
             zip(n_channels, kernel_sizes, strides, paddings):
@@ -777,7 +782,9 @@ class TwoHeadDCNN(PyTorchModule):
                              kernel_size,
                              stride=stride,
                              padding=padding)
-            nn.init.xavier_uniform_(deconv.weight)
+            hidden_init(deconv.weight)
+            deconv.bias.data.fill_(0)
+
             deconv_layer = deconv
             self.deconv_layers.append(deconv_layer)
             deconv_input_channels = out_channels
@@ -794,7 +801,8 @@ class TwoHeadDCNN(PyTorchModule):
             deconv_output_kernel_size,
             stride=deconv_output_strides,
         )
-        nn.init.xavier_uniform_(self.first_deconv_output.weight)
+        hidden_init(self.first_deconv_output.weight)
+        self.first_deconv_output.bias.data.fill_(0)
 
         self.second_deconv_output = nn.ConvTranspose2d(
             deconv_input_channels,
@@ -802,7 +810,8 @@ class TwoHeadDCNN(PyTorchModule):
             deconv_output_kernel_size,
             stride=deconv_output_strides,
         )
-        nn.init.xavier_uniform_(self.second_deconv_output.weight)
+        hidden_init(self.second_deconv_output.weight)
+        self.second_deconv_output.bias.data.fill_(0)
 
     def forward(self, input):
         h = self.apply_forward(input, self.fc_layers, self.fc_norm_layers)
