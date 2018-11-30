@@ -7,7 +7,7 @@ if __name__ == "__main__":
     variant = dict(
         imsize=84,
         init_camera=sawyer_pusher_camera_upright_v0,
-        env_id='SawyerPushAndReachEnvEasy-v0',
+        env_id='SawyerPushNIPS-v0',
         grill_variant=dict(
             save_video=True,
             save_video_period=100,
@@ -40,8 +40,8 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(1e6),
-                fraction_goals_are_rollout_goals=0.5,
-                fraction_resampled_goals_are_env_goals=0.5,
+                fraction_goals_rollout_goals=0.5,
+                fraction_goals_env_goals=0.5,
             ),
             algorithm='RIG-HER-TD3',
             normalize=False,
@@ -69,7 +69,7 @@ if __name__ == "__main__":
                 test_p=.9,
                 N=5000,
                 oracle_dataset_using_set_to_goal=True,
-                use_cached=False,
+                use_cached=True,
                 vae_dataset_specific_kwargs=dict(
                 ),
                 show=False,
@@ -90,6 +90,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'grill_variant.replay_buffer_kwargs.fraction_goals_rollout_goals':[0, .2, .5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -99,9 +100,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_offline_vae'
+    n_seeds = 5
+    mode = 'gcp'
+    exp_prefix = 'sawyer_pusher_nips_submission_env'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
