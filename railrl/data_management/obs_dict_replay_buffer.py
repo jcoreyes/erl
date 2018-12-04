@@ -179,8 +179,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             batch_size * self.fraction_goals_rollout_goals
         )
         num_env_goals = int(
-            batch_size * (1 - self.fraction_goals_rollout_goals)
-            * self.fraction_resampled_goals_env_goals
+            batch_size * self.fraction_resampled_goals_env_goals
         )
         num_future_goals = batch_size - (num_env_goals + num_rollout_goals)
         new_obs_dict = self._batch_obs_dict(indices)

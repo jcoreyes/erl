@@ -132,7 +132,7 @@ def process_variant_cmd(variant):
         variant["use_gpu"] = True
     if "use_gpu" in variant and variant["use_gpu"]:
         if "instance_type" not in variant:
-            variant["instance_type"] = "g2.2xlarge"
+            variant["instance_type"] = "g3.4xlarge"
         if "gpu_id" not in variant:
             variant["gpu_id"] = 0
 

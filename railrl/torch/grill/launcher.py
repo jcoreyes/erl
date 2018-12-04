@@ -215,6 +215,7 @@ def generate_vae_dataset(variant):
     oracle_dataset_using_set_to_goal = variant.get('oracle_dataset_using_set_to_goal', False)
     oracle_dataset_from_policy=variant.get('oracle_dataset_from_policy', False)
     random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
+    random_rollout_data = variant.get('random_rollout_data', False)
     random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
     policy_file = variant.get('policy_file', None)
     n_random_steps = variant.get('n_random_steps', 100)
@@ -303,6 +304,12 @@ def generate_vae_dataset(variant):
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
                     obs = env._get_obs()
+                elif random_rollout_data:
+                    if i % n_random_steps == 0:
+                        g = env.sample_goal()
+                        env.set_to_goal(g)
+                        # env.reset()
+                    obs = env.step(env.action_space.sample())[0]
                 else:
                     env.reset()
                     for _ in range(n_random_steps):
@@ -447,7 +454,7 @@ def get_exploration_strategy(variant, env):
     from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
     from railrl.exploration_strategies.ou_strategy import OUStrategy
     from railrl.exploration_strategies.noop import NoopStrategy
-    
+
     exploration_type = variant['exploration_type']
     exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
