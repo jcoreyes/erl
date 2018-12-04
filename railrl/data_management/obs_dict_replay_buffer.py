@@ -23,8 +23,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             self,
             max_size,
             env,
-            fraction_goals_are_rollout_goals=1.0,
-            fraction_resampled_goals_are_env_goals=0.0,
+            fraction_goals_rollout_goals=1.0,
+            fraction_goals_env_goals=0.0,
             ob_keys_to_save=None,
             internal_keys=None,
             goal_keys=None,
@@ -57,8 +57,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         assert isinstance(env.observation_space, Dict)
         self.max_size = max_size
         self.env = env
-        self.fraction_goals_rollout_goals = fraction_goals_are_rollout_goals
-        self.fraction_resampled_goals_env_goals = fraction_resampled_goals_are_env_goals
+        self.fraction_goals_rollout_goals = fraction_goals_rollout_goals
+        self.fraction_goals_env_goals = fraction_goals_env_goals
         self.ob_keys_to_save = ob_keys_to_save
         self.observation_key = observation_key
         self.desired_goal_key = desired_goal_key
@@ -175,12 +175,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         indices = self._sample_indices(batch_size)
         resampled_goals = self._next_obs[self.desired_goal_key][indices]
 
-        num_rollout_goals = int(
-            batch_size * self.fraction_goals_rollout_goals
-        )
-        num_env_goals = int(
-            batch_size * self.fraction_resampled_goals_env_goals
-        )
+        num_rollout_goals = int(batch_size * self.fraction_goals_rollout_goals)
+        num_env_goals = int(batch_size * self.fraction_goals_env_goals)
         num_future_goals = batch_size - (num_env_goals + num_rollout_goals)
         new_obs_dict = self._batch_obs_dict(indices)
         new_next_obs_dict = self._batch_next_obs_dict(indices)
