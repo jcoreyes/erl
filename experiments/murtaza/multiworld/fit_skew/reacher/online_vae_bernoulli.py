@@ -59,7 +59,7 @@ if __name__ == "__main__":
                 online_vae_kwargs=dict(
                    vae_training_schedule=vae_schedules.every_other,
                     oracle_data=False,
-                    vae_save_period=50,
+                    vae_save_period=100,
                     parallel_vae_train=False,
                 ),
             ),
