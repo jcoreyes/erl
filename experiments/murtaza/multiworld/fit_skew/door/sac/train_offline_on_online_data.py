@@ -1,19 +1,30 @@
+import joblib
+from torch import nn
 import railrl.misc.hyperparameter as hyp
+from experiments.murtaza.multiworld.fit_skew.door.generate_uniform_dataset import generate_uniform_dataset_door
+from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE
+from railrl.torch.vae.conv_vae import imsize48_default_architecture, ConvVAE
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
-from railrl.torch.grill.launcher import generate_vae_dataset
 
 def experiment(variant):
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
     beta = variant["beta"]
     representation_size = variant["representation_size"]
-    train_data, test_data, info = variant['generate_vae_dataset_fn'](
-        variant['generate_vae_dataset_kwargs']
+    data = joblib.load(variant['file'])
+    obs = data['obs']
+    size = int(data['size'])
+    dataset = obs[:size, :]
+    n = int(size * .9)
+    train_data = dataset[:n, :]
+    test_data = dataset[n:, :]
+    logger.get_snapshot_dir()
+    print('SIZE: ', size)
+    uniform_dataset = generate_uniform_dataset_door(
+        **variant['generate_uniform_dataset_kwargs']
     )
-    logger.save_extra_data(info)
     logger.get_snapshot_dir()
     if 'beta_schedule_kwargs' in variant:
         # kwargs = variant['beta_schedule_kwargs']
@@ -24,7 +35,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = variant['vae'](representation_size, **variant['vae_kwargs'])
+    m = variant['vae'](representation_size, decoder_output_activation=nn.Sigmoid(), **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
@@ -32,6 +43,7 @@ def experiment(variant):
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
         t.train_epoch(epoch)
+        t.log_loss_under_uniform(uniform_dataset)
         t.test_epoch(epoch, save_reconstruction=should_save_imgs,
                      save_scatterplot=should_save_imgs)
         if should_save_imgs:
@@ -40,87 +52,66 @@ def experiment(variant):
                 t.dump_best_reconstruction(epoch)
                 t.dump_worst_reconstruction(epoch)
                 t.dump_sampling_histogram(epoch)
+                t.dump_uniform_imgs_and_reconstructions(dataset=uniform_dataset, epoch=epoch)
         t.update_train_weights()
 
 
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'first10K_samples_fit_skew_fixed'
 
     # n_seeds = 1
     # mode = 'ec2'
-    # exp_prefix = 'normalized-sampling'
-
-    use_gpu = True
-
-    architecture = dict(
-        conv_args=dict(
-            kernel_sizes=[5, 3, 3],
-            n_channels=[16, 32, 64],
-            strides=[3, 2, 2],
-        ),
-        conv_kwargs=dict(
-            hidden_sizes=[500, 300, 150],
-        ),
-        deconv_args=dict(
-            hidden_sizes=[150, 300, 500],
-
-            deconv_input_width=3,
-            deconv_input_height=3,
-            deconv_input_channels=64,
-
-            deconv_output_kernel_size=6,
-            deconv_output_strides=3,
-            deconv_output_channels=3,
-
-            kernel_sizes=[3, 3],
-            n_channels=[32, 16],
-            strides=[2, 2],
-        ),
-        deconv_kwargs=dict(
-        )
-    )
+    # exp_prefix = 'test'
+    use_gpu=True
 
     variant = dict(
+        file='/home/murtaza/research/railrl/data/local/11-15-test/11-15-test_2018_11_15_12_57_26_id000--s13644/extra_data.pkl',
         num_epochs=1000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                method='inv_gaussian_p_x',
+                method='inv_bernoulli_p_x',
+                # method='inv_exp_elbo',
+                power=4,
             ),
-            skew_dataset=False,
-        ),
-        vae=ConvVAE,
-        dump_skew_debug_plots=True,
-        generate_vae_dataset_fn=generate_vae_dataset,
-        generate_vae_dataset_kwargs=dict(
-            N=5000,
-            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v5_N5000_sawyer_door_env_camera_v3_imsize48_random_oracle_split_0.9_twin_sac.npy',
-            oracle_dataset=False,
-            use_cached=True,
-            oracle_dataset_from_policy=True,
-            imsize=48,
-            non_presampled_goal_img_is_garbage=True,
-            vae_dataset_specific_kwargs=dict(),
-            policy_file='09-22-sawyer-door-new-door-60-reset-free-space-fix/09-22-sawyer_door_new_door_60_reset_free_space_fix_2018_09_23_04_05_41_id000--s34898/params.pkl',
-            n_random_steps=100,
-            show=False,
+            skew_dataset=True,
+            priority_function_kwargs=dict(
+                num_latents_to_sample=20,
+                sampling_method='correct',
+                decode_prob='none',
+            ),
+            use_parallel_dataloading=False,
         ),
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
-            architecture=architecture,
-            decoder_distribution='gaussian_identity_variance'
+            architecture=imsize48_default_architecture,
+            decoder_distribution='bernoulli'
         ),
-        save_period=10,
-        beta=.5,
+        vae=ConvVAE,
+        dump_skew_debug_plots=True,
+        generate_uniform_dataset_kwargs=dict(
+            env_id='SawyerDoorHookResetFreeEnv-v0',
+            init_camera=sawyer_door_env_camera_v0,
+            num_imgs=1000,
+            use_cached_dataset=False,
+            policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
+            show=False,
+            path_length=100,
+            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48uniform_images_.npy',
+        ),
+        save_period=50,
+        beta=2.5,
         representation_size=16,
     )
 
     search_space = {
+        # 'algo_kwargs.skew_config.power':[4],
+        'algo_kwargs.skew_dataset':[True, False]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -133,7 +124,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=use_gpu,
-                num_exps_per_instance=1,
+                num_exps_per_instance=2,
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
             )

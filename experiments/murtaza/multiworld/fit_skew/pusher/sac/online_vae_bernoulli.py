@@ -26,7 +26,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=3010,
+                    num_epochs=1010,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=10000,
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                     use_automatic_entropy_tuning=True,
                 ),
                 online_vae_kwargs=dict(
-                   vae_training_schedule=vae_schedules.every_other,
+                    vae_training_schedule=vae_schedules.every_other,
                     oracle_data=False,
                     vae_save_period=50,
                     parallel_vae_train=False,
@@ -58,11 +58,16 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(100000),
-                fraction_goals_are_rollout_goals=0.5,
+                fraction_goals_are_rollout_goals=0,
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
-                power=1,
+                priority_function_kwargs=dict(
+                    sampling_method='correct',
+                    num_latents_to_sample=10,
+                    decode_prob='none',
+                ),
+                power=2,
             ),
             normalize=False,
             render=False,
@@ -78,7 +83,18 @@ if __name__ == "__main__":
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             ),
-            algorithm='ONLINE-VAE-SAC-BERNOULLI-HER-TD3',
+            algorithm='ONLINE-VAE-SAC-BERNOULLI',
+            # generate_uniform_dataset_kwargs=dict( #TODO: IMPLEMENT THIS FOR PUSHER
+            #     env_id='SawyerDoorHookResetFreeEnv-v0',
+            #     init_camera=sawyer_door_env_camera_v0,
+            #     num_imgs=1000,
+            #     use_cached_dataset=False,
+            #     policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
+            #     show=False,
+            #     path_length=100,
+            #     dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48uniform_images_.npy',
+            # ),
+            # generate_uniform_dataset_fn=generate_uniform_dataset_door,
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -110,8 +126,9 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
-        'env_id': ['SawyerPushAndReachSmallArenaEnv-v0', 'SawyerPushAndReachArenaEnv-v0'],
-        'init_camera':[sawyer_pusher_camera_upright_v1, sawyer_pusher_camera_upright_v2]
+        'grill_variant.online_vae_beta':[1, 2.5, 5],
+        # 'env_id': [], #update to NIPS submission env
+        'init_camera':[] #update to correct camera
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -127,10 +144,6 @@ if __name__ == "__main__":
     exp_prefix = 'pusher_online_vae_bernoulli_sac'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if variant['init_camera'] == sawyer_pusher_camera_upright_v1 and variant['env_id'] == 'SawyerPushAndReachArenaEnv-v0':
-            continue
-        elif variant['init_camera'] == sawyer_pusher_camera_upright_v2 and variant['env_id'] == 'SawyerPushAndReachSmallArenaEnv-v0':
-            continue
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_twin_sac_online_vae_full_experiment,

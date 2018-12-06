@@ -48,7 +48,7 @@ variant = dict(
     render=False,
     save_video=True,
     save_video_period=100,
-    imsize=48,
+    imsize=84,
     init_camera=sawyer_pusher_camera_upright_v2,
     do_state_exp=True,
 )
