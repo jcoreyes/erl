@@ -140,20 +140,19 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.power': [2, 4, 8, 10],
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob']
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob', 'None']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 5
-    # mode = 'gcp'
-    # exp_prefix = 'door_online_vae_bernoulli_sweep'
+    n_seeds = 10
+    mode = 'gcp'
+    exp_prefix = 'door_online_vae_bernoulli_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
