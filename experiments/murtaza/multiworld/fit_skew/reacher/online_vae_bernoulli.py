@@ -137,7 +137,6 @@ if __name__ == "__main__":
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
         'grill_variant.online_vae_beta':[2.5],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule': [vae_schedules.every_other],
-        'grill_variant.algo_kwargs.online_vae_kwargs.num_iterations_per_epoch': [4]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -147,7 +146,7 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 2
+    n_seeds = 4
     mode = 'gcp'
     exp_prefix = 'reacher_fit_skew_final'
 
@@ -161,9 +160,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west2-b',
+                    zone='us-west1-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p4',
+                        gpu_model='nvidia-tesla-p100',
                         num_gpu=1,
                     )
                 )
