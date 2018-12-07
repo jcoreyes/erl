@@ -13,11 +13,7 @@ if __name__ == "__main__":
         online_vae_exploration=False,
         imsize=48,
         init_camera=sawyer_xyz_reacher_camera_v0,
-        env_class=SawyerReachXYEnv,
-        env_kwargs=dict(
-            norm_order=2,
-            reset_mode='fixed',
-        ),
+        env_id='SawyerReachXYEnv-v1',
         grill_variant=dict(
             save_video=True,
             online_vae_beta=2.5,
@@ -112,11 +108,11 @@ if __name__ == "__main__":
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
-                N=100,
+                N=1000,
                 test_p=.9,
                 use_cached=False,
                 show=False,
-                oracle_dataset=False,
+                oracle_dataset=True,
                 n_random_steps=1,
                 non_presampled_goal_img_is_garbage=True,
             ),
@@ -135,7 +131,7 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
-        'grill_variant.online_vae_beta':[2.5],
+        'grill_variant.online_vae_beta':[.5, 1, 2.5],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule': [vae_schedules.every_other],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -148,7 +144,7 @@ if __name__ == "__main__":
 
     n_seeds = 4
     mode = 'gcp'
-    exp_prefix = 'reacher_fit_skew_final'
+    exp_prefix = 'reacher_fit_skew_sweep_beta'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
