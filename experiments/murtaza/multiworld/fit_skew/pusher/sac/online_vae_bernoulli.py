@@ -28,7 +28,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1010,
+                    num_epochs=2010,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=0,
@@ -97,8 +97,8 @@ if __name__ == "__main__":
             generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
         ),
         train_vae_variant=dict(
-            representation_size=16,
-            beta=1.0,
+            representation_size=4,
+            beta=10/128,
             num_epochs=0,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
@@ -125,9 +125,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.online_vae_beta':[10/128, .5, 2.5],
-        'grill_variant.replay_buffer_kwargs.fraction_goals_are_rollout_goals':[0, .2, .5],
-        'train_vae_variant.representation_size':[4, 16]
+        'grill_variant.replay_buffer_kwargs.power':[0, 1, 2, 4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -137,9 +135,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 1
+    n_seeds = 4
     mode = 'gcp'
-    exp_prefix = 'pusher_fit_skew_sweep'
+    exp_prefix = 'pusher_fit_skew_sweep_power'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -151,9 +149,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east1-b',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p100',
+                        gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
                     )
                 )
