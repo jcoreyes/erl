@@ -126,8 +126,8 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
-        'grill_variant.online_vae_beta':[.5, 1],
-        'train_vae_variant.representation_size':[2, 4],
+        'grill_variant.online_vae_beta':[.5],
+        'train_vae_variant.representation_size':[4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -139,7 +139,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'gcp'
-    exp_prefix = 'reacher_fit_skew_sweep_rep_size'
+    exp_prefix = 'reacher_online_vae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
