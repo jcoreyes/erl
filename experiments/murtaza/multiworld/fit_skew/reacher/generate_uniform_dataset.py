@@ -9,7 +9,7 @@ def generate_uniform_dataset_reacher(
         env_kwargs=None,
         num_imgs=1000,
         use_cached_dataset=False,
-        init_cabeta_mera=None,
+        init_camera=None,
         imsize=48,
         show=False,
         save_file_prefix=None,
