@@ -633,6 +633,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             data_to_save['env'] = self.training_env
         if self.save_replay_buffer:
             data_to_save['replay_buffer'] = self.replay_buffer
+            data_to_save['obs'] = self.replay_buffer._obs['image_observation']
+            data_to_save['size'] = self.replay_buffer._size
         if self.save_algorithm:
             data_to_save['algorithm'] = self
         return data_to_save

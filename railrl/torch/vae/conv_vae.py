@@ -7,7 +7,7 @@ from railrl.torch import pytorch_util as ptu
 import numpy as np
 from railrl.torch.networks import CNN, TwoHeadDCNN, DCNN
 from railrl.torch.vae.vae_base import compute_bernoulli_log_prob, compute_gaussian_log_prob, GaussianLatentVAE, \
-    compute_beta_log_prob
+    compute_beta_log_prob, compute_vectorized_bernoulli_log_prob
 
 ###### DEFAULT ARCHITECTURES #########
 
@@ -234,6 +234,15 @@ class ConvVAE(GaussianLatentVAE):
             inputs = inputs.narrow(start=0, length=self.imlength,
                                    dim=1).contiguous().view(-1, self.imlength)
             log_prob = -1*F.mse_loss(inputs, obs_distribution_params[0],reduction='elementwise_mean')
+            return log_prob
+        else:
+            raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
+
+    def vectorized_logprob(self, inputs, obs_distribution_params):
+        if self.decoder_distribution == 'bernoulli':
+            inputs = inputs.narrow(start=0, length=self.imlength,
+                 dim=1).contiguous().view(-1, self.imlength)
+            log_prob = compute_vectorized_bernoulli_log_prob(inputs, obs_distribution_params[0]) * self.imlength
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
