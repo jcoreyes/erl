@@ -133,13 +133,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'gcp'
-    # exp_prefix = 'pusher_fit_skew_sweep'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'gcp'
+    exp_prefix = 'pusher_fit_skew_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -151,7 +151,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west1-b',
+                    zone='us-east1-b',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p100',
                         num_gpu=1,
