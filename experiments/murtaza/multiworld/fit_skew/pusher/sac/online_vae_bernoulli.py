@@ -126,6 +126,7 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.power':[0, 1, 2, 4],
+        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[0, 4000, 10000],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -135,9 +136,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 4
+    n_seeds = 1
     mode = 'gcp'
-    exp_prefix = 'pusher_fit_skew_sweep_power'
+    exp_prefix = 'pusher_fit_skew_sweep_power_min_num_steps_before_training'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -149,7 +150,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east4-a',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
