@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 3
+    n_seeds = 1
     mode = 'gcp'
     exp_prefix = 'reacher_fit_skew_sweep_rep_size'
 
