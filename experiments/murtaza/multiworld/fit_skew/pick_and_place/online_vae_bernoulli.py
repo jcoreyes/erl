@@ -37,7 +37,7 @@ if __name__ == "__main__":
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=10000,
                     batch_size=128,
-                    max_path_length=100,
+                    max_path_length=50,
                     discount=0.99,
                     num_updates_per_env_step=2,
                     collection_mode='online-parallel',
@@ -106,7 +106,7 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             dump_skew_debug_plots=False,
             generate_vae_data_fctn=generate_vae_dataset,
-            representation_size=16,
+            representation_size=8,
             beta=1.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.online_vae_beta':[.25, .5, 2.5],
+        'grill_variant.online_vae_beta':[.25, .5],
         'grill_variant.replay_buffer_kwargs.power':[1, 2, 4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -142,9 +142,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 3
+    n_seeds = 2
     mode = 'gcp'
-    exp_prefix = 'pickup_online_vae_bernoulli'
+    exp_prefix = 'pickup_online_vae_bernoulli_fixed_hyperparams'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -156,9 +156,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west2-b',
+                    zone='us-east1-c',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p4',
+                        gpu_model='nvidia-tesla-p100',
                         num_gpu=1,
                     )
                 )
