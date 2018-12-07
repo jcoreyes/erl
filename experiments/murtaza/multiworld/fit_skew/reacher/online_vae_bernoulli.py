@@ -87,13 +87,9 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            generate_uniform_dataset_kwargs=dict( #TODO: IMPLEMENT THIS FOR REACHER
-                env_class=SawyerReachXYEnv,
-                env_kwargs=dict(
-                    norm_order=2,
-                    reset_mode='fixed',
-                ),
+            generate_uniform_dataset_kwargs=dict(
                 init_camera=sawyer_xyz_reacher_camera_v0,
+                env_id='SawyerReachXYEnv-v1',
                 num_imgs=1000,
                 use_cached_dataset=False,
                 show=False,
