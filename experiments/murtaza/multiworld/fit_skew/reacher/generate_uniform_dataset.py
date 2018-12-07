@@ -1,17 +1,15 @@
 import os.path as osp
 import cv2
 import numpy as np
-
 from multiworld.core.image_env import unormalize_image, ImageEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
-import railrl.torch.pytorch_util as ptu
 
 def generate_uniform_dataset_reacher(
         env_class=None,
         env_kwargs=None,
         num_imgs=1000,
         use_cached_dataset=False,
-        init_camera=None,
+        init_cabeta_mera=None,
         imsize=48,
         show=False,
         save_file_prefix=None,
@@ -66,10 +64,6 @@ def generate_uniform_dataset_reacher(
             cv2.waitKey(1)
         print(j)
         dataset[j, :] = unormalize_image(img_f)
-    temp = env.reset_mode
-    env.reset_free = 'fixed'
-    env.reset()
-    env.reset_free = temp
     np.save(filename, dataset)
     print("Saving file to {}".format(filename))
     return dataset
