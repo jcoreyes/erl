@@ -24,9 +24,9 @@ def configure_matplotlib(matplotlib):
     matplotlib.rcParams.update({'font.size': 18})
 plt.style.use("ggplot")
 
-output_dir = '/home/ashvin/grill_output/plots/' # '/home/vitchyr/git/railrl/data/papers/nips2018/script-output-2/'
-ashvin_base_dir = "/home/ashvin/data/" # '/mnt/gauss1/ashvin-all-data/'
-vitchyr_base_dir = "/home/ashvin/data/" # '/home/vitchyr/git/railrl/data/'
+output_dir = '/home/vitchyr/git/railrl/data/papers/nips2018/talk/'
+ashvin_base_dir = '/mnt/gauss1/ashvin-all-data/'
+vitchyr_base_dir = '/home/vitchyr/git/railrl/data/'
 
 our_method_name = 'RIG'
 
