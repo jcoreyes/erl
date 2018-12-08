@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'gcp'
-    exp_prefix = 'pusher_SkewFit_finalized'
+    exp_prefix = 'pusher_skewfit_finalized'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
