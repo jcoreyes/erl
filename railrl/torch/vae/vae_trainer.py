@@ -24,7 +24,7 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    latents = model.rsample(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
+    latents = model.rsample_multiple_latents(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
     mus, logvars = latent_distribution_params
     stds = logvars.exp().pow(.5)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))
@@ -46,7 +46,7 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1):
     ''' Assumes data is normalized images'''
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    latents = model.rsample(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
+    latents = model.rsample_multiple_latents(latent_distribution_params, num_latents_to_sample=num_latents_to_sample)
     mus, logvars = latent_distribution_params
     stds = logvars.exp().pow(.5)
     true_prior = Normal(ptu.zeros(1), ptu.ones(1))

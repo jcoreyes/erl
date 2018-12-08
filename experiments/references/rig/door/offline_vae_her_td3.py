@@ -75,6 +75,7 @@ if __name__ == "__main__":
             beta=.5,
             num_epochs=1000,
             dump_skew_debug_plots=False,
+            decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=5000,
