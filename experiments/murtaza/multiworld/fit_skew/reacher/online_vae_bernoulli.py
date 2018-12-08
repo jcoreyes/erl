@@ -127,8 +127,9 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
         'grill_variant.online_vae_beta':[.5],
-        'train_vae_variant.representation_size':[4],
-        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training': [0, 4000, 10000],
+        'train_vae_variant.representation_size':[2, 4, 8],
+        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training': [4000],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length':[50, 100],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
