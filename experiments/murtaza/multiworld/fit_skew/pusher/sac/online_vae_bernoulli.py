@@ -16,7 +16,7 @@ if __name__ == "__main__":
         grill_variant=dict(
             save_video=True,
             online_vae_beta=10/128,
-            save_video_period=100,
+            save_video_period=250,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -30,7 +30,7 @@ if __name__ == "__main__":
                 base_kwargs=dict(
                     num_epochs=2010,
                     num_steps_per_epoch=1000,
-                    num_steps_per_eval=1000,
+                    num_steps_per_eval=500,
                     min_num_steps_before_training=0,
                     batch_size=128,
                     max_path_length=100,
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                 online_vae_kwargs=dict(
                    vae_training_schedule=vae_schedules.every_other,
                     oracle_data=False,
-                    vae_save_period=100,
+                    vae_save_period=250,
                     parallel_vae_train=False,
                 ),
             ),
@@ -90,7 +90,7 @@ if __name__ == "__main__":
                 init_camera=sawyer_init_camera_zoomed_in,
                 env_id='SawyerPushNIPS-v0',
                 num_imgs=1000,
-                use_cached_dataset=False,
+                use_cached_dataset=True,
                 show=False,
                 save_file_prefix='pusher',
             ),
@@ -105,7 +105,7 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 N=1000,
                 test_p=.9,
-                use_cached=False,
+                use_cached=True,
                 show=False,
                 oracle_dataset=True,
                 n_random_steps=1,
@@ -127,6 +127,8 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.replay_buffer_kwargs.power':[2],
         'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[10000],
+        'grill_variant.exploration_noise':[0, .1, .3],
+        'grill_variant.algo_kwargs.twin_sac_kwargs.target_entropy':[-2, -1, -.5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -136,9 +138,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 5
+    n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'pusher_skewfit_finalized_run_long'
+    exp_prefix = 'pusher_skewfit_sweep_exploration_params'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -150,9 +152,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west2-b',
+                    zone='us-east1-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p4',
+                        gpu_model='nvidia-tesla-p100',
                         num_gpu=1,
                     )
                 )
