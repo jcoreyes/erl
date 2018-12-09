@@ -128,7 +128,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                 self.vae.state_dict(),
                 self.replay_buffer,
                 self.replay_buffer.get_mp_info(),
-                ptu.gpu_enabled(),
+                ptu.device,
             )
         )
         self.vae_training_process.start()
@@ -140,7 +140,9 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         _test_vae(
             self.vae_trainer,
             self.epoch,
-            vae_save_period=self.vae_save_period
+            self.replay_buffer,
+            vae_save_period=self.vae_save_period,
+            uniform_dataset=self.uniform_dataset,
         )
 
     def evaluate(self, epoch, eval_paths=None):
@@ -184,7 +186,7 @@ def subprocess_train_vae_loop(
     vae_params,
     replay_buffer,
     mp_info,
-    use_gpu=True,
+    device,
 ):
     """
     The observations and next_observations of the replay buffer are stored in
@@ -195,11 +197,10 @@ def subprocess_train_vae_loop(
     it is possible for the main process to see half the latents updated and half
     not.
     """
-    ptu.set_gpu_mode(use_gpu)
+    ptu.device = device
     vae_trainer = conn_pipe.recv()
     vae.load_state_dict(vae_params)
-    if ptu.gpu_enabled():
-        vae.cuda()
+    vae.to(ptu.device)
     vae_trainer.set_vae(vae)
     replay_buffer.init_from_mp_info(mp_info)
     replay_buffer.env.vae = vae
