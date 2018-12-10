@@ -23,7 +23,7 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             save_video=True,
-            save_video_period=25,
+            save_video_period=100,
             online_vae_beta=1.0,
             presample_goals=True,
             generate_goal_dataset_fctn=get_image_presampled_goals_from_vae_env,
@@ -33,7 +33,7 @@ if __name__ == "__main__":
             algo_kwargs=dict(
                 base_kwargs=dict(
                     save_environment=False,
-                    num_epochs=600,
+                    num_epochs=1000,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -82,7 +82,7 @@ if __name__ == "__main__":
             beta=5.0,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=50,
+                N=1000,
                 test_p=.9,
                 oracle_dataset=True,
                 show=False,
@@ -101,6 +101,7 @@ if __name__ == "__main__":
             #    y_values=[0, 0, 5, 5],
             #),
             save_period=5,
+            decoder_activation='sigmoid',
         ),
     )
 
@@ -108,22 +109,27 @@ if __name__ == "__main__":
         'grill_variant.training_mode': ['train'],
         'grill_variant.replay_kwargs.fraction_goals_are_rollout_goals': [0.2],
         'grill_variant.online_vae_beta': [0.5],
-        'grill_variant.replay_kwargs.alpha': [0],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
-        'grill_variant.algo_kwargs.base_kwargs.collection_mode': ['online'],
+        'grill_variant.algo_kwargs.base_kwargs.collection_mode': ['online-parallel'],
         'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
         'grill_variant.algo_kwargs.online_vae_kwargs.parallel_vae_train': [False],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':
             [vae_schedules.every_six],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type': ['image_bernoulli_inv_prob', 'None'],
+        'grill_variant.replay_buffer_kwargs.power': [1, 2],
 
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
+    
     n_seeds = 2
     mode = 'gcp'
-    exp_prefix = 'pick-and-place-rig-replicate'
+    exp_prefix = 'pick-and-place-her-td3'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(

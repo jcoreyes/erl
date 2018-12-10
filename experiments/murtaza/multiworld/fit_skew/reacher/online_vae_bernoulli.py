@@ -126,6 +126,7 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob', 'None'],
+        'grill_variant.replay_buffer_kwargs.power':[1, 2],
         'grill_variant.online_vae_beta':[.5],
         'train_vae_variant.representation_size':[4],
         'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training': [4000],

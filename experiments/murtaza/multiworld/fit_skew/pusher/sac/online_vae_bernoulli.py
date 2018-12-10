@@ -73,7 +73,7 @@ if __name__ == "__main__":
             ),
             normalize=False,
             render=False,
-            exploration_noise=0,
+            exploration_noise=0.3,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -125,10 +125,10 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.power':[2],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type': ['image_bernoulli_inv_prob', 'None'],
         'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[10000],
-        'grill_variant.exploration_noise':[0, .1, .3],
-        'grill_variant.algo_kwargs.twin_sac_kwargs.target_entropy':[-2, -1, -.5],
+        'grill_variant.exploration_noise':[.3],
+        'grill_variant.replay_buffer_kwargs.power': [1],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -138,11 +138,13 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 3
+    n_seeds = 6
     mode = 'gcp'
-    exp_prefix = 'pusher_skewfit_sweep_exploration_params'
+    exp_prefix = 'pusher_skewfit_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:
+            continue
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_twin_sac_online_vae_full_experiment,
@@ -152,9 +154,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east1-b',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p100',
+                        gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
                     )
                 )
