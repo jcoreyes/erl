@@ -112,7 +112,7 @@ if __name__ == "__main__":
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
         'grill_variant.algo_kwargs.base_kwargs.collection_mode': ['online'],
         'grill_variant.algo_kwargs.online_vae_kwargs.oracle_data': [False],
-        # 'grill_variant.algo_kwargs.online_vae_kwargs.parallel_vae_train': [True],
+        'grill_variant.algo_kwargs.online_vae_kwargs.parallel_vae_train': [False],
         'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':
             [vae_schedules.every_six],
 
@@ -122,8 +122,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 2
-    mode = 'local'
-    exp_prefix = 'pick-and-place'
+    mode = 'gcp'
+    exp_prefix = 'pick-and-place-rig-replicate'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
@@ -136,4 +136,11 @@ if __name__ == "__main__":
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
                 num_exps_per_instance=2,
+                gcp_kwargs=dict(
+                    zone='us-east1-b',
+                    gpu_kwargs=dict(
+                        gpu_model='nvidia-tesla-p100',
+                        num_gpu=1,
+                    )
+                )
             )

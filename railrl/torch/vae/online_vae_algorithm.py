@@ -200,7 +200,7 @@ def subprocess_train_vae_loop(
     ptu.device = device
     vae_trainer = conn_pipe.recv()
     vae.load_state_dict(vae_params)
-    vae.to(ptu.device)
+    vae.to(device)
     vae_trainer.set_vae(vae)
     replay_buffer.init_from_mp_info(mp_info)
     replay_buffer.env.vae = vae
