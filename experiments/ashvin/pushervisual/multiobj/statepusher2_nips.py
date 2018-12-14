@@ -100,4 +100,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(her_td3_experiment, variants, run_id=0)
+    run_variants(her_td3_experiment, variants, run_id=2)
