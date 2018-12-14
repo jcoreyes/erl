@@ -1,10 +1,10 @@
+# from railrl.demos.collect_demo import collect_demos
+
 from railrl.launchers.experiments.murtaza.multiworld import her_td3_experiment
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
-    SawyerPushAndReachXYEnv
-)
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_nips_multiobj import SawyerTwoObjectNIPSEnv
+
+from multiworld.envs.pygame.point2d import Point2DWallEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 
@@ -15,7 +15,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=501,
+                num_epochs=101,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=100,
@@ -23,7 +23,7 @@ if __name__ == "__main__":
                 batch_size=128,
                 discount=0.99,
                 min_num_steps_before_training=4000,
-                reward_scale=1.0,
+                reward_scale=1e-4,
                 render=False,
                 collection_mode='online',
                 tau=1e-2,
@@ -39,8 +39,8 @@ if __name__ == "__main__":
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_rollout_goals=0.1,
-            fraction_goals_env_goals=0.5,
+            fraction_goals_are_rollout_goals=0.2,
+            fraction_resampled_goals_are_env_goals=0.5,
             ob_keys_to_save=[],
         ),
         qf_kwargs=dict(
@@ -66,22 +66,22 @@ if __name__ == "__main__":
         snapshot_mode='gap_and_last',
         snapshot_gap=50,
 
-        env_class=SawyerTwoObjectNIPSEnv,
+        env_class=Point2DWallEnv,
         env_kwargs=dict(
-            hide_goal=True,
-            reward_info=dict(
-                type="state_distance",
-            ),
+            render_onscreen=False,
+            images_are_rgb=True,
         ),
 
+        wrap_mujoco_gym_to_multi_env=False,
         num_exps_per_instance=1,
     )
 
     search_space = {
+        # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
         'seedid': range(5),
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
-        'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.1, ],
-        'replay_buffer_kwargs.fraction_goals_env_goals': [0.5, ],
+        'replay_buffer_kwargs.fraction_goals_are_rollout_goals': [0.2, ],
+        'replay_buffer_kwargs.fraction_resampled_goals_are_env_goals': [0.5, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -100,4 +100,16 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(her_td3_experiment, variants, run_id=3)
+    run_variants(her_td3_experiment, variants, run_id=1)
+    # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+    #     for i in range(n_seeds):
+    #         run_experiment(
+    #             her_td3_experiment,
+    #             exp_prefix=exp_prefix,
+    #             mode=mode,
+    #             snapshot_mode='gap_and_last',
+    #             snapshot_gap=50,
+    #             variant=variant,
+    #             use_gpu=True,
+    #             num_exps_per_instance=5,
+    #         )

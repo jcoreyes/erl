@@ -155,6 +155,7 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
             x_smooth = x[-len(y_smooth):]
             ys.append(y_smooth)
             xs.append(x_smooth)
+            # print(x_smooth.shape, y_smooth.shape)
 
     lines = []
     labels = sorted(y_data.keys())
@@ -164,6 +165,10 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
         ys = to_array(y_data[label])
         x = np.nanmean(to_array(x_data[label]), axis=0)
         y = np.nanmean(ys, axis=0)
+        if x.shape != y.shape:
+            print("label shape mismatch:", x.shape, y.shape)
+            continue
+
         s = np.nanstd(ys, axis=0) / (len(ys) ** 0.5)
         if print_plot:
             if label_to_color is None:

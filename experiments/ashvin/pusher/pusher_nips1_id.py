@@ -4,7 +4,7 @@ from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_nips_multiobj import SawyerTwoObjectNIPSEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_nips import SawyerPushAndReachXYEasyEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 
@@ -66,18 +66,12 @@ if __name__ == "__main__":
         snapshot_mode='gap_and_last',
         snapshot_gap=50,
 
-        env_class=SawyerTwoObjectNIPSEnv,
-        env_kwargs=dict(
-            hide_goal=True,
-            reward_info=dict(
-                type="state_distance",
-            ),
-        ),
-
+        wrap_mujoco_gym_to_multi_env=False,
         num_exps_per_instance=1,
     )
 
     search_space = {
+        'env_id': ['SawyerPushNIPS-v0', ],
         'seedid': range(5),
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
         'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.1, ],
@@ -100,4 +94,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(her_td3_experiment, variants, run_id=3)
+    run_variants(her_td3_experiment, variants, run_id=0)

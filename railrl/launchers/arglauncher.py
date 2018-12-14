@@ -63,6 +63,7 @@ def run_variant(experiment, variant):
         snapshot_mode=variant["snapshot_mode"],
         snapshot_gap=variant["snapshot_gap"],
         base_log_dir=variant["base_log_dir"],
+        num_exps_per_instance=variant.get("num_exps_per_instance", 1),
         prepend_date_to_exp_prefix=False,
         # spot_price=variant["spot_price"],
     )
@@ -92,6 +93,9 @@ def process_variant_cmd(variant):
 
     if "--render" in sys.argv:
         variant["render"] = True
+        if "algo_kwargs" in variant:
+            if "base_kwargs" in variant["algo_kwargs"]:
+                variant["algo_kwargs"]["base_kwargs"]["render"] = True
     if "--norender" in sys.argv:
         variant["render"] = False
 
