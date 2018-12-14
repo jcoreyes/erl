@@ -12,7 +12,7 @@ if __name__ == "__main__":
         online_vae_exploration=False,
         imsize=48,
         init_camera=sawyer_init_camera_zoomed_in,
-        env_id='SawyerPushNIPS-v0',
+        env_id='SawyerPushNIPSHarder-v0',
         grill_variant=dict(
             save_video=True,
             online_vae_beta=10/128,
@@ -28,10 +28,10 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=2010,
+                    num_epochs=5010,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=500,
-                    min_num_steps_before_training=0,
+                    min_num_steps_before_training=10000,
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
@@ -88,9 +88,9 @@ if __name__ == "__main__":
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
             generate_uniform_dataset_kwargs=dict(
                 init_camera=sawyer_init_camera_zoomed_in,
-                env_id='SawyerPushNIPS-v0',
+                env_id='SawyerPushNIPSHarder-v0',
                 num_imgs=1000,
-                use_cached_dataset=True,
+                use_cached_dataset=False,
                 show=False,
                 save_file_prefix='pusher',
             ),
@@ -108,7 +108,7 @@ if __name__ == "__main__":
                 use_cached=True,
                 show=False,
                 oracle_dataset=True,
-                n_random_steps=1,
+                n_random_steps=100,
                 non_presampled_goal_img_is_garbage=True,
             ),
             vae_kwargs=dict(
@@ -127,24 +127,25 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type': ['image_bernoulli_inv_prob', 'None'],
         'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[10000],
-        'grill_variant.exploration_noise':[.3],
-        'grill_variant.replay_buffer_kwargs.power': [1],
+        'grill_variant.exploration_noise':[.3, .5],
+        'grill_variant.replay_buffer_kwargs.power': [2],
+        'grill_variant.online_vae_beta':[10/128, .5, 2.5]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 6
-    mode = 'gcp'
-    exp_prefix = 'pusher_skewfit_final'
+    # n_seeds = 2
+    # mode = 'gcp'
+    # exp_prefix = 'pusher_skewfit_harder'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:
-            continue
+        # if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:
+        #     continue
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_twin_sac_online_vae_full_experiment,
@@ -154,7 +155,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west2-b',
+                    zone='us-east4-a',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,

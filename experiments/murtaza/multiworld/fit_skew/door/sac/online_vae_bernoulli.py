@@ -140,8 +140,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob', 'None'],
-        'grill_variant.replay_buffer_kwargs.power':[1],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.power':[2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -151,7 +151,7 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 5
+    n_seeds = 3
     mode = 'gcp'
     exp_prefix = 'door_skewfit_final'
 
@@ -167,9 +167,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east1-b',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p100',
+                        gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
                     )
                 )
