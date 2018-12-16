@@ -7,7 +7,6 @@ import numpy as np
 import torch
 from torch.optim import Adam
 from torch.nn import MSELoss
-
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
@@ -315,8 +314,3 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
             mse.backward()
             self.dynamics_optimizer.step()
-            
-    def _get_sorted_idx_and_train_weights(self):
-        idx_and_weights = zip(range(len(self._vae_sample_probs)),
-                              self._vae_sample_probs)
-        return sorted(idx_and_weights, key=lambda x: x[1])

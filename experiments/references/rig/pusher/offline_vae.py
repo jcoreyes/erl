@@ -62,7 +62,7 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             vae_path=None,
             representation_size=16,
-            beta=2.5,
+            beta=5,
             num_epochs=1000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
@@ -85,6 +85,7 @@ if __name__ == "__main__":
                 lr=1e-3,
             ),
             save_period=100,
+            decoder_activation='sigmoid',
         ),
     )
 
