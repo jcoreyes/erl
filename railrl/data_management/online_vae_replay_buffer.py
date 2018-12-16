@@ -13,6 +13,7 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.vae_trainer import (
     inv_gaussian_p_x_np_to_np,
     inv_p_bernoulli_x_np_to_np,
+)
 
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
