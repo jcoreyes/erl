@@ -173,7 +173,7 @@ def train_vae(variant, return_data=False):
         m = SpatialAutoEncoder(representation_size, int(representation_size / 2))
     else:
         vae_class = variant.get('vae_class', ConvVAE)
-        m = vae_class(representation_size, imsize=variant.get('imsize'), decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+        m = vae_class(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
@@ -283,6 +283,9 @@ def generate_vae_dataset(variant):
                 policy_file = load_local_or_remote_file(policy_file)
                 policy = policy_file['policy']
                 policy.to(ptu.device)
+            if random_rollout_data:
+                from railrl.exploration_strategies.ou_strategy import OUStrategy
+                policy = OUStrategy(env.action_space)
             dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
             for i in range(N):
                 if random_and_oracle_policy_data:
@@ -307,10 +310,12 @@ def generate_vae_dataset(variant):
                     obs = env._get_obs()
                 elif random_rollout_data:
                     if i % n_random_steps == 0:
-                        g = env.sample_goal()
+                        g = dict(state_desired_goal=env.sample_goal_for_rollout())
                         env.set_to_goal(g)
+                        policy.reset()
                         # env.reset()
-                    obs = env.step(env.action_space.sample())[0]
+                    u = policy.get_action_from_raw_action(env.action_space.sample())
+                    obs = env.step(u)[0]
                 else:
                     env.reset()
                     for _ in range(n_random_steps):

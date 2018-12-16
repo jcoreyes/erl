@@ -66,6 +66,7 @@ def run_variant(experiment, variant):
         num_exps_per_instance=variant.get("num_exps_per_instance", 1),
         prepend_date_to_exp_prefix=False,
         # spot_price=variant["spot_price"],
+        # region="us-west-2",
     )
 
 def parallel_run(experiment, variants, n_p):
