@@ -279,11 +279,6 @@ class ConvVAEDouble(ConvVAE):
         second_output = second_output.view(-1, self.imsize*self.imsize*self.input_channels)
         if self.decoder_distribution == 'gaussian':
             return first_output, (first_output, second_output)
-        elif self.decoder_distribution == 'beta':
-            alpha = first_output.exp()
-            beta = second_output.exp()
-            reconstructions = alpha/(alpha+beta)
-            return reconstructions, (first_output, second_output)
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
