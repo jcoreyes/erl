@@ -2,7 +2,7 @@ import torch
 from railrl.torch.core import PyTorchModule
 import numpy as np
 import abc
-from torch.distributions import Normal, Beta
+from torch.distributions import Normal
 from torch.nn import functional as F
 from railrl.torch import pytorch_util as ptu
 
@@ -113,10 +113,6 @@ class GaussianLatentVAE(VAEBase):
         mu, logvar = latent_distribution_params
         return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
-    def vectorized_kl_divergence(self, latent_distribution_params):
-        mu, logvar = latent_distribution_params
-        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
-
     def __getstate__(self):
         d = super().__getstate__()
         # Add these explicitly in case they were modified
@@ -136,22 +132,8 @@ def compute_bernoulli_log_prob(x, reconstruction_of_x):
         reduction='elementwise_mean'
     )
 
-def compute_vectorized_bernoulli_log_prob(x, reconstruction_of_x):
-    return -1 * F.binary_cross_entropy(
-        reconstruction_of_x,
-        x,
-        reduction='none'
-    )
-
 def compute_gaussian_log_prob(input, dec_mu, dec_var):
     decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
-    log_probs = decoder_dist.log_prob(input)
-    vals = log_probs.sum(dim=1, keepdim=True)
-    return vals.mean()
-
-def compute_beta_log_prob(input, alpha, beta):
-    input = torch.clamp(input, .0001, .9999)
-    decoder_dist = Beta(alpha, beta)
     log_probs = decoder_dist.log_prob(input)
     vals = log_probs.sum(dim=1, keepdim=True)
     return vals.mean()

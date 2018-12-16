@@ -6,8 +6,7 @@ from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 import numpy as np
 from railrl.torch.networks import CNN, TwoHeadDCNN, DCNN
-from railrl.torch.vae.vae_base import compute_bernoulli_log_prob, compute_gaussian_log_prob, GaussianLatentVAE, \
-    compute_beta_log_prob, compute_vectorized_bernoulli_log_prob
+from railrl.torch.vae.vae_base import compute_bernoulli_log_prob, compute_gaussian_log_prob, GaussianLatentVAE
 
 ###### DEFAULT ARCHITECTURES #########
 
@@ -238,15 +237,6 @@ class ConvVAE(GaussianLatentVAE):
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
-    def vectorized_logprob(self, inputs, obs_distribution_params):
-        if self.decoder_distribution == 'bernoulli':
-            inputs = inputs.narrow(start=0, length=self.imlength,
-                 dim=1).contiguous().view(-1, self.imlength)
-            log_prob = compute_vectorized_bernoulli_log_prob(inputs, obs_distribution_params[0]) * self.imlength
-            return log_prob
-        else:
-            raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
-
 class ConvVAEDouble(ConvVAE):
     def __init__(
             self,
@@ -288,7 +278,6 @@ class ConvVAEDouble(ConvVAE):
         first_output = first_output.view(-1, self.imsize*self.imsize*self.input_channels)
         second_output = second_output.view(-1, self.imsize*self.imsize*self.input_channels)
         if self.decoder_distribution == 'gaussian':
-            second_output = torch.clamp(second_output, self.min_log_var, 1)
             return first_output, (first_output, second_output)
         elif self.decoder_distribution == 'beta':
             alpha = first_output.exp()
@@ -305,13 +294,6 @@ class ConvVAEDouble(ConvVAE):
             dec_var = dec_logvar.view(-1, self.imlength).exp()
             inputs = inputs.view(-1, self.imlength)
             log_prob = compute_gaussian_log_prob(inputs, dec_mu, dec_var)
-            return log_prob
-        elif self.decoder_distribution == 'beta':
-            log_alpha, log_beta = obs_distribution_params
-            alpha = log_alpha.view(-1, self.imlength).exp()
-            beta = log_beta.view(-1, self.imlength).exp()
-            inputs = inputs.view(-1, self.imlength)
-            log_prob = compute_beta_log_prob(inputs, alpha, beta)
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
