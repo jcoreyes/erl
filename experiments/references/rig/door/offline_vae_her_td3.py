@@ -41,8 +41,8 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(1e6),
-                fraction_goals_are_rollout_goals=0,
-                fraction_resampled_goals_are_env_goals=0.5,
+                fraction_goals_rollout_goals=0.1,
+                fraction_goals_env_goals=0.5,
             ),
             algorithm='OFFLINE-VAE-RECON-HER-TD3',
             normalize=False,
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     exp_prefix = 'test'
 
     # n_seeds = 3
-    # mode = 'ec2'
+    # mode = 'gcp'
     # exp_prefix = 'sawyer_door_offline_vae_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):

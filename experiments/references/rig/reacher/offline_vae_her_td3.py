@@ -9,7 +9,7 @@ if __name__ == "__main__":
         init_camera=sawyer_xyz_reacher_camera_v0,
         env_id='SawyerReachXYEnv-v1',
         grill_variant=dict(
-            save_video=True,
+            save_video=False,
             save_video_period=50,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
@@ -40,8 +40,8 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(1e6),
-                fraction_goals_are_rollout_goals=0,
-                fraction_resampled_goals_are_env_goals=0.5,
+                fraction_goals_rollout_goals=0.1,
+                fraction_goals_env_goals=0.5,
             ),
             algorithm='OFFLINE-VAE-HER-TD3',
             normalize=False,
@@ -63,11 +63,11 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=16,
             beta=1,
-            num_epochs=1000,
+            num_epochs=1,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
-                N=5000,
+                N=100,
                 oracle_dataset=True,
                 use_cached=True,
                 vae_dataset_specific_kwargs=dict(),
@@ -94,13 +94,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 3
-    mode = 'gcp'
-    exp_prefix = 'sawyer_xy_reacher_offline_vae'
+    # n_seeds = 3
+    # mode = 'gcp'
+    # exp_prefix = 'sawyer_xy_reacher_offline_vae'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
