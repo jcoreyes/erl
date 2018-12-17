@@ -1,6 +1,0 @@
-Bootstrap: docker
-From: vitchyr/railrl-vitchyr-gpu-v3-2
-
-%post
-    mkdir -p /global/scratch
-    mkdir -p /global/home/users
