@@ -1,7 +1,8 @@
 import railrl.misc.hyperparameter as hyp
 from experiments.murtaza.multiworld.fit_skew.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
-from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera_v0, sawyer_torque_reacher_camera
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
+from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera_v0, sawyer_torque_reacher_camera, \
+    init_sawyer_camera_v4
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv, SawyerReachXYEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
@@ -12,7 +13,7 @@ if __name__ == "__main__":
         double_algo=False,
         online_vae_exploration=False,
         imsize=48,
-        init_camera=sawyer_xyz_reacher_camera_v0,
+        init_camera=init_sawyer_camera_v4,
         # env_id='SawyerReachXYEnv-v1',
         env_class=SawyerReachXYZEnv,
         env_kwargs=dict(
@@ -93,8 +94,12 @@ if __name__ == "__main__":
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
             generate_uniform_dataset_kwargs=dict(
-                init_camera=sawyer_xyz_reacher_camera_v0,
-                env_id='SawyerReachXYEnv-v1',
+                init_camera=init_sawyer_camera_v4,
+                env_class=SawyerReachXYZEnv,
+                env_kwargs=dict(
+                    norm_order=2,
+                    hide_goal_markers=True,
+                ),
                 num_imgs=1000,
                 use_cached_dataset=False,
                 show=False,
@@ -114,7 +119,7 @@ if __name__ == "__main__":
                 use_cached=False,
                 show=False,
                 oracle_dataset=True,
-                n_random_steps=1,
+                n_random_steps=100,
                 non_presampled_goal_img_is_garbage=True,
             ),
             vae_kwargs=dict(
@@ -132,24 +137,23 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
-        'grill_variant.replay_buffer_kwargs.power':[2],
+        'grill_variant.replay_buffer_kwargs.power':[1/8, .25, .5],
         'grill_variant.online_vae_beta':[.5],
         'train_vae_variant.representation_size':[4],
         'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training': [4000],
         'grill_variant.algo_kwargs.base_kwargs.max_path_length':[50],
-        'init_camera':[sawyer_torque_reacher_camera, sawyer_xyz_reacher_camera_v0]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 4
-    # mode = 'gcp'
-    # exp_prefix = 'reacher_online_vae_final'
+    n_seeds = 3
+    mode = 'gcp'
+    exp_prefix = 'reacher_online_vae_fixed_sweep_xyz_skew_fit'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -161,9 +165,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west1-a',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p100',
+                        gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
                     )
                 )
