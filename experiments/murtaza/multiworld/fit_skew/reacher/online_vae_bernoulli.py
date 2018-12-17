@@ -15,7 +15,7 @@ if __name__ == "__main__":
         imsize=48,
         init_camera=init_sawyer_camera_v4,
         # env_id='SawyerReachXYEnv-v1',
-        env_class=SawyerReachXYEnv,
+        env_class=SawyerReachXYZEnv,
         env_kwargs=dict(
             norm_order=2,
             hide_goal_markers=True,
@@ -95,7 +95,7 @@ if __name__ == "__main__":
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
             generate_uniform_dataset_kwargs=dict(
                 init_camera=init_sawyer_camera_v4,
-                env_class=SawyerReachXYEnv,
+                env_class=SawyerReachXYZEnv,
                 env_kwargs=dict(
                     norm_order=2,
                     hide_goal_markers=True,
@@ -136,12 +136,12 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob', 'None'],
-        'grill_variant.replay_buffer_kwargs.power':[2],
-        'grill_variant.online_vae_beta':[.5, 1],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.power':[1/8, .25, .5],
+        'grill_variant.online_vae_beta':[.5],
         'train_vae_variant.representation_size':[4],
         'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training': [4000],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length':[50, 100],
+        'grill_variant.algo_kwargs.base_kwargs.max_path_length':[50],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -151,9 +151,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 2
+    n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'reacher_online_vae_fixed_sweep'
+    exp_prefix = 'reacher_online_vae_fixed_sweep_xyz_skew_fit'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
