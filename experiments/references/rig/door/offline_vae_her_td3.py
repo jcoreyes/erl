@@ -73,7 +73,7 @@ if __name__ == "__main__":
             decoder_activation='sigmoid',
             vae_path=None,
             representation_size=16,
-            beta=.5,
+            beta=1,
             num_epochs=1000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
