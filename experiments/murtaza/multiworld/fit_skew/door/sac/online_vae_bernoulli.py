@@ -61,8 +61,8 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(100000),
-                fraction_goals_are_rollout_goals=0,
-                fraction_resampled_goals_are_env_goals=0.5,
+                fraction_goals_rollout_goals=0.0,
+                fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
                 priority_function_kwargs=dict(

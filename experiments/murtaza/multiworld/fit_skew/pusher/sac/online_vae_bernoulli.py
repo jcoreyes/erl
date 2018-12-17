@@ -12,7 +12,7 @@ if __name__ == "__main__":
         online_vae_exploration=False,
         imsize=48,
         init_camera=sawyer_init_camera_zoomed_in,
-        env_id='SawyerPushNIPSHarder-v0',
+        env_id='SawyerPushNIPS-v0',
         grill_variant=dict(
             save_video=True,
             online_vae_beta=10/128,
@@ -60,8 +60,8 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(100000),
-                fraction_goals_are_rollout_goals=0,
-                fraction_resampled_goals_are_env_goals=0.5,
+                fraction_goals_rollout_goals=0.0,
+                fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
                 priority_function_kwargs=dict(
@@ -88,7 +88,7 @@ if __name__ == "__main__":
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
             generate_uniform_dataset_kwargs=dict(
                 init_camera=sawyer_init_camera_zoomed_in,
-                env_id='SawyerPushNIPSHarder-v0',
+                env_id='SawyerPushNIPS-v0',
                 num_imgs=1000,
                 use_cached_dataset=False,
                 show=False,
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         ),
         train_vae_variant=dict(
             representation_size=4,
-            beta=10/128,
+            beta=20/128,
             num_epochs=0,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
@@ -126,10 +126,6 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type': ['image_bernoulli_inv_prob'],
-        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[10000],
-        'grill_variant.exploration_noise':[.3],
-        'grill_variant.replay_buffer_kwargs.power': [.5, 1, 2, 4],
-        'grill_variant.online_vae_beta':[10/128, 1]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -141,7 +137,7 @@ if __name__ == "__main__":
 
     n_seeds = 4
     mode = 'gcp'
-    exp_prefix = 'pusher_skewfit_harder_sweep'
+    exp_prefix = 'pusher_skewfit'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:

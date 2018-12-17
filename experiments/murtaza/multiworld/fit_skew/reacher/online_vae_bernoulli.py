@@ -1,8 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from experiments.murtaza.multiworld.fit_skew.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
-from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera_v0, sawyer_torque_reacher_camera, \
-    init_sawyer_camera_v4
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv, SawyerReachXYEnv
+from multiworld.envs.mujoco.cameras import init_sawyer_camera_v4
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
@@ -14,7 +13,6 @@ if __name__ == "__main__":
         online_vae_exploration=False,
         imsize=48,
         init_camera=init_sawyer_camera_v4,
-        # env_id='SawyerReachXYEnv-v1',
         env_class=SawyerReachXYZEnv,
         env_kwargs=dict(
             norm_order=2,
@@ -22,7 +20,7 @@ if __name__ == "__main__":
         ),
         grill_variant=dict(
             save_video=True,
-            online_vae_beta=2.5,
+            online_vae_beta=1,
             save_video_period=100,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
@@ -35,12 +33,12 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=510,
+                    num_epochs=110,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
-                    min_num_steps_before_training=0,
+                    min_num_steps_before_training=4000,
                     batch_size=128,
-                    max_path_length=100,
+                    max_path_length=50,
                     discount=0.99,
                     num_updates_per_env_step=2,
                     collection_mode='online-parallel',
@@ -67,8 +65,8 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(100000),
-                fraction_goals_are_rollout_goals=0,
-                fraction_resampled_goals_are_env_goals=0.5,
+                fraction_goals_rollout_goals=0.0,
+                fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
                 priority_function_kwargs=dict(
@@ -108,7 +106,7 @@ if __name__ == "__main__":
             generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
         ),
         train_vae_variant=dict(
-            representation_size=16,
+            representation_size=4,
             beta=1.0,
             num_epochs=0,
             dump_skew_debug_plots=False,
@@ -138,10 +136,6 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
         'grill_variant.replay_buffer_kwargs.power':[1/8, .25, .5],
-        'grill_variant.online_vae_beta':[.5],
-        'train_vae_variant.representation_size':[4],
-        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training': [4000],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length':[50],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
