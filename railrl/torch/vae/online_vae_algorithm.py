@@ -164,7 +164,7 @@ def _test_vae(vae_trainer, epoch, replay_buffer, vae_save_period=1, uniform_data
     save_imgs = epoch % vae_save_period == 0
     log_fit_skew_stats = replay_buffer._prioritize_vae_samples and uniform_dataset is not None
     if uniform_dataset is not None:
-        replay_buffer.log_loss_under_uniform(uniform_dataset, vae_trainer.batch_size, beta=vae_trainer.beta)
+        replay_buffer.log_loss_under_uniform(uniform_dataset, vae_trainer.batch_size)
     vae_trainer.test_epoch(
         epoch,
         from_rl=True,
