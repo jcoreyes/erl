@@ -69,8 +69,7 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=10000,
-                oracle_dataset_using_set_to_goal=False,
-                random_rollout_data=True,
+                oracle_dataset_using_set_to_goal=True,
                 use_cached=True,
                 vae_dataset_specific_kwargs=dict(
                 ),
@@ -98,13 +97,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'sawyer_pusher_nips_submission_env'
-
-    # n_seeds = 5
-    # mode = 'gcp'
+    # n_seeds = 1
+    # mode = 'local'
     # exp_prefix = 'sawyer_pusher_nips_submission_env'
+
+    n_seeds = 5
+    mode = 'gcp'
+    exp_prefix = 'sawyer_pusher_nips_submission_env'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
