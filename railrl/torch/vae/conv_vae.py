@@ -10,97 +10,97 @@ from railrl.torch.vae.vae_base import compute_bernoulli_log_prob, compute_gaussi
 
 ###### DEFAULT ARCHITECTURES #########
 
-imsize48_default_architecture=dict(
-        conv_args = dict(
-            kernel_sizes=[5, 3, 3],
-            n_channels=[16, 32, 64],
-            strides=[3, 2, 2],
-        ),
-        conv_kwargs=dict(
-            hidden_sizes=[],
-            batch_norm_conv=False,
-            batch_norm_fc=False,
-        ),
-        deconv_args=dict(
-            hidden_sizes=[],
+imsize48_default_architecture = dict(
+    conv_args=dict(
+        kernel_sizes=[5, 3, 3],
+        n_channels=[16, 32, 64],
+        strides=[3, 2, 2],
+    ),
+    conv_kwargs=dict(
+        hidden_sizes=[],
+        batch_norm_conv=False,
+        batch_norm_fc=False,
+    ),
+    deconv_args=dict(
+        hidden_sizes=[],
 
-            deconv_input_width=3,
-            deconv_input_height=3,
-            deconv_input_channels=64,
+        deconv_input_width=3,
+        deconv_input_height=3,
+        deconv_input_channels=64,
 
-            deconv_output_kernel_size=6,
-            deconv_output_strides=3,
-            deconv_output_channels=3,
+        deconv_output_kernel_size=6,
+        deconv_output_strides=3,
+        deconv_output_channels=3,
 
-            kernel_sizes=[3,3],
-            n_channels=[32, 16],
-            strides=[2,2],
-        ),
-        deconv_kwargs=dict(
-            batch_norm_deconv=False,
-            batch_norm_fc=False,
-        )
+        kernel_sizes=[3, 3],
+        n_channels=[32, 16],
+        strides=[2, 2],
+    ),
+    deconv_kwargs=dict(
+        batch_norm_deconv=False,
+        batch_norm_fc=False,
     )
+)
 
 imsize48_default_architecture_with_more_hidden_layers = dict(
-        conv_args=dict(
-            kernel_sizes=[5, 3, 3],
-            n_channels=[16, 32, 64],
-            strides=[3, 2, 2],
-        ),
-        conv_kwargs=dict(
-            hidden_sizes=[500, 300, 150],
-        ),
-        deconv_args=dict(
-            hidden_sizes=[150, 300, 500],
+    conv_args=dict(
+        kernel_sizes=[5, 3, 3],
+        n_channels=[16, 32, 64],
+        strides=[3, 2, 2],
+    ),
+    conv_kwargs=dict(
+        hidden_sizes=[500, 300, 150],
+    ),
+    deconv_args=dict(
+        hidden_sizes=[150, 300, 500],
 
-            deconv_input_width=3,
-            deconv_input_height=3,
-            deconv_input_channels=64,
+        deconv_input_width=3,
+        deconv_input_height=3,
+        deconv_input_channels=64,
 
-            deconv_output_kernel_size=6,
-            deconv_output_strides=3,
-            deconv_output_channels=3,
+        deconv_output_kernel_size=6,
+        deconv_output_strides=3,
+        deconv_output_channels=3,
 
-            kernel_sizes=[3, 3],
-            n_channels=[32, 16],
-            strides=[2, 2],
-        ),
-        deconv_kwargs=dict(
-        )
+        kernel_sizes=[3, 3],
+        n_channels=[32, 16],
+        strides=[2, 2],
+    ),
+    deconv_kwargs=dict(
     )
+)
 
-imsize84_default_architecture=dict(
-        conv_args = dict(
-            kernel_sizes=[5, 5, 5],
-            n_channels=[16, 32, 32],
-            strides=[3, 3, 3],
-        ),
-        conv_kwargs=dict(
-            hidden_sizes=[],
-            batch_norm_conv=True,
-            batch_norm_fc=False,
-        ),
-        deconv_args=dict(
-            hidden_sizes=[],
+imsize84_default_architecture = dict(
+    conv_args=dict(
+        kernel_sizes=[5, 5, 5],
+        n_channels=[16, 32, 32],
+        strides=[3, 3, 3],
+    ),
+    conv_kwargs=dict(
+        hidden_sizes=[],
+        batch_norm_conv=True,
+        batch_norm_fc=False,
+    ),
+    deconv_args=dict(
+        hidden_sizes=[],
 
-            deconv_input_width=2,
-            deconv_input_height=2,
-            deconv_input_channels=32,
+        deconv_input_width=2,
+        deconv_input_height=2,
+        deconv_input_channels=32,
 
-            deconv_output_kernel_size=6,
-            deconv_output_strides=3,
-            deconv_output_channels=3,
+        deconv_output_kernel_size=6,
+        deconv_output_strides=3,
+        deconv_output_channels=3,
 
-            kernel_sizes=[5,6],
-            n_channels=[32, 16],
-            strides=[3,3],
-        ),
-        deconv_kwargs=dict(
-            batch_norm_deconv=False,
-            batch_norm_fc=False,
-        )
+        kernel_sizes=[5, 6],
+        n_channels=[32, 16],
+        strides=[3, 3],
+    ),
+    deconv_kwargs=dict(
+        batch_norm_deconv=False,
+        batch_norm_fc=False,
     )
+)
 
 
 class ConvVAE(GaussianLatentVAE):
@@ -164,16 +164,16 @@ class ConvVAE(GaussianLatentVAE):
             self.log_min_variance = float(np.log(min_variance))
         self.input_channels = input_channels
         self.imsize = imsize
-        self.imlength = self.imsize*self.imsize*self.input_channels
+        self.imlength = self.imsize * self.imsize * self.input_channels
 
         conv_args, conv_kwargs, deconv_args, deconv_kwargs = \
             architecture['conv_args'], architecture['conv_kwargs'], \
             architecture['deconv_args'], architecture['deconv_kwargs']
-        conv_output_size=deconv_args['deconv_input_width']*\
-                         deconv_args['deconv_input_height']*\
-                         deconv_args['deconv_input_channels']
+        conv_output_size = deconv_args['deconv_input_width'] * \
+                           deconv_args['deconv_input_height'] * \
+                           deconv_args['deconv_input_channels']
 
-        self.encoder=encoder_class(
+        self.encoder = encoder_class(
             **conv_args,
             paddings=np.zeros(len(conv_args['kernel_sizes']), dtype=np.int64),
             input_height=self.imsize,
@@ -203,7 +203,7 @@ class ConvVAE(GaussianLatentVAE):
             **deconv_kwargs)
 
         self.epoch = 0
-        self.decoder_distribution=decoder_distribution
+        self.decoder_distribution = decoder_distribution
 
     def encode(self, input):
         h = self.encoder(input)
@@ -215,7 +215,7 @@ class ConvVAE(GaussianLatentVAE):
         return (mu, logvar)
 
     def decode(self, latents):
-        decoded = self.decoder(latents).view(-1, self.imsize*self.imsize*self.input_channels)
+        decoded = self.decoder(latents).view(-1, self.imsize * self.imsize * self.input_channels)
         if self.decoder_distribution == 'bernoulli':
             return decoded, [decoded]
         elif self.decoder_distribution == 'gaussian_identity_variance':
@@ -226,16 +226,17 @@ class ConvVAE(GaussianLatentVAE):
     def logprob(self, inputs, obs_distribution_params):
         if self.decoder_distribution == 'bernoulli':
             inputs = inputs.narrow(start=0, length=self.imlength,
-                 dim=1).contiguous().view(-1, self.imlength)
+                                   dim=1).contiguous().view(-1, self.imlength)
             log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0]) * self.imlength
             return log_prob
         if self.decoder_distribution == 'gaussian_identity_variance':
             inputs = inputs.narrow(start=0, length=self.imlength,
                                    dim=1).contiguous().view(-1, self.imlength)
-            log_prob = -1*F.mse_loss(inputs, obs_distribution_params[0],reduction='elementwise_mean')
+            log_prob = -1 * F.mse_loss(inputs, obs_distribution_params[0], reduction='elementwise_mean')
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
+
 
 class ConvVAEDouble(ConvVAE):
     def __init__(
@@ -275,8 +276,8 @@ class ConvVAEDouble(ConvVAE):
 
     def decode(self, latents):
         first_output, second_output = self.decoder(latents)
-        first_output = first_output.view(-1, self.imsize*self.imsize*self.input_channels)
-        second_output = second_output.view(-1, self.imsize*self.imsize*self.input_channels)
+        first_output = first_output.view(-1, self.imsize * self.imsize * self.input_channels)
+        second_output = second_output.view(-1, self.imsize * self.imsize * self.input_channels)
         if self.decoder_distribution == 'gaussian':
             return first_output, (first_output, second_output)
         else:
@@ -292,6 +293,7 @@ class ConvVAEDouble(ConvVAE):
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
+
 
 class AutoEncoder(ConvVAE):
     def forward(self, x):

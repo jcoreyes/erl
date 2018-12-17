@@ -15,6 +15,7 @@ from railrl.torch.vae.vae_trainer import (
     inv_p_bernoulli_x_np_to_np,
 )
 
+
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
     def __init__(
