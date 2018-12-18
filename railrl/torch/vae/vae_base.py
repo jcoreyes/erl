@@ -103,7 +103,7 @@ class GaussianLatentVAE(VAEBase):
 
     def kl_divergence(self, latent_distribution_params):
         mu, logvar = latent_distribution_params
-        return - torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
+        return - 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
     def __getstate__(self):
         d = super().__getstate__()
