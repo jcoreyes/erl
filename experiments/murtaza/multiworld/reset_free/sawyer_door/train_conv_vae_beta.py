@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE
+from railrl.torch.vae.conv_vae import ConvVAEDouble
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.grill.launcher import generate_vae_dataset
 
@@ -24,6 +24,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
+
     m = variant['vae'](representation_size, **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
@@ -46,7 +47,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'beta'
 
     # n_seeds = 1
     # mode = 'ec2'
@@ -83,7 +84,11 @@ if __name__ == "__main__":
     )
 
     variant = dict(
-        num_epochs=1000,
+        # beta_schedule_kwargs=dict(
+        #     x_values=[0, 800, 1700],
+        #     y_values=[0, 0, .5],
+        # ),
+        num_epochs=5000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
@@ -93,8 +98,8 @@ if __name__ == "__main__":
             ),
             skew_dataset=False,
         ),
-        vae=ConvVAE,
-        dump_skew_debug_plots=True,
+        vae=ConvVAEDouble,
+        dump_skew_debug_plots=False,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
             N=5000,
@@ -113,14 +118,16 @@ if __name__ == "__main__":
             input_channels=3,
             imsize=48,
             architecture=architecture,
-            decoder_distribution='gaussian_identity_variance'
+            decoder_distribution='beta',
         ),
         save_period=10,
-        beta=.5,
+        beta=2.5,
         representation_size=16,
     )
 
     search_space = {
+        'beta':[.5, 1, 2.5, 5]
+        # 'algo_kwargs.normalize_log_probs':[True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -133,7 +140,8 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=use_gpu,
-                num_exps_per_instance=1,
+                num_exps_per_instance=2,
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
+                # skip_wait=True,
             )

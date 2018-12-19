@@ -2,17 +2,10 @@ from railrl.core import logger
 from railrl.data_management.shared_obs_dict_replay_buffer \
         import SharedObsDictRelabelingBuffer
 import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.torch.vae.conv_vae import ConvVAE
 import railrl.torch.pytorch_util as ptu
-
 from torch.multiprocessing import Process, Pipe
-from multiprocessing.connection import wait
-
 from threading import Thread
-from time import sleep
-import numpy as np
 
 class OnlineVaeAlgorithm(TorchRLAlgorithm):
 
@@ -45,8 +38,6 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
             self.init_vae_training_subproces()
 
         should_train, amount_to_train = self.vae_training_schedule(epoch)
-        if self.replay_buffer._prioritize_vae_samples:
-            self.log_priority_weights()
         rl_start_epoch = int(self.min_num_steps_before_training / self.num_env_steps_per_epoch)
         if should_train \
                 and self.replay_buffer.num_steps_can_sample() >= self.vae_min_num_steps_before_training\
@@ -81,19 +72,6 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         # very hacky
         self.epoch = epoch + 1
 
-    def log_priority_weights(self):
-        vae_sample_priorities = self.replay_buffer._vae_sample_priorities[:self.replay_buffer_size]
-        vae_sample_probs = vae_sample_priorities ** self.replay_buffer.power
-        p_sum = np.sum(vae_sample_probs)
-        vae_sample_probs /= (np.sum(vae_sample_probs)+1e-8)
-        vae_sample_probs = vae_sample_probs.flatten()
-        stats = create_stats_ordered_dict(
-            'VAE Sample Probability',
-            vae_sample_probs,
-        )
-        for key, value in stats.items():
-            logger.record_tabular(key, value)
-
     def reset_vae(self):
         self.vae.init_weights(self.vae.init_w)
 
@@ -121,7 +99,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                 self.vae.state_dict(),
                 self.replay_buffer,
                 self.replay_buffer.get_mp_info(),
-                ptu.gpu_enabled(),
+                ptu.device,
             )
         )
         self.vae_training_process.start()
@@ -160,7 +138,6 @@ def _test_vae(vae_trainer, epoch, vae_save_period=1):
         from_rl=True,
         save_reconstruction=save_imgs,
     )
-    if save_imgs: vae_trainer.dump_samples(epoch)
 
 def subprocess_train_vae_loop(
     conn_pipe,
@@ -168,7 +145,7 @@ def subprocess_train_vae_loop(
     vae_params,
     replay_buffer,
     mp_info,
-    use_gpu=True,
+    device,
 ):
     """
     The observations and next_observations of the replay buffer are stored in
@@ -179,11 +156,10 @@ def subprocess_train_vae_loop(
     it is possible for the main process to see half the latents updated and half
     not.
     """
-    ptu.set_gpu_mode(use_gpu)
+    ptu.device = device
     vae_trainer = conn_pipe.recv()
     vae.load_state_dict(vae_params)
-    if ptu.gpu_enabled():
-        vae.cuda()
+    vae.to(device)
     vae_trainer.set_vae(vae)
     replay_buffer.init_from_mp_info(mp_info)
     replay_buffer.env.vae = vae

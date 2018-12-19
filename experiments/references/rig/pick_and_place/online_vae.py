@@ -76,6 +76,7 @@ if __name__ == "__main__":
             )
         ),
         train_vae_variant=dict(
+            decoder_activation='sigmoid',
             dump_skew_debug_plots=False,
             generate_vae_data_fctn=generate_vae_dataset,
             representation_size=8,

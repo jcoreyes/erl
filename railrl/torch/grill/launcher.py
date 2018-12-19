@@ -154,10 +154,10 @@ def train_vae(variant, return_data=False):
             **variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    if variant.get('decoder_activation', None) == 'identity':
-        decoder_activation = identity
-    else:
+    if variant.get('decoder_activation', None) == 'sigmoid':
         decoder_activation = torch.nn.Sigmoid()
+    else:
+        decoder_activation = identity
     architecture = variant['vae_kwargs'].get('architecture', None)
     if not architecture and variant.get('imsize') == 84:
         architecture = conv_vae.imsize84_default_architecture
@@ -172,7 +172,8 @@ def train_vae(variant, return_data=False):
         raise NotImplementedError('This is currently broken, please update SpatialAutoEncoder then remove this line')
         m = SpatialAutoEncoder(representation_size, int(representation_size / 2))
     else:
-        m = ConvVAE(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+        vae_class = variant.get('vae_class', ConvVAE)
+        m = vae_class(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
@@ -213,7 +214,7 @@ def generate_vae_dataset(variant):
     init_camera = variant.get('init_camera', None)
     dataset_path = variant.get('dataset_path', None)
     oracle_dataset_using_set_to_goal = variant.get('oracle_dataset_using_set_to_goal', False)
-    oracle_dataset_from_policy=variant.get('oracle_dataset_from_policy', False)
+    random_rollout_data = variant.get('random_rollout_data', False)
     random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
     random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
     policy_file = variant.get('policy_file', None)
@@ -277,7 +278,7 @@ def generate_vae_dataset(variant):
                 env.non_presampled_goal_img_is_garbage = non_presampled_goal_img_is_garbage
             env.reset()
             info['env'] = env
-            if oracle_dataset_from_policy or random_and_oracle_policy_data:
+            if random_and_oracle_policy_data:
                 policy_file = load_local_or_remote_file(policy_file)
                 policy = policy_file['policy']
                 policy.to(ptu.device)
@@ -303,6 +304,11 @@ def generate_vae_dataset(variant):
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
                     obs = env._get_obs()
+                elif random_rollout_data:
+                    if i % n_random_steps == 0:
+                        g = env.sample_goal()
+                        env.set_to_goal(g)
+                    obs = env.step(env.action_space.sample())[0]
                 else:
                     env.reset()
                     for _ in range(n_random_steps):
@@ -786,6 +792,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     from railrl.torch.networks import FlattenMlp
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.sac.policies import TanhGaussianPolicy
+
     grill_preprocess_variant(variant)
     env = get_envs(variant)
     es = get_exploration_strategy(variant, env)
@@ -835,11 +842,11 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         **variant['replay_buffer_kwargs']
     )
     variant["algo_kwargs"]['base_kwargs']["replay_buffer"] = replay_buffer
-
     t = ConvVAETrainer(variant['vae_train_data'],
                        variant['vae_test_data'],
                        vae,
-                       beta=variant['online_vae_beta'])
+                       beta=variant['online_vae_beta'],
+                       )
     render = variant["render"]
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     algorithm = OnlineVaeHerTwinSac(

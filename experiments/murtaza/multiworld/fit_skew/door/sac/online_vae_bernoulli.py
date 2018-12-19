@@ -1,4 +1,5 @@
 import railrl.misc.hyperparameter as hyp
+from experiments.murtaza.multiworld.fit_skew.door.generate_uniform_dataset import generate_uniform_dataset_door
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
@@ -11,12 +12,12 @@ if __name__ == "__main__":
         double_algo=False,
         online_vae_exploration=False,
         imsize=48,
-        env_id='SawyerDoorHookResetFreeEnv-v1',
+        env_id='SawyerDoorHookResetFreeEnv-v0',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
             save_video=True,
             online_vae_beta=2.5,
-            save_video_period=50,
+            save_video_period=250,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -54,7 +55,7 @@ if __name__ == "__main__":
                 online_vae_kwargs=dict(
                    vae_training_schedule=vae_schedules.every_other,
                     oracle_data=False,
-                    vae_save_period=50,
+                    vae_save_period=100,
                     parallel_vae_train=False,
                 ),
             ),
@@ -64,7 +65,12 @@ if __name__ == "__main__":
                 fraction_resampled_goals_are_env_goals=0.5,
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
-                power=1,
+                priority_function_kwargs=dict(
+                    sampling_method='correct',
+                    num_latents_to_sample=10,
+                    decode_prob='none',
+                ),
+                power=2,
             ),
             normalize=False,
             render=False,
@@ -81,17 +87,28 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=True,
-                policy_file='data/local/11-11-her-twin-sac-door-v1/11-11-her-twin-sac-door-v1_2018_11_11_14_17_07_id000--s99786/params.pkl',
+                policy_file='data/doodads3/11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
                 path_length=100,
                 show=False,
                 tag='_twin_sac'
             ),
-            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v1_N1000_imsize48goals_twin_sac.npy',
+            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48goals_twin_sac.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI-HER-TD3',
+            generate_uniform_dataset_kwargs=dict(
+                env_id='SawyerDoorHookResetFreeEnv-v0',
+                init_camera=sawyer_door_env_camera_v0,
+                num_imgs=1000,
+                use_cached_dataset=False,
+                policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
+                show=False,
+                path_length=100,
+                dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48uniform_images_.npy',
+            ),
+            generate_uniform_dataset_fn=generate_uniform_dataset_door,
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -107,6 +124,7 @@ if __name__ == "__main__":
                 oracle_dataset=False,
                 n_random_steps=1,
                 non_presampled_goal_img_is_garbage=True,
+                dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.npy',
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -122,9 +140,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.online_vae_beta':[.5, 2.5],
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':[vae_schedules.every_six, vae_schedules.every_other],
-        'grill_variant.replay_buffer_kwargs.power':[0],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.power':[2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -136,9 +153,11 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'door_online_vae_bernoulli_sac'
+    exp_prefix = 'door_skewfit_final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:
+            continue
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_twin_sac_online_vae_full_experiment,
@@ -148,7 +167,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west2-c',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,

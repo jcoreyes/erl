@@ -16,24 +16,26 @@ from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 
 import numpy as np
 
+
 class CNN(PyTorchModule):
     def __init__(self,
-                input_width,
-                input_height,
-                input_channels,
-                output_size,
-                kernel_sizes,
-                n_channels,
-                strides,
-                paddings,
+                 input_width,
+                 input_height,
+                 input_channels,
+                 output_size,
+                 kernel_sizes,
+                 n_channels,
+                 strides,
+                 paddings,
                  hidden_sizes=None,
-                added_fc_input_size=0,
-                use_batch_norm=False,
-                init_w=1e-4,
-                hidden_init=nn.init.xavier_uniform_,
-                hidden_activation=nn.ReLU(),
-                output_activation=identity
-        ):
+                 added_fc_input_size=0,
+                 batch_norm_conv=False,
+                 batch_norm_fc=False,
+                 init_w=1e-4,
+                 hidden_init=nn.init.xavier_uniform_,
+                 hidden_activation=nn.ReLU(),
+                 output_activation=identity
+                 ):
         if hidden_sizes is None:
             hidden_sizes = []
         assert len(kernel_sizes) == \
@@ -50,7 +52,8 @@ class CNN(PyTorchModule):
         self.output_size = output_size
         self.output_activation = output_activation
         self.hidden_activation = hidden_activation
-        self.use_batch_norm = use_batch_norm
+        self.batch_norm_conv = batch_norm_conv
+        self.batch_norm_fc = batch_norm_fc
         self.added_fc_input_size = added_fc_input_size
         self.conv_input_length = self.input_width * self.input_height * self.input_channels
 
@@ -60,12 +63,12 @@ class CNN(PyTorchModule):
         self.fc_norm_layers = nn.ModuleList()
 
         for out_channels, kernel_size, stride, padding in \
-            zip(n_channels, kernel_sizes, strides, paddings):
+                zip(n_channels, kernel_sizes, strides, paddings):
             conv = nn.Conv2d(input_channels,
-                         out_channels,
-                         kernel_size,
-                         stride=stride,
-                         padding=padding)
+                             out_channels,
+                             kernel_size,
+                             stride=stride,
+                             padding=padding)
             hidden_init(conv.weight)
             conv.bias.data.fill_(0)
 
@@ -74,7 +77,8 @@ class CNN(PyTorchModule):
             input_channels = out_channels
 
         # find output dim of conv_layers by trial and add normalization conv layers
-        test_mat = torch.zeros(1, self.input_channels, self.input_width, self.input_height) #initially the model is on CPU (caller should then move it to GPU if
+        test_mat = torch.zeros(1, self.input_channels, self.input_width,
+                               self.input_height)  # initially the model is on CPU (caller should then move it to GPU if
         for conv_layer in self.conv_layers:
             test_mat = conv_layer(test_mat)
             self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
@@ -87,16 +91,16 @@ class CNN(PyTorchModule):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
 
             norm_layer = nn.BatchNorm1d(hidden_size)
-            hidden_init(fc_layer.weight)
-            fc_layer.bias.data.fill_(0)
+            fc_layer.weight.data.uniform_(-init_w, init_w)
+            fc_layer.bias.data.uniform_(-init_w, init_w)
 
             self.fc_layers.append(fc_layer)
             self.fc_norm_layers.append(norm_layer)
             fc_input_size = hidden_size
 
         self.last_fc = nn.Linear(fc_input_size, output_size)
-        hidden_init(self.last_fc.weight)
-        self.last_fc.bias.data.fill_(0)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, input):
         fc_input = (self.added_fc_input_size != 0)
@@ -106,31 +110,29 @@ class CNN(PyTorchModule):
                                   dim=1).contiguous()
         if fc_input:
             extra_fc_input = input.narrow(start=self.conv_input_length,
-                                        length=self.added_fc_input_size,
-                                        dim=1)
+                                          length=self.added_fc_input_size,
+                                          dim=1)
         # need to reshape from batch of flattened images into (channsls, w, h)
         h = conv_input.view(conv_input.shape[0],
-                       self.input_channels,
-                       self.input_height,
-                       self.input_width)
+                            self.input_channels,
+                            self.input_height,
+                            self.input_width)
 
-        #from PIL import Image
-        #import pdb; pdb.set_trace()
-        h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
+        h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers, use_batch_norm=self.batch_norm_conv)
         # flatten channels for fc layers
         h = h.view(h.size(0), -1)
         if fc_input:
             h = torch.cat((h, extra_fc_input), dim=1)
-        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
+        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers, use_batch_norm=self.batch_norm_fc)
 
         output = self.output_activation(self.last_fc(h))
         return output
 
-    def apply_forward(self, input, hidden_layers, norm_layers):
+    def apply_forward(self, input, hidden_layers, norm_layers, use_batch_norm=False):
         h = input
         for layer, norm_layer in zip(hidden_layers, norm_layers):
             h = layer(h)
-            if self.use_batch_norm:
+            if use_batch_norm:
                 h = norm_layer(h)
             h = self.hidden_activation(h)
         return h
@@ -142,13 +144,12 @@ class MergedCNN(CNN):
     '''
 
     def __init__(self,
-                added_fc_input_size,
-                **kwargs
-    ):
+                 added_fc_input_size,
+                 **kwargs
+                 ):
         self.save_init_params(locals())
         super().__init__(added_fc_input_size=added_fc_input_size,
                          **kwargs)
-
 
     def forward(self, conv_input, fc_input):
         h = torch.cat((conv_input, fc_input), dim=1)
@@ -308,6 +309,7 @@ class TanhMlpPolicy(MlpPolicy):
     """
     A helper class since most policies have a tanh output activation.
     """
+
     def __init__(self, *args, **kwargs):
         self.save_init_params(locals())
         super().__init__(*args, output_activation=torch.tanh, **kwargs)
@@ -317,9 +319,9 @@ class ImageStatePolicy(PyTorchModule, Policy):
     """Switches between image or state inputs"""
 
     def __init__(
-        self,
-        image_conv_net,
-        state_fc_net,
+            self,
+            image_conv_net,
+            state_fc_net,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -335,7 +337,6 @@ class ImageStatePolicy(PyTorchModule, Policy):
         if self.state_fc_net is not None:
             state = input[:, 21168:]
             return self.state_fc_net(state)
-        error
 
     def get_action(self, obs_np):
         actions = self.get_actions(obs_np[None])
@@ -344,16 +345,17 @@ class ImageStatePolicy(PyTorchModule, Policy):
     def get_actions(self, obs):
         return self.eval_np(obs)
 
+
 class ImageStateQ(PyTorchModule):
     """Switches between image or state inputs"""
 
     def __init__(
-        self,
-        # obs_dim,
-        # action_dim,
-        # goal_dim,
-        image_conv_net, # assumed to be a MergedCNN
-        state_fc_net,
+            self,
+            # obs_dim,
+            # action_dim,
+            # goal_dim,
+            image_conv_net,  # assumed to be a MergedCNN
+            state_fc_net,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -370,9 +372,8 @@ class ImageStateQ(PyTorchModule):
             image = input[:, :21168]
             return self.image_conv_net(image, action)
         if self.state_fc_net is not None:
-            state = input[:, 21168:] # action + state
+            state = input[:, 21168:]  # action + state
             return self.state_fc_net(state, action)
-        error
 
 
 class FeedForwardQFunction(PyTorchModule):
@@ -477,6 +478,8 @@ class FeedForwardPolicy(PyTorchModule):
 """
 Random Networks Below
 """
+
+
 class TwoHeadMlp(PyTorchModule):
     def __init__(
             self,
@@ -541,6 +544,7 @@ class TwoHeadMlp(PyTorchModule):
 
         return first_output, second_output
 
+
 class OuterProductFF(PyTorchModule):
     """
     An interesting idea that I had where you first take the outer product of
@@ -592,6 +596,7 @@ class AETanhPolicy(MlpPolicy):
     """
     A helper class since most policies have a tanh output activation.
     """
+
     def __init__(
             self,
             ae,
@@ -641,9 +646,9 @@ class FeatPointMlp(PyTorchModule):
         self.input_channels = input_channels
         self.input_size = input_size
 
-#        self.bn1 = nn.BatchNorm2d(1)
+        #        self.bn1 = nn.BatchNorm2d(1)
         self.conv1 = nn.Conv2d(input_channels, 48, kernel_size=5, stride=2)
-#        self.bn1 = nn.BatchNorm2d(16)
+        #        self.bn1 = nn.BatchNorm2d(16)
         self.conv2 = nn.Conv2d(48, 48, kernel_size=5, stride=1)
         self.conv3 = nn.Conv2d(48, self.num_feat_points, kernel_size=5, stride=1)
 
@@ -670,14 +675,13 @@ class FeatPointMlp(PyTorchModule):
         out = self.decoder(h)
         return out
 
-
     def encoder(self, input):
         x = input.contiguous().view(-1, self.input_channels, self.input_size, self.input_size)
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = self.conv3(x)
-        d = int((self.out_size // self.num_feat_points)**(1/2))
-        x = x.view(-1, self.num_feat_points, d*d)
+        d = int((self.out_size // self.num_feat_points) ** (1 / 2))
+        x = x.view(-1, self.num_feat_points, d * d)
         x = F.softmax(x / self.temperature, 2)
         x = x.view(-1, self.num_feat_points, d, d)
 
@@ -690,7 +694,7 @@ class FeatPointMlp(PyTorchModule):
         fp_y = torch.sum(maps_y * weights, 2)
 
         x = torch.cat([fp_x, fp_y], 1)
-#        h = x.view(-1, 2, self.num_feat_points).transpose(1, 2).contiguous().view(-1, self.num_feat_points * 2)
+        #        h = x.view(-1, 2, self.num_feat_points).transpose(1, 2).contiguous().view(-1, self.num_feat_points * 2)
         h = x.view(-1, self.num_feat_points * 2)
         return h
 
@@ -713,30 +717,32 @@ class FeatPointMlp(PyTorchModule):
         latent = latent.view(n_samples, -1)
         return latent
 
+
 class TwoHeadDCNN(PyTorchModule):
     def __init__(self,
-                fc_input_size,
-                hidden_sizes,
+                 fc_input_size,
+                 hidden_sizes,
 
-                deconv_input_width,
-                deconv_input_height,
-                deconv_input_channels,
+                 deconv_input_width,
+                 deconv_input_height,
+                 deconv_input_channels,
 
-                deconv_output_kernel_size,
-                deconv_output_strides,
-                deconv_output_channels,
+                 deconv_output_kernel_size,
+                 deconv_output_strides,
+                 deconv_output_channels,
 
-                kernel_sizes,
-                n_channels,
-                strides,
-                paddings,
+                 kernel_sizes,
+                 n_channels,
+                 strides,
+                 paddings,
 
-                use_batch_norm=False,
-                init_w=1e-4,
-                hidden_init=nn.init.xavier_uniform_,
-                hidden_activation=nn.ReLU(),
-                output_activation=identity
-        ):
+                 batch_norm_deconv=False,
+                 batch_norm_fc=False,
+                 init_w=1e-3,
+                 hidden_init=nn.init.xavier_uniform_,
+                 hidden_activation=nn.ReLU(),
+                 output_activation=identity
+                 ):
         assert len(kernel_sizes) == \
                len(n_channels) == \
                len(strides) == \
@@ -751,8 +757,9 @@ class TwoHeadDCNN(PyTorchModule):
         self.deconv_input_width = deconv_input_width
         self.deconv_input_height = deconv_input_height
         self.deconv_input_channels = deconv_input_channels
-        deconv_input_size = self.deconv_input_channels*self.deconv_input_height*self.deconv_input_width
-        self.use_batch_norm = use_batch_norm
+        deconv_input_size = self.deconv_input_channels * self.deconv_input_height * self.deconv_input_width
+        self.batch_norm_deconv = batch_norm_deconv
+        self.batch_norm_fc = batch_norm_fc
 
         self.deconv_layers = nn.ModuleList()
         self.deconv_norm_layers = nn.ModuleList()
@@ -763,25 +770,24 @@ class TwoHeadDCNN(PyTorchModule):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
 
             norm_layer = nn.BatchNorm1d(hidden_size)
-            hidden_init(fc_layer.weight)
-            fc_layer.bias.data.fill_(0)
+            fc_layer.weight.data.uniform_(-init_w, init_w)
+            fc_layer.bias.data.uniform_(-init_w, init_w)
 
             self.fc_layers.append(fc_layer)
             self.fc_norm_layers.append(norm_layer)
             fc_input_size = hidden_size
 
         self.last_fc = nn.Linear(fc_input_size, deconv_input_size)
-        hidden_init(self.last_fc.weight)
-        self.last_fc.bias.data.fill_(0)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
         for out_channels, kernel_size, stride, padding in \
-            zip(n_channels, kernel_sizes, strides, paddings):
-
+                zip(n_channels, kernel_sizes, strides, paddings):
             deconv = nn.ConvTranspose2d(deconv_input_channels,
-                             out_channels,
-                             kernel_size,
-                             stride=stride,
-                             padding=padding)
+                                        out_channels,
+                                        kernel_size,
+                                        stride=stride,
+                                        padding=padding)
             hidden_init(deconv.weight)
             deconv.bias.data.fill_(0)
 
@@ -814,22 +820,23 @@ class TwoHeadDCNN(PyTorchModule):
         self.second_deconv_output.bias.data.fill_(0)
 
     def forward(self, input):
-        h = self.apply_forward(input, self.fc_layers, self.fc_norm_layers)
+        h = self.apply_forward(input, self.fc_layers, self.fc_norm_layers, use_batch_norm=self.batch_norm_fc)
         h = self.hidden_activation(self.last_fc(h))
         h = h.view(-1, self.deconv_input_channels, self.deconv_input_width, self.deconv_input_height)
-        h = self.apply_forward(h, self.deconv_layers, self.deconv_norm_layers)
+        h = self.apply_forward(h, self.deconv_layers, self.deconv_norm_layers, use_batch_norm=self.batch_norm_deconv)
         first_output = self.output_activation(self.first_deconv_output(h))
         second_output = self.output_activation(self.second_deconv_output(h))
         return first_output, second_output
 
-    def apply_forward(self, input, hidden_layers, norm_layers):
+    def apply_forward(self, input, hidden_layers, norm_layers, use_batch_norm=False):
         h = input
         for layer, norm_layer in zip(hidden_layers, norm_layers):
             h = layer(h)
-            if self.use_batch_norm:
+            if use_batch_norm:
                 h = norm_layer(h)
             h = self.hidden_activation(h)
         return h
+
 
 class DCNN(TwoHeadDCNN):
     def forward(self, input):

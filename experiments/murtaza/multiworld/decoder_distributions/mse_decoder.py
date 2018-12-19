@@ -2,16 +2,49 @@ import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
+from railrl.torch.vae.conv_vae import ConvVAE
 from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
+
+architecture = dict(
+        conv_args=dict(
+            kernel_sizes=[5, 3, 3],
+            n_channels=[16, 32, 64],
+            strides=[3, 2, 2],
+        ),
+        conv_kwargs=dict(
+            hidden_sizes=[500, 300, 150],
+            batch_norm_conv=False,
+            batch_norm_fc=False,
+        ),
+        deconv_args=dict(
+            hidden_sizes=[150, 300, 500],
+
+            deconv_input_width=3,
+            deconv_input_height=3,
+            deconv_input_channels=64,
+
+            deconv_output_kernel_size=6,
+            deconv_output_strides=3,
+            deconv_output_channels=3,
+
+            kernel_sizes=[3, 3],
+            n_channels=[32, 16],
+            strides=[2, 2],
+        ),
+        deconv_kwargs=dict(
+            batch_norm_deconv=False,
+            batch_norm_fc=False,
+        )
+    )
 
 if __name__ == "__main__":
     variant = dict(
-        imsize=84,
+        imsize=48,
         init_camera=sawyer_door_env_camera_v0,
         env_id='SawyerDoorHookEnv-v0',
         grill_variant=dict(
             save_video=True,
-            save_video_period=50,
+            save_video_period=100,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -20,14 +53,14 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=505,
+                    num_epochs=510,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
-                    num_updates_per_env_step=4,
+                    num_updates_per_env_step=1,
                     collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
@@ -41,8 +74,8 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(1e6),
-                fraction_goals_rollout_goals=0.1,
-                fraction_goals_env_goals=0.5,
+                fraction_goals_are_rollout_goals=0,
+                fraction_resampled_goals_are_env_goals=0.5,
             ),
             algorithm='OFFLINE-VAE-RECON-HER-TD3',
             normalize=False,
@@ -58,37 +91,42 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
             generate_goal_dataset_fctn=generate_goal_dataset_using_policy,
             goal_generation_kwargs=dict(
-                num_goals=1000,
-                use_cached_dataset=False,
+                num_goals=5000,
+                use_cached_dataset=True,
                 path_length=100,
-                policy_file=None, #train a state based policy for this env and put the path to the pkl file here
+                policy_file='11-09-sawyer-door-state-her-td3/11-09-sawyer_door_state_her_td3_2018_11_09_19_17_28_id000--s92604/params.pkl',
                 show=False,
             ),
+            presampled_goals_path='goals/SawyerDoorHookEnv-v0_N5000_imsize48goals.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             )
         ),
         train_vae_variant=dict(
-            decoder_activation='sigmoid',
             vae_path=None,
             representation_size=16,
-            beta=1,
+            beta=5,
             num_epochs=1000,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=5000,
-                oracle_dataset=False,
                 use_cached=False,
                 oracle_dataset_from_policy=True,
+                random_and_oracle_policy_data=True,
                 non_presampled_goal_img_is_garbage=True,
+                random_and_oracle_policy_data_split=0,
                 vae_dataset_specific_kwargs=dict(),
-                policy_file=None,  # you must train a state based policy first! put the path to the pkl file here
+                policy_file='11-09-sawyer-door-state-her-td3/11-09-sawyer_door_state_her_td3_2018_11_09_19_17_28_id000--s92604/params.pkl',
                 show=False,
+                dataset_path='datasets/SawyerDoorHookEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.npy'
             ),
+            vae_class=ConvVAE,
             vae_kwargs=dict(
                 input_channels=3,
+                architecture=architecture,
+                decoder_distribution='gaussian_identity_variance',
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -97,23 +135,24 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
             ),
-            save_period=10,
+            save_period=50,
         ),
     )
 
     search_space = {
+        'train_vae_variant.beta':[.5, 1, 2.5, 5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 3
-    # mode = 'gcp'
-    # exp_prefix = 'sawyer_door_offline_vae_final'
+    n_seeds = 3
+    mode = 'gcp'
+    exp_prefix = 'sawyer_door_offline_vae_mse_beta_sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -123,5 +162,12 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=2,
+                num_exps_per_instance=5,
+                gcp_kwargs=dict(
+                    zone='us-west1-a',
+                    gpu_kwargs=dict(
+                        gpu_model='nvidia-tesla-p100',
+                        num_gpu=1,
+                    )
+                )
           )
