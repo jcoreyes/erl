@@ -214,6 +214,7 @@ def generate_vae_dataset(variant):
     init_camera = variant.get('init_camera', None)
     dataset_path = variant.get('dataset_path', None)
     oracle_dataset_using_set_to_goal = variant.get('oracle_dataset_using_set_to_goal', False)
+    random_rollout_data = variant.get('random_rollout_data', False)
     random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
     random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
     policy_file = variant.get('policy_file', None)
@@ -303,6 +304,11 @@ def generate_vae_dataset(variant):
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
                     obs = env._get_obs()
+                elif random_rollout_data:
+                    if i % n_random_steps == 0:
+                        g = env.sample_goal()
+                        env.set_to_goal(g)
+                    obs = env.step(env.action_space.sample())[0]
                 else:
                     env.reset()
                     for _ in range(n_random_steps):
