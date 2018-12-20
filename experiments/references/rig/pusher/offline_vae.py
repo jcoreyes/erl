@@ -69,7 +69,8 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=10000,
-                oracle_dataset_using_set_to_goal=True,
+                oracle_dataset_using_set_to_goal=False,
+                random_rollout_data=True,
                 use_cached=True,
                 vae_dataset_specific_kwargs=dict(
                 ),
