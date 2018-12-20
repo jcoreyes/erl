@@ -16,7 +16,7 @@ if __name__ == "__main__":
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
             save_video=True,
-            online_vae_beta=2.5,
+            online_vae_beta=5,
             save_video_period=250,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
@@ -141,7 +141,6 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
-        'grill_variant.replay_buffer_kwargs.power':[2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -153,7 +152,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'door_skewfit_final'
+    exp_prefix = 'door_skewfit'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:

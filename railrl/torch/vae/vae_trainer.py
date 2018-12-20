@@ -303,7 +303,6 @@ class ConvVAETrainer(Serializable):
                 self.batch_size,
                 p=probs,
             )
-            from scipy import stats
             # print(stats.mode(ind))
         else:
             ind = np.random.randint(0, len(dataset), self.batch_size)

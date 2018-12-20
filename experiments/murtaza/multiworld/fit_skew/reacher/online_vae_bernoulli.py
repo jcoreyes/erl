@@ -59,7 +59,7 @@ if __name__ == "__main__":
                 online_vae_kwargs=dict(
                    vae_training_schedule=vae_schedules.every_other,
                     oracle_data=False,
-                    vae_save_period=100,
+                    vae_save_period=50,
                     parallel_vae_train=False,
                 ),
             ),
@@ -74,7 +74,7 @@ if __name__ == "__main__":
                     num_latents_to_sample=10,
                     decode_prob='none',
                 ),
-                power=2,
+                power=1/8,
             ),
             normalize=False,
             render=False,
@@ -134,8 +134,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
-        'grill_variant.replay_buffer_kwargs.power':[1/8, .25, .5],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -147,7 +146,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'reacher_online_vae_fixed_sweep_xyz_skew_fit'
+    exp_prefix = 'reacher_skew_fit'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

@@ -98,7 +98,7 @@ if __name__ == "__main__":
         ),
         train_vae_variant=dict(
             representation_size=4,
-            beta=20/128,
+            beta=10/128,
             num_epochs=0,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type': ['image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
