@@ -1,7 +1,6 @@
 import railrl.misc.hyperparameter as hyp
-from experiments.murtaza.multiworld.fit_skew.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
-from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera_v0, sawyer_torque_reacher_camera
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
+from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
+from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
@@ -12,17 +11,12 @@ if __name__ == "__main__":
         double_algo=False,
         online_vae_exploration=False,
         imsize=48,
-        init_camera=sawyer_xyz_reacher_camera_v0,
-        # env_id='SawyerReachXYEnv-v1',
-        env_class=SawyerReachXYZEnv,
-        env_kwargs=dict(
-            norm_order=2,
-            hide_goal_markers=True,
-        ),
+        init_camera=sawyer_init_camera_zoomed_in,
+        env_id='SawyerPushNIPS-v0',
         grill_variant=dict(
             save_video=True,
-            online_vae_beta=2.5,
-            save_video_period=100,
+            online_vae_beta=10/128,
+            save_video_period=250,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -34,10 +28,10 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=510,
+                    num_epochs=5010,
                     num_steps_per_epoch=1000,
-                    num_steps_per_eval=1000,
-                    min_num_steps_before_training=0,
+                    num_steps_per_eval=500,
+                    min_num_steps_before_training=10000,
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
@@ -60,14 +54,14 @@ if __name__ == "__main__":
                 online_vae_kwargs=dict(
                    vae_training_schedule=vae_schedules.every_other,
                     oracle_data=False,
-                    vae_save_period=100,
+                    vae_save_period=250,
                     parallel_vae_train=False,
                 ),
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(100000),
-                fraction_goals_are_rollout_goals=0,
-                fraction_resampled_goals_are_env_goals=0.5,
+                fraction_goals_rollout_goals=0.0,
+                fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
                 priority_function_kwargs=dict(
@@ -79,7 +73,7 @@ if __name__ == "__main__":
             ),
             normalize=False,
             render=False,
-            exploration_noise=0,
+            exploration_noise=0.3,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -93,28 +87,28 @@ if __name__ == "__main__":
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
             generate_uniform_dataset_kwargs=dict(
-                init_camera=sawyer_xyz_reacher_camera_v0,
-                env_id='SawyerReachXYEnv-v1',
+                init_camera=sawyer_init_camera_zoomed_in,
+                env_id='SawyerPushNIPS-v0',
                 num_imgs=1000,
                 use_cached_dataset=False,
                 show=False,
-                save_file_prefix='reacher',
+                save_file_prefix='pusher',
             ),
             generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
         ),
         train_vae_variant=dict(
-            representation_size=16,
-            beta=1.0,
+            representation_size=4,
+            beta=10/128,
             num_epochs=0,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
                 N=1000,
                 test_p=.9,
-                use_cached=False,
+                use_cached=True,
                 show=False,
                 oracle_dataset=True,
-                n_random_steps=1,
+                n_random_steps=100,
                 non_presampled_goal_img_is_garbage=True,
             ),
             vae_kwargs=dict(
@@ -131,27 +125,23 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
-        'grill_variant.replay_buffer_kwargs.power':[2],
-        'grill_variant.online_vae_beta':[.5],
-        'train_vae_variant.representation_size':[4],
-        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training': [4000],
-        'grill_variant.algo_kwargs.base_kwargs.max_path_length':[50],
-        'init_camera':[sawyer_torque_reacher_camera, sawyer_xyz_reacher_camera_v0]
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 4
-    # mode = 'gcp'
-    # exp_prefix = 'reacher_online_vae_final'
+    n_seeds = 4
+    mode = 'gcp'
+    exp_prefix = 'pusher_skewfit'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        # if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:
+        #     continue
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_twin_sac_online_vae_full_experiment,
@@ -161,7 +151,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west1-a',
+                    zone='us-east1-b',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p100',
                         num_gpu=1,

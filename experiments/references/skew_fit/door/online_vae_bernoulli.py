@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from experiments.murtaza.multiworld.fit_skew.door.generate_uniform_dataset import generate_uniform_dataset_door
+from experiments.murtaza.multiworld.skew_fit.door.generate_uniform_dataset import generate_uniform_dataset_door
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
@@ -16,7 +16,7 @@ if __name__ == "__main__":
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
             save_video=True,
-            online_vae_beta=2.5,
+            online_vae_beta=5,
             save_video_period=250,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
@@ -61,8 +61,8 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(100000),
-                fraction_goals_are_rollout_goals=0,
-                fraction_resampled_goals_are_env_goals=0.5,
+                fraction_goals_rollout_goals=0.0,
+                fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
                 priority_function_kwargs=dict(
@@ -141,7 +141,6 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
-        'grill_variant.replay_buffer_kwargs.power':[2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -153,7 +152,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'door_skewfit_final'
+    exp_prefix = 'door_skewfit'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:
