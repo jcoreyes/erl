@@ -27,7 +27,7 @@ def her_td3_experiment(variant):
     from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
     from railrl.exploration_strategies.ou_strategy import OUStrategy
     from railrl.torch.grill.launcher import get_video_save_func
-    from railrl.demos.her_bc import HerBC
+    from railrl.demos.her_td3bc import HerTD3BC
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
     from railrl.data_management.obs_dict_replay_buffer import (
         ObsDictRelabelingBuffer
@@ -93,12 +93,14 @@ def her_td3_experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    algorithm = HerBC(
+    algorithm = HerTD3BC(
         env,
-        exploration_policy,
-        policy,
-        variant["demo_path"],
+        qf1=qf1,
+        qf2=qf2,
+        policy=policy,
+        exploration_policy=exploration_policy,
         replay_buffer=replay_buffer,
+        demo_path=variant["demo_path"],
         **variant['algo_kwargs']
     )
     if variant.get("save_video", False):
@@ -127,17 +129,18 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
-                num_epochs=1001,
-                num_steps_per_epoch=1,
+                num_epochs=501,
+                num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=100,
-                num_updates_per_env_step=1,
+                num_updates_per_env_step=4,
                 batch_size=128,
                 discount=0.99,
-                min_num_steps_before_training=0,
-                reward_scale=100,
+                min_num_steps_before_training=4000,
+                reward_scale=1.0,
                 render=False,
                 collection_mode='online',
+                tau=1e-2,
                 parallel_env_params=dict(
                     num_workers=1,
                 ),
@@ -173,7 +176,7 @@ if __name__ == "__main__":
         init_camera=sawyer_pusher_camera_upright_v2,
         do_state_exp=True,
 
-        save_video=True,
+        save_video=False,
         imsize=84,
 
         snapshot_mode='gap_and_last',
@@ -190,10 +193,12 @@ if __name__ == "__main__":
 
     search_space = {
         # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
-        'seedid': range(3),
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [1, ],
+        'seedid': range(5),
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
         'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.0, 0.5, 1.0],
-        'algo_kwargs.td3_kwargs.weight_decay': [0.0, 1e-3, 1e-4, 1e-5],
+        'replay_buffer_kwargs.fraction_goals_env_goals': [0.0, ],
+        # 'algo_kwargs.td3_kwargs.weight_decay': [0.0, 1e-3, 1e-4, 1e-5],
+        'algo_kwargs.base_kwargs.bc_weight': [1e-4, 1e-3, 1e-2, 0.0],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -212,7 +217,7 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(her_td3_experiment, variants, run_id=4)
+    run_variants(her_td3_experiment, variants, run_id=2)
     # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
     #     for i in range(n_seeds):
     #         run_experiment(

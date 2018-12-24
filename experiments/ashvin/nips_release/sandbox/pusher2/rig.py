@@ -84,13 +84,45 @@ if __name__ == "__main__":
                 N=10000,
                 oracle_dataset_using_set_to_goal=False,
                 random_rollout_data=True,
-                use_cached=False,
+                use_cached=True,
                 vae_dataset_specific_kwargs=dict(
                 ),
                 show=False,
             ),
             vae_kwargs=dict(
                 input_channels=3,
+                min_variance=1e-4,
+                architecture=dict(
+                    conv_args = dict(
+                        kernel_sizes=[5, 5, 5],
+                        n_channels=[16, 32, 32],
+                        strides=[3, 3, 3],
+                    ),
+                    conv_kwargs=dict(
+                        hidden_sizes=[],
+                        batch_norm_conv=True,
+                        batch_norm_fc=False,
+                    ),
+                    deconv_args=dict(
+                        hidden_sizes=[],
+
+                        deconv_input_width=2,
+                        deconv_input_height=2,
+                        deconv_input_channels=32,
+
+                        deconv_output_kernel_size=6,
+                        deconv_output_strides=3,
+                        deconv_output_channels=3,
+
+                        kernel_sizes=[5,6],
+                        n_channels=[32, 16],
+                        strides=[3,3],
+                    ),
+                    deconv_kwargs=dict(
+                        batch_norm_deconv=False,
+                        batch_norm_fc=False,
+                    )
+                )
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -114,4 +146,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_full_experiment, variants, run_id=6)
+    run_variants(grill_her_td3_full_experiment, variants, run_id=12)
