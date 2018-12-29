@@ -28,7 +28,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=5010,
+                    num_epochs=1010,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=10000,
@@ -67,7 +67,6 @@ if __name__ == "__main__":
                 priority_function_kwargs=dict(
                     sampling_method='correct',
                     num_latents_to_sample=10,
-                    decode_prob='none',
                 ),
                 power=2,
             ),
@@ -151,9 +150,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east1-b',
+                    zone='us-east4-a',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p100',
+                        gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
                     )
                 )

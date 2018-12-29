@@ -68,7 +68,6 @@ if __name__ == "__main__":
                 priority_function_kwargs=dict(
                     sampling_method='correct',
                     num_latents_to_sample=10,
-                    decode_prob='none',
                 ),
                 power=2,
             ),
