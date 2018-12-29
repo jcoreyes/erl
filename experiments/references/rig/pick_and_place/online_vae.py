@@ -78,7 +78,7 @@ if __name__ == "__main__":
             beta=0.25,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=52,
+                N=100,
                 oracle_dataset=True,
                 use_cached=True,
                 num_channels=3*num_images,
@@ -87,7 +87,6 @@ if __name__ == "__main__":
                 input_channels=3*num_images,
             ),
             algo_kwargs=dict(
-                train_data_workers=4,
                 do_scatterplot=False,
                 lr=1e-3,
             ),
@@ -95,6 +94,7 @@ if __name__ == "__main__":
             #    x_values=[0, 100, 200, 500],
             #    y_values=[0, 0, 5, 5],
             #),
+            decoder_activation='sigmoid',
             save_period=5,
         ),
     )
@@ -117,6 +117,9 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
+    
+    mode='local'
+    exp_prefix='test'
 
     n_seeds = 6
     mode = 'gcp'
