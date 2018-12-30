@@ -1,16 +1,16 @@
 import railrl.misc.hyperparameter as hyp
-from experiments.murtaza.multiworld.fit_skew.pick_and_place.generate_uniform_dataset import \
+from experiments.murtaza.multiworld.skew_fit.pick_and_place.generate_uniform_dataset import \
     generate_uniform_dataset_pick_and_place
 from multiworld.envs.mujoco.cameras import sawyer_pick_and_place_camera
 from railrl.envs.goal_generation.pickup_goal_dataset import get_image_presampled_goals_from_vae_env
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.torch.vae.conv_vae import imsize48_default_architecture
 from railrl.envs.goal_generation.pickup_goal_dataset import \
         generate_vae_dataset
 
 if __name__ == "__main__":
+    num_images = 1
     variant = dict(
         double_algo=False,
         online_vae_exploration=False,
@@ -19,8 +19,7 @@ if __name__ == "__main__":
         init_camera=sawyer_pick_and_place_camera,
         grill_variant=dict(
             save_video=True,
-            online_vae_beta=2.5,
-            save_video_period=250,
+            save_video_period=50,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -32,19 +31,15 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=2010,
+                    num_epochs=505,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
-                    min_num_steps_before_training=10000,
+                    min_num_steps_before_training=4000,
                     batch_size=128,
                     max_path_length=50,
                     discount=0.99,
                     num_updates_per_env_step=2,
                     collection_mode='online-parallel',
-                    parallel_env_params=dict(
-                        num_workers=1,
-                    ),
-                    reward_scale=1,
                 ),
                 her_kwargs=dict(
                 ),
@@ -56,22 +51,20 @@ if __name__ == "__main__":
                     use_automatic_entropy_tuning=True,
                 ),
                 online_vae_kwargs=dict(
-                   vae_training_schedule=vae_schedules.every_other,
-                    oracle_data=False,
+                    vae_training_schedule=vae_schedules.every_six,
                     vae_save_period=100,
                     parallel_vae_train=False,
                 ),
             ),
             replay_buffer_kwargs=dict(
-                max_size=int(100000),
-                fraction_goals_are_rollout_goals=0,
-                fraction_resampled_goals_are_env_goals=0.5,
+                max_size=int(70000),
+                fraction_goals_rollout_goals=0,
+                fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
-                vae_priority_type='image_bernoulli_inv_prob',
+                vae_priority_type='None',
                 priority_function_kwargs=dict(
                     sampling_method='correct',
                     num_latents_to_sample=10,
-                    decode_prob='none',
                 ),
                 power=2,
             ),
@@ -104,22 +97,19 @@ if __name__ == "__main__":
             generate_uniform_dataset_fn=generate_uniform_dataset_pick_and_place,
         ),
         train_vae_variant=dict(
-            dump_skew_debug_plots=False,
             generate_vae_data_fctn=generate_vae_dataset,
-            representation_size=8,
-            beta=1.0,
+            dump_skew_debug_plots=False,
+            representation_size=16,
+            beta=0.25,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=50,
-                test_p=.9,
+                N=100,
                 oracle_dataset=True,
-                show=False,
                 use_cached=True,
-                num_channels=3,
+                num_channels=3 * num_images,
             ),
             vae_kwargs=dict(
-                input_channels=3,
-                architecture=imsize48_default_architecture,
+                input_channels=3 * num_images,
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,
@@ -131,20 +121,31 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.online_vae_beta':[.25, .5],
-        'grill_variant.replay_buffer_kwargs.power':[1, 2, 4],
+        'grill_variant.training_mode': ['train'],
+        'grill_variant.replay_kwargs.fraction_goals_rollout_goals': [0.0],
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
+        'grill_variant.online_vae_beta': [0.25, 0.5],
+        'grill_variant.replay_buffer_kwargs.power': [0],
+        'grill_variant.exploration_noise': [0, .2, .3, .5],
+        'env_kwargs.random_init': [False],
+        'env_kwargs.action_scale': [.02],
+        'init_camera': [
+            sawyer_pick_and_place_camera,
+        ],
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':
+            [vae_schedules.every_six],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 2
-    mode = 'gcp'
-    exp_prefix = 'pickup_online_vae_bernoulli_fixed_hyperparams'
+    # n_seeds = 4
+    # mode = 'gcp'
+    # exp_prefix = 'pickup-online-vae-sac'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -154,12 +155,12 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=2,
+                snapshot_gap=200,
+                snapshot_mode='gap_and_last',
+                num_exps_per_instance=1,
                 gcp_kwargs=dict(
-                    zone='us-east1-c',
-                    gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p100',
-                        num_gpu=1,
-                    )
-                )
+                    zone='us-west2-c',
+                    preemptible=False,
+                    instance_type="n1-standard-4"
+                ),
           )
