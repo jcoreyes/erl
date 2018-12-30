@@ -13,11 +13,7 @@ if __name__ == "__main__":
         online_vae_exploration=False,
         imsize=48,
         init_camera=init_sawyer_camera_v4,
-        env_class=SawyerReachXYZEnv,
-        env_kwargs=dict(
-            norm_order=2,
-            hide_goal_markers=True,
-        ),
+        env_id='SawyerReachXYZEnv-v1',
         grill_variant=dict(
             save_video=True,
             online_vae_beta=1,
@@ -92,11 +88,7 @@ if __name__ == "__main__":
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
             generate_uniform_dataset_kwargs=dict(
                 init_camera=init_sawyer_camera_v4,
-                env_class=SawyerReachXYZEnv,
-                env_kwargs=dict(
-                    norm_order=2,
-                    hide_goal_markers=True,
-                ),
+                env_id='SawyerReachXYZEnv-v1',
                 num_imgs=1000,
                 use_cached_dataset=False,
                 show=False,
