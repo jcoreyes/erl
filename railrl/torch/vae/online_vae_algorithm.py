@@ -1,30 +1,27 @@
 from railrl.core import logger
 from railrl.data_management.shared_obs_dict_replay_buffer \
-        import SharedObsDictRelabelingBuffer
+    import SharedObsDictRelabelingBuffer
 import railrl.torch.vae.vae_schedules as vae_schedules
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.torch.vae.conv_vae import ConvVAE
 import railrl.torch.pytorch_util as ptu
-
 from torch.multiprocessing import Process, Pipe
-from multiprocessing.connection import wait
-
 from threading import Thread
-from time import sleep
 import numpy as np
+
 
 class OnlineVaeAlgorithm(TorchRLAlgorithm):
 
     def __init__(
-        self,
-        vae,
-        vae_trainer,
-        vae_save_period=1,
-        vae_training_schedule=vae_schedules.never_train,
-        oracle_data=False,
-        parallel_vae_train=True,
-        vae_min_num_steps_before_training=0,
+            self,
+            vae,
+            vae_trainer,
+            vae_save_period=1,
+            vae_training_schedule=vae_schedules.never_train,
+            oracle_data=False,
+            parallel_vae_train=True,
+            vae_min_num_steps_before_training=0,
+            uniform_dataset=None,
     ):
         self.vae = vae
         self.vae_trainer = vae_trainer
@@ -38,6 +35,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.process_vae_update_thread = None
         self.parallel_vae_train = parallel_vae_train
         self.vae_min_num_steps_before_training = vae_min_num_steps_before_training
+        self.uniform_dataset = uniform_dataset
 
     def _post_epoch(self, epoch):
         super()._post_epoch(epoch)
@@ -49,8 +47,8 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
             self.log_priority_weights()
         rl_start_epoch = int(self.min_num_steps_before_training / self.num_env_steps_per_epoch)
         if should_train \
-                and self.replay_buffer.num_steps_can_sample() >= self.vae_min_num_steps_before_training\
-                or epoch >= (rl_start_epoch-1):
+                and self.replay_buffer.num_steps_can_sample() >= self.vae_min_num_steps_before_training \
+                or epoch >= (rl_start_epoch - 1):
             if self.parallel_vae_train:
                 assert self.vae_training_process.is_alive()
                 # Make sure the last vae update has finished before starting
@@ -76,7 +74,9 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                 _test_vae(
                     self.vae_trainer,
                     self.epoch,
-                    vae_save_period=self.vae_save_period
+                    self.replay_buffer,
+                    vae_save_period=self.vae_save_period,
+                    uniform_dataset=self.uniform_dataset,
                 )
         # very hacky
         self.epoch = epoch + 1
@@ -124,7 +124,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                 self.vae.state_dict(),
                 self.replay_buffer,
                 self.replay_buffer.get_mp_info(),
-                ptu.gpu_enabled(),
+                ptu.device,
             )
         )
         self.vae_training_process.start()
@@ -136,13 +136,16 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         _test_vae(
             self.vae_trainer,
             self.epoch,
-            vae_save_period=self.vae_save_period
+            self.replay_buffer,
+            vae_save_period=self.vae_save_period,
+            uniform_dataset=self.uniform_dataset,
         )
 
     def evaluate(self, epoch, eval_paths=None):
         for k, v in self.vae_trainer.vae_logger_stats_for_rl.items():
             logger.record_tabular(k, v)
         super().evaluate(epoch, eval_paths=eval_paths)
+
 
 def _train_vae(vae_trainer, replay_buffer, epoch, batches=50, oracle_data=False):
     batch_sampler = replay_buffer.random_vae_training_data
@@ -156,22 +159,34 @@ def _train_vae(vae_trainer, replay_buffer, epoch, batches=50, oracle_data=False)
     )
     replay_buffer.train_dynamics_model(batches=batches)
 
-def _test_vae(vae_trainer, epoch, vae_save_period=1):
+
+def _test_vae(vae_trainer, epoch, replay_buffer, vae_save_period=1, uniform_dataset=None):
     save_imgs = epoch % vae_save_period == 0
+    log_fit_skew_stats = replay_buffer._prioritize_vae_samples and uniform_dataset is not None
+    if uniform_dataset is not None:
+        replay_buffer.log_loss_under_uniform(uniform_dataset, vae_trainer.batch_size)
     vae_trainer.test_epoch(
         epoch,
         from_rl=True,
         save_reconstruction=save_imgs,
     )
-    if save_imgs: vae_trainer.dump_samples(epoch)
+    if save_imgs:
+        vae_trainer.dump_samples(epoch)
+        if log_fit_skew_stats:
+            replay_buffer.dump_best_reconstruction(epoch)
+            replay_buffer.dump_worst_reconstruction(epoch)
+            replay_buffer.dump_sampling_histogram(epoch, batch_size=vae_trainer.batch_size)
+        if uniform_dataset is not None:
+            replay_buffer.dump_uniform_imgs_and_reconstructions(dataset=uniform_dataset, epoch=epoch)
+
 
 def subprocess_train_vae_loop(
-    conn_pipe,
-    vae,
-    vae_params,
-    replay_buffer,
-    mp_info,
-    use_gpu=True,
+        conn_pipe,
+        vae,
+        vae_params,
+        replay_buffer,
+        mp_info,
+        device,
 ):
     """
     The observations and next_observations of the replay buffer are stored in
@@ -182,11 +197,10 @@ def subprocess_train_vae_loop(
     it is possible for the main process to see half the latents updated and half
     not.
     """
-    ptu.set_gpu_mode(use_gpu)
+    ptu.device = device
     vae_trainer = conn_pipe.recv()
     vae.load_state_dict(vae_params)
-    if ptu.gpu_enabled():
-        vae.cuda()
+    vae.to(device)
     vae_trainer.set_vae(vae)
     replay_buffer.init_from_mp_info(mp_info)
     replay_buffer.env.vae = vae
@@ -197,4 +211,3 @@ def subprocess_train_vae_loop(
         vae.eval()
         conn_pipe.send(vae_trainer.model.__getstate__())
         replay_buffer.refresh_latents(epoch)
-

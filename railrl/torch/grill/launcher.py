@@ -214,7 +214,7 @@ def generate_vae_dataset(variant):
     init_camera = variant.get('init_camera', None)
     dataset_path = variant.get('dataset_path', None)
     oracle_dataset_using_set_to_goal = variant.get('oracle_dataset_using_set_to_goal', False)
-    oracle_dataset_from_policy=variant.get('oracle_dataset_from_policy', False)
+    random_rollout_data = variant.get('random_rollout_data', False)
     random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
     random_rollout_data = variant.get('random_rollout_data', False)
     random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
@@ -279,7 +279,7 @@ def generate_vae_dataset(variant):
                 env.non_presampled_goal_img_is_garbage = non_presampled_goal_img_is_garbage
             env.reset()
             info['env'] = env
-            if oracle_dataset_from_policy or random_and_oracle_policy_data:
+            if random_and_oracle_policy_data:
                 policy_file = load_local_or_remote_file(policy_file)
                 policy = policy_file['policy']
                 policy.to(ptu.device)
@@ -799,6 +799,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     from railrl.torch.networks import FlattenMlp
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.sac.policies import TanhGaussianPolicy
+
     grill_preprocess_variant(variant)
     env = get_envs(variant)
     es = get_exploration_strategy(variant, env)
@@ -848,11 +849,11 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         **variant['replay_buffer_kwargs']
     )
     variant["algo_kwargs"]['base_kwargs']["replay_buffer"] = replay_buffer
-
     t = ConvVAETrainer(variant['vae_train_data'],
                        variant['vae_test_data'],
                        vae,
-                       beta=variant['online_vae_beta'])
+                       beta=variant['online_vae_beta'],
+                       )
     render = variant["render"]
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     algorithm = OnlineVaeHerTwinSac(

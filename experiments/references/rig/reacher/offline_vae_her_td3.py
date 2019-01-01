@@ -40,8 +40,8 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 max_size=int(1e6),
-                fraction_goals_are_rollout_goals=0,
-                fraction_resampled_goals_are_env_goals=0.5,
+                fraction_goals_rollout_goals=0.1,
+                fraction_goals_env_goals=0.5,
             ),
             algorithm='OFFLINE-VAE-HER-TD3',
             normalize=False,
@@ -62,8 +62,8 @@ if __name__ == "__main__":
         train_vae_variant=dict(
             vae_path=None,
             representation_size=16,
-            beta=.5,
-            num_epochs=1000,
+            beta=1,
+            num_epochs=501,
             dump_skew_debug_plots=False,
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
@@ -83,7 +83,8 @@ if __name__ == "__main__":
                 batch_size=64,
                 lr=1e-3,
             ),
-            save_period=10,
+            save_period=50,
+            decoder_activation='sigmoid',
         ),
     )
 
@@ -98,8 +99,8 @@ if __name__ == "__main__":
     # exp_prefix = 'test'
 
     n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'sawyer_xy_reacher_offline_vae'
+    mode = 'gcp'
+    exp_prefix = 'sawyer_xy_reacher_replicate'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

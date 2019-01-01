@@ -5,6 +5,7 @@ from railrl.core.rl_algorithm import RLAlgorithm
 from railrl.torch.core import PyTorchModule, np_to_pytorch_batch
 from railrl.torch import pytorch_util as ptu
 
+
 class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def get_batch(self):
         batch = self.replay_buffer.random_batch(self.batch_size)
@@ -20,7 +21,7 @@ class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             net.train(mode)
 
     def to(self, device=None):
-        if device == None:
-            device = ptu.device 
+        if device is None:
+            device = ptu.device
         for net in self.networks:
             net.to(device)

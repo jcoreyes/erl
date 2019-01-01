@@ -6,8 +6,7 @@ from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 import numpy as np
 from railrl.torch.networks import CNN, TwoHeadDCNN, DCNN
-from railrl.torch.vae.vae_base import compute_bernoulli_log_prob, compute_gaussian_log_prob, GaussianLatentVAE, \
-    compute_beta_log_prob
+from railrl.torch.vae.vae_base import compute_bernoulli_log_prob, compute_gaussian_log_prob, GaussianLatentVAE
 
 ###### DEFAULT ARCHITECTURES #########
 
@@ -279,13 +278,7 @@ class ConvVAEDouble(ConvVAE):
         first_output = first_output.view(-1, self.imsize*self.imsize*self.input_channels)
         second_output = second_output.view(-1, self.imsize*self.imsize*self.input_channels)
         if self.decoder_distribution == 'gaussian':
-            second_output = torch.clamp(second_output, self.min_log_var, 1)
             return first_output, (first_output, second_output)
-        elif self.decoder_distribution == 'beta':
-            alpha = first_output.exp()
-            beta = second_output.exp()
-            reconstructions = alpha/(alpha+beta)
-            return reconstructions, (first_output, second_output)
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
@@ -296,13 +289,6 @@ class ConvVAEDouble(ConvVAE):
             dec_var = dec_logvar.view(-1, self.imlength).exp()
             inputs = inputs.view(-1, self.imlength)
             log_prob = compute_gaussian_log_prob(inputs, dec_mu, dec_var)
-            return log_prob
-        elif self.decoder_distribution == 'beta':
-            log_alpha, log_beta = obs_distribution_params
-            alpha = log_alpha.view(-1, self.imlength).exp()
-            beta = log_beta.view(-1, self.imlength).exp()
-            inputs = inputs.view(-1, self.imlength)
-            log_prob = compute_beta_log_prob(inputs, alpha, beta)
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))

@@ -41,11 +41,7 @@ if __name__ == "__main__":
                     tau=1e-2,
                 ),
                 her_kwargs=dict(),
-                online_vae_kwargs=dict(
-                    vae_training_schedule=vae_schedules.every_six,
-                    vae_save_period=100,
-                    parallel_vae_train=False,
-                ),
+                online_vae_kwargs=dict(),
             ),
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
@@ -78,7 +74,7 @@ if __name__ == "__main__":
             beta=0.25,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=100,
+                N=52,
                 oracle_dataset=True,
                 use_cached=True,
                 num_channels=3*num_images,
@@ -87,6 +83,7 @@ if __name__ == "__main__":
                 input_channels=3*num_images,
             ),
             algo_kwargs=dict(
+                train_data_workers=4,
                 do_scatterplot=False,
                 lr=1e-3,
             ),
@@ -94,7 +91,6 @@ if __name__ == "__main__":
             #    x_values=[0, 100, 200, 500],
             #    y_values=[0, 0, 5, 5],
             #),
-            decoder_activation='sigmoid',
             save_period=5,
         ),
     )
@@ -117,13 +113,10 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    
-    mode='local'
-    exp_prefix='test'
 
     n_seeds = 6
     mode = 'gcp'
-    exp_prefix = 'pickup-online-vae'
+    exp_prefix = 'pickup-online-vae-tests-again-2'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(

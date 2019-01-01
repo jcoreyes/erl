@@ -2,9 +2,6 @@
 #never_train = lambda epoch : False
 #alternate_train = lambda epoch : epoch % 2 == 0
 
-def always_train_less(epoch):
-    return True, 100
-
 def always_train(epoch):
     return True, 300
 
