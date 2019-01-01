@@ -1,6 +1,6 @@
 from railrl.demos.collect_demo import collect_demos, SpaceMouseExpert
 from multiworld.core.image_env import ImageEnv
-from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
+from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_nips_multiobj import SawyerMultiobjectEnv
 from multiworld.envs.pygame.point2d import Point2DWallEnv
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     env = ImageEnv(env,
         recompute_reward=False,
         # transpose=True,
-        init_camera=sawyer_pusher_camera_upright_v2,
+        init_camera=sawyer_init_camera_zoomed_in,
     )
 
-    collect_demos(env, expert, "pusher_reset_free_demos_100.npy", 100)
+    collect_demos(env, expert, "pusher_reset_free_demos_100b.npy", 100)
