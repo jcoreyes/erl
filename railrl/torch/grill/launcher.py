@@ -216,7 +216,6 @@ def generate_vae_dataset(variant):
     oracle_dataset_using_set_to_goal = variant.get('oracle_dataset_using_set_to_goal', False)
     random_rollout_data = variant.get('random_rollout_data', False)
     random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
-    random_rollout_data = variant.get('random_rollout_data', False)
     random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
     policy_file = variant.get('policy_file', None)
     n_random_steps = variant.get('n_random_steps', 100)
