@@ -152,9 +152,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east1-b',
+                    zone='us-east4-a',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p100',
+                        gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
                     )
                 )

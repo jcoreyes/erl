@@ -126,7 +126,7 @@ if __name__ == "__main__":
         'grill_variant.online_vae_beta': [0.25],
         'grill_variant.replay_buffer_kwargs.power': [0],
         'grill_variant.exploration_noise': [0, .2, .3, .5],
-        'grill_variant.vae_wrapped_env_kwargs.sample_from_true_prior':[True, False],
+        'grill_variant.vae_wrapped_env_kwargs.sample_from_true_prior':[False],
         'env_kwargs.random_init': [False],
         'env_kwargs.action_scale': [.02],
         'init_camera': [
@@ -159,9 +159,9 @@ if __name__ == "__main__":
                 snapshot_mode='gap_and_last',
                 num_exps_per_instance=1,
                 gcp_kwargs=dict(
-                    zone='us-west2-b',
+                    zone='us-east1-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p4',
+                        gpu_model='nvidia-tesla-p100',
                         num_gpu=1,
                     )
                 )

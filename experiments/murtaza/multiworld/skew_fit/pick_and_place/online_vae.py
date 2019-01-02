@@ -123,10 +123,10 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     
-    mode='local'
-    exp_prefix='test'
+    # mode='local'
+    # exp_prefix='test'
 
-    n_seeds = 6
+    n_seeds = 4
     mode = 'gcp'
     exp_prefix = 'pickup-online-vae'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
