@@ -139,13 +139,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 4
-    # mode = 'gcp'
-    # exp_prefix = 'pickup-online-vae-sac'
+    n_seeds = 4
+    mode = 'gcp'
+    exp_prefix = 'pickup-online-vae-sac'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -159,8 +159,10 @@ if __name__ == "__main__":
                 snapshot_mode='gap_and_last',
                 num_exps_per_instance=1,
                 gcp_kwargs=dict(
-                    zone='us-west2-c',
-                    preemptible=False,
-                    instance_type="n1-standard-4"
-                ),
+                    zone='us-west2-b',
+                    gpu_kwargs=dict(
+                        gpu_model='nvidia-tesla-p4',
+                        num_gpu=1,
+                    )
+                )
           )
