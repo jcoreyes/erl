@@ -28,7 +28,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=5010,
+                    num_epochs=1010,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=10000,
@@ -126,6 +126,7 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.fraction_goals_rollout_goals':[0, .1, .2, .5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -135,9 +136,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 4
+    n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'pusher_skewfit'
+    exp_prefix = 'pusher_skewfit_sweep_rollout_goals'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:

@@ -123,9 +123,10 @@ if __name__ == "__main__":
         'grill_variant.training_mode': ['train'],
         'grill_variant.replay_kwargs.fraction_goals_rollout_goals': [0.0],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
-        'grill_variant.online_vae_beta': [0.25, 0.5],
+        'grill_variant.online_vae_beta': [0.25],
         'grill_variant.replay_buffer_kwargs.power': [0],
         'grill_variant.exploration_noise': [0, .2, .3, .5],
+        'grill_variant.vae_wrapped_env_kwargs.sample_from_true_prior':[True, False],
         'env_kwargs.random_init': [False],
         'env_kwargs.action_scale': [.02],
         'init_camera': [
