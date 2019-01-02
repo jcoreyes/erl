@@ -58,7 +58,6 @@ if __name__ == "__main__":
                 priority_function_kwargs=dict(
                     sampling_method='correct',
                     num_latents_to_sample=10,
-                    decode_prob='none',
                 ),
                 power=2,
             ),
@@ -108,8 +107,7 @@ if __name__ == "__main__":
         'grill_variant.training_mode': ['train'],
         'grill_variant.replay_kwargs.fraction_goals_rollout_goals': [0.0],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
-        'grill_variant.online_vae_beta': [0.25, 0.5],
-        'grill_variant.replay_buffer_kwargs.power': [0],
+        'grill_variant.online_vae_beta': [0.25],
         'grill_variant.exploration_noise': [.5],
         'env_kwargs.random_init': [False],
         'env_kwargs.action_scale': [.02],
@@ -128,7 +126,7 @@ if __name__ == "__main__":
 
     n_seeds = 4
     mode = 'gcp'
-    exp_prefix = 'pickup-online-vae'
+    exp_prefix = 'pickup-online-vae-td3-skew-fit'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(

@@ -67,7 +67,6 @@ if __name__ == "__main__":
                 priority_function_kwargs=dict(
                     sampling_method='correct',
                     num_latents_to_sample=10,
-                    decode_prob='none',
                 ),
                 power=2,
             ),
@@ -125,7 +124,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
         'grill_variant.replay_buffer_kwargs.fraction_goals_rollout_goals':[0, .1, .2, .5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
