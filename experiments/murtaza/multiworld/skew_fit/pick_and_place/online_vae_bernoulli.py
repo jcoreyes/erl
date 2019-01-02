@@ -12,9 +12,8 @@ from railrl.envs.goal_generation.pickup_goal_dataset import \
 if __name__ == "__main__":
     num_images = 1
     variant = dict(
-        double_algo=False,
-        online_vae_exploration=False,
         imsize=48,
+        double_algo=False,
         env_id="SawyerPickupEnv-v0",
         init_camera=sawyer_pick_and_place_camera,
         grill_variant=dict(
@@ -66,7 +65,7 @@ if __name__ == "__main__":
                     sampling_method='correct',
                     num_latents_to_sample=10,
                 ),
-                power=2,
+                power=0,
             ),
             normalize=False,
             render=False,
@@ -87,7 +86,7 @@ if __name__ == "__main__":
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             ),
-            algorithm='ONLINE-VAE-SAC-BERNOULLI-HER-TD3',
+            algorithm='ONLINE-VAE-SAC-HER',
             generate_uniform_dataset_kwargs=dict(
                 env_id="SawyerPickupEnv-v0",
                 init_camera=sawyer_pick_and_place_camera,
