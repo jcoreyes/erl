@@ -29,7 +29,6 @@ if __name__ == "__main__":
             vf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
-
             algo_kwargs=dict(
                 base_kwargs=dict(
                     num_epochs=505,
@@ -123,7 +122,8 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type': ['image_bernoulli_inv_prob'],
-        'grill_variant.replay_buffer_kwargs.power': [0.25, .5, 1, 2, 4],
+        'grill_variant.replay_buffer_kwargs.power': [0.25],
+        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[4000, 10000],
         'env_kwargs.random_init': [False],
         'env_kwargs.action_scale': [.02],
         'init_camera': [
@@ -140,7 +140,7 @@ if __name__ == "__main__":
 
     n_seeds = 4
     mode = 'gcp'
-    exp_prefix = 'pickup-online-vae-sac-skew-fit'
+    exp_prefix = 'pickup-online-vae-sac-skew-fit-min-num-steps'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
