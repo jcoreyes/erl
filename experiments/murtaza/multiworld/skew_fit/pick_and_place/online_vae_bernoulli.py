@@ -31,7 +31,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=505,
+                    num_epochs=510,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=4000,
@@ -121,9 +121,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type': ['image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type': ['None', 'image_bernoulli_inv_prob'],
         'grill_variant.replay_buffer_kwargs.power': [0.25],
-        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[4000, 10000],
+        'grill_variant.algo_kwargs.base_kwargs.min_num_steps_before_training':[10000],
         'env_kwargs.random_init': [False],
         'env_kwargs.action_scale': [.02],
         'init_camera': [
@@ -138,9 +138,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 4
+    n_seeds = 6
     mode = 'gcp'
-    exp_prefix = 'pickup-online-vae-sac-skew-fit-min-num-steps'
+    exp_prefix = 'pickup-online-vae-sac-skew-fit-rig'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -154,9 +154,9 @@ if __name__ == "__main__":
                 snapshot_mode='gap_and_last',
                 num_exps_per_instance=1,
                 gcp_kwargs=dict(
-                    zone='us-east1-b',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p100',
+                        gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
                     )
                 )
