@@ -17,6 +17,7 @@ if __name__ == "__main__":
         env_id="SawyerPickupEnv-v0",
         init_camera=sawyer_pick_and_place_camera,
         grill_variant=dict(
+            online_vae_beta=.25,
             save_video=True,
             save_video_period=50,
             qf_kwargs=dict(
@@ -28,6 +29,7 @@ if __name__ == "__main__":
             vf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
+
             algo_kwargs=dict(
                 base_kwargs=dict(
                     num_epochs=505,
@@ -56,7 +58,7 @@ if __name__ == "__main__":
                 ),
             ),
             replay_buffer_kwargs=dict(
-                max_size=int(70000),
+                max_size=int(100000),
                 fraction_goals_rollout_goals=0,
                 fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
@@ -65,11 +67,11 @@ if __name__ == "__main__":
                     sampling_method='correct',
                     num_latents_to_sample=10,
                 ),
-                power=0,
+                power=2,
             ),
             normalize=False,
             render=False,
-            exploration_noise=0,
+            exploration_noise=0.2,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -84,7 +86,7 @@ if __name__ == "__main__":
                 num_presampled_goals=1000,
             ),
             vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=True,
+                sample_from_true_prior=False,
             ),
             algorithm='ONLINE-VAE-SAC-HER',
             generate_uniform_dataset_kwargs=dict(
@@ -120,20 +122,13 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.training_mode': ['train'],
-        'grill_variant.replay_kwargs.fraction_goals_rollout_goals': [0.0],
-        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
-        'grill_variant.online_vae_beta': [0.25],
-        'grill_variant.replay_buffer_kwargs.power': [0],
-        'grill_variant.exploration_noise': [0, .2, .3, .5],
-        'grill_variant.vae_wrapped_env_kwargs.sample_from_true_prior':[False],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type': ['image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.power': [0.25, .5, 1, 2, 4],
         'env_kwargs.random_init': [False],
         'env_kwargs.action_scale': [.02],
         'init_camera': [
             sawyer_pick_and_place_camera,
         ],
-        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':
-            [vae_schedules.every_six],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -145,7 +140,7 @@ if __name__ == "__main__":
 
     n_seeds = 4
     mode = 'gcp'
-    exp_prefix = 'pickup-online-vae-sac'
+    exp_prefix = 'pickup-online-vae-sac-skew-fit'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

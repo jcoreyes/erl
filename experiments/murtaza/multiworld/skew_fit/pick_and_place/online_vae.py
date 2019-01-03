@@ -144,5 +144,4 @@ if __name__ == "__main__":
                     preemptible=False,
                     instance_type="n1-standard-4"
                 ),
-
             )
