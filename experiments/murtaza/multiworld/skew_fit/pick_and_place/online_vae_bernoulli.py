@@ -121,9 +121,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type': ['image_bernoulli_inv_prob'],
-        'grill_variant.replay_buffer_kwargs.power': [0.25, .5, 1, 2, 4],
-        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[10, 20, 30],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type': ['None', 'image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.power': [.5],
+        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -133,9 +133,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 2
+    n_seeds = 6
     mode = 'gcp'
-    exp_prefix = 'pickup-online-vae-sac-skew-fit-sweep'
+    exp_prefix = 'pickup-online-vae-sac-skew-fit-final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -149,9 +149,9 @@ if __name__ == "__main__":
                 snapshot_mode='gap_and_last',
                 num_exps_per_instance=1,
                 gcp_kwargs=dict(
-                    zone='us-east1-b',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p100',
+                        gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
                     )
                 )
