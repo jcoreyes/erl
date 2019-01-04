@@ -116,12 +116,12 @@ def collect_one_rollout_goal_conditioned(env, expert):
     # goal_image = goal_obs["image_observation"].reshape((84, 84, 3))
     o = env.reset()
 
-    goal_image = o["image_desired_goal"].reshape((84, 84, 3)) # .transpose()
+    goal_image = o["image_desired_goal"].reshape((84, 84, 3)).copy() # .transpose()
     draw_grid(goal_image)
     cv2.imshow('goal', goal_image)
     cv2.waitKey(10)
 
-    img = o["image_observation"].reshape((84, 84, 3))
+    img = o["image_observation"].reshape((84, 84, 3)).copy()
     # o["image_observation"].reshape((84, 84, 3))
     draw_grid(img)
     # env.set_goal(goal)
@@ -152,7 +152,7 @@ def collect_one_rollout_goal_conditioned(env, expert):
             print(r)
 
             # env.render()
-            img = o["image_observation"].reshape((84, 84, 3))
+            img = o["image_observation"].reshape((84, 84, 3)).copy()
             draw_grid(img)
 
         cv2.imshow('window', img)

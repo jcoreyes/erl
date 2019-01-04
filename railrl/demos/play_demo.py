@@ -13,4 +13,4 @@ def play_demos(path):
             cv2.waitKey(100)
 
 if __name__ == '__main__':
-    play_demos("/Users/ashvin/data/s3doodad/demos/pusher_demos1.npy")
+    play_demos("/Users/ashvin/data/s3doodad/demos/multiobj1_demos_100.npy")
