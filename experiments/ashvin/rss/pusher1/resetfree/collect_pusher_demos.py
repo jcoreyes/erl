@@ -2,7 +2,7 @@ from railrl.demos.collect_demo import collect_demos, SpaceMouseExpert
 from multiworld.core.image_env import ImageEnv
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_nips_multiobj import SawyerMultiobjectEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj import SawyerMultiobjectEnv
 from multiworld.envs.pygame.point2d import Point2DWallEnv
 
 import numpy as np

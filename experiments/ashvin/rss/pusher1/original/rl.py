@@ -12,6 +12,13 @@ import numpy as np
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
+
+    x_low = -0.2
+    x_high = 0.2
+    y_low = 0.5
+    y_high = 0.7
+    t = 0.03
+
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
@@ -68,12 +75,10 @@ if __name__ == "__main__":
 
         env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
-            hide_goal=True,
-            reward_info=dict(
-                type="state_distance",
-            ),
-
             num_objects=1,
+            preload_obj_dict=[
+                dict(color2=(0.1, 0.1, 0.9)),
+            ],
         ),
 
         num_exps_per_instance=1,
@@ -81,7 +86,7 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(5),
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, 16, ],
         'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.1, ],
         'replay_buffer_kwargs.fraction_goals_env_goals': [0.5, ],
     }

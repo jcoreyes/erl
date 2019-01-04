@@ -1,14 +1,21 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 from railrl.launchers.arglauncher import run_variants
+from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj import SawyerMultiobjectEnv
 
 # from torch import nn
 
 if __name__ == "__main__":
+
+    x_low = -0.2
+    x_high = 0.2
+    y_low = 0.5
+    y_high = 0.7
+    t = 0.03
+
     variant = dict(
         imsize=84,
         init_camera=sawyer_init_camera_zoomed_in,
@@ -75,7 +82,7 @@ if __name__ == "__main__":
                 N=10000,
                 oracle_dataset_using_set_to_goal=False,
                 random_rollout_data=True,
-                use_cached=True,
+                use_cached=False,
                 vae_dataset_specific_kwargs=dict(
                 ),
                 show=False,
@@ -97,13 +104,15 @@ if __name__ == "__main__":
         env_kwargs=dict(
             num_objects=1,
             preload_obj_dict=[
-                dict(color2=(0.1, 0.1, 0.9)), # blue
+                dict(color2=(0.1, 0.1, 0.9)),
             ],
         ),
+        demo_path="demos/pusher_demos_100b.npy",
     )
 
     search_space = {
         'seedid': range(5),
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [4, 16, ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

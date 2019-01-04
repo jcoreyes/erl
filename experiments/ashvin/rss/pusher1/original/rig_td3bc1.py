@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
+from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import full_experiment_variant_preprocess
+from railrl.torch.grill.launcher import *
 from railrl.launchers.arglauncher import run_variants
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj import SawyerMultiobjectEnv
@@ -13,9 +13,11 @@ import numpy as np
 
 # from torch import nn
 
-def train_vae_demos(variant):
+def grill_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
-    train_vae_and_update_variant(variant)
+    if not variant['grill_variant'].get('do_state_exp', False):
+        train_vae_and_update_variant(variant)
+    grill_her_td3_experiment(variant['grill_variant'])
 
 def generate_vae_dataset_from_demos(variant):
     demo_path = variant["demo_path"]
@@ -179,6 +181,123 @@ def train_vae(variant, return_data=False):
         return m, train_data, test_data
     return m
 
+def grill_her_td3_experiment(variant):
+    import railrl.samplers.rollout_functions as rf
+    import railrl.torch.pytorch_util as ptu
+    from railrl.data_management.obs_dict_replay_buffer import \
+        ObsDictRelabelingBuffer
+    from railrl.exploration_strategies.base import (
+        PolicyWrappedWithExplorationStrategy
+    )
+    from railrl.demos.her_td3bc import HerTD3BC
+    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    grill_preprocess_variant(variant)
+    env = get_envs(variant)
+    es = get_exploration_strategy(variant, env)
+
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    obs_dim = (
+            env.observation_space.spaces[observation_key].low.size
+            + env.observation_space.spaces[desired_goal_key].low.size
+    )
+    action_dim = env.action_space.low.size
+    qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    policy = TanhMlpPolicy(
+        input_size=obs_dim,
+        output_size=action_dim,
+        **variant['policy_kwargs']
+    )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+
+    replay_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_buffer_kwargs']
+    )
+    demo_train_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_buffer_kwargs']
+    )
+    demo_test_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_buffer_kwargs']
+    )
+
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['replay_buffer'] = replay_buffer
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = env
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
+    her_kwargs = algo_kwargs['her_kwargs']
+    her_kwargs['observation_key'] = observation_key
+    her_kwargs['desired_goal_key'] = desired_goal_key
+    # algorithm = HerTd3(
+    #     env,
+    #     qf1=qf1,
+    #     qf2=qf2,
+    #     policy=policy,
+    #     exploration_policy=exploration_policy,
+    #     **variant['algo_kwargs']
+    # )
+    env.vae.to(ptu.device)
+
+    algorithm = HerTD3BC(
+        env,
+        qf1=qf1,
+        qf2=qf2,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        demo_train_buffer=demo_train_buffer,
+        demo_test_buffer=demo_test_buffer,
+        demo_path=variant["demo_path"],
+        add_demo_latents=True,
+        **variant['algo_kwargs']
+    )
+
+    if variant.get("save_video", True):
+        rollout_function = rf.create_rollout_function(
+            rf.multitask_rollout,
+            max_path_length=algorithm.max_path_length,
+            observation_key=algorithm.observation_key,
+            desired_goal_key=algorithm.desired_goal_key,
+        )
+        video_func = get_video_save_func(
+            rollout_function,
+            env,
+            algorithm.eval_policy,
+            variant,
+        )
+        algorithm.post_epoch_funcs.append(video_func)
+
+    algorithm.to(ptu.device)
+    if not variant.get("do_state_exp", False):
+        env.vae.to(ptu.device)
+
+    algorithm.train()
+
 if __name__ == "__main__":
 
     x_low = -0.2
@@ -189,7 +308,7 @@ if __name__ == "__main__":
 
     variant = dict(
         imsize=84,
-        init_camera=sawyer_init_camera_zoomed_in,
+        init_camera=sawyer_pusher_camera_upright_v2,
         grill_variant=dict(
             save_video=True,
             save_video_period=100,
@@ -239,17 +358,17 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
-            )
+            ),
+            demo_path="demos/pusher_demos_100b.npy",
         ),
         train_vae_variant=dict(
-            vae_path=None,
             representation_size=4,
             beta=10.0 / 128,
             num_epochs=501,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
-                demo_path="demos/pusher_reset_free_demos_100b.npy",
+                demo_path="demos/pusher_demos_100b.npy",
                 test_p=.9,
                 N=10000,
                 oracle_dataset_using_set_to_goal=False,
@@ -275,24 +394,23 @@ if __name__ == "__main__":
         env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
             num_objects=1,
-            reset_to_initial_position=False,
-            puck_goal_low=(x_low + t + t, y_low + t),
-            puck_goal_high=(x_high - t - t, y_high - t),
-            hand_goal_low=(x_low, y_low),
-            hand_goal_high=(x_high, y_high),
-            mocap_low=(x_low, y_low, 0.0),
-            mocap_high=(x_high, y_high, 0.5),
-            object_low=(x_low + t + t, y_low + t, 0.0),
-            object_high=(x_high - t - t, y_high - t, 0.5),
             preload_obj_dict=[
                 dict(color2=(0.1, 0.1, 0.9)),
             ],
         ),
-        demo_path="demos/pusher_reset_free_demos_100b.npy",
+        demo_path="demos/pusher_demos_100b.npy",
+
+        region="us-west-2",
     )
 
     search_space = {
         'seedid': range(5),
+        'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [4, 16, ],
+        'grill_variant.replay_buffer_kwargs.fraction_goals_rollout_goals': [0.1, ],
+        'grill_variant.replay_buffer_kwargs.fraction_goals_env_goals': [0.5, ],
+        'grill_variant.algo_kwargs.base_kwargs.bc_weight': [1.0, 0],
+        'grill_variant.algo_kwargs.base_kwargs.rl_weight': [1.0, 0],
+        'grill_variant.algo_kwargs.td3_kwargs.weight_decay': [1e-4, 0],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -300,6 +418,9 @@ if __name__ == "__main__":
 
     variants = []
     for variant in sweeper.iterate_hyperparameters():
-        variants.append(variant)
+        x = variant["grill_variant"]["algo_kwargs"]["base_kwargs"]["bc_weight"]
+        y = variant["grill_variant"]["algo_kwargs"]["base_kwargs"]["rl_weight"]
+        if x != 0 or y != 0:
+            variants.append(variant)
 
-    run_variants(train_vae_demos, variants, run_id=1)
+    run_variants(grill_her_td3_full_experiment, variants, run_id=3)

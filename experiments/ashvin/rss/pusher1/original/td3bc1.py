@@ -53,6 +53,20 @@ def her_td3_experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
+    demo_train_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_buffer_kwargs']
+    )
+    demo_test_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_buffer_kwargs']
+    )
     obs_dim = env.observation_space.spaces['observation'].low.size
     action_dim = env.action_space.low.size
     goal_dim = env.observation_space.spaces['desired_goal'].low.size
@@ -99,6 +113,8 @@ def her_td3_experiment(variant):
         qf2=qf2,
         policy=policy,
         exploration_policy=exploration_policy,
+        demo_train_buffer=demo_train_buffer,
+        demo_test_buffer=demo_test_buffer,
         replay_buffer=replay_buffer,
         demo_path=variant["demo_path"],
         **variant['algo_kwargs']
@@ -123,9 +139,13 @@ def her_td3_experiment(variant):
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
-    size = 0.1
-    low = (-size, 0.4 - size, 0)
-    high = (size, 0.4 + size, 0.1)
+
+    x_low = -0.2
+    x_high = 0.2
+    y_low = 0.5
+    y_high = 0.7
+    t = 0.03
+
     variant = dict(
         algo_kwargs=dict(
             base_kwargs=dict(
@@ -160,15 +180,15 @@ if __name__ == "__main__":
             ob_keys_to_save=['state_observation', 'state_desired_goal'],
         ),
         qf_kwargs=dict(
-            hidden_sizes=[64, 64],
+            hidden_sizes=[400, 300],
         ),
         policy_kwargs=dict(
-            hidden_sizes=[64, 64],
+            hidden_sizes=[400, 300],
         ),
         algorithm='HER-TD3',
         version='normal',
         es_kwargs=dict(
-            max_sigma=.8,
+            max_sigma=.2,
         ),
         exploration_type='ou',
         observation_key='state_observation',
@@ -185,8 +205,11 @@ if __name__ == "__main__":
         env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
             num_objects=1,
+            preload_obj_dict=[
+                dict(color2=(0.1, 0.1, 0.9)),
+            ],
         ),
-        demo_path="demos/multiobj1_demos_100.npy",
+        demo_path="demos/pusher_demos_100b.npy",
 
         num_exps_per_instance=1,
     )
@@ -194,12 +217,12 @@ if __name__ == "__main__":
     search_space = {
         # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
         'seedid': range(5),
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
-        'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.5, 1.0],
-        'replay_buffer_kwargs.fraction_goals_env_goals': [0.0, ],
-        # 'algo_kwargs.td3_kwargs.weight_decay': [0.0, 1e-3, 1e-4, 1e-5],
-        'algo_kwargs.base_kwargs.bc_weight': [1e-1, 0],
-        'algo_kwargs.base_kwargs.rl_weight': [1.0, 0],
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, 16, ],
+        'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.1, ],
+        'replay_buffer_kwargs.fraction_goals_env_goals': [0.5, ],
+        'algo_kwargs.base_kwargs.bc_weight': [1.0, 0],
+        'algo_kwargs.base_kwargs.rl_weight': [1.0],
+        'algo_kwargs.td3_kwargs.weight_decay': [0, 1e-4],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -221,7 +244,7 @@ if __name__ == "__main__":
         if x != 0 or y != 0:
             variants.append(variant)
 
-    run_variants(her_td3_experiment, variants, run_id=2)
+    run_variants(her_td3_experiment, variants, run_id=1)
     # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
     #     for i in range(n_seeds):
     #         run_experiment(

@@ -30,6 +30,7 @@ class TD3BC(TorchRLAlgorithm):
             demo_path,
             demo_train_buffer,
             demo_test_buffer,
+            add_demo_latents=False,
             demo_train_split=0.9,
             add_demos_to_replay_buffer=True,
             bc_weight=1.0,
@@ -91,9 +92,21 @@ class TD3BC(TorchRLAlgorithm):
         self.demo_train_split = demo_train_split
         self.demo_train_buffer = demo_train_buffer
         self.demo_test_buffer = demo_test_buffer
+        self.add_demo_latents = add_demo_latents
 
         self.demo_path = demo_path
         self.load_demos(self.demo_path)
+
+    def _update_obs_with_latent(self, obs):
+        latent_obs = self.env._encode_one(obs["image_observation"])
+        latent_goal = self.env._encode_one(obs["image_desired_goal"])
+        obs['latent_observation'] = latent_obs
+        obs['latent_achieved_goal'] = latent_obs
+        obs['latent_desired_goal'] = latent_goal
+        obs['observation'] = latent_obs
+        obs['achieved_goal'] = latent_obs
+        obs['desired_goal'] = latent_goal
+        return obs
 
     def load_path(self, path, replay_buffer):
         path_builder = PathBuilder()
@@ -119,6 +132,14 @@ class TD3BC(TorchRLAlgorithm):
             # print(goal.shape, ob["state_observation"])
             # state_observation = np.concatenate((ob["state_observation"], goal))
             action = action[:2]
+            if self.add_demo_latents:
+                self._update_obs_with_latent(ob)
+                self._update_obs_with_latent(next_ob)
+                reward = self.env.compute_reward(
+                    action,
+                    {'latent_achieved_goal': next_ob['latent_achieved_goal'],
+                     'latent_desired_goal': next_ob['latent_desired_goal']}
+                )
             reward = np.array([reward])
             terminal = np.array([terminal])
             path_builder.add_all(

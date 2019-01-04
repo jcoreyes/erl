@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import full_experiment_variant_preprocess
+from railrl.torch.grill.launcher import full_experiment_variant_preprocess, grill_her_td3_experiment
 from railrl.launchers.arglauncher import run_variants
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj import SawyerMultiobjectEnv
@@ -12,6 +12,12 @@ import random
 import numpy as np
 
 # from torch import nn
+
+def grill_her_td3_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    if not variant['grill_variant'].get('do_state_exp', False):
+        train_vae_and_update_variant(variant)
+    grill_her_td3_experiment(variant['grill_variant'])
 
 def train_vae_demos(variant):
     full_experiment_variant_preprocess(variant)
@@ -239,10 +245,10 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
-            )
+            ),
+            vae_path="ashvin/rss/pusher1/resetfree/train-vae-on-demos/run1/id0/itr_500.pkl",
         ),
         train_vae_variant=dict(
-            vae_path=None,
             representation_size=4,
             beta=10.0 / 128,
             num_epochs=501,
@@ -302,4 +308,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(train_vae_demos, variants, run_id=1)
+    run_variants(grill_her_td3_full_experiment, variants, run_id=0)

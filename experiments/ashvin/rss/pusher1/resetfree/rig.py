@@ -4,7 +4,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_nips_multiobj import SawyerMultiobjectEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj import SawyerMultiobjectEnv
 
 # from torch import nn
 

@@ -7,7 +7,7 @@ import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 
 from multiworld.envs.pygame.point2d import Point2DWallEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_nips_multiobj import SawyerMultiobjectEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj import SawyerMultiobjectEnv
 
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
