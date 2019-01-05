@@ -1,15 +1,11 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1
-from multiworld.envs.mujoco.cameras import sawyer_pick_and_place_camera
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place \
-        import SawyerPickAndPlaceEnv, SawyerPickAndPlaceEnvYZ
 from railrl.envs.goal_generation.pickup_goal_dataset import \
         generate_vae_dataset, get_image_presampled_goals_from_vae_env
 from multiworld.envs.mujoco.cameras import \
-        sawyer_pick_and_place_camera, sawyer_pick_and_place_camera_slanted_angle
+        sawyer_pick_and_place_camera
 
 if __name__ == "__main__":
     num_images = 1
@@ -41,7 +37,11 @@ if __name__ == "__main__":
                     tau=1e-2,
                 ),
                 her_kwargs=dict(),
-                online_vae_kwargs=dict(),
+                online_vae_kwargs=dict(
+                    vae_training_schedule=vae_schedules.every_six,
+                    vae_save_period=100,
+                    parallel_vae_train=False,
+                ),
             ),
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
@@ -53,6 +53,13 @@ if __name__ == "__main__":
                 max_size=int(70000),
                 fraction_goals_rollout_goals=0.0,
                 fraction_goals_env_goals=0.5,
+                exploration_rewards_type='None',
+                vae_priority_type='image_bernoulli_inv_prob',
+                priority_function_kwargs=dict(
+                    sampling_method='correct',
+                    num_latents_to_sample=10,
+                ),
+                power=2,
             ),
             algorithm='GRILL-HER-TD3',
             normalize=False,
@@ -74,7 +81,7 @@ if __name__ == "__main__":
             beta=0.25,
             num_epochs=0,
             generate_vae_dataset_kwargs=dict(
-                N=52,
+                N=100,
                 oracle_dataset=True,
                 use_cached=True,
                 num_channels=3*num_images,
@@ -83,7 +90,6 @@ if __name__ == "__main__":
                 input_channels=3*num_images,
             ),
             algo_kwargs=dict(
-                train_data_workers=4,
                 do_scatterplot=False,
                 lr=1e-3,
             ),
@@ -91,16 +97,17 @@ if __name__ == "__main__":
             #    x_values=[0, 100, 200, 500],
             #    y_values=[0, 0, 5, 5],
             #),
+            decoder_activation='sigmoid',
             save_period=5,
         ),
     )
 
     search_space = {
+        'grill_variant.replay_buffer_kwargs.vae_priority_type': ['None', 'image_bernoulli_inv_prob'],
         'grill_variant.training_mode': ['train'],
         'grill_variant.replay_kwargs.fraction_goals_rollout_goals': [0.0],
         'grill_variant.algo_kwargs.base_kwargs.num_updates_per_env_step': [2],
-        'grill_variant.online_vae_beta': [0.25, 0.5],
-        'grill_variant.replay_buffer_kwargs.power': [0],
+        'grill_variant.online_vae_beta': [0.25],
         'grill_variant.exploration_noise': [.5],
         'env_kwargs.random_init': [False],
         'env_kwargs.action_scale': [.02],
@@ -113,10 +120,13 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
+    
+    # mode='local'
+    # exp_prefix='test'
 
-    n_seeds = 6
+    n_seeds = 4
     mode = 'gcp'
-    exp_prefix = 'pickup-online-vae-tests-again-2'
+    exp_prefix = 'pickup-online-vae-td3-skew-fit'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
@@ -134,5 +144,4 @@ if __name__ == "__main__":
                     preemptible=False,
                     instance_type="n1-standard-4"
                 ),
-
             )
