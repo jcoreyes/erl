@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import init_sawyer_camera_v4
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import HER_baseline_twin_sac_experiment
+from railrl.torch.grill.launcher import HER_baseline_twin_sac_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
@@ -51,13 +51,11 @@ if __name__ == "__main__":
             observation_key='image_observation',
             desired_goal_key='image_desired_goal',
             cnn_params=dict(
-                kernel_sizes=[5, 5, 5],
-                n_channels=[16, 32, 32],
-                strides=[3, 3, 3],
-                pool_sizes=[1, 1, 1],
+                kernel_sizes=[5, 3, 3],
+                n_channels=[16, 32, 64],
+                strides=[3, 2, 2],
                 hidden_sizes=[32, 32],
                 paddings=[0, 0, 0],
-                use_batch_norm=False,
             ),
         ),
         train_vae_variant=dict(
@@ -107,7 +105,7 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
-                HER_baseline_twin_sac_experiment,
+                HER_baseline_twin_sac_full_experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,

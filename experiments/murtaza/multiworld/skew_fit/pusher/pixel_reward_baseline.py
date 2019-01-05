@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     # n_seeds = 5
     # mode = 'gcp'
-    # exp_prefix = 'sawyer_xyz_door_pix_reward_baseline'
+    # exp_prefix = 'sawyer_pusher_pix_reward_baseline'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -112,6 +112,7 @@ if __name__ == "__main__":
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
                     zone='us-west2-b',
+                    preemptible=False,
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
