@@ -18,6 +18,9 @@ def get_image_presampled_goals_from_vae_env(env, num_presampled_goals, env_id=No
     image_env = env.wrapped_env
     return get_image_presampled_goals(image_env, num_presampled_goals)
 
+def get_image_presampled_goals_from_image_env(env, num_presampled_goals, env_id=None):
+    return get_image_presampled_goals(env, num_presampled_goals)
+
 def generate_vae_dataset(variant):
     return generate_vae_dataset_from_params(**variant)
 
