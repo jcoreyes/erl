@@ -6,7 +6,8 @@ from torch.distributions import Normal
 from torch.nn import functional as F
 from railrl.torch import pytorch_util as ptu
 
-class VAEBase(PyTorchModule,  metaclass=abc.ABCMeta):
+
+class VAEBase(PyTorchModule, metaclass=abc.ABCMeta):
     def __init__(
             self,
             representation_size,
@@ -94,15 +95,6 @@ class GaussianLatentVAE(VAEBase):
         latents = epsilon * stds + mu
         return latents
 
-    def rsample_multiple_latents(self, latent_distribution_params, num_latents_to_sample=1):
-        mu, logvar = latent_distribution_params
-        mu = mu.view((mu.size()[0], 1, mu.size()[1]))
-        stds = (0.5 * logvar).exp()
-        stds = stds.view(stds.size()[0], 1, stds.size()[1])
-        epsilon = ptu.randn((mu.size()[0], num_latents_to_sample, mu.size()[1]))
-        latents = epsilon * stds + mu
-        return latents
-
     def reparameterize(self, latent_distribution_params):
         if self.training:
             return self.rsample(latent_distribution_params)
@@ -110,25 +102,8 @@ class GaussianLatentVAE(VAEBase):
             return latent_distribution_params[0]
 
     def kl_divergence(self, latent_distribution_params):
-        """
-        See Appendix B from VAE paper:
-        Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-        https://arxiv.org/abs/1312.6114
-
-        Or just look it up.
-
-        0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-
-        Note that sometimes people write log(sigma), but this is the same as
-        0.5 * log(sigma^2).
-
-        :param latent_distribution_params:
-        :return:
-        """
         mu, logvar = latent_distribution_params
-        return - 0.5 * torch.sum(
-            1 + logvar - mu.pow(2) - logvar.exp(), dim=1
-        ).mean()
+        return - 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
 
     def __getstate__(self):
         d = super().__getstate__()
@@ -142,6 +117,7 @@ class GaussianLatentVAE(VAEBase):
         self.dist_mu = d["_dist_mu"]
         self.dist_std = d["_dist_std"]
 
+
 def compute_bernoulli_log_prob(x, reconstruction_of_x):
     return -1 * F.binary_cross_entropy(
         reconstruction_of_x,
@@ -149,9 +125,9 @@ def compute_bernoulli_log_prob(x, reconstruction_of_x):
         reduction='elementwise_mean'
     )
 
+
 def compute_gaussian_log_prob(input, dec_mu, dec_var):
     decoder_dist = Normal(dec_mu, dec_var.pow(0.5))
     log_probs = decoder_dist.log_prob(input)
     vals = log_probs.sum(dim=1, keepdim=True)
     return vals.mean()
-

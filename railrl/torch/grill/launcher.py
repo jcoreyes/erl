@@ -62,6 +62,10 @@ def HER_baseline_her_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
     HER_baseline_her_td3_experiment(variant['grill_variant'])
 
+def HER_baseline_twin_sac_full_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    HER_baseline_twin_sac_experiment(variant['grill_variant'])
+
 def full_experiment_variant_preprocess(variant):
     train_vae_variant = variant['train_vae_variant']
     grill_variant = variant['grill_variant']
@@ -282,6 +286,9 @@ def generate_vae_dataset(variant):
                 policy_file = load_local_or_remote_file(policy_file)
                 policy = policy_file['policy']
                 policy.to(ptu.device)
+            if random_rollout_data:
+                from railrl.exploration_strategies.ou_strategy import OUStrategy
+                policy = OUStrategy(env.action_space)
             dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
             for i in range(N):
                 if random_and_oracle_policy_data:
@@ -306,9 +313,12 @@ def generate_vae_dataset(variant):
                     obs = env._get_obs()
                 elif random_rollout_data:
                     if i % n_random_steps == 0:
-                        g = env.sample_goal()
+                        g = dict(state_desired_goal=env.sample_goal_for_rollout())
                         env.set_to_goal(g)
-                    obs = env.step(env.action_space.sample())[0]
+                        policy.reset()
+                        # env.reset()
+                    u = policy.get_action_from_raw_action(env.action_space.sample())
+                    obs = env.step(u)[0]
                 else:
                     env.reset()
                     for _ in range(n_random_steps):
@@ -453,7 +463,7 @@ def get_exploration_strategy(variant, env):
     from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
     from railrl.exploration_strategies.ou_strategy import OUStrategy
     from railrl.exploration_strategies.noop import NoopStrategy
-    
+
     exploration_type = variant['exploration_type']
     exploration_noise = variant.get('exploration_noise', 0.1)
     if exploration_type == 'ou':
@@ -1516,6 +1526,134 @@ def HER_baseline_her_td3_experiment(variant):
     algorithm.to(ptu.device)
     algorithm.train()
 
+def HER_baseline_twin_sac_experiment(variant):
+    import railrl.torch.pytorch_util as ptu
+    from railrl.data_management.obs_dict_replay_buffer import \
+        ObsDictRelabelingBuffer
+    from railrl.exploration_strategies.base import (
+        PolicyWrappedWithExplorationStrategy
+    )
+    from railrl.torch.her.her_twin_sac import HerTwinSAC
+    from railrl.torch.sac.policies import TanhCNNGaussianPolicy
+    from railrl.torch.networks import MergedCNN, CNN
+    import torch
+    from multiworld.core.image_env import ImageEnv
+    from railrl.misc.asset_loader import load_local_or_remote_file
+
+    init_camera = variant.get("init_camera", None)
+    presample_goals = variant.get('presample_goals', False)
+    presampled_goals_path = variant.get('presampled_goals_path', None)
+
+    if 'env_id' in variant:
+        import gym
+        from gym.envs import registration
+        # trigger registration
+        import multiworld.envs.pygame
+        import multiworld.envs.mujoco
+        env = gym.make(variant['env_id'])
+    else:
+        env = variant["env_class"](**variant['env_kwargs'])
+    image_env = ImageEnv(
+        env,
+        variant.get('imsize'),
+        reward_type='image_sparse',
+        init_camera=init_camera,
+        transpose=True,
+        normalize=True,
+    )
+    if presample_goals:
+        if presampled_goals_path is None:
+            image_env.non_presampled_goal_img_is_garbage = True
+            presampled_goals = variant['generate_goal_dataset_fctn'](
+                env=image_env,
+                **variant['goal_generation_kwargs']
+            )
+        else:
+            presampled_goals = load_local_or_remote_file(
+                presampled_goals_path
+            ).item()
+        del image_env
+        env = ImageEnv(
+            env,
+            variant.get('imsize'),
+            reward_type='image_distance',
+            init_camera=init_camera,
+            transpose=True,
+            normalize=True,
+            presampled_goals=presampled_goals,
+        )
+    else:
+        env = image_env
+    es = get_exploration_strategy(variant, env)
+
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    imsize=variant['imsize']
+    action_dim = env.action_space.low.size
+    qf1 = MergedCNN(input_width=imsize,
+                    input_height=imsize,
+                    output_size=1,
+                    input_channels=3 * 2,
+                    added_fc_input_size=action_dim,
+                    **variant['cnn_params']
+                    )
+    qf2 = MergedCNN(input_width=imsize,
+                    input_height=imsize,
+                    output_size=1,
+                    input_channels=3 * 2,
+                    added_fc_input_size=action_dim,
+                    **variant['cnn_params']
+                    )
+
+    policy = TanhCNNGaussianPolicy(input_width=imsize,
+                       input_height=imsize,
+                       added_fc_input_size=0,
+                       output_size=action_dim,
+                       input_channels=3 * 2,
+                       output_activation=torch.tanh,
+                       **variant['cnn_params'],
+                       )
+
+    vf = CNN(input_width=imsize,
+                    input_height=imsize,
+                    output_size=1,
+                    input_channels=3 * 2,
+                    **variant['cnn_params']
+                    )
+    
+    replay_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_buffer_kwargs']
+    )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['replay_buffer'] = replay_buffer
+    base_kwargs = algo_kwargs['base_kwargs']
+    base_kwargs['training_env'] = env
+    base_kwargs['render'] = variant["render"]
+    base_kwargs['render_during_eval'] = variant["render"]
+    her_kwargs = algo_kwargs['her_kwargs']
+    her_kwargs['observation_key'] = observation_key
+    her_kwargs['desired_goal_key'] = desired_goal_key
+    algorithm = HerTwinSAC(
+        env,
+        qf1=qf1,
+        qf2=qf2,
+        vf=vf,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        **variant['algo_kwargs']
+    )
+
+    algorithm.to(ptu.device)
+    algorithm.train()
 
 def get_video_save_func(rollout_function, env, policy, variant):
     from multiworld.core.image_env import ImageEnv

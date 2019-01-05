@@ -29,6 +29,10 @@ from railrl.samplers.in_place import InPlacePathSampler
 from railrl.samplers.rollout_functions import rollout
 import railrl.envs.env_utils as env_utils
 
+import random
+from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
+from railrl.torch.core import PyTorchModule, np_to_pytorch_batch
+
 class BehaviorClone(TorchRLAlgorithm):
     """
     Behavior cloning implementation
@@ -40,9 +44,11 @@ class BehaviorClone(TorchRLAlgorithm):
             exploration_policy,
             policy,
             demo_path,
+            test_replay_buffer,
             policy_learning_rate=1e-3,
-            weight_decay=1e-4,
+            weight_decay=0,
             optimizer_class=optim.Adam,
+            train_split=0.9,
 
             **kwargs
     ):
@@ -60,46 +66,74 @@ class BehaviorClone(TorchRLAlgorithm):
         )
 
         self.demo_path = demo_path
-        self.load_demos(self.demo_path)
+        self.train_split = train_split
+        self.test_replay_buffer = test_replay_buffer
+        self.load_demos(demo_path)
 
-    def load_demos(self, path):
-        data = load_local_or_remote_file(self.demo_path)
+    def load_path(self, path, replay_buffer):
+        path_builder = PathBuilder()
+        for (
+            ob,
+            action,
+            reward,
+            next_ob,
+            terminal,
+            agent_info,
+            env_info,
+        ) in zip(
+            path["observations"],
+            path["actions"],
+            path["rewards"],
+            path["next_observations"],
+            path["terminals"],
+            path["agent_infos"],
+            path["env_infos"],
+        ):
+            # goal = path["goal"]["state_desired_goal"][0, :]
+            # import pdb; pdb.set_trace()
+            # print(goal.shape, ob["state_observation"])
+            # state_observation = np.concatenate((ob["state_observation"], goal))
+            action = action[:2]
+            reward = np.array([reward])
+            terminal = np.array([terminal])
+            path_builder.add_all(
+                observations=ob,
+                actions=action,
+                rewards=reward,
+                next_observations=next_ob,
+                terminals=terminal,
+                agent_infos=agent_info,
+                env_infos=env_info,
+            )
+        path = path_builder.get_all_stacked()
+        replay_buffer.add_path(path)
 
-        for path in data:
-            for (
-                ob,
-                action,
-                reward,
-                next_ob,
-                terminal,
-                agent_info,
-                env_info,
-            ) in zip(
-                path["observations"],
-                path["actions"],
-                path["rewards"],
-                path["next_observations"],
-                path["terminals"],
-                path["agent_infos"],
-                path["env_infos"],
-            ):
-                # goal = path["goal"]["state_desired_goal"][0, :]
-                # import pdb; pdb.set_trace()
-                # print(goal.shape, ob["state_observation"])
-                # state_observation = np.concatenate((ob["state_observation"], goal))
-                action = action[:2]
-                reward = np.array([reward])
-                terminal = np.array([terminal])
-                self._handle_step(
-                    ob,
-                    action,
-                    reward,
-                    next_ob,
-                    terminal,
-                    agent_info=agent_info,
-                    env_info=env_info,
-                )
-            self._handle_rollout_ending()
+    def load_demos(self, demo_path):
+        data = load_local_or_remote_file(demo_path)
+        random.shuffle(data)
+        N = int(len(data) * self.train_split)
+        print("using", N, "paths for training")
+        for path in data[:N]:
+            self.load_path(path, self.replay_buffer)
+
+        for path in data[N:]:
+            self.load_path(path, self.test_replay_buffer)
+
+    def get_test_batch(self):
+        batch = self.test_replay_buffer.random_batch(self.batch_size)
+        batch = np_to_pytorch_batch(batch)
+        obs = batch['observations']
+        next_obs = batch['next_observations']
+        goals = batch['resampled_goals']
+        batch['observations'] = torch.cat((
+            obs,
+            goals
+        ), dim=1)
+        batch['next_observations'] = torch.cat((
+            next_obs,
+            goals
+        ), dim=1)
+        return batch
 
     def _do_training(self):
         batch = self.get_batch()
@@ -129,7 +163,7 @@ class BehaviorClone(TorchRLAlgorithm):
         Critic operations.
         """
 
-        predicted_actions = self.policy(next_obs)
+        predicted_actions = self.policy(obs)
         error = (predicted_actions - actions) ** 2
         bc_loss = error.mean()
 
@@ -146,6 +180,19 @@ class BehaviorClone(TorchRLAlgorithm):
             self.eval_statistics[logger_prefix + 'Policy Loss'] = np.mean(ptu.get_numpy(
                 bc_loss
             ))
+
+            test_batch = self.get_test_batch()
+            test_o = test_batch["observations"]
+            test_u = test_batch["actions"]
+            test_pred_u = self.policy(test_o)
+            test_error = (test_pred_u - test_u) ** 2
+            test_bc_loss = test_error.mean()
+
+            self.eval_statistics[logger_prefix + 'Test Policy Loss'] = np.mean(ptu.get_numpy(
+                test_bc_loss
+            ))
+
+            self.eval_statistics[logger_prefix + 'Replay Buffer Size'] = self.replay_buffer._size
 
     def _can_evaluate(self):
         """

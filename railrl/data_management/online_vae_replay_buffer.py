@@ -1,38 +1,43 @@
+from torchvision.utils import save_image
+
+from railrl.core import logger
 from railrl.data_management.obs_dict_replay_buffer import flatten_dict
 from railrl.data_management.shared_obs_dict_replay_buffer import \
-        SharedObsDictRelabelingBuffer
+    SharedObsDictRelabelingBuffer
 from multiworld.core.image_env import normalize_image
 import railrl.torch.pytorch_util as ptu
 import numpy as np
 import torch
 from torch.optim import Adam
 from torch.nn import MSELoss
+
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.vae_trainer import (
     inv_gaussian_p_x_np_to_np,
     inv_p_bernoulli_x_np_to_np,
-)
+    compute_inv_p_x_shifted_from_log_p_x, compute_bernoulli_p_q_d)
+import os.path as osp
 
 
 class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
     def __init__(
-        self,
-        vae,
-        *args,
-        decoded_obs_key='image_observation',
-        decoded_achieved_goal_key='image_achieved_goal',
-        decoded_desired_goal_key='image_desired_goal',
-        exploration_rewards_type='None',
-        exploration_rewards_scale=1.0,
-        vae_priority_type='None',
-        power=1.0,
-        internal_keys=None,
-        exploration_schedule_kwargs=None,
-        priority_function_kwargs=None,
-        **kwargs
+            self,
+            vae,
+            *args,
+            decoded_obs_key='image_observation',
+            decoded_achieved_goal_key='image_achieved_goal',
+            decoded_desired_goal_key='image_desired_goal',
+            exploration_rewards_type='None',
+            exploration_rewards_scale=1.0,
+            vae_priority_type='None',
+            power=1.0,
+            internal_keys=None,
+            exploration_schedule_kwargs=None,
+            priority_function_kwargs=None,
+            **kwargs
     ):
         self.quick_init(locals())
         self.vae = vae
@@ -46,10 +51,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
         if exploration_schedule_kwargs is None:
             self.explr_reward_scale_schedule = \
-                    ConstantSchedule(self.exploration_rewards_scale)
+                ConstantSchedule(self.exploration_rewards_scale)
         else:
             self.explr_reward_scale_schedule = \
-                    PiecewiseLinearSchedule(**exploration_schedule_kwargs)
+                PiecewiseLinearSchedule(**exploration_schedule_kwargs)
 
         extra_keys = [
             self.decoded_obs_key,
@@ -65,34 +70,34 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             internal_keys.append(key)
         super().__init__(internal_keys=internal_keys, *args, **kwargs)
         self._give_explr_reward_bonus = (
-            exploration_rewards_type != 'None'
-            and exploration_rewards_scale != 0.
+                exploration_rewards_type != 'None'
+                and exploration_rewards_scale != 0.
         )
         self._exploration_rewards = np.zeros((self.max_size, 1))
         self._prioritize_vae_samples = (
-            vae_priority_type != 'None'
-            and power != 0.
+                vae_priority_type != 'None'
+                and power != 0.
         )
         self._vae_sample_priorities = np.zeros((self.max_size, 1))
         self._vae_sample_probs = None
 
         self.use_dynamics_model = (
-            self.exploration_rewards_type == 'forward_model_error'
+                self.exploration_rewards_type == 'forward_model_error'
         )
         if self.use_dynamics_model:
             self.initialize_dynamics_model()
 
         type_to_function = {
-            'reconstruction_error':         self.reconstruction_mse,
-            'bce':                          self.binary_cross_entropy,
-            'latent_distance':              self.latent_novelty,
-            'latent_distance_true_prior':   self.latent_novelty_true_prior,
-            'forward_model_error':          self.forward_model_error,
-            'gaussian_inv_prob':            self.gaussian_inv_prob,
-            'bernoulli_inv_prob':           self.bernoulli_inv_prob,
-            'image_gaussian_inv_prob':      self.image_gaussian_inv_prob,
-            'image_bernoulli_inv_prob':     self.image_bernoulli_inv_prob,
-            'None':                         self.no_reward,
+            'reconstruction_error': self.reconstruction_mse,
+            'bce': self.binary_cross_entropy,
+            'latent_distance': self.latent_novelty,
+            'latent_distance_true_prior': self.latent_novelty_true_prior,
+            'forward_model_error': self.forward_model_error,
+            'gaussian_inv_prob': self.gaussian_inv_prob,
+            'bernoulli_inv_prob': self.bernoulli_inv_prob,
+            'image_gaussian_inv_prob': self.image_gaussian_inv_prob,
+            'image_bernoulli_inv_prob': self.image_bernoulli_inv_prob,
+            'None': self.no_reward,
         }
 
         self.exploration_reward_func = (
@@ -129,9 +134,9 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         )
         for idx, next_obs in enumerate(path['observations']):
             path['observations'][idx][self.decoded_desired_goal_key] = \
-                    desired_decoded_goals[idx]
+                desired_decoded_goals[idx]
             path['next_observations'][idx][self.decoded_desired_goal_key] = \
-                    desired_decoded_goals[idx]
+                desired_decoded_goals[idx]
 
     def random_batch(self, batch_size):
         batch = super().random_batch(batch_size)
@@ -177,8 +182,8 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 self._exploration_rewards[idxs] = rewards.reshape(-1, 1)
             if self._prioritize_vae_samples:
                 if (
-                    self.exploration_rewards_type == self.vae_priority_type
-                    and self._give_explr_reward_bonus
+                        self.exploration_rewards_type == self.vae_priority_type
+                        and self._give_explr_reward_bonus
                 ):
                     self._vae_sample_priorities[idxs] = (
                         self._exploration_rewards[idxs]
@@ -196,6 +201,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             next_idx += batch_size
             next_idx = min(next_idx, self._size)
         if self._prioritize_vae_samples:
+            if self.vae_priority_type == 'image_bernoulli_inv_prob' or 'image_gaussian_inv_prob':
+                #normalize in log space across the entire dataset
+                self._vae_sample_priorities[:self._size] = compute_inv_p_x_shifted_from_log_p_x(
+                    self._vae_sample_priorities[:self._size])
             vae_sample_priorities = self._vae_sample_priorities[:self._size]
             self._vae_sample_probs = vae_sample_priorities ** self.power
             p_sum = np.sum(self._vae_sample_probs)
@@ -223,7 +232,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         recon_next_vae_obs, _, _ = self.vae(torch_input)
 
         error = torch_input - recon_next_vae_obs
-        mse = torch.sum(error**2, dim=1)
+        mse = torch.sum(error ** 2, dim=1)
         return ptu.get_numpy(mse)
 
     def gaussian_inv_prob(self, next_vae_obs, indices):
@@ -246,16 +255,18 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         torch_input = ptu.np_to_var(next_vae_obs)
         recon_next_vae_obs, _, _ = self.vae(torch_input)
         prob = (
-            torch_input * recon_next_vae_obs
-            + (1 - torch_input) * (1 - recon_next_vae_obs)
+                torch_input * recon_next_vae_obs
+                + (1 - torch_input) * (1 - recon_next_vae_obs)
         ).prod(dim=1)
         return ptu.get_numpy(1 / prob)
 
     def image_gaussian_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1):
         return inv_gaussian_p_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample)
 
-    def image_bernoulli_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1):
-        return inv_p_bernoulli_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample)
+    def image_bernoulli_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1,
+                                 sampling_method='importance_sampling'):
+        return inv_p_bernoulli_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample,
+                                          sampling_method=sampling_method)
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]
@@ -269,11 +280,11 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
     def latent_novelty(self, next_vae_obs, indices):
         distances = ((self.env._encode(next_vae_obs) - self.vae.dist_mu) /
-                     self.vae.dist_std)**2
+                     self.vae.dist_std) ** 2
         return distances.sum(axis=1)
 
     def latent_novelty_true_prior(self, next_vae_obs, indices):
-        distances = self.env._encode(next_vae_obs)**2
+        distances = self.env._encode(next_vae_obs) ** 2
         return distances.sum(axis=1)
 
     def _kl_np_to_np(self, next_vae_obs, indices):
@@ -316,3 +327,125 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
             mse.backward()
             self.dynamics_optimizer.step()
+
+    ''' Fit Skew Debug Stats '''
+
+    def dump_sampling_histogram(self, epoch, batch_size):
+        import matplotlib.pyplot as plt
+        weights = torch.from_numpy(self._vae_sample_probs)
+        samples = ptu.get_numpy(torch.multinomial(
+            weights, len(weights), replacement=True
+        ))
+        plt.clf()
+        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights), 1))
+        plt.xlabel('Indices')
+        plt.ylabel('Number of Samples')
+        plt.title('VAE Priority Histogram')
+        save_file = osp.join(logger.get_snapshot_dir(), 'hist{}.png'.format(
+            epoch))
+        plt.savefig(save_file)
+
+        samples = ptu.get_numpy(torch.multinomial(
+            weights, batch_size, replacement=True
+        ))
+        plt.clf()
+        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights), 1))
+        plt.xlabel('Indices')
+        plt.ylabel('Number of Samples')
+        plt.title('VAE Priority Histogram Batch')
+        save_file = osp.join(logger.get_snapshot_dir(), 'hist_batch{}.png'.format(
+            epoch))
+        plt.savefig(save_file)
+
+    def dump_best_reconstruction(self, epoch, num_shown=4):
+        idx_and_weights = self._get_sorted_idx_and_train_weights()
+        idxs = [i for i, _ in idx_and_weights[:num_shown]]
+        self._dump_imgs_and_reconstructions(idxs, 'best{}.png'.format(epoch))
+
+    def dump_worst_reconstruction(self, epoch, num_shown=4):
+        idx_and_weights = self._get_sorted_idx_and_train_weights()
+        idx_and_weights = idx_and_weights[::-1]
+        idxs = [i for i, _ in idx_and_weights[:num_shown]]
+        self._dump_imgs_and_reconstructions(idxs, 'worst{}.png'.format(epoch))
+
+    def _dump_imgs_and_reconstructions(self, idxs, filename):
+        imgs = []
+        recons = []
+        for i in idxs:
+            img_np = self._obs['image_observation'][i]
+            img_torch = ptu.from_numpy(normalize_image(img_np))
+            recon, *_ = self.vae(img_torch.view(1, -1))
+
+            img = img_torch.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1, 2)
+            rimg = recon.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1, 2)
+            imgs.append(img)
+            recons.append(rimg)
+        all_imgs = torch.stack(imgs + recons)
+        save_file = osp.join(logger.get_snapshot_dir(), filename)
+        save_image(
+            all_imgs.data,
+            save_file,
+            nrow=4,
+        )
+
+    def log_loss_under_uniform(self, data, batch_size):
+        import torch.nn.functional as F
+        log_probs_prior = []
+        log_probs_biased = []
+        log_probs_importance = []
+        kles = []
+        mses = []
+        for i in range(0, data.shape[0], batch_size):
+            img = normalize_image(data[i:min(data.shape[0], i + batch_size), :])
+            torch_img = ptu.from_numpy(img)
+            reconstructions, obs_distribution_params, latent_distribution_params = self.vae(torch_img)
+
+            log_p, log_q, log_d = compute_bernoulli_p_q_d(self.vae, img, 20, 'prior')
+            log_prob_prior = log_d.mean()
+
+            log_p, log_q, log_d = compute_bernoulli_p_q_d(self.vae, img, 20, 'biased')
+            log_prob_biased = log_d.mean()
+
+            log_p, log_q, log_d = compute_bernoulli_p_q_d(self.vae, img, 20, 'importance')
+            log_prob_importance = (log_p - log_q + log_d).mean()
+
+            kle = self.vae.kl_divergence(latent_distribution_params)
+            mse = F.mse_loss(torch_img, reconstructions, reduction='elementwise_mean')
+            mses.append(mse.item())
+            kles.append(kle.item())
+            log_probs_prior.append(log_prob_prior.item())
+            log_probs_biased.append(log_prob_biased.item())
+            log_probs_importance.append(log_prob_importance.item())
+
+        logger.record_tabular("Uniform Data Log Prob (Prior)", np.mean(log_probs_prior))
+        logger.record_tabular("Uniform Data Log Prob (Biased)", np.mean(log_probs_biased))
+        logger.record_tabular("Uniform Data Log Prob (Importance)", np.mean(log_probs_importance))
+        logger.record_tabular("Uniform Data KL", np.mean(kles))
+        logger.record_tabular("Uniform Data MSE", np.mean(mses))
+
+    def dump_uniform_imgs_and_reconstructions(self, dataset, epoch):
+        idxs = np.random.choice(range(dataset.shape[0]), 4)
+        filename = 'uniform{}.png'.format(epoch)
+        imgs = []
+        recons = []
+        for i in idxs:
+            img_np = dataset[i]
+            img_torch = ptu.from_numpy(normalize_image(img_np))
+            recon, *_ = self.vae(img_torch.view(1, -1))
+
+            img = img_torch.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1, 2)
+            rimg = recon.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1, 2)
+            imgs.append(img)
+            recons.append(rimg)
+        all_imgs = torch.stack(imgs + recons)
+        save_file = osp.join(logger.get_snapshot_dir(), filename)
+        save_image(
+            all_imgs.data,
+            save_file,
+            nrow=4,
+        )
+
+    def _get_sorted_idx_and_train_weights(self):
+        idx_and_weights = zip(range(len(self._vae_sample_probs)),
+                              self._vae_sample_probs)
+        return sorted(idx_and_weights, key=lambda x: x[1])
