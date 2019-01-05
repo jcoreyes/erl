@@ -1535,7 +1535,7 @@ def HER_baseline_twin_sac_experiment(variant):
     )
     from railrl.torch.her.her_twin_sac import HerTwinSAC
     from railrl.torch.sac.policies import TanhCNNGaussianPolicy
-    from railrl.torch.networks import MergedCNN
+    from railrl.torch.networks import MergedCNN, CNN
     import torch
     from multiworld.core.image_env import ImageEnv
     from railrl.misc.asset_loader import load_local_or_remote_file
@@ -1584,7 +1584,6 @@ def HER_baseline_twin_sac_experiment(variant):
         )
     else:
         env = image_env
-
     es = get_exploration_strategy(variant, env)
 
     observation_key = variant.get('observation_key', 'latent_observation')
@@ -1617,7 +1616,7 @@ def HER_baseline_twin_sac_experiment(variant):
                        **variant['cnn_params'],
                        )
 
-    vf = MergedCNN(input_width=imsize,
+    vf = CNN(input_width=imsize,
                     input_height=imsize,
                     output_size=1,
                     input_channels=3 * 2,
