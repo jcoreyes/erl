@@ -200,6 +200,7 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
     def forward(
             self,
             obs,
+            reparameterize=True,
             deterministic=False,
             return_log_prob=False,
             return_entropy=False,
@@ -246,16 +247,24 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
         else:
             tanh_normal = TanhNormal(mean, std)
             if return_log_prob:
-                action, pre_tanh_value = tanh_normal.sample(
-                    return_pretanh_value=True
-                )
+                if reparameterize is True:
+                    action, pre_tanh_value = tanh_normal.rsample(
+                        return_pretanh_value=True
+                    )
+                else:
+                    action, pre_tanh_value = tanh_normal.sample(
+                        return_pretanh_value=True
+                    )
                 log_prob = tanh_normal.log_prob(
                     action,
                     pre_tanh_value=pre_tanh_value
                 )
                 log_prob = log_prob.sum(dim=1, keepdim=True)
             else:
-                action = tanh_normal.sample()
+                if reparameterize is True:
+                    action = tanh_normal.rsample()
+                else:
+                    action = tanh_normal.sample()
 
         if return_entropy:
             entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
