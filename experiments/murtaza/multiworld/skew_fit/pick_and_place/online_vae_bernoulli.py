@@ -123,7 +123,7 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type': ['None', 'image_bernoulli_inv_prob'],
         'grill_variant.replay_buffer_kwargs.power': [.5],
-        'grill_variant.exploration_noise':[.2, .3, .5],
+        'grill_variant.exploration_noise':[0, .1],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     n_seeds = 6
     mode = 'gcp'
-    exp_prefix = 'pickup-online-vae-sac-skew-fit-exp-noise'
+    exp_prefix = 'pickup-online-vae-sac-skew-fit-low-exp-noise'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
