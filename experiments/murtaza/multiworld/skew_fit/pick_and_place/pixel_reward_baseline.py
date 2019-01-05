@@ -1,6 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pick_and_place_camera
-from railrl.envs.goal_generation.pickup_goal_dataset import get_image_presampled_goals_from_vae_env
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place import get_image_presampled_goals
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import HER_baseline_twin_sac_full_experiment
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
                 paddings=[0, 0, 0],
             ),
             presample_goals=True,
-            generate_goal_dataset_fctn=get_image_presampled_goals_from_vae_env,
+            generate_goal_dataset_fctn=get_image_presampled_goals,
             goal_generation_kwargs=dict(
                 num_presampled_goals=1000,
             ),

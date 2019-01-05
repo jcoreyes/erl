@@ -1606,7 +1606,6 @@ def HER_baseline_twin_sac_experiment(variant):
                     **variant['cnn_params']
                     )
 
-    #TODO: WRITE THIS
     policy = TanhCNNGaussianPolicy(input_width=imsize,
                        input_height=imsize,
                        added_fc_input_size=0,
