@@ -136,7 +136,7 @@ if __name__ == "__main__":
 
     n_seeds = 4
     mode = 'gcp'
-    exp_prefix = 'pusher_skewfit'
+    exp_prefix = 'pusher-skew-fit'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:
