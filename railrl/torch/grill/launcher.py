@@ -1534,6 +1534,7 @@ def HER_baseline_twin_sac_experiment(variant):
         PolicyWrappedWithExplorationStrategy
     )
     from railrl.torch.her.her_twin_sac import HerTwinSAC
+    from railrl.torch.sac.policies import TanhCNNGaussianPolicy
     from railrl.torch.networks import MergedCNN
     import torch
     from multiworld.core.image_env import ImageEnv
@@ -1607,7 +1608,7 @@ def HER_baseline_twin_sac_experiment(variant):
                     )
 
     #TODO: WRITE THIS
-    policy = TanhGaussianCNNPolicy(input_width=imsize,
+    policy = TanhCNNGaussianPolicy(input_width=imsize,
                        input_height=imsize,
                        added_fc_input_size=0,
                        output_size=action_dim,
