@@ -2,10 +2,11 @@ import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import init_sawyer_camera_v4
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import HER_baseline_twin_sac_full_experiment
+from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_set_to_goal
 
 if __name__ == "__main__":
     variant = dict(
-        imsize=84,
+        imsize=48,
         init_camera=init_sawyer_camera_v4,
         env_id='SawyerReachXYZEnv-v1',
         grill_variant=dict(
@@ -56,6 +57,13 @@ if __name__ == "__main__":
                 strides=[3, 2, 2],
                 hidden_sizes=[32, 32],
                 paddings=[0, 0, 0],
+            ),
+            generate_goal_dataset_fctn=generate_goal_dataset_using_set_to_goal,
+            goal_generation_kwargs=dict(
+                num_goals=10000,
+                use_cached_dataset=True,
+                show=False,
+                tag='_twin_sac'
             ),
         ),
         train_vae_variant=dict(
