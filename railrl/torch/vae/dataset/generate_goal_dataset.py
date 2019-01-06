@@ -80,11 +80,14 @@ def generate_goal_dataset_using_policy(
         env_id=None,
         tag='',
 ):
-    env_class = type(env.wrapped_env.wrapped_env)
+    if type(env) == ImageEnv:
+        env_class = env._wrapped_env.__class__.__name__
+    else:
+        env_class = env._wrapped_env.wrapped_env.__class__.__name__
     if save_file_prefix is None and env_id is not None:
         save_file_prefix = env_id
     elif save_file_prefix is None:
-        save_file_prefix = env_class.__name__
+        save_file_prefix = env_class
     filename = "/tmp/{}_N{}_imsize{}goals{}.npy".format(
         save_file_prefix,
         str(num_goals),
@@ -145,11 +148,14 @@ def generate_goal_dataset_using_set_to_goal(
         env_id=None,
         tag='',
 ):
-    env_class = type(env.wrapped_env.wrapped_env)
+    if type(env) == ImageEnv:
+        env_class = env._wrapped_env.__class__.__name__
+    else:
+        env_class = env._wrapped_env.wrapped_env.__class__.__name__
     if save_file_prefix is None and env_id is not None:
         save_file_prefix = env_id
     elif save_file_prefix is None:
-        save_file_prefix = env_class.__name__
+        save_file_prefix = env_class
     filename = "/tmp/{}_N{}_imsize{}goals{}.npy".format(
         save_file_prefix,
         str(num_goals),
