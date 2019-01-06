@@ -55,6 +55,10 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         if desired_goal_key not in self.goal_keys:
             self.goal_keys.append(desired_goal_key)
         assert isinstance(env.observation_space, Dict)
+        assert 0 <= fraction_goals_rollout_goals
+        assert 0 <= fraction_goals_env_goals
+        assert 0 <= fraction_goals_rollout_goals + fraction_goals_env_goals
+        assert fraction_goals_rollout_goals + fraction_goals_env_goals <= 1
         self.max_size = max_size
         self.env = env
         self.fraction_goals_rollout_goals = fraction_goals_rollout_goals
