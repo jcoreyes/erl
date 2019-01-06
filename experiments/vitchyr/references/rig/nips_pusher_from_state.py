@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v0
+from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 
@@ -7,8 +7,8 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         imsize=84,
-        init_camera=sawyer_pusher_camera_upright_v0,
-        env_id='SawyerPushAndReachEnvEasy-v0',
+        init_camera=sawyer_init_camera_zoomed_in,
+        env_id='SawyerPushNIPS-v0',
         grill_variant=dict(
             save_video=True,
             save_video_period=500,
@@ -90,14 +90,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'sawyer_pusher_state_her_td3'
+    mode = 'local'
+    exp_prefix = 'dev'
+
+    n_seeds = 4
+    mode = 'sss'
+    exp_prefix = 'sawyer_nips_pusher_state_her_td3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
@@ -106,8 +105,9 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 snapshot_mode='gap_and_last',
-                snapshot_gap=500,
+                snapshot_gap=250,
                 variant=variant,
-                use_gpu=True,
+                # use_gpu=True,
                 num_exps_per_instance=3,
+                time_in_mins=60*24*2,
             )

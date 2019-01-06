@@ -117,7 +117,7 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    
+
     mode='local'
     exp_prefix='test'
 
