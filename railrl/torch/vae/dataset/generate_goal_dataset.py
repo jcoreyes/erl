@@ -80,14 +80,14 @@ def generate_goal_dataset_using_policy(
         env_id=None,
         tag='',
 ):
-    if type(env) == ImageEnv:
-        env_class = env._wrapped_env.__class__.__name__
+    if isinstance(env, ImageEnv):
+        env_class_name = env._wrapped_env.__class__.__name__
     else:
-        env_class = env._wrapped_env.wrapped_env.__class__.__name__
+        env_class_name = env._wrapped_env.wrapped_env.__class__.__name__
     if save_file_prefix is None and env_id is not None:
         save_file_prefix = env_id
     elif save_file_prefix is None:
-        save_file_prefix = env_class
+        save_file_prefix = env_class_name
     filename = "/tmp/{}_N{}_imsize{}goals{}.npy".format(
         save_file_prefix,
         str(num_goals),
@@ -148,14 +148,14 @@ def generate_goal_dataset_using_set_to_goal(
         env_id=None,
         tag='',
 ):
-    if type(env) == ImageEnv:
-        env_class = env._wrapped_env.__class__.__name__
+    if isinstance(env, ImageEnv):
+        env_class_name = env._wrapped_env.__class__.__name__
     else:
-        env_class = env._wrapped_env.wrapped_env.__class__.__name__
+        env_class_name = env._wrapped_env.wrapped_env.__class__.__name__
     if save_file_prefix is None and env_id is not None:
         save_file_prefix = env_id
     elif save_file_prefix is None:
-        save_file_prefix = env_class
+        save_file_prefix = env_class_name
     filename = "/tmp/{}_N{}_imsize{}goals{}.npy".format(
         save_file_prefix,
         str(num_goals),
@@ -181,9 +181,9 @@ def generate_goal_dataset_using_set_to_goal(
         goal_dict[goal_key] = np.zeros((num_goals, goal_size))
     print('Generating Random Goals')
     for j in range(num_goals):
-        if type(env) == VAEWrappedEnv:
+        if isinstance(env, VAEWrappedEnv):
             goal = env.wrapped_env.wrapped_env.sample_goal()
-        elif type(env) == ImageEnv:
+        elif isinstance(env, ImageEnv):
             goal = env.wrapped_env.sample_goal()
         else:
             goal = env.sample_goal()
