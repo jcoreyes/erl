@@ -1465,8 +1465,8 @@ def HER_baseline_her_td3_experiment(variant):
 
     es = get_exploration_strategy(variant, env)
 
-    observation_key = variant.get('observation_key', 'latent_observation')
-    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    observation_key = variant.get('observation_key', 'image_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'image_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     imsize=variant['imsize']
     action_dim = env.action_space.low.size
@@ -1586,8 +1586,8 @@ def HER_baseline_twin_sac_experiment(variant):
         env = image_env
     es = get_exploration_strategy(variant, env)
 
-    observation_key = variant.get('observation_key', 'latent_observation')
-    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    observation_key = variant.get('observation_key', 'image_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'image_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     imsize=variant['imsize']
     action_dim = env.action_space.low.size
