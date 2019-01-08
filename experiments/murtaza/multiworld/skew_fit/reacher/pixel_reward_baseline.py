@@ -58,13 +58,6 @@ if __name__ == "__main__":
                 hidden_sizes=[32, 32],
                 paddings=[0, 0, 0],
             ),
-            generate_goal_dataset_fctn=generate_goal_dataset_using_set_to_goal,
-            goal_generation_kwargs=dict(
-                num_goals=10000,
-                use_cached_dataset=True,
-                show=False,
-                tag='_twin_sac'
-            ),
         ),
         train_vae_variant=dict(
             vae_path=None,
