@@ -304,8 +304,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             output_size=obs_dim,
             input_size=obs_dim + self._action_dim,
         )
-        if ptu.gpu_enabled():
-            self.dynamics_model.to(ptu.device)
+        self.dynamics_model.to(ptu.device)
         self.dynamics_optimizer = Adam(self.dynamics_model.parameters())
         self.dynamics_loss = MSELoss()
 
