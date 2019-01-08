@@ -1,3 +1,4 @@
+from railrl.exploration_strategies.count_based.count_based import CountExplorationCountGoalSampler
 from torchvision.utils import save_image
 
 from railrl.core import logger
@@ -37,6 +38,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             internal_keys=None,
             exploration_schedule_kwargs=None,
             priority_function_kwargs=None,
+            exploration_counter_kwargs=None,
             **kwargs
     ):
         self.quick_init(locals())
@@ -112,6 +114,11 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             self.priority_function_kwargs = dict()
         else:
             self.priority_function_kwargs = priority_function_kwargs
+
+        if self.exploration_rewards_type == 'hash_count_based':
+            if exploration_counter_kwargs is None:
+                exploration_counter_kwargs = dict()
+            self.exploration_counter = CountExplorationCountGoalSampler(env=self.env, **exploration_counter_kwargs)
 
         self.epoch = 0
         self._register_mp_array("_exploration_rewards")
