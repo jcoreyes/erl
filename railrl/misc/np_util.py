@@ -43,8 +43,9 @@ def to_onehot(x, num_values):
     return onehot
 
 
-def softmax(x, axis=-1):
+def softmax(x, axis=-1, theta=1):
     """Compute softmax values for each sets of scores in x."""
+    x = x/float(theta)
     e_x = np.exp(x - np.max(x))
     denom = np.expand_dims(e_x.sum(axis=axis), axis=axis)
     return e_x / denom
@@ -160,3 +161,9 @@ def truncated_geometric(p, truncate_threshold, size, new_value=None):
     else:
         samples[samples > truncate_threshold] = new_value
     return samples
+
+def bin2int(x):
+    y = 0
+    for i, j in enumerate(x):
+        y += j << i
+    return y

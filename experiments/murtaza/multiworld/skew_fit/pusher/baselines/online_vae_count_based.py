@@ -64,13 +64,8 @@ if __name__ == "__main__":
                 fraction_goals_env_goals=0.5,
                 exploration_rewards_type='hash_count',
                 vae_priority_type='None',
-                priority_function_kwargs=dict(
-                    sampling_method='correct',
-                    num_latents_to_sample=10,
-                ),
                 exploration_counter_kwargs=dict(
                     hash_dim=16,
-                    obs_dim=16,
                     observation_key='latent_observation',
                 ),
                 power=2,
@@ -135,13 +130,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 4
-    mode = 'gcp'
-    exp_prefix = 'pusher_count_based'
+    # n_seeds = 4
+    # mode = 'gcp'
+    # exp_prefix = 'pusher_count_based'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:

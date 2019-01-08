@@ -1,4 +1,4 @@
-from railrl.exploration_strategies.count_based.count_based import CountExplorationCountGoalSampler
+from railrl.exploration_strategies.count_based.count_based import CountExploration
 from torchvision.utils import save_image
 
 from railrl.core import logger
@@ -115,10 +115,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         else:
             self.priority_function_kwargs = priority_function_kwargs
 
-        if self.exploration_rewards_type == 'hash_count_based':
+        if self.exploration_rewards_type == 'hash_count':
             if exploration_counter_kwargs is None:
                 exploration_counter_kwargs = dict()
-            self.exploration_counter = CountExplorationCountGoalSampler(env=self.env, **exploration_counter_kwargs)
+            self.exploration_counter = CountExploration(env=self.env, **exploration_counter_kwargs)
 
         self.epoch = 0
         self._register_mp_array("_exploration_rewards")
