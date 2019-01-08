@@ -269,7 +269,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         return ptu.get_numpy(bce)
 
     def bernoulli_inv_prob(self, next_vae_obs, indices):
-        torch_input = ptu.np_to_var(next_vae_obs)
+        torch_input = ptu.from_numpy(next_vae_obs)
         recon_next_vae_obs, _, _ = self.vae(torch_input)
         prob = (
                 torch_input * recon_next_vae_obs
@@ -305,7 +305,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         return distances.sum(axis=1)
 
     def _kl_np_to_np(self, next_vae_obs, indices):
-        torch_input = ptu.np_to_var(next_vae_obs)
+        torch_input = ptu.from_numpy(next_vae_obs)
         mu, log_var = self.vae.encode(torch_input)
         return ptu.get_numpy(
             - torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1)
