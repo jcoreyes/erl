@@ -1,6 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
-from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
+from multiworld.envs.mujoco.cameras import init_sawyer_camera_v4
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
@@ -11,12 +11,12 @@ if __name__ == "__main__":
         double_algo=False,
         online_vae_exploration=False,
         imsize=48,
-        init_camera=sawyer_init_camera_zoomed_in,
-        env_id='SawyerPushNIPS-v0',
+        init_camera=init_sawyer_camera_v4,
+        env_id='SawyerReachXYZEnv-v1',
         grill_variant=dict(
             save_video=True,
-            online_vae_beta=10/128,
-            save_video_period=250,
+            online_vae_beta=1,
+            save_video_period=100,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -28,12 +28,12 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1010,
+                    num_epochs=110,
                     num_steps_per_epoch=1000,
-                    num_steps_per_eval=500,
-                    min_num_steps_before_training=10000,
+                    num_steps_per_eval=1000,
+                    min_num_steps_before_training=4000,
                     batch_size=128,
-                    max_path_length=100,
+                    max_path_length=50,
                     discount=0.99,
                     num_updates_per_env_step=2,
                     collection_mode='online-parallel',
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                 online_vae_kwargs=dict(
                    vae_training_schedule=vae_schedules.every_other,
                     oracle_data=False,
-                    vae_save_period=250,
+                    vae_save_period=50,
                     parallel_vae_train=False,
                 ),
             ),
@@ -73,7 +73,7 @@ if __name__ == "__main__":
             ),
             normalize=False,
             render=False,
-            exploration_noise=0.3,
+            exploration_noise=0,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -87,25 +87,25 @@ if __name__ == "__main__":
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
             generate_uniform_dataset_kwargs=dict(
-                init_camera=sawyer_init_camera_zoomed_in,
-                env_id='SawyerPushNIPS-v0',
+                init_camera=init_sawyer_camera_v4,
+                env_id='SawyerReachXYZEnv-v1',
                 num_imgs=1000,
                 use_cached_dataset=False,
                 show=False,
-                save_file_prefix='pusher',
+                save_file_prefix='reacher',
             ),
             generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
         ),
         train_vae_variant=dict(
             representation_size=4,
-            beta=10/128,
+            beta=1.0,
             num_epochs=0,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
                 N=1000,
                 test_p=.9,
-                use_cached=True,
+                use_cached=False,
                 show=False,
                 oracle_dataset=True,
                 n_random_steps=100,
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.exploration_rewards_scale': [.01, .1, 1, 10]
+        'grill_variant.replay_buffer_kwargs.exploration_rewards_scale':[.01, .1, 1, 10]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -137,11 +137,9 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'gcp'
-    exp_prefix = 'pusher_count_based'
+    exp_prefix = 'reacher_count_based'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        # if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:
-        #     continue
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_twin_sac_online_vae_full_experiment,
@@ -151,7 +149,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east4-a',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
