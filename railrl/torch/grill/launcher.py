@@ -169,8 +169,7 @@ def train_vae(variant, return_data=False):
     if variant['algo_kwargs'].get('is_auto_encoder', False):
         m = AutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     elif variant.get('use_spatial_auto_encoder', False):
-        raise NotImplementedError('This is currently broken, please update SpatialAutoEncoder then remove this line')
-        m = SpatialAutoEncoder(representation_size, int(representation_size / 2))
+        m = SpatialAutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     else:
         vae_class = variant.get('vae_class', ConvVAE)
         m = vae_class(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
