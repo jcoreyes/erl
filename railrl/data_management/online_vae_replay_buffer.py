@@ -99,7 +99,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'bernoulli_inv_prob': self.bernoulli_inv_prob,
             'image_gaussian_inv_prob': self.image_gaussian_inv_prob,
             'image_bernoulli_inv_prob': self.image_bernoulli_inv_prob,
-            'hash_count': self.hash_count,
+            'hash_count': self.hash_count_reward,
             'None': self.no_reward,
         }
 
@@ -159,6 +159,21 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.epoch = epoch
         batch_size = 1024
         next_idx = min(batch_size, self._size)
+
+        if self.exploration_rewards_type == 'hash_count':
+            # you have to compute exploration rewards after counting everything
+            cur_idx = 0
+            next_idx = min(batch_size, self._size)
+            while cur_idx < self._size:
+                idxs = np.arange(cur_idx, next_idx)
+                obs = self.env._encode(
+                    normalize_image(self._obs[self.decoded_obs_key][idxs])
+                )
+                self.update_hash_count(obs)
+                cur_idx = next_idx
+                next_idx += batch_size
+                next_idx = min(next_idx, self._size)
+
         cur_idx = 0
         while cur_idx < self._size:
             idxs = np.arange(cur_idx, next_idx)
@@ -187,8 +202,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                     idxs,
                     **self.priority_function_kwargs
                 )
-                if rewards is not None:
-                    self._exploration_rewards[idxs] = rewards.reshape(-1, 1)
+                self._exploration_rewards[idxs] = rewards.reshape(-1, 1)
             if self._prioritize_vae_samples:
                 if (
                         self.exploration_rewards_type == self.vae_priority_type
@@ -205,21 +219,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                             **self.priority_function_kwargs
                         ).reshape(-1, 1)
                     )
-
-            if self.exploration_rewards_type == 'hash_count':
-                # you have to compute exploration rewards after counting everything
-                cur_idx = 0
-                next_idx = min(batch_size, self._size)
-                while cur_idx < self._size:
-                    idxs = np.arange(cur_idx, next_idx)
-                    obs = self.env._encode(
-                        normalize_image(self._obs[self.decoded_obs_key][idxs])
-                    )
-                    self._exploration_rewards[idxs] = \
-                        self.exploration_counter.compute_count_based_reward(obs)
-                    cur_idx = next_idx
-                    next_idx += batch_size
-                    next_idx = min(next_idx, self._size)
 
             cur_idx = next_idx
             next_idx += batch_size
@@ -318,12 +317,15 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             - torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1)
         )
 
-    def hash_count(self, next_vae_obs, indices):
+    def update_hash_count(self, next_vae_obs):
         torch_input = ptu.from_numpy(next_vae_obs)
         mus, log_vars = self.vae.encode(torch_input)
         mus = ptu.get_numpy(mus)
         self.exploration_counter.increment_counts(mus)
         return None
+
+    def hash_count_reward(self, next_vae_obs, indices):
+        return self.exploration_counter.compute_count_based_reward(next_vae_obs)
 
     def no_reward(self, next_vae_obs, indices):
         return np.zeros((len(next_vae_obs), 1))
