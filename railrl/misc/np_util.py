@@ -43,9 +43,9 @@ def to_onehot(x, num_values):
     return onehot
 
 
-def softmax(x, axis=-1, theta=1):
+def softmax(x, axis=-1, T=1):
     """Compute softmax values for each sets of scores in x."""
-    x = x/float(theta)
+    x = x/float(T)
     e_x = np.exp(x - np.max(x))
     denom = np.expand_dims(e_x.sum(axis=axis), axis=axis)
     return e_x / denom
