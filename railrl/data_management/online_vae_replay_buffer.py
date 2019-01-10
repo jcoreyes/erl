@@ -166,10 +166,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             next_idx = min(batch_size, self._size)
             while cur_idx < self._size:
                 idxs = np.arange(cur_idx, next_idx)
-                obs = self.env._encode(
-                    normalize_image(self._obs[self.decoded_obs_key][idxs])
+                normalized_imgs = (
+                    normalize_image(self._next_obs[self.decoded_obs_key][idxs])
                 )
-                self.update_hash_count(obs)
+                self.update_hash_count(normalized_imgs)
                 cur_idx = next_idx
                 next_idx += batch_size
                 next_idx = min(next_idx, self._size)
@@ -325,7 +325,8 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         return None
 
     def hash_count_reward(self, next_vae_obs, indices):
-        return self.exploration_counter.compute_count_based_reward(next_vae_obs)
+        obs = self.env._encode(next_vae_obs)
+        return self.exploration_counter.compute_count_based_reward(obs)
 
     def no_reward(self, next_vae_obs, indices):
         return np.zeros((len(next_vae_obs), 1))
