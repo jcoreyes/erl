@@ -161,7 +161,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         next_idx = min(batch_size, self._size)
 
         if self.exploration_rewards_type == 'hash_count':
-            # you have to compute exploration rewards after counting everything
+            # you have to count everything then compute exploration rewards
             cur_idx = 0
             next_idx = min(batch_size, self._size)
             while cur_idx < self._size:
