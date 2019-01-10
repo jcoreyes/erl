@@ -140,7 +140,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.exploration_rewards_scale': [.01, .1, 1, 10]
+        'grill_variant.replay_buffer_kwargs.exploration_rewards_scale': [.01]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
