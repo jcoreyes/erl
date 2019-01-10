@@ -111,6 +111,7 @@ class ConvVAETrainer(Serializable):
             skew_dataset=False,
             skew_config=None,
             priority_function_kwargs=None,
+            weight_decay=0,
     ):
         self.quick_init(locals())
         if skew_config is None:
@@ -140,7 +141,10 @@ class ConvVAETrainer(Serializable):
 
         self.lr = lr
         params = list(self.model.parameters())
-        self.optimizer = optim.Adam(params, lr=self.lr)
+        self.optimizer = optim.Adam(params,
+            lr=self.lr,
+            weight_decay=weight_decay,
+        )
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
         assert self.train_dataset.dtype == np.uint8
         assert self.test_dataset.dtype == np.uint8
@@ -517,7 +521,7 @@ class ConvVAETrainer(Serializable):
         )
 
     '''
-    SkewFit Debug Stats 
+    SkewFit Debug Stats
     '''
 
     def dump_sampling_histogram(self, epoch):
