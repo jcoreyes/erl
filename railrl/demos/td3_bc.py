@@ -30,6 +30,7 @@ class TD3BC(TorchRLAlgorithm):
             demo_path,
             demo_train_buffer,
             demo_test_buffer,
+            apply_her_to_demos=False,
             add_demo_latents=False,
             demo_train_split=0.9,
             add_demos_to_replay_buffer=True,
@@ -93,6 +94,7 @@ class TD3BC(TorchRLAlgorithm):
         self.demo_train_buffer = demo_train_buffer
         self.demo_test_buffer = demo_test_buffer
         self.add_demo_latents = add_demo_latents
+        self.apply_her_to_demos = apply_her_to_demos
 
         self.demo_path = demo_path
         self.load_demos(self.demo_path)
@@ -109,6 +111,7 @@ class TD3BC(TorchRLAlgorithm):
         return obs
 
     def load_path(self, path, replay_buffer):
+        final_achieved_goal = path["observations"][-1]["state_achieved_goal"].copy()
         path_builder = PathBuilder()
         for (
             ob,
@@ -139,6 +142,13 @@ class TD3BC(TorchRLAlgorithm):
                     action,
                     {'latent_achieved_goal': next_ob['latent_achieved_goal'],
                      'latent_desired_goal': next_ob['latent_desired_goal']}
+                )
+            if self.apply_her_to_demos:
+                ob["state_desired_goal"] = final_achieved_goal
+                next_ob["state_desired_goal"] = final_achieved_goal
+                reward = self.env.compute_reward(
+                    action,
+                    next_ob,
                 )
             reward = np.array([reward])
             terminal = np.array([terminal])
