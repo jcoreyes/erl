@@ -1,3 +1,4 @@
+from railrl.exploration_strategies.count_based.count_based import CountExploration
 from torchvision.utils import save_image
 
 from railrl.core import logger
@@ -37,6 +38,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             internal_keys=None,
             exploration_schedule_kwargs=None,
             priority_function_kwargs=None,
+            exploration_counter_kwargs=None,
             **kwargs
     ):
         self.quick_init(locals())
@@ -97,6 +99,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'bernoulli_inv_prob': self.bernoulli_inv_prob,
             'image_gaussian_inv_prob': self.image_gaussian_inv_prob,
             'image_bernoulli_inv_prob': self.image_bernoulli_inv_prob,
+            'hash_count': self.hash_count_reward,
             'None': self.no_reward,
         }
 
@@ -111,6 +114,11 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             self.priority_function_kwargs = dict()
         else:
             self.priority_function_kwargs = priority_function_kwargs
+
+        if self.exploration_rewards_type == 'hash_count':
+            if exploration_counter_kwargs is None:
+                exploration_counter_kwargs = dict()
+            self.exploration_counter = CountExploration(env=self.env, **exploration_counter_kwargs)
 
         self.epoch = 0
         self._register_mp_array("_exploration_rewards")
@@ -151,6 +159,21 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.epoch = epoch
         batch_size = 1024
         next_idx = min(batch_size, self._size)
+
+        if self.exploration_rewards_type == 'hash_count':
+            # you have to count everything then compute exploration rewards
+            cur_idx = 0
+            next_idx = min(batch_size, self._size)
+            while cur_idx < self._size:
+                idxs = np.arange(cur_idx, next_idx)
+                normalized_imgs = (
+                    normalize_image(self._next_obs[self.decoded_obs_key][idxs])
+                )
+                self.update_hash_count(normalized_imgs)
+                cur_idx = next_idx
+                next_idx += batch_size
+                next_idx = min(next_idx, self._size)
+
         cur_idx = 0
         while cur_idx < self._size:
             idxs = np.arange(cur_idx, next_idx)
@@ -293,6 +316,17 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         return ptu.get_numpy(
             - torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1)
         )
+
+    def update_hash_count(self, next_vae_obs):
+        torch_input = ptu.from_numpy(next_vae_obs)
+        mus, log_vars = self.vae.encode(torch_input)
+        mus = ptu.get_numpy(mus)
+        self.exploration_counter.increment_counts(mus)
+        return None
+
+    def hash_count_reward(self, next_vae_obs, indices):
+        obs = self.env._encode(next_vae_obs)
+        return self.exploration_counter.compute_count_based_reward(obs)
 
     def no_reward(self, next_vae_obs, indices):
         return np.zeros((len(next_vae_obs), 1))
