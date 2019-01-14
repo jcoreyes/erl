@@ -165,6 +165,9 @@ class ConvVAE(GaussianLatentVAE):
         self.input_channels = input_channels
         self.imsize = imsize
         self.imlength = self.imsize*self.imsize*self.input_channels
+        self.hidden_init = hidden_init
+        self.init_w = init_w
+        self.architecture = architecture
 
         conv_args, conv_kwargs, deconv_args, deconv_kwargs = \
             architecture['conv_args'], architecture['conv_kwargs'], \
@@ -304,90 +307,48 @@ class SpatialAutoEncoder(ConvVAE):
     def __init__(
             self,
             representation_size,
-            num_feat_points,
             *args,
+            conv_output_dimension=7,
             temperature=1.0,
             **kwargs
     ):
         self.save_init_params(locals())
         super().__init__(representation_size, *args, **kwargs)
-        self.num_feat_points = num_feat_points
-        self.conv3 = nn.Conv2d(32, self.num_feat_points, kernel_size=5,
-                               stride=3)
-        #        self.bn3 = nn.BatchNorm2d(32)
+        num_feat_points = representation_size // 2
+        assert self.architecture["conv_args"]["n_channels"][-1] == num_feat_points
 
-        test_mat = torch.zeros(1, self.input_channels, self.imsize, self.imsize)
-        test_mat = self.conv1(test_mat)
-        test_mat = self.conv2(test_mat)
-        test_mat = self.conv3(test_mat)
-        self.out_size = int(np.prod(test_mat.shape))
+        self.conv_output_dimension = conv_output_dimension
 
-        self.spatial_fc = nn.Linear(
-            2 * self.num_feat_points + self.added_fc_size, 64)
+        self.weights = ptu.from_numpy(
+            (np.arange(self.conv_output_dimension) + 0.5)
+            / self.conv_output_dimension
+        )
 
-        # self.conv_output_dim = 1568 # kernel 2
-        self.conv_output_dim = 128  # kernel 3
+        self.fc1 = nn.Linear(representation_size, representation_size)
+        self.fc2 = nn.Linear(representation_size, representation_size)
 
-        self.fc1 = nn.Linear(64, representation_size)
-        self.fc2 = nn.Linear(64, representation_size)
+        self.fc1.weight.data.uniform_(-self.init_w, self.init_w)
+        self.fc1.bias.data.uniform_(-self.init_w, self.init_w)
 
-        self.init_weights(self.init_w)
+        self.fc2.weight.data.uniform_(-self.init_w, self.init_w)
+        self.fc2.bias.data.uniform_(-self.init_w, self.init_w)
+
         self.temperature = temperature
 
-    def init_weights_spatial(self, init_w):
-        self.hidden_init(self.conv1.weight)
-        self.conv1.bias.data.fill_(0)
-        self.hidden_init(self.conv2.weight)
-        self.conv2.bias.data.fill_(0)
-        self.hidden_init(self.conv3.weight)
-        self.conv3.bias.data.fill_(0)
-
-        self.hidden_init(self.spatial_fc.weight)
-        self.spatial_fc.bias.data.fill_(0)
-        self.spatial_fc.weight.data.uniform_(-init_w, init_w)
-        self.spatial_fc.bias.data.uniform_(-init_w, init_w)
-
-        self.hidden_init(self.fc1.weight)
-        self.fc1.bias.data.fill_(0)
-        self.fc1.weight.data.uniform_(-init_w, init_w)
-        self.fc1.bias.data.uniform_(-init_w, init_w)
-        self.hidden_init(self.fc2.weight)
-        self.fc2.bias.data.fill_(0)
-        self.fc2.weight.data.uniform_(-init_w, init_w)
-        self.fc2.bias.data.uniform_(-init_w, init_w)
-
     def encode(self, input):
-        input = input.view(-1, self.imlength + self.added_fc_size)
-        conv_input = input.narrow(start=0, length=self.imlength, dim=1)
+        h = self.encoder(input)
 
-        # batch_size = input.size(0)
-        x = conv_input.contiguous().view(-1, self.input_channels, self.imsize,
-                                         self.imsize)
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = self.conv3(x)
-        d = int((self.out_size // self.num_feat_points) ** (1 / 2))
-        x = x.view(-1, self.num_feat_points, d * d)
-        x = F.softmax(x / self.temperature, 2)
-        x = x.view(-1, self.num_feat_points, d, d)
+        maps_x = torch.sum(h, 2)
+        maps_y = torch.sum(h, 3)
 
-        maps_x = torch.sum(x, 2)
-        maps_y = torch.sum(x, 3)
+        fp_x = torch.sum(maps_x * self.weights, 2)
+        fp_y = torch.sum(maps_y * self.weights, 2)
 
-        weights = ptu.from_numpy(np.arange(d) / (d + 1))
+        h = torch.cat([fp_x, fp_y], 1)
 
-        fp_x = torch.sum(maps_x * weights, 2)
-        fp_y = torch.sum(maps_y * weights, 2)
-
-        x = torch.cat([fp_x, fp_y], 1)
-        h = x.view(-1, self.num_feat_points * 2)
-        if self.added_fc_size != 0:
-            fc_input = input.narrow(start=self.imlength, length=self.added_fc_size, dim=1)
-            h = torch.cat((h, fc_input), dim=1)
-        h = F.relu(self.spatial_fc(h))
-        mu = self.output_activation(self.fc1(h))
-        logvar = self.output_activation(self.fc2(h))
-        return mu, logvar
-
-    def reparameterize(self, mu, logvar):
-        return mu
+        mu = self.fc1(h)
+        if self.log_min_variance is None:
+            logvar = self.fc2(h)
+        else:
+            logvar = self.log_min_variance + torch.abs(self.fc2(h))
+        return (mu, logvar)

@@ -34,7 +34,8 @@ class CNN(PyTorchModule):
                  init_w=1e-4,
                  hidden_init=nn.init.xavier_uniform_,
                  hidden_activation=nn.ReLU(),
-                 output_activation=identity
+                 output_activation=identity,
+                 output_conv_channels=False,
                  ):
         if hidden_sizes is None:
             hidden_sizes = []
@@ -56,6 +57,7 @@ class CNN(PyTorchModule):
         self.batch_norm_fc = batch_norm_fc
         self.added_fc_input_size = added_fc_input_size
         self.conv_input_length = self.input_width * self.input_height * self.input_channels
+        self.output_conv_channels = output_conv_channels
 
         self.conv_layers = nn.ModuleList()
         self.conv_norm_layers = nn.ModuleList()
@@ -119,6 +121,10 @@ class CNN(PyTorchModule):
                             self.input_width)
 
         h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers, use_batch_norm=self.batch_norm_conv)
+
+        if self.output_conv_channels:
+            return h
+
         # flatten channels for fc layers
         h = h.view(h.size(0), -1)
         if fc_input:

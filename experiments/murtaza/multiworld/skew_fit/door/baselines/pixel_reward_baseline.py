@@ -1,23 +1,23 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import init_sawyer_camera_v4
+from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import HER_baseline_twin_sac_full_experiment
 
 if __name__ == "__main__":
     variant = dict(
-        imsize=84,
-        init_camera=init_sawyer_camera_v4,
-        env_id='SawyerReachXYZEnv-v1',
+        imsize=48,
+        env_id='SawyerDoorHookResetFreeEnv-v0',
+        init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
             save_video=False,
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=105,
+                    num_epochs=1010,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
-                    min_num_steps_before_training=4000,
+                    min_num_steps_before_training=10000,
                     batch_size=128,
-                    max_path_length=50,
+                    max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
                     collection_mode='online-parallel',
@@ -57,6 +57,8 @@ if __name__ == "__main__":
                 hidden_sizes=[32, 32],
                 paddings=[0, 0, 0],
             ),
+            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48goals_twin_sac.npy',
+            presample_goals=True,
         ),
         train_vae_variant=dict(
             vae_path=None,
@@ -100,7 +102,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'gcp'
-    exp_prefix = 'sawyer_xyz_reacher_pix_reward_baseline'
+    exp_prefix = 'sawyer_door_pix_reward_baseline'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -113,6 +115,7 @@ if __name__ == "__main__":
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
                     zone='us-west2-b',
+                    preemptible=False,
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,

@@ -1,23 +1,24 @@
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
+from multiworld.envs.mujoco.cameras import init_sawyer_camera_v4
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import HER_baseline_twin_sac_full_experiment
+from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_set_to_goal
 
 if __name__ == "__main__":
     variant = dict(
         imsize=48,
-        env_id='SawyerDoorHookResetFreeEnv-v0',
-        init_camera=sawyer_door_env_camera_v0,
+        init_camera=init_sawyer_camera_v4,
+        env_id='SawyerReachXYZEnv-v1',
         grill_variant=dict(
             save_video=False,
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1010,
+                    num_epochs=105,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
-                    min_num_steps_before_training=10000,
+                    min_num_steps_before_training=4000,
                     batch_size=128,
-                    max_path_length=100,
+                    max_path_length=50,
                     discount=0.99,
                     num_updates_per_env_step=2,
                     collection_mode='online-parallel',
@@ -57,8 +58,6 @@ if __name__ == "__main__":
                 hidden_sizes=[32, 32],
                 paddings=[0, 0, 0],
             ),
-            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48goals_twin_sac.npy',
-            presample_goals=True,
         ),
         train_vae_variant=dict(
             vae_path=None,
@@ -96,13 +95,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 5
-    # mode = 'gcp'
-    # exp_prefix = 'sawyer_door_pix_reward_baseline'
+    n_seeds = 5
+    mode = 'gcp'
+    exp_prefix = 'sawyer_xyz_reacher_pix_reward_baseline'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
