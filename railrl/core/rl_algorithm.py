@@ -192,14 +192,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def train_online(self, start_epoch=0):
         self._current_path_builder = PathBuilder()
-        observation = self._start_new_rollout()
         for epoch in gt.timed_for(
                 range(start_epoch, self.num_epochs),
                 save_itrs=True,
         ):
             self._start_epoch(epoch)
             env_utils.mode(self.training_env, 'train')
-            self.training_env.reset()
+            observation = self._start_new_rollout()
             for _ in range(self.num_env_steps_per_epoch):
                 observation = self._take_step_in_env(observation)
 
@@ -242,44 +241,21 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def train_batch(self, start_epoch):
         self._current_path_builder = PathBuilder()
-        observation = self._start_new_rollout()
         for epoch in gt.timed_for(
                 range(start_epoch, self.num_epochs),
                 save_itrs=True,
         ):
             self._start_epoch(epoch)
+            env_utils.mode(self.training_env, 'train')
+            observation = self._start_new_rollout()
             for _ in range(self.num_env_steps_per_epoch):
-                action, agent_info = self._get_action_and_info(
-                    observation,
-                )
-                if self.render:
-                    self.training_env.render()
-                next_ob, reward, terminal, env_info = (
-                    self.training_env.step(action)
-                )
-                self._n_env_steps_total += 1
-                terminal = np.array([terminal])
-                reward = np.array([reward])
-                self._handle_step(
-                    observation,
-                    action,
-                    reward,
-                    next_ob,
-                    terminal,
-                    agent_info=agent_info,
-                    env_info=env_info,
-                )
-                if terminal or len(
-                        self._current_path_builder) >= self.max_path_length:
-                    self._handle_rollout_ending()
-                    observation = self._start_new_rollout()
-                else:
-                    observation = next_ob
+                observation = self._take_step_in_env(observation)
 
             gt.stamp('sample')
             self._try_to_train()
             gt.stamp('train')
 
+            env_utils.mode(self.env, 'eval')
             self._try_to_eval(epoch)
             gt.stamp('eval')
             self._end_epoch()
