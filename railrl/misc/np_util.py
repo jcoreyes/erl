@@ -140,6 +140,8 @@ def truncated_geometric(p, truncate_threshold, size, new_value=None):
     """
     Sample from geometric, but truncated values to `truncated_threshold`.
 
+    This geometric has support from {0, 1, 2, ...}, meaning it includes 0.
+
     All values greater than `truncated_threshold` will be set to `new_value`.
     If `new_value` is None, then they will be assigned random integers from 0 to
     `truncate_threshold`.
@@ -150,7 +152,8 @@ def truncated_geometric(p, truncate_threshold, size, new_value=None):
     :param new_value:
     :return:
     """
-    samples = np.random.geometric(p, size)
+    # numpy default does not include zero
+    samples = np.random.geometric(p, size) - 1
     samples_too_large = samples > truncate_threshold
     num_bad = sum(samples_too_large)
     if new_value is None:
