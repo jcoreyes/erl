@@ -240,8 +240,16 @@ class TwinSAC(TorchRLAlgorithm):
                 ptu.get_numpy(q2_pred),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
+                'Q Targets',
+                ptu.get_numpy(q_target),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
                 'V Predictions',
                 ptu.get_numpy(v_pred),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'V Targets',
+                ptu.get_numpy(v_target),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Log Pis',
