@@ -29,7 +29,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1010,
+                    num_epochs=510,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=10000,
@@ -68,7 +68,6 @@ if __name__ == "__main__":
                 priority_function_kwargs=dict(
                     sampling_method='correct',
                     num_latents_to_sample=10,
-                    decode_prob='none',
                 ),
                 power=2,
             ),
@@ -95,7 +94,7 @@ if __name__ == "__main__":
             presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48goals_twin_sac.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=True,
+                sample_from_true_prior=False,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI-HER-TD3',
             generate_uniform_dataset_kwargs=dict(
@@ -141,22 +140,21 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
+        'grill_variant.vae_wrapped_env_kwargs.sample_from_true_prior':[True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 3
-    mode = 'gcp'
-    exp_prefix = 'door_skewfit'
+    # n_seeds = 4
+    # mode = 'gcp'
+    # exp_prefix = 'door-sample-from-true-prior-sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:
-            continue
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_twin_sac_online_vae_full_experiment,
