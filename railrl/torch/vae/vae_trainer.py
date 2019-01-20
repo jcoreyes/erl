@@ -355,7 +355,7 @@ class ConvVAETrainer(Serializable):
             log_prob = self.model.logprob(next_obs, obs_distribution_params)
             kle = self.model.kl_divergence(latent_distribution_params)
 
-            encoder_mean = latent_distribution_params[0]
+            encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
             z_data = ptu.get_numpy(encoder_mean.cpu())
             for i in range(len(z_data)):
                 zs.append(z_data[i, :])
