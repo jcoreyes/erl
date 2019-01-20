@@ -228,7 +228,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             next_idx += batch_size
             next_idx = min(next_idx, self._size)
         self.vae.dist_mu = obs_sum/self._size
-        self.vae.dist_std = obs_square_sum/self._size - np.power(self.vae.dist_mu, 2)
+        self.vae.dist_std = np.sqrt(obs_square_sum/self._size - np.power(self.vae.dist_mu, 2))
 
         if self._prioritize_vae_samples:
             if self.vae_priority_type == 'image_bernoulli_inv_prob' or 'image_gaussian_inv_prob':
