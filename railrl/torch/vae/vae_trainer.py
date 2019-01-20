@@ -383,10 +383,10 @@ class ConvVAETrainer(Serializable):
                     len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
                     loss.item() / len(next_obs)))
-
-        zs = np.array(zs)
-        self.model.dist_mu = zs.mean(axis=0)
-        self.model.dist_std = zs.std(axis=0)
+        if not from_rl:
+            zs = np.array(zs)
+            self.model.dist_mu = zs.mean(axis=0)
+            self.model.dist_std = zs.std(axis=0)
 
         if from_rl:
             self.vae_logger_stats_for_rl['Train VAE Epoch'] = epoch
