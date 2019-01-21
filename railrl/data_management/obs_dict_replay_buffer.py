@@ -1,6 +1,6 @@
 import numpy as np
 from gym import GoalEnv
-from gym.spaces import Dict
+from gym.spaces import Dict, Discrete
 
 from multiworld.core.multitask_env import MultitaskEnv
 from railrl.data_management.replay_buffer import ReplayBuffer
@@ -99,6 +99,9 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         # Let j be any index in self._idx_to_future_obs_idx[i]
         # Then self._next_obs[j] is a valid next observation for observation i
         self._idx_to_future_obs_idx = [None] * max_size
+
+        if isinstance(self.env.action_space, Discrete):
+            raise NotImplementedError("TODO")
 
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, **kwargs):
