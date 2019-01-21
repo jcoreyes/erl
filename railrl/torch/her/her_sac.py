@@ -34,11 +34,3 @@ class HerSac(HER, SoftActorCritic):
             observation_key=self.observation_key,
             desired_goal_key=self.desired_goal_key,
         )
-
-    def get_eval_action(self, observation, goal):
-        if self.observation_key:
-            observation = observation[self.observation_key]
-        if self.desired_goal_key:
-            goal = goal[self.desired_goal_key]
-        new_obs = np.hstack((observation, goal))
-        return self.policy.get_action(new_obs, deterministic=True)
