@@ -297,3 +297,9 @@ class MakeDeterministic(SerializablePolicy):
 
     def to(self, device):
         self.stochastic_policy.to(device)
+
+    def load_state_dict(self, stochastic_state_dict):
+        self.stochastic_policy.load_state_dict(stochastic_state_dict)
+
+    def state_dict(self):
+        return self.stochastic_policy.state_dict()
