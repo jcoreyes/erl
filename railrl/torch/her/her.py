@@ -134,7 +134,7 @@ class HER(TorchRLAlgorithm):
     def eval_multitask_rollout(self):
         return self.eval_rollout_function(
             self.env,
-            self.policy,
+            self.eval_policy,
             self.max_path_length,
             animated=self.render_during_eval
         )

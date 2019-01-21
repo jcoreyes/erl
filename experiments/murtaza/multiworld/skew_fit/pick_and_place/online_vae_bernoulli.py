@@ -34,7 +34,7 @@ if __name__ == "__main__":
                     num_epochs=505,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
-                    min_num_steps_before_training=4000,
+                    min_num_steps_before_training=10000,
                     batch_size=128,
                     max_path_length=50,
                     discount=0.99,
@@ -51,7 +51,7 @@ if __name__ == "__main__":
                     use_automatic_entropy_tuning=True,
                 ),
                 online_vae_kwargs=dict(
-                    vae_training_schedule=vae_schedules.every_six,
+                    vae_training_schedule=vae_schedules.every_other,
                     vae_save_period=100,
                     parallel_vae_train=False,
                 ),
@@ -121,7 +121,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type': ['None', 'image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type': ['image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.power': [0.25, .5, 2],
+        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample': [10, 30],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -133,7 +135,7 @@ if __name__ == "__main__":
 
     n_seeds = 6
     mode = 'gcp'
-    exp_prefix = 'pickup-skew-fit-final'
+    exp_prefix = 'pickup-skew-fit-sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

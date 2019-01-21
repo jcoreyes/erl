@@ -175,6 +175,8 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 next_idx = min(next_idx, self._size)
 
         cur_idx = 0
+        obs_sum = np.zeros(self.vae.representation_size)
+        obs_square_sum = np.zeros(self.vae.representation_size)
         while cur_idx < self._size:
             idxs = np.arange(cur_idx, next_idx)
             self._obs[self.observation_key][idxs] = \
@@ -219,10 +221,15 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                             **self.priority_function_kwargs
                         ).reshape(-1, 1)
                     )
+            obs_sum+= self._obs[self.observation_key][idxs].sum(axis=0)
+            obs_square_sum+= np.power(self._obs[self.observation_key][idxs], 2).sum(axis=0)
 
             cur_idx = next_idx
             next_idx += batch_size
             next_idx = min(next_idx, self._size)
+        self.vae.dist_mu = obs_sum/self._size
+        self.vae.dist_std = np.sqrt(obs_square_sum/self._size - np.power(self.vae.dist_mu, 2))
+
         if self._prioritize_vae_samples:
             if self.vae_priority_type == 'image_bernoulli_inv_prob' or 'image_gaussian_inv_prob':
                 #normalize in log space across the entire dataset

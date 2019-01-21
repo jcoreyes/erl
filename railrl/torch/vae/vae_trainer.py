@@ -338,6 +338,7 @@ class ConvVAETrainer(Serializable):
         log_probs = []
         kles = []
         linear_losses = []
+        zs = []
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
             if sample_batch is not None:
@@ -353,6 +354,11 @@ class ConvVAETrainer(Serializable):
             reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
             log_prob = self.model.logprob(next_obs, obs_distribution_params)
             kle = self.model.kl_divergence(latent_distribution_params)
+
+            encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
+            z_data = ptu.get_numpy(encoder_mean.cpu())
+            for i in range(len(z_data)):
+                zs.append(z_data[i, :])
 
             if self.use_linear_dynamics:
                 linear_dynamics_loss = self.state_linearity_loss(
@@ -377,6 +383,10 @@ class ConvVAETrainer(Serializable):
                     len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
                     loss.item() / len(next_obs)))
+        if not from_rl:
+            zs = np.array(zs)
+            self.model.dist_mu = zs.mean(axis=0)
+            self.model.dist_std = zs.std(axis=0)
 
         if from_rl:
             self.vae_logger_stats_for_rl['Train VAE Epoch'] = epoch
@@ -443,8 +453,7 @@ class ConvVAETrainer(Serializable):
                 save_image(comparison.data.cpu(), save_dir, nrow=n)
 
         zs = np.array(zs)
-        self.model.dist_mu = zs.mean(axis=0)
-        self.model.dist_std = zs.std(axis=0)
+
         if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
 
