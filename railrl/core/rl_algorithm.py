@@ -271,7 +271,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             **self.parallel_env_params,
         )
         self.training_mode(False)
-        last_epoch_policy = copy.deepcopy(self.policy)
+        last_epoch_eval_policy = copy.deepcopy(self.eval_policy)
         for epoch in range(start_epoch, self.num_epochs):
             self._start_epoch(epoch)
             if hasattr(self.env, "get_env_update"):
@@ -282,7 +282,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             should_gather_data = True
             should_eval = True
             should_train = True
-            last_epoch_policy.load_state_dict(self.policy.state_dict())
+            last_epoch_eval_policy.load_state_dict(self.eval_policy.state_dict())
             eval_paths = []
             n_env_steps_current_epoch = 0
             n_eval_steps = 0
@@ -304,7 +304,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 if should_eval:
                     # label as epoch but actually evaluating previous epoch
                     path = self.parallel_env.rollout(
-                        last_epoch_policy,
+                        last_epoch_eval_policy,
                         train=False,
                         discard_other_rollout_type=not should_gather_data,
                         epoch=epoch,
