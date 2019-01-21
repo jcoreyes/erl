@@ -67,6 +67,15 @@ class VAEBase(PyTorchModule, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    def get_encoding_from_latent_distribution_params(self, latent_distribution_params):
+        """
+
+        :param latent_distribution_params:
+        :return: get latents from latent distribution params
+        """
+        raise NotImplementedError()
+
     def forward(self, input):
         """
         :param input:
@@ -104,6 +113,9 @@ class GaussianLatentVAE(VAEBase):
     def kl_divergence(self, latent_distribution_params):
         mu, logvar = latent_distribution_params
         return - 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
+
+    def get_encoding_from_latent_distribution_params(self, latent_distribution_params):
+        return latent_distribution_params[0].cpu()
 
     def __getstate__(self):
         d = super().__getstate__()
