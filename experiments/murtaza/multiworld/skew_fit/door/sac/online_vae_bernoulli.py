@@ -15,7 +15,7 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookResetFreeEnv-v0',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
-            save_video=False,
+            save_video=True,
             online_vae_beta=5,
             save_video_period=100,
             qf_kwargs=dict(
@@ -32,7 +32,7 @@ if __name__ == "__main__":
                     num_epochs=1010,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
-                    # min_num_steps_before_training=10000,
+                    min_num_steps_before_training=10000,
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48goals_twin_sac.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=False,
+                sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI-HER-TD3',
             generate_uniform_dataset_kwargs=dict(
@@ -139,20 +139,20 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
         'grill_variant.replay_buffer_kwargs.power':[1/100, 1/70, 1/60, 1/50, 1/40, 1/30, 1/10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 4
-    # mode = 'gcp'
-    # exp_prefix = 'door-directly-compute-alpha'
+    n_seeds = 4
+    mode = 'gcp'
+    exp_prefix = 'door-directly-compute-alpha'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['grill_variant']['replay_buffer_kwargs']['power'] != 1/10 and variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None':
