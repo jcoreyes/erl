@@ -140,7 +140,7 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
-        'grill_variant.replay_buffer_kwargs.power':[1/100, 1/70, 1/60, 1/50, 1/40, 1/30, 1/10],
+        'grill_variant.replay_buffer_kwargs.power':[-1/100, -1/70, -1/60, -1/50, -1/40, -1/30, -1/10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
