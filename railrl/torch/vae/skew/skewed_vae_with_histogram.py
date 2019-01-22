@@ -58,7 +58,7 @@ def train(
         skew_config=None,
         use_perfect_samples=False,
         use_perfect_density=False,
-        reset_vae_every_epoch=False,
+        vae_reset_period=0,
         vae_kwargs=None,
         use_dataset_generator_first_epoch=True,
         **kwargs
@@ -178,13 +178,14 @@ def train(
         """
         if sum(all_weights) == 0:
             all_weights[:] = 1
-        if reset_vae_every_epoch:
+        if vae_reset_period > 0 and epoch % vae_reset_period == 0:
             vae, decoder, decoder_opt, encoder, encoder_opt = get_vae(
                 decoder_output_var,
                 hidden_size,
                 z_dim,
                 vae_kwargs,
             )
+            vae.to(ptu.device)
         vae.fit(train_data, weights=all_weights)
         epoch_stats = vae.get_epoch_stats()
 
@@ -243,9 +244,13 @@ def train(
             logger.get_snapshot_dir() + '/{}.mp4'.format(filename),
             video,
         )
-        gif_file_path = logger.get_snapshot_dir() + '/{}.gif'.format(filename)
+        local_gif_file_path = '{}.gif'.format(filename)
+        gif_file_path = '{}/{}'.format(
+            logger.get_snapshot_dir(),
+            local_gif_file_path
+        )
         gif(gif_file_path, video)
-        report.add_image(gif_file_path, txt=filename, is_url=True)
+        report.add_image(local_gif_file_path, txt=filename, is_url=True)
     report.save()
 
 
