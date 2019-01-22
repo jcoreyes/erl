@@ -124,8 +124,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
-        'grill_variant.replay_buffer_kwargs.power':[-1/1000, -1/100, -1/70/ -1/50, -1/25, -1/10],
+        'grill_variant.replay_buffer_kwargs.power':[-1/10000, -1/1000, -1/100, -1/70/ -1/50, -1/10, -1],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -137,11 +136,9 @@ if __name__ == "__main__":
 
     n_seeds = 4
     mode = 'gcp'
-    exp_prefix = 'pusher-power-sweep'
+    exp_prefix = 'pusher-skew-fit-final'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] != -1/50:
-            continue
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_twin_sac_online_vae_full_experiment,
