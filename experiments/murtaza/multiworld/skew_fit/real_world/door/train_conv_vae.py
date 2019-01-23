@@ -8,7 +8,7 @@ from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.torch.grill.launcher import generate_vae_dataset
 from railrl.torch.vae.conv_vae import imsize48_default_architecture
 from railrl.misc.asset_loader import load_local_or_remote_file
-
+import pickle
 
 def experiment(variant):
     from railrl.core import logger
@@ -53,18 +53,18 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'gcp'
-    exp_prefix = 'skew-fit-real-world-random-policy-data-sweep'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'gcp'
+    # exp_prefix = 'skew-fit-real-world-random-policy-data-sweep_v2'
 
     use_gpu = True
 
     variant = dict(
-        num_epochs=250,
+        num_epochs=1000,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
@@ -108,9 +108,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'beta':[1, 2.5, 5],
-        'algo_kwargs.skew_config.priority_function_kwargs.num_latents_to_sample':[1, 10],
-        'algo_kwargs.skew_config.power':[-1/1000, -1/100, -1/70/ -1/50, -1/25, -1/10, -1],
+        'beta':[5],
+        'algo_kwargs.skew_config.priority_function_kwargs.num_latents_to_sample':[10],
+        'algo_kwargs.skew_config.power':[-1/5000, -1/1000, -1/500],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
