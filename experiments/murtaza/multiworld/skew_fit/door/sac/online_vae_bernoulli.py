@@ -139,7 +139,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
         'grill_variant.replay_buffer_kwargs.power':[-1/50],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -150,7 +150,7 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 10
+    n_seeds = 5
     mode = 'gcp'
     exp_prefix = 'door-skew-fit-final'
 

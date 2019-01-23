@@ -65,7 +65,7 @@ if __name__ == "__main__":
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
                 priority_function_kwargs=dict(
-                    sampling_method='correct',
+                    sampling_method='importance_sampling',
                     num_latents_to_sample=10,
                 ),
                 power=2,
@@ -85,15 +85,15 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            generate_uniform_dataset_kwargs=dict(
-                init_camera=sawyer_init_camera_zoomed_in,
-                env_id='SawyerPushNIPS-v0',
-                num_imgs=1000,
-                use_cached_dataset=False,
-                show=False,
-                save_file_prefix='pusher',
-            ),
-            generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
+            # generate_uniform_dataset_kwargs=dict(
+                # init_camera=sawyer_init_camera_zoomed_in,
+                # env_id='SawyerPushNIPS-v0',
+                # num_imgs=1000,
+                # use_cached_dataset=False,
+                # show=False,
+                # save_file_prefix='pusher',
+            # ),
+            # generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
         ),
         train_vae_variant=dict(
             representation_size=4,
@@ -124,7 +124,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.power':[-1/100],
+        'grill_variant.replay_buffer_kwargs.power':[-1/100, -1/1000, -1/50],
+        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[10, 20]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -136,7 +137,7 @@ if __name__ == "__main__":
 
     n_seeds = 10
     mode = 'gcp'
-    exp_prefix = 'pusher-skew-fit-final-power01'
+    exp_prefix = 'pusher-skew-fit-importance-sample-sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -148,9 +149,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west2-b',
+                    zone='us-east1-c',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p4',
+                        gpu_model='nvidia-tesla-k80',
                         num_gpu=1,
                     )
                 )

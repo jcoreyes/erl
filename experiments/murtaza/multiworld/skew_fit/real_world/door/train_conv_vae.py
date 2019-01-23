@@ -53,13 +53,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'gcp'
-    # exp_prefix = 'skew-fit-real-world-random-policy-data-sweep_v2'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'gcp'
+    exp_prefix = 'skew-fit-real-world-random-policy-data-sweep_v3'
 
     use_gpu = True
 
@@ -109,8 +109,9 @@ if __name__ == "__main__":
 
     search_space = {
         'beta':[5],
-        'algo_kwargs.skew_config.priority_function_kwargs.num_latents_to_sample':[10],
+        'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10, 20, 30],
         'algo_kwargs.skew_config.power':[-1/5000, -1/1000, -1/500],
+        'algo_kwargs.priority_function_kwargs.sampling_method':[ 'importance_sampling', 'correct']
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
