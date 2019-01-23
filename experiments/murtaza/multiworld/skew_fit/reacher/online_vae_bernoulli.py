@@ -148,9 +148,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east1-c',
+                    zone='us-west1-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-k80',
+                        gpu_model='nvidia-tesla-p100',
                         num_gpu=1,
                     )
                 )
