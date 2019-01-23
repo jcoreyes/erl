@@ -59,12 +59,12 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'gcp'
-    exp_prefix = 'skew-fit-real-world-sweep-offline-vae-sweep'
+    exp_prefix = 'skew-fit-real-world-random-policy-data-sweep'
 
     use_gpu = True
 
     variant = dict(
-        num_epochs=1000,
+        num_epochs=250,
         algo_kwargs=dict(
             is_auto_encoder=False,
             batch_size=64,
@@ -84,12 +84,6 @@ if __name__ == "__main__":
         dump_skew_debug_plots=True,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
-            # env_class=SawyerDoorEnv,
-            # env_kwargs=dict(
-            #     action_mode='position',
-            #     config_name='austri_config',
-            #     reset_free=True,
-            # ),
             N=1000,
             random_and_oracle_policy_data=True,
             random_and_oracle_policy_data_split=1,
@@ -107,7 +101,7 @@ if __name__ == "__main__":
             decoder_distribution='bernoulli',
             architecture=imsize48_default_architecture,
         ),
-        save_period=10,
+        save_period=50,
         beta=5,
         representation_size=16,
         uniform_dataset_path='goals/SawyerDoorEnv_N100_imsize48goals_twin_sac.npy'
@@ -115,16 +109,14 @@ if __name__ == "__main__":
 
     search_space = {
         'beta':[1, 2.5, 5],
-        'algo_kwargs.skew_config.power':[-1/1000, -1/100, -1/70/ -1/50, -1/25, -1/10],
-        'algo_kwargs.skew_dataset':[False, True],
+        'algo_kwargs.skew_config.priority_function_kwargs.num_latents_to_sample':[1, 10],
+        'algo_kwargs.skew_config.power':[-1/1000, -1/100, -1/70/ -1/50, -1/25, -1/10, -1],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for _ in range(n_seeds):
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-            if variant['algo_kwargs']['skew_config']['power'] != -1/50 and variant['algo_kwargs']['skew_dataset'] == False:
-                continue
             run_experiment(
                 experiment,
                 exp_prefix=exp_prefix,
@@ -135,9 +127,9 @@ if __name__ == "__main__":
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
                 gcp_kwargs=dict(
-                    zone='us-west1-b',
+                    zone='us-central1-c',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-k80',
+                        gpu_model='nvidia-tesla-p100',
                         num_gpu=1,
                     )
                 ),
