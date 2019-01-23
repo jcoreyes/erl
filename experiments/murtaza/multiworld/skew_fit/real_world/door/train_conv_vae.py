@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'gcp'
-    exp_prefix = 'skew-fit-real-world-random-policy-data-sweep_v3'
+    exp_prefix = 'skew-fit-real-world-online-vae-policy-data-sweep'
 
     use_gpu = True
 
@@ -93,7 +93,8 @@ if __name__ == "__main__":
             vae_dataset_specific_kwargs=dict(),
             n_random_steps=1,
             show=False,
-            dataset_path='datasets/SawyerDoorEnv_N1000__imsize48_random_oracle_split_1.npy'
+            dataset_path='datasets/online_vae_dataset.npy',
+            test_p=.1,
         ),
         vae_kwargs=dict(
             input_channels=3,
@@ -109,9 +110,10 @@ if __name__ == "__main__":
 
     search_space = {
         'beta':[5],
-        'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10, 20, 30],
+        'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[10],
         'algo_kwargs.skew_config.power':[-1/5000, -1/1000, -1/500],
-        'algo_kwargs.priority_function_kwargs.sampling_method':[ 'importance_sampling', 'correct']
+        'algo_kwargs.priority_function_kwargs.sampling_method':[ 'importance_sampling', 'correct'],
+        'generate_vae_dataset_kwargs.test_p':[.1, .3, .5, .9],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
