@@ -293,9 +293,9 @@ def generate_vae_dataset(variant):
                 if random_and_oracle_policy_data:
                     num_random_steps = int(N*random_and_oracle_policy_data_split)
                     if i < num_random_steps:
-                        env.reset()
-                        for _ in range(n_random_steps):
-                            obs = env.step(env.action_space.sample())[0]
+                        if i % n_random_steps == 0:
+                            env.reset()
+                        obs = env.step(env.action_space.sample())[0]
                     else:
                         obs = env.reset()
                         policy.reset()
