@@ -44,13 +44,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'gcp'
-    # exp_prefix = 'pusher_offline_skew_fit'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'gcp'
+    exp_prefix = 'pusher_offline_skew_fit'
 
     use_gpu = True
 
@@ -84,6 +84,7 @@ if __name__ == "__main__":
             show=False,
             n_random_steps=100,
             non_presampled_goal_img_is_garbage=True,
+            dataset_path='datasets/SawyerPushNIPS-v0_N5000_sawyer_init_camera_zoomed_in_imsize48_random_oracle_split_0.npy',
         ),
         vae_kwargs=dict(
             input_channels=3,
@@ -98,17 +99,18 @@ if __name__ == "__main__":
             use_cached_dataset=False,
             show=False,
             save_file_prefix='pusher',
+            dataset_path='datasets/pusher_N1000_imsize48uniform_images_.npy',
         ),
-        save_period=100,
+        save_period=50,
         representation_size=4,
         beta=10 / 128,
         train_weight_update_period=1,
     )
 
     search_space = {
-        'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'biased_sampling', 'correct'],
-        'algo_kwargs.skew_config.power':[1, 2, 4],
-        'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10, 20],
+        'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'correct'],
+        'algo_kwargs.skew_config.power':[1/1000, 1/500, 1/100, 1/50, 1/10],
+        'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -125,9 +127,9 @@ if __name__ == "__main__":
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
                 gcp_kwargs=dict(
-                    zone='us-east4-a    ',
+                    zone='us-west1-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p4',
+                        gpu_model='nvidia-tesla-k80',
                         num_gpu=1,
                     )
                 )
