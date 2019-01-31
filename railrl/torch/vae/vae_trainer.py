@@ -71,6 +71,7 @@ def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_metho
 
 
 def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling'):
+    # TODO: rename this to "log_p_bernoulli_x_np_to_np
     """ Assumes data is normalized images"""
     log_p, log_q, log_d = compute_bernoulli_p_q_d(model, data, num_latents_to_sample, sampling_method)
     if sampling_method == 'importance_sampling':
@@ -270,6 +271,8 @@ class ConvVAETrainer(Serializable):
             next_idx += batch_size
             next_idx = min(next_idx, size)
         if method == 'inv_gaussian_p_x' or 'inv_bernoulli_p_x':
+            # TODO: move this inside the elif's above so that "weights" has a
+            # consistent meaning
             weights = compute_inv_p_x_shifted_from_log_p_x(weights) ** power
         return weights
 

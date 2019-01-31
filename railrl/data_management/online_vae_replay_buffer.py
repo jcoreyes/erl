@@ -187,6 +187,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 self.env._encode(
                     normalize_image(self._next_obs[self.decoded_obs_key][idxs])
                 )
+            # WARNING: we only refresh the desired/achieved latents for
+            # "next_obs". This means that obs[desired/achieve] will be invalid,
+            # so make sure there's no code that references this.
+            # TODO: enforce this with code and not a comment
             self._next_obs[self.desired_goal_key][idxs] = \
                 self.env._encode(
                     normalize_image(self._next_obs[self.decoded_desired_goal_key][idxs])
