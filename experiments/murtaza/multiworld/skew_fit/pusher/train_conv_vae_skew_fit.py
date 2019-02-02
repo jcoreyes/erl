@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'gcp'
-    exp_prefix = 'pusher_offline_skew_fit'
+    exp_prefix = 'pusher_offline_mle'
 
     use_gpu = True
 
@@ -64,7 +64,7 @@ if __name__ == "__main__":
                 method='inv_bernoulli_p_x',
                 power=1/100,
             ),
-            skew_dataset=True,
+            skew_dataset=False,
             priority_function_kwargs=dict(
                 num_latents_to_sample=10,
                 sampling_method='correct',
@@ -108,9 +108,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'correct'],
-        'algo_kwargs.skew_config.power':[1/1000, 1/500, 1/100, 1/50, 1/10],
-        'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[10],
+        # 'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'correct'],
+        # 'algo_kwargs.skew_config.power':[1/1000, 1/500, 1/100, 1/50, 1/10],
+        # 'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
