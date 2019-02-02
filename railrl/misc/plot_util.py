@@ -104,7 +104,7 @@ def filter_by_flat_params(d):
 
 def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3.5),
     xlabel="Number of env steps total", default_vary=False, xlim=None, ylim=None,
-    print_final=False, print_max=False, print_min=False, print_plot=True,
+    print_final=False, print_max=False, print_min=False, print_plot=True, print_legend=True,
     reduce_op=sum, method_order=None, remap_keys={},
     label_to_color=None,
 ):
@@ -198,7 +198,7 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                 i = np.argmin(y[::snapshot]) * snapshot
                 print(label, i, y[i])
 
-    if print_plot:
+    if print_legend:
         plt.legend(handles=lines, bbox_to_anchor=(1.5, 0.75))
 
     return lines
