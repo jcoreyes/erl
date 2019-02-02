@@ -30,7 +30,7 @@ if __name__ == "__main__":
                 base_kwargs=dict(
                     num_epochs=1010,
                     num_steps_per_epoch=1000,
-                    num_steps_per_eval=500,
+                    num_steps_per_eval=1000,
                     min_num_steps_before_training=10000,
                     batch_size=128,
                     max_path_length=100,
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.power':[1/1000, 1/500, 1/100, 1/50, 1/10, 1/5, 1/2, 1],
+        'grill_variant.replay_buffer_kwargs.power':[0.0002857142857142857],
         'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[10]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -137,7 +137,7 @@ if __name__ == "__main__":
 
     n_seeds = 8
     mode = 'ec2'
-    exp_prefix = 'pusher-skew-fit-fixed-power-bug-v2'
+    exp_prefix = 'pusher-skew-fit-final-more-eval-steps'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
