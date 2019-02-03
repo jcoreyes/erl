@@ -17,8 +17,8 @@ from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.vae_trainer import (
     inv_gaussian_p_x_np_to_np,
-    inv_p_bernoulli_x_np_to_np,
-    compute_inv_p_x_shifted_from_log_p_x, compute_bernoulli_p_q_d)
+    log_p_bernoulli_x_np_to_np,
+    compute_p_x_shifted_from_log_p_x, compute_bernoulli_p_q_d)
 import os.path as osp
 
 
@@ -237,7 +237,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         if self._prioritize_vae_samples:
             if self.vae_priority_type == 'image_bernoulli_inv_prob' or 'image_gaussian_inv_prob':
                 #normalize in log space across the entire dataset
-                self._vae_sample_priorities[:self._size] = compute_inv_p_x_shifted_from_log_p_x(
+                self._vae_sample_priorities[:self._size] = compute_p_x_shifted_from_log_p_x(
                     self._vae_sample_priorities[:self._size])
             vae_sample_priorities = self._vae_sample_priorities[:self._size]
             self._vae_sample_probs = vae_sample_priorities ** self.power
@@ -299,7 +299,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
     def image_bernoulli_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1,
                                  sampling_method='importance_sampling'):
-        return inv_p_bernoulli_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample,
+        return log_p_bernoulli_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample,
                                           sampling_method=sampling_method)
 
     def forward_model_error(self, next_vae_obs, indices):
