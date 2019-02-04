@@ -65,7 +65,7 @@ if __name__ == "__main__":
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
                 priority_function_kwargs=dict(
-                    sampling_method='correct',
+                    sampling_method='importance_sampling',
                     num_latents_to_sample=10,
                 ),
                 power=2,
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.power':[0.0002857142857142857],
+        'grill_variant.replay_buffer_kwargs.power':[0.02],
         'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[10]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -136,8 +136,8 @@ if __name__ == "__main__":
     # exp_prefix = 'test'
 
     n_seeds = 8
-    mode = 'ec2'
-    exp_prefix = 'pusher-skew-fit-final-more-eval-steps'
+    mode = 'gcp'
+    exp_prefix = 'pusher-skew-fit-final-is'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
