@@ -46,9 +46,7 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         if self.replay_buffer._prioritize_vae_samples:
             self.log_priority_weights()
         rl_start_epoch = int(self.min_num_steps_before_training / self.num_env_steps_per_epoch)
-        if should_train \
-                and self.replay_buffer.num_steps_can_sample() >= self.vae_min_num_steps_before_training \
-                or epoch >= (rl_start_epoch - 1):
+        if should_train or epoch <= (rl_start_epoch - 1):
             if self.parallel_vae_train:
                 assert self.vae_training_process.is_alive()
                 # Make sure the last vae update has finished before starting
