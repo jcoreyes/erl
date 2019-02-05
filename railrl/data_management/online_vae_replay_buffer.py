@@ -235,12 +235,18 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.vae.dist_std = np.sqrt(obs_square_sum/self._size - np.power(self.vae.dist_mu, 2))
 
         if self._prioritize_vae_samples:
+            """
+            priority^power is calculated in compute_inv_p_x_shifted_from_log_p_x
+            for image_bernoulli_inv_prob or image_gaussian_inv_prob and
+            directly here if not.
+            """
             if self.vae_priority_type == 'image_bernoulli_inv_prob' or 'image_gaussian_inv_prob':
                 #normalize in log space across the entire dataset
                 self._vae_sample_priorities[:self._size] = compute_p_x_shifted_from_log_p_x(
-                    self._vae_sample_priorities[:self._size])
-            vae_sample_priorities = self._vae_sample_priorities[:self._size]
-            self._vae_sample_probs = vae_sample_priorities ** self.power
+                    self._vae_sample_priorities[:self._size], self.power)
+                self._vae_sample_probs = self._vae_sample_priorities
+            else:
+                self._vae_sample_probs = self._vae_sample_priorities[:self._size] ** self.power
             p_sum = np.sum(self._vae_sample_probs)
             assert p_sum > 0, "Unnormalized p sum is {}".format(p_sum)
             self._vae_sample_probs /= np.sum(self._vae_sample_probs)
@@ -252,6 +258,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 len(self._vae_sample_probs),
                 batch_size,
                 p=self._vae_sample_probs,
+            )
+            assert (
+                np.max(self._vae_sample_probs) <= 1 and
+                np.min(self._vae_sample_probs) >= 0
             )
         else:
             indices = self._sample_indices(batch_size)
