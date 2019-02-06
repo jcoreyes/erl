@@ -240,7 +240,9 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             for image_bernoulli_inv_prob or image_gaussian_inv_prob and
             directly here if not.
             """
-            if not (self.vae_priority_type == 'image_bernoulli_inv_prob' or 'image_gaussian_inv_prob'):
+            if self.vae_priority_type == 'image_bernoulli_inv_prob' or 'image_gaussian_inv_prob':
+                self._vae_sample_probs = self._vae_sample_priorities[:self._size]
+            else:
                 self._vae_sample_probs = self._vae_sample_priorities[:self._size] ** self.power
             p_sum = np.sum(self._vae_sample_probs)
             assert p_sum > 0, "Unnormalized p sum is {}".format(p_sum)
