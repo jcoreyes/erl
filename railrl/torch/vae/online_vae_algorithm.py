@@ -90,8 +90,8 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                 np.zeros(self.replay_buffer._size),
             ))
         else:
-            vae_sample_priorities = self.replay_buffer._vae_sample_priorities[:self.replay_buffer_size]
-            vae_sample_probs = self.replay_buffer._vae_sample_probs[:self.replay_buffer_size]
+            vae_sample_priorities = self.replay_buffer._vae_sample_priorities[:self.replay_buffer._size]
+            vae_sample_probs = self.replay_buffer._vae_sample_probs[:self.replay_buffer._size]
             stats = create_stats_ordered_dict(
                 'VAE Sample Weights',
                 vae_sample_priorities,
