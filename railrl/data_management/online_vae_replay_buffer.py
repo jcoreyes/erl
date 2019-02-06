@@ -18,7 +18,8 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.vae_trainer import (
     inv_gaussian_p_x_np_to_np,
     log_p_bernoulli_x_np_to_np,
-    compute_p_x_shifted_from_log_p_x, compute_bernoulli_p_q_d, unnormalized_p_x_shifted_bernoulli_np_to_np)
+    compute_p_x_shifted_from_log_p_x, compute_bernoulli_log_p_log_q_log_d, compute_skewfit_weight_bernoulli,
+    bernoulli_p_x_np_to_np)
 import os.path as osp
 
 
@@ -98,7 +99,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'gaussian_inv_prob': self.gaussian_inv_prob,
             'bernoulli_inv_prob': self.bernoulli_inv_prob,
             'image_gaussian_inv_prob': self.image_gaussian_inv_prob,
-            'image_bernoulli_inv_prob': self.image_bernoulli_inv_prob,
+            'image_bernoulli_prob': self.image_bernoulli_prob,
             'hash_count': self.hash_count_reward,
             'None': self.no_reward,
         }
@@ -237,10 +238,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         if self._prioritize_vae_samples:
             """
             priority^power is calculated in the priority function
-            for image_bernoulli_inv_prob or image_gaussian_inv_prob and
+            for image_bernoulli_prob or image_gaussian_inv_prob and
             directly here if not.
             """
-            if self.vae_priority_type == 'image_bernoulli_inv_prob' or 'image_gaussian_inv_prob':
+            if self.vae_priority_type == 'image_bernoulli_prob' or 'image_gaussian_inv_prob':
                 self._vae_sample_probs = self._vae_sample_priorities[:self._size]
             else:
                 self._vae_sample_probs = self._vae_sample_priorities[:self._size] ** self.power
@@ -304,10 +305,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
     def image_gaussian_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1):
         return inv_gaussian_p_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample)
 
-    def image_bernoulli_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1,
+    def image_bernoulli_prob(self, next_vae_obs, indices, num_latents_to_sample=1,
                                  sampling_method='importance_sampling'):
-        return unnormalized_p_x_shifted_bernoulli_np_to_np(self.vae, next_vae_obs, power=self.power, num_latents_to_sample=num_latents_to_sample,
-                                          sampling_method=sampling_method)
+        return bernoulli_p_x_np_to_np(self.vae, next_vae_obs, power=self.power, num_latents_to_sample=num_latents_to_sample,
+                                                sampling_method=sampling_method)
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]
@@ -451,13 +452,13 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             torch_img = ptu.from_numpy(img)
             reconstructions, obs_distribution_params, latent_distribution_params = self.vae(torch_img)
 
-            log_p, log_q, log_d = compute_bernoulli_p_q_d(self.vae, img, 20, 'prior')
+            log_p, log_q, log_d = compute_bernoulli_log_p_log_q_log_d(self.vae, img, 20, 'true_prior_sampling')
             log_prob_prior = log_d.mean()
 
-            log_p, log_q, log_d = compute_bernoulli_p_q_d(self.vae, img, 20, 'biased')
+            log_p, log_q, log_d = compute_bernoulli_log_p_log_q_log_d(self.vae, img, 20, 'biased_sampling')
             log_prob_biased = log_d.mean()
 
-            log_p, log_q, log_d = compute_bernoulli_p_q_d(self.vae, img, 20, 'importance')
+            log_p, log_q, log_d = compute_bernoulli_log_p_log_q_log_d(self.vae, img, 20, 'importance_sampling')
             log_prob_importance = (log_p - log_q + log_d).mean()
 
             kle = self.vae.kl_divergence(latent_distribution_params)

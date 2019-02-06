@@ -71,13 +71,13 @@ if __name__ == "__main__":
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                method='inv_bernoulli_p_x',
+                method='image_bernoulli_prob',
                 power=1/100,
             ),
             skew_dataset=True,
             priority_function_kwargs=dict(
                 num_latents_to_sample=20,
-                sampling_method='correct',
+                sampling_method='true_prior_sampling',
             ),
             use_parallel_dataloading=False,
         ),
@@ -123,8 +123,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'correct'],
-        'algo_kwargs.skew_config.power':[-1, 0],
+        'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'true_prior_sampling'],
+        'algo_kwargs.skew_config.power':[-1/100, 0],
         'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10, 20],
 
         # 'train_weight_update_period':[1, 2, 4, 10],

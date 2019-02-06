@@ -37,7 +37,8 @@ def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
     return importance_sampled_inv_p_x(log_p_z, log_q_z_given_x, log_d_x_given_z)
 
 
-def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_method='importance_sampling'):
+def compute_bernoulli_log_p_log_q_log_d(model, data, num_latents_to_sample=1, sampling_method='importance_sampling'):
+    assert data.dtype == np.float64, 'images should be normalized'
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
     batch_size = data.shape[0]
@@ -47,14 +48,15 @@ def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_metho
     true_prior = Normal(ptu.zeros((batch_size, representation_size)),
                         ptu.ones((batch_size, representation_size)))
     mus, logvars = latent_distribution_params
-
     for i in range(num_latents_to_sample):
         if sampling_method == 'importance_sampling':
             latents = model.rsample(latent_distribution_params)
         elif sampling_method == 'biased_sampling':
             latents = model.rsample(latent_distribution_params)
-        else:
+        elif sampling_method == 'true_prior_sampling':
             latents = true_prior.rsample()
+        else:
+            raise EnvironmentError('Invalid Sampling Method Provided')
 
         stds = logvars.exp().pow(.5)
         vae_dist = Normal(mus, stds)
@@ -69,26 +71,20 @@ def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_metho
 
     return log_p, log_q, log_d
 
-def compute_unnormalized_p_x_shifted(log_p_x, power):
-    """
-    We calculate the p_x^power here for numerical stability.
-    (e^log(p(x)))^power = e^(power * log(p(x)))
-    """
-    log_p_x_skewed = power * log_p_x
-    unnormalized_p_x_shifted= np.exp(log_p_x_skewed-log_p_x_skewed.mean())
-
-    assert not np.any(unnormalized_p_x_shifted <= 0)
-    return unnormalized_p_x_shifted
-
-def unnormalized_p_x_shifted_bernoulli_np_to_np(model, data, power, num_latents_to_sample=1, sampling_method='importance_sampling'):
-    """ Assumes data is normalized images"""
-    log_p, log_q, log_d = compute_bernoulli_p_q_d(model, data, num_latents_to_sample, sampling_method)
+def bernoulli_p_x_np_to_np(model, data, power, num_latents_to_sample=1, sampling_method='importance_sampling'):
+    assert data.dtype == np.float64, 'images should be normalized'
+    assert power >= -1 and power <= 0, 'power for skew-fit should belong to [-1, 0]'
+    log_p, log_q, log_d = compute_bernoulli_log_p_log_q_log_d(model, data, num_latents_to_sample, sampling_method)
     if sampling_method == 'importance_sampling':
         log_p_x = (log_p - log_q + log_d).mean(dim=1)
-    else:
+    elif sampling_method == 'biased_sampling' or sampling_method == 'true_prior_sampling':
         log_p_x = log_d.mean(dim=1)
-    unnormalized_p_x_shifted = compute_unnormalized_p_x_shifted(ptu.get_numpy(log_p_x), power)
-    return unnormalized_p_x_shifted
+    else:
+        raise EnvironmentError('Invalid Sampling Method Provided')
+    log_p_x_skewed = power * log_p_x
+    p_x_shifted = ptu.get_numpy((log_p_x_skewed - log_p_x_skewed.mean()).exp())
+    assert not np.any(p_x_shifted <= 0), 'choose a smaller power'
+    return p_x_shifted
 
 
 class ConvVAETrainer(Serializable):
@@ -261,9 +257,9 @@ class ConvVAETrainer(Serializable):
             elif method == 'inv_gaussian_p_x':
                 data = normalize_image(data)
                 weights[idxs] = inv_gaussian_p_x_np_to_np(self.model, data, **self.priority_function_kwargs)
-            elif method == 'inv_bernoulli_p_x':
+            elif method == 'image_bernoulli_prob':
                 data = normalize_image(data)
-                weights[idxs] = unnormalized_p_x_shifted_bernoulli_np_to_np(self.model, data, power, **self.priority_function_kwargs)
+                weights[idxs] = bernoulli_p_x_np_to_np(self.model, data, power, **self.priority_function_kwargs)
             elif method == 'inv_exp_elbo':
                 data = normalize_image(data)
                 weights[idxs] = inv_exp_elbo(self.model, data, beta=self.beta) ** power
@@ -606,13 +602,13 @@ class ConvVAETrainer(Serializable):
             torch_img = ptu.from_numpy(img)
             reconstructions, obs_distribution_params, latent_distribution_params = self.model(torch_img)
 
-            log_p, log_q, log_d = compute_bernoulli_p_q_d(model, img, 20, 'prior')
+            log_p, log_q, log_d = compute_bernoulli_log_p_log_q_log_d(model, img, 20, 'true_prior_sampling')
             log_prob_prior = log_d.mean()
 
-            log_p, log_q, log_d = compute_bernoulli_p_q_d(model, img, 20, 'biased')
+            log_p, log_q, log_d = compute_bernoulli_log_p_log_q_log_d(model, img, 20, 'biased_sampling')
             log_prob_biased = log_d.mean()
 
-            log_p, log_q, log_d = compute_bernoulli_p_q_d(model, img, 20, 'importance')
+            log_p, log_q, log_d = compute_bernoulli_log_p_log_q_log_d(model, img, 20, 'importance_sampling')
             log_prob_importance = (log_p - log_q + log_d).mean()
 
             kle = self.model.kl_divergence(latent_distribution_params)
