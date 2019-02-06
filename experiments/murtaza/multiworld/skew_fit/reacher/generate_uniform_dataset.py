@@ -57,8 +57,7 @@ def generate_uniform_dataset_reacher(
         env.set_to_goal(env.get_goal())
         img_f = env._get_flat_img()
         if show:
-            img = obs['image_observation']
-            img = img.reshape(3, env.imsize, env.imsize).transpose()
+            img = img_f.reshape(3, env.imsize, env.imsize).transpose()
             img = img[::-1, :, ::-1]
             cv2.imshow('img', img)
             cv2.waitKey(1)

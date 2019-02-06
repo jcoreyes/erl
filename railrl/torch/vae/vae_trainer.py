@@ -70,8 +70,7 @@ def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_metho
     return log_p, log_q, log_d
 
 
-def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling'):
-    # TODO: rename this to "log_p_bernoulli_x_np_to_np
+def log_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling'):
     """ Assumes data is normalized images"""
     log_p, log_q, log_d = compute_bernoulli_p_q_d(model, data, num_latents_to_sample, sampling_method)
     if sampling_method == 'importance_sampling':
@@ -81,11 +80,16 @@ def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_me
     return ptu.get_numpy(log_p_x)
 
 
-def compute_inv_p_x_shifted_from_log_p_x(log_p_x):
-    log_p_x = ((log_p_x - log_p_x.mean()) / (log_p_x.std() + 1e-8))
-    log_inv_root_p_x = -1 / 2 * log_p_x
-    log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
+def compute_p_x_shifted_from_log_p_x(log_p_x, power):
+    """
+    We calculate the p_x^power here for numerical stability.
+    (e^log(p(x)))^power = e^(power * log(p(x)))
+    """
+    log_inv_p_x_prime = power * log_p_x
+    log_inv_p_x_prime -= log_inv_p_x_prime.mean()
     inv_p_x_shifted = np.exp(log_inv_p_x_prime)
+
+    assert not np.any(inv_p_x_shifted <= 0)
     return inv_p_x_shifted
 
 
@@ -261,7 +265,7 @@ class ConvVAETrainer(Serializable):
                 weights[idxs] = inv_gaussian_p_x_np_to_np(self.model, data, **self.priority_function_kwargs)
             elif method == 'inv_bernoulli_p_x':
                 data = normalize_image(data)
-                weights[idxs] = inv_p_bernoulli_x_np_to_np(self.model, data, **self.priority_function_kwargs)
+                weights[idxs] = log_p_bernoulli_x_np_to_np(self.model, data, **self.priority_function_kwargs)
             elif method == 'inv_exp_elbo':
                 data = normalize_image(data)
                 weights[idxs] = inv_exp_elbo(self.model, data, beta=self.beta) ** power
@@ -271,9 +275,7 @@ class ConvVAETrainer(Serializable):
             next_idx += batch_size
             next_idx = min(next_idx, size)
         if method == 'inv_gaussian_p_x' or 'inv_bernoulli_p_x':
-            # TODO: move this inside the elif's above so that "weights" has a
-            # consistent meaning
-            weights = compute_inv_p_x_shifted_from_log_p_x(weights) ** power
+            weights = compute_p_x_shifted_from_log_p_x(weights, power)
         return weights
 
     def _kl_np_to_np(self, np_imgs):

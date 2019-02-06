@@ -17,7 +17,7 @@ if __name__ == "__main__":
         grill_variant=dict(
             save_video=True,
             online_vae_beta=5,
-            save_video_period=250,
+            save_video_period=100,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -29,7 +29,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=510,
+                    num_epochs=1010,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=10000,
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48goals_twin_sac.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=False,
+                sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI-HER-TD3',
             generate_uniform_dataset_kwargs=dict(
@@ -139,8 +139,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
-        'grill_variant.vae_wrapped_env_kwargs.sample_from_true_prior':[True, False],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
+        'grill_variant.replay_buffer_kwargs.power':[1/1000, 1/500, 1/100, 1/50],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -150,9 +150,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 4
+    n_seeds = 8
     mode = 'gcp'
-    exp_prefix = 'door-sample-from-true-prior-sweep-fixed'
+    exp_prefix = 'door-skew-fit-power-bug_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -164,9 +164,9 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-west2-b',
+                    zone='us-central1-c',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-p4',
+                        gpu_model='nvidia-tesla-p100',
                         num_gpu=1,
                     )
                 )
