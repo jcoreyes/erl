@@ -1,7 +1,8 @@
 from torch import nn
 import railrl.misc.hyperparameter as hyp
-from experiments.murtaza.multiworld.fit_skew.door.generate_uniform_dataset import generate_uniform_dataset_door
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
+
+from experiments.murtaza.multiworld.skew_fit.door.generate_uniform_dataset import generate_uniform_dataset_door
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.grill.launcher import generate_vae_dataset
@@ -53,13 +54,13 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'gcp'
-    exp_prefix = 'sawyer_door_fit_skew_finalized_tests'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'gcp'
+    # exp_prefix = 'sawyer_door_fit_skew_finalized_tests'
 
     use_gpu = True
 
@@ -71,14 +72,12 @@ if __name__ == "__main__":
             lr=1e-3,
             skew_config=dict(
                 method='inv_bernoulli_p_x',
-                # method='inv_exp_elbo',
-                power=4,
+                power=1/100,
             ),
             skew_dataset=True,
             priority_function_kwargs=dict(
                 num_latents_to_sample=20,
                 sampling_method='correct',
-                decode_prob='none',
             ),
             use_parallel_dataloading=False,
         ),
@@ -100,7 +99,6 @@ if __name__ == "__main__":
             n_random_steps=100,
             show=False,
             dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_1.npy',
-            # specific_angles_data=True,
         ),
         vae_kwargs=dict(
             input_channels=3,
@@ -118,21 +116,15 @@ if __name__ == "__main__":
             path_length=100,
             dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48uniform_images_.npy',
         ),
-        save_period=100,
+        save_period=10,
         beta=2.5,
         representation_size=16,
         train_weight_update_period=1,
     )
 
     search_space = {
-        'generate_vae_dataset_kwargs.dataset_path':[
-          # 'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.npy',
-          # 'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.5.npy',
-          # 'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.9.npy',
-          'datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_1.npy',
-        ],
-        'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'biased_sampling', 'correct'],
-        'algo_kwargs.skew_config.power':[1, 2, 4],
+        'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'correct'],
+        'algo_kwargs.skew_config.power':[-1, 0],
         'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10, 20],
 
         # 'train_weight_update_period':[1, 2, 4, 10],

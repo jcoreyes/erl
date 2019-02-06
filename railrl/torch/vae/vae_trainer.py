@@ -69,28 +69,26 @@ def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_metho
 
     return log_p, log_q, log_d
 
+def compute_unnormalized_p_x_shifted(log_p_x, power):
+    """
+    We calculate the p_x^power here for numerical stability.
+    (e^log(p(x)))^power = e^(power * log(p(x)))
+    """
+    log_p_x_skewed = power * log_p_x
+    unnormalized_p_x_shifted= np.exp(log_p_x_skewed-log_p_x_skewed.mean())
 
-def log_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling'):
+    assert not np.any(unnormalized_p_x_shifted <= 0)
+    return unnormalized_p_x_shifted
+
+def unnormalized_p_x_shifted_bernoulli_np_to_np(model, data, power, num_latents_to_sample=1, sampling_method='importance_sampling'):
     """ Assumes data is normalized images"""
     log_p, log_q, log_d = compute_bernoulli_p_q_d(model, data, num_latents_to_sample, sampling_method)
     if sampling_method == 'importance_sampling':
         log_p_x = (log_p - log_q + log_d).mean(dim=1)
     else:
         log_p_x = log_d.mean(dim=1)
-    return ptu.get_numpy(log_p_x)
-
-
-def compute_p_x_shifted_from_log_p_x(log_p_x, power):
-    """
-    We calculate the p_x^power here for numerical stability.
-    (e^log(p(x)))^power = e^(power * log(p(x)))
-    """
-    log_inv_p_x_prime = power * log_p_x
-    log_inv_p_x_prime -= log_inv_p_x_prime.mean()
-    inv_p_x_shifted = np.exp(log_inv_p_x_prime)
-
-    assert not np.any(inv_p_x_shifted <= 0)
-    return inv_p_x_shifted
+    unnormalized_p_x_shifted = compute_unnormalized_p_x_shifted(ptu.get_numpy(log_p_x), power)
+    return unnormalized_p_x_shifted
 
 
 class ConvVAETrainer(Serializable):
@@ -265,7 +263,7 @@ class ConvVAETrainer(Serializable):
                 weights[idxs] = inv_gaussian_p_x_np_to_np(self.model, data, **self.priority_function_kwargs)
             elif method == 'inv_bernoulli_p_x':
                 data = normalize_image(data)
-                weights[idxs] = log_p_bernoulli_x_np_to_np(self.model, data, **self.priority_function_kwargs)
+                weights[idxs] = unnormalized_p_x_shifted_bernoulli_np_to_np(self.model, data, power, **self.priority_function_kwargs)
             elif method == 'inv_exp_elbo':
                 data = normalize_image(data)
                 weights[idxs] = inv_exp_elbo(self.model, data, beta=self.beta) ** power
@@ -274,8 +272,6 @@ class ConvVAETrainer(Serializable):
             cur_idx = next_idx
             next_idx += batch_size
             next_idx = min(next_idx, size)
-        if method == 'inv_gaussian_p_x' or 'inv_bernoulli_p_x':
-            weights = compute_p_x_shifted_from_log_p_x(weights, power)
         return weights
 
     def _kl_np_to_np(self, np_imgs):
