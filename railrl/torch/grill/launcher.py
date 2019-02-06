@@ -319,9 +319,9 @@ def generate_vae_dataset(variant):
                     u = policy.get_action_from_raw_action(env.action_space.sample())
                     obs = env.step(u)[0]
                 else:
-                    if i % n_random_steps == 0:
-                        env.reset()
-                    obs = env.step(env.action_space.sample())[0]
+                    env.reset()
+                    for _ in range(n_random_steps):
+                        obs = env.step(env.action_space.sample())[0]
                 img = obs['image_observation']
                 dataset[i, :] = unormalize_image(img)
                 if show:
