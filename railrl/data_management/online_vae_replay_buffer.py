@@ -17,9 +17,9 @@ from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.vae_trainer import (
     inv_gaussian_p_x_np_to_np,
-    log_p_bernoulli_x_np_to_np,
-    compute_p_x_shifted_from_log_p_x, compute_bernoulli_log_p_log_q_log_d, compute_skewfit_weight_bernoulli,
-    bernoulli_p_x_np_to_np)
+    compute_bernoulli_log_p_log_q_log_d,
+    bernoulli_p_x_np_to_np
+)
 import os.path as osp
 
 
@@ -440,7 +440,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             nrow=4,
         )
 
-    def log_loss_under_uniform(self, data, batch_size):
+    def log_loss_under_uniform(self, data, batch_size, rl_logger):
         import torch.nn.functional as F
         log_probs_prior = []
         log_probs_biased = []
@@ -469,11 +469,11 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             log_probs_biased.append(log_prob_biased.item())
             log_probs_importance.append(log_prob_importance.item())
 
-        logger.record_tabular("Uniform Data Log Prob (Prior)", np.mean(log_probs_prior))
-        logger.record_tabular("Uniform Data Log Prob (Biased)", np.mean(log_probs_biased))
-        logger.record_tabular("Uniform Data Log Prob (Importance)", np.mean(log_probs_importance))
-        logger.record_tabular("Uniform Data KL", np.mean(kles))
-        logger.record_tabular("Uniform Data MSE", np.mean(mses))
+        rl_logger["Uniform Data Log Prob (Prior)"] = np.mean(log_probs_prior)
+        rl_logger["Uniform Data Log Prob (Biased)"] = np.mean(log_probs_biased)
+        rl_logger["Uniform Data Log Prob (Importance)"] = np.mean(log_probs_importance)
+        rl_logger["Uniform Data KL"] = np.mean(kles)
+        rl_logger["Uniform Data MSE"] = np.mean(mses)
 
     def dump_uniform_imgs_and_reconstructions(self, dataset, epoch):
         idxs = np.random.choice(range(dataset.shape[0]), 4)

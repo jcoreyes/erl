@@ -15,7 +15,7 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookResetFreeEnv-v0',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
-            save_video=True,
+            save_video=False,
             online_vae_beta=5,
             save_video_period=100,
             qf_kwargs=dict(
@@ -64,9 +64,9 @@ if __name__ == "__main__":
                 fraction_goals_rollout_goals=0.0,
                 fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
-                vae_priority_type='image_bernoulli_inv_prob',
+                vae_priority_type='image_bernoulli_prob',
                 priority_function_kwargs=dict(
-                    sampling_method='correct',
+                    sampling_method='true_prior_sampling',
                     num_latents_to_sample=10,
                 ),
                 power=2,
@@ -139,20 +139,20 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_inv_prob'],
-        'grill_variant.replay_buffer_kwargs.power':[1/1000, 1/500, 1/100, 1/50],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['image_bernoulli_prob'],
+        'grill_variant.replay_buffer_kwargs.power':[-1/50],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 8
-    mode = 'gcp'
-    exp_prefix = 'door-skew-fit-power-bug_v2'
+    # n_seeds = 8
+    # mode = 'gcp'
+    # exp_prefix = 'door-skew-fit-power-bug_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
