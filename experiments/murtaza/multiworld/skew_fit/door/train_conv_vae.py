@@ -31,7 +31,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = variant['vae'](representation_size, decoder_output_activation=nn.Sigmoid(), **variant['vae_kwargs'])
+    m = variant['vae'](representation_size, **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
@@ -39,7 +39,7 @@ def experiment(variant):
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
         t.train_epoch(epoch)
-        t.log_loss_under_uniform(m, uniform_dataset)
+        t.log_loss_under_uniform(m, uniform_dataset, variant['algo_kwargs']['priority_function_kwargs'])
         t.test_epoch(epoch, save_reconstruction=should_save_imgs,
                      save_scatterplot=should_save_imgs)
         if should_save_imgs:
@@ -71,13 +71,14 @@ if __name__ == "__main__":
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                method='image_bernoulli_prob',
+                method='skew-fit',
                 power=1/100,
             ),
             skew_dataset=True,
             priority_function_kwargs=dict(
                 num_latents_to_sample=20,
                 sampling_method='true_prior_sampling',
+                decoder_distribution='gaussian_identity_variance'
             ),
             use_parallel_dataloading=False,
         ),
@@ -104,7 +105,7 @@ if __name__ == "__main__":
             input_channels=3,
             imsize=48,
             architecture=imsize48_default_architecture,
-            decoder_distribution='bernoulli'
+            decoder_distribution='gaussian_identity_variance'
         ),
         generate_uniform_dataset_kwargs=dict(
             env_id='SawyerDoorHookResetFreeEnv-v0',

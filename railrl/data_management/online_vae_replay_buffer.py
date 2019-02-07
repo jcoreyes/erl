@@ -16,10 +16,7 @@ from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.vae_trainer import (
-    inv_gaussian_p_x_np_to_np,
-    compute_bernoulli_log_p_log_q_log_d,
-    bernoulli_p_x_np_to_np
-)
+    compute_log_p_log_q_log_d, compute_p_x_np_to_np)
 import os.path as osp
 
 
@@ -98,8 +95,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             'forward_model_error': self.forward_model_error,
             'gaussian_inv_prob': self.gaussian_inv_prob,
             'bernoulli_inv_prob': self.bernoulli_inv_prob,
-            'image_gaussian_inv_prob': self.image_gaussian_inv_prob,
-            'image_bernoulli_prob': self.image_bernoulli_prob,
+            'vae_prob': self.vae_prob,
             'hash_count': self.hash_count_reward,
             'None': self.no_reward,
         }
@@ -302,13 +298,9 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         ).prod(dim=1)
         return ptu.get_numpy(1 / prob)
 
-    def image_gaussian_inv_prob(self, next_vae_obs, indices, num_latents_to_sample=1):
-        return inv_gaussian_p_x_np_to_np(self.vae, next_vae_obs, num_latents_to_sample=num_latents_to_sample)
-
-    def image_bernoulli_prob(self, next_vae_obs, indices, num_latents_to_sample=1,
-                                 sampling_method='importance_sampling'):
-        return bernoulli_p_x_np_to_np(self.vae, next_vae_obs, power=self.power, num_latents_to_sample=num_latents_to_sample,
-                                                sampling_method=sampling_method)
+    def vae_prob(self, next_vae_obs, indices, num_latents_to_sample=1):
+        return compute_p_x_np_to_np(self.vae, next_vae_obs, power=self.power,
+                                    num_latents_to_sample=num_latents_to_sample)
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]
@@ -440,7 +432,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             nrow=4,
         )
 
-    def log_loss_under_uniform(self, data, batch_size, rl_logger):
+    def log_loss_under_uniform(self, model, data, batch_size, rl_logger, priority_function_kwargs):
         import torch.nn.functional as F
         log_probs_prior = []
         log_probs_biased = []
@@ -452,16 +444,19 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             torch_img = ptu.from_numpy(img)
             reconstructions, obs_distribution_params, latent_distribution_params = self.vae(torch_img)
 
-            log_p, log_q, log_d = compute_bernoulli_log_p_log_q_log_d(self.vae, img, 20, 'true_prior_sampling')
+            priority_function_kwargs['sampling_method'] = 'true_prior_sampling'
+            log_p, log_q, log_d = compute_log_p_log_q_log_d(model, img, **priority_function_kwargs)
             log_prob_prior = log_d.mean()
 
-            log_p, log_q, log_d = compute_bernoulli_log_p_log_q_log_d(self.vae, img, 20, 'biased_sampling')
+            priority_function_kwargs['sampling_method'] = 'biased_sampling'
+            log_p, log_q, log_d = compute_log_p_log_q_log_d(model, img, **priority_function_kwargs)
             log_prob_biased = log_d.mean()
 
-            log_p, log_q, log_d = compute_bernoulli_log_p_log_q_log_d(self.vae, img, 20, 'importance_sampling')
+            priority_function_kwargs['sampling_method'] = 'importance_sampling'
+            log_p, log_q, log_d = compute_log_p_log_q_log_d(model, img, **priority_function_kwargs)
             log_prob_importance = (log_p - log_q + log_d).mean()
 
-            kle = self.vae.kl_divergence(latent_distribution_params)
+            kle = model.kl_divergence(latent_distribution_params)
             mse = F.mse_loss(torch_img, reconstructions, reduction='elementwise_mean')
             mses.append(mse.item())
             kles.append(kle.item())
