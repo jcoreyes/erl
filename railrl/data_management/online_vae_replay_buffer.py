@@ -16,7 +16,10 @@ from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.torch.vae.vae_trainer import (
-    compute_log_p_log_q_log_d, compute_p_x_np_to_np)
+    compute_log_p_log_q_log_d,
+    compute_p_x_np_to_np,
+    relative_probs_from_log_probs,
+)
 import os.path as osp
 
 
@@ -32,6 +35,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             exploration_rewards_type='None',
             exploration_rewards_scale=1.0,
             vae_priority_type='None',
+            start_skew_epoch=0,
             power=1.0,
             internal_keys=None,
             exploration_schedule_kwargs=None,
@@ -46,6 +50,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.decoded_achieved_goal_key = decoded_achieved_goal_key
         self.exploration_rewards_type = exploration_rewards_type
         self.exploration_rewards_scale = exploration_rewards_scale
+        self.start_skew_epoch = start_skew_epoch
         self.vae_priority_type = vae_priority_type
         self.power = power
 
@@ -154,7 +159,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
     def refresh_latents(self, epoch):
         self.epoch = epoch
-        batch_size = 1024
+        batch_size = 512
         next_idx = min(batch_size, self._size)
 
         if self.exploration_rewards_type == 'hash_count':
@@ -237,7 +242,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             for image_bernoulli_prob or image_gaussian_inv_prob and
             directly here if not.
             """
-            if self.vae_priority_type == 'image_bernoulli_prob' or 'image_gaussian_inv_prob':
+            if self.vae_priority_type == 'vae_prob':
+                self._vae_sample_priorities[:self._size] = relative_probs_from_log_probs(
+                    self._vae_sample_priorities[:self._size]
+                )
                 self._vae_sample_probs = self._vae_sample_priorities[:self._size]
             else:
                 self._vae_sample_probs = self._vae_sample_priorities[:self._size] ** self.power
@@ -246,8 +254,12 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             self._vae_sample_probs /= np.sum(self._vae_sample_probs)
             self._vae_sample_probs = self._vae_sample_probs.flatten()
 
-    def random_vae_training_data(self, batch_size):
-        if self._prioritize_vae_samples and self._vae_sample_probs is not None:
+    def random_vae_training_data(self, batch_size, epoch):
+        if (
+            self._prioritize_vae_samples and
+            self._vae_sample_probs is not None and
+            epoch > self.start_skew_epoch
+        ):
             indices = np.random.choice(
                 len(self._vae_sample_probs),
                 batch_size,

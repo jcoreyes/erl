@@ -17,6 +17,17 @@ from railrl.torch.data import (
 )
 
 
+def relative_probs_from_log_probs(log_probs):
+    """
+    Returns relative probability from the log probabilities. They're not exactly
+    equal to the probability, but relative scalings between them are all maintained.
+
+    For correctness, all log_probs must be passed in at the same time.
+    """
+    probs = np.exp(log_probs - log_probs.mean())
+    assert not np.any(probs <= 0), 'choose a smaller power'
+    return probs
+
 def compute_log_p_log_q_log_d(
     model,
     data,
@@ -63,7 +74,6 @@ def compute_log_p_log_q_log_d(
         log_p[:, i] = log_p_z
         log_q[:, i] = log_q_z_given_x
         log_d[:, i] = log_d_x_given_z
-
     return log_p, log_q, log_d
 
 def compute_p_x_np_to_np(
@@ -92,9 +102,7 @@ def compute_p_x_np_to_np(
     else:
         raise EnvironmentError('Invalid Sampling Method Provided')
     log_p_x_skewed = power * log_p_x
-    p_x_shifted = ptu.get_numpy((log_p_x_skewed - log_p_x_skewed.mean()).exp())
-    assert not np.any(p_x_shifted <= 0), 'choose a smaller power'
-    return p_x_shifted
+    return ptu.get_numpy(log_p_x_skewed)
 
 
 class ConvVAETrainer(Serializable):
@@ -120,6 +128,7 @@ class ConvVAETrainer(Serializable):
             skew_dataset=False,
             skew_config=None,
             priority_function_kwargs=None,
+            start_skew_epoch=0,
             weight_decay=0,
     ):
         self.quick_init(locals())
@@ -165,6 +174,7 @@ class ConvVAETrainer(Serializable):
         self.train_data_workers = train_data_workers
         self.skew_dataset = skew_dataset
         self.skew_config = skew_config
+        self.start_skew_epoch = start_skew_epoch
         if priority_function_kwargs is None:
             self.priority_function_kwargs = dict()
         else:
@@ -249,7 +259,7 @@ class ConvVAETrainer(Serializable):
     def _compute_train_weights(self):
         method = self.skew_config.get('method', 'squared_error')
         power = self.skew_config.get('power', 1)
-        batch_size = 512 
+        batch_size = 512
         size = self.train_dataset.shape[0]
         next_idx = min(batch_size, size)
         cur_idx = 0
@@ -275,6 +285,9 @@ class ConvVAETrainer(Serializable):
             cur_idx = next_idx
             next_idx += batch_size
             next_idx = min(next_idx, size)
+
+        if method == 'vae_prob':
+            weights = relative_probs_from_log_probs(weights)
         return weights
 
     def _kl_np_to_np(self, np_imgs):
@@ -294,7 +307,7 @@ class ConvVAETrainer(Serializable):
         self.model = vae
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
-    def get_batch(self, train=True):
+    def get_batch(self, train=True, epoch=None):
         if self.use_parallel_dataloading:
             if not train:
                 dataloader = self.test_dataloader
@@ -304,7 +317,10 @@ class ConvVAETrainer(Serializable):
             return samples
 
         dataset = self.train_dataset if train else self.test_dataset
-        if train and self.skew_dataset:
+        skew = False
+        if epoch is not None:
+            skew = (self.start_skew_epoch < epoch)
+        if train and self.skew_dataset and skew:
             probs = self._train_weights / np.sum(self._train_weights)
             ind = np.random.choice(
                 len(probs),
@@ -346,12 +362,12 @@ class ConvVAETrainer(Serializable):
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
             if sample_batch is not None:
-                data = sample_batch(self.batch_size)
+                data = sample_batch(self.batch_size, epoch)
                 # obs = data['obs']
                 next_obs = data['next_obs']
                 # actions = data['actions']
             else:
-                next_obs = self.get_batch()
+                next_obs = self.get_batch(epoch=epoch)
                 obs = None
                 actions = None
             self.optimizer.zero_grad()
@@ -566,12 +582,12 @@ class ConvVAETrainer(Serializable):
             epoch))
         plt.savefig(save_file)
 
-    def dump_best_reconstruction(self, epoch, num_shown=4):
+    def dump_best_reconstruction(self, epoch, num_shown=10):
         idx_and_weights = self._get_sorted_idx_and_train_weights()
         idxs = [i for i, _ in idx_and_weights[:num_shown]]
         self._dump_imgs_and_reconstructions(idxs, 'best{}.png'.format(epoch))
 
-    def dump_worst_reconstruction(self, epoch, num_shown=4):
+    def dump_worst_reconstruction(self, epoch, num_shown=10):
         idx_and_weights = self._get_sorted_idx_and_train_weights()
         idx_and_weights = idx_and_weights[::-1]
         idxs = [i for i, _ in idx_and_weights[:num_shown]]
@@ -594,7 +610,7 @@ class ConvVAETrainer(Serializable):
         save_image(
             all_imgs.data,
             save_file,
-            nrow=4,
+            nrow=len(idxs),
         )
 
     def log_loss_under_uniform(self, model, data, priority_function_kwargs):
