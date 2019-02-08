@@ -390,6 +390,7 @@ def run_experiment(
             gcp_bucket_name=config.GCP_BUCKET_NAME,
             gcp_log_prefix=exp_prefix,
             gcp_log_name="",
+            num_exps=num_exps_per_instance,
             **config_kwargs
         )
     else:
