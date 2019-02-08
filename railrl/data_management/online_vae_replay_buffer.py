@@ -298,9 +298,13 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         ).prod(dim=1)
         return ptu.get_numpy(1 / prob)
 
-    def vae_prob(self, next_vae_obs, indices, num_latents_to_sample=1):
-        return compute_p_x_np_to_np(self.vae, next_vae_obs, power=self.power,
-                                    num_latents_to_sample=num_latents_to_sample)
+    def vae_prob(self, next_vae_obs, indices, **kwargs):
+        return compute_p_x_np_to_np(
+            self.vae,
+            next_vae_obs,
+            power=self.power,
+            **kwargs
+        )
 
     def forward_model_error(self, next_vae_obs, indices):
         obs = self._obs[self.observation_key][indices]

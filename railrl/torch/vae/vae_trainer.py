@@ -17,7 +17,13 @@ from railrl.torch.data import (
 )
 
 
-def compute_log_p_log_q_log_d(model, data, decoder_distribution='bernoulli', num_latents_to_sample=1, sampling_method='importance_sampling'):
+def compute_log_p_log_q_log_d(
+    model,
+    data,
+    decoder_distribution='bernoulli',
+    num_latents_to_sample=1,
+    sampling_method='importance_sampling'
+):
     assert data.dtype == np.float64, 'images should be normalized'
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
@@ -60,11 +66,24 @@ def compute_log_p_log_q_log_d(model, data, decoder_distribution='bernoulli', num
 
     return log_p, log_q, log_d
 
-def compute_p_x_np_to_np(model, data, power, decoder_distribution='bernoulli', num_latents_to_sample=1, sampling_method='importance_sampling'):
+def compute_p_x_np_to_np(
+    model,
+    data,
+    power,
+    decoder_distribution='bernoulli',
+    num_latents_to_sample=1,
+    sampling_method='importance_sampling'
+):
     assert data.dtype == np.float64, 'images should be normalized'
     assert power >= -1 and power <= 0, 'power for skew-fit should belong to [-1, 0]'
 
-    log_p, log_q, log_d = compute_log_p_log_q_log_d(model, data, decoder_distribution, num_latents_to_sample, sampling_method)
+    log_p, log_q, log_d = compute_log_p_log_q_log_d(
+        model,
+        data,
+        decoder_distribution,
+        num_latents_to_sample,
+        sampling_method
+    )
 
     if sampling_method == 'importance_sampling':
         log_p_x = (log_p - log_q + log_d).mean(dim=1)
@@ -230,7 +249,7 @@ class ConvVAETrainer(Serializable):
     def _compute_train_weights(self):
         method = self.skew_config.get('method', 'squared_error')
         power = self.skew_config.get('power', 1)
-        batch_size = 1024
+        batch_size = 512 
         size = self.train_dataset.shape[0]
         next_idx = min(batch_size, size)
         cur_idx = 0
