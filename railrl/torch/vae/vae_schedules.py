@@ -5,6 +5,14 @@
 def always_train(epoch):
     return True, 300
 
+def custom_schedule(epoch):
+    if epoch < 10:
+        return True, 1000
+    elif epoch < 300:
+        return True, 200
+    else:
+        return epoch % 3 == 0, 200
+
 def every_other(epoch):
     return epoch % 2 == 0, 400
 
