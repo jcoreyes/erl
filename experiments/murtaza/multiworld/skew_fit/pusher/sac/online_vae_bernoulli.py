@@ -28,9 +28,9 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1010,
+                    num_epochs=510,
                     num_steps_per_epoch=1000,
-                    num_steps_per_eval=500,
+                    num_steps_per_eval=1000,
                     min_num_steps_before_training=10000,
                     batch_size=128,
                     max_path_length=100,
@@ -65,7 +65,7 @@ if __name__ == "__main__":
                 exploration_rewards_type='None',
                 vae_priority_type='image_bernoulli_inv_prob',
                 priority_function_kwargs=dict(
-                    sampling_method='correct',
+                    sampling_method='importance_sampling',
                     num_latents_to_sample=10,
                 ),
                 power=2,
@@ -85,15 +85,15 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            generate_uniform_dataset_kwargs=dict(
-                init_camera=sawyer_init_camera_zoomed_in,
-                env_id='SawyerPushNIPS-v0',
-                num_imgs=1000,
-                use_cached_dataset=False,
-                show=False,
-                save_file_prefix='pusher',
-            ),
-            generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
+            # generate_uniform_dataset_kwargs=dict(
+                # init_camera=sawyer_init_camera_zoomed_in,
+                # env_id='SawyerPushNIPS-v0',
+                # num_imgs=1000,
+                # use_cached_dataset=False,
+                # show=False,
+                # save_file_prefix='pusher',
+            # ),
+            # generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
         ),
         train_vae_variant=dict(
             representation_size=4,
@@ -124,8 +124,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
-        'grill_variant.vae_wrapped_env_kwargs.sample_from_true_prior': [True, False],
+        'grill_variant.replay_buffer_kwargs.power':[0.02],
+        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[10]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -135,13 +135,11 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 4
+    n_seeds = 8
     mode = 'gcp'
-    exp_prefix = 'pusher-sample-from-true-prior-sweep'
+    exp_prefix = 'pusher-skew-fit-final-is'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        # if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:
-        #     continue
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_twin_sac_online_vae_full_experiment,

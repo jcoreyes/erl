@@ -1,13 +1,13 @@
+from multiworld.core.image_env import unormalize_image
 from torch import nn
 import railrl.misc.hyperparameter as hyp
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
-
-from experiments.murtaza.multiworld.skew_fit.door.generate_uniform_dataset import generate_uniform_dataset_door
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.grill.launcher import generate_vae_dataset
-from railrl.torch.vae.conv_vae import ConvVAE, imsize48_default_architecture
+from railrl.torch.vae.conv_vae import ConvVAE, ConvVAEDouble
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
+from railrl.torch.grill.launcher import generate_vae_dataset
+from railrl.torch.vae.conv_vae import imsize48_default_architecture
+from railrl.misc.asset_loader import load_local_or_remote_file
 
 def experiment(variant):
     from railrl.core import logger
@@ -17,9 +17,8 @@ def experiment(variant):
     train_data, test_data, info = variant['generate_vae_dataset_fn'](
         variant['generate_vae_dataset_kwargs']
     )
-    uniform_dataset=generate_uniform_dataset_door(
-       **variant['generate_uniform_dataset_kwargs']
-    )
+    uniform_dataset = load_local_or_remote_file(variant['uniform_dataset_path']).item()
+    uniform_dataset = unormalize_image(uniform_dataset['image_desired_goal'])
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
     if 'beta_schedule_kwargs' in variant:
@@ -31,7 +30,7 @@ def experiment(variant):
         beta_schedule = PiecewiseLinearSchedule(**variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    m = variant['vae'](representation_size, **variant['vae_kwargs'])
+    m = variant['vae'](representation_size, decoder_output_activation=nn.Sigmoid(), **variant['vae_kwargs'])
     m.to(ptu.device)
     t = ConvVAETrainer(train_data, test_data, m, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
@@ -49,18 +48,17 @@ def experiment(variant):
                 t.dump_worst_reconstruction(epoch)
                 t.dump_sampling_histogram(epoch)
                 t.dump_uniform_imgs_and_reconstructions(dataset=uniform_dataset, epoch=epoch)
-        if epoch % variant['train_weight_update_period'] == 0:
-            t.update_train_weights()
+        t.update_train_weights()
 
 
 if __name__ == "__main__":
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'offline-vae-real-world-random-policy-data-gaussian-decoder'
 
     # n_seeds = 1
     # mode = 'gcp'
-    # exp_prefix = 'sawyer_door_fit_skew_finalized_tests'
+    # exp_prefix = 'skew-fit-real-world-random-policy-data-sweep-v7'
 
     use_gpu = True
 
@@ -71,64 +69,46 @@ if __name__ == "__main__":
             batch_size=64,
             lr=1e-3,
             skew_config=dict(
-                method='skew-fit',
-                power=1/100,
+                method='vae_prob',
+                power=-1/100,
             ),
-            skew_dataset=True,
+            skew_dataset=False,
             priority_function_kwargs=dict(
-                num_latents_to_sample=20,
+                num_latents_to_sample=10,
                 sampling_method='true_prior_sampling',
                 decoder_distribution='gaussian_identity_variance'
             ),
             use_parallel_dataloading=False,
         ),
-        vae=ConvVAE,
+        vae=ConvVAEDouble,
         dump_skew_debug_plots=True,
         generate_vae_dataset_fn=generate_vae_dataset,
         generate_vae_dataset_kwargs=dict(
-            env_id='SawyerDoorHookResetFreeEnv-v0',
-            init_camera=sawyer_door_env_camera_v0,
-            N=100,
-            oracle_dataset=False,
-            use_cached=True,
+            N=1000,
             random_and_oracle_policy_data=True,
-            random_and_oracle_policy_data_split=.9,
+            random_and_oracle_policy_data_split=1,
+            use_cached=True,
             imsize=48,
             non_presampled_goal_img_is_garbage=True,
             vae_dataset_specific_kwargs=dict(),
-            policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
-            n_random_steps=100,
+            n_random_steps=1,
             show=False,
-            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_1.npy',
+            dataset_path='datasets/SawyerDoorEnv_N1000__imsize48_random_oracle_split_1.npy',
         ),
         vae_kwargs=dict(
             input_channels=3,
             imsize=48,
+            decoder_distribution='gaussian',
             architecture=imsize48_default_architecture,
-            decoder_distribution='gaussian_identity_variance'
         ),
-        generate_uniform_dataset_kwargs=dict(
-            env_id='SawyerDoorHookResetFreeEnv-v0',
-            init_camera=sawyer_door_env_camera_v0,
-            num_imgs=1000,
-            use_cached_dataset=False,
-            policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
-            show=False,
-            path_length=100,
-            dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48uniform_images_.npy',
-        ),
-        save_period=10,
-        beta=2.5,
+        save_period=50,
+        beta=5,
         representation_size=16,
-        train_weight_update_period=1,
+        uniform_dataset_path='goals/SawyerDoorEnv_N100_imsize48goals_twin_sac.npy'
     )
 
     search_space = {
-        'algo_kwargs.priority_function_kwargs.sampling_method':['importance_sampling', 'true_prior_sampling'],
-        'algo_kwargs.skew_config.power':[-1/100, 0],
-        'algo_kwargs.priority_function_kwargs.num_latents_to_sample':[1, 10, 20],
-
-        # 'train_weight_update_period':[1, 2, 4, 10],
+        'beta':[.01, .1, 1, 2.5, 5, 10],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -145,10 +125,11 @@ if __name__ == "__main__":
                 snapshot_mode='gap_and_last',
                 snapshot_gap=100,
                 gcp_kwargs=dict(
-                    zone='us-east4-a    ',
+                    zone='us-east4-a',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
                     )
-                )
+                ),
+                skip_wait=True,
             )

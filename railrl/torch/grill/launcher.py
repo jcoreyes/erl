@@ -805,6 +805,15 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     grill_preprocess_variant(variant)
     env = get_envs(variant)
     es = get_exploration_strategy(variant, env)
+
+    uniform_dataset_fn = variant.get('generate_uniform_dataset_fn', None)
+    if uniform_dataset_fn:
+        uniform_dataset=uniform_dataset_fn(
+            **variant['generate_uniform_dataset_kwargs']
+        )
+    else:
+        uniform_dataset=None
+
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
@@ -862,6 +871,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         online_vae_kwargs=dict(
             vae=vae,
             vae_trainer=t,
+            uniform_dataset=uniform_dataset,
             **variant['algo_kwargs']['online_vae_kwargs']
         ),
         base_kwargs=dict(

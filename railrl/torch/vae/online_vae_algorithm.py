@@ -80,18 +80,26 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.epoch = epoch + 1
 
     def log_priority_weights(self):
-        vae_sample_priorities = self.replay_buffer._vae_sample_priorities[:self.replay_buffer_size]
-        vae_sample_probs = vae_sample_priorities ** self.replay_buffer.power
-        if self.replay_buffer._vae_sample_probs is None:
+        if self.replay_buffer._vae_sample_probs is None or self.replay_buffer._vae_sample_priorities is None:
             stats = create_stats_ordered_dict(
                 'VAE Sample Weights',
                 np.zeros(self.replay_buffer._size),
             )
+            stats.update(create_stats_ordered_dict(
+                'VAE Sample Probs',
+                np.zeros(self.replay_buffer._size),
+            ))
         else:
+            vae_sample_priorities = self.replay_buffer._vae_sample_priorities[:self.replay_buffer._size]
+            vae_sample_probs = self.replay_buffer._vae_sample_probs[:self.replay_buffer._size]
             stats = create_stats_ordered_dict(
                 'VAE Sample Weights',
-                vae_sample_probs,
+                vae_sample_priorities,
             )
+            stats.update(create_stats_ordered_dict(
+                'VAE Sample Probs',
+                vae_sample_probs,
+            ))
         for key, value in stats.items():
             logger.record_tabular(key, value)
 
@@ -162,7 +170,7 @@ def _test_vae(vae_trainer, epoch, replay_buffer, vae_save_period=1, uniform_data
     save_imgs = epoch % vae_save_period == 0
     log_fit_skew_stats = replay_buffer._prioritize_vae_samples and uniform_dataset is not None
     if uniform_dataset is not None:
-        replay_buffer.log_loss_under_uniform(uniform_dataset, vae_trainer.batch_size)
+        replay_buffer.log_loss_under_uniform(uniform_dataset, vae_trainer.batch_size, rl_logger=vae_trainer.vae_logger_stats_for_rl)
     vae_trainer.test_epoch(
         epoch,
         from_rl=True,

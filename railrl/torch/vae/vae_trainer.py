@@ -17,27 +17,25 @@ from railrl.torch.data import (
 )
 
 
-def inv_gaussian_p_x_np_to_np(model, data, num_latents_to_sample=1):
-    """ Assumes data is normalized images"""
-    imgs = ptu.from_numpy(data)
-    latent_distribution_params = model.encode(imgs)
-    latents = model.rsample(latent_distribution_params)
-    mus, logvars = latent_distribution_params
-    stds = logvars.exp().pow(.5)
-    true_prior = Normal(ptu.zeros_like(mus), ptu.ones_like(logvars))
-    vae_dist = Normal(mus, stds)
-    log_p_z = true_prior.log_prob(latents).sum(dim=1)
-    log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
-    _, obs_distribution_params = model.decode(latents)
-    dec_mu, dec_logvar = obs_distribution_params
-    dec_var = dec_logvar.exp()
-    decoder_dist = Normal(dec_mu, dec_var.pow(.5))
-    log_d_x_given_z = decoder_dist.log_prob(imgs)
-    log_d_x_given_z = log_d_x_given_z.sum(dim=1)
-    return importance_sampled_inv_p_x(log_p_z, log_q_z_given_x, log_d_x_given_z)
+def relative_probs_from_log_probs(log_probs):
+    """
+    Returns relative probability from the log probabilities. They're not exactly
+    equal to the probability, but relative scalings between them are all maintained.
 
+    For correctness, all log_probs must be passed in at the same time.
+    """
+    probs = np.exp(log_probs - log_probs.mean())
+    assert not np.any(probs <= 0), 'choose a smaller power'
+    return probs
 
-def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_method='importance_sampling'):
+def compute_log_p_log_q_log_d(
+    model,
+    data,
+    decoder_distribution='bernoulli',
+    num_latents_to_sample=1,
+    sampling_method='importance_sampling'
+):
+    assert data.dtype == np.float64, 'images should be normalized'
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
     batch_size = data.shape[0]
@@ -47,46 +45,64 @@ def compute_bernoulli_p_q_d(model, data, num_latents_to_sample=1, sampling_metho
     true_prior = Normal(ptu.zeros((batch_size, representation_size)),
                         ptu.ones((batch_size, representation_size)))
     mus, logvars = latent_distribution_params
-
     for i in range(num_latents_to_sample):
         if sampling_method == 'importance_sampling':
             latents = model.rsample(latent_distribution_params)
         elif sampling_method == 'biased_sampling':
             latents = model.rsample(latent_distribution_params)
-        else:
+        elif sampling_method == 'true_prior_sampling':
             latents = true_prior.rsample()
+        else:
+            raise EnvironmentError('Invalid Sampling Method Provided')
 
         stds = logvars.exp().pow(.5)
         vae_dist = Normal(mus, stds)
         log_p_z = true_prior.log_prob(latents).sum(dim=1)
         log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
-        decoded = model.decode(latents)[0]
-        log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
+        if decoder_distribution == 'bernoulli':
+            decoded = model.decode(latents)[0]
+            log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
+        elif decoder_distribution == 'gaussian_identity_variance':
+            _, obs_distribution_params = model.decode(latents)
+            dec_mu, dec_logvar = obs_distribution_params
+            dec_var = dec_logvar.exp()
+            decoder_dist = Normal(dec_mu, dec_var.pow(.5))
+            log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
+        else:
+            raise EnvironmentError('Invalid Decoder Distribution Provided')
 
         log_p[:, i] = log_p_z
         log_q[:, i] = log_q_z_given_x
         log_d[:, i] = log_d_x_given_z
-
     return log_p, log_q, log_d
 
+def compute_p_x_np_to_np(
+    model,
+    data,
+    power,
+    decoder_distribution='bernoulli',
+    num_latents_to_sample=1,
+    sampling_method='importance_sampling'
+):
+    assert data.dtype == np.float64, 'images should be normalized'
+    assert power >= -1 and power <= 0, 'power for skew-fit should belong to [-1, 0]'
 
-def inv_p_bernoulli_x_np_to_np(model, data, num_latents_to_sample=1, sampling_method='importance_sampling'):
-    # TODO: rename this to "log_p_bernoulli_x_np_to_np
-    """ Assumes data is normalized images"""
-    log_p, log_q, log_d = compute_bernoulli_p_q_d(model, data, num_latents_to_sample, sampling_method)
+    log_p, log_q, log_d = compute_log_p_log_q_log_d(
+        model,
+        data,
+        decoder_distribution,
+        num_latents_to_sample,
+        sampling_method
+    )
+
     if sampling_method == 'importance_sampling':
         log_p_x = (log_p - log_q + log_d).mean(dim=1)
-    else:
+    elif sampling_method == 'biased_sampling' or sampling_method == 'true_prior_sampling':
         log_p_x = log_d.mean(dim=1)
-    return ptu.get_numpy(log_p_x)
-
-
-def compute_inv_p_x_shifted_from_log_p_x(log_p_x):
-    log_p_x = ((log_p_x - log_p_x.mean()) / (log_p_x.std() + 1e-8))
-    log_inv_root_p_x = -1 / 2 * log_p_x
-    log_inv_p_x_prime = log_inv_root_p_x - log_inv_root_p_x.max()
-    inv_p_x_shifted = np.exp(log_inv_p_x_prime)
-    return inv_p_x_shifted
+    else:
+        raise EnvironmentError('Invalid Sampling Method Provided')
+    log_p_x_skewed = power * log_p_x
+    return ptu.get_numpy(log_p_x_skewed)
 
 
 class ConvVAETrainer(Serializable):
@@ -112,6 +128,7 @@ class ConvVAETrainer(Serializable):
             skew_dataset=False,
             skew_config=None,
             priority_function_kwargs=None,
+            start_skew_epoch=0,
             weight_decay=0,
     ):
         self.quick_init(locals())
@@ -157,6 +174,7 @@ class ConvVAETrainer(Serializable):
         self.train_data_workers = train_data_workers
         self.skew_dataset = skew_dataset
         self.skew_config = skew_config
+        self.start_skew_epoch = start_skew_epoch
         if priority_function_kwargs is None:
             self.priority_function_kwargs = dict()
         else:
@@ -241,7 +259,7 @@ class ConvVAETrainer(Serializable):
     def _compute_train_weights(self):
         method = self.skew_config.get('method', 'squared_error')
         power = self.skew_config.get('power', 1)
-        batch_size = 1024
+        batch_size = 512
         size = self.train_dataset.shape[0]
         next_idx = min(batch_size, size)
         cur_idx = 0
@@ -256,12 +274,9 @@ class ConvVAETrainer(Serializable):
                 ) ** power
             elif method == 'kl':
                 weights[idxs] = self._kl_np_to_np(data, **self.priority_function_kwargs)
-            elif method == 'inv_gaussian_p_x':
+            elif method == 'vae_prob':
                 data = normalize_image(data)
-                weights[idxs] = inv_gaussian_p_x_np_to_np(self.model, data, **self.priority_function_kwargs)
-            elif method == 'inv_bernoulli_p_x':
-                data = normalize_image(data)
-                weights[idxs] = inv_p_bernoulli_x_np_to_np(self.model, data, **self.priority_function_kwargs)
+                weights[idxs] = compute_p_x_np_to_np(self.model, data, power=power, **self.priority_function_kwargs)
             elif method == 'inv_exp_elbo':
                 data = normalize_image(data)
                 weights[idxs] = inv_exp_elbo(self.model, data, beta=self.beta) ** power
@@ -270,10 +285,9 @@ class ConvVAETrainer(Serializable):
             cur_idx = next_idx
             next_idx += batch_size
             next_idx = min(next_idx, size)
-        if method == 'inv_gaussian_p_x' or 'inv_bernoulli_p_x':
-            # TODO: move this inside the elif's above so that "weights" has a
-            # consistent meaning
-            weights = compute_inv_p_x_shifted_from_log_p_x(weights) ** power
+
+        if method == 'vae_prob':
+            weights = relative_probs_from_log_probs(weights)
         return weights
 
     def _kl_np_to_np(self, np_imgs):
@@ -293,7 +307,7 @@ class ConvVAETrainer(Serializable):
         self.model = vae
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
-    def get_batch(self, train=True):
+    def get_batch(self, train=True, epoch=None):
         if self.use_parallel_dataloading:
             if not train:
                 dataloader = self.test_dataloader
@@ -303,7 +317,10 @@ class ConvVAETrainer(Serializable):
             return samples
 
         dataset = self.train_dataset if train else self.test_dataset
-        if train and self.skew_dataset:
+        skew = False
+        if epoch is not None:
+            skew = (self.start_skew_epoch < epoch)
+        if train and self.skew_dataset and skew:
             probs = self._train_weights / np.sum(self._train_weights)
             ind = np.random.choice(
                 len(probs),
@@ -345,12 +362,12 @@ class ConvVAETrainer(Serializable):
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
             if sample_batch is not None:
-                data = sample_batch(self.batch_size)
+                data = sample_batch(self.batch_size, epoch)
                 # obs = data['obs']
                 next_obs = data['next_obs']
                 # actions = data['actions']
             else:
-                next_obs = self.get_batch()
+                next_obs = self.get_batch(epoch=epoch)
                 obs = None
                 actions = None
             self.optimizer.zero_grad()
@@ -565,12 +582,12 @@ class ConvVAETrainer(Serializable):
             epoch))
         plt.savefig(save_file)
 
-    def dump_best_reconstruction(self, epoch, num_shown=4):
+    def dump_best_reconstruction(self, epoch, num_shown=10):
         idx_and_weights = self._get_sorted_idx_and_train_weights()
         idxs = [i for i, _ in idx_and_weights[:num_shown]]
         self._dump_imgs_and_reconstructions(idxs, 'best{}.png'.format(epoch))
 
-    def dump_worst_reconstruction(self, epoch, num_shown=4):
+    def dump_worst_reconstruction(self, epoch, num_shown=10):
         idx_and_weights = self._get_sorted_idx_and_train_weights()
         idx_and_weights = idx_and_weights[::-1]
         idxs = [i for i, _ in idx_and_weights[:num_shown]]
@@ -593,10 +610,10 @@ class ConvVAETrainer(Serializable):
         save_image(
             all_imgs.data,
             save_file,
-            nrow=4,
+            nrow=len(idxs),
         )
 
-    def log_loss_under_uniform(self, model, data):
+    def log_loss_under_uniform(self, model, data, priority_function_kwargs):
         import torch.nn.functional as F
         log_probs_prior = []
         log_probs_biased = []
@@ -608,16 +625,19 @@ class ConvVAETrainer(Serializable):
             torch_img = ptu.from_numpy(img)
             reconstructions, obs_distribution_params, latent_distribution_params = self.model(torch_img)
 
-            log_p, log_q, log_d = compute_bernoulli_p_q_d(model, img, 20, 'prior')
+            priority_function_kwargs['sampling_method'] = 'true_prior_sampling'
+            log_p, log_q, log_d = compute_log_p_log_q_log_d(model, img, **priority_function_kwargs)
             log_prob_prior = log_d.mean()
 
-            log_p, log_q, log_d = compute_bernoulli_p_q_d(model, img, 20, 'biased')
+            priority_function_kwargs['sampling_method'] = 'biased_sampling'
+            log_p, log_q, log_d = compute_log_p_log_q_log_d(model, img, **priority_function_kwargs)
             log_prob_biased = log_d.mean()
 
-            log_p, log_q, log_d = compute_bernoulli_p_q_d(model, img, 20, 'importance')
+            priority_function_kwargs['sampling_method'] = 'importance_sampling'
+            log_p, log_q, log_d = compute_log_p_log_q_log_d(model, img, **priority_function_kwargs)
             log_prob_importance = (log_p - log_q + log_d).mean()
 
-            kle = self.model.kl_divergence(latent_distribution_params)
+            kle = model.kl_divergence(latent_distribution_params)
             mse = F.mse_loss(torch_img, reconstructions, reduction='elementwise_mean')
             mses.append(mse.item())
             kles.append(kle.item())
@@ -625,7 +645,7 @@ class ConvVAETrainer(Serializable):
             log_probs_biased.append(log_prob_biased.item())
             log_probs_importance.append(log_prob_importance.item())
 
-        logger.record_tabular("Uniform Data Log Prob (Prior)", np.mean(log_probs_prior))
+        logger.record_tabular("Uniform Data Log Prob (True Prior)", np.mean(log_probs_prior))
         logger.record_tabular("Uniform Data Log Prob (Biased)", np.mean(log_probs_biased))
         logger.record_tabular("Uniform Data Log Prob (Importance)", np.mean(log_probs_importance))
         logger.record_tabular("Uniform Data KL", np.mean(kles))
