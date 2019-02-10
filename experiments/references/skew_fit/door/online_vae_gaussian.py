@@ -102,7 +102,7 @@ if __name__ == "__main__":
         ),
         train_vae_variant=dict(
             representation_size=16,
-            beta=1.0,
+            beta=20,
             num_epochs=0,
             dump_skew_debug_plots=False,
             decoder_activation='gaussian',
@@ -131,7 +131,6 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.power': [-1, -.5, 0],
-        'train_vae_variant.beta': [40],
         'grill_variant.online_vae_beta': [20],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
