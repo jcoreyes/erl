@@ -55,7 +55,7 @@ if __name__ == "__main__":
                 online_vae_kwargs=dict(
                    vae_training_schedule=vae_schedules.custom_schedule,
                     oracle_data=False,
-                    vae_save_period=2,
+                    vae_save_period=25,
                     parallel_vae_train=False,
                 ),
             ),
@@ -93,7 +93,7 @@ if __name__ == "__main__":
                 show=False,
                 tag='_twin_sac'
             ),
-            presampled_goals_path='goals_bright.npy',
+            presampled_goals_path='door_goals_bright_sawyer.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -130,16 +130,17 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.power': [0],
-        'grill_variant.online_vae_beta': [5, 10, 20],
+        'grill_variant.replay_buffer_kwargs.power': [-1, -.5, 0],
+        'train_vae_variant.beta': [40],
+        'grill_variant.online_vae_beta': [20],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
+    n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'skew-fit-rig-door'
+    exp_prefix = 'skew-fit-door-post-bug-tuned-beta-sweep-power'
 
     # n_seeds = 8
     # mode = 'gcp'

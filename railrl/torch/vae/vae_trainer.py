@@ -68,6 +68,13 @@ def compute_log_p_log_q_log_d(
             dec_var = dec_logvar.exp()
             decoder_dist = Normal(dec_mu, dec_var.pow(.5))
             log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
+        elif decoder_distribution == 'gaussian_sample_identity_variance':
+            _, obs_distribution_params = model.decode(latents)
+            dec_mu, dec_logvar = obs_distribution_params
+            dec_var = dec_logvar.exp()
+            decoder_dist = Normal(dec_mu, dec_var.pow(.5))
+            recon_mu, recon_var = model(imgs)[1]
+            log_d_x_given_z = decoder_dist.log_prob(recon_mu).sum(dim=1)
         else:
             raise EnvironmentError('Invalid Decoder Distribution Provided')
 
