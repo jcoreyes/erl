@@ -6,7 +6,7 @@ from railrl.torch.grill.launcher import grill_her_td3_full_experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        imsize=84,
+        imsize=48,
         init_camera=sawyer_init_camera_zoomed_in,
         env_id='SawyerPushNIPS-v0',
         grill_variant=dict(
@@ -94,8 +94,8 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 4
-    mode = 'sss'
+    # n_seeds = 3
+    # mode = 'sss'
     exp_prefix = 'sawyer_nips_pusher_state_her_td3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
