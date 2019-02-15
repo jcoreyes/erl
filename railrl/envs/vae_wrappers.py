@@ -106,10 +106,10 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
                 if self.goal_sampler is None:
                     raise RuntimeError("Explicit goal sampler not set")
                 goals = self.goal_sampler(1)
-                alternate_goals = self._sample_vae_prior(1)
                 # Should only happen if the goal_sampler doesn't have sufficient
                 # goals yet (for example replay buffer empty)
                 if goals is None:
+                    alternate_goals = self._sample_vae_prior(1)
                     latent_goals = alternate_goals
                 else:
                     latent_goals = goals['latent_desired_goal']
@@ -204,7 +204,8 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
                 raise RuntimeError("Explicit goal sampler not set")
 
             goals = self.goal_sampler(batch_size)
-            # should only occur if no goals have been added to the sampler yet
+            # use goal_sampler if possible. Otherwise use the default sampling
+            # method.
             if goals is not None:
                 return goals
 
