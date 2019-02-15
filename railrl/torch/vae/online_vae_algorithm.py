@@ -39,7 +39,6 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
 
     def _post_epoch(self, epoch):
         super()._post_epoch(epoch)
-
         if self.parallel_vae_train and self.vae_training_process is None:
             self.init_vae_training_subproces()
 

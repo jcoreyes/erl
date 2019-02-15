@@ -937,6 +937,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
             env.goal_sampler_for_exploration
         ), 'goal sampler set but not used'
         assert algorithm.collection_mode != 'online-parallel', "still figuring out what I need to serialize to ensure this works correctly"
+        assert env.goal_sampler is None, "Overriding existing goal sampler?"
         env.goal_sampler = replay_buffer.sample_buffer_goals
 
     algorithm.to(ptu.device)
