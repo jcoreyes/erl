@@ -17,12 +17,12 @@ imsize48_default_architecture=dict(
             strides=[3, 2, 2],
         ),
         conv_kwargs=dict(
-            hidden_sizes=[128],
+            hidden_sizes=[],
             batch_norm_conv=False,
             batch_norm_fc=False,
         ),
         deconv_args=dict(
-            hidden_sizes=[128],
+            hidden_sizes=[],
 
             deconv_input_width=3,
             deconv_input_height=3,

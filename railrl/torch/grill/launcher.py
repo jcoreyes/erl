@@ -868,33 +868,66 @@ def grill_her_twin_sac_experiment_online_vae(variant):
                        )
     render = variant["render"]
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
-    algorithm = OnlineVaeHerTwinSac(
-        online_vae_kwargs=dict(
-            vae=vae,
-            vae_trainer=t,
-            uniform_dataset=uniform_dataset,
-            **variant['algo_kwargs']['online_vae_kwargs']
-        ),
-        base_kwargs=dict(
-            env=env,
-            training_env=env,
-            policy=policy,
-            exploration_policy=exploration_policy,
-            render=render,
-            render_during_eval=render,
-            **variant['algo_kwargs']['base_kwargs'],
-        ),
-        her_kwargs=dict(
-            observation_key=observation_key,
-            desired_goal_key=desired_goal_key,
-        ),
-        twin_sac_kwargs=dict(
-            **variant['algo_kwargs']['twin_sac_kwargs'],
-            qf1=qf1,
-            qf2=qf2,
-            vf=vf,
+
+    from railrl.torch.vae.discern_diverse_algorithm import DiverseGoals
+    if variant.get('use_discern_sampling', False) == True:
+        algorithm = DiverseGoals(
+            online_vae_kwargs=dict(
+                vae=vae,
+                vae_trainer=t,
+                uniform_dataset=uniform_dataset,
+                **variant['algo_kwargs']['online_vae_kwargs']
+            ),
+            base_kwargs=dict(
+                env=env,
+                training_env=env,
+                policy=policy,
+                exploration_policy=exploration_policy,
+                render=render,
+                render_during_eval=render,
+                **variant['algo_kwargs']['base_kwargs'],
+            ),
+            her_kwargs=dict(
+                observation_key=observation_key,
+                desired_goal_key=desired_goal_key,
+            ),
+            twin_sac_kwargs=dict(
+                **variant['algo_kwargs']['twin_sac_kwargs'],
+                qf1=qf1,
+                qf2=qf2,
+                vf=vf,
+            ),
+            **variant['algo_kwargs']['diverse_kwargs']
         )
-    )
+
+    else:
+        algorithm = OnlineVaeHerTwinSac(
+            online_vae_kwargs=dict(
+                vae=vae,
+                vae_trainer=t,
+                uniform_dataset=uniform_dataset,
+                **variant['algo_kwargs']['online_vae_kwargs']
+            ),
+            base_kwargs=dict(
+                env=env,
+                training_env=env,
+                policy=policy,
+                exploration_policy=exploration_policy,
+                render=render,
+                render_during_eval=render,
+                **variant['algo_kwargs']['base_kwargs'],
+            ),
+            her_kwargs=dict(
+                observation_key=observation_key,
+                desired_goal_key=desired_goal_key,
+            ),
+            twin_sac_kwargs=dict(
+                **variant['algo_kwargs']['twin_sac_kwargs'],
+                qf1=qf1,
+                qf2=qf2,
+                vf=vf,
+            )
+        )
 
     algorithm.to(ptu.device)
     vae.to(ptu.device)

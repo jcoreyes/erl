@@ -29,7 +29,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1010,
+                    num_epochs=150,
                     num_steps_per_epoch=500,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=10000,
@@ -37,7 +37,7 @@ if __name__ == "__main__":
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    collection_mode='online-parallel',
+                    # collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -53,9 +53,10 @@ if __name__ == "__main__":
                     use_automatic_entropy_tuning=True,
                 ),
                 online_vae_kwargs=dict(
-                   vae_training_schedule=vae_schedules.custom_schedule,
+                    sample_goals_from_buffer=True,
+                    vae_training_schedule=vae_schedules.custom_schedule,
                     oracle_data=False,
-                    vae_save_period=25,
+                    vae_save_period=50,
                     parallel_vae_train=False,
                 ),
             ),
@@ -131,7 +132,7 @@ if __name__ == "__main__":
 
     search_space = {
         'grill_variant.replay_buffer_kwargs.power': [-1, -.5, 0],
-        'train_vae_variant.beta': [40],
+        'train_vae_variant.beta': [20],
         'grill_variant.online_vae_beta': [20],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -140,7 +141,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'skew-fit-door-post-bug-tuned-beta-sweep-power'
+    exp_prefix = 'skew-fit-door-comp-new-visuals-replay-goals'
 
     # n_seeds = 8
     # mode = 'gcp'

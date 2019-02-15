@@ -272,10 +272,15 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         else:
             indices = self._sample_indices(batch_size)
 
-        next_obs = normalize_image(self._next_obs[self.decoded_obs_key][indices])
-        return dict(
-            next_obs=ptu.from_numpy(next_obs)
-        )
+        next_image_obs = normalize_image(self._next_obs[self.decoded_obs_key][indices])
+        next_latent_obs = self._next_obs[self.achieved_goal_key][indices]
+        # BAD OVERLOADING HERE.
+        # next obs in torch format, everything else in numpy
+        return {
+            'next_obs':                     ptu.from_numpy(next_image_obs),
+            self.decoded_desired_goal_key:  next_image_obs,
+            self.desired_goal_key:          next_latent_obs
+        }
 
     def reconstruction_mse(self, next_vae_obs, indices):
         torch_input = ptu.from_numpy(next_vae_obs)

@@ -92,12 +92,20 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         self.desired_goal = {}
         self.desired_goal['latent_desired_goal'] = latent_space.sample()
         self._initial_obs = None
+        self.goal_sampler = None
 
     def reset(self):
         obs = self.wrapped_env.reset()
         goal = {}
 
         if self.use_vae_goals:
+            if self.goal_sampler is not None:
+                goals = self.goal_sampler(1)
+                alternate_goals = self._sample_vae_prior(1)
+                if goals is None:
+                    latent_goals = alternate_goals
+                else:
+                    latent_goals = goals['latent_desired_goal']
             if self.use_replay_buffer_goals:
                 latent_goals = self.sample_replay_buffer_latent_goals(1)
             else:
@@ -182,6 +190,12 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
     Multitask functions
     """
     def sample_goals(self, batch_size):
+        if self.goal_sampler is not None and self.use_vae_goals:
+            goals = self.goal_sampler(batch_size)
+            # should only occur if no goals have been added to the sampler yet
+            if goals is not None:
+                return goals
+
         if self.num_goals_presampled > 0 and not self.use_vae_goals:
             idx = np.random.randint(0, self.num_goals_presampled, batch_size)
             sampled_goals = {
@@ -473,6 +487,16 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             return decoded, None
         else:
             raise AssertionError("Bad prefix for the vae input key.")
+
+    def __getstate__(self):
+        state_dict = super().__getstate__()
+        state_dict['mode_map'] = self._mode_map
+        return state_dict
+
+    def __setstate__(self, state_dict):
+        super().__setstate__(state_dict)
+        self._mode_map = state_dict['mode_map']
+
 
 def temporary_mode(env, mode, func, args=None, kwargs=None):
     if args is None:
