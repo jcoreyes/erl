@@ -869,7 +869,9 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     render = variant["render"]
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
 
+
     from railrl.torch.vae.discern_diverse_algorithm import DiverseGoals
+    # TODO: Remove duplicate code
     if variant.get('use_discern_sampling', False) == True:
         algorithm = DiverseGoals(
             online_vae_kwargs=dict(
@@ -928,6 +930,14 @@ def grill_her_twin_sac_experiment_online_vae(variant):
                 vf=vf,
             )
         )
+
+    if variant.get('sample_goals_from_buffer', False) == True:
+        assert (
+            env.goal_sampler_for_relabeling or
+            env.goal_sampler_for_exploration
+        ), 'goal sampler set but not used'
+        assert algorithm.collection_mode != 'online-parallel', "still figuring out what I need to serialize to ensure this works correctly"
+        env.goal_sampler = replay_buffer.sample_buffer_goals
 
     algorithm.to(ptu.device)
     vae.to(ptu.device)

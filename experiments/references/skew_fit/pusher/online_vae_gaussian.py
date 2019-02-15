@@ -14,6 +14,7 @@ if __name__ == "__main__":
         init_camera=sawyer_init_camera_zoomed_in,
         env_id='SawyerPushNIPSEasy-v0',
         grill_variant=dict(
+            sample_goals_from_buffer=True,
             save_video=True,
             online_vae_beta=20,
             save_video_period=50,
@@ -53,7 +54,6 @@ if __name__ == "__main__":
                     use_automatic_entropy_tuning=True,
                 ),
                 online_vae_kwargs=dict(
-                    sample_goals_from_buffer=True,
                     vae_training_schedule=vae_schedules.custom_schedule_2,
                     oracle_data=False,
                     vae_save_period=50,
@@ -151,7 +151,7 @@ if __name__ == "__main__":
         'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[
             10
         ],
-        'grill_variant.replay_buffer_kwargs.power': [-1, -.5, 0],
+        'grill_variant.replay_buffer_kwargs.power': [-.5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -161,9 +161,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 3
-    mode = 'gcp'
-    exp_prefix = 'skew-fit-pusher-new-visuals-from-replay-buffer-2'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'skew-fit-pusher-new-visuals-from-replay-buffer-3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

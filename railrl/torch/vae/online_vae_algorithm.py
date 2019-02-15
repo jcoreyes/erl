@@ -21,7 +21,6 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
             oracle_data=False,
             parallel_vae_train=True,
             vae_min_num_steps_before_training=0,
-            sample_goals_from_buffer=False,
             uniform_dataset=None,
     ):
         self.vae = vae
@@ -37,25 +36,9 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
         self.parallel_vae_train = parallel_vae_train
         self.vae_min_num_steps_before_training = vae_min_num_steps_before_training
         self.uniform_dataset = uniform_dataset
-        self.sample_goals_from_buffer = sample_goals_from_buffer
-
-    def sample_goals(self, batch_size):
-        # Should this function be in the algorithm or the buffer?
-        if self.replay_buffer._size == 0:
-            return None
-        batch = self.replay_buffer.random_vae_training_data(
-            batch_size,
-            self.epoch
-        )
-        return batch
 
     def _post_epoch(self, epoch):
         super()._post_epoch(epoch)
-        # Ideally this would be in the constructor, but we have a multi-inheritance
-        # thing going on in prevents env from being defined at that point.
-        if self.sample_goals_from_buffer:
-            assert self.collection_mode != 'online-parallel', "still figuring out what I need to serialize to ensure this functions correctly"
-            self.env.goal_sampler = self.sample_goals
 
         if self.parallel_vae_train and self.vae_training_process is None:
             self.init_vae_training_subproces()

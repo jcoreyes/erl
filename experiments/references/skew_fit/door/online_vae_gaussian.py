@@ -15,6 +15,7 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookResetFreeEnv-v0',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
+            sample_goals_from_buffer=True,
             save_video=True,
             online_vae_beta=5,
             save_video_period=50,
@@ -53,7 +54,6 @@ if __name__ == "__main__":
                     use_automatic_entropy_tuning=True,
                 ),
                 online_vae_kwargs=dict(
-                    sample_goals_from_buffer=True,
                     vae_training_schedule=vae_schedules.custom_schedule,
                     oracle_data=False,
                     vae_save_period=50,
@@ -131,7 +131,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.power': [-1, -.5, 0],
+        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [True],
+        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [True],
+        'grill_variant.replay_buffer_kwargs.power': [-.5, 0],
         'train_vae_variant.beta': [20],
         'grill_variant.online_vae_beta': [20],
     }
@@ -139,9 +141,9 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 3
-    mode = 'gcp'
-    exp_prefix = 'skew-fit-door-comp-new-visuals-replay-goals'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'skew-fit-door-comp-new-visuals-replay-goals-2'
 
     # n_seeds = 8
     # mode = 'gcp'
