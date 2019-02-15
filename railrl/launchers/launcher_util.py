@@ -391,6 +391,7 @@ def run_experiment(
             gcp_log_prefix=exp_prefix,
             num_exps=num_exps_per_instance,
             gcp_log_name="",
+            num_exps=num_exps_per_instance,
             **config_kwargs
         )
     else:

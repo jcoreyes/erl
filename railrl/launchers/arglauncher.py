@@ -67,6 +67,8 @@ def run_variant(experiment, variant):
         prepend_date_to_exp_prefix=False,
         # spot_price=variant["spot_price"],
         region=variant.get("region", "us-east-1"),
+        time_in_mins=variant.get("time_in_mins", 0),
+        ssh_host=variant.get("ssh_host", None),
     )
 
 def parallel_run(experiment, variants, n_p):
@@ -106,6 +108,12 @@ def process_variant_cmd(variant):
         variant["mode"] = "local"
     if "--localdocker" in sys.argv:
         variant["mode"] = "local_docker"
+    if "--sss" in sys.argv:
+        variant["mode"] = "sss"
+    if "--ssh" in sys.argv:
+        variant["mode"] = "ssh"
+        i = sys.argv.index("--ssh")
+        variant["ssh_host"] = sys.argv[i+1]
 
     if "--parallel" in sys.argv:
         i = sys.argv.index("--parallel")
@@ -140,6 +148,9 @@ def process_variant_cmd(variant):
             variant["instance_type"] = "g3.4xlarge"
         if "gpu_id" not in variant:
             variant["gpu_id"] = 0
+    if "--time" in sys.argv:
+        i = sys.argv.index("--time")
+        variant["time_in_mins"] = int(sys.argv[i+1])
 
     if "--run" in sys.argv:
         i = sys.argv.index("--run")
