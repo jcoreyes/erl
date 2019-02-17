@@ -389,7 +389,6 @@ def run_experiment(
             gpu=use_gpu,
             gcp_bucket_name=config.GCP_BUCKET_NAME,
             gcp_log_prefix=exp_prefix,
-            num_exps=num_exps_per_instance,
             gcp_log_name="",
             num_exps=num_exps_per_instance,
             **config_kwargs

@@ -133,7 +133,7 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [True],
         'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [True],
-        'grill_variant.replay_buffer_kwargs.power': [-.5, 0],
+        'grill_variant.replay_buffer_kwargs.power': [-.5],
         'train_vae_variant.beta': [20],
         'grill_variant.online_vae_beta': [20],
     }
@@ -141,9 +141,9 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
+    n_seeds = 2
     mode = 'local'
-    exp_prefix = 'skew-fit-door-comp-new-visuals-replay-goals-2'
+    exp_prefix = 'skew-fit-door-comp-expl-relabel'
 
     # n_seeds = 8
     # mode = 'gcp'
