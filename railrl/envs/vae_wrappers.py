@@ -196,7 +196,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
     """
     def sample_goals(self, batch_size):
         if (
-            self.goal_sampler is not None and
             self.use_vae_goals and
             self.goal_sampler_for_relabeling
         ):
