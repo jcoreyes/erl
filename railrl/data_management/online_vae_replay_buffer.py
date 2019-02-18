@@ -159,6 +159,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
 
     def refresh_latents(self, epoch):
         self.epoch = epoch
+        self.skew = (self.epoch > self.start_skew_epoch)
         batch_size = 512
         next_idx = min(batch_size, self._size)
 
@@ -254,11 +255,11 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             self._vae_sample_probs /= np.sum(self._vae_sample_probs)
             self._vae_sample_probs = self._vae_sample_probs.flatten()
 
-    def random_vae_training_data(self, batch_size, epoch):
+    def sample_weighted_indices(self, batch_size):
         if (
             self._prioritize_vae_samples and
             self._vae_sample_probs is not None and
-            epoch > self.start_skew_epoch
+            self.skew
         ):
             indices = np.random.choice(
                 len(self._vae_sample_probs),
@@ -271,10 +272,45 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             )
         else:
             indices = self._sample_indices(batch_size)
+        return indices
 
-        next_obs = normalize_image(self._next_obs[self.decoded_obs_key][indices])
+    def sample_buffer_goals(self, batch_size):
+        """
+        Samples goals from weighted replay buffer for relabeling or exploration.
+        Returns None if replay buffer is empty.
+
+        Example of what might be returned:
+        dict(
+            image_desired_goals: image_achieved_goals[weighted_indices],
+            latent_desired_goals: latent_desired_goals[weighted_indices],
+        )
+        """
+        if self._size == 0:
+            return None
+        weighted_idxs = self.sample_weighted_indices(
+            batch_size,
+        )
+        next_image_obs = normalize_image(
+            self._next_obs[self.decoded_obs_key][weighted_idxs]
+        )
+        next_latent_obs = self._next_obs[self.achieved_goal_key][weighted_idxs]
+        return {
+            self.decoded_desired_goal_key:  next_image_obs,
+            self.desired_goal_key:          next_latent_obs
+        }
+
+    def random_vae_training_data(self, batch_size, epoch):
+        # epoch no longer needed. Using self.skew in sample_weighted_indices
+        # instead.
+        weighted_idxs = self.sample_weighted_indices(
+            batch_size,
+        )
+
+        next_image_obs = normalize_image(
+            self._next_obs[self.decoded_obs_key][weighted_idxs]
+        )
         return dict(
-            next_obs=ptu.from_numpy(next_obs)
+            next_obs=ptu.from_numpy(next_image_obs)
         )
 
     def reconstruction_mse(self, next_vae_obs, indices):

@@ -28,6 +28,8 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         decode_goals=False,
         render_goals=False,
         render_rollouts=False,
+        goal_sampler_for_relabeling=False,
+        goal_sampler_for_exploration=False,
         reward_params=None,
         mode="train",
         imsize=84,
@@ -81,7 +83,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             self.num_goals_presampled = 0
         else:
             self.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
-        self.use_replay_buffer_goals = False
 
         self.vae_input_key_prefix = vae_input_key_prefix
         assert vae_input_key_prefix in set(['image', 'image_proprio'])
@@ -91,15 +92,27 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         self._mode_map = {}
         self.desired_goal = {}
         self.desired_goal['latent_desired_goal'] = latent_space.sample()
+        self.goal_sampler_for_relabeling = goal_sampler_for_relabeling
+        self.goal_sampler_for_exploration = goal_sampler_for_exploration
         self._initial_obs = None
+        self.goal_sampler = None
 
     def reset(self):
         obs = self.wrapped_env.reset()
         goal = {}
 
         if self.use_vae_goals:
-            if self.use_replay_buffer_goals:
-                latent_goals = self.sample_replay_buffer_latent_goals(1)
+            if self.goal_sampler_for_exploration:
+                if self.goal_sampler is None:
+                    raise RuntimeError("Explicit goal sampler not set")
+                goals = self.goal_sampler(1)
+                # Should only happen if the goal_sampler doesn't have sufficient
+                # goals yet (for example replay buffer empty)
+                if goals is None:
+                    alternate_goals = self._sample_vae_prior(1)
+                    latent_goals = alternate_goals
+                else:
+                    latent_goals = goals['latent_desired_goal']
             else:
                 latent_goals = self._sample_vae_prior(1)
             latent_goal = latent_goals[0]
@@ -182,6 +195,19 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
     Multitask functions
     """
     def sample_goals(self, batch_size):
+        if (
+            self.use_vae_goals and
+            self.goal_sampler_for_relabeling
+        ):
+            if self.goal_sampler is None:
+                raise RuntimeError("Explicit goal sampler not set")
+
+            goals = self.goal_sampler(batch_size)
+            # use goal_sampler if possible. Otherwise use the default sampling
+            # method.
+            if goals is not None:
+                return goals
+
         if self.num_goals_presampled > 0 and not self.use_vae_goals:
             idx = np.random.randint(0, self.num_goals_presampled, batch_size)
             sampled_goals = {
@@ -194,10 +220,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
 
         if self.use_vae_goals:
             goals = {}
-            if self.use_replay_buffer_goals:
-                latent_goals = self.sample_replay_buffer_latent_goals(batch_size)
-            else:
-                latent_goals = self._sample_vae_prior(batch_size)
+            latent_goals = self._sample_vae_prior(batch_size)
             goals['state_desired_goal'] = None
         else:
             goals = self.wrapped_env.sample_goals(batch_size)
@@ -422,13 +445,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         n = np.random.randn(batch_size, self.representation_size)
         return sigma * n + mu
 
-    def sample_replay_buffer_latent_goals(self, batch_size):
-        if self.replay_buffer._size > 0:
-            idxs = self.replay_buffer._sample_indices(batch_size)
-            latent_goals = self.replay_buffer._next_obs['latent_achieved_goal'][idxs]
-            return latent_goals
-        return self._sample_vae_prior(batch_size)
-
     def _decode(self, latents):
         reconstructions, _ = self.vae.decode(ptu.from_numpy(latents))
         decoded = ptu.get_numpy(reconstructions)
@@ -473,6 +489,16 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             return decoded, None
         else:
             raise AssertionError("Bad prefix for the vae input key.")
+
+    def __getstate__(self):
+        state_dict = super().__getstate__()
+        state_dict['mode_map'] = self._mode_map
+        return state_dict
+
+    def __setstate__(self, state_dict):
+        super().__setstate__(state_dict)
+        self._mode_map = state_dict['mode_map']
+
 
 def temporary_mode(env, mode, func, args=None, kwargs=None):
     if args is None:

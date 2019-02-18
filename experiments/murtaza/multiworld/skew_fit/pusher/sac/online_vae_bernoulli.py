@@ -28,11 +28,11 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=510,
+                    num_epochs=310,
                     num_steps_per_epoch=1000,
                     num_steps_per_eval=1000,
                     min_num_steps_before_training=10000,
-                    batch_size=128,
+                    batch_size=1024,
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
@@ -63,9 +63,9 @@ if __name__ == "__main__":
                 fraction_goals_rollout_goals=0.0,
                 fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
-                vae_priority_type='image_bernoulli_inv_prob',
+                vae_priority_type='None',
                 priority_function_kwargs=dict(
-                    sampling_method='importance_sampling',
+                    sampling_method='correct',
                     num_latents_to_sample=10,
                 ),
                 power=2,
@@ -85,15 +85,6 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            # generate_uniform_dataset_kwargs=dict(
-                # init_camera=sawyer_init_camera_zoomed_in,
-                # env_id='SawyerPushNIPS-v0',
-                # num_imgs=1000,
-                # use_cached_dataset=False,
-                # show=False,
-                # save_file_prefix='pusher',
-            # ),
-            # generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
         ),
         train_vae_variant=dict(
             representation_size=4,
@@ -102,8 +93,8 @@ if __name__ == "__main__":
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
-                N=1000,
-                test_p=.9,
+                N=10,
+                test_p=.5,
                 use_cached=True,
                 show=False,
                 oracle_dataset=True,
@@ -120,12 +111,12 @@ if __name__ == "__main__":
                 lr=1e-3,
             ),
             save_period=1,
+            version='0 .5 1'
         ),
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.power':[0.02],
-        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[10]
+        'grill_variant.replay_buffer_kwargs.power':[0],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -135,9 +126,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 8
-    mode = 'gcp'
-    exp_prefix = 'pusher-skew-fit-final-is'
+    n_seeds = 2
+    mode = 'local'
+    exp_prefix = 'recreate-pusher-results'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -149,7 +140,7 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east1-c',
+                    zone='us-west1-b',
                     gpu_kwargs=dict(
                         gpu_model='nvidia-tesla-k80',
                         num_gpu=1,
