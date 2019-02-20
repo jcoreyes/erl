@@ -16,7 +16,7 @@ if __name__ == "__main__":
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
             sample_goals_from_buffer=True,
-            save_video=True,
+            save_video=False,
             online_vae_beta=5,
             save_video_period=50,
             qf_kwargs=dict(
@@ -165,6 +165,8 @@ if __name__ == "__main__":
                 use_gpu=True,
                 num_exps_per_instance=3,
                 time_in_mins=int(2.8*24*60),
+                snapshot_gap=25,
+                snapshot_mode='gap_and_last',
                 gcp_kwargs=dict(
                     zone='us-east1-c',
                     gpu_kwargs=dict(
