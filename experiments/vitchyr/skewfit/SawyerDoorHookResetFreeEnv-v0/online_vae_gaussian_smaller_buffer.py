@@ -62,7 +62,7 @@ if __name__ == "__main__":
             ),
             replay_buffer_kwargs=dict(
                 start_skew_epoch=10,
-                max_size=int(100000),
+                max_size=int(10000),
                 fraction_goals_rollout_goals=0.0,
                 fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
@@ -134,9 +134,14 @@ if __name__ == "__main__":
     search_space = {
         'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [True],
         'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [True],
-        'grill_variant.replay_buffer_kwargs.power': [-.5],
+        'grill_variant.replay_buffer_kwargs.power': [-1],
         'train_vae_variant.beta': [20],
         'grill_variant.online_vae_beta': [20],
+        'grill_variant.replay_buffer_kwargs.max_size': [
+            10000,
+            20000,
+            40000,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -146,10 +151,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'sss'
-    # exp_prefix = 'door-sf-steven-reference-script'
-    exp_prefix = 'local-door-sf-steven-reference-script'
+    n_seeds = 2
+    mode = 'sss'
+    exp_prefix = 'door-sf-steven-reference-script-rb-size-sweep'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
