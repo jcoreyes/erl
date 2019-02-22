@@ -64,9 +64,11 @@ def generate_vae_dataset_from_params(
     if dataset_path is not None:
         filename = local_path_from_s3_or_local_path(dataset_path)
         dataset = np.load(filename)
+        np.random.shuffle(dataset)
         N = dataset.shape[0]
     elif use_cached and osp.isfile(filename):
         dataset = np.load(filename)
+        np.random.shuffle(dataset)
         print("loaded data from saved file", filename)
     else:
         now = time.time()
@@ -107,8 +109,8 @@ def generate_vae_dataset_from_params(
                 time.sleep(.2)
                 # radius = input('waiting...')
         print("done making training data", filename, time.time() - now)
-        np.save(filename, dataset)
         np.random.shuffle(dataset)
+        np.save(filename, dataset)
 
     n = int(N * test_p)
     train_dataset = dataset[:n, :]

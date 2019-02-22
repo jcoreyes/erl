@@ -15,7 +15,7 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookResetFreeEnv-v0',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
-            sample_goals_from_buffer=True,
+            use_discern_sampling=True,
             save_video=True,
             online_vae_beta=5,
             save_video_period=50,
@@ -30,7 +30,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=150,
+                    num_epochs=1010,
                     num_steps_per_epoch=500,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=10000,
@@ -59,6 +59,12 @@ if __name__ == "__main__":
                     vae_save_period=50,
                     parallel_vae_train=False,
                 ),
+                diverse_kwargs=dict(
+                    p_replace=.05,
+                    p_add_non_diverse=.05,
+                    goal_buffer_size=1024,
+                ),
+
             ),
             replay_buffer_kwargs=dict(
                 start_skew_epoch=10,
@@ -66,13 +72,13 @@ if __name__ == "__main__":
                 fraction_goals_rollout_goals=0.0,
                 fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
-                vae_priority_type='vae_prob',
+                vae_priority_type='None',
                 priority_function_kwargs=dict(
                     sampling_method='importance_sampling',
                     decoder_distribution='gaussian_identity_variance',
                     num_latents_to_sample=10,
                 ),
-                power=.1,
+                power=0,
             ),
             normalize=False,
             render=False,
@@ -103,7 +109,7 @@ if __name__ == "__main__":
         ),
         train_vae_variant=dict(
             representation_size=16,
-            beta=20,
+            beta=1.0,
             num_epochs=0,
             dump_skew_debug_plots=False,
             decoder_activation='gaussian',
@@ -131,23 +137,15 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [True],
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [True],
-        'grill_variant.replay_buffer_kwargs.power': [-.5],
-        'train_vae_variant.beta': [20],
-        'grill_variant.online_vae_beta': [20],
+        'grill_variant.algo_kwargs.diverse_kwargs.p_replace': [.01],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 2
-    mode = 'local'
-    exp_prefix = 'skew-fit-door-comp-expl-relabel'
-
-    # n_seeds = 8
-    # mode = 'gcp'
-    # exp_prefix = 'door-skew-fit-power-bug_v2'
+    n_seeds = 3
+    mode = 'gcp'
+    exp_prefix = 'steven-door-discern-new-visuals-comp-2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -156,11 +154,14 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
+                snapshot_gap=50,
+                snapshot_mode='gap_and_last',
                 use_gpu=True,
                 num_exps_per_instance=3,
                 gcp_kwargs=dict(
-                    zone='us-east1-c',
+                    zone='us-west1-b',
                     gpu_kwargs=dict(
+                        # gpu_model='nvidia-tesla-p4',
                         gpu_model='nvidia-tesla-k80',
                         num_gpu=1,
                     )

@@ -89,12 +89,13 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=True,
-                policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
+                # policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
+                policy_file='02-12-sawyer-nips-door-state-her-td3/02-12-sawyer_nips_door_state_her_td3_2019_02_12_16_38_54_id000--s41587/itr_1000.pkl',
                 path_length=100,
                 show=False,
                 tag='_twin_sac'
             ),
-            presampled_goals_path='door_goals_bright_sawyer.npy',
+            presampled_goals_path='manual-upload/door_goals_new_visuals.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -141,13 +142,14 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 2
+    n_seeds = 1
     mode = 'local'
-    exp_prefix = 'skew-fit-door-comp-expl-relabel'
+    exp_prefix = 'dev'
 
-    # n_seeds = 8
-    # mode = 'gcp'
-    # exp_prefix = 'door-skew-fit-power-bug_v2'
+    # n_seeds = 3
+    # mode = 'sss'
+    # exp_prefix = 'door-sf-steven-reference-script'
+    exp_prefix = 'local-door-sf-steven-reference-script'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -158,6 +160,7 @@ if __name__ == "__main__":
                 variant=variant,
                 use_gpu=True,
                 num_exps_per_instance=3,
+                time_in_mins=int(2.8*24*60),
                 gcp_kwargs=dict(
                     zone='us-east1-c',
                     gpu_kwargs=dict(

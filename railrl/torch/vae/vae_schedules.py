@@ -13,6 +13,14 @@ def custom_schedule(epoch):
     else:
         return epoch % 3 == 0, 200
 
+def custom_schedule_2(epoch):
+    if epoch < 10:
+        return True, 1000
+    elif epoch < 100:
+        return True, 200
+    else:
+        return epoch % 2 == 0, 200
+
 def every_other(epoch):
     return epoch % 2 == 0, 400
 

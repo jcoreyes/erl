@@ -438,6 +438,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self.env.log_diagnostics(test_paths, logger=logger)
         if hasattr(self.env, "get_diagnostics"):
             statistics.update(self.env.get_diagnostics(test_paths))
+            if len(self._exploration_paths) > 0:
+                statistics.update(
+                    self.env.get_diagnostics(
+                        self._exploration_paths,
+                        prefix='Exploration ',
+                    ),
+                )
 
         average_returns = eval_util.get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns

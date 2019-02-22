@@ -307,6 +307,7 @@ def generate_vae_dataset(variant):
                             action, _ = policy.get_action(policy_obs)
                             obs, _, _, _ = env.step(action)
                 elif oracle_dataset_using_set_to_goal:
+                    print(i)
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
                     obs = env._get_obs()
@@ -867,33 +868,77 @@ def grill_her_twin_sac_experiment_online_vae(variant):
                        )
     render = variant["render"]
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
-    algorithm = OnlineVaeHerTwinSac(
-        online_vae_kwargs=dict(
-            vae=vae,
-            vae_trainer=t,
-            uniform_dataset=uniform_dataset,
-            **variant['algo_kwargs']['online_vae_kwargs']
-        ),
-        base_kwargs=dict(
-            env=env,
-            training_env=env,
-            policy=policy,
-            exploration_policy=exploration_policy,
-            render=render,
-            render_during_eval=render,
-            **variant['algo_kwargs']['base_kwargs'],
-        ),
-        her_kwargs=dict(
-            observation_key=observation_key,
-            desired_goal_key=desired_goal_key,
-        ),
-        twin_sac_kwargs=dict(
-            **variant['algo_kwargs']['twin_sac_kwargs'],
-            qf1=qf1,
-            qf2=qf2,
-            vf=vf,
+
+
+    from railrl.torch.vae.discern_diverse_algorithm import DiverseGoals
+    # TODO: Remove duplicate code
+    if variant.get('use_discern_sampling', False) == True:
+        algorithm = DiverseGoals(
+            online_vae_kwargs=dict(
+                vae=vae,
+                vae_trainer=t,
+                uniform_dataset=uniform_dataset,
+                **variant['algo_kwargs']['online_vae_kwargs']
+            ),
+            base_kwargs=dict(
+                env=env,
+                training_env=env,
+                policy=policy,
+                exploration_policy=exploration_policy,
+                render=render,
+                render_during_eval=render,
+                **variant['algo_kwargs']['base_kwargs'],
+            ),
+            her_kwargs=dict(
+                observation_key=observation_key,
+                desired_goal_key=desired_goal_key,
+            ),
+            twin_sac_kwargs=dict(
+                **variant['algo_kwargs']['twin_sac_kwargs'],
+                qf1=qf1,
+                qf2=qf2,
+                vf=vf,
+            ),
+            **variant['algo_kwargs']['diverse_kwargs']
         )
-    )
+
+    else:
+        algorithm = OnlineVaeHerTwinSac(
+            online_vae_kwargs=dict(
+                vae=vae,
+                vae_trainer=t,
+                uniform_dataset=uniform_dataset,
+                **variant['algo_kwargs']['online_vae_kwargs']
+            ),
+            base_kwargs=dict(
+                env=env,
+                training_env=env,
+                policy=policy,
+                exploration_policy=exploration_policy,
+                render=render,
+                render_during_eval=render,
+                **variant['algo_kwargs']['base_kwargs'],
+            ),
+            her_kwargs=dict(
+                observation_key=observation_key,
+                desired_goal_key=desired_goal_key,
+            ),
+            twin_sac_kwargs=dict(
+                **variant['algo_kwargs']['twin_sac_kwargs'],
+                qf1=qf1,
+                qf2=qf2,
+                vf=vf,
+            )
+        )
+
+    if variant.get('sample_goals_from_buffer', False) == True:
+        assert (
+            env.goal_sampler_for_relabeling or
+            env.goal_sampler_for_exploration
+        ), 'goal sampler set but not used'
+        assert algorithm.collection_mode != 'online-parallel', "still figuring out what I need to serialize to ensure this works correctly"
+        assert env.goal_sampler is None, "Overriding existing goal sampler?"
+        env.goal_sampler = replay_buffer.sample_buffer_goals
 
     algorithm.to(ptu.device)
     vae.to(ptu.device)
