@@ -80,7 +80,6 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         imsize=64,
-        history=4,
         algo_params=dict(
             num_epochs=2000,
             num_steps_per_epoch=500,
