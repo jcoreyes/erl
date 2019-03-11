@@ -73,14 +73,15 @@ def experiment(variant):
         vf=vf,
         **variant['algo_params']
     )
-
+    
     algorithm.to(ptu.device)
     algorithm.train()
     
     
-if __name__ == "__main__":
+if __name__ == "__main__":    
     variant = dict(
-        imsize=32,
+        imsize=64,
+        gap_mode=100,
         arm_goal_distance_cost_coeff=1.0,
         arm_object_distance_cost_coeff=0.0,
         goal_object_distance_cost_coeff=0.0,
@@ -98,16 +99,16 @@ if __name__ == "__main__":
             vf_lr=3e-4,
             policy_lr=3e-4,
 
-            replay_buffer_size=int(2E5),
+            replay_buffer_size=int(2e4),
         ),
         cnn_params=dict(
             kernel_sizes=[5, 5, 3],
             n_channels=[32, 32, 32],
             strides=[3, 3, 2],
-            #pool_sizes=[1, 1, 1],
+            # pool_sizes=[1, 1, 1], this param is giving an error?
             hidden_sizes=[400, 300],
             paddings=[0, 0, 0],
-            #use_batch_norm=True,
+            # use_batch_norm=True, this param is giving an error?
         ),
 
         qf_criterion_class=HuberLoss,
@@ -119,9 +120,7 @@ if __name__ == "__main__":
             experiment,
             variant=variant,
             exp_id=i,
-            exp_prefix="sac-image-reacher-brandon-{0}".format(i),
+            exp_prefix="sac-image-reacher-brandon-softlearning-hyperparams-{0}".format(i),
             mode='local',
-            # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
-            # mode='local',
-            # use_gpu=True,
+            use_gpu=True,
         )

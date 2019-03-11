@@ -18,18 +18,19 @@ from railrl.torch.networks import Mlp, CNN, CNNPolicy, MergedCNN
 from torch import nn as nn
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
-from railrl.envs.mujoco.image_pusher_2d_brandon import ImagePusher2dEnv
+from railrl.envs.mujoco.image_pusher_2d_brandon import ImageForkReacher2dEnv
 
 
 def experiment(variant):
     
     imsize = variant['imsize']
     
-    env = ImagePusher2dEnv(
+    env = ImageForkReacher2dEnv(
+        variant["arm_goal_distance_cost_coeff"],
+        variant["arm_object_distance_cost_coeff"],
         [imsize, imsize, 3],
-        ctrl_cost_coeff=10.0,
-        arm_object_distance_cost_coeff=1.0,
-        goal_object_distance_cost_coeff=1.0)
+        goal_object_distance_cost_coeff=variant["goal_object_distance_cost_coeff"],
+        ctrl_cost_coeff=variant["ctrl_cost_coeff"])
     
     partial_obs_size = env.obs_dim - imsize * imsize * 3
     print("partial dim was " + str(partial_obs_size))
@@ -72,7 +73,7 @@ def experiment(variant):
         vf=vf,
         **variant['algo_params']
     )
-
+    
     algorithm.to(ptu.device)
     algorithm.train()
     
@@ -80,6 +81,11 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         imsize=64,
+        gap_mode=100,
+        arm_goal_distance_cost_coeff=1.0,
+        arm_object_distance_cost_coeff=1.0,
+        goal_object_distance_cost_coeff=0.0,
+        ctrl_cost_coeff=10.0,
         algo_params=dict(
             num_epochs=2000,
             num_steps_per_epoch=500,
@@ -93,7 +99,7 @@ if __name__ == "__main__":
             vf_lr=1e-3,
             policy_lr=1e-3,
 
-            replay_buffer_size=int(2E5),
+            replay_buffer_size=int(2e4),
         ),
         cnn_params=dict(
             kernel_sizes=[5, 5, 3],
@@ -108,13 +114,13 @@ if __name__ == "__main__":
         qf_criterion_class=HuberLoss,
     )
     
-    run_experiment(
-        experiment,
-        variant=variant,
-        #exp_id=0,
-        exp_prefix="sac-image-reacher-brandon",
-        mode='local',
-        # exp_prefix="double-vs-dqn-huber-sweep-cartpole",
-        # mode='local',
-        # use_gpu=True,
-    )
+    for i in range(10):
+    
+        run_experiment(
+            experiment,
+            variant=variant,
+            exp_id=i,
+            exp_prefix="sac-image-reacher-brandon-{0}".format(i),
+            mode='local',
+            use_gpu=True,
+        )
