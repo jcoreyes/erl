@@ -31,6 +31,16 @@ def experiment(variant):
         output_size=action_dim,
         hidden_sizes=[400, 300],
     )
+    target_qf = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=[400, 300],
+    )
+    target_policy = TanhMlpPolicy(
+        input_size=obs_dim,
+        output_size=action_dim,
+        hidden_sizes=[400, 300],
+    )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
@@ -39,6 +49,8 @@ def experiment(variant):
         env,
         qf=qf,
         policy=policy,
+        target_qf=target_qf,
+        target_policy=target_policy,
         exploration_policy=exploration_policy,
         **variant['algo_params']
     )

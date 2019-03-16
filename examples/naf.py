@@ -20,6 +20,11 @@ def experiment(variant):
         env.action_space.low.size,
         300,
     )
+    target_policy = NafPolicy(
+        env.observation_space.low.size,
+        env.action_space.low.size,
+        300,
+    )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
@@ -27,6 +32,7 @@ def experiment(variant):
     algorithm = NAF(
         env,
         policy=policy,
+        target_policy=target_policy,
         exploration_policy=exploration_policy,
         **variant['algo_params']
     )
