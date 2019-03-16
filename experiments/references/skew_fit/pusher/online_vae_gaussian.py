@@ -12,12 +12,11 @@ if __name__ == "__main__":
         online_vae_exploration=False,
         imsize=48,
         init_camera=sawyer_init_camera_zoomed_in,
-        env_id='SawyerPushNIPSEasy-v0',
+        # env_id='SawyerPushNIPSEasy-v0',
         grill_variant=dict(
-            sample_goals_from_buffer=True,
             save_video=True,
             online_vae_beta=20,
-            save_video_period=50,
+            save_video_period=100,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -33,7 +32,7 @@ if __name__ == "__main__":
                     num_steps_per_epoch=500,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=10000,
-                    batch_size=256,
+                    batch_size=1024,
                     max_path_length=50,
                     discount=0.99,
                     num_updates_per_env_step=2,
@@ -111,7 +110,7 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 N=40,
                 test_p=.9,
-                use_cached=True,
+                use_cached=False,
                 show=False,
                 oracle_dataset=True,
                 oracle_dataset_using_set_to_goal=True,
@@ -144,14 +143,16 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        version='no force',
     )
 
     search_space = {
+        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [False],
+        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [False],
+        'env_id': ['SawyerPushNIPSEasy-v0'],
         'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[
             10
         ],
-        'grill_variant.replay_buffer_kwargs.power': [-.5],
+        'grill_variant.replay_buffer_kwargs.power': [-1],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -161,9 +162,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'skew-fit-pusher-new-visuals-from-replay-buffer-3'
+    n_seeds = 3
+    mode = 'gcp'
+    exp_prefix = 'skew-fit-pusher-paper-1024'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
