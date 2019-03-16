@@ -29,7 +29,7 @@ if __name__ == "__main__":
             presample_goals=True,
             generate_goal_dataset_fctn=get_image_presampled_goals_from_vae_env,
             goal_generation_kwargs=dict(
-                num_presampled_goals=1000,
+                num_presampled_goals=500,
             ),
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
@@ -164,7 +164,7 @@ if __name__ == "__main__":
     )
 
     n_seeds = 3
-    mode = 'gcp'
+    mode = 'local'
     exp_prefix = 'pickup-online-vae-paper-master'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

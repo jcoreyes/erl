@@ -12,7 +12,7 @@ if __name__ == "__main__":
         double_algo=False,
         online_vae_exploration=False,
         imsize=48,
-        env_id='SawyerDoorHookResetFreeEnv-v0',
+        env_id='SawyerDoorHookResetFreeEnv-v1',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
             sample_goals_from_buffer=True,
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     )
 
     n_seeds = 2
-    mode = 'gcp'
+    mode = 'local'
     exp_prefix = 'skew-fit-door-comp-buffer-exp-relabel-sweep'
 
     # n_seeds = 8
