@@ -1,6 +1,7 @@
 # Adapted from pytorch examples
 
 from __future__ import print_function
+import copy
 import torch
 import torch.utils.data
 from torch import nn, optim
@@ -236,16 +237,12 @@ class VAE(PyTorchModule):
         return self.decode(z), mu, logvar
 
     def __getstate__(self):
-        d = super().__getstate__()
-        # Add these explicitly in case they were modified
-        d["_dist_mu"] = self.dist_mu
-        d["_dist_std"] = self.dist_std
-        return d
+        return self.__dict__
 
     def __setstate__(self, d):
-        super().__setstate__(d)
-        self.dist_mu = d["_dist_mu"]
-        self.dist_std = d["_dist_std"]
+        # TODO: is the deepcopy necessary?
+        self.__dict__.update(copy.deepcopy(d))
+
 
 class AutoEncoder(VAE):
     def forward(self, x):

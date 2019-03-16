@@ -489,15 +489,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         else:
             raise AssertionError("Bad prefix for the vae input key.")
 
-    def __getstate__(self):
-        state_dict = super().__getstate__()
-        state_dict['mode_map'] = self._mode_map
-        return state_dict
-
-    def __setstate__(self, state_dict):
-        super().__setstate__(state_dict)
-        self._mode_map = state_dict['mode_map']
-
 
 def temporary_mode(env, mode, func, args=None, kwargs=None):
     if args is None:

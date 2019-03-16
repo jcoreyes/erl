@@ -1,4 +1,5 @@
 from __future__ import print_function
+import copy
 import torch.utils.data
 from IPython.core.debugger import Pdb;
 
@@ -179,16 +180,11 @@ class ACAI(PyTorchModule):
                Variable(alpha).cuda()
 
     def __getstate__(self):
-        d = super().__getstate__()
-        # Add these explicitly in case they were modified
-        d["_dist_mu"] = self.dist_mu
-        d["_dist_std"] = self.dist_std
-        return d
+        return self.__dict__
 
     def __setstate__(self, d):
-        super().__setstate__(d)
-        self.dist_mu = d["_dist_mu"]
-        self.dist_std = d["_dist_std"]
+        # TODO: is the deepcopy necessary?
+        self.__dict__.update(copy.deepcopy(d))
 
     def critic(self, input):
         input = input.view(-1, self.imlength + self.added_fc_size)

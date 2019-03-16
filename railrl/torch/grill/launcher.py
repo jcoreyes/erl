@@ -536,6 +536,21 @@ def grill_her_td3_experiment(variant):
         output_size=action_dim,
         **variant['policy_kwargs']
     )
+    target_qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    target_qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    target_policy = TanhMlpPolicy(
+        input_size=obs_dim,
+        output_size=action_dim,
+        **variant['policy_kwargs']
+    )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
@@ -563,6 +578,9 @@ def grill_her_td3_experiment(variant):
         qf1=qf1,
         qf2=qf2,
         policy=policy,
+        target_qf1=target_qf1,
+        target_qf2=target_qf2,
+        target_policy=target_policy,
         exploration_policy=exploration_policy,
         **variant['algo_kwargs']
     )
@@ -626,6 +644,11 @@ def grill_her_twin_sac_experiment(variant):
         output_size=1,
         **variant['vf_kwargs']
     )
+    target_vf = FlattenMlp(
+        input_size=obs_dim,
+        output_size=1,
+        **variant['vf_kwargs']
+    )
     policy = TanhGaussianPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
@@ -657,6 +680,7 @@ def grill_her_twin_sac_experiment(variant):
         qf1=qf1,
         qf2=qf2,
         vf=vf,
+        target_vf=target_vf,
         policy=policy,
         exploration_policy=exploration_policy,
         **variant['algo_kwargs']
@@ -839,6 +863,11 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
+    target_vf = FlattenMlp(
+        input_size=obs_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
     policy = TanhGaussianPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
@@ -898,6 +927,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
                 qf1=qf1,
                 qf2=qf2,
                 vf=vf,
+                target_vf=target_vf,
             ),
             **variant['algo_kwargs']['diverse_kwargs']
         )
@@ -928,6 +958,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
                 qf1=qf1,
                 qf2=qf2,
                 vf=vf,
+                target_vf=target_vf,
             )
         )
 
@@ -1240,6 +1271,21 @@ def grill_her_td3_experiment_online_vae(variant):
         output_size=action_dim,
         **variant['policy_kwargs'],
     )
+    target_qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs'],
+    )
+    target_qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs'],
+    )
+    target_policy = TanhMlpPolicy(
+        input_size=obs_dim,
+        output_size=action_dim,
+        **variant['policy_kwargs'],
+    )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
@@ -1292,6 +1338,9 @@ def grill_her_td3_experiment_online_vae(variant):
             **variant['algo_kwargs']['td3_kwargs'],
             qf1=qf1,
             qf2=qf2,
+            target_qf1=target_qf1,
+            target_qf2=target_qf2,
+            target_policy=target_policy,
         )
     )
 
@@ -1547,6 +1596,29 @@ def HER_baseline_her_td3_experiment(variant):
                        output_activation=torch.tanh,
                        **variant['cnn_params'],
                        )
+    target_qf1 = MergedCNN(input_width=imsize,
+                    input_height=imsize,
+                    output_size=1,
+                    input_channels=3 * 2,
+                    added_fc_input_size=action_dim,
+                    **variant['cnn_params']
+                    )
+    target_qf2 = MergedCNN(input_width=imsize,
+                    input_height=imsize,
+                    output_size=1,
+                    input_channels=3 * 2,
+                    added_fc_input_size=action_dim,
+                    **variant['cnn_params']
+                    )
+
+    target_policy = CNNPolicy(input_width=imsize,
+                       input_height=imsize,
+                       added_fc_input_size=0,
+                       output_size=action_dim,
+                       input_channels=3 * 2,
+                       output_activation=torch.tanh,
+                       **variant['cnn_params'],
+                       )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
@@ -1573,6 +1645,9 @@ def HER_baseline_her_td3_experiment(variant):
         qf1=qf1,
         qf2=qf2,
         policy=policy,
+        target_qf1=target_qf1,
+        target_qf2=target_qf2,
+        target_policy=target_policy,
         exploration_policy=exploration_policy,
         **variant['algo_kwargs']
     )
@@ -1675,7 +1750,13 @@ def HER_baseline_twin_sac_experiment(variant):
                     input_channels=3 * 2,
                     **variant['cnn_params']
                     )
-    
+    target_vf = CNN(input_width=imsize,
+             input_height=imsize,
+             output_size=1,
+             input_channels=3 * 2,
+             **variant['cnn_params']
+             )
+
     replay_buffer = ObsDictRelabelingBuffer(
         env=env,
         observation_key=observation_key,
@@ -1701,6 +1782,7 @@ def HER_baseline_twin_sac_experiment(variant):
         qf1=qf1,
         qf2=qf2,
         vf=vf,
+        target_vf=target_vf,
         policy=policy,
         exploration_policy=exploration_policy,
         **variant['algo_kwargs']

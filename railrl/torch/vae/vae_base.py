@@ -115,18 +115,6 @@ class GaussianLatentVAE(VAEBase):
     def get_encoding_from_latent_distribution_params(self, latent_distribution_params):
         return latent_distribution_params[0].cpu()
 
-    def __getstate__(self):
-        d = super().__getstate__()
-        # Add these explicitly in case they were modified
-        d["_dist_mu"] = self.dist_mu
-        d["_dist_std"] = self.dist_std
-        return d
-
-    def __setstate__(self, d):
-        super().__setstate__(d)
-        self.dist_mu = d["_dist_mu"]
-        self.dist_std = d["_dist_std"]
-
 
 def compute_bernoulli_log_prob(x, reconstruction_of_x):
     return -1 * F.binary_cross_entropy(
