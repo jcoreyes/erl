@@ -43,9 +43,6 @@ class ProxyEnv(Env):
         if hasattr(self.wrapped_env, "terminate"):
             self.wrapped_env.terminate()
 
-    def __getattr__(self, attrname):
-        return getattr(self._wrapped_env, attrname)
-
     def __str__(self):
         return '{}({})'.format(type(self).__name__, self.wrapped_env)
 
