@@ -200,7 +200,6 @@ class VAE(PyTorchModule):
             output_scale=1,
             layer_norm=False,
     ):
-        self.save_init_params(locals())
         super().__init__()
         self.representation_size = representation_size
         self.hidden_init = hidden_init

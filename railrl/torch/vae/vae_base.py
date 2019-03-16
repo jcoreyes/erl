@@ -12,7 +12,6 @@ class VAEBase(PyTorchModule, metaclass=abc.ABCMeta):
             self,
             representation_size,
     ):
-        self.save_init_params(locals())
         super().__init__()
         self.representation_size = representation_size
 
@@ -92,7 +91,6 @@ class GaussianLatentVAE(VAEBase):
             self,
             representation_size,
     ):
-        self.save_init_params(locals())
         super().__init__(representation_size)
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)

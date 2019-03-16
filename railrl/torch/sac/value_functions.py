@@ -18,7 +18,6 @@ class ExpectableQF(PyTorchModule):
             hidden_init=ptu.fanin_init,
             b_init_value=0.1,
     ):
-        self.save_init_params(locals())
         super().__init__()
 
         self.obs_fc = nn.Linear(obs_dim, hidden_size)

@@ -25,7 +25,6 @@ class StandardTanhGaussianPolicy(TanhGaussianPolicy):
             max_tau=None,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes=hidden_sizes,
             obs_dim=obs_dim+goal_dim + 1,
@@ -49,7 +48,6 @@ class OneHotTauTanhGaussianPolicy(TanhGaussianPolicy):
             **kwargs
     ):
         self.max_tau = max_tau
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes=hidden_sizes,
             obs_dim=obs_dim+max_tau+goal_dim+1,
@@ -102,7 +100,6 @@ class BinaryTauTanhGaussianPolicy(TanhGaussianPolicy):
             **kwargs
     ):
         self.max_tau = np.unpackbits(np.array(max_tau, dtype=np.uint8))
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes=hidden_sizes,
             obs_dim=obs_dim + goal_dim+ len(self.max_tau),
@@ -150,7 +147,6 @@ class TauVectorTanhGaussianPolicy(TanhGaussianPolicy):
     ):
         if tau_vector_len == 0:
             self.tau_vector_len = max_tau
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes=hidden_sizes,
             obs_dim=obs_dim + goal_dim + self.tau_vector_len,
@@ -199,7 +195,6 @@ class TauVectorSeparateFirstLayerTanhGaussianPolicy(SeparateFirstLayerMlp, Explo
             init_w=1e-3,
             **kwargs
     ):
-        self.save_init_params(locals())
         if tau_vector_len == 0:
             self.tau_vector_len = max_tau
         super().__init__(

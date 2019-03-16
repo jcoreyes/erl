@@ -12,7 +12,6 @@ class DynamicsModel(FlattenMlp):
             delta_normalizer: TorchFixedNormalizer=None,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(
             input_size=observation_dim + action_dim,
             output_size=observation_dim,

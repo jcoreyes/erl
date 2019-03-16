@@ -8,7 +8,6 @@ from railrl.torch.core import PyTorchModule
 
 class ArgmaxDiscretePolicy(PyTorchModule):
     def __init__(self, qf):
-        self.save_init_params(locals())
         super().__init__()
         self.qf = qf
 

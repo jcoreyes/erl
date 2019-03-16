@@ -132,7 +132,6 @@ class EasyVQFunction(PyTorchModule):
             vf_fc1_size,
             vf_fc2_size,
     ):
-        self.save_init_params(locals())
         super().__init__()
         self.obs_dim = obs_dim
         self.action_dim = action_dim

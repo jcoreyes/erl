@@ -130,7 +130,6 @@ class NafPolicy(PyTorchModule):
             hidden_init=ptu.fanin_init,
             use_exp_for_diagonal_not_square=True,
     ):
-        self.save_init_params(locals())
         super(NafPolicy, self).__init__()
         self.obs_dim = obs_dim
         self.action_dim = action_dim

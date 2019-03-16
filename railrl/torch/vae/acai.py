@@ -39,7 +39,6 @@ class ACAI(PyTorchModule):
             use_min_variance=True,
             state_size=0,
     ):
-        self.save_init_params(locals())
         super().__init__()
         self.representation_size = representation_size
         self.hidden_init = hidden_init

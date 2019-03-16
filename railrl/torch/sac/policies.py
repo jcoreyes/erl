@@ -38,7 +38,6 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             init_w=1e-3,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes,
             input_size=obs_dim,
@@ -170,7 +169,6 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
             init_w=1e-3,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(
             init_w=init_w,
             **kwargs

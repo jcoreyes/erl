@@ -34,7 +34,6 @@ class StructuredQF(Mlp):
             internal_gcm=True,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=observation_dim + action_dim + goal_dim + 1,
@@ -81,7 +80,6 @@ class OneHotTauQF(Mlp):
             action_dim=0,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=observation_dim + action_dim + goal_dim + max_tau + 1,
@@ -140,7 +138,6 @@ class BinaryStringTauQF(Mlp):
             action_dim=0,
             **kwargs
     ):
-        self.save_init_params(locals())
         self.max_tau = np.unpackbits(np.array(max_tau, dtype=np.uint8))
         super().__init__(
             hidden_sizes=hidden_sizes,
@@ -198,7 +195,6 @@ class TauVectorQF(Mlp):
             action_dim=0,
             **kwargs
     ):
-        self.save_init_params(locals())
         if tau_vector_len == 0:
             self.tau_vector_len = max_tau
         super().__init__(
@@ -249,7 +245,6 @@ class SeparateFirstLayerMlp(PyTorchModule):
             hidden_init=ptu.fanin_init,
             b_init_value=0.1,
     ):
-        self.save_init_params(locals())
         super().__init__()
 
         self.output_size = output_size
@@ -299,7 +294,6 @@ class TauVectorSeparateFirstLayerQF(SeparateFirstLayerMlp):
             action_dim=0,
             **kwargs
     ):
-        self.save_init_params(locals())
         if tau_vector_len == 0:
             self.tau_vector_len = max_tau
 
@@ -342,7 +336,6 @@ class InternalGcmQf(FlattenMlp):
             hidden_sizes,
             **kwargs
     ):
-        self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size
         self.goal_dim = env.goal_dim
@@ -377,7 +370,6 @@ class StandardTdmPolicy(TanhMlpPolicy):
             max_tau=None,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=obs_dim+goal_dim + 1,
@@ -399,7 +391,6 @@ class OneHotTauTdmPolicy(TanhMlpPolicy):
             **kwargs
     ):
         self.max_tau = max_tau
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=obs_dim+max_tau+goal_dim+1,
@@ -445,7 +436,6 @@ class BinaryTauTdmPolicy(TanhMlpPolicy):
             **kwargs
     ):
         self.max_tau = np.unpackbits(np.array(max_tau, dtype=np.uint8))
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=obs_dim + goal_dim+ len(self.max_tau),
@@ -486,7 +476,6 @@ class TauVectorTdmPolicy(TanhMlpPolicy):
     ):
         if tau_vector_len == 0:
             self.tau_vector_len = max_tau
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=obs_dim + goal_dim + self.tau_vector_len,
@@ -528,7 +517,6 @@ class TauVectorSeparateFirstLayerTdmPolicy(SeparateFirstLayerMlp):
             init_w=1e-3,
             **kwargs
     ):
-        self.save_init_params(locals())
         if tau_vector_len == 0:
             self.tau_vector_len = max_tau
         super().__init__(
@@ -574,7 +562,6 @@ class MakeNormalizedTDMQF(PyTorchModule):
                  obs_normalizer: TorchFixedNormalizer = None,
                  action_normalizer: TorchFixedNormalizer = None,
             ):
-        self.save_init_params(locals())
         super().__init__()
         self.obs_normalizer = obs_normalizer
         self.action_normalizer = action_normalizer
@@ -599,7 +586,6 @@ class MakeNormalizedTDMPolicy(PyTorchModule):
                  obs_normalizer: TorchFixedNormalizer = None,
                  action_normalizer: TorchFixedNormalizer = None,
             ):
-        self.save_init_params(locals())
         super().__init__()
         self.obs_normalizer = obs_normalizer
         self.qf = qf
@@ -632,7 +618,6 @@ class DebugQf(FlattenMlp):
             predict_delta=True,
             **kwargs
     ):
-        self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size
         self.goal_dim = env.goal_dim
