@@ -18,6 +18,79 @@ from railrl.samplers.rollout_functions import rollout
 import railrl.envs.env_utils as env_utils
 
 
+def _get_epoch_timings(epoch):
+    times_itrs = gt.get_times().stamps.itrs
+    train_time = times_itrs['train'][-1]
+    sample_time = times_itrs['sample'][-1]
+    eval_time = times_itrs['eval'][-1] if epoch > 0 else 0
+    epoch_time = train_time + sample_time + eval_time
+    total_time = gt.get_times().total
+
+    return OrderedDict([
+        ('Train Time (s)', train_time),
+        ('(Previous) Eval Time (s)', eval_time),
+        ('Sample Time (s)', sample_time),
+        ('Epoch Time (s)', epoch_time),
+        ('Total Train Time (s)', total_time),
+    ])
+
+class RLAlgorithm2(metaclass=abc.ABCMeta):
+    def __init__(
+            self,
+            exploration_env,
+            evaluation_env,
+            exploration_data_collector,
+            evaluation_data_collector,
+            replay_buffer,
+            num_epochs,
+            trainer,
+    ):
+        self.num_epochs = num_epochs
+        self.expl_data_collector = exploration_data_collector
+        self.eval_data_collector = evaluation_data_collector
+        self.expl_env = exploration_env
+        self.eval_env = evaluation_env
+        self.replay_buffer = replay_buffer
+        self.trainer = trainer
+
+    def train_batch(self, start_epoch):
+        for epoch in gt.timed_for(
+                range(start_epoch, self.num_epochs),
+                save_itrs=True,
+        ):
+            expl_data = self.expl_data_collector.get()
+            gt.stamp('exploration sample')
+
+            self.replay_buffer.add(expl_data)
+            train_data = self.replay_buffer.sample()
+            self.trainer.train(train_data)
+            gt.stamp('train')
+
+            eval_data = self.eval_data_collector.get()
+            gt.stamp('eval sample')
+
+            logger.record_dict(self.trainer.get_stats(), prefix='trainer')
+            logger.record_dict(
+                self.expl_env.get_diagnostics(expl_data),
+                prefix='exploration',
+            )
+            logger.record_dict(
+                self.eval_env.get_diagnostics(eval_data),
+                prefix='eval',
+            )
+            logger.record_dict(_get_epoch_timings(epoch))
+            logger.record_tabular('Epoch', epoch)
+            logger.dump_tabular(with_prefix=False, with_timestamp=False)
+
+            self._end_epoch(epoch)
+
+    def _end_epoch(self, epoch):
+        self.expl_data_collector.end_epoch(epoch)
+        self.eval_data_collector.end_epoch(epoch)
+        self.replay_buffer.end_epoch(epoch)
+        self.trainer.end_epoch(epoch)
+
+
 class RLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
             self,
@@ -240,24 +313,34 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         return new_observation
 
     def train_batch(self, start_epoch):
-        self._current_path_builder = PathBuilder()
         for epoch in gt.timed_for(
                 range(start_epoch, self.num_epochs),
                 save_itrs=True,
         ):
-            self._start_epoch(epoch)
-            env_utils.mode(self.training_env, 'train')
-            observation = self._start_new_rollout()
-            for _ in range(self.num_env_steps_per_epoch):
-                observation = self._take_step_in_env(observation)
+            expl_paths = self.expl_data_collector.get_paths()
+            gt.stamp('exploration sample')
 
-            gt.stamp('sample')
-            self._try_to_train()
+            self.replay_buffer.add(expl_paths)
+            train_data = self.replay_buffer.sample()
+            self.trainer.train(train_data)
             gt.stamp('train')
 
-            env_utils.mode(self.env, 'eval')
-            self._try_to_eval(epoch)
-            gt.stamp('eval')
+            eval_paths = self.eval_data_collector.get_paths()
+            gt.stamp('eval sample')
+
+            logger.record_dict(self.trainer.get_stats(), prefix='trainer')
+            logger.record_dict(
+                self.expl_env.get_diagnostics(expl_paths),
+                prefix='exploration',
+            )
+            logger.record_dict(
+                self.eval_env.get_diagnostics(eval_paths),
+                prefix='eval',
+            )
+            logger.record_dict(_get_epoch_timings(epoch))
+            logger.record_tabular('Epoch', epoch)
+            logger.dump_tabular(with_prefix=False, with_timestamp=False)
+
             self._end_epoch()
 
     def train_parallel(self, start_epoch=0):

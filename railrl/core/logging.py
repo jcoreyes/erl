@@ -173,6 +173,14 @@ class Logger(object):
     def record_tabular(self, key, val):
         self._tabular.append((self._tabular_prefix_str + str(key), str(val)))
 
+    def record_dict(self, d, prefix=None):
+        if prefix is not None:
+            self.push_tabular_prefix(prefix)
+        for k, v in d.items():
+            self.record_tabular(k, v)
+        if prefix is not None:
+            self.pop_tabular_prefix()
+
     def push_tabular_prefix(self, key):
         self._tabular_prefixes.append(key)
         self._tabular_prefix_str = ''.join(self._tabular_prefixes)

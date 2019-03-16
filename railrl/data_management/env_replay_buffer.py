@@ -45,6 +45,14 @@ class EnvReplayBuffer(SimpleReplayBuffer):
             next_observation, **kwargs
         )
 
+
+class PathReplayBuffer(SimpleReplayBuffer):
+    """
+    add takes in a list of paths.
+    """
+    def add(self, paths):
+
+
 class VPGEnvReplayBuffer(EnvReplayBuffer):
     def __init__(
             self,

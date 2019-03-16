@@ -31,10 +31,6 @@ class ProxyEnv(Env):
     def render(self, *args, **kwargs):
         return self._wrapped_env.render(*args, **kwargs)
 
-    def log_diagnostics(self, paths, *args, **kwargs):
-        if hasattr(self._wrapped_env, 'log_diagnostics'):
-            self._wrapped_env.log_diagnostics(paths, *args, **kwargs)
-
     @property
     def horizon(self):
         return self._wrapped_env.horizon

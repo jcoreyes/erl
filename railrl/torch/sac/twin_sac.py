@@ -1,3 +1,6 @@
+import abc
+from collections import OrderedDict
+
 import torch
 import numpy as np
 import torch.optim as optim
@@ -8,7 +11,13 @@ from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
 
-class TwinSAC(TorchRLAlgorithm):
+class Trainer(object, metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def train(self, data):
+        pass
+
+
+class TwinSACTrainer(Trainer):
     """
     TD3 + SAC
     """
@@ -20,6 +29,9 @@ class TwinSAC(TorchRLAlgorithm):
             qf2,
             vf,
             target_vf,
+
+            discount=0.99,
+            reward_scale=1.0,
 
             policy_lr=1e-3,
             qf_lr=1e-3,
@@ -35,26 +47,12 @@ class TwinSAC(TorchRLAlgorithm):
             target_update_period=1,
             plotter=None,
             render_eval_paths=False,
-            eval_deterministic=True,
-
-            eval_policy=None,
-            exploration_policy=None,
 
             use_automatic_entropy_tuning=True,
             target_entropy=None,
             **kwargs
     ):
-        if eval_policy is None:
-            if eval_deterministic:
-                eval_policy = MakeDeterministic(policy)
-            else:
-                eval_policy = policy
-        super().__init__(
-            env=env,
-            exploration_policy=exploration_policy or policy,
-            eval_policy=eval_policy,
-            **kwargs
-        )
+        self.env = env
         self.policy = policy
         self.qf1 = qf1
         self.qf2 = qf2
@@ -105,8 +103,12 @@ class TwinSAC(TorchRLAlgorithm):
             lr=vf_lr,
         )
 
-    def _do_training(self):
-        batch = self.get_batch()
+        self.discount = discount
+        self.reward_scale = reward_scale
+        self.eval_statistics = OrderedDict()
+        self._n_train_steps_total = 0
+
+    def train(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -267,6 +269,7 @@ class TwinSAC(TorchRLAlgorithm):
             if self.use_automatic_entropy_tuning:
                 self.eval_statistics['Alpha'] = alpha.item()
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
+        self._n_train_steps_total += 1
 
     @property
     def networks(self):
