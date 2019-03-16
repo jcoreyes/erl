@@ -30,11 +30,11 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=100,
+                    num_epochs=170,
                     num_steps_per_epoch=500,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=10000,
-                    batch_size=128,
+                    batch_size=1024,
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
@@ -63,7 +63,7 @@ if __name__ == "__main__":
             replay_buffer_kwargs=dict(
                 start_skew_epoch=10,
                 max_size=int(100000),
-                fraction_goals_rollout_goals=0.0,
+                fraction_goals_rollout_goals=0.2,
                 fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
                 vae_priority_type='vae_prob',
@@ -131,8 +131,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [False, True],
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [False, True],
+        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [True],
+        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [True],
         'grill_variant.replay_buffer_kwargs.power': [-.5],
         'train_vae_variant.beta': [20],
         'grill_variant.online_vae_beta': [20],
