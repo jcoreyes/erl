@@ -19,6 +19,7 @@ class TwinSAC(TorchRLAlgorithm):
             qf1,
             qf2,
             vf,
+            target_vf,
 
             policy_lr=1e-3,
             qf_lr=1e-3,
@@ -58,6 +59,7 @@ class TwinSAC(TorchRLAlgorithm):
         self.qf1 = qf1
         self.qf2 = qf2
         self.vf = vf
+        self.target_vf = target_vf
         self.soft_target_tau = soft_target_tau
         self.policy_update_period = policy_update_period
         self.target_update_period = target_update_period
@@ -83,7 +85,6 @@ class TwinSAC(TorchRLAlgorithm):
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
 
-        self.target_vf = vf.copy()
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
 
