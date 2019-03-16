@@ -1,4 +1,3 @@
-import abc
 from collections import OrderedDict
 import os.path as osp
 
@@ -6,24 +5,16 @@ import numpy as np
 
 from gym.envs.mujoco import MujocoEnv
 
-from railrl.core.serializable import Serializable
-from railrl.envs.env_utils import get_asset_full_path
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger as default_logger
 from railrl.misc.random_util import random_point_in_circle
-        
-        
-class Pusher2dEnv(Serializable, MujocoEnv):
+
+
+class Pusher2dEnv(MujocoEnv):
     """Two-dimensional Pusher environment
 
     Pusher2dEnv is a two-dimensional 3-DoF manipulator. Task is to slide a
     cylinder-shaped object, or a 'puck', to a target coordinates.
-
-    Note: Serializable has to be the first super class for classes extending
-    MujocoEnv (or at least occur before MujocoEnv). Otherwise MujocoEnv calls
-    Serializable.__init__ (from MujocoEnv.__init__), and the Serializable
-    attributes (_Serializable__args and _Serializable__kwargs) will get
-    overwritten.
     """
     MODEL_PATH = osp.abspath(osp.join(osp.dirname(
         osp.realpath(__file__)), 'pusher_2d_brandon.xml'))
@@ -50,8 +41,6 @@ class Pusher2dEnv(Serializable, MujocoEnv):
         goal_distance_coeff ('float'): Coefficient for the object-to-goal
             distance cost.
         """
-        self.quick_init(locals())
-
         self._goal_mask = [coordinate != 'any' for coordinate in goal]
         self._goal = np.array(goal)[self._goal_mask].astype(np.float32)
 
@@ -99,7 +88,7 @@ class Pusher2dEnv(Serializable, MujocoEnv):
             rewards = rewards.squeeze()
             arm_object_distances = arm_object_distances.squeeze()
             goal_object_distances = goal_object_distances.squeeze()
-            
+
         return rewards, {
             'arm_object_distance': arm_object_distances,
             'goal_object_distance': goal_object_distances
@@ -178,7 +167,6 @@ class ForkReacherEnv(Pusher2dEnv):
                  arm_object_distance_cost_coeff=0.0,
                  *args,
                  **kwargs):
-        self.quick_init(locals())
 
         self._arm_goal_distance_cost_coeff = arm_goal_distance_cost_coeff
         self._arm_object_distance_cost_coeff = arm_object_distance_cost_coeff

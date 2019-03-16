@@ -6,20 +6,16 @@ import abc
 import numpy as np
 
 from railrl.data_management.path_builder import PathBuilder
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.misc.np_util import truncated_geometric
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.policies.base import SerializablePolicy
-
+from railrl.misc.np_util import truncated_geometric
 from railrl.samplers.rollout_functions import (
     create_rollout_function,
     tdm_rollout,
 )
-from railrl.state_distance.policies import UniversalPolicy
-from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
-    multitask_rollout
-from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 from railrl.torch.core import np_to_pytorch_batch
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+
 
 class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(

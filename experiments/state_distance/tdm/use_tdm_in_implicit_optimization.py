@@ -17,7 +17,6 @@ PATH = '/home/vitchyr/git/railrl/data/doodads3/01-23-reacher-full-ddpg' \
 
 class ImplicitModel(PyTorchModule):
     def __init__(self, qf, vf):
-        self.quick_init(locals())
         super().__init__()
         self.qf = qf
         self.vf = vf

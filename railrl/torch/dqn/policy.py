@@ -3,11 +3,10 @@ Torch argmax policy
 """
 import numpy as np
 import railrl.torch.pytorch_util as ptu
-from railrl.policies.base import SerializablePolicy
 from railrl.torch.core import PyTorchModule
 
 
-class ArgmaxDiscretePolicy(PyTorchModule, SerializablePolicy):
+class ArgmaxDiscretePolicy(PyTorchModule):
     def __init__(self, qf):
         self.save_init_params(locals())
         super().__init__()

@@ -1,15 +1,13 @@
 from railrl.exploration_strategies.base import RawExplorationStrategy
-from railrl.core.serializable import Serializable
 import numpy as np
 
 
-class UniformStrategy(RawExplorationStrategy, Serializable):
+class UniformStrategy(RawExplorationStrategy):
     """
     This strategy adds noise sampled uniformly to the action taken by the
     deterministic policy.
     """
     def __init__(self, action_space, low=0., high=1.):
-        Serializable.quick_init(self, locals())
         self._low = action_space.low
         self._high = action_space.high
 

@@ -6,7 +6,6 @@ from gym.spaces import Box
 from pygame import Color
 
 from railrl.core import logger as default_logger
-from railrl.core.serializable import Serializable
 from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths, \
     get_stat_in_paths
@@ -14,7 +13,7 @@ from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths, \
 # import matplotlib.cm as cm
 
 
-class Point2DEnv(Serializable, Env):
+class Point2DEnv(Env):
     """
     A little 2D point whose life goal is to reach a target.
     """
@@ -30,7 +29,6 @@ class Point2DEnv(Serializable, Env):
             render_size=500,
             ball_radius=0.25,
     ):
-        Serializable.quick_init(self, locals())
         self.MAX_TARGET_DISTANCE = self.BOUNDARY_DIST - self.TARGET_RADIUS
 
         self.action_l2norm_penalty = action_l2norm_penalty

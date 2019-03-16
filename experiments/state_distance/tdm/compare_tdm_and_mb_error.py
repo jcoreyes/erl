@@ -30,7 +30,6 @@ K = 100
 
 class ImplicitModel(PyTorchModule):
     def __init__(self, qf, vf):
-        self.quick_init(locals())
         super().__init__()
         self.qf = qf
         self.vf = vf

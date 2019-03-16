@@ -1,19 +1,17 @@
-import ray
-
-from railrl.envs.base import RolloutEnv
-from railrl.envs.wrappers import NormalizedBoxEnv, ProxyEnv
-from railrl.core.serializable import Serializable
-import numpy as np
-import torch
-import railrl.torch.pytorch_util as ptu
 import math
-from torch.multiprocessing import Process, Pipe
 from multiprocessing.connection import wait
-import torch.multiprocessing as mp
-import railrl.envs.env_utils as env_utils
-import cloudpickle
 
-class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
+import cloudpickle
+import torch
+from torch.multiprocessing import Process, Pipe
+
+import railrl.envs.env_utils as env_utils
+import railrl.torch.pytorch_util as ptu
+from railrl.envs.base import RolloutEnv
+from railrl.envs.wrappers import ProxyEnv
+
+
+class RemoteRolloutEnv(ProxyEnv, RolloutEnv):
     """
     An interface for a rollout environment where the rollouts are performed
     asynchronously.
@@ -60,7 +58,6 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             eval_rollout_function,
             num_workers=2,
     ):
-        Serializable.quick_init(self, locals())
         super().__init__(env)
         self.num_workers = num_workers
         # Let self.worker_limits[True] be the max number of workers for training
@@ -94,8 +91,6 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
                 )
             )
         for i in range(num_workers)]
-
-        import railrl.envs.sawyer_parallel_hack
 
         for worker in self._workers:
             worker.start()

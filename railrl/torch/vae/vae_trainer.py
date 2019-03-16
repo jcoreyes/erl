@@ -7,7 +7,6 @@ from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 from multiworld.core.image_env import normalize_image
 from railrl.core import logger
-from railrl.core.serializable import Serializable
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.torch import pytorch_util as ptu
@@ -105,7 +104,7 @@ def compute_p_x_np_to_np(
     return ptu.get_numpy(log_p_x_skewed)
 
 
-class ConvVAETrainer(Serializable):
+class ConvVAETrainer(object):
     def __init__(
             self,
             train_dataset,
@@ -131,7 +130,6 @@ class ConvVAETrainer(Serializable):
             start_skew_epoch=0,
             weight_decay=0,
     ):
-        self.quick_init(locals())
         if skew_config is None:
             skew_config = {}
         self.log_interval = log_interval

@@ -43,7 +43,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             exploration_counter_kwargs=None,
             **kwargs
     ):
-        self.quick_init(locals())
         self.vae = vae
         self.decoded_obs_key = decoded_obs_key
         self.decoded_desired_goal_key = decoded_desired_goal_key

@@ -1,9 +1,9 @@
 import numpy as np
 
-from railrl.policies.base import SerializablePolicy
+from railrl.policies.base import Policy
 
 
-class ZeroPolicy(SerializablePolicy):
+class ZeroPolicy(Policy):
     """
     Policy that always outputs zero.
     """
@@ -15,7 +15,7 @@ class ZeroPolicy(SerializablePolicy):
         return np.zeros(self.action_dim), {}
 
 
-class RandomPolicy(SerializablePolicy):
+class RandomPolicy(Policy):
     """
     Policy that always outputs zero.
     """

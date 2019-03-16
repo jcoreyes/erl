@@ -139,17 +139,17 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'reference-twin-sac-sweep'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_prefix = 'reference-twin-sac-sweep'
 
     search_space = {
         'env': [
-            'half-cheetah',
-            'inv-double-pendulum',
+            # 'half-cheetah',
+            # 'inv-double-pendulum',
             'pendulum',
-            'ant',
-            'walker',
+            # 'ant',
+            # 'walker',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

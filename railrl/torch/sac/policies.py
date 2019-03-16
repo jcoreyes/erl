@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn as nn
 
-from railrl.policies.base import ExplorationPolicy, SerializablePolicy
+from railrl.policies.base import ExplorationPolicy
 from railrl.torch.distributions import TanhNormal
 from railrl.torch.networks import Mlp, CNN
 
@@ -286,7 +286,7 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
 
 
 
-class MakeDeterministic(SerializablePolicy):
+class MakeDeterministic(object):
     def __init__(self, stochastic_policy):
         self.stochastic_policy = stochastic_policy
 

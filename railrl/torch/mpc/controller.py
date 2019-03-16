@@ -38,7 +38,6 @@ class MPCController(PyTorchModule, ExplorationPolicy):
         :param mpc_horizon: How long to plan for.
         """
         assert mpc_horizon >= 1
-        self.quick_init(locals())
         super().__init__()
         self.env = env
         self.dynamics_model = dynamics_model
@@ -153,7 +152,6 @@ class DebugQfToMPCController(PyTorchModule, ExplorationPolicy):
         :param mpc_horizon: How long to plan for.
         """
         assert mpc_horizon >= 1
-        self.quick_init(locals())
         super().__init__()
         self.env = env
         self.debug_qf = debug_qf
@@ -239,7 +237,6 @@ class GradientBasedMPCController(PyTorchModule, ExplorationPolicy):
         :param mpc_horizon: How long to plan for.
         """
         assert mpc_horizon >= 1
-        self.quick_init(locals())
         super().__init__()
         self.env = env
         self.dynamics_model = dynamics_model

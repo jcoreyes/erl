@@ -6,10 +6,9 @@ import numpy as np
 from gym.envs.mujoco import mujoco_env
 
 from railrl.envs.env_utils import get_asset_full_path
-from railrl.core.serializable import Serializable
 
 
-class MujocoEnv(mujoco_env.MujocoEnv, Serializable):
+class MujocoEnv(mujoco_env.MujocoEnv):
     """
     My own wrapper around MujocoEnv.
 
@@ -63,9 +62,6 @@ class MujocoEnv(mujoco_env.MujocoEnv, Serializable):
             self.observation_space = spaces.Box(low, high)
 
             self.seed()
-
-    def init_serialization(self, locals):
-        Serializable.quick_init(self, locals)
 
     def log_diagnostics(self, paths):
         pass

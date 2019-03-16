@@ -38,7 +38,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         epsilon=20,
         presampled_goals=None,
     ):
-        self.quick_init(locals())
         if reward_params is None:
             reward_params = dict()
         super().__init__(wrapped_env)
