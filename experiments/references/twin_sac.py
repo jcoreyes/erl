@@ -21,7 +21,7 @@ import railrl.misc.hyperparameter as hyp
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'env_class': HalfCheetahEnv,
-        'num_epochs': 3000,
+        'num_epochs': 1000,
         'train_policy_with_reparameterization': True,
     },
     'inv-double-pendulum': {  # 2 DoF
@@ -145,17 +145,17 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = 'reference-twin-sac-sweep'
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'reference-twin-sac-sweep'
 
     search_space = {
         'env': [
-            # 'half-cheetah',
-            # 'inv-double-pendulum',
+            'half-cheetah',
+            'inv-double-pendulum',
             'pendulum',
-            # 'ant',
-            # 'walker',
+            'ant',
+            'walker',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
