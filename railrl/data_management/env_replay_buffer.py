@@ -41,16 +41,13 @@ class EnvReplayBuffer(SimpleReplayBuffer):
         else:
             new_action = action
         return super().add_sample(
-            observation, new_action, reward, terminal,
-            next_observation, **kwargs
+            observation=observation,
+            action=new_action,
+            reward=reward,
+            next_observation=next_observation,
+            terminal=terminal,
+            **kwargs
         )
-
-
-class PathReplayBuffer(SimpleReplayBuffer):
-    """
-    add takes in a list of paths.
-    """
-    def add(self, paths):
 
 
 class VPGEnvReplayBuffer(EnvReplayBuffer):

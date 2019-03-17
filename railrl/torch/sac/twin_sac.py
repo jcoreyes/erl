@@ -7,6 +7,7 @@ from torch import nn as nn
 import railrl.torch.pytorch_util as ptu
 from railrl.core.trainer import Trainer
 from railrl.misc.eval_util import create_stats_ordered_dict
+from railrl.torch.core import np_to_pytorch_batch
 
 
 class TwinSACTrainer(Trainer):
@@ -98,8 +99,10 @@ class TwinSACTrainer(Trainer):
         self.reward_scale = reward_scale
         self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
+        self._need_to_update_eval_statistics = True
 
-    def train(self, batch):
+    def train(self, np_batch):
+        batch = np_to_pytorch_batch(np_batch)
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -195,8 +198,8 @@ class TwinSACTrainer(Trainer):
         """
         Save some statistics for eval
         """
-        if self.need_to_update_eval_statistics:
-            self.need_to_update_eval_statistics = False
+        if self._need_to_update_eval_statistics:
+            self._need_to_update_eval_statistics = False
             """
             Eval should set this to None.
             This way, these statistics are only computed for one batch.
@@ -262,6 +265,12 @@ class TwinSACTrainer(Trainer):
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
         self._n_train_steps_total += 1
 
+    def get_diagnostics(self):
+        return self.eval_statistics
+
+    def end_epoch(self, epoch):
+        self._need_to_update_eval_statistics = True
+
     @property
     def networks(self):
         return [
@@ -272,8 +281,8 @@ class TwinSACTrainer(Trainer):
             self.target_vf,
         ]
 
-    def update_snapshot(self, snapshot):
-        snapshot.update(
+    def get_snapshot(self):
+        return dict(
             qf1=self.qf1,
             qf2=self.qf2,
             policy=self.policy,

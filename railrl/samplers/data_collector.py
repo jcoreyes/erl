@@ -1,5 +1,5 @@
 import abc
-from collections import deque
+from collections import deque, OrderedDict
 
 from railrl.samplers.rollout_functions import rollout
 
@@ -10,20 +10,17 @@ class PathCollector(object, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def get_diagnostics(self):
-        pass
-
-    @abc.abstractmethod
     def get_epoch_paths(self):
         pass
 
-    @abc.abstractmethod
     def end_epoch(self):
         pass
 
-    @abc.abstractmethod
-    def update_snapshot(self):
-        pass
+    def get_diagnostics(self):
+        return {}
+
+    def get_snapshot(self):
+        return {}
 
 
 class MdpPathCollector(object):
@@ -40,6 +37,9 @@ class MdpPathCollector(object):
         self._max_num_epoch_paths_saved = max_num_epoch_paths_saved
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
 
+        self._num_steps_total = 0
+        self._num_paths_total = 0
+
     def collect_new_paths(self, num_paths):
         paths = [
             rollout(
@@ -47,11 +47,27 @@ class MdpPathCollector(object):
             )
             for _ in range(num_paths)
         ]
+        self._num_paths_total += len(paths)
+        self._num_steps_total += sum(
+            map(lambda path: len(path['actions']), paths)
+        )
         self._epoch_paths.extend(paths)
         return paths
+
+    def get_epoch_paths(self):
+        return self._epoch_paths
 
     def end_epoch(self, epoch):
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
 
-    def update_snapshot(self, snapshot):
-        return snapshot
+    def get_diagnostics(self):
+        return OrderedDict([
+            ('num steps total', self._num_steps_total),
+            ('num paths total', self._num_paths_total),
+        ])
+
+    def get_snapshot(self):
+        return dict(
+            env=self._env,
+            policy=self._policy,
+        )
