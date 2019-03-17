@@ -34,61 +34,97 @@ def _get_epoch_timings(epoch):
         ('Total Train Time (s)', total_time),
     ])
 
-class RLAlgorithm2(metaclass=abc.ABCMeta):
+
+class BatchRlAlgorithm(object):
     def __init__(
             self,
+            trainer,
             exploration_env,
             evaluation_env,
             exploration_data_collector,
             evaluation_data_collector,
-            replay_buffer,
+            data_buffer,
             num_epochs,
-            trainer,
+            num_eval_paths_per_epoch,
+            num_train_loops_per_epoch,
+            num_trains_per_train_loop=1,
+            num_paths_per_train_loop=1,
     ):
-        self.num_epochs = num_epochs
-        self.expl_data_collector = exploration_data_collector
-        self.eval_data_collector = evaluation_data_collector
+        self.trainer = trainer
         self.expl_env = exploration_env
         self.eval_env = evaluation_env
-        self.replay_buffer = replay_buffer
-        self.trainer = trainer
+        self.expl_data_collector = exploration_data_collector
+        self.eval_data_collector = evaluation_data_collector
+        self.data_buffer = data_buffer
+        self.num_epochs = num_epochs
+        self.num_eval_paths_per_epoch = num_eval_paths_per_epoch
+        self.num_train_loops_per_epoch = num_train_loops_per_epoch
+        self.num_trains_per_train_loop = num_trains_per_train_loop
+        self.num_paths_per_train_loop = num_paths_per_train_loop
 
-    def train_batch(self, start_epoch):
+    def train(self, start_epoch):
         for epoch in gt.timed_for(
                 range(start_epoch, self.num_epochs),
                 save_itrs=True,
         ):
-            expl_data = self.expl_data_collector.get()
-            gt.stamp('exploration sample')
+            for _ in range(self.num_train_loops_per_epoch):
+                new_expl_paths = self.expl_data_collector.get_new_paths(
+                    self.num_paths_per_train_loop
+                )
+                self.data_buffer.add_paths(new_expl_paths)
+                gt.stamp('exploration sampling')
 
-            self.replay_buffer.add(expl_data)
-            train_data = self.replay_buffer.sample()
-            self.trainer.train(train_data)
-            gt.stamp('train')
+                for _ in range(self.num_trains_per_train_loop):
+                    train_data = self.data_buffer.sample()
+                    self.trainer.train(train_data)
+                gt.stamp('training')
 
-            eval_data = self.eval_data_collector.get()
-            gt.stamp('eval sample')
-
-            logger.record_dict(self.trainer.get_stats(), prefix='trainer')
-            logger.record_dict(
-                self.expl_env.get_diagnostics(expl_data),
-                prefix='exploration',
+            self.eval_data_collector.get_new_paths(
+                self.num_eval_paths_per_epoch
             )
-            logger.record_dict(
-                self.eval_env.get_diagnostics(eval_data),
-                prefix='eval',
-            )
-            logger.record_dict(_get_epoch_timings(epoch))
-            logger.record_tabular('Epoch', epoch)
-            logger.dump_tabular(with_prefix=False, with_timestamp=False)
+            gt.stamp('evaluation sampling')
 
             self._end_epoch(epoch)
 
     def _end_epoch(self, epoch):
+        snapshot = {}
+        self.expl_data_collector.update_snapshot(snapshot)
+        self.eval_data_collector.update_snapshot(snapshot)
+        self.data_buffer.update_snapshot(snapshot)
+        self.trainer.update_snapshot(snapshot)
+        logger.save_itr_params(epoch, snapshot)
+        gt.stamp('saving')
+
         self.expl_data_collector.end_epoch(epoch)
         self.eval_data_collector.end_epoch(epoch)
-        self.replay_buffer.end_epoch(epoch)
+        self.data_buffer.end_epoch(epoch)
         self.trainer.end_epoch(epoch)
+
+        self._log_stats(epoch)
+
+    def _log_stats(self, epoch):
+        logger.record_dict(self.trainer.get_stats(), prefix='trainer')
+        expl_paths = self.expl_data_collector.get_epoch_paths()
+        eval_paths = self.eval_data_collector.get_epoch_paths()
+        logger.record_dict(
+            self.expl_env.get_diagnostics(expl_paths),
+            prefix='exploration',
+        )
+        logger.record_dict(
+            eval_util.get_generic_path_information(expl_paths),
+            prefix="exploration",
+        )
+        logger.record_dict(
+            self.eval_env.get_diagnostics(eval_paths),
+            prefix='evaluation',
+        )
+        logger.record_dict(
+            eval_util.get_generic_path_information(eval_paths),
+            prefix="evaluation",
+        )
+        logger.record_dict(_get_epoch_timings(epoch))
+        logger.record_tabular('Epoch', epoch)
+        logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
 
 class RLAlgorithm(metaclass=abc.ABCMeta):

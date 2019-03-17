@@ -1,4 +1,3 @@
-import abc
 from collections import OrderedDict
 
 import torch
@@ -6,15 +5,8 @@ import numpy as np
 import torch.optim as optim
 from torch import nn as nn
 import railrl.torch.pytorch_util as ptu
+from railrl.core.trainer import Trainer
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
-
-
-class Trainer(object, metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def train(self, data):
-        pass
 
 
 class TwinSACTrainer(Trainer):
@@ -50,7 +42,6 @@ class TwinSACTrainer(Trainer):
 
             use_automatic_entropy_tuning=True,
             target_entropy=None,
-            **kwargs
     ):
         self.env = env
         self.policy = policy
@@ -281,12 +272,11 @@ class TwinSACTrainer(Trainer):
             self.target_vf,
         ]
 
-    def update_epoch_snapshot(self, snapshot):
+    def update_snapshot(self, snapshot):
         snapshot.update(
             qf1=self.qf1,
             qf2=self.qf2,
-            policy=self.eval_policy,
-            trained_policy=self.policy,
+            policy=self.policy,
+            vf=self.vf,
             target_vf=self.target_vf,
-            exploration_policy=self.exploration_policy,
         )

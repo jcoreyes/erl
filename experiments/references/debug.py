@@ -9,7 +9,7 @@ from gym.envs.mujoco import (
 )
 from gym.envs.classic_control import PendulumEnv
 
-from railrl.core.rl_algorithm import RLAlgorithm2
+from railrl.core.rl_algorithm import RLAlgorithm2, BatchRlAlgorithm
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
@@ -138,12 +138,12 @@ def experiment(variant):
         vf=vf,
         target_vf=target_vf,
     )
-    algorithm = RLAlgorithm2(
+    algorithm = BatchRlAlgorithm(
         exploration_env=expl_env,
         evaluation_env=eval_env,
         exploration_data_collector=expl_path_collector,
         evaluation_data_collector=eval_path_collector,
-        replay_buffer=path_replay_buffer,
+        replay_buffer=replay_buffer,
         num_epochs=variant['num_epochs'],
         trainer=trainer,
     )
