@@ -23,12 +23,14 @@ from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'env_class': HalfCheetahEnv,
+        'max_path_length': 1000,
         'num_epochs': 1000,
         'train_policy_with_reparameterization': True,
     },
     'inv-double-pendulum': {  # 2 DoF
         'env_class': InvertedDoublePendulumEnv,
         'num_epochs': 100,
+        'max_path_length': 1000,
         'train_policy_with_reparameterization': True,
     },
     'pendulum': {  # 2 DoF
@@ -43,11 +45,13 @@ ENV_PARAMS = {
     'ant': {  # 6 DoF
         'env_class': AntEnv,
         'num_epochs': 3000,
+        'max_path_length': 1000,
         'train_policy_with_reparameterization': True,
     },
     'walker': {  # 6 DoF
         'env_class': Walker2dEnv,
         'num_epochs': 3000,
+        'max_path_length': 1000,
         'train_policy_with_reparameterization': True,
     },
 }
@@ -144,7 +148,7 @@ if __name__ == "__main__":
         num_eval_paths_per_epoch=5,
         num_trains_per_train_loop=1000,
         num_train_loops_per_epoch=1,
-        max_path_length=100,
+        max_path_length=1000,
         batch_size=256,
         discount=0.99,
         replay_buffer_size=int(1E6),
