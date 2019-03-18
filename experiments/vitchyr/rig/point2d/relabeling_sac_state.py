@@ -7,28 +7,31 @@ from railrl.launchers.launcher_util import run_experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
+        max_path_length=100,
         algo_kwargs=dict(
-            base_kwargs=dict(
-                num_epochs=200,
-                num_steps_per_epoch=100,
-                num_steps_per_eval=1000,
-                max_path_length=100,
-                num_updates_per_env_step=1,
-                batch_size=128,
-                discount=0.99,
-                min_num_steps_before_training=1,
-                reward_scale=1,
-                render=False,
-            ),
-            her_kwargs=dict(
-            ),
-            twin_sac_kwargs=dict(),
+            batch_size=256,
+            num_epochs=200,
+            num_eval_paths_per_epoch=5,
+            num_train_loops_per_epoch=1,
+            num_trains_per_train_loop=1000,
         ),
-        env_id='Point2DWallBox-State-Debug-Hard-Env-v0',
+        twin_sac_trainer_kwargs=dict(
+            discount=0.99,
+            soft_target_tau=1.0,
+            policy_update_period=1,
+            target_update_period=1000,
+            train_policy_with_reparameterization=True,
+            policy_lr=3E-4,
+            qf_lr=3E-4,
+            vf_lr=3E-4,
+            reward_scale=1,
+            use_automatic_entropy_tuning=True,
+        ),
+        env_id='Point2DLargeEnv-offscreen-v0',
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_are_rollout_goals=0.2,
-            fraction_resampled_goals_are_env_goals=0,
+            fraction_goals_rollout_goals=0.2,
+            fraction_goals_env_goals=0,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],

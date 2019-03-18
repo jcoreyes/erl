@@ -27,6 +27,7 @@ def create_rollout_function(rollout_function, **initial_kwargs):
         return rollout_function(*args, **combined_args)
     return wrapped_rollout_func
 
+# TODO: rename and refactor file
 def multitask_rollout(
     env,
     agent,
