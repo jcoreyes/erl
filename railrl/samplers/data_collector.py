@@ -53,9 +53,7 @@ class MdpPathCollector(object):
             num_steps_collected += len(path['actions'])
             paths.append(path)
         self._num_paths_total += len(paths)
-        self._num_steps_total += sum(
-            map(lambda p: len(p['actions']), paths)
-        )
+        self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)
         return paths
 
@@ -114,9 +112,7 @@ class GoalConditionedPathCollector(object):
             num_steps_collected += len(path['actions'])
             paths.append(path)
         self._num_paths_total += len(paths)
-        self._num_steps_total += sum(
-            map(lambda p: len(p['actions']), paths)
-        )
+        self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)
         return paths
 
