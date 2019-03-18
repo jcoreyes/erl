@@ -23,6 +23,7 @@ from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'env_class': HalfCheetahEnv,
+        'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 1000,
         'train_policy_with_reparameterization': True,
@@ -30,13 +31,14 @@ ENV_PARAMS = {
     'inv-double-pendulum': {  # 2 DoF
         'env_class': InvertedDoublePendulumEnv,
         'num_epochs': 100,
+        'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'train_policy_with_reparameterization': True,
     },
     'pendulum': {  # 2 DoF
         'env_class': PendulumEnv,
         'num_epochs': 200,
-        'num_trains_per_train_loop': 200,
+        'num_expl_steps_per_train_loop': 200,
         'max_path_length': 200,
         'min_num_steps_before_training': 200,
         'target_update_period': 200,
@@ -45,12 +47,14 @@ ENV_PARAMS = {
     'ant': {  # 6 DoF
         'env_class': AntEnv,
         'num_epochs': 3000,
+        'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'train_policy_with_reparameterization': True,
     },
     'walker': {  # 6 DoF
         'env_class': Walker2dEnv,
         'num_epochs': 3000,
+        'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'train_policy_with_reparameterization': True,
     },
@@ -93,16 +97,13 @@ def experiment(variant):
         hidden_sizes=[M, M],
     )
     eval_policy = MakeDeterministic(policy)
-    path_length = variant['max_path_length']
     eval_path_collector = MdpPathCollector(
         eval_env,
         eval_policy,
-        path_length,
     )
     expl_path_collector = MdpPathCollector(
         expl_env,
         policy,
-        path_length,
     )
     replay_buffer = EnvReplayBuffer(
         variant['replay_buffer_size'],
@@ -133,9 +134,11 @@ def experiment(variant):
         exploration_data_collector=expl_path_collector,
         evaluation_data_collector=eval_path_collector,
         data_buffer=replay_buffer,
+        max_path_length=variant['max_path_length'],
         batch_size=variant['batch_size'],
         num_epochs=variant['num_epochs'],
-        num_eval_paths_per_epoch=variant['num_eval_paths_per_epoch'],
+        num_eval_steps_per_epoch=variant['num_eval_steps_per_epoch'],
+        num_expl_steps_per_train_loop=variant['num_expl_steps_per_train_loop'],
         num_trains_per_train_loop=variant['num_trains_per_train_loop'],
     )
     algorithm.to(ptu.device)
@@ -145,9 +148,9 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         num_epochs=3000,
-        num_eval_paths_per_epoch=5,
+        num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
-        num_train_loops_per_epoch=1,
+        num_expl_steps_per_train_loop=1000,
         max_path_length=1000,
         batch_size=256,
         discount=0.99,
@@ -170,7 +173,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'sss'
-    exp_prefix = 'reference-twin-sac-post-modular-refactor'
+    exp_prefix = 'reference-twin-sac-post-modular-refactor-num-steps-fixed'
 
     search_space = {
         'env': [
