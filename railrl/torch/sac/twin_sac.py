@@ -1,16 +1,17 @@
 from collections import OrderedDict
 
-import torch
 import numpy as np
+import torch
 import torch.optim as optim
 from torch import nn as nn
+
 import railrl.torch.pytorch_util as ptu
-from railrl.core.trainer import Trainer
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.core import np_to_pytorch_batch
+from railrl.torch.torch_rl_algorithm import TorchTrainer
 
 
-class TwinSACTrainer(Trainer):
+class TwinSACTrainer(TorchTrainer):
     """
     TD3 + SAC
     """

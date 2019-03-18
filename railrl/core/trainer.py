@@ -9,5 +9,8 @@ class Trainer(object, metaclass=abc.ABCMeta):
     def end_epoch(self, epoch):
         pass
 
-    def update_snapshot(self, snapshot):
-        return snapshot
+    def get_snapshot(self):
+        return {}
+
+    def get_diagnostics(self):
+        return {}
