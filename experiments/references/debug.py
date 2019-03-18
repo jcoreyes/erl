@@ -164,17 +164,17 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    # n_seeds = 3
-    # mode = 'sss'
-    # exp_prefix = 'reference-twin-sac-sweep-post-remove-serializable'
+    n_seeds = 3
+    mode = 'sss'
+    exp_prefix = 'reference-twin-sac-post-modular-refactor'
 
     search_space = {
         'env': [
-            # 'half-cheetah',
+            'half-cheetah',
             'inv-double-pendulum',
             'pendulum',
-            # 'ant',
-            # 'walker',
+            'ant',
+            'walker',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
