@@ -6,7 +6,7 @@ from railrl.samplers.rollout_functions import rollout, multitask_rollout
 
 class PathCollector(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def collect_new_paths(self, num_paths):
+    def collect_new_paths(self, max_path_length, num_steps):
         pass
 
     @abc.abstractmethod
@@ -28,28 +28,33 @@ class MdpPathCollector(object):
             self,
             env,
             policy,
-            max_path_length,
             max_num_epoch_paths_saved=32,
     ):
         self._env = env
         self._policy = policy
-        self._max_path_length = max_path_length
         self._max_num_epoch_paths_saved = max_num_epoch_paths_saved
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
 
         self._num_steps_total = 0
         self._num_paths_total = 0
 
-    def collect_new_paths(self, num_paths):
-        paths = [
-            rollout(
-                self._env, self._policy, max_path_length=self._max_path_length
+    def collect_new_paths(self, max_path_length, num_steps):
+        paths = []
+        num_steps_collected = 0
+        while num_steps_collected < num_steps:
+            path = rollout(
+                self._env,
+                self._policy,
+                max_path_length=min(  # Do not go over num_steps
+                    max_path_length,
+                    num_steps - num_steps_collected,
+                ),
             )
-            for _ in range(num_paths)
-        ]
+            num_steps_collected += len(path['actions'])
+            paths.append(path)
         self._num_paths_total += len(paths)
         self._num_steps_total += sum(
-            map(lambda path: len(path['actions']), paths)
+            map(lambda p: len(p['actions']), paths)
         )
         self._epoch_paths.extend(paths)
         return paths
@@ -78,14 +83,12 @@ class GoalConditionedPathCollector(object):
             self,
             env,
             policy,
-            max_path_length,
             max_num_epoch_paths_saved=32,
             observation_key='observation',
             desired_goal_key='desired_goal',
     ):
         self._env = env
         self._policy = policy
-        self._max_path_length = max_path_length
         self._max_num_epoch_paths_saved = max_num_epoch_paths_saved
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
         self._observation_key = observation_key
@@ -94,20 +97,25 @@ class GoalConditionedPathCollector(object):
         self._num_steps_total = 0
         self._num_paths_total = 0
 
-    def collect_new_paths(self, num_paths):
-        paths = [
-            multitask_rollout(
+    def collect_new_paths(self, max_path_length, num_steps):
+        paths = []
+        num_steps_collected = 0
+        while num_steps_collected < num_steps:
+            path = multitask_rollout(
                 self._env,
                 self._policy,
-                max_path_length=self._max_path_length,
+                max_path_length=min(  # Do not go over num_steps
+                    max_path_length,
+                    num_steps - num_steps_collected,
+                ),
                 observation_key=self._observation_key,
                 desired_goal_key=self._desired_goal_key,
             )
-            for _ in range(num_paths)
-        ]
+            num_steps_collected += len(path['actions'])
+            paths.append(path)
         self._num_paths_total += len(paths)
         self._num_steps_total += sum(
-            map(lambda path: len(path['actions']), paths)
+            map(lambda p: len(p['actions']), paths)
         )
         self._epoch_paths.extend(paths)
         return paths
