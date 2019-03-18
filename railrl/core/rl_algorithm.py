@@ -1,21 +1,9 @@
-import abc
-import copy
-import pickle
-import time
 from collections import OrderedDict
 
 import gtimer as gt
-import numpy as np
 
 from railrl.core import logger
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.path_builder import PathBuilder
-from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc import eval_util
-from railrl.policies.base import ExplorationPolicy
-from railrl.samplers.in_place import InPlacePathSampler
-from railrl.samplers.rollout_functions import rollout
-import railrl.envs.env_utils as env_utils
 
 
 def _get_epoch_timings(epoch):
@@ -29,13 +17,13 @@ def _get_epoch_timings(epoch):
     total_time = gt.get_times().total
 
     return OrderedDict([
-        ('data storing (s)', data_storing_time),
-        ('train time (s)', train_time),
-        ('evaluation sampling time (s)', eval_sampling_time),
-        ('exploration sampling time (s)', expl_sampling_time),
-        ('saving time (s)', save_time),
-        ('epoch time (s)', epoch_time),
-        ('total train (s)', total_time),
+        ('time/data storing (s)', data_storing_time),
+        ('time/training (s)', train_time),
+        ('time/evaluation sampling (s)', eval_sampling_time),
+        ('time/exploration sampling (s)', expl_sampling_time),
+        ('time/saving (s)', save_time),
+        ('time/epoch (s)', epoch_time),
+        ('time/total train (s)', total_time),
     ])
 
 
@@ -49,11 +37,12 @@ class BatchRLAlgorithm(object):
             evaluation_data_collector,
             data_buffer,
             batch_size,
+            max_path_length,
             num_epochs,
-            num_eval_paths_per_epoch,
+            num_eval_steps_per_epoch,
+            num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
             num_train_loops_per_epoch=1,
-            num_paths_per_train_loop=1,
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -62,11 +51,12 @@ class BatchRLAlgorithm(object):
         self.eval_data_collector = evaluation_data_collector
         self.data_buffer = data_buffer
         self.batch_size = batch_size
+        self.max_path_length = max_path_length
         self.num_epochs = num_epochs
-        self.num_eval_paths_per_epoch = num_eval_paths_per_epoch
+        self.num_eval_steps_per_epoch = num_eval_steps_per_epoch
         self.num_trains_per_train_loop = num_trains_per_train_loop
         self.num_train_loops_per_epoch = num_train_loops_per_epoch
-        self.num_paths_per_train_loop = num_paths_per_train_loop
+        self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
         self._start_epoch = 0
 
     def train(self, start_epoch=0):
@@ -80,7 +70,8 @@ class BatchRLAlgorithm(object):
         ):
             for _ in range(self.num_train_loops_per_epoch):
                 new_expl_paths = self.expl_data_collector.collect_new_paths(
-                    self.num_paths_per_train_loop
+                    self.max_path_length,
+                    self.num_expl_steps_per_train_loop,
                 )
                 gt.stamp('exploration sampling', unique=False)
 
@@ -93,7 +84,8 @@ class BatchRLAlgorithm(object):
                 gt.stamp('training', unique=False)
 
             self.eval_data_collector.collect_new_paths(
-                self.num_eval_paths_per_epoch
+                self.max_path_length,
+                self.num_eval_steps_per_epoch,
             )
             gt.stamp('evaluation sampling')
 
@@ -102,13 +94,13 @@ class BatchRLAlgorithm(object):
     def _end_epoch(self, epoch):
         snapshot = {}
         for k, v in self.trainer.get_snapshot().items():
-            snapshot['trainer ' + k] = v
+            snapshot['trainer/' + k] = v
         for k, v in self.expl_data_collector.get_snapshot().items():
-            snapshot['exploration ' + k] = v
+            snapshot['exploration/' + k] = v
         for k, v in self.eval_data_collector.get_snapshot().items():
-            snapshot['evaluation ' + k] = v
+            snapshot['evaluation/' + k] = v
         for k, v in self.data_buffer.get_snapshot().items():
-            snapshot['data buffer ' + k] = v
+            snapshot['buffer/' + k] = v
         logger.save_itr_params(epoch, snapshot)
         gt.stamp('saving')
 
@@ -121,35 +113,35 @@ class BatchRLAlgorithm(object):
 
     def _log_stats(self, epoch):
         # Data Buffer
-        logger.record_dict(self.data_buffer.get_diagnostics(), prefix='buffer ')
+        logger.record_dict(self.data_buffer.get_diagnostics(), prefix='buffer/')
 
         # Trainer
-        logger.record_dict(self.trainer.get_diagnostics(), prefix='trainer ')
+        logger.record_dict(self.trainer.get_diagnostics(), prefix='trainer/')
         # Exploration
         logger.record_dict(self.expl_data_collector.get_diagnostics(),
-                           prefix='exploration ')
+                           prefix='exploration/')
         expl_paths = self.expl_data_collector.get_epoch_paths()
         if hasattr(self.expl_env, 'get_diagnostics'):
             logger.record_dict(
                 self.expl_env.get_diagnostics(expl_paths),
-                prefix='exploration ',
+                prefix='exploration/',
             )
         logger.record_dict(
             eval_util.get_generic_path_information(expl_paths),
-            prefix="exploration ",
+            prefix="exploration/",
         )
         # Eval
         logger.record_dict(self.eval_data_collector.get_diagnostics(),
-                           prefix='evaluation ')
+                           prefix='evaluation/')
         eval_paths = self.eval_data_collector.get_epoch_paths()
         if hasattr(self.eval_env, 'get_diagnostics'):
             logger.record_dict(
                 self.eval_env.get_diagnostics(eval_paths),
-                prefix='evaluation ',
+                prefix='evaluation/',
             )
         logger.record_dict(
             eval_util.get_generic_path_information(eval_paths),
-            prefix="evaluation ",
+            prefix="evaluation/",
         )
 
         # Misc
