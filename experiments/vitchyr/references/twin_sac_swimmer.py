@@ -35,6 +35,9 @@ def experiment(variant):
         policy_lr=variant['policy_lr'],
         qf_lr=variant['qf_lr'],
         vf_lr=variant['vf_lr'],
+        policy_mean_reg_weight=0,
+        policy_std_reg_weight=0,
+        policy_pre_activation_weight=0.,
         reward_scale=1,
         use_automatic_entropy_tuning=True,
     )
@@ -74,24 +77,23 @@ def experiment(variant):
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=500,
+        num_epochs=2000,
         num_steps_per_epoch=1000,
         num_steps_per_eval=1000,
         max_path_length=1000,
-        min_num_steps_before_training=10000,
+        min_num_steps_before_training=1000,
         batch_size=256,
         discount=0.99,
         replay_buffer_size=int(1E6),
-        soft_target_tau=1.0,
+        soft_target_tau=5e-3,
         policy_update_period=1,
-        target_update_period=1000,
+        target_update_period=1,
         train_policy_with_reparameterization=True,
         policy_lr=3E-4,
         qf_lr=3E-4,
         vf_lr=3E-4,
         layer_size=256,
         algorithm="Twin-SAC",
-        version="normal",
     )
 
     n_seeds = 1
@@ -100,7 +102,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'sss'
-    exp_prefix = 'twin-sac-swimmer'
+    exp_prefix = 'twin-sac-swimmer-2M'
 
     search_space = {
         'version': ['normal'],
