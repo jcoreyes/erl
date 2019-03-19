@@ -6,6 +6,8 @@ from gym.envs.mujoco import (
     AntEnv,
     Walker2dEnv,
     InvertedDoublePendulumEnv,
+    HopperEnv,
+    HumanoidEnv,
 )
 from gym.envs.classic_control import PendulumEnv
 
@@ -26,37 +28,44 @@ ENV_PARAMS = {
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 1000,
-        'train_policy_with_reparameterization': True,
+    },
+    'hopper': {  # 6 DoF
+        'env_class': HopperEnv,
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 1000,
+        'num_epochs': 1000,
+    },
+    'humanoid': {  # 6 DoF
+        'env_class': HumanoidEnv,
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 1000,
+        'num_epochs': 3000,
     },
     'inv-double-pendulum': {  # 2 DoF
         'env_class': InvertedDoublePendulumEnv,
-        'num_epochs': 100,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'train_policy_with_reparameterization': True,
+        'num_epochs': 100,
     },
     'pendulum': {  # 2 DoF
         'env_class': PendulumEnv,
-        'num_epochs': 200,
         'num_expl_steps_per_train_loop': 200,
         'max_path_length': 200,
+        'num_epochs': 200,
         'min_num_steps_before_training': 2000,
         'target_update_period': 200,
-        'train_policy_with_reparameterization': False,
     },
     'ant': {  # 6 DoF
         'env_class': AntEnv,
-        'num_epochs': 3000,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'train_policy_with_reparameterization': True,
+        'num_epochs': 3000,
     },
     'walker': {  # 6 DoF
         'env_class': Walker2dEnv,
-        'num_epochs': 3000,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'train_policy_with_reparameterization': True,
+        'num_epochs': 3000,
     },
 }
 
@@ -81,13 +90,13 @@ def experiment(variant):
         output_size=1,
         hidden_sizes=[M, M],
     )
-    vf = FlattenMlp(
-        input_size=obs_dim,
+    target_qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    target_vf = FlattenMlp(
-        input_size=obs_dim,
+    target_qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
@@ -114,18 +123,9 @@ def experiment(variant):
         policy=policy,
         qf1=qf1,
         qf2=qf2,
-        vf=vf,
-        target_vf=target_vf,
-        discount=variant['discount'],
-        soft_target_tau=variant['soft_target_tau'],
-        policy_update_period=variant['policy_update_period'],
-        target_update_period=variant['target_update_period'],
-        train_policy_with_reparameterization=variant['train_policy_with_reparameterization'],
-        policy_lr=variant['policy_lr'],
-        qf_lr=variant['qf_lr'],
-        vf_lr=variant['vf_lr'],
-        reward_scale=1,
-        use_automatic_entropy_tuning=True,
+        target_qf1=target_qf1,
+        target_qf2=target_qf2,
+        **variant['trainer_kwargs']
     )
     algorithm = TorchBatchRLAlgorithm(
         trainer=trainer,
@@ -152,21 +152,22 @@ if __name__ == "__main__":
         num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
-        min_num_steps_before_training=10000,
+        min_num_steps_before_training=1000,
         max_path_length=1000,
         batch_size=256,
-        discount=0.99,
         replay_buffer_size=int(1E6),
-        soft_target_tau=1.0,
-        policy_update_period=1,  # check
-        target_update_period=1000,  # check
-        train_policy_with_reparameterization=False,
-        policy_lr=3E-4,
-        qf_lr=3E-4,
-        vf_lr=3E-4,
-        layer_size=256,  # [256, 512]
+        layer_size=256,
         algorithm="Twin-SAC",
         version="normal",
+        trainer_kwargs=dict(
+            discount=0.99,
+            soft_target_tau=5e-3,
+            target_update_period=1,
+            policy_lr=3E-4,
+            qf_lr=3E-4,
+            reward_scale=1,
+            use_automatic_entropy_tuning=True,
+        ),
     )
 
     n_seeds = 1
@@ -175,7 +176,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'sss'
-    exp_prefix = 'reference-twin-sac-post-mod-ref-min-num-steps'
+    exp_prefix = 'reference-tsac-post-mod-new-sac'
 
     search_space = {
         'env': [
@@ -184,6 +185,8 @@ if __name__ == "__main__":
             # 'pendulum',
             'ant',
             'walker',
+            'hopper',
+            'humanoid',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
