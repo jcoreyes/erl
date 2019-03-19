@@ -3,7 +3,9 @@ from collections import OrderedDict
 import gtimer as gt
 
 from railrl.core import logger
+from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.misc import eval_util
+from railrl.samplers.data_collector import PathCollector
 
 
 def _get_epoch_timings(epoch):
@@ -33,9 +35,9 @@ class BatchRLAlgorithm(object):
             trainer,
             exploration_env,
             evaluation_env,
-            exploration_data_collector,
-            evaluation_data_collector,
-            data_buffer,
+            exploration_data_collector: PathCollector,
+            evaluation_data_collector: PathCollector,
+            data_buffer: ReplayBuffer,
             batch_size,
             max_path_length,
             num_epochs,
@@ -43,6 +45,7 @@ class BatchRLAlgorithm(object):
             num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
             num_train_loops_per_epoch=1,
+            min_num_steps_before_training=0,
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -57,6 +60,7 @@ class BatchRLAlgorithm(object):
         self.num_trains_per_train_loop = num_trains_per_train_loop
         self.num_train_loops_per_epoch = num_train_loops_per_epoch
         self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
+        self.min_num_steps_before_training = min_num_steps_before_training
         self._start_epoch = 0
 
     def train(self, start_epoch=0):
@@ -64,10 +68,24 @@ class BatchRLAlgorithm(object):
         self._train()
 
     def _train(self):
+        if self.min_num_steps_before_training > 0:
+            init_expl_paths = self.expl_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.min_num_steps_before_training,
+            )
+            self.data_buffer.add_paths(init_expl_paths)
+            self.expl_data_collector.end_epoch(-1)
+
         for epoch in gt.timed_for(
                 range(self._start_epoch, self.num_epochs),
                 save_itrs=True,
         ):
+            self.eval_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_eval_steps_per_epoch,
+            )
+            gt.stamp('evaluation sampling')
+
             for _ in range(self.num_train_loops_per_epoch):
                 new_expl_paths = self.expl_data_collector.collect_new_paths(
                     self.max_path_length,
@@ -82,12 +100,6 @@ class BatchRLAlgorithm(object):
                     train_data = self.data_buffer.random_batch(self.batch_size)
                     self.trainer.train(train_data)
                 gt.stamp('training', unique=False)
-
-            self.eval_data_collector.collect_new_paths(
-                self.max_path_length,
-                self.num_eval_steps_per_epoch,
-            )
-            gt.stamp('evaluation sampling')
 
             self._end_epoch(epoch)
 

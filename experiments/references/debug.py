@@ -40,7 +40,7 @@ ENV_PARAMS = {
         'num_epochs': 200,
         'num_expl_steps_per_train_loop': 200,
         'max_path_length': 200,
-        'min_num_steps_before_training': 200,
+        'min_num_steps_before_training': 2000,
         'target_update_period': 200,
         'train_policy_with_reparameterization': False,
     },
@@ -140,6 +140,7 @@ def experiment(variant):
         num_eval_steps_per_epoch=variant['num_eval_steps_per_epoch'],
         num_expl_steps_per_train_loop=variant['num_expl_steps_per_train_loop'],
         num_trains_per_train_loop=variant['num_trains_per_train_loop'],
+        min_num_steps_before_training=variant['min_num_steps_before_training'],
     )
     algorithm.to(ptu.device)
     algorithm.train()
@@ -151,6 +152,7 @@ if __name__ == "__main__":
         num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
+        min_num_steps_before_training=10000,
         max_path_length=1000,
         batch_size=256,
         discount=0.99,
@@ -171,15 +173,15 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
+    n_seeds = 5
     mode = 'sss'
-    exp_prefix = 'reference-twin-sac-post-modular-refactor-num-steps-fixed'
+    exp_prefix = 'reference-twin-sac-post-mod-ref-min-num-steps'
 
     search_space = {
         'env': [
-            'half-cheetah',
-            'inv-double-pendulum',
-            'pendulum',
+            # 'half-cheetah',
+            # 'inv-double-pendulum',
+            # 'pendulum',
             'ant',
             'walker',
         ],
