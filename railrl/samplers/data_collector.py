@@ -23,7 +23,7 @@ class PathCollector(object, metaclass=abc.ABCMeta):
         return {}
 
 
-class MdpPathCollector(object):
+class MdpPathCollector(PathCollector):
     def __init__(
             self,
             env,
