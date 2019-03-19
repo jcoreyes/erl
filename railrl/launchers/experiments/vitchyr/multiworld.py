@@ -161,15 +161,15 @@ def relabeling_tsac_experiment(variant):
         output_size=1,
         **variant['qf_kwargs']
     )
-    vf = FlattenMlp(
-        input_size=obs_dim + goal_dim,
+    target_qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
-        **variant['vf_kwargs']
+        **variant['qf_kwargs']
     )
-    target_vf = FlattenMlp(
-        input_size=obs_dim + goal_dim,
+    target_qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
-        **variant['vf_kwargs']
+        **variant['qf_kwargs']
     )
     policy = TanhGaussianPolicy(
         obs_dim=obs_dim + goal_dim,
@@ -183,8 +183,8 @@ def relabeling_tsac_experiment(variant):
         policy=policy,
         qf1=qf1,
         qf2=qf2,
-        vf=vf,
-        target_vf=target_vf,
+        target_qf1=target_qf1,
+        target_qf2=target_qf2,
         **variant['twin_sac_trainer_kwargs']
     )
     trainer = HERTrainer(trainer)

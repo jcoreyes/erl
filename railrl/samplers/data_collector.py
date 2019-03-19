@@ -76,7 +76,7 @@ class MdpPathCollector(PathCollector):
         )
 
 
-class GoalConditionedPathCollector(object):
+class GoalConditionedPathCollector(PathCollector):
     def __init__(
             self,
             env,

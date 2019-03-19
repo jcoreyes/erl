@@ -11,19 +11,18 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             batch_size=256,
             num_epochs=200,
-            num_eval_paths_per_epoch=5,
-            num_train_loops_per_epoch=1,
+            num_eval_steps_per_epoch=5000,
+            num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
+            min_num_steps_before_training=1000,
+            max_path_length=1000,
         ),
         twin_sac_trainer_kwargs=dict(
             discount=0.99,
-            soft_target_tau=1.0,
-            policy_update_period=1,
-            target_update_period=1000,
-            train_policy_with_reparameterization=True,
+            soft_target_tau=5e-3,
+            target_update_period=1,
             policy_lr=3E-4,
             qf_lr=3E-4,
-            vf_lr=3E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
@@ -34,9 +33,6 @@ if __name__ == "__main__":
             fraction_goals_env_goals=0,
         ),
         qf_kwargs=dict(
-            hidden_sizes=[400, 300],
-        ),
-        vf_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
         policy_kwargs=dict(
