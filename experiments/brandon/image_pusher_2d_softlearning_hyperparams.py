@@ -81,7 +81,7 @@ def experiment(variant):
 if __name__ == "__main__":    
     variant = dict(
         imsize=64,
-        gap_mode=100,
+        gap_mode=500,
         arm_goal_distance_cost_coeff=1.0,
         arm_object_distance_cost_coeff=0.0,
         goal_object_distance_cost_coeff=0.0,
@@ -113,14 +113,18 @@ if __name__ == "__main__":
 
         qf_criterion_class=HuberLoss,
     )
+
+    PARALLEL = 1
+    SERIES = 10
+
+    for j in range(SERIES):
     
-    for i in range(10):
+        for i in range(PARALLEL):
     
-        run_experiment(
-            experiment,
-            variant=variant,
-            exp_id=i,
-            exp_prefix="sac-image-reacher-brandon-softlearning-hyperparams-{0}".format(i),
-            mode='local',
-            use_gpu=True,
-        )
+            run_experiment(
+                experiment,
+                variant=variant,
+                exp_id=i + PARALLEL * j,
+                exp_prefix="sac-image-reacher-brandon-softlearning-hyperparameters-{0}".format(i + PARALLEL * j),
+                mode='local',
+                skip_wait=i != PARALLEL - 1)

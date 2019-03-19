@@ -56,14 +56,14 @@ class ImageForkReacher2dEnv(ImagePusher2dEnv):
     def __init__(self,
                  arm_goal_distance_cost_coeff,
                  arm_object_distance_cost_coeff,
-                 *args,
+                 image_shape,
                  **kwargs):
         self.quick_init(locals())
 
         self._arm_goal_distance_cost_coeff = arm_goal_distance_cost_coeff
         self._arm_object_distance_cost_coeff = arm_object_distance_cost_coeff
 
-        super(ImageForkReacher2dEnv, self).__init__(*args, **kwargs)
+        super(ImageForkReacher2dEnv, self).__init__(image_shape, **kwargs)
 
     def compute_reward(self, observations, actions):
         is_batch = True
@@ -142,6 +142,27 @@ class ImageForkReacher2dEnv(ImagePusher2dEnv):
         self.set_state(qpos, qvel)
 
         return self._get_obs()
+
+    def log_diagnostics(self, paths, logger=default_logger):
+        statistics = OrderedDict()
+        for stat_name_in_paths, stat_name_to_print in [
+            ('arm_object_distance', 'Distance hand to object'),
+            ('arm_goal_distance', 'Distance hand to goal'),
+        ]:
+            stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
+            statistics.update(create_stats_ordered_dict(
+                stat_name_to_print,
+                stats,
+                always_show_all_stats=True,
+            ))
+            final_stats = [s[-1] for s in stats]
+            statistics.update(create_stats_ordered_dict(
+                "Final " + stat_name_to_print,
+                final_stats,
+                always_show_all_stats=True,
+            ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
 
 
 class BlindForkReacher2dEnv(ImageForkReacher2dEnv):
