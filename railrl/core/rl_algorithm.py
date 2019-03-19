@@ -124,14 +124,25 @@ class BatchRLAlgorithm(object):
         self.trainer.end_epoch(epoch)
 
     def _log_stats(self, epoch):
-        # Data Buffer
+        logger.log("Epoch {} finished".format(epoch), with_timestamp=True)
+
+        """
+        Data Buffer
+        """
         logger.record_dict(self.data_buffer.get_diagnostics(), prefix='buffer/')
 
-        # Trainer
+        """
+        Trainer
+        """
         logger.record_dict(self.trainer.get_diagnostics(), prefix='trainer/')
-        # Exploration
-        logger.record_dict(self.expl_data_collector.get_diagnostics(),
-                           prefix='exploration/')
+
+        """
+        Exploration
+        """
+        logger.record_dict(
+            self.expl_data_collector.get_diagnostics(),
+            prefix='exploration/'
+        )
         expl_paths = self.expl_data_collector.get_epoch_paths()
         if hasattr(self.expl_env, 'get_diagnostics'):
             logger.record_dict(
@@ -142,9 +153,13 @@ class BatchRLAlgorithm(object):
             eval_util.get_generic_path_information(expl_paths),
             prefix="exploration/",
         )
-        # Eval
-        logger.record_dict(self.eval_data_collector.get_diagnostics(),
-                           prefix='evaluation/')
+        """
+        Evaluation
+        """
+        logger.record_dict(
+            self.eval_data_collector.get_diagnostics(),
+            prefix='evaluation/',
+        )
         eval_paths = self.eval_data_collector.get_epoch_paths()
         if hasattr(self.eval_env, 'get_diagnostics'):
             logger.record_dict(
@@ -156,7 +171,9 @@ class BatchRLAlgorithm(object):
             prefix="evaluation/",
         )
 
-        # Misc
+        """
+        Misc
+        """
         logger.record_dict(_get_epoch_timings(epoch))
         logger.record_tabular('Epoch', epoch)
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
