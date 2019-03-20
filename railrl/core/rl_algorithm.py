@@ -62,13 +62,19 @@ class BatchRLAlgorithm(object):
         self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
         self.min_num_steps_before_training = min_num_steps_before_training
         self._start_epoch = 0
+        self.epoch_list = iter(gt.timed_for(
+                range(self._start_epoch, self.num_epochs),
+                save_itrs=True,))
 
     def train(self, start_epoch=0):
         self._start_epoch = start_epoch
-        self._train()
+        self.epoch = self._start_epoch
+        for epoch in self.epoch_list:
+            self._train()
 
     def _train(self):
-        if self.min_num_steps_before_training > 0:
+        self.epoch = next(self.epoch_list)
+        if self.epoch == 0:
             init_expl_paths = self.expl_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.min_num_steps_before_training,
@@ -76,32 +82,29 @@ class BatchRLAlgorithm(object):
             self.data_buffer.add_paths(init_expl_paths)
             self.expl_data_collector.end_epoch(-1)
 
-        for epoch in gt.timed_for(
-                range(self._start_epoch, self.num_epochs),
-                save_itrs=True,
-        ):
-            self.eval_data_collector.collect_new_paths(
+        self.eval_data_collector.collect_new_paths(
+            self.max_path_length,
+            self.num_eval_steps_per_epoch,
+        )
+        gt.stamp('evaluation sampling')
+
+        for _ in range(self.num_train_loops_per_epoch):
+            new_expl_paths = self.expl_data_collector.collect_new_paths(
                 self.max_path_length,
-                self.num_eval_steps_per_epoch,
+                self.num_expl_steps_per_train_loop,
             )
-            gt.stamp('evaluation sampling')
+            gt.stamp('exploration sampling', unique=False)
 
-            for _ in range(self.num_train_loops_per_epoch):
-                new_expl_paths = self.expl_data_collector.collect_new_paths(
-                    self.max_path_length,
-                    self.num_expl_steps_per_train_loop,
-                )
-                gt.stamp('exploration sampling', unique=False)
+            self.data_buffer.add_paths(new_expl_paths)
+            gt.stamp('data storing', unique=False)
 
-                self.data_buffer.add_paths(new_expl_paths)
-                gt.stamp('data storing', unique=False)
+            for _ in range(self.num_trains_per_train_loop):
+                train_data = self.data_buffer.random_batch(self.batch_size)
+                self.trainer.train(train_data)
+            gt.stamp('training', unique=False)
 
-                for _ in range(self.num_trains_per_train_loop):
-                    train_data = self.data_buffer.random_batch(self.batch_size)
-                    self.trainer.train(train_data)
-                gt.stamp('training', unique=False)
-
-            self._end_epoch(epoch)
+        self._end_epoch(self.epoch)
+        return {}
 
     def _end_epoch(self, epoch):
         snapshot = {}
@@ -125,20 +128,8 @@ class BatchRLAlgorithm(object):
 
     def _log_stats(self, epoch):
         logger.log("Epoch {} finished".format(epoch), with_timestamp=True)
-
-        """
-        Data Buffer
-        """
         logger.record_dict(self.data_buffer.get_diagnostics(), prefix='buffer/')
-
-        """
-        Trainer
-        """
         logger.record_dict(self.trainer.get_diagnostics(), prefix='trainer/')
-
-        """
-        Exploration
-        """
         logger.record_dict(
             self.expl_data_collector.get_diagnostics(),
             prefix='exploration/'
@@ -153,9 +144,6 @@ class BatchRLAlgorithm(object):
             eval_util.get_generic_path_information(expl_paths),
             prefix="exploration/",
         )
-        """
-        Evaluation
-        """
         logger.record_dict(
             self.eval_data_collector.get_diagnostics(),
             prefix='evaluation/',

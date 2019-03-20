@@ -12,13 +12,15 @@ from gym.envs.classic_control import PendulumEnv
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.torch.networks import FlattenMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.twin_sac import TwinSACTrainer
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from railrl.core.ray_experiment import RayExperiment
+import ray
+import ray.tune as tune
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
@@ -60,8 +62,8 @@ ENV_PARAMS = {
     },
 }
 
-
-def experiment(variant):
+@tune.function
+def run_experiment_func(variant):
     env_params = ENV_PARAMS[variant['env']]
     variant.update(env_params)
 
@@ -142,8 +144,25 @@ def experiment(variant):
         num_trains_per_train_loop=variant['num_trains_per_train_loop'],
         min_num_steps_before_training=variant['min_num_steps_before_training'],
     )
-    algorithm.to(ptu.device)
-    algorithm.train()
+    import pdb; pdb.set_trace()
+    return algorithm
+
+def experiment(variant):
+    ray.init()
+
+
+    # algorithm.to(ptu.device)
+    # algorithm.train()
+    exp = tune.Experiment(
+        name="debug_test",
+        run=RayExperiment,
+        # num_samples=20,
+        stop={"training_iteration": variant['num_epochs']},
+        config={
+            'algo_variant': variant,
+            'init_algo_function': run_experiment_func,
+        })
+    tune.run(exp)
 
 
 if __name__ == "__main__":
@@ -152,7 +171,7 @@ if __name__ == "__main__":
         num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
-        min_num_steps_before_training=10000,
+        min_num_steps_before_training=1000,
         max_path_length=1000,
         batch_size=256,
         discount=0.99,
@@ -173,17 +192,17 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 5
-    mode = 'sss'
-    exp_prefix = 'reference-twin-sac-post-mod-ref-min-num-steps'
+    # n_seeds = 5
+    # mode = 'sss'
+    # exp_prefix = 'reference-twin-sac-post-mod-ref-min-num-steps'
 
     search_space = {
         'env': [
             # 'half-cheetah',
             # 'inv-double-pendulum',
-            # 'pendulum',
-            'ant',
-            'walker',
+            'pendulum',
+            # 'ant',
+            # 'walker',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -193,6 +212,7 @@ if __name__ == "__main__":
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
+                use_gpu=True,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
