@@ -3,6 +3,7 @@ from collections import OrderedDict
 import gtimer as gt
 
 from railrl.core import logger
+import railrl.core.logging as logging
 from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.misc import eval_util
 from railrl.samplers.data_collector import PathCollector
@@ -102,11 +103,12 @@ class BatchRLAlgorithm(object):
                 train_data = self.data_buffer.random_batch(self.batch_size)
                 self.trainer.train(train_data)
             gt.stamp('training', unique=False)
+        self._save_snapshot()
+        algo_logs = self.get_diagnostics()
+        self._end_epoch()
+        return algo_logs
 
-        self._end_epoch(self.epoch)
-        return {}
-
-    def _end_epoch(self, epoch):
+    def _save_snapshot(self):
         snapshot = {}
         for k, v in self.trainer.get_snapshot().items():
             snapshot['trainer/' + k] = v
@@ -116,52 +118,62 @@ class BatchRLAlgorithm(object):
             snapshot['evaluation/' + k] = v
         for k, v in self.data_buffer.get_snapshot().items():
             snapshot['buffer/' + k] = v
-        logger.save_itr_params(epoch, snapshot)
+        logger.save_itr_params(self.epoch, snapshot)
         gt.stamp('saving')
 
-        self._log_stats(epoch)
-
-        self.expl_data_collector.end_epoch(epoch)
-        self.eval_data_collector.end_epoch(epoch)
-        self.data_buffer.end_epoch(epoch)
-        self.trainer.end_epoch(epoch)
-
-    def _log_stats(self, epoch):
-        logger.log("Epoch {} finished".format(epoch), with_timestamp=True)
-        logger.record_dict(self.data_buffer.get_diagnostics(), prefix='buffer/')
-        logger.record_dict(self.trainer.get_diagnostics(), prefix='trainer/')
-        logger.record_dict(
-            self.expl_data_collector.get_diagnostics(),
-            prefix='exploration/'
-        )
+    def get_diagnostics(self):
+        logger.log("Epoch {} finished".format(self.epoch), with_timestamp=True)
+        algorithm_logs = {}
+        algorithm_logs.update(
+            logging.add_prefix(
+                self.data_buffer.get_diagnostics(),
+                prefix='buffer/'))
+        algorithm_logs.update(
+            logging.add_prefix(
+                self.trainer.get_diagnostics(),
+                prefix='trainer/'))
+        algorithm_logs.update(
+            logging.add_prefix(
+                self.expl_data_collector.get_diagnostics(),
+                prefix='exploration/'))
         expl_paths = self.expl_data_collector.get_epoch_paths()
         if hasattr(self.expl_env, 'get_diagnostics'):
-            logger.record_dict(
-                self.expl_env.get_diagnostics(expl_paths),
-                prefix='exploration/',
-            )
-        logger.record_dict(
-            eval_util.get_generic_path_information(expl_paths),
-            prefix="exploration/",
-        )
-        logger.record_dict(
-            self.eval_data_collector.get_diagnostics(),
-            prefix='evaluation/',
-        )
+            algorithm_logs.update(
+                logging.add_prefix(
+                    self.expl_env.get_diagnostics(expl_paths),
+                    prefix='exploration/'))
+
+        algorithm_logs.update(
+            logging.add_prefix(
+                eval_util.get_generic_path_information(expl_paths),
+                prefix="exploration/"))
+        algorithm_logs.update(
+            logging.add_prefix(
+                self.eval_data_collector.get_diagnostics(),
+                prefix='evaluation/'))
         eval_paths = self.eval_data_collector.get_epoch_paths()
         if hasattr(self.eval_env, 'get_diagnostics'):
-            logger.record_dict(
-                self.eval_env.get_diagnostics(eval_paths),
-                prefix='evaluation/',
-            )
-        logger.record_dict(
-            eval_util.get_generic_path_information(eval_paths),
-            prefix="evaluation/",
-        )
+            algorithm_logs.update(
+                logging.add_prefix(
+                    self.eval_env.get_diagnostics(eval_paths),
+                    prefix='evaluation/'))
+        algorithm_logs.update(
+            logging.add_prefix(
+                eval_util.get_generic_path_information(eval_paths),
+                prefix="evaluation/"))
 
         """
         Misc
         """
-        logger.record_dict(_get_epoch_timings(epoch))
-        logger.record_tabular('Epoch', epoch)
-        logger.dump_tabular(with_prefix=False, with_timestamp=False)
+        algorithm_logs.update(_get_epoch_timings(self.epoch))
+        # logger.record_tabular('Epoch', epoch)
+        # logger.dump_tabular(with_prefix=False, with_timestamp=False)
+        return algorithm_logs
+
+    def _end_epoch(self):
+        self.expl_data_collector.end_epoch(self.epoch)
+        self.eval_data_collector.end_epoch(self.epoch)
+        self.data_buffer.end_epoch(self.epoch)
+        self.trainer.end_epoch(self.epoch)
+
+

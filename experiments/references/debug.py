@@ -144,11 +144,10 @@ def run_experiment_func(variant):
         num_trains_per_train_loop=variant['num_trains_per_train_loop'],
         min_num_steps_before_training=variant['min_num_steps_before_training'],
     )
-    import pdb; pdb.set_trace()
     return algorithm
 
 def experiment(variant):
-    ray.init()
+    ray.init(local_mode=True)
 
 
     # algorithm.to(ptu.device)
