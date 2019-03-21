@@ -13,7 +13,7 @@ class PathCollector(object, metaclass=abc.ABCMeta):
     def get_epoch_paths(self):
         pass
 
-    def end_epoch(self):
+    def end_epoch(self, epoch):
         pass
 
     def get_diagnostics(self):
