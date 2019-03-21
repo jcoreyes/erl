@@ -1,4 +1,7 @@
+import copy
 import random
+import warnings
+
 import torch
 
 import cv2
@@ -488,6 +491,17 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             return decoded, None
         else:
             raise AssertionError("Bad prefix for the vae input key.")
+
+    def __getstate__(self):
+        state = super().__getstate__()
+        state = copy.copy(state)
+        state['goal_sampler'] = None
+        warnings.warn('VAEWrapperEnv.goal_sampler is not saved.')
+        return state
+
+    def __setstate__(self, state):
+        warnings.warn('VAEWrapperEnv.goal_sampler was not loaded.')
+        super().__setstate__(state)
 
 
 def temporary_mode(env, mode, func, args=None, kwargs=None):

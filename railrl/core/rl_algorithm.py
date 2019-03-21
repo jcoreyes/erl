@@ -10,23 +10,15 @@ from railrl.samplers.data_collector import PathCollector
 
 def _get_epoch_timings(epoch):
     times_itrs = gt.get_times().stamps.itrs
-    train_time = times_itrs['training'][-1]
-    expl_sampling_time = times_itrs['exploration sampling'][-1]
-    data_storing_time = times_itrs['data storing'][-1]
-    save_time = times_itrs['saving'][-1]
-    eval_sampling_time = times_itrs['evaluation sampling'][-1] if epoch > 0 else 0
-    epoch_time = train_time + expl_sampling_time + eval_sampling_time
-    total_time = gt.get_times().total
-
-    return OrderedDict([
-        ('time/data storing (s)', data_storing_time),
-        ('time/training (s)', train_time),
-        ('time/evaluation sampling (s)', eval_sampling_time),
-        ('time/exploration sampling (s)', expl_sampling_time),
-        ('time/saving (s)', save_time),
-        ('time/epoch (s)', epoch_time),
-        ('time/total train (s)', total_time),
-    ])
+    times = OrderedDict()
+    epoch_time = 0
+    for key in sorted(times_itrs):
+        time = times_itrs[key][-1]
+        epoch_time += time
+        times['time/{} (s)'.format(key)] = time
+    times['time/epoch (s)'] = epoch_time
+    times['time/total (s)'] = gt.get_times().total
+    return times
 
 
 class BatchRLAlgorithm(object):

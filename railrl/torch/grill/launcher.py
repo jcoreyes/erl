@@ -4,6 +4,13 @@ import time
 import cv2
 import numpy as np
 
+from railrl.samplers.data_collector import GoalConditionedPathCollector
+from railrl.torch.her.her import HERTrainer
+from railrl.torch.sac.policies import MakeDeterministic
+from railrl.torch.sac.twin_sac import TwinSACTrainer
+from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
+
+
 def grill_tdm_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
     if not variant['grill_variant'].get('do_state_exp', False):
@@ -227,7 +234,6 @@ def generate_vae_dataset(variant):
     non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
     tag = variant.get('tag', '')
     from multiworld.core.image_env import ImageEnv, unormalize_image
-    from railrl.misc.asset_loader import local_path_from_s3_or_local_path
     import railrl.torch.pytorch_util as ptu
     from railrl.misc.asset_loader import load_local_or_remote_file
     info = {}
@@ -257,8 +263,6 @@ def generate_vae_dataset(variant):
 
             if env_id is not None:
                 import gym
-                import multiworld.envs.pygame
-                import multiworld.envs.mujoco
                 env = gym.make(env_id)
             else:
                 if vae_dataset_specific_env_kwargs is None:
@@ -356,10 +360,7 @@ def get_envs(variant):
     vae = load_local_or_remote_file(vae_path) if type(vae_path) is str else vae_path
     if 'env_id' in variant:
         import gym
-        from gym.envs import registration
         # trigger registration
-        import multiworld.envs.pygame
-        import multiworld.envs.mujoco
         env = gym.make(variant['env_id'])
     else:
         env = variant["env_class"](**variant['env_kwargs'])
@@ -814,22 +815,15 @@ def grill_tdm_td3_experiment(variant):
 
 
 def grill_her_twin_sac_experiment_online_vae(variant):
-    import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
-    from railrl.core import logger
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
-    from railrl.exploration_strategies.base import (
-        PolicyWrappedWithExplorationStrategy
-    )
-    from railrl.torch.her.online_vae_her_twin_sac import OnlineVaeHerTwinSac
     from railrl.torch.networks import FlattenMlp
-    from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.sac.policies import TanhGaussianPolicy
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer
 
     grill_preprocess_variant(variant)
     env = get_envs(variant)
-    es = get_exploration_strategy(variant, env)
 
     uniform_dataset_fn = variant.get('generate_uniform_dataset_fn', None)
     if uniform_dataset_fn:
@@ -858,13 +852,13 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    vf = FlattenMlp(
-        input_size=obs_dim,
+    target_qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_vf = FlattenMlp(
-        input_size=obs_dim,
+    target_qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
@@ -874,120 +868,74 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         hidden_sizes=hidden_sizes,
     )
 
-    exploration_policy = PolicyWrappedWithExplorationStrategy(
-        exploration_strategy=es,
-        policy=policy,
-    )
-
     vae = env.vae
 
     replay_buffer = OnlineVaeRelabelingBuffer(
-        vae=vae,
+        vae=env.vae,
         env=env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
-    variant["algo_kwargs"]['base_kwargs']["replay_buffer"] = replay_buffer
-    t = ConvVAETrainer(variant['vae_train_data'],
-                       variant['vae_test_data'],
-                       vae,
-                       beta=variant['online_vae_beta'],
-                       )
-    render = variant["render"]
+    vae_trainer = ConvVAETrainer(
+        variant['vae_train_data'],
+        variant['vae_test_data'],
+        env.vae,
+        **variant['online_vae_trainer_kwargs']
+    )
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
+    max_path_length = variant['max_path_length']
 
+    trainer = TwinSACTrainer(
+        env=env,
+        policy=policy,
+        qf1=qf1,
+        qf2=qf2,
+        target_qf1=target_qf1,
+        target_qf2=target_qf2,
+        **variant['twin_sac_trainer_kwargs']
+    )
+    trainer = HERTrainer(trainer)
+    eval_path_collector = GoalConditionedPathCollector(
+        env,
+        MakeDeterministic(policy),
+        max_path_length,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+    )
+    expl_path_collector = GoalConditionedPathCollector(
+        env,
+        policy,
+        max_path_length,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+    )
 
-    from railrl.torch.vae.discern_diverse_algorithm import DiverseGoals
-    # TODO: Remove duplicate code
-    if variant.get('use_discern_sampling', False) == True:
-        algorithm = DiverseGoals(
-            online_vae_kwargs=dict(
-                vae=vae,
-                vae_trainer=t,
-                uniform_dataset=uniform_dataset,
-                **variant['algo_kwargs']['online_vae_kwargs']
-            ),
-            base_kwargs=dict(
-                env=env,
-                training_env=env,
-                policy=policy,
-                exploration_policy=exploration_policy,
-                render=render,
-                render_during_eval=render,
-                **variant['algo_kwargs']['base_kwargs'],
-            ),
-            her_kwargs=dict(
-                observation_key=observation_key,
-                desired_goal_key=desired_goal_key,
-            ),
-            twin_sac_kwargs=dict(
-                **variant['algo_kwargs']['twin_sac_kwargs'],
-                qf1=qf1,
-                qf2=qf2,
-                vf=vf,
-                target_vf=target_vf,
-            ),
-            **variant['algo_kwargs']['diverse_kwargs']
-        )
-
-    else:
-        algorithm = OnlineVaeHerTwinSac(
-            online_vae_kwargs=dict(
-                vae=vae,
-                vae_trainer=t,
-                uniform_dataset=uniform_dataset,
-                **variant['algo_kwargs']['online_vae_kwargs']
-            ),
-            base_kwargs=dict(
-                env=env,
-                training_env=env,
-                policy=policy,
-                exploration_policy=exploration_policy,
-                render=render,
-                render_during_eval=render,
-                **variant['algo_kwargs']['base_kwargs'],
-            ),
-            her_kwargs=dict(
-                observation_key=observation_key,
-                desired_goal_key=desired_goal_key,
-            ),
-            twin_sac_kwargs=dict(
-                **variant['algo_kwargs']['twin_sac_kwargs'],
-                qf1=qf1,
-                qf2=qf2,
-                vf=vf,
-                target_vf=target_vf,
-            )
-        )
+    algorithm = OnlineVaeAlgorithm(
+        trainer=trainer,
+        exploration_env=env,
+        evaluation_env=env,
+        exploration_data_collector=expl_path_collector,
+        evaluation_data_collector=eval_path_collector,
+        data_buffer=replay_buffer,
+        vae=vae,
+        vae_trainer=vae_trainer,
+        uniform_dataset=uniform_dataset,
+        max_path_length=max_path_length,
+        **variant['algo_kwargs']
+    )
 
     if variant.get('sample_goals_from_buffer', False) == True:
         assert (
             env.goal_sampler_for_relabeling or
             env.goal_sampler_for_exploration
         ), 'goal sampler set but not used'
-        assert algorithm.collection_mode != 'online-parallel', "still figuring out what I need to serialize to ensure this works correctly"
         assert env.goal_sampler is None, "Overriding existing goal sampler?"
         env.goal_sampler = replay_buffer.sample_buffer_goals
 
     algorithm.to(ptu.device)
     vae.to(ptu.device)
-    if variant.get("save_video", True):
-        logdir = logger.get_snapshot_dir()
-        rollout_function = rf.create_rollout_function(
-            rf.multitask_rollout,
-            max_path_length=algorithm.max_path_length,
-            observation_key=algorithm.observation_key,
-            desired_goal_key=algorithm.desired_goal_key,
-        )
-        video_func = get_video_save_func(
-            rollout_function,
-            env,
-            policy,
-            variant,
-        )
-        algorithm.post_epoch_funcs.append(video_func)
     algorithm.train()
 
 
@@ -1236,7 +1184,6 @@ def grill_tdm_twin_sac_experiment(variant):
 def grill_her_td3_experiment_online_vae(variant):
     import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
-    from railrl.core import logger
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
     from railrl.exploration_strategies.base import (
@@ -1367,7 +1314,6 @@ def grill_her_td3_experiment_online_vae(variant):
 def grill_her_td3_experiment_online_vae_exploring(variant):
     import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
-    from railrl.core import logger
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
     from railrl.exploration_strategies.base import (
@@ -1508,7 +1454,6 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
     algorithm.train()
 
 def HER_baseline_her_td3_experiment(variant):
-    import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
@@ -1527,10 +1472,7 @@ def HER_baseline_her_td3_experiment(variant):
 
     if 'env_id' in variant:
         import gym
-        from gym.envs import registration
         # trigger registration
-        import multiworld.envs.pygame
-        import multiworld.envs.mujoco
         env = gym.make(variant['env_id'])
     else:
         env = variant["env_class"](**variant['env_kwargs'])
@@ -1675,10 +1617,7 @@ def HER_baseline_twin_sac_experiment(variant):
 
     if 'env_id' in variant:
         import gym
-        from gym.envs import registration
         # trigger registration
-        import multiworld.envs.pygame
-        import multiworld.envs.mujoco
         env = gym.make(variant['env_id'])
     else:
         env = variant["env_class"](**variant['env_kwargs'])
