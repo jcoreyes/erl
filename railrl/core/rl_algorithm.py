@@ -7,6 +7,7 @@ import railrl.core.logging as logging
 from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.misc import eval_util
 from railrl.samplers.data_collector import PathCollector
+from railrl.core.logging import add_log
 
 
 def _get_epoch_timings(epoch):
@@ -66,6 +67,23 @@ class BatchRLAlgorithm(object):
         self.epoch_list = iter(gt.timed_for(
                 range(self._start_epoch, self.num_epochs),
                 save_itrs=True,))
+        self.epoch = 0
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['epoch_list'] = None
+        return state
+
+    def  __setstate__(self, state):
+        start_epoch = 0
+        if state['epoch'] != 0:
+            start_epoch = state['epoch']
+        self.__dict__ = state
+        self.epoch_list = iter(gt.timed_for(
+                range(start_epoch, self.num_epochs),
+                save_itrs=True,))
+
+
 
     def train(self, start_epoch=0):
         self._start_epoch = start_epoch
@@ -124,43 +142,35 @@ class BatchRLAlgorithm(object):
     def get_diagnostics(self):
         logger.log("Epoch {} finished".format(self.epoch), with_timestamp=True)
         algorithm_logs = {}
-        algorithm_logs.update(
-            logging.add_prefix(
+        add_log(algorithm_logs,
                 self.data_buffer.get_diagnostics(),
-                prefix='buffer/'))
-        algorithm_logs.update(
-            logging.add_prefix(
+                prefix='buffer/')
+        add_log(algorithm_logs,
                 self.trainer.get_diagnostics(),
-                prefix='trainer/'))
-        algorithm_logs.update(
-            logging.add_prefix(
+                prefix='trainer/')
+        add_log(algorithm_logs,
                 self.expl_data_collector.get_diagnostics(),
-                prefix='exploration/'))
+                prefix='exploration/')
         expl_paths = self.expl_data_collector.get_epoch_paths()
         if hasattr(self.expl_env, 'get_diagnostics'):
-            algorithm_logs.update(
-                logging.add_prefix(
+            add_log(algorithm_logs,
                     self.expl_env.get_diagnostics(expl_paths),
-                    prefix='exploration/'))
+                    prefix='exploration/')
 
-        algorithm_logs.update(
-            logging.add_prefix(
+        add_log(algorithm_logs,
                 eval_util.get_generic_path_information(expl_paths),
-                prefix="exploration/"))
-        algorithm_logs.update(
-            logging.add_prefix(
+                prefix="exploration/")
+        add_log(algorithm_logs,
                 self.eval_data_collector.get_diagnostics(),
-                prefix='evaluation/'))
+                prefix='evaluation/')
         eval_paths = self.eval_data_collector.get_epoch_paths()
         if hasattr(self.eval_env, 'get_diagnostics'):
-            algorithm_logs.update(
-                logging.add_prefix(
+            add_log(algorithm_logs,
                     self.eval_env.get_diagnostics(eval_paths),
-                    prefix='evaluation/'))
-        algorithm_logs.update(
-            logging.add_prefix(
+                    prefix='evaluation/')
+        add_log(algorithm_logs,
                 eval_util.get_generic_path_information(eval_paths),
-                prefix="evaluation/"))
+                prefix="evaluation/")
 
         """
         Misc

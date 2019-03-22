@@ -148,10 +148,9 @@ def run_experiment_func(variant):
 
 def experiment(variant):
     ray.init(local_mode=True)
+    # ray.init()
+    import railrl.torch.pytorch_util as ptu
 
-
-    # algorithm.to(ptu.device)
-    # algorithm.train()
     exp = tune.Experiment(
         name="debug_test",
         run=RayExperiment,
@@ -160,8 +159,15 @@ def experiment(variant):
         config={
             'algo_variant': variant,
             'init_algo_function': run_experiment_func,
-        })
-    tune.run(exp)
+            'use_gpu': ptu._use_gpu
+        },
+        resources_per_trial={
+            "cpu": 1,
+            "gpu": 0.5,
+        },
+        checkpoint_freq=1,
+    )
+    tune.run(exp, resume=True)
 
 
 if __name__ == "__main__":
@@ -182,7 +188,7 @@ if __name__ == "__main__":
         policy_lr=3E-4,
         qf_lr=3E-4,
         vf_lr=3E-4,
-        layer_size=256,  # [256, 512]
+        layer_size=256,
         algorithm="Twin-SAC",
         version="normal",
     )
