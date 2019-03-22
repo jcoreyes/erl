@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
     n_seeds = 10
     # mode = 'gcp'
-    exp_prefix = 'door-skew-fit-post-vae-env-refactor'
+    exp_prefix = 'door-skew-fit-post-vae-env-refactor-take2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

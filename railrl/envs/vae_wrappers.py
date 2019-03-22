@@ -96,7 +96,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
     def reset(self):
         obs = self.wrapped_env.reset()
         goal = self.sample_goal()
-        self.desired_goal = goal
+        self.set_goal(goal)
         self._initial_obs = obs
         return self._update_obs(obs)
 
@@ -230,7 +230,9 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         :return:
         """
         self.desired_goal = goal
-        self.wrapped_env.set_goal(goal)
+        # TODO: fix this hack / document this
+        if self._goal_sampling_mode in {'presampled', 'env'}:
+            self.wrapped_env.set_goal(goal)
 
     def get_diagnostics(self, paths, **kwargs):
         statistics = self.wrapped_env.get_diagnostics(paths, **kwargs)
