@@ -1,6 +1,7 @@
 import abc
 from collections import deque, OrderedDict
 
+from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.samplers.rollout_functions import rollout, multitask_rollout
 
 
@@ -13,7 +14,7 @@ class PathCollector(object, metaclass=abc.ABCMeta):
     def get_epoch_paths(self):
         pass
 
-    def end_epoch(self):
+    def end_epoch(self, epoch):
         pass
 
     def get_diagnostics(self):
@@ -136,3 +137,22 @@ class GoalConditionedPathCollector(PathCollector):
             observation_key=self._observation_key,
             desired_goal_key=self._desired_goal_key,
         )
+
+
+class VAEWrappedEnvPathCollector(GoalConditionedPathCollector):
+    def __init__(
+            self,
+            goal_sampling_mode,
+            env: VAEWrappedEnv,
+            policy,
+            decode_goals=False,
+            **kwargs
+    ):
+        super().__init__(env, policy, **kwargs)
+        self._goal_sampling_mode = goal_sampling_mode
+        self._decode_goals = decode_goals
+
+    def collect_new_paths(self, max_path_length, num_steps):
+        self._env.goal_sampling_mode = self._goal_sampling_mode
+        self._env.decode_goals = self._decode_goals
+        return super().collect_new_paths(max_path_length, num_steps)

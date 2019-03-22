@@ -26,17 +26,14 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         wrapped_env,
         vae,
         vae_input_key_prefix='image',
-        use_vae_goals=True,
         sample_from_true_prior=False,
         decode_goals=False,
         render_goals=False,
         render_rollouts=False,
-        goal_sampler_for_relabeling=False,
-        goal_sampler_for_exploration=False,
         reward_params=None,
-        mode="train",
+        goal_sampling_mode="vae_prior",
         imsize=84,
-        obs_size = None,
+        obs_size=None,
         norm_order=2,
         epsilon=20,
         presampled_goals=None,
@@ -50,9 +47,8 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             self.vae = vae
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
-        self._use_vae_goals = use_vae_goals
         self.sample_from_true_prior = sample_from_true_prior
-        self.decode_goals = decode_goals
+        self._decode_goals = decode_goals
         self.render_goals = render_goals
         self.render_rollouts = render_rollouts
         self.default_kwargs=dict(
@@ -79,7 +75,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         spaces['latent_desired_goal'] = latent_space
         spaces['latent_achieved_goal'] = latent_space
         self.observation_space = Dict(spaces)
-        self.mode(mode)
         self._presampled_goals = presampled_goals
         if self._presampled_goals is None:
             self.num_goals_presampled = 0
@@ -87,65 +82,20 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             self.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
 
         self.vae_input_key_prefix = vae_input_key_prefix
-        assert vae_input_key_prefix in set(['image', 'image_proprio'])
+        assert vae_input_key_prefix in {'image', 'image_proprio'}
         self.vae_input_observation_key = vae_input_key_prefix + '_observation'
         self.vae_input_achieved_goal_key = vae_input_key_prefix + '_achieved_goal'
         self.vae_input_desired_goal_key = vae_input_key_prefix + '_desired_goal'
         self._mode_map = {}
-        self.desired_goal = {}
-        self.desired_goal['latent_desired_goal'] = latent_space.sample()
-        self.goal_sampler_for_relabeling = goal_sampler_for_relabeling
-        self.goal_sampler_for_exploration = goal_sampler_for_exploration
+        self.desired_goal = {'latent_desired_goal': latent_space.sample()}
         self._initial_obs = None
-        self.goal_sampler = None
+        self._custom_goal_sampler = None
+        self._goal_sampling_mode = goal_sampling_mode
+
 
     def reset(self):
         obs = self.wrapped_env.reset()
-        goal = {}
-
-        if self.use_vae_goals:
-            if self.goal_sampler_for_exploration:
-                if self.goal_sampler is None:
-                    raise RuntimeError("Explicit goal sampler not set")
-                goals = self.goal_sampler(1)
-                # Should only happen if the goal_sampler doesn't have sufficient
-                # goals yet (for example replay buffer empty)
-                if goals is None:
-                    alternate_goals = self._sample_vae_prior(1)
-                    latent_goals = alternate_goals
-                else:
-                    latent_goals = goals['latent_desired_goal']
-            else:
-                latent_goals = self._sample_vae_prior(1)
-            latent_goal = latent_goals[0]
-        else:
-            if self.num_goals_presampled > 0:
-                # TODO: hack for now. There's no documentation on set_goal
-                goal = self.sample_goal()
-                latent_goal = goal['latent_desired_goal']
-                self.wrapped_env.set_goal(goal)
-            else:
-                latent_goal = self._encode_one(obs[self.vae_input_desired_goal_key])
-
-        if self.decode_goals:
-            decoded_goal = self._decode(latent_goal)[0]
-            image_goal, proprio_goal = self._image_and_proprio_from_decoded_one(
-                decoded_goal
-            )
-        elif self.num_goals_presampled > 0:
-            decoded_goal = goal.get(self.vae_input_desired_goal_key, None)
-            image_goal = goal.get('image_desired_goal', None)
-            proprio_goal = goal.get('proprio_desired_goal', None)
-        else:
-            image_goal = obs.get('image_desired_goal', None)
-            decoded_goal = obs.get('image_desired_goal', None)
-            proprio_goal = None
-
-        goal['desired_goal'] = latent_goal
-        goal['latent_desired_goal'] = latent_goal
-        goal['image_desired_goal'] = image_goal
-        goal['proprio_desired_goal'] = proprio_goal
-        goal[self.vae_input_desired_goal_key] = decoded_goal
+        goal = self.sample_goal()
         self.desired_goal = goal
         self._initial_obs = obs
         return self._update_obs(obs)
@@ -189,46 +139,32 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         info["vae_dist_l1"] = np.linalg.norm(dist, ord=1)
         info["vae_dist_l2"] = np.linalg.norm(dist, ord=2)
 
-    @property
-    def use_vae_goals(self):
-        return self._use_vae_goals and not self.reward_type.startswith('state')
-
     """
     Multitask functions
     """
     def sample_goals(self, batch_size):
-        if (
-            self.use_vae_goals and
-            self.goal_sampler_for_relabeling
-        ):
-            if self.goal_sampler is None:
-                raise RuntimeError("Explicit goal sampler not set")
-
-            goals = self.goal_sampler(batch_size)
-            # use goal_sampler if possible. Otherwise use the default sampling
-            # method.
-            if goals is not None:
-                return goals
-
-        if self.num_goals_presampled > 0 and not self.use_vae_goals:
+        # TODO: make mode a parameter you pass in
+        if self._goal_sampling_mode == 'custom_goal_sampler':
+            return self.custom_goal_sampler(batch_size)
+        elif self._goal_sampling_mode == 'presampled':
             idx = np.random.randint(0, self.num_goals_presampled, batch_size)
             sampled_goals = {
                 k: v[idx] for k, v in self._presampled_goals.items()
             }
-            #ensures goals are encoded using latest vae
+            # ensures goals are encoded using latest vae
             if 'image_desired_goal' in sampled_goals:
                 sampled_goals['latent_desired_goal'] = self._encode(sampled_goals['image_desired_goal'])
             return sampled_goals
-
-        if self.use_vae_goals:
-            goals = {}
-            latent_goals = self._sample_vae_prior(batch_size)
-            goals['state_desired_goal'] = None
-        else:
+        elif self._goal_sampling_mode == 'env':
             goals = self.wrapped_env.sample_goals(batch_size)
             latent_goals = self._encode(goals[self.vae_input_desired_goal_key])
+        elif self._goal_sampling_mode == 'vae_prior':
+            goals = {}
+            latent_goals = self._sample_vae_prior(batch_size)
+        else:
+            raise RuntimeError("Invalid: {}".format(self._goal_sampling_mode))
 
-        if self.decode_goals:
+        if self._decode_goals:
             decoded_goals = self._decode(latent_goals)
         else:
             decoded_goals = None
@@ -238,14 +174,13 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
 
         goals['desired_goal'] = latent_goals
         goals['latent_desired_goal'] = latent_goals
-        goals['proprio_desired_goal'] = proprio_goals
-        goals['image_desired_goal'] = image_goals
-        goals[self.vae_input_desired_goal_key] = decoded_goals
+        if proprio_goals is not None:
+            goals['proprio_desired_goal'] = proprio_goals
+        if image_goals is not None:
+            goals['image_desired_goal'] = image_goals
+        if decoded_goals is not None:
+            goals[self.vae_input_desired_goal_key] = decoded_goals
         return goals
-
-    def sample_goal(self):
-        goals = self.sample_goals(1)
-        return self.unbatchify_dict(goals, 0)
 
     def get_goal(self):
         return self.desired_goal
@@ -317,58 +252,46 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
     """
     Other functions
     """
-    def mode(self, name):
-        if name == "train":
-            self._use_vae_goals = True
-            self.decode_goals = self.default_kwargs['decode_goals']
-            self.render_goals = self.default_kwargs['render_goals']
-            self.render_rollouts = self.default_kwargs['render_rollouts']
-        elif name == "train_env_goals":
-            self._use_vae_goals = False
-            self.decode_goals = self.default_kwargs['decode_goals']
-            self.render_goals = self.default_kwargs['render_goals']
-            self.render_rollouts = self.default_kwargs['render_rollouts']
-        elif name == "test":
-            self._use_vae_goals = False
-            self.decode_goals = self.default_kwargs['decode_goals']
-            self.render_goals = self.default_kwargs['render_goals']
-            self.render_rollouts = self.default_kwargs['render_rollouts']
-        elif name == "video_vae":
-            self._use_vae_goals = True
-            self.decode_goals = True
-            self.render_goals = False
-            self.render_rollouts = False
-        elif name == "video_env":
-            self._use_vae_goals = False
-            self.decode_goals = False
-            self.render_goals = False
-            self.render_rollouts = False
-            self.render_decoded = False
-        else:
-            raise ValueError("Invalid mode: {}".format(name))
-        if hasattr(self.wrapped_env, "mode"):
-            self.wrapped_env.mode(name)
-        self.cur_mode = name
+    @property
+    def goal_sampling_mode(self):
+        return self._goal_sampling_mode
 
-    def add_mode(self, env_type, mode):
-        assert env_type in ['train',
-                        'eval',
-                        'video_vae',
-                        'video_env',
-                        'relabeling']
-        assert mode in ['train',
-                        'train_env_goals',
-                        'test',
-                        'video_vae',
-                        'video_env']
-        assert env_type not in self._mode_map
-        self._mode_map[env_type] = mode
+    @goal_sampling_mode.setter
+    def goal_sampling_mode(self, mode):
+        assert mode in [
+            'custom_goal_sampler',
+            'presampled',
+            'vae_prior',
+            'env',
+        ], "Invalid env mode"
+        self._goal_sampling_mode = mode
+        if mode == 'custom_goal_sampler':
+            test_goals = self.custom_goal_sampler(1)
+            if test_goals is None:
+                self._goal_sampling_mode = 'vae_prior'
+                warnings.warn(
+                    "self.goal_sampler returned None. " + \
+                    "Defaulting to vae_prior goal sampling mode"
+                )
 
-    def train(self):
-        self.mode(self._mode_map['train'])
+    @property
+    def custom_goal_sampler(self):
+        return self._custom_goal_sampler
 
-    def eval(self):
-        self.mode(self._mode_map['eval'])
+    @custom_goal_sampler.setter
+    def custom_goal_sampler(self, new_custom_goal_sampler):
+        assert self.custom_goal_sampler is None, (
+            "Cannot override custom goal setter"
+        )
+        self._custom_goal_sampler = new_custom_goal_sampler
+
+    @property
+    def decode_goals(self):
+        return self._decode_goals
+
+    @decode_goals.setter
+    def decode_goals(self, _decode_goals):
+        self._decode_goals = _decode_goals
 
     def get_env_update(self):
         """
@@ -395,13 +318,12 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         self.vae.to(ptu.device)
 
     def enable_render(self):
-        self._use_vae_goals = False
-        self.decode_goals = True
+        self._decode_goals = True
         self.render_goals = True
         self.render_rollouts = True
 
     def disable_render(self):
-        self.decode_goals = False
+        self._decode_goals = False
         self.render_goals = False
         self.render_rollouts = False
 
@@ -468,18 +390,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         )
         return imgs[0]
 
-    def _image_and_proprio_from_decoded_one(self, decoded):
-        if len(decoded.shape) == 1:
-            decoded = np.array([decoded])
-        images, proprios = self._image_and_proprio_from_decoded(decoded)
-        image = None
-        proprio = None
-        if images is not None:
-            image = images[0]
-        if proprios is not None:
-            proprio = proprios[0]
-        return image, proprio
-
     def _image_and_proprio_from_decoded(self, decoded):
         if decoded is None:
             return None, None
@@ -495,12 +405,12 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
     def __getstate__(self):
         state = super().__getstate__()
         state = copy.copy(state)
-        state['goal_sampler'] = None
-        warnings.warn('VAEWrapperEnv.goal_sampler is not saved.')
+        state['_custom_goal_sampler'] = None
+        warnings.warn('VAEWrapperEnv.custom_goal_sampler is not saved.')
         return state
 
     def __setstate__(self, state):
-        warnings.warn('VAEWrapperEnv.goal_sampler was not loaded.')
+        warnings.warn('VAEWrapperEnv.custom_goal_sampler was not loaded.')
         super().__setstate__(state)
 
 

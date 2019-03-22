@@ -15,8 +15,8 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookResetFreeEnv-v0',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
-            sample_goals_from_buffer=True,
             save_video=True,
+            custom_goal_sampler='replay_buffer',
             online_vae_trainer_kwargs=dict(
                 beta=20,
                 lr=1e-3,
@@ -36,6 +36,7 @@ if __name__ == "__main__":
                 use_automatic_entropy_tuning=True,
             ),
             max_path_length=100,
+            # max_path_length=5,
             algo_kwargs=dict(
                 batch_size=128,
                 num_epochs=150,
@@ -43,6 +44,11 @@ if __name__ == "__main__":
                 num_expl_steps_per_train_loop=500,
                 num_trains_per_train_loop=1000,
                 min_num_steps_before_training=10000,
+                # num_epochs=5,
+                # num_eval_steps_per_epoch=5,
+                # num_expl_steps_per_train_loop=5,
+                # num_trains_per_train_loop=10,
+                # min_num_steps_before_training=10,
                 vae_training_schedule=vae_schedules.custom_schedule,
                 oracle_data=False,
                 vae_save_period=50,
@@ -61,7 +67,9 @@ if __name__ == "__main__":
                     num_latents_to_sample=10,
                 ),
                 power=-0.5,
+                relabeling_goal_sampling_mode='custom_goal_sampler',
             ),
+            exploration_goal_sampling_mode='custom_goal_sampler',
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
@@ -104,8 +112,6 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [True],
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -117,7 +123,7 @@ if __name__ == "__main__":
 
     n_seeds = 10
     # mode = 'gcp'
-    exp_prefix = 'door-skew-fit-post-refactor'
+    exp_prefix = 'door-skew-fit-post-vae-env-refactor'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

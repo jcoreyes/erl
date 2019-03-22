@@ -4,7 +4,10 @@ import time
 import cv2
 import numpy as np
 
-from railrl.samplers.data_collector import GoalConditionedPathCollector
+from railrl.samplers.data_collector import (
+    GoalConditionedPathCollector,
+    VAEWrappedEnvPathCollector,
+)
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.twin_sac import TwinSACTrainer
@@ -447,15 +450,6 @@ def get_envs(variant):
 
         env = vae_env
 
-    if not do_state_exp:
-        training_mode = variant.get("training_mode", "train")
-        testing_mode = variant.get("testing_mode", "test")
-        env.add_mode('eval', testing_mode)
-        env.add_mode('train', training_mode)
-        env.add_mode('relabeling', training_mode)
-        # relabeling_env.disable_render()
-        env.add_mode("video_vae", 'video_vae')
-        env.add_mode("video_env", 'video_env')
     return env
 
 
@@ -897,14 +891,16 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         **variant['twin_sac_trainer_kwargs']
     )
     trainer = HERTrainer(trainer)
-    eval_path_collector = GoalConditionedPathCollector(
+    eval_path_collector = VAEWrappedEnvPathCollector(
+        'presampled',
         env,
         MakeDeterministic(policy),
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
     )
-    expl_path_collector = GoalConditionedPathCollector(
+    expl_path_collector = VAEWrappedEnvPathCollector(
+        variant['exploration_goal_sampling_mode'],
         env,
         policy,
         max_path_length,
@@ -926,13 +922,8 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         **variant['algo_kwargs']
     )
 
-    if variant.get('sample_goals_from_buffer', False) == True:
-        assert (
-            env.goal_sampler_for_relabeling or
-            env.goal_sampler_for_exploration
-        ), 'goal sampler set but not used'
-        assert env.goal_sampler is None, "Overriding existing goal sampler?"
-        env.goal_sampler = replay_buffer.sample_buffer_goals
+    if variant['custom_goal_sampler'] == 'replay_buffer':
+        env.custom_goal_sampler = replay_buffer.sample_buffer_goals
 
     algorithm.to(ptu.device)
     vae.to(ptu.device)

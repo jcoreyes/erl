@@ -41,6 +41,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             exploration_schedule_kwargs=None,
             priority_function_kwargs=None,
             exploration_counter_kwargs=None,
+            relabeling_goal_sampling_mode='vae_prior',
             **kwargs
     ):
         self.vae = vae
@@ -52,6 +53,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.start_skew_epoch = start_skew_epoch
         self.vae_priority_type = vae_priority_type
         self.power = power
+        self._relabeling_goal_sampling_mode = relabeling_goal_sampling_mode
 
         if exploration_schedule_kwargs is None:
             self.explr_reward_scale_schedule = \
@@ -272,6 +274,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         else:
             indices = self._sample_indices(batch_size)
         return indices
+
+    def _sample_goals_from_env(self, batch_size):
+        self.env.goal_sampling_mode = self._relabeling_goal_sampling_mode
+        return self.env.sample_goals(batch_size)
 
     def sample_buffer_goals(self, batch_size):
         """
