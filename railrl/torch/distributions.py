@@ -4,6 +4,7 @@ Add custom distributions in addition to th existing ones
 import torch
 from torch.distributions import Distribution, Normal
 import railrl.torch.pytorch_util as ptu
+import numpy as np
 
 class TanhNormal(Distribution):
     """
@@ -33,6 +34,19 @@ class TanhNormal(Distribution):
 
     def log_prob(self, value, pre_tanh_value=None):
         """
+        Adapted from
+        https://github.com/tensorflow/probability/blob/master/tensorflow_probability/python/bijectors/tanh.py#L73
+
+        This formula is mathematically equivalent to log(1 - tanh(x)^2).
+
+        Derivation:
+
+        log(1 - tanh(x)^2)
+         = log(sech(x)^2)
+         = 2 * log(sech(x))
+         = 2 * log(2e^-x / (e^-2x + 1))
+         = 2 * (log(2) - x - log(e^-2x + 1))
+         = 2 * (log(2) - x - softplus(-2x))
 
         :param value: some value, x
         :param pre_tanh_value: arctanh(x)
@@ -42,8 +56,10 @@ class TanhNormal(Distribution):
             pre_tanh_value = torch.log(
                 (1+value) / (1-value)
             ) / 2
-        return self.normal.log_prob(pre_tanh_value) - torch.log(
-            1 - value * value + self.epsilon
+        return self.normal.log_prob(pre_tanh_value) - 2. * (
+                ptu.from_numpy(np.log([2.]))
+                - pre_tanh_value
+                - torch.nn.functional.softplus(-2. * pre_tanh_value)
         )
 
     def sample(self, return_pretanh_value=False):

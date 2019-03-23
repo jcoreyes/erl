@@ -8,6 +8,7 @@ from gym.envs.mujoco import (
     InvertedDoublePendulumEnv,
     HopperEnv,
     HumanoidEnv,
+    SwimmerEnv,
 )
 from gym.envs.classic_control import PendulumEnv
 
@@ -66,6 +67,12 @@ ENV_PARAMS = {
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 3000,
+    },
+    'swimmer': {  # 6 DoF
+        'env_class': SwimmerEnv,
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 1000,
+        'num_epochs': 2000,
     },
 }
 
@@ -176,17 +183,18 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'sss'
-    exp_prefix = 'reference-tsac-post-mod-new-sac'
+    exp_prefix = 'tsac-numerically-stable'
 
     search_space = {
         'env': [
             # 'half-cheetah',
             # 'inv-double-pendulum',
             # 'pendulum',
-            'ant',
-            'walker',
+            # 'ant',
+            # 'walker',
             'hopper',
             'humanoid',
+            'swimmer',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
