@@ -83,8 +83,6 @@ class BatchRLAlgorithm(object):
                 range(start_epoch, self.num_epochs),
                 save_itrs=True,))
 
-
-
     def train(self, start_epoch=0):
         self._start_epoch = start_epoch
         self.epoch = self._start_epoch
@@ -124,7 +122,10 @@ class BatchRLAlgorithm(object):
         self._save_snapshot()
         algo_logs = self.get_diagnostics()
         self._end_epoch()
-        return algo_logs
+        done = False
+        if self.epoch == self.num_epochs - 1:
+            done = True
+        return algo_logs, done
 
     def _save_snapshot(self):
         snapshot = {}
@@ -156,7 +157,6 @@ class BatchRLAlgorithm(object):
             add_log(algorithm_logs,
                     self.expl_env.get_diagnostics(expl_paths),
                     prefix='exploration/')
-
         add_log(algorithm_logs,
                 eval_util.get_generic_path_information(expl_paths),
                 prefix="exploration/")
@@ -171,11 +171,11 @@ class BatchRLAlgorithm(object):
         add_log(algorithm_logs,
                 eval_util.get_generic_path_information(eval_paths),
                 prefix="evaluation/")
-
         """
         Misc
         """
         algorithm_logs.update(_get_epoch_timings(self.epoch))
+        algorithm_logs['epoch'] = self.epoch
         # logger.record_tabular('Epoch', epoch)
         # logger.dump_tabular(with_prefix=False, with_timestamp=False)
         return algorithm_logs

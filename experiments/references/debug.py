@@ -39,7 +39,7 @@ ENV_PARAMS = {
     },
     'pendulum': {  # 2 DoF
         'env_class': PendulumEnv,
-        'num_epochs': 200,
+        'num_epochs': 20,
         'num_expl_steps_per_train_loop': 200,
         'max_path_length': 200,
         'min_num_steps_before_training': 2000,
@@ -155,7 +155,7 @@ def experiment(variant):
         name="debug_test",
         run=RayExperiment,
         # num_samples=20,
-        stop={"training_iteration": variant['num_epochs']},
+        stop={"global_done": True},
         config={
             'algo_variant': variant,
             'init_algo_function': run_experiment_func,
@@ -167,23 +167,23 @@ def experiment(variant):
         },
         checkpoint_freq=1,
     )
-    tune.run(exp, resume=True)
+    tune.run(exp, resume=False)
 
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=3000,
-        num_eval_steps_per_epoch=5000,
-        num_trains_per_train_loop=1000,
-        num_expl_steps_per_train_loop=1000,
-        min_num_steps_before_training=1000,
-        max_path_length=1000,
+        num_epochs=30,
+        num_eval_steps_per_epoch=500,
+        num_trains_per_train_loop=100,
+        num_expl_steps_per_train_loop=100,
+        min_num_steps_before_training=100,
+        max_path_length=100,
         batch_size=256,
         discount=0.99,
         replay_buffer_size=int(1E6),
         soft_target_tau=1.0,
         policy_update_period=1,  # check
-        target_update_period=1000,  # check
+        target_update_period=100,  # check
         train_policy_with_reparameterization=False,
         policy_lr=3E-4,
         qf_lr=3E-4,
