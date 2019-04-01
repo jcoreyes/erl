@@ -90,7 +90,8 @@ def multitask_rollout(
         full_observations=full_observations,
     )
 
-def rollout(env, agent, max_path_length=np.inf, animated=False):
+def rollout(env, agent, max_path_length=np.inf, animated=False,
+            render_kwargs=None):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -111,6 +112,8 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
     :param animated:
     :return:
     """
+    if render_kwargs is None:
+        render_kwargs = {}
     observations = []
     actions = []
     rewards = []
@@ -122,7 +125,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
     next_o = None
     path_length = 0
     if animated:
-        env.render()
+        env.render(**render_kwargs)
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
@@ -137,7 +140,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
             break
         o = next_o
         if animated:
-            env.render()
+            env.render(**render_kwargs)
 
     actions = np.array(actions)
     if len(actions.shape) == 1:

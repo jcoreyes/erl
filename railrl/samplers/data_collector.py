@@ -29,11 +29,15 @@ class MdpPathCollector(PathCollector):
             env,
             policy,
             max_num_epoch_paths_saved=32,
+            render=False,
+            render_kwargs=None,
     ):
         self._env = env
         self._policy = policy
         self._max_num_epoch_paths_saved = max_num_epoch_paths_saved
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
+        self._render = render
+        self._render_kwargs = render_kwargs
 
         self._num_steps_total = 0
         self._num_paths_total = 0
@@ -49,6 +53,8 @@ class MdpPathCollector(PathCollector):
                     max_path_length,
                     num_steps - num_steps_collected,
                 ),
+                animated=self._render,
+                render_kwargs=self._render_kwargs,
             )
             num_steps_collected += len(path['actions'])
             paths.append(path)

@@ -10,29 +10,20 @@ from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.torch.networks import MergedCNN
-from railrl.torch.sac.policies import MakeDeterministic
+from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy
 from railrl.torch.sac.policies import TanhCNNGaussianPolicy
 from railrl.torch.sac.twin_sac import TwinSACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 
 def experiment(variant):
-    ptu.set_gpu_mode(True, 0)
-
-    imsize = variant['imsize']
 
     env = Point2DEnv(
-        fixed_goal=np.array([0, 4]),
-        images_are_rgb=True,
-        render_onscreen=True,
-        show_goal=False,
-        ball_radius=2,
+        **variant['env_kwargs']
     )
-    env = ImageEnv(env, imsize=imsize)
+    imsize = env.render_size
+    env = ImageEnv(env, imsize=env.render_size, transpose=True)
     env = FlatGoalEnv(env)
-
-    # partial_obs_size = env.obs_dim - imsize * imsize * 3
-    # print("partial dim was " + str(partial_obs_size))
     env = NormalizedBoxEnv(env)
 
     action_dim = int(np.prod(env.action_space.shape))
@@ -72,12 +63,16 @@ def experiment(variant):
         **variant['cnn_params']
     )
 
-    policy = TanhCNNGaussianPolicy(
-        input_width=imsize,
-        input_height=imsize,
-        output_size=action_dim,
-        input_channels=3,
-        **variant['cnn_params']
+    # policy = TanhCNNGaussianPolicy(
+    policy = TanhGaussianPolicy(
+        obs_dim=imsize*imsize*3,
+        action_dim=action_dim,
+        hidden_sizes=[32, 32],
+        # input_width=imsize,
+        # input_height=imsize,
+        # output_size=action_dim,
+        # input_channels=3,
+        # **variant['cnn_params']
     )
     eval_env = expl_env = env
 
@@ -85,10 +80,12 @@ def experiment(variant):
     eval_path_collector = MdpPathCollector(
         eval_env,
         eval_policy,
+        **variant['eval_path_collector_kwargs']
     )
     expl_path_collector = MdpPathCollector(
         expl_env,
         policy,
+        **variant['expl_path_collector_kwargs']
     )
     replay_buffer = EnvReplayBuffer(
         variant['replay_buffer_size'],
@@ -118,6 +115,14 @@ def experiment(variant):
 
 if __name__ == "__main__":
     variant = dict(
+        env_kwargs=dict(
+            fixed_goal=(4, 4),
+            images_are_rgb=True,
+            render_onscreen=False,
+            show_goal=True,
+            ball_radius=2,
+            render_size=16,
+        ),
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
@@ -126,18 +131,22 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
-            target_entropy=-0.01,
+            target_entropy=-1,
         ),
         algo_kwargs=dict(
             max_path_length=100,
             batch_size=128,
             num_epochs=100,
             num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1,
+            num_expl_steps_per_train_loop=10000,
+            num_trains_per_train_loop=100,
             min_num_steps_before_training=1000,
+            # num_epochs=100,
+            # num_eval_steps_per_epoch=100,
+            # num_expl_steps_per_train_loop=100,
+            # num_trains_per_train_loop=1,
+            # min_num_steps_before_training=100,
         ),
-        imsize=16,
         cnn_params=dict(
             kernel_sizes=[3],
             n_channels=[32],
@@ -145,7 +154,20 @@ if __name__ == "__main__":
             hidden_sizes=[32, 32],
             paddings=[0],
         ),
-        replay_buffer_size=int(1E6),
+        # replay_buffer_size=int(1E6),
+        replay_buffer_size=int(1E4),
+        expl_path_collector_kwargs=dict(
+            render=False,
+            render_kwargs=dict(
+                mode='cv2',
+            ),
+        ),
+        eval_path_collector_kwargs=dict(
+            render=True,
+            render_kwargs=dict(
+                mode='cv2',
+            ),
+        ),
     )
     n_seeds = 1
     mode = 'local'
@@ -170,5 +192,5 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-                use_gpu=False,
+                use_gpu=True,
             )
