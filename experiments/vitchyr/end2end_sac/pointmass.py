@@ -9,7 +9,7 @@ from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.samplers.data_collector import MdpPathCollector
-from railrl.torch.networks import MergedCNN
+from railrl.torch.networks import MergedCNN, FlattenMlp
 from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy
 from railrl.torch.sac.policies import TanhCNNGaussianPolicy
 from railrl.torch.sac.twin_sac import TwinSACTrainer
@@ -17,7 +17,7 @@ from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 
 def experiment(variant):
-
+    ptu.set_gpu_mode(True, 1)
     env = Point2DEnv(
         **variant['env_kwargs']
     )
@@ -28,46 +28,69 @@ def experiment(variant):
 
     action_dim = int(np.prod(env.action_space.shape))
 
-    qf1 = MergedCNN(
-        input_width=imsize,
-        input_height=imsize,
-        output_size=1,
-        input_channels=3,
-        added_fc_input_size=action_dim,
-        **variant['cnn_params']
-    )
+    # qf1 = MergedCNN(
+    #     input_width=imsize,
+    #     input_height=imsize,
+    #     output_size=1,
+    #     input_channels=3,
+    #     added_fc_input_size=action_dim,
+    #     **variant['cnn_params']
+    # )
+    #
+    # qf2 = MergedCNN(
+    #     input_width=imsize,
+    #     input_height=imsize,
+    #     output_size=1,
+    #     input_channels=3,
+    #     added_fc_input_size=action_dim,
+    #     **variant['cnn_params']
+    # )
+    # target_qf1 = MergedCNN(
+    #     input_width=imsize,
+    #     input_height=imsize,
+    #     output_size=1,
+    #     input_channels=3,
+    #     added_fc_input_size=action_dim,
+    #     **variant['cnn_params']
+    # )
+    #
+    # target_qf2 = MergedCNN(
+    #     input_width=imsize,
+    #     input_height=imsize,
+    #     output_size=1,
+    #     input_channels=3,
+    #     added_fc_input_size=action_dim,
+    #     **variant['cnn_params']
+    # )
+    action_dim = int(np.prod(env.action_space.shape))
+    obs_dim = int(np.prod(env.observation_space.shape))
 
-    qf2 = MergedCNN(
-        input_width=imsize,
-        input_height=imsize,
+    qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
         output_size=1,
-        input_channels=3,
-        added_fc_input_size=action_dim,
-        **variant['cnn_params']
+        **variant['qf_kwargs']
     )
-    target_qf1 = MergedCNN(
-        input_width=imsize,
-        input_height=imsize,
+    qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
         output_size=1,
-        input_channels=3,
-        added_fc_input_size=action_dim,
-        **variant['cnn_params']
+        **variant['qf_kwargs']
     )
-
-    target_qf2 = MergedCNN(
-        input_width=imsize,
-        input_height=imsize,
+    target_qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
         output_size=1,
-        input_channels=3,
-        added_fc_input_size=action_dim,
-        **variant['cnn_params']
+        **variant['qf_kwargs']
+    )
+    target_qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
     )
 
     # policy = TanhCNNGaussianPolicy(
     policy = TanhGaussianPolicy(
         obs_dim=imsize*imsize*3,
         action_dim=action_dim,
-        hidden_sizes=[32, 32],
+        **variant['policy_kwargs']
         # input_width=imsize,
         # input_height=imsize,
         # output_size=action_dim,
@@ -116,12 +139,12 @@ def experiment(variant):
 if __name__ == "__main__":
     variant = dict(
         env_kwargs=dict(
-            fixed_goal=(4, 4),
+            fixed_goal=(0, 0),
             images_are_rgb=True,
             render_onscreen=False,
             show_goal=True,
             ball_radius=2,
-            render_size=16,
+            render_size=8,
         ),
         trainer_kwargs=dict(
             discount=0.99,
@@ -136,7 +159,7 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             max_path_length=100,
             batch_size=128,
-            num_epochs=100,
+            num_epochs=300,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=10000,
             num_trains_per_train_loop=100,
@@ -155,7 +178,13 @@ if __name__ == "__main__":
             paddings=[0],
         ),
         # replay_buffer_size=int(1E6),
-        replay_buffer_size=int(1E4),
+        qf_kwargs=dict(
+            hidden_sizes=[128, 128],
+        ),
+        policy_kwargs=dict(
+            hidden_sizes=[128, 128],
+        ),
+        replay_buffer_size=int(5E4),
         expl_path_collector_kwargs=dict(
             render=False,
             render_kwargs=dict(
@@ -177,7 +206,7 @@ if __name__ == "__main__":
 
     # n_seeds = 3
     # mode = 'ec2'
-    # exp_prefix = 'name'
+    exp_prefix = 'point2d-16x16-img-all-fc-goal00'
 
     search_space = {
     }
