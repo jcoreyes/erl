@@ -13,7 +13,7 @@ class PathCollector(object, metaclass=abc.ABCMeta):
     def get_epoch_paths(self):
         pass
 
-    def end_epoch(self):
+    def end_epoch(self, epoch):
         pass
 
     def get_diagnostics(self):
@@ -23,6 +23,7 @@ class PathCollector(object, metaclass=abc.ABCMeta):
         return {}
 
 
+# TODO(vitchyr): add a `discard_incomplete_path` flag
 class MdpPathCollector(PathCollector):
     def __init__(
             self,
