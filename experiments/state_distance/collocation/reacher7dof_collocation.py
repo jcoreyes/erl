@@ -31,7 +31,6 @@ MULTITASK_GOAL_SLICE = GOAL_SLICE
 
 class TdmToImplicitModel(PyTorchModule):
     def __init__(self, env, qf, tau, output_scale=1):
-        self.quick_init(locals())
         super().__init__()
         self.env = env
         self.qf = qf

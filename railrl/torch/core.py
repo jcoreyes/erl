@@ -1,88 +1,13 @@
 import abc
+
 import numpy as np
-from collections import OrderedDict
-
-from torch import nn as nn
-from torch.autograd import Variable
-
 import torch
-import tempfile
+from torch import nn as nn
 
 from railrl.torch import pytorch_util as ptu
-from railrl.core.serializable import Serializable
 
 
-class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
-
-    def get_param_values(self):
-        save_buffer = tempfile.TemporaryFile() # TODO: change this to io.BytesIO
-        torch.save(self.state_dict(), save_buffer)
-        save_buffer.seek(0)
-        save_bytes = save_buffer.read()
-        return save_bytes
-
-    def set_param_values(self, param_values):
-        save_buffer = tempfile.TemporaryFile()
-        save_buffer.write(param_values)
-        save_buffer.seek(0)
-        # always loads to CPU
-        state_dict = torch.load(save_buffer, map_location=lambda storage, loc: storage)
-        self.load_state_dict(state_dict)
-
-    def get_param_values_np(self):
-        state_dict = self.state_dict()
-        np_dict = OrderedDict()
-        for key, tensor in state_dict.items():
-            np_dict[key] = ptu.get_numpy(tensor)
-        return np_dict
-
-    def set_param_values_np(self, param_values):
-        torch_dict = OrderedDict()
-        for key, tensor in param_values.items():
-            torch_dict[key] = ptu.from_numpy(tensor)
-        self.load_state_dict(torch_dict)
-
-    def copy(self, copy_parameters=True):
-        if not copy_parameters:
-            # Basically the same code as clone, but do not set param values.
-            assert isinstance(self, Serializable)
-            d = Serializable.__getstate__(self)
-            d["__kwargs"] = dict(d["__kwargs"])
-            out = type(self).__new__(type(self))
-            Serializable.__setstate__(out, d)
-            return out
-
-        copy = Serializable.clone(self)
-        # Not actually necessary since the parameters should already be
-        # copied, but just to be safe...
-        ptu.copy_model_params_from_to(self, copy)
-        return copy
-
-    def save_init_params(self, locals):
-        """
-        Should call this FIRST THING in the __init__ method if you ever want
-        to serialize or clone this network.
-
-        Usage:
-        ```
-        def __init__(self, ...):
-            self.init_serialization(locals())
-            ...
-        ```
-        :param locals:
-        :return:
-        """
-        Serializable.quick_init(self, locals)
-
-    def __getstate__(self):
-        d = Serializable.__getstate__(self)
-        d["params"] = self.get_param_values()
-        return d
-
-    def __setstate__(self, d):
-        Serializable.__setstate__(self, d)
-        self.set_param_values(d["params"])
-
+class PyTorchModule(nn.Module, metaclass=abc.ABCMeta):
     def regularizable_parameters(self):
         """
         Return generator of regularizable parameters. Right now, all non-flat
@@ -133,6 +58,7 @@ def _elem_or_tuple_to_variable(elem_or_tuple):
             _elem_or_tuple_to_variable(e) for e in elem_or_tuple
         )
     return ptu.from_numpy(elem_or_tuple).float()
+
 
 def _filter_batch(np_batch):
     for k, v in np_batch.items():

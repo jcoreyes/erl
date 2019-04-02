@@ -1,6 +1,5 @@
 import numpy as np
 
-from railrl.core.serializable import Serializable
 from rllab.envs.base import Env
 from rllab.envs.proxy_env import ProxyEnv
 from rllab.spaces.product import Product
@@ -32,7 +31,6 @@ class ContinuousMemoryAugmented(ProxyEnv):
             num_memory_states=10,
             max_magnitude=1e6,
     ):
-        Serializable.quick_init(self, locals())
         super().__init__(env)
         self._num_memory_states = num_memory_states
         assert max_magnitude > 0

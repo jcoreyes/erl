@@ -38,6 +38,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             policy,
             qf,
             vf,
+            target_vf,
 
             policy_lr=1e-3,
             qf_lr=1e-3,
@@ -73,6 +74,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.policy = policy
         self.qf = qf
         self.vf = vf
+        self.target_vf = target_vf
         self.soft_target_tau = soft_target_tau
         self.target_update_period = target_update_period
         self.policy_mean_reg_weight = policy_mean_reg_weight
@@ -92,7 +94,6 @@ class SoftActorCritic(TorchRLAlgorithm):
                 [self.log_alpha],
                 lr=policy_lr,
             )
-        self.target_vf = vf.copy()
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
 

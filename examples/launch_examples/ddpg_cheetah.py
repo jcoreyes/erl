@@ -30,6 +30,18 @@ def example(variant):
         400,
         300,
     )
+    target_qf = FeedForwardQFunction(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        400,
+        300,
+    )
+    target_policy = FeedForwardPolicy(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        400,
+        300,
+    )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
@@ -38,6 +50,8 @@ def example(variant):
         env,
         qf=qf,
         policy=policy,
+        target_qf=target_qf,
+        target_policy=target_policy,
         exploration_policy=exploration_policy,
         **variant['algo_params']
     )

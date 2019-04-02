@@ -156,7 +156,6 @@ class ConvVAE(GaussianLatentVAE):
         :param min_variance:
         :param hidden_init:
         """
-        self.save_init_params(locals())
         super().__init__(representation_size)
         if min_variance is None:
             self.log_min_variance = None
@@ -258,7 +257,6 @@ class ConvVAEDouble(ConvVAE):
             hidden_init=ptu.fanin_init,
             min_log_clamp=0,
     ):
-        self.save_init_params(locals())
         super().__init__(
             representation_size,
             architecture,
@@ -312,7 +310,6 @@ class SpatialAutoEncoder(ConvVAE):
             temperature=1.0,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(representation_size, *args, **kwargs)
         num_feat_points = representation_size // 2
         assert self.architecture["conv_args"]["n_channels"][-1] == num_feat_points

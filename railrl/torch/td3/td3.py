@@ -21,6 +21,9 @@ class TD3(TorchRLAlgorithm):
             qf1,
             qf2,
             policy,
+            target_qf1,
+            target_qf2,
+            target_policy,
             exploration_policy,
             eval_policy=None,
 
@@ -47,6 +50,9 @@ class TD3(TorchRLAlgorithm):
         self.qf1 = qf1
         self.qf2 = qf2
         self.policy = policy
+        self.target_policy = target_policy
+        self.target_qf1 = target_qf1
+        self.target_qf2 = target_qf2
 
         self.target_policy_noise = target_policy_noise
         self.target_policy_noise_clip = target_policy_noise_clip
@@ -55,9 +61,6 @@ class TD3(TorchRLAlgorithm):
         self.tau = tau
         self.qf_criterion = qf_criterion
 
-        self.target_policy = policy.copy()
-        self.target_qf1 = self.qf1.copy()
-        self.target_qf2 = self.qf2.copy()
         self.qf1_optimizer = optimizer_class(
             self.qf1.parameters(),
             lr=qf_learning_rate,

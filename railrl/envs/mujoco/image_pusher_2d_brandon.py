@@ -1,21 +1,11 @@
-import abc
-from collections import OrderedDict
-
 import numpy as np
 
-from gym.envs.mujoco import MujocoEnv
-
-from railrl.core.serializable import Serializable
-from railrl.envs.env_utils import get_asset_full_path
-from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
-from railrl.core import logger as default_logger
-from railrl.misc.random_util import random_point_in_circle
 from railrl.envs.mujoco.pusher_2d_brandon import Pusher2dEnv
+from railrl.misc.random_util import random_point_in_circle
 
 
 class ImagePusher2dEnv(Pusher2dEnv):
     def __init__(self, image_shape, *args, **kwargs):
-        self.quick_init(locals())
         self.image_shape = image_shape
         Pusher2dEnv.__init__(self, *args, **kwargs)
 
@@ -58,7 +48,6 @@ class ImageForkReacher2dEnv(ImagePusher2dEnv):
                  arm_object_distance_cost_coeff,
                  *args,
                  **kwargs):
-        self.quick_init(locals())
 
         self._arm_goal_distance_cost_coeff = arm_goal_distance_cost_coeff
         self._arm_object_distance_cost_coeff = arm_object_distance_cost_coeff

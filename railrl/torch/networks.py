@@ -43,7 +43,6 @@ class CNN(PyTorchModule):
                len(n_channels) == \
                len(strides) == \
                len(paddings)
-        self.save_init_params(locals())
         super().__init__()
 
         self.hidden_sizes = hidden_sizes
@@ -153,7 +152,6 @@ class MergedCNN(CNN):
                  added_fc_input_size,
                  **kwargs
                  ):
-        self.save_init_params(locals())
         super().__init__(added_fc_input_size=added_fc_input_size,
                          **kwargs)
 
@@ -174,7 +172,6 @@ class CNNPolicy(CNN, Policy):
             obs_normalizer: TorchFixedNormalizer = None,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(*args, **kwargs)
         self.obs_normalizer = obs_normalizer
 
@@ -205,7 +202,6 @@ class Mlp(PyTorchModule):
             layer_norm=False,
             layer_norm_kwargs=None,
     ):
-        self.save_init_params(locals())
         super().__init__()
 
         if layer_norm_kwargs is None:
@@ -270,7 +266,6 @@ class MlpQf(FlattenMlp):
             action_normalizer: TorchFixedNormalizer = None,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(*args, **kwargs)
         self.obs_normalizer = obs_normalizer
         self.action_normalizer = action_normalizer
@@ -294,7 +289,6 @@ class MlpPolicy(Mlp, Policy):
             obs_normalizer: TorchFixedNormalizer = None,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(*args, **kwargs)
         self.obs_normalizer = obs_normalizer
 
@@ -317,7 +311,6 @@ class TanhMlpPolicy(MlpPolicy):
     """
 
     def __init__(self, *args, **kwargs):
-        self.save_init_params(locals())
         super().__init__(*args, output_activation=torch.tanh, **kwargs)
 
 
@@ -329,7 +322,6 @@ class ImageStatePolicy(PyTorchModule, Policy):
             image_conv_net,
             state_fc_net,
     ):
-        self.save_init_params(locals())
         super().__init__()
 
         assert image_conv_net is None or state_fc_net is None
@@ -363,7 +355,6 @@ class ImageStateQ(PyTorchModule):
             image_conv_net,  # assumed to be a MergedCNN
             state_fc_net,
     ):
-        self.save_init_params(locals())
         super().__init__()
 
         assert image_conv_net is None or state_fc_net is None
@@ -395,7 +386,6 @@ class FeedForwardQFunction(PyTorchModule):
             batchnorm_obs=False,
     ):
         print("WARNING: This class will soon be deprecated.")
-        self.save_init_params(locals())
         super().__init__()
 
         self.obs_dim = obs_dim
@@ -444,7 +434,6 @@ class FeedForwardPolicy(PyTorchModule):
             hidden_init=ptu.fanin_init,
     ):
         print("WARNING: This class will soon be deprecated.")
-        self.save_init_params(locals())
         super().__init__()
 
         self.obs_dim = obs_dim
@@ -501,7 +490,6 @@ class TwoHeadMlp(PyTorchModule):
             layer_norm=False,
             layer_norm_kwargs=None,
     ):
-        self.save_init_params(locals())
         super().__init__()
 
         if layer_norm_kwargs is None:
@@ -569,7 +557,6 @@ class OuterProductFF(PyTorchModule):
             hidden_init=ptu.fanin_init,
             b_init_value=0.,
     ):
-        self.save_init_params(locals())
         super().__init__()
 
         self.sops = []
@@ -611,7 +598,6 @@ class AETanhPolicy(MlpPolicy):
             *args,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(*args, **kwargs, output_activation=torch.tanh)
         self.ae = ae
         self.history_length = history_length
@@ -641,7 +627,6 @@ class FeatPointMlp(PyTorchModule):
             hidden_init=ptu.fanin_init,
             output_activation=identity,
     ):
-        self.save_init_params(locals())
         super().__init__()
 
         self.downsample_size = downsample_size
@@ -753,7 +738,6 @@ class TwoHeadDCNN(PyTorchModule):
                len(n_channels) == \
                len(strides) == \
                len(paddings)
-        self.save_init_params(locals())
         super().__init__()
 
         self.hidden_sizes = hidden_sizes

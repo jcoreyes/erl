@@ -1,10 +1,10 @@
 import numpy as np
-from gym import GoalEnv
 from gym.spaces import Dict, Discrete
 
 from multiworld.core.multitask_env import MultitaskEnv
 from railrl.data_management.replay_buffer import ReplayBuffer
 from multiworld.core.image_env import unormalize_image, normalize_image
+
 
 class ObsDictRelabelingBuffer(ReplayBuffer):
     """

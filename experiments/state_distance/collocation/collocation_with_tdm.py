@@ -21,7 +21,6 @@ from railrl.torch.mpc.collocation.collocation_mpc_controller import (
 
 class TdmPolicyToTimeInvariantGoalReachingPolicy(PyTorchModule):
     def __init__(self, tdm_policy, env, num_steps_left):
-        self.quick_init(locals())
         super().__init__()
         self.tdm_policy = tdm_policy
         self.env = env
@@ -41,7 +40,6 @@ class TdmPolicyToTimeInvariantGoalReachingPolicy(PyTorchModule):
 
 class TrueModelToImplicitModel(PyTorchModule):
     def __init__(self, env):
-        self.quick_init(locals())
         super().__init__()
         self.env = env
 

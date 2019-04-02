@@ -84,7 +84,6 @@ class VAE(PyTorchModule):
             skew_sampling=False,
             batch_size=32,
     ):
-        self.quick_init(locals())
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder

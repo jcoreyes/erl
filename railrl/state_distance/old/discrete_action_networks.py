@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import railrl.torch.pytorch_util as ptu
-from railrl.policies.base import SerializablePolicy
+from railrl.policies.base import Policy
 from railrl.torch.core import PyTorchModule
 from railrl.torch.networks import Mlp
 
@@ -41,7 +41,7 @@ class VectorizedDiscreteQFunction(Mlp):
         )
 
 
-class ArgmaxDiscreteTdmPolicy(PyTorchModule, SerializablePolicy):
+class ArgmaxDiscreteTdmPolicy(PyTorchModule, Policy):
     def __init__(self, qf, goal_dim_weights=None):
         self.save_init_params(locals())
         super().__init__()

@@ -1,17 +1,15 @@
 import numpy as np
 
-from railrl.policies.base import SerializablePolicy, Policy
-from railrl.torch.naf import NafPolicy
-from railrl.core.serializable import Serializable
+from railrl.policies.base import Policy
+from railrl.torch.naf.naf import NafPolicy
 
 
-class CombinedNafPolicy(SerializablePolicy, Serializable):
+class CombinedNafPolicy(Policy):
     def __init__(
             self,
             policy1: NafPolicy,
             policy2: NafPolicy,
     ):
-        Serializable.quick_init(self, locals())
         self.policy1 = policy1
         self.policy2 = policy2
 
@@ -25,9 +23,8 @@ class CombinedNafPolicy(SerializablePolicy, Serializable):
         pass
 
 
-class AveragerPolicy(Policy, Serializable):
+class AveragerPolicy(Policy):
     def __init__(self, policy1, policy2):
-        Serializable.quick_init(self, locals())
         self.policy1 = policy1
         self.policy2 = policy2
 

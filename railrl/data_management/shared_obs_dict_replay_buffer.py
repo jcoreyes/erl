@@ -1,16 +1,11 @@
 import numpy as np
 
-from gym.spaces import Dict
-
-from railrl.core.serializable import Serializable
 from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
-
-from multiworld.core.image_env import unormalize_image, normalize_image
 
 import torch.multiprocessing as mp
 import ctypes
 
-class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
+class SharedObsDictRelabelingBuffer(ObsDictRelabelingBuffer):
     """
     Same as an ObsDictRelabelingBuffer but the obs and next_obs are backed
     by multiprocessing arrays. The replay buffer size is also shared. The

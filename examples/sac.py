@@ -31,6 +31,11 @@ def experiment(variant):
         input_size=obs_dim,
         output_size=1,
     )
+    target_vf = FlattenMlp(
+        hidden_sizes=[net_size, net_size],
+        input_size=obs_dim,
+        output_size=1,
+    )
     policy = TanhGaussianPolicy(
         hidden_sizes=[net_size, net_size],
         obs_dim=obs_dim,
@@ -41,6 +46,7 @@ def experiment(variant):
         policy=policy,
         qf=qf,
         vf=vf,
+        target_vf=target_vf,
         **variant['algo_params']
     )
     algorithm.to(ptu.device)

@@ -3,16 +3,13 @@ Exact same as gym env, except that the gear ratio is 30 rather than 150.
 """
 import numpy as np
 
-# from railrl.envs.mujoco.mujoco_env import MujocoEnv
 from gym.envs.mujoco import MujocoEnv
 
-from railrl.core.serializable import Serializable
 from railrl.envs.env_utils import get_asset_full_path
 
 
-class AntEnv(MujocoEnv, Serializable):
+class AntEnv(MujocoEnv):
     def __init__(self, use_low_gear_ratio=True):
-        self.quick_init(locals())
         if use_low_gear_ratio:
             xml_path = 'low_gear_ratio_ant.xml'
         else:

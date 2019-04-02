@@ -12,7 +12,6 @@ class VAEBase(PyTorchModule, metaclass=abc.ABCMeta):
             self,
             representation_size,
     ):
-        self.save_init_params(locals())
         super().__init__()
         self.representation_size = representation_size
 
@@ -92,7 +91,6 @@ class GaussianLatentVAE(VAEBase):
             self,
             representation_size,
     ):
-        self.save_init_params(locals())
         super().__init__(representation_size)
         self.dist_mu = np.zeros(self.representation_size)
         self.dist_std = np.ones(self.representation_size)
@@ -116,18 +114,6 @@ class GaussianLatentVAE(VAEBase):
 
     def get_encoding_from_latent_distribution_params(self, latent_distribution_params):
         return latent_distribution_params[0].cpu()
-
-    def __getstate__(self):
-        d = super().__getstate__()
-        # Add these explicitly in case they were modified
-        d["_dist_mu"] = self.dist_mu
-        d["_dist_std"] = self.dist_std
-        return d
-
-    def __setstate__(self, d):
-        super().__setstate__(d)
-        self.dist_mu = d["_dist_mu"]
-        self.dist_std = d["_dist_std"]
 
 
 def compute_bernoulli_log_prob(x, reconstruction_of_x):

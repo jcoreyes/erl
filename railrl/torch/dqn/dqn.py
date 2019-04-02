@@ -20,6 +20,7 @@ class DQN(TorchRLAlgorithm):
             self,
             env,
             qf,
+            target_qf,
             policy=None,
             learning_rate=1e-3,
             use_hard_updates=False,
@@ -55,7 +56,7 @@ class DQN(TorchRLAlgorithm):
             env, exploration_policy, eval_policy=self.policy, **kwargs
         )
         self.qf = qf
-        self.target_qf = self.qf.copy()
+        self.target_qf = target_qf
         self.learning_rate = learning_rate
         self.use_hard_updates = use_hard_updates
         self.hard_update_period = hard_update_period

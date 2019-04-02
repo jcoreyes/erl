@@ -21,7 +21,7 @@ import railrl.misc.hyperparameter as hyp
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'env_class': HalfCheetahEnv,
-        'num_epochs': 3000,
+        'num_epochs': 1000,
         'train_policy_with_reparameterization': True,
     },
     'inv-double-pendulum': {  # 2 DoF
@@ -96,6 +96,11 @@ def experiment(variant):
         output_size=1,
         hidden_sizes=[M, M],
     )
+    target_vf = FlattenMlp(
+        input_size=obs_dim,
+        output_size=1,
+        hidden_sizes=[M, M],
+    )
     policy = TanhGaussianPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
@@ -107,6 +112,7 @@ def experiment(variant):
         qf1=qf1,
         qf2=qf2,
         vf=vf,
+        target_vf=target_vf,
         **variant['algo_kwargs']
     )
     algorithm.to(ptu.device)

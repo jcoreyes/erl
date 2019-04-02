@@ -1,13 +1,11 @@
 import numpy as np
 from gym.spaces import Box
 
-from railrl.core.serializable import Serializable
 from railrl.envs.wrappers import ProxyEnv
 
 
-class TimeLimitedEnv(ProxyEnv, Serializable):
+class TimeLimitedEnv(ProxyEnv):
     def __init__(self, wrapped_env, horizon):
-        Serializable.quick_init(self, locals())
         self._wrapped_env = wrapped_env
         self._horizon = horizon
 

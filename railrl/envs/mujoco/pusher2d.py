@@ -5,20 +5,18 @@ import numpy as np
 
 from gym.envs.mujoco import MujocoEnv
 
-from railrl.core.serializable import Serializable
 from railrl.envs.env_utils import get_asset_full_path
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger as default_logger
 
 
-class Pusher2DEnv(MujocoEnv, Serializable, metaclass=abc.ABCMeta):
+class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
     FILE = '3link_gripper_push_2d.xml'
 
     def __init__(self, goal=(-1, 0), randomize_goals=False,
                  use_hand_to_obj_reward=True,
                  use_sparse_rewards=False,
                  use_big_red_puck=False, **kwargs):
-        self.quick_init(locals())
         if not isinstance(goal, np.ndarray):
             goal = np.array(goal)
         self._target_cylinder_position = goal

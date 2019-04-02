@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn as nn
 
-from railrl.policies.base import ExplorationPolicy, SerializablePolicy
+from railrl.policies.base import ExplorationPolicy, Policy
 from railrl.torch.distributions import TanhNormal
 from railrl.torch.networks import Mlp, CNN
 
@@ -38,7 +38,6 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             init_w=1e-3,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes,
             input_size=obs_dim,
@@ -170,7 +169,6 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
             init_w=1e-3,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(
             init_w=init_w,
             **kwargs
@@ -286,7 +284,7 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
 
 
 
-class MakeDeterministic(SerializablePolicy):
+class MakeDeterministic(Policy):
     def __init__(self, stochastic_policy):
         self.stochastic_policy = stochastic_policy
 

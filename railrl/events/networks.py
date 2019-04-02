@@ -12,7 +12,6 @@ class BetaQ(FlattenMlp):
             vectorized,
             **flatten_mlp_kwargs
     ):
-        self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size
         self.goal_dim = env.goal_dim
@@ -58,7 +57,6 @@ class BetaV(FlattenMlp):
             vectorized,
             **flatten_mlp_kwargs
     ):
-        self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size
         self.goal_dim = env.goal_dim
@@ -88,7 +86,6 @@ class TanhFlattenMlpPolicy(TanhMlpPolicy):
             env,
             **kwargs
     ):
-        self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size
         self.goal_dim = env.goal_dim

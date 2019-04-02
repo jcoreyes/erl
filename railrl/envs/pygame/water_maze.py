@@ -8,11 +8,10 @@ from pygame import Color
 from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.samplers.util import split_paths
-from railrl.core.serializable import Serializable
 from railrl.core import logger
 
 
-class WaterMaze(Serializable, Env):
+class WaterMaze(Env):
     TARGET_RADIUS = 2
     BOUNDARY_DIST = 5
     BALL_RADIUS = 0.25
@@ -24,7 +23,6 @@ class WaterMaze(Serializable, Env):
             give_time=True,
             action_l2norm_penalty=0,
     ):
-        Serializable.quick_init(self, locals())
         self.MAX_TARGET_DISTANCE = self.BOUNDARY_DIST - self.TARGET_RADIUS
 
         self._horizon = horizon
@@ -177,7 +175,6 @@ class WaterMazeHard(WaterMaze):
     WaterMaze + teleportation after some time steps of being on the platform.
     """
     def __init__(self, *args, num_steps_until_teleportation=5, **kwargs):
-        Serializable.quick_init(self, locals())
         super().__init__(*args, **kwargs)
         self.num_steps_until_teleportation = num_steps_until_teleportation
         self.on_platform = deque(maxlen=self.num_steps_until_teleportation)
