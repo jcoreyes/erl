@@ -15,10 +15,9 @@ if __name__ == "__main__":
         env_id='SawyerDoorHookResetFreeEnv-v0',
         init_camera=sawyer_door_env_camera_v0,
         grill_variant=dict(
-            sample_goals_from_buffer=True,
             save_video=True,
             online_vae_beta=5,
-            save_video_period=50,
+            save_video_period=250,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -30,15 +29,15 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=150,
-                    num_steps_per_epoch=500,
-                    num_steps_per_eval=500,
+                    num_epochs=1010,
+                    num_steps_per_epoch=1000,
+                    num_steps_per_eval=1000,
                     min_num_steps_before_training=10000,
                     batch_size=128,
                     max_path_length=100,
                     discount=0.99,
                     num_updates_per_env_step=2,
-                    # collection_mode='online-parallel',
+                    collection_mode='online-parallel',
                     parallel_env_params=dict(
                         num_workers=1,
                     ),
@@ -54,25 +53,23 @@ if __name__ == "__main__":
                     use_automatic_entropy_tuning=True,
                 ),
                 online_vae_kwargs=dict(
-                    vae_training_schedule=vae_schedules.custom_schedule,
+                   vae_training_schedule=vae_schedules.every_other,
                     oracle_data=False,
-                    vae_save_period=50,
+                    vae_save_period=100,
                     parallel_vae_train=False,
                 ),
             ),
             replay_buffer_kwargs=dict(
-                start_skew_epoch=10,
                 max_size=int(100000),
                 fraction_goals_rollout_goals=0.0,
                 fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
-                vae_priority_type='vae_prob',
+                vae_priority_type='image_bernoulli_inv_prob',
                 priority_function_kwargs=dict(
-                    sampling_method='importance_sampling',
-                    decoder_distribution='gaussian_identity_variance',
+                    sampling_method='correct',
                     num_latents_to_sample=10,
                 ),
-                power=.1,
+                power=2,
             ),
             normalize=False,
             render=False,
@@ -89,35 +86,46 @@ if __name__ == "__main__":
             goal_generation_kwargs=dict(
                 num_goals=1000,
                 use_cached_dataset=True,
-                policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
+                policy_file='data/doodads3/11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
                 path_length=100,
                 show=False,
                 tag='_twin_sac'
             ),
-            presampled_goals_path='door_goals_bright_sawyer.npy',
+            presampled_goals_path='goals/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48goals_twin_sac.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI-HER-TD3',
+            generate_uniform_dataset_kwargs=dict(
+                env_id='SawyerDoorHookResetFreeEnv-v0',
+                init_camera=sawyer_door_env_camera_v0,
+                num_imgs=1000,
+                use_cached_dataset=False,
+                policy_file='11-09-her-twin-sac-door/11-09-her-twin-sac-door_2018_11_10_02_17_10_id000--s16215/params.pkl',
+                show=False,
+                path_length=100,
+                dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N1000_imsize48uniform_images_.npy',
+            ),
+            generate_uniform_dataset_fn=generate_uniform_dataset_door,
         ),
         train_vae_variant=dict(
             representation_size=16,
-            beta=20,
+            beta=1.0,
             num_epochs=0,
             dump_skew_debug_plots=False,
-            decoder_activation='gaussian',
+            decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
-                N=2,
+                N=100,
                 test_p=.9,
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
                 n_random_steps=1,
                 non_presampled_goal_img_is_garbage=True,
+                dataset_path='datasets/SawyerDoorHookResetFreeEnv-v0_N5000_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.npy',
             ),
             vae_kwargs=dict(
-                decoder_distribution='gaussian_identity_variance',
                 input_channels=3,
                 architecture=imsize48_default_architecture,
             ),
@@ -131,25 +139,23 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [True],
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [True],
-        'grill_variant.replay_buffer_kwargs.power': [-.5],
-        'train_vae_variant.beta': [20],
-        'grill_variant.online_vae_beta': [20],
+        'grill_variant.replay_buffer_kwargs.vae_priority_type':['None', 'image_bernoulli_inv_prob'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 2
-    mode = 'local'
-    exp_prefix = 'skew-fit-door-comp-expl-relabel'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 8
-    # mode = 'gcp'
-    # exp_prefix = 'door-skew-fit-power-bug_v2'
+    n_seeds = 3
+    mode = 'gcp'
+    exp_prefix = 'door-skew-fit'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['grill_variant']['replay_buffer_kwargs']['vae_priority_type'] == 'None' and variant['grill_variant']['replay_buffer_kwargs']['power'] == 2:
+            continue
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_twin_sac_online_vae_full_experiment,
@@ -157,11 +163,11 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=3,
+                num_exps_per_instance=2,
                 gcp_kwargs=dict(
-                    zone='us-east1-c',
+                    zone='us-west2-b',
                     gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-k80',
+                        gpu_model='nvidia-tesla-p4',
                         num_gpu=1,
                     )
                 )

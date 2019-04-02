@@ -15,7 +15,7 @@ def create_stats_ordered_dict(
         always_show_all_stats=True,
         exclude_max_min=False,
 ):
-    if stat_prefix is not None:
+    if stat_prefix is not None and len(stat_prefix) > 0:
         name = "{} {}".format(stat_prefix, name)
     if isinstance(data, Number):
         return OrderedDict({name: data})
@@ -60,6 +60,8 @@ def get_generic_path_information(paths, stat_prefix=''):
     Get an OrderedDict with a bunch of statistic names and values.
     """
     statistics = OrderedDict()
+    if len(paths) == 0:
+        return statistics
     returns = [sum(path["rewards"]) for path in paths]
 
     rewards = np.vstack([path["rewards"] for path in paths])
@@ -75,7 +77,9 @@ def get_generic_path_information(paths, stat_prefix=''):
     statistics.update(create_stats_ordered_dict(
         'Actions', actions, stat_prefix=stat_prefix
     ))
-    statistics['Num Paths'] = len(paths)
+
+    statistics[stat_prefix + 'Num Paths'] = len(paths)
+    statistics[stat_prefix + 'Average Returns'] = get_average_returns(paths)
 
     return statistics
 

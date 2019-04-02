@@ -1,14 +1,17 @@
-import torch
+from collections import OrderedDict
+
 import numpy as np
+import torch
 import torch.optim as optim
 from torch import nn as nn
+
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.core import np_to_pytorch_batch
+from railrl.torch.torch_rl_algorithm import TorchTrainer
 
 
-class TwinSAC(TorchRLAlgorithm):
+class TwinSACTrainer(TorchTrainer):
     """
     TD3 + SAC
     """
@@ -20,6 +23,9 @@ class TwinSAC(TorchRLAlgorithm):
             qf2,
             vf,
             target_vf,
+
+            discount=0.99,
+            reward_scale=1.0,
 
             policy_lr=1e-3,
             qf_lr=1e-3,
@@ -35,26 +41,11 @@ class TwinSAC(TorchRLAlgorithm):
             target_update_period=1,
             plotter=None,
             render_eval_paths=False,
-            eval_deterministic=True,
-
-            eval_policy=None,
-            exploration_policy=None,
 
             use_automatic_entropy_tuning=True,
             target_entropy=None,
-            **kwargs
     ):
-        if eval_policy is None:
-            if eval_deterministic:
-                eval_policy = MakeDeterministic(policy)
-            else:
-                eval_policy = policy
-        super().__init__(
-            env=env,
-            exploration_policy=exploration_policy or policy,
-            eval_policy=eval_policy,
-            **kwargs
-        )
+        self.env = env
         self.policy = policy
         self.qf1 = qf1
         self.qf2 = qf2
@@ -105,8 +96,14 @@ class TwinSAC(TorchRLAlgorithm):
             lr=vf_lr,
         )
 
-    def _do_training(self):
-        batch = self.get_batch()
+        self.discount = discount
+        self.reward_scale = reward_scale
+        self.eval_statistics = OrderedDict()
+        self._n_train_steps_total = 0
+        self._need_to_update_eval_statistics = True
+
+    def train(self, np_batch):
+        batch = np_to_pytorch_batch(np_batch)
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -202,8 +199,8 @@ class TwinSAC(TorchRLAlgorithm):
         """
         Save some statistics for eval
         """
-        if self.need_to_update_eval_statistics:
-            self.need_to_update_eval_statistics = False
+        if self._need_to_update_eval_statistics:
+            self._need_to_update_eval_statistics = False
             """
             Eval should set this to None.
             This way, these statistics are only computed for one batch.
@@ -267,6 +264,13 @@ class TwinSAC(TorchRLAlgorithm):
             if self.use_automatic_entropy_tuning:
                 self.eval_statistics['Alpha'] = alpha.item()
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
+        self._n_train_steps_total += 1
+
+    def get_diagnostics(self):
+        return self.eval_statistics
+
+    def end_epoch(self, epoch):
+        self._need_to_update_eval_statistics = True
 
     @property
     def networks(self):
@@ -278,12 +282,11 @@ class TwinSAC(TorchRLAlgorithm):
             self.target_vf,
         ]
 
-    def update_epoch_snapshot(self, snapshot):
-        snapshot.update(
+    def get_snapshot(self):
+        return dict(
             qf1=self.qf1,
             qf2=self.qf2,
-            policy=self.eval_policy,
-            trained_policy=self.policy,
+            policy=self.policy,
+            vf=self.vf,
             target_vf=self.target_vf,
-            exploration_policy=self.exploration_policy,
         )
