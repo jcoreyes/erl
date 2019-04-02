@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 import numpy as np
 
 from railrl.data_management.replay_buffer import ReplayBuffer
@@ -38,8 +36,8 @@ class SimpleReplayBuffer(ReplayBuffer):
         self._top = 0
         self._size = 0
 
-    def add_sample(self, observation, action, reward, next_observation,
-                   terminal, env_info, **kwargs):
+    def add_sample(self, observation, action, reward, terminal,
+                   next_observation, env_info, **kwargs):
         self._observations[self._top] = observation
         self._actions[self._top] = action
         self._rewards[self._top] = reward
@@ -86,8 +84,3 @@ class SimpleReplayBuffer(ReplayBuffer):
 
     def num_steps_can_sample(self):
         return self._size
-
-    def get_diagnostics(self):
-        return OrderedDict([
-            ('size', self._size)
-        ])
