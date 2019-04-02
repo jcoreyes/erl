@@ -23,6 +23,7 @@ class PathCollector(object, metaclass=abc.ABCMeta):
         return {}
 
 
+# TODO(vitchyr): add a `discard_incomplete_path` flag
 class MdpPathCollector(PathCollector):
     def __init__(
             self,
