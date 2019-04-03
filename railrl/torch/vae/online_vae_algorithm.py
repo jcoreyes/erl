@@ -94,14 +94,12 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
                 self.process_vae_update_thread.start()
                 self.vae_conn_pipe.send((amount_to_train, epoch))
             else:
-                self.vae.train()
                 _train_vae(
                     self.vae_trainer,
                     self.replay_buffer,
                     epoch,
                     amount_to_train
                 )
-                self.vae.eval()
                 self.replay_buffer.refresh_latents(epoch)
                 _test_vae(
                     self.vae_trainer,
@@ -211,8 +209,6 @@ def subprocess_train_vae_loop(
     replay_buffer.env.vae = vae
     while True:
         amount_to_train, epoch = conn_pipe.recv()
-        vae.train()
         _train_vae(vae_trainer, replay_buffer, epoch, amount_to_train)
-        vae.eval()
         conn_pipe.send(vae_trainer.model.__getstate__())
         replay_buffer.refresh_latents(epoch)
