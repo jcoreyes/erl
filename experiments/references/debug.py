@@ -159,7 +159,8 @@ def experiment(variant):
         config={
             'algo_variant': variant,
             'init_algo_function': run_experiment_func,
-            'use_gpu': ptu._use_gpu
+            'use_gpu': ptu._use_gpu,
+            'test': tune.grid_search([16, 64, 256]),
         },
         resources_per_trial={
             "cpu": 1,
@@ -172,7 +173,7 @@ def experiment(variant):
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=30,
+        num_epochs=300,
         num_eval_steps_per_epoch=500,
         num_trains_per_train_loop=100,
         num_expl_steps_per_train_loop=100,

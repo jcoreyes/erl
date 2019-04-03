@@ -64,9 +64,10 @@ class BatchRLAlgorithm(object):
         self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
         self.min_num_steps_before_training = min_num_steps_before_training
         self._start_epoch = 0
-        self.epoch_list = iter(gt.timed_for(
-                range(self._start_epoch, self.num_epochs),
-                save_itrs=True,))
+        # self.epoch_list = iter(gt.timed_for(
+                # range(self._start_epoch, self.num_epochs),
+                # save_itrs=True,))
+        self.epoch_list = iter(range(self._start_epoch, self.num_epochs))
         self.epoch = 0
 
     def __getstate__(self):
@@ -79,9 +80,10 @@ class BatchRLAlgorithm(object):
         if state['epoch'] != 0:
             start_epoch = state['epoch']
         self.__dict__ = state
-        self.epoch_list = iter(gt.timed_for(
-                range(start_epoch, self.num_epochs),
-                save_itrs=True,))
+        # self.epoch_list = iter(gt.timed_for(
+                # range(start_epoch, self.num_epochs),
+                # save_itrs=True,))
+        self.epoch_list = iter(range(start_epoch, self.num_epochs))
 
     def train(self, start_epoch=0):
         self._start_epoch = start_epoch
@@ -103,22 +105,22 @@ class BatchRLAlgorithm(object):
             self.max_path_length,
             self.num_eval_steps_per_epoch,
         )
-        gt.stamp('evaluation sampling')
+        # gt.stamp('evaluation sampling')
 
         for _ in range(self.num_train_loops_per_epoch):
             new_expl_paths = self.expl_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_expl_steps_per_train_loop,
             )
-            gt.stamp('exploration sampling', unique=False)
+            # gt.stamp('exploration sampling', unique=False)
 
             self.data_buffer.add_paths(new_expl_paths)
-            gt.stamp('data storing', unique=False)
+            # gt.stamp('data storing', unique=False)
 
             for _ in range(self.num_trains_per_train_loop):
                 train_data = self.data_buffer.random_batch(self.batch_size)
                 self.trainer.train(train_data)
-            gt.stamp('training', unique=False)
+            # gt.stamp('training', unique=False)
         self._save_snapshot()
         algo_logs = self.get_diagnostics()
         self._end_epoch()
@@ -138,7 +140,7 @@ class BatchRLAlgorithm(object):
         for k, v in self.data_buffer.get_snapshot().items():
             snapshot['buffer/' + k] = v
         logger.save_itr_params(self.epoch, snapshot)
-        gt.stamp('saving')
+        # gt.stamp('saving')
 
     def get_diagnostics(self):
         logger.log("Epoch {} finished".format(self.epoch), with_timestamp=True)
@@ -174,7 +176,7 @@ class BatchRLAlgorithm(object):
         """
         Misc
         """
-        algorithm_logs.update(_get_epoch_timings(self.epoch))
+        # algorithm_logs.update(_get_epoch_timings(self.epoch))
         algorithm_logs['epoch'] = self.epoch
         # logger.record_tabular('Epoch', epoch)
         # logger.dump_tabular(with_prefix=False, with_timestamp=False)
