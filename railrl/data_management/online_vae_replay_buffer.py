@@ -1,3 +1,4 @@
+from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.exploration_strategies.count_based.count_based import CountExploration
 from torchvision.utils import save_image
 
@@ -44,6 +45,18 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             relabeling_goal_sampling_mode='vae_prior',
             **kwargs
     ):
+        if internal_keys is None:
+            internal_keys = []
+
+        for key in [
+            decoded_obs_key,
+            decoded_achieved_goal_key,
+            decoded_desired_goal_key
+        ]:
+            if key not in internal_keys:
+                internal_keys.append(key)
+        super().__init__(internal_keys=internal_keys, *args, **kwargs)
+        assert isinstance(self.env, VAEWrappedEnv)
         self.vae = vae
         self.decoded_obs_key = decoded_obs_key
         self.decoded_desired_goal_key = decoded_desired_goal_key
@@ -62,19 +75,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             self.explr_reward_scale_schedule = \
                 PiecewiseLinearSchedule(**exploration_schedule_kwargs)
 
-        extra_keys = [
-            self.decoded_obs_key,
-            self.decoded_achieved_goal_key,
-            self.decoded_desired_goal_key
-        ]
-        if internal_keys is None:
-            internal_keys = []
-
-        for key in extra_keys:
-            if key in internal_keys:
-                continue
-            internal_keys.append(key)
-        super().__init__(internal_keys=internal_keys, *args, **kwargs)
         self._give_explr_reward_bonus = (
                 exploration_rewards_type != 'None'
                 and exploration_rewards_scale != 0.

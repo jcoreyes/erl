@@ -96,6 +96,17 @@ class BatchRLAlgorithm(object):
             self._end_epoch(epoch)
 
     def _end_epoch(self, epoch):
+        snapshot = self._get_snapshot()
+        logger.save_itr_params(epoch, snapshot)
+        gt.stamp('saving')
+        self._log_stats(epoch)
+
+        self.expl_data_collector.end_epoch(epoch)
+        self.eval_data_collector.end_epoch(epoch)
+        self.replay_buffer.end_epoch(epoch)
+        self.trainer.end_epoch(epoch)
+
+    def _get_snapshot(self):
         snapshot = {}
         for k, v in self.trainer.get_snapshot().items():
             snapshot['trainer/' + k] = v
@@ -105,15 +116,7 @@ class BatchRLAlgorithm(object):
             snapshot['evaluation/' + k] = v
         for k, v in self.replay_buffer.get_snapshot().items():
             snapshot['buffer/' + k] = v
-        logger.save_itr_params(epoch, snapshot)
-        gt.stamp('saving')
-
-        self._log_stats(epoch)
-
-        self.expl_data_collector.end_epoch(epoch)
-        self.eval_data_collector.end_epoch(epoch)
-        self.replay_buffer.end_epoch(epoch)
-        self.trainer.end_epoch(epoch)
+        return snapshot
 
     def _log_stats(self, epoch):
         logger.log("Epoch {} finished".format(epoch), with_timestamp=True)

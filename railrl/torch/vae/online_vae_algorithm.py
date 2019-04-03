@@ -1,5 +1,7 @@
 import gtimer as gt
 from railrl.core import logger
+from railrl.data_management.online_vae_replay_buffer import \
+    OnlineVaeRelabelingBuffer
 from railrl.data_management.shared_obs_dict_replay_buffer \
     import SharedObsDictRelabelingBuffer
 import railrl.torch.vae.vae_schedules as vae_schedules
@@ -29,6 +31,7 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
             **base_kwargs
     ):
         super().__init__(*base_args, **base_kwargs)
+        assert isinstance(self.replay_buffer, OnlineVaeRelabelingBuffer)
         self.vae = vae
         self.vae_trainer = vae_trainer
         self.vae_trainer.model = self.vae
@@ -44,12 +47,33 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         self.uniform_dataset = uniform_dataset
 
     def _end_epoch(self, epoch):
+        self._train_vae(epoch)
+        gt.stamp('vae training')
+        super()._end_epoch(epoch)
+
+    def _log_stats(self, epoch):
+        self._log_vae_stats()
+        super()._log_stats(epoch)
+
+    def to(self, device):
+        self.vae.to(device)
+        super().to(device)
+
+    def _get_snapshot(self):
+        snapshot = super()._get_snapshot()
+        assert 'vae' not in snapshot
+        snapshot['vae'] = self.vae
+        return snapshot
+
+    """
+    VAE-specific Code
+    """
+    def _train_vae(self, epoch):
         if self.parallel_vae_train and self.vae_training_process is None:
             self.init_vae_training_subproces()
-
         should_train, amount_to_train = self.vae_training_schedule(epoch)
         rl_start_epoch = int(self.min_num_steps_before_training / (
-            self.num_expl_steps_per_train_loop * self.num_train_loops_per_epoch
+                self.num_expl_steps_per_train_loop * self.num_train_loops_per_epoch
         ))
         if should_train or epoch <= (rl_start_epoch - 1):
             if self.parallel_vae_train:
@@ -81,10 +105,8 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
                     vae_save_period=self.vae_save_period,
                     uniform_dataset=self.uniform_dataset,
                 )
-        gt.stamp('vae training')
-        super()._end_epoch(epoch)
 
-    def _log_stats(self, epoch):
+    def _log_vae_stats(self):
         if self.replay_buffer._vae_sample_probs is None or self.replay_buffer._vae_sample_priorities is None:
             stats = create_stats_ordered_dict(
                 'VAE Sample Weights',
@@ -95,8 +117,10 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
                 np.zeros(self.replay_buffer._size),
             ))
         else:
-            vae_sample_priorities = self.replay_buffer._vae_sample_priorities[:self.replay_buffer._size]
-            vae_sample_probs = self.replay_buffer._vae_sample_probs[:self.replay_buffer._size]
+            vae_sample_priorities = self.replay_buffer._vae_sample_priorities[
+                                    :self.replay_buffer._size]
+            vae_sample_probs = self.replay_buffer._vae_sample_probs[
+                               :self.replay_buffer._size]
             stats = create_stats_ordered_dict(
                 'VAE Sample Weights',
                 vae_sample_priorities,
@@ -107,17 +131,9 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
             ))
         for key, value in stats.items():
             logger.record_tabular(key, value)
-        super()._log_stats(epoch)
 
     def reset_vae(self):
         self.vae.init_weights(self.vae.init_w)
-
-    @property
-    def networks(self):
-        return [self.vae] + TorchBatchRLAlgorithm.networks.fget(self)
-
-    def update_epoch_snapshot(self, snapshot):
-        snapshot.update(vae=self.vae)
 
     def cleanup(self):
         if self.parallel_vae_train:
