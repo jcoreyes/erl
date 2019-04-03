@@ -46,6 +46,10 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         self.vae_min_num_steps_before_training = vae_min_num_steps_before_training
         self.uniform_dataset = uniform_dataset
 
+    def _train(self):
+        super()._train()
+        self._cleanup()
+
     def _end_epoch(self, epoch):
         self._train_vae(epoch)
         gt.stamp('vae training')
@@ -135,7 +139,7 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
     def reset_vae(self):
         self.vae.init_weights(self.vae.init_w)
 
-    def cleanup(self):
+    def _cleanup(self):
         if self.parallel_vae_train:
             self.vae_conn_pipe.close()
             self.vae_training_process.terminate()
