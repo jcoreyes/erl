@@ -13,6 +13,7 @@ import torch
 from torch.optim import Adam
 from torch.nn import MSELoss
 
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
@@ -157,6 +158,29 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             batch['exploration_rewards'] = self._exploration_rewards[batch_idxs]
             batch['rewards'] += exploration_rewards_scale * batch['exploration_rewards']
         return batch
+
+    def get_diagnostics(self):
+        if self._vae_sample_probs is None or self._vae_sample_priorities is None:
+            stats = create_stats_ordered_dict(
+                'VAE Sample Weights',
+                np.zeros(self._size),
+            )
+            stats.update(create_stats_ordered_dict(
+                'VAE Sample Probs',
+                np.zeros(self._size),
+            ))
+        else:
+            vae_sample_priorities = self._vae_sample_priorities[:self._size]
+            vae_sample_probs = self._vae_sample_probs[:self._size]
+            stats = create_stats_ordered_dict(
+                'VAE Sample Weights',
+                vae_sample_priorities,
+            )
+            stats.update(create_stats_ordered_dict(
+                'VAE Sample Probs',
+                vae_sample_probs,
+            ))
+        return stats
 
     def refresh_latents(self, epoch):
         self.epoch = epoch

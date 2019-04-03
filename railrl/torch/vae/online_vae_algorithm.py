@@ -111,33 +111,10 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
                 )
 
     def _log_vae_stats(self):
-        if self.replay_buffer._vae_sample_probs is None or self.replay_buffer._vae_sample_priorities is None:
-            stats = create_stats_ordered_dict(
-                'VAE Sample Weights',
-                np.zeros(self.replay_buffer._size),
-            )
-            stats.update(create_stats_ordered_dict(
-                'VAE Sample Probs',
-                np.zeros(self.replay_buffer._size),
-            ))
-        else:
-            vae_sample_priorities = self.replay_buffer._vae_sample_priorities[
-                                    :self.replay_buffer._size]
-            vae_sample_probs = self.replay_buffer._vae_sample_probs[
-                               :self.replay_buffer._size]
-            stats = create_stats_ordered_dict(
-                'VAE Sample Weights',
-                vae_sample_priorities,
-            )
-            stats.update(create_stats_ordered_dict(
-                'VAE Sample Probs',
-                vae_sample_probs,
-            ))
-        for key, value in stats.items():
-            logger.record_tabular(key, value)
-
-    def reset_vae(self):
-        self.vae.init_weights(self.vae.init_w)
+        logger.record_dict(
+            self.vae_trainer.get_diagnostics(),
+            prefix='vae trainer/',
+        )
 
     def _cleanup(self):
         if self.parallel_vae_train:
@@ -172,11 +149,6 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
             vae_save_period=self.vae_save_period,
             uniform_dataset=self.uniform_dataset,
         )
-
-    def evaluate(self, epoch, eval_paths=None):
-        for k, v in self.vae_trainer.vae_logger_stats_for_rl.items():
-            logger.record_tabular(k, v)
-        super().evaluate(epoch, eval_paths=eval_paths)
 
 
 def _train_vae(vae_trainer, replay_buffer, epoch, batches=50, oracle_data=False):

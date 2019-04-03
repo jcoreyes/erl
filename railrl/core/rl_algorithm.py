@@ -115,16 +115,19 @@ class BatchRLAlgorithm(object):
         for k, v in self.eval_data_collector.get_snapshot().items():
             snapshot['evaluation/' + k] = v
         for k, v in self.replay_buffer.get_snapshot().items():
-            snapshot['buffer/' + k] = v
+            snapshot['replay_buffer/' + k] = v
         return snapshot
 
     def _log_stats(self, epoch):
         logger.log("Epoch {} finished".format(epoch), with_timestamp=True)
 
         """
-        Data Buffer
+        Replay Buffer
         """
-        logger.record_dict(self.replay_buffer.get_diagnostics(), prefix='buffer/')
+        logger.record_dict(
+            self.replay_buffer.get_diagnostics(),
+            prefix='replay_buffer/'
+        )
 
         """
         Trainer
@@ -169,6 +172,7 @@ class BatchRLAlgorithm(object):
         """
         Misc
         """
+        gt.stamp('logging')
         logger.record_dict(_get_epoch_timings(epoch))
         logger.record_tabular('Epoch', epoch)
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
