@@ -16,9 +16,16 @@ def simulate_policy(args):
     if args.pause:
         import ipdb; ipdb.set_trace()
     data = pickle.load(open(args.file, "rb")) # joblib.load(args.file)
-    policy = data['policy']
+    if 'policy' in data:
+        policy = data['policy']
+    elif 'evaluation/policy' in data:
+        policy = data['evaluation/policy']
 
-    env = data['env']
+    if 'env' in data:
+        env = data['env']
+    elif 'evaluation/env' in data:
+        env = data['evaluation/env']
+
     if isinstance(env, RemoteRolloutEnv):
         env = env._wrapped_env
     print("Policy loaded")
