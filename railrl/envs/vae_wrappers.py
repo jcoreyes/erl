@@ -158,6 +158,13 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         elif self._goal_sampling_mode == 'env':
             goals = self.wrapped_env.sample_goals(batch_size)
             latent_goals = self._encode(goals[self.vae_input_desired_goal_key])
+        elif self._goal_sampling_mode == 'reset_of_env':
+            assert batch_size == 1
+            goal = self.wrapped_env.get_goal()
+            goals = {k: v[None] for k, v in goal.items()}
+            latent_goals = self._encode(
+                goals[self.vae_input_desired_goal_key]
+            )
         elif self._goal_sampling_mode == 'vae_prior':
             goals = {}
             latent_goals = self._sample_vae_prior(batch_size)
@@ -265,6 +272,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             'presampled',
             'vae_prior',
             'env',
+            'reset_of_env'
         ], "Invalid env mode"
         self._goal_sampling_mode = mode
         if mode == 'custom_goal_sampler':

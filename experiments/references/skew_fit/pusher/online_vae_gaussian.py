@@ -67,7 +67,7 @@ if __name__ == "__main__":
                 relabeling_goal_sampling_mode='vae_prior',
             ),
             exploration_goal_sampling_mode='vae_prior',
-            evaluation_goal_sampling_mode='env',
+            evaluation_goal_sampling_mode='reset_of_env',
             normalize=False,
             render=False,
             exploration_noise=0.0,
@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = 'gcp'
-    exp_prefix = 'skew-fit-pusher-reference-post-refactor'
+    exp_prefix = 'skew-fit-pusher-reference-post-refactor-using-reset-take3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
