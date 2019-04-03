@@ -892,7 +892,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     )
     trainer = HERTrainer(trainer)
     eval_path_collector = VAEWrappedEnvPathCollector(
-        'presampled',
+        variant['evaluation_goal_sampling_mode'],
         env,
         MakeDeterministic(policy),
         max_path_length,

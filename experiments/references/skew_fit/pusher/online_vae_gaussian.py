@@ -16,7 +16,11 @@ if __name__ == "__main__":
         grill_variant=dict(
             sample_goals_from_buffer=True,
             save_video=True,
-            online_vae_beta=20,
+            custom_goal_sampler='replay_buffer',
+            online_vae_trainer_kwargs=dict(
+                beta=20,
+                lr=1e-3,
+            ),
             save_video_period=50,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
@@ -27,38 +31,25 @@ if __name__ == "__main__":
             vf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
+            max_path_length=50,
             algo_kwargs=dict(
-                base_kwargs=dict(
-                    num_epochs=1000,
-                    num_steps_per_epoch=500,
-                    num_steps_per_eval=500,
-                    min_num_steps_before_training=10000,
-                    batch_size=256,
-                    max_path_length=50,
-                    discount=0.99,
-                    num_updates_per_env_step=2,
-                    # collection_mode='online-parallel',
-                    parallel_env_params=dict(
-                        num_workers=1,
-                    ),
-                    reward_scale=1,
-                ),
-
-                her_kwargs=dict(
-                ),
-                twin_sac_kwargs=dict(
-                    train_policy_with_reparameterization=True,
-                    soft_target_tau=1e-3,  # 1e-2
-                    policy_update_period=1,
-                    target_update_period=1,  # 1
-                    use_automatic_entropy_tuning=True,
-                ),
-                online_vae_kwargs=dict(
-                    vae_training_schedule=vae_schedules.custom_schedule_2,
-                    oracle_data=False,
-                    vae_save_period=50,
-                    parallel_vae_train=False,
-                ),
+                batch_size=256,
+                num_epochs=1000,
+                num_eval_steps_per_epoch=500,
+                num_expl_steps_per_train_loop=500,
+                num_trains_per_train_loop=1000,
+                min_num_steps_before_training=10000,
+                vae_training_schedule=vae_schedules.custom_schedule_2,
+                oracle_data=False,
+                vae_save_period=50,
+                parallel_vae_train=False,
+            ),
+            twin_sac_trainer_kwargs=dict(
+                discount=0.99,
+                reward_scale=1,
+                soft_target_tau=1e-3,
+                target_update_period=1,  # 1
+                use_automatic_entropy_tuning=True,
             ),
             replay_buffer_kwargs=dict(
                 start_skew_epoch=10,
@@ -73,9 +64,11 @@ if __name__ == "__main__":
                     # decoder_distribution='bernoulli',
                     num_latents_to_sample=10,
                 ),
-                power=.1,
-
+                power=-0.5,
+                relabeling_goal_sampling_mode='vae_prior',
             ),
+            exploration_goal_sampling_mode='vae_prior',
+            evaluation_goal_sampling_mode='env',
             normalize=False,
             render=False,
             exploration_noise=0.0,
@@ -88,7 +81,7 @@ if __name__ == "__main__":
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
             vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=True,
+                sample_from_true_prior=False,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
             # generate_uniform_dataset_kwargs=dict(
@@ -148,22 +141,20 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[
-            10
-        ],
-        'grill_variant.replay_buffer_kwargs.power': [-.5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'skew-fit-pusher-new-visuals-from-replay-buffer-3'
+    exp_prefix = 'dev-{}'.format(
+        __file__.replace('/', '-').replace('_', '-').split('.')[0]
+    )
+
+    n_seeds = 3
+    mode = 'gcp'
+    exp_prefix = 'skew-fit-pusher-reference-post-refactor'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

@@ -70,6 +70,7 @@ if __name__ == "__main__":
                 relabeling_goal_sampling_mode='custom_goal_sampler',
             ),
             exploration_goal_sampling_mode='custom_goal_sampler',
+            evaluation_goal_sampling_mode='presampled',
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
@@ -119,11 +120,13 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev'
+    exp_prefix = 'dev-{}'.format(
+        __file__.replace('/', '-').replace('_', '-').split('.')[0]
+    )
 
-    n_seeds = 10
+    # n_seeds = 3
     # mode = 'gcp'
-    exp_prefix = 'door-skew-fit-post-vae-env-refactor-take2'
+    # exp_prefix = 'skew-fit-door-reference-post-refactor'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
