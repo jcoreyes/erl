@@ -914,7 +914,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         evaluation_env=env,
         exploration_data_collector=expl_path_collector,
         evaluation_data_collector=eval_path_collector,
-        data_buffer=replay_buffer,
+        replay_buffer=replay_buffer,
         vae=vae,
         vae_trainer=vae_trainer,
         uniform_dataset=uniform_dataset,

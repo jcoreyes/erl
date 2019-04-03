@@ -68,16 +68,16 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
                 self.vae.train()
                 _train_vae(
                     self.vae_trainer,
-                    self.data_buffer,
+                    self.replay_buffer,
                     epoch,
                     amount_to_train
                 )
                 self.vae.eval()
-                self.data_buffer.refresh_latents(epoch)
+                self.replay_buffer.refresh_latents(epoch)
                 _test_vae(
                     self.vae_trainer,
                     self.epoch,
-                    self.data_buffer,
+                    self.replay_buffer,
                     vae_save_period=self.vae_save_period,
                     uniform_dataset=self.uniform_dataset,
                 )
@@ -85,18 +85,18 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         super()._end_epoch(epoch)
 
     def _log_stats(self, epoch):
-        if self.data_buffer._vae_sample_probs is None or self.data_buffer._vae_sample_priorities is None:
+        if self.replay_buffer._vae_sample_probs is None or self.replay_buffer._vae_sample_priorities is None:
             stats = create_stats_ordered_dict(
                 'VAE Sample Weights',
-                np.zeros(self.data_buffer._size),
+                np.zeros(self.replay_buffer._size),
             )
             stats.update(create_stats_ordered_dict(
                 'VAE Sample Probs',
-                np.zeros(self.data_buffer._size),
+                np.zeros(self.replay_buffer._size),
             ))
         else:
-            vae_sample_priorities = self.data_buffer._vae_sample_priorities[:self.data_buffer._size]
-            vae_sample_probs = self.data_buffer._vae_sample_probs[:self.data_buffer._size]
+            vae_sample_priorities = self.replay_buffer._vae_sample_priorities[:self.replay_buffer._size]
+            vae_sample_probs = self.replay_buffer._vae_sample_probs[:self.replay_buffer._size]
             stats = create_stats_ordered_dict(
                 'VAE Sample Weights',
                 vae_sample_priorities,
@@ -125,7 +125,7 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
             self.vae_training_process.terminate()
 
     def init_vae_training_subproces(self):
-        assert isinstance(self.data_buffer, SharedObsDictRelabelingBuffer)
+        assert isinstance(self.replay_buffer, SharedObsDictRelabelingBuffer)
 
         self.vae_conn_pipe, process_pipe = Pipe()
         self.vae_training_process = Process(
@@ -134,8 +134,8 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
                 process_pipe,
                 self.vae,
                 self.vae.state_dict(),
-                self.data_buffer,
-                self.data_buffer.get_mp_info(),
+                self.replay_buffer,
+                self.replay_buffer.get_mp_info(),
                 ptu.device,
             )
         )
@@ -148,7 +148,7 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         _test_vae(
             self.vae_trainer,
             self.epoch,
-            self.data_buffer,
+            self.replay_buffer,
             vae_save_period=self.vae_save_period,
             uniform_dataset=self.uniform_dataset,
         )
@@ -159,8 +159,8 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         super().evaluate(epoch, eval_paths=eval_paths)
 
 
-def _train_vae(vae_trainer, data_buffer, epoch, batches=50, oracle_data=False):
-    batch_sampler = data_buffer.random_vae_training_data
+def _train_vae(vae_trainer, replay_buffer, epoch, batches=50, oracle_data=False):
+    batch_sampler = replay_buffer.random_vae_training_data
     if oracle_data:
         batch_sampler = None
     vae_trainer.train_epoch(
@@ -169,14 +169,14 @@ def _train_vae(vae_trainer, data_buffer, epoch, batches=50, oracle_data=False):
         batches=batches,
         from_rl=True,
     )
-    data_buffer.train_dynamics_model(batches=batches)
+    replay_buffer.train_dynamics_model(batches=batches)
 
 
-def _test_vae(vae_trainer, epoch, data_buffer, vae_save_period=1, uniform_dataset=None):
+def _test_vae(vae_trainer, epoch, replay_buffer, vae_save_period=1, uniform_dataset=None):
     save_imgs = epoch % vae_save_period == 0
-    log_fit_skew_stats = data_buffer._prioritize_vae_samples and uniform_dataset is not None
+    log_fit_skew_stats = replay_buffer._prioritize_vae_samples and uniform_dataset is not None
     if uniform_dataset is not None:
-        data_buffer.log_loss_under_uniform(uniform_dataset, vae_trainer.batch_size, rl_logger=vae_trainer.vae_logger_stats_for_rl)
+        replay_buffer.log_loss_under_uniform(uniform_dataset, vae_trainer.batch_size, rl_logger=vae_trainer.vae_logger_stats_for_rl)
     vae_trainer.test_epoch(
         epoch,
         from_rl=True,
@@ -185,18 +185,18 @@ def _test_vae(vae_trainer, epoch, data_buffer, vae_save_period=1, uniform_datase
     if save_imgs:
         vae_trainer.dump_samples(epoch)
         if log_fit_skew_stats:
-            data_buffer.dump_best_reconstruction(epoch)
-            data_buffer.dump_worst_reconstruction(epoch)
-            data_buffer.dump_sampling_histogram(epoch, batch_size=vae_trainer.batch_size)
+            replay_buffer.dump_best_reconstruction(epoch)
+            replay_buffer.dump_worst_reconstruction(epoch)
+            replay_buffer.dump_sampling_histogram(epoch, batch_size=vae_trainer.batch_size)
         if uniform_dataset is not None:
-            data_buffer.dump_uniform_imgs_and_reconstructions(dataset=uniform_dataset, epoch=epoch)
+            replay_buffer.dump_uniform_imgs_and_reconstructions(dataset=uniform_dataset, epoch=epoch)
 
 
 def subprocess_train_vae_loop(
         conn_pipe,
         vae,
         vae_params,
-        data_buffer,
+        replay_buffer,
         mp_info,
         device,
 ):
@@ -214,12 +214,12 @@ def subprocess_train_vae_loop(
     vae.load_state_dict(vae_params)
     vae.to(device)
     vae_trainer.set_vae(vae)
-    data_buffer.init_from_mp_info(mp_info)
-    data_buffer.env.vae = vae
+    replay_buffer.init_from_mp_info(mp_info)
+    replay_buffer.env.vae = vae
     while True:
         amount_to_train, epoch = conn_pipe.recv()
         vae.train()
-        _train_vae(vae_trainer, data_buffer, epoch, amount_to_train)
+        _train_vae(vae_trainer, replay_buffer, epoch, amount_to_train)
         vae.eval()
         conn_pipe.send(vae_trainer.model.__getstate__())
-        data_buffer.refresh_latents(epoch)
+        replay_buffer.refresh_latents(epoch)
