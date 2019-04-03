@@ -43,9 +43,9 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         self.vae_min_num_steps_before_training = vae_min_num_steps_before_training
         self.uniform_dataset = uniform_dataset
 
-        self.vae_training_process = None
-        self.process_vae_update_thread = None
-        self.vae_conn_pipe = None
+        self._vae_training_process = None
+        self._update_subprocess_vae_thread = None
+        self._vae_conn_pipe = None
 
     def _train(self):
         super()._train()
@@ -74,25 +74,25 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
     VAE-specific Code
     """
     def _train_vae(self, epoch):
-        if self.parallel_vae_train and self.vae_training_process is None:
-            self.init_vae_training_subproces()
+        if self.parallel_vae_train and self._vae_training_process is None:
+            self.init_vae_training_subprocess()
         should_train, amount_to_train = self.vae_training_schedule(epoch)
         rl_start_epoch = int(self.min_num_steps_before_training / (
                 self.num_expl_steps_per_train_loop * self.num_train_loops_per_epoch
         ))
         if should_train or epoch <= (rl_start_epoch - 1):
             if self.parallel_vae_train:
-                assert self.vae_training_process.is_alive()
+                assert self._vae_training_process.is_alive()
                 # Make sure the last vae update has finished before starting
                 # another one
-                if self.process_vae_update_thread is not None:
-                    self.process_vae_update_thread.join()
-                self.process_vae_update_thread = Thread(
-                    target=OnlineVaeAlgorithm.process_vae_update_thread,
+                if self._update_subprocess_vae_thread is not None:
+                    self._update_subprocess_vae_thread.join()
+                self._update_subprocess_vae_thread = Thread(
+                    target=OnlineVaeAlgorithm.update_vae_in_training_subprocess,
                     args=(self, epoch, ptu.device)
                 )
-                self.process_vae_update_thread.start()
-                self.vae_conn_pipe.send((amount_to_train, epoch))
+                self._update_subprocess_vae_thread.start()
+                self._vae_conn_pipe.send((amount_to_train, epoch))
             else:
                 _train_vae(
                     self.vae_trainer,
@@ -117,14 +117,14 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
 
     def _cleanup(self):
         if self.parallel_vae_train:
-            self.vae_conn_pipe.close()
-            self.vae_training_process.terminate()
+            self._vae_conn_pipe.close()
+            self._vae_training_process.terminate()
 
-    def init_vae_training_subproces(self):
+    def init_vae_training_subprocess(self):
         assert isinstance(self.replay_buffer, SharedObsDictRelabelingBuffer)
 
-        self.vae_conn_pipe, process_pipe = Pipe()
-        self.vae_training_process = Process(
+        self._vae_conn_pipe, process_pipe = Pipe()
+        self._vae_training_process = Process(
             target=subprocess_train_vae_loop,
             args=(
                 process_pipe,
@@ -135,11 +135,11 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
                 ptu.device,
             )
         )
-        self.vae_training_process.start()
-        self.vae_conn_pipe.send(self.vae_trainer)
+        self._vae_training_process.start()
+        self._vae_conn_pipe.send(self.vae_trainer)
 
-    def process_vae_update_thread(self, epoch, device):
-        self.vae.__setstate__(self.vae_conn_pipe.recv())
+    def update_vae_in_training_subprocess(self, epoch, device):
+        self.vae.__setstate__(self._vae_conn_pipe.recv())
         self.vae.to(device)
         _test_vae(
             self.vae_trainer,
