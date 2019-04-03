@@ -37,14 +37,15 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         self.vae_trainer.model = self.vae
         self.vae_save_period = vae_save_period
         self.vae_training_schedule = vae_training_schedule
-        self.epoch = 0
         self.oracle_data = oracle_data
 
-        self.vae_training_process = None
-        self.process_vae_update_thread = None
         self.parallel_vae_train = parallel_vae_train
         self.vae_min_num_steps_before_training = vae_min_num_steps_before_training
         self.uniform_dataset = uniform_dataset
+
+        self.vae_training_process = None
+        self.process_vae_update_thread = None
+        self.vae_conn_pipe = None
 
     def _train(self):
         super()._train()
@@ -88,7 +89,7 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
                     self.process_vae_update_thread.join()
                 self.process_vae_update_thread = Thread(
                     target=OnlineVaeAlgorithm.process_vae_update_thread,
-                    args=(self, ptu.device)
+                    args=(self, epoch, ptu.device)
                 )
                 self.process_vae_update_thread.start()
                 self.vae_conn_pipe.send((amount_to_train, epoch))
@@ -104,7 +105,7 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
                 self.replay_buffer.refresh_latents(epoch)
                 _test_vae(
                     self.vae_trainer,
-                    self.epoch,
+                    epoch,
                     self.replay_buffer,
                     vae_save_period=self.vae_save_period,
                     uniform_dataset=self.uniform_dataset,
@@ -113,7 +114,7 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
     def _log_vae_stats(self):
         logger.record_dict(
             self.vae_trainer.get_diagnostics(),
-            prefix='vae trainer/',
+            prefix='vae_trainer/',
         )
 
     def _cleanup(self):
@@ -139,12 +140,12 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         self.vae_training_process.start()
         self.vae_conn_pipe.send(self.vae_trainer)
 
-    def process_vae_update_thread(self, device):
+    def process_vae_update_thread(self, epoch, device):
         self.vae.__setstate__(self.vae_conn_pipe.recv())
         self.vae.to(device)
         _test_vae(
             self.vae_trainer,
-            self.epoch,
+            epoch,
             self.replay_buffer,
             vae_save_period=self.vae_save_period,
             uniform_dataset=self.uniform_dataset,
