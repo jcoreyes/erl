@@ -7,28 +7,28 @@ from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.core import np_to_pytorch_batch
+from railrl.torch.torch_rl_algorithm import TorchTrainer
 
 
-class TD3(TorchRLAlgorithm):
+class TD3(TorchTrainer):
     """
     Twin Delayed Deep Deterministic policy gradients
     """
 
     def __init__(
             self,
-            env,
             qf1,
             qf2,
             policy,
             target_qf1,
             target_qf2,
             target_policy,
-            exploration_policy,
-            eval_policy=None,
-
             target_policy_noise=0.2,
             target_policy_noise_clip=0.5,
+
+            discount=0.99,
+            reward_scale=1.0,
 
             policy_learning_rate=1e-3,
             qf_learning_rate=1e-3,
@@ -36,15 +36,7 @@ class TD3(TorchRLAlgorithm):
             tau=0.005,
             qf_criterion=None,
             optimizer_class=optim.Adam,
-
-            **kwargs
     ):
-        super().__init__(
-            env,
-            exploration_policy,
-            eval_policy=eval_policy or policy,
-            **kwargs
-        )
         if qf_criterion is None:
             qf_criterion = nn.MSELoss()
         self.qf1 = qf1
@@ -53,9 +45,11 @@ class TD3(TorchRLAlgorithm):
         self.target_policy = target_policy
         self.target_qf1 = target_qf1
         self.target_qf2 = target_qf2
-
         self.target_policy_noise = target_policy_noise
         self.target_policy_noise_clip = target_policy_noise_clip
+
+        self.discount = discount
+        self.reward_scale = reward_scale
 
         self.policy_and_target_update_period = policy_and_target_update_period
         self.tau = tau
@@ -74,30 +68,18 @@ class TD3(TorchRLAlgorithm):
             lr=policy_learning_rate,
         )
 
-    def _do_training(self):
-        batch = self.get_batch()
+        self.eval_statistics = OrderedDict()
+        self._n_train_steps_total = 0
+        self._need_to_update_eval_statistics = True
+
+    def train(self, np_batch):
+        batch = np_to_pytorch_batch(np_batch)
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        self._train_given_data(
-            rewards,
-            terminals,
-            obs,
-            actions,
-            next_obs,
-        )
 
-    def _train_given_data(
-        self,
-        rewards,
-        terminals,
-        obs,
-        actions,
-        next_obs,
-        logger_prefix="",
-    ):
         """
         Critic operations.
         """
@@ -150,57 +132,49 @@ class TD3(TorchRLAlgorithm):
             ptu.soft_update_from_to(self.qf1, self.target_qf1, self.tau)
             ptu.soft_update_from_to(self.qf2, self.target_qf2, self.tau)
 
-        if self.need_to_update_eval_statistics:
-            self.need_to_update_eval_statistics = False
+        if self._need_to_update_eval_statistics:
+            self._need_to_update_eval_statistics = False
             if policy_loss is None:
                 policy_actions = self.policy(obs)
                 q_output = self.qf1(obs, policy_actions)
                 policy_loss = - q_output.mean()
 
-            self.eval_statistics[logger_prefix + 'QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
-            self.eval_statistics[logger_prefix + 'QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
-            self.eval_statistics[logger_prefix + 'Policy Loss'] = np.mean(ptu.get_numpy(
+            self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
+            self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
+            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                logger_prefix + 'Q1 Predictions',
+                'Q1 Predictions',
                 ptu.get_numpy(q1_pred),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                logger_prefix + 'Q2 Predictions',
+                'Q2 Predictions',
                 ptu.get_numpy(q2_pred),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                logger_prefix + 'Q Targets',
+                'Q Targets',
                 ptu.get_numpy(q_target),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                logger_prefix + 'Bellman Errors 1',
+                'Bellman Errors 1',
                 ptu.get_numpy(bellman_errors_1),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                logger_prefix + 'Bellman Errors 2',
+                'Bellman Errors 2',
                 ptu.get_numpy(bellman_errors_2),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                logger_prefix + 'Policy Action',
+                'Policy Action',
                 ptu.get_numpy(policy_actions),
             ))
+        self._n_train_steps_total += 1
 
-    def get_epoch_snapshot(self, epoch):
-        snapshot = super().get_epoch_snapshot(epoch)
-        self.update_epoch_snapshot(snapshot)
-        return snapshot
+    def get_diagnostics(self):
+        return self.eval_statistics
 
-    def update_epoch_snapshot(self, snapshot):
-        snapshot.update(
-            qf1=self.qf1,
-            qf2=self.qf2,
-            policy=self.eval_policy,
-            trained_policy=self.policy,
-            target_policy=self.target_policy,
-            exploration_policy=self.exploration_policy,
-        )
+    def end_epoch(self, epoch):
+        self._need_to_update_eval_statistics = True
 
     @property
     def networks(self):
@@ -212,3 +186,11 @@ class TD3(TorchRLAlgorithm):
             self.target_qf1,
             self.target_qf2,
         ]
+
+    def get_snapshot(self):
+        return dict(
+            qf1=self.qf1,
+            qf2=self.qf2,
+            trained_policy=self.policy,
+            target_policy=self.target_policy,
+        )

@@ -97,7 +97,7 @@ def relabeling_tsac_experiment(variant):
         evaluation_env=eval_env,
         exploration_data_collector=expl_path_collector,
         evaluation_data_collector=eval_path_collector,
-        data_buffer=replay_buffer,
+        replay_buffer=replay_buffer,
         **variant['algo_kwargs']
     )
     # if variant.get("save_video", False):
