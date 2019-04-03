@@ -14,14 +14,13 @@ if __name__ == "__main__":
         init_camera=sawyer_init_camera_zoomed_in,
         env_id='SawyerPushNIPSEasy-v0',
         grill_variant=dict(
-            sample_goals_from_buffer=True,
             save_video=True,
             custom_goal_sampler='replay_buffer',
             online_vae_trainer_kwargs=dict(
                 beta=20,
                 lr=1e-3,
             ),
-            save_video_period=50,
+            save_video_period=100,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -33,7 +32,7 @@ if __name__ == "__main__":
             ),
             max_path_length=50,
             algo_kwargs=dict(
-                batch_size=256,
+                batch_size=1024,
                 num_epochs=1000,
                 num_eval_steps_per_epoch=500,
                 num_expl_steps_per_train_loop=500,
@@ -64,7 +63,7 @@ if __name__ == "__main__":
                     # decoder_distribution='bernoulli',
                     num_latents_to_sample=10,
                 ),
-                power=-0.5,
+                power=-1,
                 relabeling_goal_sampling_mode='vae_prior',
             ),
             exploration_goal_sampling_mode='vae_prior',
@@ -104,7 +103,7 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 N=40,
                 test_p=.9,
-                use_cached=True,
+                use_cached=False,
                 show=False,
                 oracle_dataset=True,
                 oracle_dataset_using_set_to_goal=True,
@@ -116,6 +115,7 @@ if __name__ == "__main__":
                 architecture=imsize48_default_architecture,
                 decoder_distribution='gaussian_identity_variance',
             ),
+            # TODO: why the redundancy?
             algo_kwargs=dict(
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
@@ -123,7 +123,7 @@ if __name__ == "__main__":
                 lr=1e-3,
                 skew_config=dict(
                     method='vae_prob',
-                    power=0,
+                    power=-1,
                 ),
                 skew_dataset=True,
                 priority_function_kwargs=dict(
@@ -137,11 +137,8 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        version='no force',
     )
-
-    search_space = {
-    }
+    search_space = {}
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )

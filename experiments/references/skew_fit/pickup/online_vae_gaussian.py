@@ -34,7 +34,7 @@ if __name__ == "__main__":
             ),
             generate_goal_dataset_fctn=get_image_presampled_goals_from_vae_env,
             goal_generation_kwargs=dict(
-                num_presampled_goals=1000,
+                num_presampled_goals=500,
             ),
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
