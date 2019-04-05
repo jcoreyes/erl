@@ -140,7 +140,7 @@ def experiment(variant):
         evaluation_env=eval_env,
         exploration_data_collector=expl_path_collector,
         evaluation_data_collector=eval_path_collector,
-        data_buffer=replay_buffer,
+        replay_buffer=replay_buffer,
         max_path_length=variant['max_path_length'],
         batch_size=variant['batch_size'],
         num_epochs=variant['num_epochs'],

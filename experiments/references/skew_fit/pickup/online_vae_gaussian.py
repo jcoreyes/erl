@@ -1,22 +1,36 @@
 import railrl.misc.hyperparameter as hyp
-from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
-from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
+from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1
+from multiworld.envs.mujoco.cameras import sawyer_pick_and_place_camera
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place \
+        import SawyerPickAndPlaceEnv, SawyerPickAndPlaceEnvYZ
+from railrl.envs.goal_generation.pickup_goal_dataset import \
+        generate_vae_dataset, get_image_presampled_goals_from_vae_env
+from multiworld.envs.mujoco.cameras import (
+        sawyer_pick_and_place_camera,
+        sawyer_pick_and_place_camera_slanted_angle,
+        # sawyer_pick_and_place_camera_zoomed,
+)
+
 from railrl.torch.vae.conv_vae import imsize48_default_architecture
 
 if __name__ == "__main__":
+    num_images = 1
     variant = dict(
-        double_algo=False,
-        online_vae_exploration=False,
         imsize=48,
-        init_camera=sawyer_init_camera_zoomed_in,
-        # env_id='SawyerPushNIPSEasy-v0',
+        double_algo=False,
+        env_id="SawyerPickupEnvYZEasy-v0",
         grill_variant=dict(
+            sample_goals_from_buffer=True,
             save_video=True,
-            online_vae_beta=20,
-            save_video_period=100,
+            save_video_period=50,
+            presample_goals=True,
+            generate_goal_dataset_fctn=get_image_presampled_goals_from_vae_env,
+            goal_generation_kwargs=dict(
+                num_presampled_goals=500,
+            ),
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -28,7 +42,7 @@ if __name__ == "__main__":
             ),
             algo_kwargs=dict(
                 base_kwargs=dict(
-                    num_epochs=1000,
+                    num_epochs=750,
                     num_steps_per_epoch=500,
                     num_steps_per_eval=500,
                     min_num_steps_before_training=10000,
@@ -38,7 +52,7 @@ if __name__ == "__main__":
                     num_updates_per_env_step=2,
                     # collection_mode='online-parallel',
                     parallel_env_params=dict(
-                        num_workers=1,
+                        num_workers=2,
                     ),
                     reward_scale=1,
                 ),
@@ -55,7 +69,7 @@ if __name__ == "__main__":
                 online_vae_kwargs=dict(
                     vae_training_schedule=vae_schedules.custom_schedule_2,
                     oracle_data=False,
-                    vae_save_period=50,
+                    vae_save_period=5,
                     parallel_vae_train=False,
                 ),
             ),
@@ -75,6 +89,8 @@ if __name__ == "__main__":
                 power=.1,
 
             ),
+
+            algorithm='GRILL-HER-TD3',
             normalize=False,
             render=False,
             exploration_noise=0.0,
@@ -86,44 +102,29 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
-            vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=True,
-            ),
-            algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            # generate_uniform_dataset_kwargs=dict(
-                # init_camera=sawyer_init_camera_zoomed_in,
-                # env_id='SawyerPushNIPS-v0',
-                # num_imgs=1000,
-                # use_cached_dataset=False,
-                # show=False,
-                # save_file_prefix='pusher',
-            # ),
-            # generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
         ),
         train_vae_variant=dict(
-            representation_size=4,
-            beta=20,
+            representation_size=16,
+            beta=5,
             num_epochs=0,
-            dump_skew_debug_plots=False,
+            dump_skew_debug_plots=True,
             decoder_activation='gaussian',
-            # decoder_activation='sigmoid',
-            generate_vae_dataset_kwargs=dict(
-                N=40,
-                test_p=.9,
-                use_cached=False,
-                show=False,
-                oracle_dataset=True,
-                oracle_dataset_using_set_to_goal=True,
-                n_random_steps=100,
-                non_presampled_goal_img_is_garbage=True,
-            ),
             vae_kwargs=dict(
                 input_channels=3,
                 architecture=imsize48_default_architecture,
                 decoder_distribution='gaussian_identity_variance',
             ),
+            generate_vae_data_fctn=generate_vae_dataset,
+            generate_vae_dataset_kwargs=dict(
+                N=10,
+                oracle_dataset=True,
+                use_cached=False,
+                num_channels=3*num_images,
+            ),
+
+
             algo_kwargs=dict(
-                start_skew_epoch=5000,
+                start_skew_epoch=12000,
                 is_auto_encoder=False,
                 batch_size=64,
                 lr=1e-3,
@@ -134,38 +135,37 @@ if __name__ == "__main__":
                 skew_dataset=True,
                 priority_function_kwargs=dict(
                     decoder_distribution='gaussian_identity_variance',
-                    sampling_method='importance_sampling',
-                    # sampling_method='true_prior_sampling',
+                    # sampling_method='importance_sampling',
+                    sampling_method='true_prior_sampling',
                     num_latents_to_sample=10,
                 ),
                 use_parallel_dataloading=False,
             ),
-
-            save_period=25,
+            save_period=10,
         ),
+
     )
 
     search_space = {
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [False],
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [False],
-        'env_id': ['SawyerPushNIPSEasy-v0'],
-        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[
-            10
-        ],
+        # 'train_vae_variant.algo_kwargs.skew_config.power': [-.1],
+        'grill_variant.online_vae_beta': [30],
         'grill_variant.replay_buffer_kwargs.power': [-1],
+        'init_camera': [
+            sawyer_pick_and_place_camera,
+        ],
+        'grill_variant.algo_kwargs.online_vae_kwargs.vae_training_schedule':
+            [vae_schedules.custom_schedule],
+        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [True],
+        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [True],
+        'train_vae_variant.beta': [30],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 3
-    mode = 'gcp'
-    exp_prefix = 'skew-fit-pusher-paper-1024'
-
+    mode = 'local'
+    exp_prefix = 'pickup-online-vae-paper-master'
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
@@ -174,13 +174,14 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
+                # trial_dir_suffix='n1000-{}--zoomed-{}'.format(n1000, zoomed),
+                snapshot_gap=200,
+                snapshot_mode='gap_and_last',
                 num_exps_per_instance=3,
                 gcp_kwargs=dict(
-                    terminate=True,
-                    zone='us-east1-c',
-                    gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-k80',
-                        num_gpu=1,
-                    )
-                )
-          )
+                    zone='us-west1-b',
+                    # preemptible=False,
+                    # instance_type="n1-standard-4"
+                ),
+
+            )

@@ -37,7 +37,7 @@ class BatchRLAlgorithm(object):
             evaluation_env,
             exploration_data_collector: PathCollector,
             evaluation_data_collector: PathCollector,
-            data_buffer: ReplayBuffer,
+            replay_buffer: ReplayBuffer,
             batch_size,
             max_path_length,
             num_epochs,
@@ -52,7 +52,7 @@ class BatchRLAlgorithm(object):
         self.eval_env = evaluation_env
         self.expl_data_collector = exploration_data_collector
         self.eval_data_collector = evaluation_data_collector
-        self.data_buffer = data_buffer
+        self.replay_buffer = replay_buffer
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.num_epochs = num_epochs
@@ -73,7 +73,7 @@ class BatchRLAlgorithm(object):
                 self.max_path_length,
                 self.min_num_steps_before_training,
             )
-            self.data_buffer.add_paths(init_expl_paths)
+            self.replay_buffer.add_paths(init_expl_paths)
             self.expl_data_collector.end_epoch(-1)
 
         for epoch in gt.timed_for(
@@ -93,11 +93,11 @@ class BatchRLAlgorithm(object):
                 )
                 gt.stamp('exploration sampling', unique=False)
 
-                self.data_buffer.add_paths(new_expl_paths)
+                self.replay_buffer.add_paths(new_expl_paths)
                 gt.stamp('data storing', unique=False)
 
                 for _ in range(self.num_trains_per_train_loop):
-                    train_data = self.data_buffer.random_batch(self.batch_size)
+                    train_data = self.replay_buffer.random_batch(self.batch_size)
                     self.trainer.train(train_data)
                 gt.stamp('training', unique=False)
 
@@ -111,7 +111,7 @@ class BatchRLAlgorithm(object):
             snapshot['exploration/' + k] = v
         for k, v in self.eval_data_collector.get_snapshot().items():
             snapshot['evaluation/' + k] = v
-        for k, v in self.data_buffer.get_snapshot().items():
+        for k, v in self.replay_buffer.get_snapshot().items():
             snapshot['buffer/' + k] = v
         logger.save_itr_params(epoch, snapshot)
         gt.stamp('saving')
@@ -120,7 +120,7 @@ class BatchRLAlgorithm(object):
 
         self.expl_data_collector.end_epoch(epoch)
         self.eval_data_collector.end_epoch(epoch)
-        self.data_buffer.end_epoch(epoch)
+        self.replay_buffer.end_epoch(epoch)
         self.trainer.end_epoch(epoch)
 
     def _log_stats(self, epoch):
@@ -129,7 +129,7 @@ class BatchRLAlgorithm(object):
         """
         Data Buffer
         """
-        logger.record_dict(self.data_buffer.get_diagnostics(), prefix='buffer/')
+        logger.record_dict(self.replay_buffer.get_diagnostics(), prefix='buffer/')
 
         """
         Trainer
