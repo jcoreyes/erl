@@ -80,7 +80,7 @@ if __name__ == "__main__":
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
             vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=False,
+                sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
             # generate_uniform_dataset_kwargs=dict(
@@ -150,8 +150,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 3
-    mode = 'gcp'
-    exp_prefix = 'skew-fit-pusher-reference-post-refactor-using-reset-take3'
+    mode = 'ec2'
+    exp_prefix = 'railrl-skew-fit-pusher-post-refactor'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -161,7 +161,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=3,
+                num_exps_per_instance=1,
                 gcp_kwargs=dict(
                     terminate=True,
                     zone='us-east1-c',

@@ -154,8 +154,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 3
-    mode = 'gcp'
-    exp_prefix = 'skew-fit-pickup-reference-post-refactor'
+    mode = 'ec2'
+    exp_prefix = 'railrl-skew-fit-pickup-reference-post-refactor'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -168,7 +168,7 @@ if __name__ == "__main__":
                 # trial_dir_suffix='n1000-{}--zoomed-{}'.format(n1000, zoomed),
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
-                num_exps_per_instance=3,
+                num_exps_per_instance=1,
                 gcp_kwargs=dict(
                     zone='us-west1-b',
                     # preemptible=False,
