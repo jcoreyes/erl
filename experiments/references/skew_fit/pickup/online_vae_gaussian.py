@@ -168,7 +168,7 @@ if __name__ == "__main__":
                 # trial_dir_suffix='n1000-{}--zoomed-{}'.format(n1000, zoomed),
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
-                num_exps_per_instance=1,
+                num_exps_per_instance=2,
                 gcp_kwargs=dict(
                     zone='us-west1-b',
                     # preemptible=False,

@@ -161,7 +161,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=1,
+                num_exps_per_instance=2,
                 gcp_kwargs=dict(
                     terminate=True,
                     zone='us-east1-c',
