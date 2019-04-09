@@ -10,7 +10,7 @@ from railrl.samplers.data_collector import (
 )
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.sac.twin_sac import TwinSACTrainer
+from railrl.torch.sac.sac import TwinSACTrainer
 from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
 
 

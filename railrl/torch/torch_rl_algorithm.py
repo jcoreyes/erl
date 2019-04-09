@@ -13,6 +13,12 @@ class TorchBatchRLAlgorithm(BatchRLAlgorithm, metaclass=abc.ABCMeta):
 
 
 class TorchTrainer(Trainer, metaclass=abc.ABCMeta):
+    def train(self, data):
+        pass
+
+    def train_from_torch(self, data):
+        pass
+
     @property
     @abc.abstractmethod
     def networks(self) -> Iterable[PyTorchModule]:

@@ -10,7 +10,7 @@ from railrl.samplers.data_collector import (
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.networks import FlattenMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
-from railrl.torch.sac.twin_sac import TwinSACTrainer
+from railrl.torch.sac.sac import TwinSACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 
