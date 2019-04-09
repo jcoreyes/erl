@@ -96,7 +96,7 @@ if __name__ == "__main__":
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
             vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=False,
+                sample_from_true_prior=True,  # True does a bit better
             ),
         ),
         train_vae_variant=dict(
