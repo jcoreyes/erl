@@ -29,10 +29,13 @@ from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 
 
 import sys
-sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')  # workaround to solve cv2 version conflicts (ROS adds Python2 version of cv2)
-import cv2
-sys.path.insert(0,'/opt/ros/kinetic/lib/python2.7/dist-packages')
+
+### workaround to solve cv2 version conflicts (ROS adds Python2 version of cv2)
+# sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 # import cv2
+# sys.path.insert(0,'/opt/ros/kinetic/lib/python2.7/dist-packages')
+
+import cv2
 
 class Expert:
     def __init__(self, action_dim=3, **kwargs):
