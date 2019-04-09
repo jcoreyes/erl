@@ -1,3 +1,4 @@
+from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.exploration_strategies.count_based.count_based import CountExploration
 from torchvision.utils import save_image
 
@@ -12,6 +13,7 @@ import torch
 from torch.optim import Adam
 from torch.nn import MSELoss
 
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
@@ -41,8 +43,21 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             exploration_schedule_kwargs=None,
             priority_function_kwargs=None,
             exploration_counter_kwargs=None,
+            relabeling_goal_sampling_mode='vae_prior',
             **kwargs
     ):
+        if internal_keys is None:
+            internal_keys = []
+
+        for key in [
+            decoded_obs_key,
+            decoded_achieved_goal_key,
+            decoded_desired_goal_key
+        ]:
+            if key not in internal_keys:
+                internal_keys.append(key)
+        super().__init__(internal_keys=internal_keys, *args, **kwargs)
+        assert isinstance(self.env, VAEWrappedEnv)
         self.vae = vae
         self.decoded_obs_key = decoded_obs_key
         self.decoded_desired_goal_key = decoded_desired_goal_key
@@ -52,6 +67,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         self.start_skew_epoch = start_skew_epoch
         self.vae_priority_type = vae_priority_type
         self.power = power
+        self._relabeling_goal_sampling_mode = relabeling_goal_sampling_mode
 
         if exploration_schedule_kwargs is None:
             self.explr_reward_scale_schedule = \
@@ -60,19 +76,6 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             self.explr_reward_scale_schedule = \
                 PiecewiseLinearSchedule(**exploration_schedule_kwargs)
 
-        extra_keys = [
-            self.decoded_obs_key,
-            self.decoded_achieved_goal_key,
-            self.decoded_desired_goal_key
-        ]
-        if internal_keys is None:
-            internal_keys = []
-
-        for key in extra_keys:
-            if key in internal_keys:
-                continue
-            internal_keys.append(key)
-        super().__init__(internal_keys=internal_keys, *args, **kwargs)
         self._give_explr_reward_bonus = (
                 exploration_rewards_type != 'None'
                 and exploration_rewards_scale != 0.
@@ -155,6 +158,29 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             batch['exploration_rewards'] = self._exploration_rewards[batch_idxs]
             batch['rewards'] += exploration_rewards_scale * batch['exploration_rewards']
         return batch
+
+    def get_diagnostics(self):
+        if self._vae_sample_probs is None or self._vae_sample_priorities is None:
+            stats = create_stats_ordered_dict(
+                'VAE Sample Weights',
+                np.zeros(self._size),
+            )
+            stats.update(create_stats_ordered_dict(
+                'VAE Sample Probs',
+                np.zeros(self._size),
+            ))
+        else:
+            vae_sample_priorities = self._vae_sample_priorities[:self._size]
+            vae_sample_probs = self._vae_sample_probs[:self._size]
+            stats = create_stats_ordered_dict(
+                'VAE Sample Weights',
+                vae_sample_priorities,
+            )
+            stats.update(create_stats_ordered_dict(
+                'VAE Sample Probs',
+                vae_sample_probs,
+            ))
+        return stats
 
     def refresh_latents(self, epoch):
         self.epoch = epoch
@@ -272,6 +298,10 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         else:
             indices = self._sample_indices(batch_size)
         return indices
+
+    def _sample_goals_from_env(self, batch_size):
+        self.env.goal_sampling_mode = self._relabeling_goal_sampling_mode
+        return self.env.sample_goals(batch_size)
 
     def sample_buffer_goals(self, batch_size):
         """
