@@ -10,7 +10,7 @@ from railrl.samplers.data_collector import (
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.networks import FlattenMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
-from railrl.torch.sac.sac import TwinSACTrainer
+from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 
@@ -67,7 +67,7 @@ def relabeling_tsac_experiment(variant):
     )
     max_path_length = variant['max_path_length']
     eval_policy = MakeDeterministic(policy)
-    trainer = TwinSACTrainer(
+    trainer = SACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,

@@ -10,7 +10,7 @@ from railrl.samplers.data_collector import (
 )
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.sac.sac import TwinSACTrainer
+from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
 
 
@@ -881,7 +881,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     max_path_length = variant['max_path_length']
 
-    trainer = TwinSACTrainer(
+    trainer = SACTrainer(
         env=env,
         policy=policy,
         qf1=qf1,

@@ -11,10 +11,7 @@ from railrl.torch.core import np_to_pytorch_batch
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 
 
-class TwinSACTrainer(TorchTrainer):
-    """
-    TD3 + SAC
-    """
+class SACTrainer(TorchTrainer):
     def __init__(
             self,
             env,
