@@ -9,7 +9,7 @@ robosuite/devices/spacemouse.py
 You will likely have to `pip install hidapi` and Spacemouse drivers.
 """
 
-from robosuite.devices import SpaceMouse
+# from robosuite.devices import SpaceMouse
 
 import os
 import shutil
@@ -21,17 +21,40 @@ import datetime
 import numpy as np
 import time
 
-import robosuite
-import robosuite.utils.transform_utils as T
+# import robosuite
+# import robosuite.utils.transform_utils as T
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_multiple_objects import MultiSawyerEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_multiple_objects import MultiSawyerEnv
 from multiworld.core.image_env import ImageEnv
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 
 import cv2
 
 class Expert:
-    pass
+    def __init__(self, action_dim=3, **kwargs):
+        self.action_dim = action_dim
+
+    def get_action(self, obs):
+        a = np.zeros((self.action_dim))
+        valid = True
+        reset = False
+        accept = False
+        return (a, valid, reset, accept)
+
+class RandomAgent(Expert):
+    def __init__(self, action_scale=0.1, action_space_dim=2):
+        self.action_scale = action_scale
+        self.action_space_dim = action_space_dim
+        self.counter = 0
+
+    def get_action(self, obs):
+        action = np.random.uniform(-1, 1, self.action_space_dim)*self.action_scale
+        self.counter += 1
+        reset = self.counter % 25 == 0
+        accept = reset
+        valid = True
+        # accept = True
+        return (action, valid, reset, accept)
 
 class SpaceMouseExpert(Expert):
     def __init__(self, xyz_dims=3, xyz_remap=[0, 1, 2], xyz_scale=[1, 1, 1]):
@@ -109,7 +132,7 @@ def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=cv2.LINE_AA, pxstep=
         cv2.line(img, (0, y), (img.shape[1], y), color=line_color, lineType=type_, thickness=thickness)
         y += pxstep
 
-def collect_one_rollout_goal_conditioned(env, expert):
+def collect_one_rollout_goal_conditioned(env, expert, horizon=200):
     # goal = env.sample_goal()
     # env.set_to_goal(goal)
     # goal_obs = env._get_obs()
@@ -135,7 +158,7 @@ def collect_one_rollout_goal_conditioned(env, expert):
         env_infos=[],
     )
 
-    while True:
+    for _ in range(horizon):
         a, valid, reset, accept = expert.get_action(o)
 
         if valid:
@@ -163,11 +186,13 @@ def collect_one_rollout_goal_conditioned(env, expert):
                 accept = False
             return accept, traj
 
-def collect_demos(env, expert, path="demos.npy", N=10):
+    return False, []
+
+def collect_demos(env, expert, path="demos.npy", N=10, horizon=200):
     data = []
 
     while len(data) < N:
-        accept, traj = collect_one_rollout_goal_conditioned(env, expert)
+        accept, traj = collect_one_rollout_goal_conditioned(env, expert, horizon)
         if accept:
             data.append(traj)
             print("accepted trajectory length", len(traj["observations"]))
