@@ -7,7 +7,7 @@ from torch import optim
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.state_distance.tdm import TemporalDifferenceModel
-from railrl.torch.sac.twin_sac import TwinSAC
+from railrl.torch.sac.sac import TwinSAC
 
 
 class TdmTwinSAC(TemporalDifferenceModel, TwinSAC):

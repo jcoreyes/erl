@@ -6,7 +6,7 @@ from railrl.samplers.rollout_functions import (
     multitask_rollout,
 )
 from railrl.torch.her.her import HER
-from railrl.torch.sac.twin_sac import TwinSAC
+from railrl.torch.sac.sac import TwinSAC
 
 
 class HerTwinSAC(HER, TwinSAC):

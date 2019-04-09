@@ -1,15 +1,15 @@
 import argparse
 import pickle
+import uuid
 
-from railrl.core import logger
+import railrl.samplers.rollout_functions as rf
+from railrl.torch.grill.video_gen import dump_video
+import railrl.torch.pytorch_util as ptu
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.vae_wrappers import VAEWrappedEnv
-from railrl.samplers.rollout_functions import multitask_rollout
-from railrl.torch.core import PyTorchModule
-import railrl.torch.pytorch_util as ptu
 
 
-def simulate_policy(args):
+def make_video(args):
     if args.pause:
         import ipdb; ipdb.set_trace()
     data = pickle.load(open(args.file, "rb")) # joblib.load(args.file)
@@ -17,11 +17,15 @@ def simulate_policy(args):
         policy = data['policy']
     elif 'evaluation/policy' in data:
         policy = data['evaluation/policy']
+    else:
+        raise AttributeError
 
     if 'env' in data:
         env = data['env']
     elif 'evaluation/env' in data:
         env = data['evaluation/env']
+    else:
+        raise AttributeError
 
     if isinstance(env, RemoteRolloutEnv):
         env = env._wrapped_env
@@ -34,29 +38,32 @@ def simulate_policy(args):
         policy.to(ptu.device)
     if isinstance(env, VAEWrappedEnv):
         env.mode(args.mode)
-    if args.enable_render or hasattr(env, 'enable_render'):
-        # some environments need to be reconfigured for visualization
-        env.enable_render()
-    if args.multitaskpause:
-        env.pause_on_goal = True
-    if isinstance(policy, PyTorchModule):
-        policy.train(False)
-    paths = []
-    while True:
-        paths.append(multitask_rollout(
-            env,
-            policy,
-            max_path_length=args.H,
-            animated=not args.hide,
-            observation_key='observation',
-            desired_goal_key='desired_goal',
-        ))
-        if hasattr(env, "log_diagnostics"):
-            env.log_diagnostics(paths)
-        if hasattr(env, "get_diagnostics"):
-            for k, v in env.get_diagnostics(paths).items():
-                logger.record_tabular(k, v)
-        logger.dump_tabular()
+
+    max_path_length = 100
+    observation_key = 'latent_observation'
+    desired_goal_key = 'latent_desired_goal'
+    rollout_function = rf.create_rollout_function(
+        rf.multitask_rollout,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+    )
+    env.mode(env._mode_map['video_env'])
+    random_id = str(uuid.uuid4()).split('-')[0]
+    dump_video(
+        env,
+        policy,
+        'rollouts_{}.mp4'.format(random_id),
+        rollout_function,
+        rows=3,
+        columns=6,
+        pad_length=0,
+        pad_color=255,
+        do_timer=True,
+        horizon=max_path_length,
+        dirname_to_save_images=None,
+        subdirname="rollouts",
+        imsize=48,
+    )
 
 
 if __name__ == "__main__":
@@ -77,4 +84,4 @@ if __name__ == "__main__":
     parser.add_argument('--hide', action='store_true')
     args = parser.parse_args()
 
-    simulate_policy(args)
+    make_video(args)

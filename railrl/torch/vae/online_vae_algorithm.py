@@ -1,128 +1,130 @@
+import gtimer as gt
 from railrl.core import logger
+from railrl.data_management.online_vae_replay_buffer import \
+    OnlineVaeRelabelingBuffer
 from railrl.data_management.shared_obs_dict_replay_buffer \
     import SharedObsDictRelabelingBuffer
 import railrl.torch.vae.vae_schedules as vae_schedules
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.torch_rl_algorithm import (
+    TorchBatchRLAlgorithm,
+)
 import railrl.torch.pytorch_util as ptu
 from torch.multiprocessing import Process, Pipe
 from threading import Thread
 import numpy as np
 
 
-class OnlineVaeAlgorithm(TorchRLAlgorithm):
+class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
 
     def __init__(
             self,
             vae,
             vae_trainer,
+            *base_args,
             vae_save_period=1,
             vae_training_schedule=vae_schedules.never_train,
             oracle_data=False,
             parallel_vae_train=True,
             vae_min_num_steps_before_training=0,
             uniform_dataset=None,
+            **base_kwargs
     ):
+        super().__init__(*base_args, **base_kwargs)
+        assert isinstance(self.replay_buffer, OnlineVaeRelabelingBuffer)
         self.vae = vae
         self.vae_trainer = vae_trainer
         self.vae_trainer.model = self.vae
         self.vae_save_period = vae_save_period
         self.vae_training_schedule = vae_training_schedule
-        self.epoch = 0
         self.oracle_data = oracle_data
 
-        self.vae_training_process = None
-        self.process_vae_update_thread = None
         self.parallel_vae_train = parallel_vae_train
         self.vae_min_num_steps_before_training = vae_min_num_steps_before_training
         self.uniform_dataset = uniform_dataset
 
-    def _post_epoch(self, epoch):
-        super()._post_epoch(epoch)
-        if self.parallel_vae_train and self.vae_training_process is None:
-            self.init_vae_training_subproces()
+        self._vae_training_process = None
+        self._update_subprocess_vae_thread = None
+        self._vae_conn_pipe = None
 
+    def _train(self):
+        super()._train()
+        self._cleanup()
+
+    def _end_epoch(self, epoch):
+        self._train_vae(epoch)
+        gt.stamp('vae training')
+        super()._end_epoch(epoch)
+
+    def _log_stats(self, epoch):
+        self._log_vae_stats()
+        super()._log_stats(epoch)
+
+    def to(self, device):
+        self.vae.to(device)
+        super().to(device)
+
+    def _get_snapshot(self):
+        snapshot = super()._get_snapshot()
+        assert 'vae' not in snapshot
+        snapshot['vae'] = self.vae
+        return snapshot
+
+    """
+    VAE-specific Code
+    """
+    def _train_vae(self, epoch):
+        if self.parallel_vae_train and self._vae_training_process is None:
+            self.init_vae_training_subprocess()
         should_train, amount_to_train = self.vae_training_schedule(epoch)
-        if self.replay_buffer._prioritize_vae_samples:
-            self.log_priority_weights()
-        rl_start_epoch = int(self.min_num_steps_before_training / self.num_env_steps_per_epoch)
+        rl_start_epoch = int(self.min_num_steps_before_training / (
+                self.num_expl_steps_per_train_loop * self.num_train_loops_per_epoch
+        ))
         if should_train or epoch <= (rl_start_epoch - 1):
             if self.parallel_vae_train:
-                assert self.vae_training_process.is_alive()
+                assert self._vae_training_process.is_alive()
                 # Make sure the last vae update has finished before starting
                 # another one
-                if self.process_vae_update_thread is not None:
-                    self.process_vae_update_thread.join()
-                self.process_vae_update_thread = Thread(
-                    target=OnlineVaeAlgorithm.process_vae_update_thread,
-                    args=(self, ptu.device)
+                if self._update_subprocess_vae_thread is not None:
+                    self._update_subprocess_vae_thread.join()
+                self._update_subprocess_vae_thread = Thread(
+                    target=OnlineVaeAlgorithm.update_vae_in_training_subprocess,
+                    args=(self, epoch, ptu.device)
                 )
-                self.process_vae_update_thread.start()
-                self.vae_conn_pipe.send((amount_to_train, epoch))
+                self._update_subprocess_vae_thread.start()
+                self._vae_conn_pipe.send((amount_to_train, epoch))
             else:
-                self.vae.train()
                 _train_vae(
                     self.vae_trainer,
                     self.replay_buffer,
                     epoch,
                     amount_to_train
                 )
-                self.vae.eval()
                 self.replay_buffer.refresh_latents(epoch)
                 _test_vae(
                     self.vae_trainer,
-                    self.epoch,
+                    epoch,
                     self.replay_buffer,
                     vae_save_period=self.vae_save_period,
                     uniform_dataset=self.uniform_dataset,
                 )
-        # very hacky
-        self.epoch = epoch + 1
 
-    def log_priority_weights(self):
-        if self.replay_buffer._vae_sample_probs is None or self.replay_buffer._vae_sample_priorities is None:
-            stats = create_stats_ordered_dict(
-                'VAE Sample Weights',
-                np.zeros(self.replay_buffer._size),
-            )
-            stats.update(create_stats_ordered_dict(
-                'VAE Sample Probs',
-                np.zeros(self.replay_buffer._size),
-            ))
-        else:
-            vae_sample_priorities = self.replay_buffer._vae_sample_priorities[:self.replay_buffer._size]
-            vae_sample_probs = self.replay_buffer._vae_sample_probs[:self.replay_buffer._size]
-            stats = create_stats_ordered_dict(
-                'VAE Sample Weights',
-                vae_sample_priorities,
-            )
-            stats.update(create_stats_ordered_dict(
-                'VAE Sample Probs',
-                vae_sample_probs,
-            ))
-        for key, value in stats.items():
-            logger.record_tabular(key, value)
+    def _log_vae_stats(self):
+        logger.record_dict(
+            self.vae_trainer.get_diagnostics(),
+            prefix='vae_trainer/',
+        )
 
-    def reset_vae(self):
-        self.vae.init_weights(self.vae.init_w)
-
-    @property
-    def networks(self):
-        return [self.vae]
-
-    def update_epoch_snapshot(self, snapshot):
-        snapshot.update(vae=self.vae)
-
-    def cleanup(self):
+    def _cleanup(self):
         if self.parallel_vae_train:
-            self.vae_conn_pipe.close()
-            self.vae_training_process.terminate()
+            self._vae_conn_pipe.close()
+            self._vae_training_process.terminate()
 
-    def init_vae_training_subproces(self):
+    def init_vae_training_subprocess(self):
         assert isinstance(self.replay_buffer, SharedObsDictRelabelingBuffer)
 
-        self.vae_conn_pipe, process_pipe = Pipe()
-        self.vae_training_process = Process(
+        self._vae_conn_pipe, process_pipe = Pipe()
+        self._vae_training_process = Process(
             target=subprocess_train_vae_loop,
             args=(
                 process_pipe,
@@ -133,24 +135,19 @@ class OnlineVaeAlgorithm(TorchRLAlgorithm):
                 ptu.device,
             )
         )
-        self.vae_training_process.start()
-        self.vae_conn_pipe.send(self.vae_trainer)
+        self._vae_training_process.start()
+        self._vae_conn_pipe.send(self.vae_trainer)
 
-    def process_vae_update_thread(self, device):
-        self.vae.__setstate__(self.vae_conn_pipe.recv())
+    def update_vae_in_training_subprocess(self, epoch, device):
+        self.vae.__setstate__(self._vae_conn_pipe.recv())
         self.vae.to(device)
         _test_vae(
             self.vae_trainer,
-            self.epoch,
+            epoch,
             self.replay_buffer,
             vae_save_period=self.vae_save_period,
             uniform_dataset=self.uniform_dataset,
         )
-
-    def evaluate(self, epoch, eval_paths=None):
-        for k, v in self.vae_trainer.vae_logger_stats_for_rl.items():
-            logger.record_tabular(k, v)
-        super().evaluate(epoch, eval_paths=eval_paths)
 
 
 def _train_vae(vae_trainer, replay_buffer, epoch, batches=50, oracle_data=False):
@@ -212,8 +209,6 @@ def subprocess_train_vae_loop(
     replay_buffer.env.vae = vae
     while True:
         amount_to_train, epoch = conn_pipe.recv()
-        vae.train()
         _train_vae(vae_trainer, replay_buffer, epoch, amount_to_train)
-        vae.eval()
         conn_pipe.send(vae_trainer.model.__getstate__())
         replay_buffer.refresh_latents(epoch)

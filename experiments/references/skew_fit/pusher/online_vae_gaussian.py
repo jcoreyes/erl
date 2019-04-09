@@ -12,10 +12,14 @@ if __name__ == "__main__":
         online_vae_exploration=False,
         imsize=48,
         init_camera=sawyer_init_camera_zoomed_in,
-        # env_id='SawyerPushNIPSEasy-v0',
+        env_id='SawyerPushNIPSEasy-v0',
         grill_variant=dict(
             save_video=True,
-            online_vae_beta=20,
+            custom_goal_sampler='replay_buffer',
+            online_vae_trainer_kwargs=dict(
+                beta=20,
+                lr=1e-3,
+            ),
             save_video_period=100,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
@@ -26,38 +30,25 @@ if __name__ == "__main__":
             vf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
+            max_path_length=50,
             algo_kwargs=dict(
-                base_kwargs=dict(
-                    num_epochs=1000,
-                    num_steps_per_epoch=500,
-                    num_steps_per_eval=500,
-                    min_num_steps_before_training=10000,
-                    batch_size=1024,
-                    max_path_length=50,
-                    discount=0.99,
-                    num_updates_per_env_step=2,
-                    # collection_mode='online-parallel',
-                    parallel_env_params=dict(
-                        num_workers=1,
-                    ),
-                    reward_scale=1,
-                ),
-
-                her_kwargs=dict(
-                ),
-                twin_sac_kwargs=dict(
-                    train_policy_with_reparameterization=True,
-                    soft_target_tau=1e-3,  # 1e-2
-                    policy_update_period=1,
-                    target_update_period=1,  # 1
-                    use_automatic_entropy_tuning=True,
-                ),
-                online_vae_kwargs=dict(
-                    vae_training_schedule=vae_schedules.custom_schedule_2,
-                    oracle_data=False,
-                    vae_save_period=50,
-                    parallel_vae_train=False,
-                ),
+                batch_size=1024,
+                num_epochs=1000,
+                num_eval_steps_per_epoch=500,
+                num_expl_steps_per_train_loop=500,
+                num_trains_per_train_loop=1000,
+                min_num_steps_before_training=10000,
+                vae_training_schedule=vae_schedules.custom_schedule_2,
+                oracle_data=False,
+                vae_save_period=50,
+                parallel_vae_train=False,
+            ),
+            twin_sac_trainer_kwargs=dict(
+                discount=0.99,
+                reward_scale=1,
+                soft_target_tau=1e-3,
+                target_update_period=1,  # 1
+                use_automatic_entropy_tuning=True,
             ),
             replay_buffer_kwargs=dict(
                 start_skew_epoch=10,
@@ -72,9 +63,11 @@ if __name__ == "__main__":
                     # decoder_distribution='bernoulli',
                     num_latents_to_sample=10,
                 ),
-                power=.1,
-
+                power=-1,
+                relabeling_goal_sampling_mode='vae_prior',
             ),
+            exploration_goal_sampling_mode='vae_prior',
+            evaluation_goal_sampling_mode='reset_of_env',
             normalize=False,
             render=False,
             exploration_noise=0.0,
@@ -122,6 +115,7 @@ if __name__ == "__main__":
                 architecture=imsize48_default_architecture,
                 decoder_distribution='gaussian_identity_variance',
             ),
+            # TODO: why the redundancy?
             algo_kwargs=dict(
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
@@ -129,7 +123,7 @@ if __name__ == "__main__":
                 lr=1e-3,
                 skew_config=dict(
                     method='vae_prob',
-                    power=0,
+                    power=-1,
                 ),
                 skew_dataset=True,
                 priority_function_kwargs=dict(
@@ -144,27 +138,20 @@ if __name__ == "__main__":
             save_period=25,
         ),
     )
-
-    search_space = {
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_exploration': [False],
-        'grill_variant.vae_wrapped_env_kwargs.goal_sampler_for_relabeling': [False],
-        'env_id': ['SawyerPushNIPSEasy-v0'],
-        'grill_variant.replay_buffer_kwargs.priority_function_kwargs.num_latents_to_sample':[
-            10
-        ],
-        'grill_variant.replay_buffer_kwargs.power': [-1],
-    }
+    search_space = {}
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'dev-{}'.format(
+        __file__.replace('/', '-').replace('_', '-').split('.')[0]
+    )
 
     n_seeds = 3
-    mode = 'gcp'
-    exp_prefix = 'skew-fit-pusher-paper-1024'
+    mode = 'ec2'
+    exp_prefix = 'railrl-skew-fit-pusher-post-refactor'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -174,7 +161,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-                num_exps_per_instance=3,
+                num_exps_per_instance=2,
                 gcp_kwargs=dict(
                     terminate=True,
                     zone='us-east1-c',

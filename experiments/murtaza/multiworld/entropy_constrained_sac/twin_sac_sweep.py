@@ -15,7 +15,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.misc.variant_generator import VariantGenerator
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.twin_sac import TwinSAC
+from railrl.torch.sac.sac import TwinSAC
 
 COMMON_PARAMS = dict(
     num_epochs=3000,
