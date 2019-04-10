@@ -19,7 +19,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.torch.networks import FlattenMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
-from railrl.torch.sac.twin_sac import TwinSACTrainer
+from railrl.torch.sac.sac import SACTrainer
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
@@ -125,7 +125,7 @@ def experiment(variant):
         variant['replay_buffer_size'],
         expl_env,
     )
-    trainer = TwinSACTrainer(
+    trainer = SACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,

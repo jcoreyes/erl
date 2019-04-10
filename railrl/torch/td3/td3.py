@@ -72,8 +72,7 @@ class TD3(TorchTrainer):
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
 
-    def train(self, np_batch):
-        batch = np_to_pytorch_batch(np_batch)
+    def train_from_torch(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
