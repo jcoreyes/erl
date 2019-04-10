@@ -1,102 +1,147 @@
+import gym
 import numpy as np
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from multiworld.core.flat_goal_env import FlatGoalEnv
-from multiworld.core.image_env import ImageEnv
-from multiworld.envs.pygame.point2d import Point2DEnv
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.samplers.data_collector import MdpPathCollector
-from railrl.torch.networks import MergedCNN, FlattenMlp
-from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy
-from railrl.torch.sac.policies import TanhCNNGaussianPolicy
-from railrl.torch.sac.twin_sac import TwinSACTrainer
+from railrl.torch.networks import (
+    FlattenMlp, MergedCNN, CNN,
+    MlpQfWithObsProcessor,
+)
+from railrl.torch.sac.policies import (
+    MakeDeterministic, TanhGaussianPolicy,
+    TanhCNNGaussianPolicy,
+    TanhGaussianPolicyAdapter,
+)
+from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 
 def experiment(variant):
     ptu.set_gpu_mode(True, 1)
-    env = Point2DEnv(
-        **variant['env_kwargs']
-    )
-    imsize = env.render_size
-    env = ImageEnv(env, imsize=env.render_size, transpose=True)
-    env = FlatGoalEnv(env)
-    env = NormalizedBoxEnv(env)
+    # env = Point2DEnv(
+    #     **variant['env_kwargs']
+    # )
+    # imsize = env.render_size
+    # env = ImageEnv(env, imsize=env.render_size, transpose=True)
+    # env = FlatGoalEnv(env)
+    # env = NormalizedBoxEnv(env)
+    import multiworld.envs.pygame
+    env = gym.make('Point2DEnv-ImageFixed-v0')
+    input_width, input_height = env.image_shape
 
     action_dim = int(np.prod(env.action_space.shape))
-
-    # qf1 = MergedCNN(
-    #     input_width=imsize,
-    #     input_height=imsize,
-    #     output_size=1,
-    #     input_channels=3,
-    #     added_fc_input_size=action_dim,
-    #     **variant['cnn_params']
-    # )
-    #
-    # qf2 = MergedCNN(
-    #     input_width=imsize,
-    #     input_height=imsize,
-    #     output_size=1,
-    #     input_channels=3,
-    #     added_fc_input_size=action_dim,
-    #     **variant['cnn_params']
-    # )
-    # target_qf1 = MergedCNN(
-    #     input_width=imsize,
-    #     input_height=imsize,
-    #     output_size=1,
-    #     input_channels=3,
-    #     added_fc_input_size=action_dim,
-    #     **variant['cnn_params']
-    # )
-    #
-    # target_qf2 = MergedCNN(
-    #     input_width=imsize,
-    #     input_height=imsize,
-    #     output_size=1,
-    #     input_channels=3,
-    #     added_fc_input_size=action_dim,
-    #     **variant['cnn_params']
-    # )
+    cnn_params = variant['cnn_params']
+    cnn_params.update(
+        input_width=input_width,
+        input_height=input_height,
+        input_channels=3,
+        output_conv_channels=True,
+        output_size=None,
+    )
+    if variant['shared_qf_conv']:
+        qf_cnn = CNN(**cnn_params)
+        qf1 = MlpQfWithObsProcessor(
+            obs_processor=qf_cnn,
+            output_size=1,
+            input_size=action_dim+qf_cnn.conv_output_flat_size,
+            **variant['qf_kwargs']
+        )
+        qf2 = MlpQfWithObsProcessor(
+            obs_processor=qf_cnn,
+            output_size=1,
+            input_size=action_dim+qf_cnn.conv_output_flat_size,
+            **variant['qf_kwargs']
+        )
+        target_qf_cnn = CNN(**cnn_params)
+        target_qf1 = MlpQfWithObsProcessor(
+            obs_processor=target_qf_cnn,
+            output_size=1,
+            input_size=action_dim+qf_cnn.conv_output_flat_size,
+            **variant['qf_kwargs']
+        )
+        target_qf2 = MlpQfWithObsProcessor(
+            obs_processor=target_qf_cnn,
+            output_size=1,
+            input_size=action_dim+qf_cnn.conv_output_flat_size,
+            **variant['qf_kwargs']
+        )
+    else:
+        qf1_cnn = CNN(**cnn_params)
+        cnn_output_dim = qf1_cnn.conv_output_flat_size
+        qf1 = MlpQfWithObsProcessor(
+            obs_processor=qf1_cnn,
+            output_size=1,
+            input_size=action_dim+cnn_output_dim,
+            **variant['qf_kwargs']
+        )
+        qf2 = MlpQfWithObsProcessor(
+            obs_processor=CNN(**cnn_params),
+            output_size=1,
+            input_size=action_dim+cnn_output_dim,
+            **variant['qf_kwargs']
+        )
+        target_qf1 = MlpQfWithObsProcessor(
+            obs_processor=CNN(**cnn_params),
+            output_size=1,
+            input_size=action_dim+cnn_output_dim,
+            **variant['qf_kwargs']
+        )
+        target_qf2 = MlpQfWithObsProcessor(
+            obs_processor=CNN(**cnn_params),
+            output_size=1,
+            input_size=action_dim+cnn_output_dim,
+            **variant['qf_kwargs']
+        )
+    # qf_params = cnn_params.copy()
+    # qf1 = MergedCNN(**qf_params)
+    # qf2 = MergedCNN(**qf_params)
+    # target_qf1 = MergedCNN(**qf_params)
+    # target_qf2 = MergedCNN(**qf_params)
     action_dim = int(np.prod(env.action_space.shape))
-    obs_dim = int(np.prod(env.observation_space.shape))
-
-    qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    target_qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    target_qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
+    # obs_dim = int(np.prod(env.observation_space.shape))
+    # qf1 = FlattenMlp(
+    #     input_size=obs_dim + action_dim,
+    #     output_size=1,
+    #     **variant['qf_kwargs']
+    # )
+    # qf2 = FlattenMlp(
+    #     input_size=obs_dim + action_dim,
+    #     output_size=1,
+    #     **variant['qf_kwargs']
+    # )
+    # target_qf1 = FlattenMlp(
+    #     input_size=obs_dim + action_dim,
+    #     output_size=1,
+    #     **variant['qf_kwargs']
+    # )
+    # target_qf2 = FlattenMlp(
+    #     input_size=obs_dim + action_dim,
+    #     output_size=1,
+    #     **variant['qf_kwargs']
+    # )
+    imsize = 8
 
     # policy = TanhCNNGaussianPolicy(
-    policy = TanhGaussianPolicy(
-        obs_dim=imsize*imsize*3,
-        action_dim=action_dim,
-        **variant['policy_kwargs']
-        # input_width=imsize,
-        # input_height=imsize,
-        # output_size=action_dim,
-        # input_channels=3,
-        # **variant['cnn_params']
+    #     input_width=imsize,
+    #     input_height=imsize,
+    #     output_size=action_dim,
+    #     input_channels=3,
+    #     **variant['cnn_params']
+    # )
+    policy_cnn = CNN(**cnn_params)
+    policy = TanhGaussianPolicyAdapter(
+        policy_cnn,
+        policy_cnn.conv_output_flat_size,
+        action_dim,
     )
+    # policy = TanhGaussianPolicy(
+    #     obs_dim=imsize*imsize*3,
+    #     action_dim=action_dim,
+    #     **variant['policy_kwargs']
+    # )
     eval_env = expl_env = env
 
     eval_policy = MakeDeterministic(policy)
@@ -114,7 +159,7 @@ def experiment(variant):
         variant['replay_buffer_size'],
         expl_env,
     )
-    trainer = TwinSACTrainer(
+    trainer = SACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
@@ -129,7 +174,7 @@ def experiment(variant):
         evaluation_env=eval_env,
         exploration_data_collector=expl_path_collector,
         evaluation_data_collector=eval_path_collector,
-        data_buffer=replay_buffer,
+        replay_buffer=replay_buffer,
         **variant['algo_kwargs']
     )
     algorithm.to(ptu.device)
@@ -159,10 +204,10 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             max_path_length=100,
             batch_size=128,
-            num_epochs=300,
+            num_epochs=50,
             num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=10000,
-            num_trains_per_train_loop=100,
+            num_expl_steps_per_train_loop=1000,
+            num_trains_per_train_loop=1000,
             min_num_steps_before_training=1000,
             # num_epochs=100,
             # num_eval_steps_per_epoch=100,
@@ -171,11 +216,15 @@ if __name__ == "__main__":
             # min_num_steps_before_training=100,
         ),
         cnn_params=dict(
-            kernel_sizes=[3],
-            n_channels=[32],
-            strides=[1],
+            kernel_sizes=[3, 3],
+            n_channels=[4, 4],
+            strides=[1, 1],
             hidden_sizes=[32, 32],
-            paddings=[0],
+            paddings=[1, 1],
+            pool_type='max2d',
+            pool_sizes=[2, 2],
+            pool_strides=[2, 2],
+            pool_paddings=[0, 0],
         ),
         # replay_buffer_size=int(1E6),
         qf_kwargs=dict(
@@ -192,11 +241,12 @@ if __name__ == "__main__":
             ),
         ),
         eval_path_collector_kwargs=dict(
-            render=True,
+            render=False,
             render_kwargs=dict(
                 mode='cv2',
             ),
         ),
+        shared_qf_conv=False,
     )
     n_seeds = 1
     mode = 'local'
@@ -204,9 +254,9 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    # n_seeds = 3
+    n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = 'point2d-16x16-img-all-fc-goal00'
+    exp_prefix = 'shared-conv-local-point2d-8x8-img-all-fc-goal00'
 
     search_space = {
     }
@@ -222,4 +272,5 @@ if __name__ == "__main__":
                 variant=variant,
                 exp_id=exp_id,
                 use_gpu=True,
+                gpu_id=1,
             )
