@@ -21,25 +21,26 @@ from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from railrl.core.ray_experiment import RayExperiment
 import ray
 import ray.tune as tune
+from railrl.launchers.ray_launcher import launch_experiment
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'env_class': HalfCheetahEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 1000,
+        'num_epochs': 200,
         'train_policy_with_reparameterization': True,
     },
     'inv-double-pendulum': {  # 2 DoF
         'env_class': InvertedDoublePendulumEnv,
-        'num_epochs': 100,
+        'num_epochs': 1000,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'train_policy_with_reparameterization': True,
     },
     'pendulum': {  # 2 DoF
         'env_class': PendulumEnv,
-        'num_epochs': 20,
+        'num_epochs': 1000,
         'num_expl_steps_per_train_loop': 200,
         'max_path_length': 200,
         'min_num_steps_before_training': 2000,
@@ -62,7 +63,6 @@ ENV_PARAMS = {
     },
 }
 
-@tune.function
 def run_experiment_func(variant):
     env_params = ENV_PARAMS[variant['env']]
     variant.update(env_params)
@@ -146,31 +146,6 @@ def run_experiment_func(variant):
     )
     return algorithm
 
-def experiment(variant):
-    ray.init(local_mode=True)
-    # ray.init()
-    import railrl.torch.pytorch_util as ptu
-
-    exp = tune.Experiment(
-        name="debug_test",
-        run=RayExperiment,
-        # num_samples=20,
-        stop={"global_done": True},
-        config={
-            'algo_variant': variant,
-            'init_algo_function': run_experiment_func,
-            'use_gpu': ptu._use_gpu,
-            'test': tune.grid_search([16, 64, 256]),
-        },
-        resources_per_trial={
-            "cpu": 1,
-            "gpu": 0.5,
-        },
-        checkpoint_freq=1,
-    )
-    tune.run(exp, resume=False)
-
-
 if __name__ == "__main__":
     variant = dict(
         num_epochs=300,
@@ -189,39 +164,36 @@ if __name__ == "__main__":
         policy_lr=3E-4,
         qf_lr=3E-4,
         vf_lr=3E-4,
+        env=tune.grid_search(['pendulum']),
         layer_size=256,
         algorithm="Twin-SAC",
         version="normal",
+        # env='pendulum',
+    )
+    n_seeds = 9
+    mode = 'aws'
+    exp_prefix = 'aws-autoscaler-test-resume-kill-worker-new-settings-4'
+
+
+    launch_experiment(
+        mode=mode,
+        local_launch_variant=dict(
+            seeds=n_seeds,
+            use_gpu=False,
+            exp_function=run_experiment_func,
+            exp_variant=variant,
+            checkpoint_freq=25,
+            exp_prefix=exp_prefix,
+            resources_per_trial={
+                'cpu': 4,
+                'gpu': .5,
+            }
+        ),
+        remote_launch_variant=dict(
+            # head_instance_type='m1.xlarge',
+            max_spot_price=.2,
+        ),
+        docker_variant=dict(),
+        cluster_name='ray-test-cluster-3'
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'dev'
-
-    # n_seeds = 5
-    # mode = 'sss'
-    # exp_prefix = 'reference-twin-sac-post-mod-ref-min-num-steps'
-
-    search_space = {
-        'env': [
-            # 'half-cheetah',
-            # 'inv-double-pendulum',
-            'pendulum',
-            # 'ant',
-            # 'walker',
-        ],
-    }
-    sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
-    )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
-            run_experiment(
-                experiment,
-                use_gpu=True,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                variant=variant,
-                exp_id=exp_id,
-                time_in_mins=2 * 24 * 60,  # if you use mode=sss
-            )

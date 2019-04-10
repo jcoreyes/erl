@@ -60,8 +60,9 @@ RUN pip install -r requirements.txt
 RUN pip install -r requirements.dev.txt
 RUN pip install cloudpickle==0.5.2
 RUN pip install cached-property==1.3.1
+RUN pip install mujoco_py==1.50.1.59
 # For atari-py
-RUN apt-get install -y zlib1g-dev swig cmake
+RUN apt-get update && apt-get install -y zlib1g-dev swig cmake
 RUN pip install gym[all]==0.10.5
 RUN pip install gitpython==2.1.7
 RUN pip install gtimer==1.0.0b5
@@ -69,7 +70,6 @@ RUN pip install pygame
 RUN pip install awscli==1.11.179
 RUN pip install boto3==1.4.8
 RUN pip install dominate==2.3.1
-RUN pip install ray==0.2.2
 RUN pip install path.py==10.3.1
 
 RUN pip install http://download.pytorch.org/whl/cu90/torch-0.4.1-cp35-cp35m-linux_x86_64.whl
@@ -100,3 +100,8 @@ RUN pip install numpy-stl==2.7.0
 RUN pip install pyquaternion==0.9.2
 RUN pip install moviepy==0.2.3.5
 RUN pip install scikit-image
+RUN pip install https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-0.7.0.dev2-cp35-cp35m-manylinux1_x86_64.whl
+RUN apt-get -y update && apt-get -y upgrade && apt-get install -y git wget cmake psmisc
+# Figure out how to get ray to run without this
+ENV PATH /env/bin:${PATH}
+ENV LD_LIBRARY_PATH /home/ubuntu/.mujoco/mjpro150/bin:${LD_LIBRARY_PATH}
