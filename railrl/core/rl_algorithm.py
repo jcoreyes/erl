@@ -12,23 +12,16 @@ from railrl.core.logging import add_log
 
 def _get_epoch_timings(epoch):
     times_itrs = gt.get_times().stamps.itrs
-    train_time = times_itrs['training'][-1]
-    expl_sampling_time = times_itrs['exploration sampling'][-1]
-    data_storing_time = times_itrs['data storing'][-1]
-    save_time = times_itrs['saving'][-1]
-    eval_sampling_time = times_itrs['evaluation sampling'][-1] if epoch > 0 else 0
-    epoch_time = train_time + expl_sampling_time + eval_sampling_time
-    total_time = gt.get_times().total
+    times = OrderedDict()
+    epoch_time = 0
+    for key in sorted(times_itrs):
+        time = times_itrs[key][-1]
+        epoch_time += time
+        times['time/{} (s)'.format(key)] = time
+    times['time/epoch (s)'] = epoch_time
+    times['time/total (s)'] = gt.get_times().total
+    return times
 
-    return OrderedDict([
-        ('time/data storing (s)', data_storing_time),
-        ('time/training (s)', train_time),
-        ('time/evaluation sampling (s)', eval_sampling_time),
-        ('time/exploration sampling (s)', expl_sampling_time),
-        ('time/saving (s)', save_time),
-        ('time/epoch (s)', epoch_time),
-        ('time/total train (s)', total_time),
-    ])
 
 
 class BatchRLAlgorithm(object):
@@ -39,7 +32,7 @@ class BatchRLAlgorithm(object):
             evaluation_env,
             exploration_data_collector: PathCollector,
             evaluation_data_collector: PathCollector,
-            data_buffer: ReplayBuffer,
+            replay_buffer: ReplayBuffer,
             batch_size,
             max_path_length,
             num_epochs,
@@ -54,7 +47,7 @@ class BatchRLAlgorithm(object):
         self.eval_env = evaluation_env
         self.expl_data_collector = exploration_data_collector
         self.eval_data_collector = evaluation_data_collector
-        self.data_buffer = data_buffer
+        self.replay_buffer = replay_buffer
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.num_epochs = num_epochs
@@ -97,8 +90,9 @@ class BatchRLAlgorithm(object):
             init_expl_paths = self.expl_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.min_num_steps_before_training,
+                discard_incomplete_paths=False,
             )
-            self.data_buffer.add_paths(init_expl_paths)
+            self.replay_buffer.add_paths(init_expl_paths)
             self.expl_data_collector.end_epoch(-1)
 
         self.eval_data_collector.collect_new_paths(
@@ -114,7 +108,7 @@ class BatchRLAlgorithm(object):
             )
             # gt.stamp('exploration sampling', unique=False)
 
-            self.data_buffer.add_paths(new_expl_paths)
+            self.replay_buffer.add_paths(new_expl_paths)
             # gt.stamp('data storing', unique=False)
 
             for _ in range(self.num_trains_per_train_loop):
@@ -146,7 +140,7 @@ class BatchRLAlgorithm(object):
         logger.log("Epoch {} finished".format(self.epoch), with_timestamp=True)
         algorithm_logs = {}
         add_log(algorithm_logs,
-                self.data_buffer.get_diagnostics(),
+                self.replay_buffer.get_diagnostics(),
                 prefix='buffer/')
         add_log(algorithm_logs,
                 self.trainer.get_diagnostics(),

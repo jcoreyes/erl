@@ -43,7 +43,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         :param ob_keys_to_save: List of keys to save
         """
         if ob_keys_to_save is None:
-            ob_keys_to_save = ['observation', 'desired_goal', 'achieved_goal']
+            ob_keys_to_save = []
         else:  # in case it's a tuple
             ob_keys_to_save = list(ob_keys_to_save)
         if internal_keys is None:
@@ -189,7 +189,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         new_next_obs_dict = self._batch_next_obs_dict(indices)
 
         if num_env_goals > 0:
-            env_goals = self.env.sample_goals(num_env_goals)
+            env_goals = self._sample_goals_from_env(num_env_goals)
             env_goals = preprocess_obs_dict(env_goals)
             last_env_goal_idx = num_rollout_goals + num_env_goals
             resampled_goals[num_rollout_goals:last_env_goal_idx] = (
@@ -255,6 +255,9 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             'indices': np.array(indices).reshape(-1, 1),
         }
         return batch
+
+    def _sample_goals_from_env(self, batch_size):
+        return self.env.sample_goals(batch_size)
 
     def _batch_obs_dict(self, indices):
         return {

@@ -16,7 +16,7 @@ import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.twin_sac import TwinSAC
+from railrl.torch.sac.sac import TwinSAC
 from railrl.torch.td3.td3 import TD3
 
 
