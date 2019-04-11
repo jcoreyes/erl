@@ -35,7 +35,7 @@ def compute_log_p_log_q_log_d(
     num_latents_to_sample=1,
     sampling_method='importance_sampling'
 ):
-    assert data.dtype == np.float64, 'images should be normalized'
+    assert data.dtype != np.uint8, 'images should be normalized'
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
     batch_size = data.shape[0]
@@ -84,7 +84,7 @@ def compute_p_x_np_to_np(
     num_latents_to_sample=1,
     sampling_method='importance_sampling'
 ):
-    assert data.dtype == np.float64, 'images should be normalized'
+    assert data.dtype != np.uint8, 'images should be normalized'
     assert power >= -1 and power <= 0, 'power for skew-fit should belong to [-1, 0]'
 
     log_p, log_q, log_d = compute_log_p_log_q_log_d(
