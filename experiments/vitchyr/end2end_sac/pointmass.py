@@ -24,9 +24,8 @@ from railrl.torch.torch_rl_algorithm import (
 
 
 def experiment(variant):
-    ptu.set_gpu_mode(True, 1)
     import multiworld.envs.pygame
-    env = gym.make('Point2DEnv-ImageFixed-v0')
+    env = gym.make('Point2DEnv-ImageFixedGoal-v0')
     input_width, input_height = env.image_shape
 
     action_dim = int(np.prod(env.action_space.shape))
