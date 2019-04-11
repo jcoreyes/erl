@@ -6,6 +6,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.launchers.launcher_util import run_experiment
 from railrl.samplers.data_collector import MdpPathCollector
+from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import (
     FlattenMlp, MergedCNN, CNN,
     MlpQfWithObsProcessor,
@@ -16,18 +17,14 @@ from railrl.torch.sac.policies import (
     TanhGaussianPolicyAdapter,
 )
 from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from railrl.torch.torch_rl_algorithm import (
+    TorchBatchRLAlgorithm,
+    TorchOnlineRLAlgorithm,
+)
 
 
 def experiment(variant):
     ptu.set_gpu_mode(True, 1)
-    # env = Point2DEnv(
-    #     **variant['env_kwargs']
-    # )
-    # imsize = env.render_size
-    # env = ImageEnv(env, imsize=env.render_size, transpose=True)
-    # env = FlatGoalEnv(env)
-    # env = NormalizedBoxEnv(env)
     import multiworld.envs.pygame
     env = gym.make('Point2DEnv-ImageFixed-v0')
     input_width, input_height = env.image_shape
@@ -95,53 +92,13 @@ def experiment(variant):
             input_size=action_dim+cnn_output_dim,
             **variant['qf_kwargs']
         )
-    # qf_params = cnn_params.copy()
-    # qf1 = MergedCNN(**qf_params)
-    # qf2 = MergedCNN(**qf_params)
-    # target_qf1 = MergedCNN(**qf_params)
-    # target_qf2 = MergedCNN(**qf_params)
     action_dim = int(np.prod(env.action_space.shape))
-    # obs_dim = int(np.prod(env.observation_space.shape))
-    # qf1 = FlattenMlp(
-    #     input_size=obs_dim + action_dim,
-    #     output_size=1,
-    #     **variant['qf_kwargs']
-    # )
-    # qf2 = FlattenMlp(
-    #     input_size=obs_dim + action_dim,
-    #     output_size=1,
-    #     **variant['qf_kwargs']
-    # )
-    # target_qf1 = FlattenMlp(
-    #     input_size=obs_dim + action_dim,
-    #     output_size=1,
-    #     **variant['qf_kwargs']
-    # )
-    # target_qf2 = FlattenMlp(
-    #     input_size=obs_dim + action_dim,
-    #     output_size=1,
-    #     **variant['qf_kwargs']
-    # )
-    imsize = 8
-
-    # policy = TanhCNNGaussianPolicy(
-    #     input_width=imsize,
-    #     input_height=imsize,
-    #     output_size=action_dim,
-    #     input_channels=3,
-    #     **variant['cnn_params']
-    # )
     policy_cnn = CNN(**cnn_params)
     policy = TanhGaussianPolicyAdapter(
         policy_cnn,
         policy_cnn.conv_output_flat_size,
         action_dim,
     )
-    # policy = TanhGaussianPolicy(
-    #     obs_dim=imsize*imsize*3,
-    #     action_dim=action_dim,
-    #     **variant['policy_kwargs']
-    # )
     eval_env = expl_env = env
 
     eval_policy = MakeDeterministic(policy)
@@ -149,11 +106,6 @@ def experiment(variant):
         eval_env,
         eval_policy,
         **variant['eval_path_collector_kwargs']
-    )
-    expl_path_collector = MdpPathCollector(
-        expl_env,
-        policy,
-        **variant['expl_path_collector_kwargs']
     )
     replay_buffer = EnvReplayBuffer(
         variant['replay_buffer_size'],
@@ -168,15 +120,36 @@ def experiment(variant):
         target_qf2=target_qf2,
         **variant['trainer_kwargs']
     )
-    algorithm = TorchBatchRLAlgorithm(
-        trainer=trainer,
-        exploration_env=expl_env,
-        evaluation_env=eval_env,
-        exploration_data_collector=expl_path_collector,
-        evaluation_data_collector=eval_path_collector,
-        replay_buffer=replay_buffer,
-        **variant['algo_kwargs']
-    )
+    if variant['collection_mode'] == 'batch':
+        expl_path_collector = MdpPathCollector(
+            expl_env,
+            policy,
+            **variant['expl_path_collector_kwargs']
+        )
+        algorithm = TorchBatchRLAlgorithm(
+            trainer=trainer,
+            exploration_env=expl_env,
+            evaluation_env=eval_env,
+            exploration_data_collector=expl_path_collector,
+            evaluation_data_collector=eval_path_collector,
+            replay_buffer=replay_buffer,
+            **variant['algo_kwargs']
+        )
+    elif variant['collection_mode'] == 'online':
+        expl_path_collector = MdpStepCollector(
+            expl_env,
+            policy,
+            **variant['expl_path_collector_kwargs']
+        )
+        algorithm = TorchOnlineRLAlgorithm(
+            trainer=trainer,
+            exploration_env=expl_env,
+            evaluation_env=eval_env,
+            exploration_data_collector=expl_path_collector,
+            evaluation_data_collector=eval_path_collector,
+            replay_buffer=replay_buffer,
+            **variant['algo_kwargs']
+        )
     algorithm.to(ptu.device)
     algorithm.train()
 
@@ -202,13 +175,13 @@ if __name__ == "__main__":
             target_entropy=-1,
         ),
         algo_kwargs=dict(
-            max_path_length=100,
-            batch_size=128,
+            max_path_length=50,
+            batch_size=256,
             num_epochs=50,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
-            min_num_steps_before_training=1000,
+            min_num_steps_before_training=500,
             # num_epochs=100,
             # num_eval_steps_per_epoch=100,
             # num_expl_steps_per_train_loop=100,
@@ -254,11 +227,18 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    n_seeds = 3
+    # n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = 'shared-conv-local-point2d-8x8-img-all-fc-goal00'
+    # exp_prefix = 'match-hps-point2d-8x8-img-all-fc-goal00'
 
     search_space = {
+        # 'shared_qf_conv': [
+        #     False,
+        # ],
+        'collection_mode': [
+            # 'batch',
+            'online',
+        ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
