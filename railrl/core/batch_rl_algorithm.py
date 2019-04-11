@@ -1,15 +1,14 @@
-import abc
 from collections import OrderedDict
 
 import gtimer as gt
 
 from railrl.core import logger
-from railrl.misc import eval_util
 from railrl.data_management.replay_buffer import ReplayBuffer
-from railrl.samplers.data_collector import BaseCollector
+from railrl.misc import eval_util
+from railrl.samplers.data_collector.path_collector import PathCollector
 
 
-def _get_epoch_timings():
+def _get_epoch_timings(epoch):
     times_itrs = gt.get_times().stamps.itrs
     times = OrderedDict()
     epoch_time = 0
@@ -22,15 +21,23 @@ def _get_epoch_timings():
     return times
 
 
-class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
+class BatchRLAlgorithm(object):
     def __init__(
             self,
             trainer,
             exploration_env,
             evaluation_env,
-            exploration_data_collector: BaseCollector,
-            evaluation_data_collector: BaseCollector,
+            exploration_data_collector: PathCollector,
+            evaluation_data_collector: PathCollector,
             replay_buffer: ReplayBuffer,
+            batch_size,
+            max_path_length,
+            num_epochs,
+            num_eval_steps_per_epoch,
+            num_expl_steps_per_train_loop,
+            num_trains_per_train_loop,
+            num_train_loops_per_epoch=1,
+            min_num_steps_before_training=0,
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -38,19 +45,58 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.expl_data_collector = exploration_data_collector
         self.eval_data_collector = evaluation_data_collector
         self.replay_buffer = replay_buffer
+        self.batch_size = batch_size
+        self.max_path_length = max_path_length
+        self.num_epochs = num_epochs
+        self.num_eval_steps_per_epoch = num_eval_steps_per_epoch
+        self.num_trains_per_train_loop = num_trains_per_train_loop
+        self.num_train_loops_per_epoch = num_train_loops_per_epoch
+        self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
+        self.min_num_steps_before_training = min_num_steps_before_training
         self._start_epoch = 0
-
-        self.post_epoch_funcs = []
 
     def train(self, start_epoch=0):
         self._start_epoch = start_epoch
         self._train()
 
     def _train(self):
-        """
-        Train model.
-        """
-        raise NotImplementedError('_train must implemented by inherited class')
+        if self.min_num_steps_before_training > 0:
+            init_expl_paths = self.expl_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.min_num_steps_before_training,
+                discard_incomplete_paths=False,
+            )
+            self.replay_buffer.add_paths(init_expl_paths)
+            self.expl_data_collector.end_epoch(-1)
+
+        for epoch in gt.timed_for(
+                range(self._start_epoch, self.num_epochs),
+                save_itrs=True,
+        ):
+            self.eval_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_eval_steps_per_epoch,
+                discard_incomplete_paths=True,
+            )
+            gt.stamp('evaluation sampling')
+
+            for _ in range(self.num_train_loops_per_epoch):
+                new_expl_paths = self.expl_data_collector.collect_new_paths(
+                    self.max_path_length,
+                    self.num_expl_steps_per_train_loop,
+                    discard_incomplete_paths=False,
+                )
+                gt.stamp('exploration sampling', unique=False)
+
+                self.replay_buffer.add_paths(new_expl_paths)
+                gt.stamp('data storing', unique=False)
+
+                for _ in range(self.num_trains_per_train_loop):
+                    train_data = self.replay_buffer.random_batch(self.batch_size)
+                    self.trainer.train(train_data)
+                gt.stamp('training', unique=False)
+
+            self._end_epoch(epoch)
 
     def _end_epoch(self, epoch):
         snapshot = self._get_snapshot()
@@ -62,9 +108,6 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.eval_data_collector.end_epoch(epoch)
         self.replay_buffer.end_epoch(epoch)
         self.trainer.end_epoch(epoch)
-
-        for post_epoch_func in self.post_epoch_funcs:
-            post_epoch_func(self, epoch)
 
     def _get_snapshot(self):
         snapshot = {}
@@ -133,15 +176,6 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         Misc
         """
         gt.stamp('logging')
-        logger.record_dict(_get_epoch_timings())
+        logger.record_dict(_get_epoch_timings(epoch))
         logger.record_tabular('Epoch', epoch)
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
-
-    @abc.abstractmethod
-    def training_mode(self, mode):
-        """
-        Set training mode to `mode`.
-        :param mode: If True, training will happen (e.g. set the dropout
-        probabilities to not all ones).
-        """
-        pass
