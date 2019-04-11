@@ -1,33 +1,9 @@
-import abc
 from collections import deque, OrderedDict
 
 from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.samplers.rollout_functions import rollout, multitask_rollout
-
-
-class PathCollector(object, metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def collect_new_paths(
-            self,
-            max_path_length,
-            num_steps,
-            discard_incomplete_paths,
-    ):
-        pass
-
-    @abc.abstractmethod
-    def get_epoch_paths(self):
-        pass
-
-    def end_epoch(self, epoch):
-        pass
-
-    def get_diagnostics(self):
-        return {}
-
-    def get_snapshot(self):
-        return {}
+from railrl.samplers.data_collector.base import PathCollector
 
 
 class MdpPathCollector(PathCollector):
@@ -140,7 +116,7 @@ class GoalConditionedPathCollector(PathCollector):
             max_path_length_this_loop = min(  # Do not go over num_steps
                 max_path_length,
                 num_steps - num_steps_collected,
-                )
+            )
             path = multitask_rollout(
                 self._env,
                 self._policy,
