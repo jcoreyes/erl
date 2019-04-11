@@ -80,12 +80,12 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
                 exploration_rewards_type != 'None'
                 and exploration_rewards_scale != 0.
         )
-        self._exploration_rewards = np.zeros((self.max_size, 1))
+        self._exploration_rewards = np.zeros((self.max_size, 1), dtype=np.float32)
         self._prioritize_vae_samples = (
                 vae_priority_type != 'None'
                 and power != 0.
         )
-        self._vae_sample_priorities = np.zeros((self.max_size, 1))
+        self._vae_sample_priorities = np.zeros((self.max_size, 1), dtype=np.float32)
         self._vae_sample_probs = None
 
         self.use_dynamics_model = (
