@@ -208,16 +208,16 @@ if __name__ == "__main__":
         ),
         replay_buffer_size=int(5E4),
         expl_path_collector_kwargs=dict(
-            render=False,
-            render_kwargs=dict(
-                mode='cv2',
-            ),
+            # render=False,
+            # render_kwargs=dict(
+            #     mode='cv2',
+            # ),
         ),
         eval_path_collector_kwargs=dict(
-            render=False,
-            render_kwargs=dict(
-                mode='cv2',
-            ),
+            # render=False,
+            # render_kwargs=dict(
+            #     mode='cv2',
+            # ),
         ),
         shared_qf_conv=False,
     )
@@ -227,14 +227,15 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    # n_seeds = 3
+    n_seeds = 3
     # mode = 'ec2'
-    # exp_prefix = 'match-hps-point2d-8x8-img-all-fc-goal00'
+    exp_prefix = 'online-match-hps-point2d-8x8-img-all-fc-goal00'
 
     search_space = {
-        # 'shared_qf_conv': [
-        #     False,
-        # ],
+        'shared_qf_conv': [
+            True,
+            # False,
+        ],
         'collection_mode': [
             # 'batch',
             'online',
@@ -252,5 +253,5 @@ if __name__ == "__main__":
                 variant=variant,
                 exp_id=exp_id,
                 use_gpu=True,
-                gpu_id=1,
+                gpu_id=0,
             )
