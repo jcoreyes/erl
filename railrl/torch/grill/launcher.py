@@ -4,10 +4,7 @@ import time
 import cv2
 import numpy as np
 
-from railrl.samplers.data_collector import (
-    GoalConditionedPathCollector,
-    VAEWrappedEnvPathCollector,
-)
+from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer

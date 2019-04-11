@@ -4,7 +4,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.data_management.obs_dict_replay_buffer import (
     ObsDictRelabelingBuffer
 )
-from railrl.samplers.data_collector import (
+from railrl.samplers.data_collector.path_collector import (
     GoalConditionedPathCollector,
 )
 from railrl.torch.her.her import HERTrainer
