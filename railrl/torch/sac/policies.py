@@ -18,11 +18,9 @@ class TanhGaussianPolicyAdapter(nn.Module, ExplorationPolicy):
     ```
     obs_processor = ...
     policy = TanhGaussianPolicyAdapter(obs_processor)
-    action, mean, log_std, _ = policy(obs)
-    action, mean, log_std, _ = policy(obs, deterministic=True)
-    action, mean, log_std, log_prob = policy(obs, return_log_prob=True)
     ```
     """
+
     def __init__(
             self,
             obs_processor,
@@ -133,7 +131,6 @@ class TanhGaussianPolicyAdapter(nn.Module, ExplorationPolicy):
         )
 
 
-
 # noinspection PyMethodOverriding
 class TanhGaussianPolicy(Mlp, ExplorationPolicy):
     """
@@ -153,6 +150,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
     If return_log_prob is False (default), log_prob = None
         This is done because computing the log_prob can be a bit expensive.
     """
+
     def __init__(
             self,
             hidden_sizes,
@@ -287,6 +285,7 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
     If return_log_prob is False (default), log_prob = None
         This is done because computing the log_prob can be a bit expensive.
     """
+
     def __init__(
             self,
             std=None,
@@ -406,7 +405,6 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
             action, mean, log_std, log_prob, entropy, std,
             mean_action_log_prob, pre_tanh_value,
         )
-
 
 
 class MakeDeterministic(Policy):
