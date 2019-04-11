@@ -69,7 +69,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         self.achieved_goal_key = achieved_goal_key
 
         self._action_dim = env.action_space.low.size
-        self._actions = np.zeros((max_size, self._action_dim))
+        self._actions = np.zeros((max_size, self._action_dim), dtype=np.float32)
         # Make everything a 2D np array to make it easier for other code to
         # reason about the shape of the data
         self.vectorized = vectorized
@@ -85,7 +85,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         for key in ob_keys_to_save + internal_keys:
             assert key in self.ob_spaces, \
                 "Key not found in the observation space: %s" % key
-            type = np.float64
+            type = np.float32
             if key.startswith('image'):
                 type = np.uint8
             self._obs[key] = np.zeros(
@@ -301,5 +301,5 @@ def postprocess_obs_dict(obs_dict):
     """
     for obs_key, obs in obs_dict.items():
         if 'image' in obs_key and obs is not None:
-            obs_dict[obs_key] = normalize_image(obs)
+            obs_dict[obs_key] = normalize_image(obs, dtype=np.float32)
     return obs_dict
