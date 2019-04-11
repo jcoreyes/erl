@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import os
 from os import path as osp
 import numpy as np
 import torch
@@ -55,6 +56,38 @@ class VaeAlgorithm:
         self.epoch += 1
         return {}, done
 
+class VAEExperiment:
+    def __init__(self, vae_trainer, num_epochs, save_period=1,
+                 dump_skew_debug_plots=False):
+        self.vae_trainer = vae_trainer
+        self.num_epochs = num_epochs
+        self.save_period = save_period
+        self.dump_skew_debug_plots = dump_skew_debug_plots
+        self.epoch = 0
+
+    def _train(self):
+        log = dict()
+        done = False
+        if self.epoch == self.num_epochs:
+            done = True
+            return log, done
+        should_save_imgs = (self.epoch % self.save_period == 0)
+        self.vae_trainer.train_epoch(self.epoch)
+        self.vae_trainer.test_epoch(self.epoch,
+                                    save_reconstruction=should_save_imgs,
+                                    save_scatterplot=should_save_imgs)
+        if should_save_imgs:
+            self.vae_trainer.dump_samples(self.epoch)
+            if self.dump_skew_debug_plots:
+                self.vae_trainer.dump_best_reconstruction(self.epoch)
+                self.vae_trainer.dump_worst_reconstruction(self.epoch)
+                self.vae_trainer.dump_sampling_histogram(self.epoch)
+        self.vae_trainer.update_train_weights()
+        self.epoch += 1
+        return log, done
+
+    def to(self, device):
+        self.vae_trainer.model.to(device)
 
 class ConvVAETrainer(object):
     def __init__(
@@ -74,7 +107,7 @@ class ConvVAETrainer(object):
             background_subtract=False,
             linearity_weight=0.0,
             use_linear_dynamics=False,
-            use_parallel_dataloading=True,
+            use_parallel_dataloading=False,
             train_data_workers=2,
             skew_dataset=False,
             skew_config=None,
@@ -82,6 +115,9 @@ class ConvVAETrainer(object):
             start_skew_epoch=0,
             weight_decay=0,
     ):
+        #TODO:steven fix pickling
+        assert not use_parallel_dataloading, "Have to fix pickling the dataloaders first"
+
         if skew_config is None:
             skew_config = {}
         self.log_interval = log_interval
@@ -99,7 +135,6 @@ class ConvVAETrainer(object):
             self.beta_schedule = ConstantSchedule(self.beta)
         self.imsize = model.imsize
         self.do_scatterplot = do_scatterplot
-
         model.to(ptu.device)
 
         self.model = model
@@ -410,8 +445,7 @@ class ConvVAETrainer(object):
                         self.imsize,
                     )[:n].transpose(2, 3)
                 ])
-                save_dir = osp.join(logger.get_snapshot_dir(),
-                                    'r%d.png' % epoch)
+                save_dir = osp.join(os.getcwd(), 'r%d.png' % epoch)
                 save_image(comparison.data.cpu(), save_dir, nrow=n)
 
         zs = np.array(zs)
@@ -475,7 +509,7 @@ class ConvVAETrainer(object):
         self.model.eval()
         sample = ptu.randn(64, self.representation_size)
         sample = self.model.decode(sample)[0].cpu()
-        save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
+        save_dir = osp.join(os.getcwd(), 's%d.png' % epoch)
         save_image(
             sample.data.view(64, self.input_channels, self.imsize, self.imsize).transpose(2, 3),
             save_dir
@@ -498,7 +532,7 @@ class ConvVAETrainer(object):
         plt.xlabel('Indices')
         plt.ylabel('Number of Samples')
         plt.title('VAE Priority Histogram')
-        save_file = osp.join(logger.get_snapshot_dir(), 'hist{}.png'.format(
+        save_file = osp.join(os.getcwd(), 'hist{}.png'.format(
             epoch))
         plt.savefig(save_file)
 
@@ -510,7 +544,7 @@ class ConvVAETrainer(object):
         plt.xlabel('Indices')
         plt.ylabel('Number of Samples')
         plt.title('VAE Priority Histogram Batch')
-        save_file = osp.join(logger.get_snapshot_dir(), 'hist_batch{}.png'.format(
+        save_file = osp.join(os.getcwd(), 'hist_batch{}.png'.format(
             epoch))
         plt.savefig(save_file)
 
@@ -538,7 +572,7 @@ class ConvVAETrainer(object):
             imgs.append(img)
             recons.append(rimg)
         all_imgs = torch.stack(imgs + recons)
-        save_file = osp.join(logger.get_snapshot_dir(), filename)
+        save_file = osp.join(os.getcwd(), filename)
         save_image(
             all_imgs.data,
             save_file,
@@ -598,7 +632,7 @@ class ConvVAETrainer(object):
             imgs.append(img)
             recons.append(rimg)
         all_imgs = torch.stack(imgs + recons)
-        save_file = osp.join(logger.get_snapshot_dir(), filename)
+        save_file = osp.join(os.getcwd(), filename)
         save_image(
             all_imgs.data,
             save_file,
@@ -645,7 +679,7 @@ class ConvVAETrainer(object):
         axes.set_ylim([-6, 6])
         axes.set_title('dim {} vs dim {}'.format(dim1, dim2))
         plt.grid(True)
-        save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
+        save_file = osp.join(os.getcwd(), 'scatter%d.png' % epoch)
         plt.savefig(save_file)
 
 
