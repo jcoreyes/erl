@@ -36,6 +36,7 @@ class SACTrainer(TorchTrainer):
             use_automatic_entropy_tuning=True,
             target_entropy=None,
     ):
+        super().__init__()
         self.env = env
         self.policy = policy
         self.qf1 = qf1
@@ -201,7 +202,9 @@ class SACTrainer(TorchTrainer):
         self._n_train_steps_total += 1
 
     def get_diagnostics(self):
-        return self.eval_statistics
+        stats = super().get_diagnostics()
+        stats.update(self.eval_statistics)
+        return stats
 
     def end_epoch(self, epoch):
         self._need_to_update_eval_statistics = True
