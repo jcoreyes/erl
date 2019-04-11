@@ -37,6 +37,7 @@ class TD3(TorchTrainer):
             qf_criterion=None,
             optimizer_class=optim.Adam,
     ):
+        super().__init__()
         if qf_criterion is None:
             qf_criterion = nn.MSELoss()
         self.qf1 = qf1
@@ -170,7 +171,9 @@ class TD3(TorchTrainer):
         self._n_train_steps_total += 1
 
     def get_diagnostics(self):
-        return self.eval_statistics
+        stats = super().get_diagnostics()
+        stats.update(self.eval_statistics)
+        return stats
 
     def end_epoch(self, epoch):
         self._need_to_update_eval_statistics = True
