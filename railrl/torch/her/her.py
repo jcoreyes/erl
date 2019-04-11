@@ -1,4 +1,4 @@
-import numpy as np
+import torch
 
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 
@@ -7,19 +7,13 @@ class HERTrainer(TorchTrainer):
     def __init__(self, base_trainer: TorchTrainer):
         self._base_trainer = base_trainer
 
-    def train(self, data):
-        obs = data['observations']
-        next_obs = data['next_observations']
-        goals = data['resampled_goals']
-        data['observations'] = np.hstack((
-            obs,
-            goals
-        ))
-        data['next_observations'] = np.hstack((
-            next_obs,
-            goals,
-        ))
-        self._base_trainer.train(data)
+    def train_from_torch(self, batch):
+        obs = batch['observations']
+        next_obs = batch['next_observations']
+        goals = batch['resampled_goals']
+        batch['observations'] = torch.cat((obs, goals), dim=1)
+        batch['next_observations'] = torch.cat((next_obs, goals), dim=1)
+        self._base_trainer.train_from_torch(batch)
 
     def get_diagnostics(self):
         return self._base_trainer.get_diagnostics()
