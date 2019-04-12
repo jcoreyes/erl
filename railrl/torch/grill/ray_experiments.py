@@ -1,0 +1,256 @@
+def full_experiment_variant_preprocess(variant):
+    train_vae_variant = variant['train_vae_variant']
+    grill_variant = variant['grill_variant']
+    if 'env_id' in variant:
+        assert 'env_class' not in variant
+        env_id = variant['env_id']
+        grill_variant['env_id'] = env_id
+        train_vae_variant['generate_vae_dataset_kwargs']['env_id'] = env_id
+    else:
+        env_class = variant['env_class']
+        env_kwargs = variant['env_kwargs']
+        train_vae_variant['generate_vae_dataset_kwargs']['env_class'] = (
+            env_class
+        )
+        train_vae_variant['generate_vae_dataset_kwargs']['env_kwargs'] = (
+            env_kwargs
+        )
+        grill_variant['env_class'] = env_class
+        grill_variant['env_kwargs'] = env_kwargs
+    init_camera = variant.get('init_camera', None)
+    imsize = variant.get('imsize', 84)
+    train_vae_variant['generate_vae_dataset_kwargs']['init_camera'] = (
+        init_camera
+    )
+    train_vae_variant['generate_vae_dataset_kwargs']['imsize'] = imsize
+    train_vae_variant['imsize'] = imsize
+    grill_variant['imsize'] = imsize
+    grill_variant['init_camera'] = init_camera
+
+def grill_her_twin_sac_online_vae_full_experiment():
+    return [
+        (train_vae_and_update_variant, 'vae_progress.csv'),
+        (grill_her_twin_sac_experiment_online_vae, 'progress.csv'),
+    ]
+
+def grill_her_twin_sac_experiment_online_vae(vae_exp, variant):
+
+    import railrl.torch.pytorch_util as ptu
+    from railrl.data_management.online_vae_replay_buffer import \
+        OnlineVaeRelabelingBuffer
+    from railrl.torch.networks import FlattenMlp
+    from railrl.torch.sac.policies import TanhGaussianPolicy
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer
+    from railrl.torch.grill.launcher import grill_preprocess_variant, get_envs
+    from railrl.torch.sac.sac import SACTrainer
+    from railrl.torch.her.her import HERTrainer
+    from railrl.samplers.data_collector import (
+        GoalConditionedPathCollector,
+        VAEWrappedEnvPathCollector,
+    )
+    from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
+    from railrl.torch.sac.policies import MakeDeterministic
+
+    variant = variant['grill_variant']
+    vae = vae_exp.vae_trainer.model
+    variant['vae_path'] = vae
+    grill_preprocess_variant(variant)
+    env = get_envs(variant)
+
+    uniform_dataset_fn = variant.get('generate_uniform_dataset_fn', None)
+    if uniform_dataset_fn:
+        uniform_dataset = uniform_dataset_fn(
+            **variant['generate_uniform_dataset_kwargs']
+        )
+    else:
+        uniform_dataset = None
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    obs_dim = (
+            env.observation_space.spaces[observation_key].low.size
+            + env.observation_space.spaces[desired_goal_key].low.size
+    )
+    action_dim = env.action_space.low.size
+    hidden_sizes = variant.get('hidden_sizes', [400, 300])
+    qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    target_qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    target_qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    policy = TanhGaussianPolicy(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        hidden_sizes=hidden_sizes,
+    )
+    env.vae = vae
+
+    replay_buffer = OnlineVaeRelabelingBuffer(
+        vae=vae,
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_buffer_kwargs']
+    )
+    vae_trainer = ConvVAETrainer(
+        variant['vae_train_data'],
+        variant['vae_test_data'],
+        env.vae,
+        **variant['online_vae_trainer_kwargs']
+    )
+    assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
+    max_path_length = variant['max_path_length']
+
+    trainer = SACTrainer(
+        env=env,
+        policy=policy,
+        qf1=qf1,
+        qf2=qf2,
+        target_qf1=target_qf1,
+        target_qf2=target_qf2,
+        **variant['twin_sac_trainer_kwargs']
+    )
+    trainer = HERTrainer(trainer)
+    eval_path_collector = VAEWrappedEnvPathCollector(
+        variant['evaluation_goal_sampling_mode'],
+        env,
+        MakeDeterministic(policy),
+        max_path_length,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+    )
+    expl_path_collector = VAEWrappedEnvPathCollector(
+        variant['exploration_goal_sampling_mode'],
+        env,
+        policy,
+        max_path_length,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+    )
+
+    algorithm = OnlineVaeAlgorithm(
+        trainer=trainer,
+        exploration_env=env,
+        evaluation_env=env,
+        exploration_data_collector=expl_path_collector,
+        evaluation_data_collector=eval_path_collector,
+        replay_buffer=replay_buffer,
+        vae=vae,
+        vae_trainer=vae_trainer,
+        uniform_dataset=uniform_dataset,
+        max_path_length=max_path_length,
+        **variant['algo_kwargs']
+    )
+
+    if variant['custom_goal_sampler'] == 'replay_buffer':
+        env.custom_goal_sampler = replay_buffer.sample_buffer_goals
+
+    algorithm.to(ptu.device)
+    vae.to(ptu.device)
+    return algorithm
+
+
+def vae_experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    return train_vae_and_update_variant(variant)
+
+
+def train_vae_and_update_variant(variant):
+    from railrl.torch.grill.launcher import generate_vae_dataset
+    full_experiment_variant_preprocess(variant)
+    grill_variant = variant['grill_variant']
+    train_vae_variant = variant['train_vae_variant']
+    if grill_variant.get('vae_path', None) is None:
+        vae_experiment, train_data, test_data = train_vae(**train_vae_variant)
+        grill_variant['vae_train_data'] = train_data
+        grill_variant['vae_test_data'] = test_data
+    else:
+        #TODO: steven add preloaded vae support
+        if grill_variant.get('save_vae_data', False):
+            vae_train_data, vae_test_data, info = generate_vae_dataset(
+                train_vae_variant['generate_vae_dataset_kwargs']
+            )
+            grill_variant['vae_train_data'] = vae_train_data
+            grill_variant['vae_test_data'] = vae_test_data
+    return vae_experiment
+
+
+def train_vae(beta, representation_size, imsize, num_epochs, save_period,
+              generate_vae_dataset_fctn=None, beta_schedule_kwargs=None,
+              decoder_activation=None, vae_kwargs=None,
+              generate_vae_dataset_kwargs=None, algo_kwargs=None,
+              use_spatial_auto_encoder=False, vae_class=None,
+              dump_skew_debug_plots=False):
+    from railrl.misc.ml_util import PiecewiseLinearSchedule
+    from railrl.torch.vae.conv_vae import (
+        ConvVAE,
+        SpatialAutoEncoder,
+        AutoEncoder,
+    )
+    import railrl.torch.vae.conv_vae as conv_vae
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer, VAEExperiment
+    from railrl.pythonplusplus import identity
+    from railrl.torch.grill.launcher import generate_vae_dataset
+    import torch
+    if vae_kwargs is None:
+        vae_kwargs = {}
+    if generate_vae_dataset_kwargs is None:
+        generate_vae_dataset_kwargs = {}
+    if algo_kwargs is None:
+        algo_kwargs = {}
+    if generate_vae_dataset_fctn is None:
+        generate_vae_dataset_fctn = generate_vae_dataset
+    if vae_class is None:
+        vae_class = ConvVAE
+    if beta_schedule_kwargs is not None:
+        beta_schedule = PiecewiseLinearSchedule(**beta_schedule_kwargs)
+    else:
+        beta_schedule = None
+    if decoder_activation == 'sigmoid':
+        decoder_activation = torch.nn.Sigmoid()
+    else:
+        decoder_activation = identity
+    architecture = vae_kwargs.get('architecture', None)
+    if not architecture and imsize == 84:
+        architecture = conv_vae.imsize84_default_architecture
+    elif not architecture and imsize == 48:
+        architecture = conv_vae.imsize48_default_architecture
+    vae_kwargs['architecture'] = architecture
+    vae_kwargs['imsize'] = imsize
+
+    if algo_kwargs.get('is_auto_encoder', False):
+        m = AutoEncoder(representation_size,
+                        decoder_output_activation=decoder_activation,
+                        **vae_kwargs)
+    elif use_spatial_auto_encoder:
+        m = SpatialAutoEncoder(
+            representation_size,
+            decoder_output_activation=decoder_activation,
+            **vae_kwargs)
+    else:
+        m = vae_class(representation_size,
+                      decoder_output_activation=decoder_activation,
+                      **vae_kwargs)
+    train_data, test_data, info = generate_vae_dataset_fctn(
+        generate_vae_dataset_kwargs
+    )
+    t = ConvVAETrainer(train_data, test_data, m, beta=beta,
+                       beta_schedule=beta_schedule, **algo_kwargs)
+    vae_exp = VAEExperiment(t, num_epochs, save_period, dump_skew_debug_plots)
+    return vae_exp, train_data, test_data

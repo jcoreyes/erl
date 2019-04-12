@@ -3,7 +3,10 @@ from railrl.exploration_strategies.count_based.count_based import CountExplorati
 from torchvision.utils import save_image
 
 from railrl.core import logger
-from railrl.data_management.obs_dict_replay_buffer import flatten_dict
+from railrl.data_management.obs_dict_replay_buffer import (
+    flatten_dict,
+    ObsDictRelabelingBuffer
+)
 from railrl.data_management.shared_obs_dict_replay_buffer import \
     SharedObsDictRelabelingBuffer
 from multiworld.core.image_env import normalize_image
@@ -25,7 +28,7 @@ from railrl.torch.vae.vae_trainer import (
 import os.path as osp
 
 
-class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
+class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
 
     def __init__(
             self,
@@ -125,8 +128,8 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             self.exploration_counter = CountExploration(env=self.env, **exploration_counter_kwargs)
 
         self.epoch = 0
-        self._register_mp_array("_exploration_rewards")
-        self._register_mp_array("_vae_sample_priorities")
+        # self._register_mp_array("_exploration_rewards")
+        # self._register_mp_array("_vae_sample_priorities")
 
     def add_path(self, path):
         self.add_decoded_vae_goals_to_path(path)

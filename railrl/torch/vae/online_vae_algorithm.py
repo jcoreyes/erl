@@ -48,13 +48,13 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         self._vae_conn_pipe = None
 
     def _train(self):
-        super()._train()
-        self._cleanup()
+        return super()._train()
 
-    def _end_epoch(self, epoch):
+    def _end_epoch(self):
+        epoch = self.epoch
         self._train_vae(epoch)
-        gt.stamp('vae training')
-        super()._end_epoch(epoch)
+        # gt.stamp('vae training')
+        super()._end_epoch()
 
     def _log_stats(self, epoch):
         self._log_vae_stats()
