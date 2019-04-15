@@ -12,11 +12,16 @@ from railrl.core import logger as default_logger
 from railrl.misc.random_util import random_point_in_circle
 from railrl.envs.mujoco.pusher_2d_brandon import Pusher2dEnv
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 
 class ImagePusher2dEnv(Pusher2dEnv):
     def __init__(self, image_shape, *args, **kwargs):
         self.quick_init(locals())
         self.image_shape = image_shape
+        self.i = 0
         Pusher2dEnv.__init__(self, *args, **kwargs)
 
     def _get_obs(self):
