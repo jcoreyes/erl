@@ -181,17 +181,17 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 5
+    n_seeds = 3
     mode = 'sss'
     exp_prefix = 'tsac-numerically-stable'
 
     search_space = {
         'env': [
-            # 'half-cheetah',
+            'half-cheetah',
             # 'inv-double-pendulum',
             # 'pendulum',
-            # 'ant',
-            # 'walker',
+            'ant',
+            'walker',
             'hopper',
             'humanoid',
             'swimmer',
