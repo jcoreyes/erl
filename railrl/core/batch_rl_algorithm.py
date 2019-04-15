@@ -1,26 +1,12 @@
 from collections import OrderedDict
 
-import gtimer as gt
+from railrl.core.timer import timer
 
 from railrl.core import logger
 from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.misc import eval_util
 from railrl.samplers.data_collector.path_collector import PathCollector
 from railrl.core.rl_algorithm import BaseRLAlgorithm
-
-
-def _get_epoch_timings(epoch):
-    times_itrs = gt.get_times().stamps.itrs
-    times = OrderedDict()
-    epoch_time = 0
-    for key in sorted(times_itrs):
-        time = times_itrs[key][-1]
-        epoch_time += time
-        times['time/{} (s)'.format(key)] = time
-    times['time/epoch (s)'] = epoch_time
-    times['time/total (s)'] = gt.get_times().total
-    return times
-
 
 class BatchRLAlgorithm(BaseRLAlgorithm):
     def __init__(
@@ -47,6 +33,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
         self.min_num_steps_before_training = min_num_steps_before_training
 
     def _train(self):
+        self._begin_epoch()
         done = (self.epoch == self.num_epochs)
         if done:
             return {}, done
@@ -65,7 +52,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
             self.num_eval_steps_per_epoch,
             discard_incomplete_paths=True,
         )
-        # gt.stamp('evaluation sampling')
+        timer.stamp('evaluation sampling')
 
         for _ in range(self.num_train_loops_per_epoch):
             new_expl_paths = self.expl_data_collector.collect_new_paths(
@@ -73,15 +60,15 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
                 self.num_expl_steps_per_train_loop,
                 discard_incomplete_paths=False,
             )
-            # gt.stamp('exploration sampling', unique=False)
+            timer.stamp('exploration sampling', unique=False)
 
             self.replay_buffer.add_paths(new_expl_paths)
-            # gt.stamp('data storing', unique=False)
+            timer.stamp('data storing', unique=False)
 
             for _ in range(self.num_trains_per_train_loop):
                 train_data = self.replay_buffer.random_batch(self.batch_size)
                 self.trainer.train(train_data)
-            # gt.stamp('training', unique=False)
+            timer.stamp('training', unique=False)
         log_stats = self._get_diagnostics()
         self._end_epoch()
         return log_stats, False

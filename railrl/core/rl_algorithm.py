@@ -1,7 +1,7 @@
 import abc
 from collections import OrderedDict
 
-import gtimer as gt
+from railrl.core.timer import timer
 
 from railrl.core import logger
 from railrl.misc import eval_util
@@ -10,15 +10,13 @@ from railrl.samplers.data_collector import BaseCollector
 from railrl.core.logging import append_log
 
 def _get_epoch_timings():
-    times_itrs = gt.get_times().stamps.itrs
+    times_itrs = timer.get_times()
     times = OrderedDict()
     epoch_time = 0
     for key in sorted(times_itrs):
-        time = times_itrs[key][-1]
+        time = times_itrs[key]
         epoch_time += time
         times['time/{} (s)'.format(key)] = time
-    times['time/epoch (s)'] = epoch_time
-    times['time/total (s)'] = gt.get_times().total
     return times
 
 
@@ -42,19 +40,14 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.post_epoch_funcs = []
         self.epoch = self._start_epoch
 
-    def train(self, start_epoch=0):
-        self._start_epoch = start_epoch
-        for epoch in gt.timed_for(
-                range(self._start_epoch, self.num_epochs),
-                save_itrs=True,
-        ):
-            self._train()
-
     def _train(self):
         """
         Train model.
         """
         raise NotImplementedError('_train must implemented by inherited class')
+
+    def _begin_epoch(self):
+        timer.reset()
 
     def _end_epoch(self):
         self.expl_data_collector.end_epoch(self.epoch)
@@ -72,16 +65,16 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         append_log(algo_log, self.replay_buffer.get_diagnostics(),
                    prefix='replay_buffer/')
         append_log(algo_log, self.trainer.get_diagnostics(), prefix='trainer/')
+        # Exploration
         append_log(algo_log, self.expl_data_collector.get_diagnostics(),
                    prefix='exploration/')
-
         expl_paths = self.expl_data_collector.get_epoch_paths()
         if hasattr(self.expl_env, 'get_diagnostics'):
             append_log(algo_log, self.expl_env.get_diagnostics(expl_paths),
                        prefix='exploration/')
         append_log(algo_log, eval_util.get_generic_path_information(expl_paths),
                    prefix="exploration/")
-
+        # Eval
         append_log(algo_log, self.eval_data_collector.get_diagnostics(),
                    prefix='evaluation/')
         eval_paths = self.eval_data_collector.get_epoch_paths()
@@ -91,11 +84,10 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         append_log(algo_log,
                    eval_util.get_generic_path_information(eval_paths),
                    prefix="evaluation/")
+
+        timer.stamp('logging')
+        append_log(algo_log, _get_epoch_timings())
         return algo_log
-        # gt.stamp('logging')
-        # logger.record_dict(_get_epoch_timings())
-        # logger.record_tabular('Epoch', epoch)
-        # logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     @abc.abstractmethod
     def training_mode(self, mode):

@@ -1,5 +1,7 @@
-from ray.tune.logger import CSVLogger
+from collections import OrderedDict
 import os
+
+from ray.tune.logger import CSVLogger
 
 
 class SequentialCSVLogger(CSVLogger):
@@ -26,4 +28,10 @@ class SequentialCSVLogger(CSVLogger):
     def on_result(self, result):
         if 'log_fname' in result and result['log_fname'] != self.csv_fname:
             self.setup_new_logger(result['log_fname'])
-        super().on_result(result)
+        """
+        Sort the keys to enforce deterministic ordering during resuming.
+        """
+        sorted_result = OrderedDict()
+        for key in sorted(result.keys()):
+            sorted_result[key] = result[key]
+        super().on_result(sorted_result)

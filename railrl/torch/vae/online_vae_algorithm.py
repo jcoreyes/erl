@@ -1,5 +1,5 @@
-import gtimer as gt
 from railrl.core import logger
+from railrl.core.timer import timer
 from railrl.data_management.online_vae_replay_buffer import \
     OnlineVaeRelabelingBuffer
 from railrl.data_management.shared_obs_dict_replay_buffer \
@@ -49,7 +49,7 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
 
     def _end_epoch(self):
         self._train_vae(self.epoch)
-        # gt.stamp('vae training')
+        timer.stamp('vae training')
         super()._end_epoch()
 
     def _get_diagnostics(self):
