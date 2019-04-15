@@ -5,15 +5,13 @@ from cached_property import cached_property
 
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.samplers.util import split_paths
-from railrl.core.serializable import Serializable
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from railrl.core import logger
 from sandbox.rocky.tf.spaces import Box
 
 
-class HiddenCartpoleEnv(CartpoleEnv, Serializable):
+class HiddenCartpoleEnv(CartpoleEnv):
     def __init__(self, num_steps=100, position_only=True):
-        Serializable.quick_init(self, locals())
         assert position_only, "I only added position_only due to some weird " \
                               "serialization bug"
         CartpoleEnv.__init__(self, position_only=position_only)

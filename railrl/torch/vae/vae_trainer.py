@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from os import path as osp
 import numpy as np
 import torch
@@ -7,7 +8,6 @@ from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 from multiworld.core.image_env import normalize_image
 from railrl.core import logger
-from railrl.core.serializable import Serializable
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.torch import pytorch_util as ptu
@@ -35,7 +35,7 @@ def compute_log_p_log_q_log_d(
     num_latents_to_sample=1,
     sampling_method='importance_sampling'
 ):
-    assert data.dtype == np.float64, 'images should be normalized'
+    assert data.dtype != np.uint8, 'images should be normalized'
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
     batch_size = data.shape[0]
@@ -84,7 +84,7 @@ def compute_p_x_np_to_np(
     num_latents_to_sample=1,
     sampling_method='importance_sampling'
 ):
-    assert data.dtype == np.float64, 'images should be normalized'
+    assert data.dtype != np.uint8, 'images should be normalized'
     assert power >= -1 and power <= 0, 'power for skew-fit should belong to [-1, 0]'
 
     log_p, log_q, log_d = compute_log_p_log_q_log_d(
@@ -105,7 +105,7 @@ def compute_p_x_np_to_np(
     return ptu.get_numpy(log_p_x_skewed)
 
 
-class ConvVAETrainer(Serializable):
+class ConvVAETrainer(object):
     def __init__(
             self,
             train_dataset,
@@ -131,7 +131,6 @@ class ConvVAETrainer(Serializable):
             start_skew_epoch=0,
             weight_decay=0,
     ):
-        self.quick_init(locals())
         if skew_config is None:
             skew_config = {}
         self.log_interval = log_interval
@@ -231,7 +230,7 @@ class ConvVAETrainer(Serializable):
             )
         self.linearity_weight = linearity_weight
         self.use_linear_dynamics = use_linear_dynamics
-        self.vae_logger_stats_for_rl = {}
+        self.eval_statistics = OrderedDict()
         self._extra_stats_to_log = None
 
     def get_dataset_stats(self, data):
@@ -408,22 +407,14 @@ class ConvVAETrainer(Serializable):
             self.model.dist_mu = zs.mean(axis=0)
             self.model.dist_std = zs.std(axis=0)
 
-        if from_rl:
-            self.vae_logger_stats_for_rl['Train VAE Epoch'] = epoch
-            self.vae_logger_stats_for_rl['Train VAE Log Prob'] = np.mean(log_probs)
-            self.vae_logger_stats_for_rl['Train VAE KL'] = np.mean(kles)
-            self.vae_logger_stats_for_rl['Train VAE Loss'] = np.mean(losses)
-            if self.use_linear_dynamics:
-                self.vae_logger_stats_for_rl['Train VAE Linear_loss'] = \
-                    np.mean(linear_losses)
-        else:
-            logger.record_tabular("train/epoch", epoch)
-            logger.record_tabular("train/Log Prob", np.mean(log_probs))
-            logger.record_tabular("train/KL", np.mean(kles))
-            logger.record_tabular("train/loss", np.mean(losses))
-            if self.use_linear_dynamics:
-                logger.record_tabular("train/linear_loss",
-                                      np.mean(linear_losses))
+        self.eval_statistics['train/log prob'] = np.mean(log_probs)
+        self.eval_statistics['train/KL'] = np.mean(kles)
+        self.eval_statistics['train/loss'] = np.mean(losses)
+        if self.use_linear_dynamics:
+            self.eval_statistics['train/linear loss'] = np.mean(linear_losses)
+
+    def get_diagnostics(self):
+        return self.eval_statistics
 
     def test_epoch(
             self,
@@ -477,27 +468,17 @@ class ConvVAETrainer(Serializable):
         if self.do_scatterplot and save_scatterplot:
             self.plot_scattered(np.array(zs), epoch)
 
-        if from_rl:
-            self.vae_logger_stats_for_rl['Test VAE Epoch'] = epoch
-            self.vae_logger_stats_for_rl['Test VAE Log Prob'] = np.mean(log_probs)
-            self.vae_logger_stats_for_rl['Test VAE KL'] = np.mean(kles)
-            self.vae_logger_stats_for_rl['Test VAE loss'] = np.mean(losses)
-            self.vae_logger_stats_for_rl['VAE Beta'] = beta
-        else:
-            for key, value in self.debug_statistics().items():
-                logger.record_tabular(key, value)
-
-            logger.record_tabular("test/Log Prob", np.mean(log_probs))
-            logger.record_tabular("test/KL", np.mean(kles))
-            logger.record_tabular("test/loss", np.mean(losses))
-            logger.record_tabular("beta", beta)
-
+        self.eval_statistics['epoch'] = epoch
+        self.eval_statistics['test/log prob'] = np.mean(log_probs)
+        self.eval_statistics['test/KL'] = np.mean(kles)
+        self.eval_statistics['test/loss'] = np.mean(losses)
+        self.eval_statistics['beta'] = beta
+        if not from_rl:
+            for k, v in self.eval_statistics.items():
+                logger.record_tabular(k, v)
             logger.dump_tabular()
             if save_vae:
-                logger.save_itr_params(epoch, self.model)  # slow...
-        # logdir = logger.get_snapshot_dir()
-        # filename = osp.join(logdir, 'params.pkl')
-        # torch.save(self.model, filename)
+                logger.save_itr_params(epoch, self.model)
 
     def debug_statistics(self):
         """

@@ -1,16 +1,11 @@
 import numpy as np
 
-from gym.spaces import Dict
-
-from railrl.core.serializable import Serializable
 from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
-
-from multiworld.core.image_env import unormalize_image, normalize_image
 
 import torch.multiprocessing as mp
 import ctypes
 
-class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
+class SharedObsDictRelabelingBuffer(ObsDictRelabelingBuffer):
     """
     Same as an ObsDictRelabelingBuffer but the obs and next_obs are backed
     by multiprocessing arrays. The replay buffer size is also shared. The
@@ -39,9 +34,9 @@ class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
         self._shared_next_obs_info = {}
 
         for obs_key, obs_arr in self._obs.items():
-            ctype = ctypes.c_double
+            ctype = ctypes.c_float
             if obs_arr.dtype == np.uint8:
-               ctype = ctypes.c_uint8
+                ctype = ctypes.c_uint8
 
             self._shared_obs_info[obs_key] = (
                 mp.Array(ctype, obs_arr.size),
@@ -66,9 +61,9 @@ class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
         assert hasattr(self, arr_instance_var_name), arr_instance_var_name
         arr = getattr(self, arr_instance_var_name)
 
-        ctype = ctypes.c_double
+        ctype = ctypes.c_float
         if arr.dtype == np.uint8:
-           ctype = ctypes.c_uint8
+            ctype = ctypes.c_uint8
 
         self._mp_array_info[arr_instance_var_name] = (
             mp.Array(ctype, arr.size), arr.dtype, arr.shape,
@@ -126,3 +121,4 @@ class SharedObsDictRelabelingBuffer(Serializable, ObsDictRelabelingBuffer):
 
 def to_np(shared_arr, np_dtype, shape):
     return np.frombuffer(shared_arr.get_obj(), dtype=np_dtype).reshape(shape)
+

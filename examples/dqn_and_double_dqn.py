@@ -21,6 +21,11 @@ def experiment(variant):
         input_size=int(np.prod(env.observation_space.shape)),
         output_size=env.action_space.n,
     )
+    target_qf = Mlp(
+        hidden_sizes=[32, 32],
+        input_size=int(np.prod(env.observation_space.shape)),
+        output_size=env.action_space.n,
+    )
     qf_criterion = nn.MSELoss()
     # Use this to switch to DoubleDQN
     # algorithm = DoubleDQN(
@@ -28,6 +33,7 @@ def experiment(variant):
         env,
         training_env=training_env,
         qf=qf,
+        target_qf=target_qf,
         qf_criterion=qf_criterion,
         **variant['algo_params']
     )

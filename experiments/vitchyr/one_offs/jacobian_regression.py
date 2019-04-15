@@ -127,7 +127,6 @@ class JacobianNet(PyTorchModule):
             hidden_init=ptu.fanin_init,
             b_init_value=0.,
     ):
-        self.save_init_params(locals())
         super().__init__()
 
         self.input_size = input_size

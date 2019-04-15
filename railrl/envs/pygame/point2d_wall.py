@@ -7,14 +7,13 @@ from pygame import Color
 import matplotlib.pyplot as plt
 
 from railrl.core import logger as default_logger
-from railrl.core.serializable import Serializable
 from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.envs.pygame.walls import HorizontalWall
 from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths, \
     get_stat_in_paths
 
 
-class Point2dWall(Serializable, Env):
+class Point2dWall(Env):
     """
     A little 2D point whose life goal is to reach a target...but there's this
     wall in the way
@@ -47,8 +46,6 @@ class Point2dWall(Serializable, Env):
             render_dt_msec=30,
             action_l2norm_penalty=0,
     ):
-        Serializable.quick_init(self, locals())
-
         self.action_l2norm_penalty = action_l2norm_penalty
         self._target_position = np.array([
             0,

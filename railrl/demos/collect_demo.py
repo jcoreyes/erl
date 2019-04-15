@@ -9,8 +9,6 @@ robosuite/devices/spacemouse.py
 You will likely have to `pip install hidapi` and Spacemouse drivers.
 """
 
-from robosuite.devices import SpaceMouse
-
 import os
 import shutil
 import time
@@ -21,21 +19,56 @@ import datetime
 import numpy as np
 import time
 
-import robosuite
-import robosuite.utils.transform_utils as T
+# from robosuite.devices import SpaceMouse
+# import robosuite
+# import robosuite.utils.transform_utils as T
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_multiple_objects import MultiSawyerEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_multiple_objects import MultiSawyerEnv
 from multiworld.core.image_env import ImageEnv
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
+
+
+import sys
+
+### workaround to solve cv2 version conflicts (ROS adds Python2 version of cv2)
+# sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
+# import cv2
+# sys.path.insert(0,'/opt/ros/kinetic/lib/python2.7/dist-packages')
 
 import cv2
 
 class Expert:
-    pass
+    def __init__(self, action_dim=3, **kwargs):
+        self.action_dim = action_dim
+
+    def get_action(self, obs):
+        a = np.zeros((self.action_dim))
+        valid = True
+        reset = False
+        accept = False
+        return (a, valid, reset, accept)
+
+class RandomAgent(Expert):
+    def __init__(self, action_scale=0.1, action_space_dim=2):
+        self.action_scale = action_scale
+        self.action_space_dim = action_space_dim
+        self.counter = 0
+
+    def get_action(self, obs):
+        action = np.random.uniform(-1, 1, self.action_space_dim)*self.action_scale
+        self.counter += 1
+        reset = self.counter % 25 == 0
+        accept = reset
+        valid = True
+        # accept = True
+        return (action, valid, reset, accept)
 
 class SpaceMouseExpert(Expert):
     def __init__(self, xyz_dims=3, xyz_remap=[0, 1, 2], xyz_scale=[1, 1, 1]):
         """TODO: fill in other params"""
+
+        from robosuite.devices import SpaceMouse
+
         self.xyz_dims = xyz_dims
         self.xyz_remap = np.array(xyz_remap)
         self.xyz_scale = np.array(xyz_scale)
@@ -59,33 +92,46 @@ class SpaceMouseExpert(Expert):
 
         return (a, valid, reset, accept)
 
-def collect_one_rollout(env):
+def collect_one_rollout(env, expert, horizon=200, render=False):
     o = env.reset()
-    traj = dict(obs=[o], actions=[])
 
-    while True:
-        state = device.get_controller_state()
-        dpos, rotation, accept, reset = (
-            state["dpos"],
-            state["rotation"],
-            state["left_click"],
-            state["right_click"],
-        )
-        a = dpos
+    traj = dict(
+        observations=[o],
+        actions=[],
+        rewards=[],
+        next_observations=[],
+        terminals=[],
+        agent_infos=[],
+        env_infos=[],
+    )
 
-        o, r, _, info = env.step(a)
+    for _ in range(horizon):
+        a, valid, reset, accept = expert.get_action(o)
 
-        traj["obs"].append(o)
-        traj["actions"].append(a)
-        traj["rewards"].append(r)
+        if valid:
+            traj["observations"].append(o)
 
-        # env.render()
-        img = o["image_observation"].reshape((84, 84, 3))
-        cv2.imshow('window', img)
-        cv2.waitKey(10)
+            o, r, done, info = env.step(a)
+
+            traj["actions"].append(a)
+            traj["rewards"].append(r)
+            traj["next_observations"].append(o)
+            traj["terminals"].append(done)
+            traj["agent_infos"].append(info)
+            traj["env_infos"].append(info)
+            print(r)
+
+            if render:
+                env.render()
 
         if reset or accept:
+            if len(traj["rewards"]) == 0:
+                accept = False
             return accept, traj
+
+        time.sleep(0.01)
+
+    return False, []
 
 def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=cv2.LINE_AA, pxstep=20):
     '''(ndarray, 3-tuple, int, int) -> void
@@ -109,7 +155,7 @@ def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=cv2.LINE_AA, pxstep=
         cv2.line(img, (0, y), (img.shape[1], y), color=line_color, lineType=type_, thickness=thickness)
         y += pxstep
 
-def collect_one_rollout_goal_conditioned(env, expert):
+def collect_one_rollout_goal_conditioned(env, expert, horizon=200):
     # goal = env.sample_goal()
     # env.set_to_goal(goal)
     # goal_obs = env._get_obs()
@@ -135,7 +181,7 @@ def collect_one_rollout_goal_conditioned(env, expert):
         env_infos=[],
     )
 
-    while True:
+    for _ in range(horizon):
         a, valid, reset, accept = expert.get_action(o)
 
         if valid:
@@ -163,11 +209,29 @@ def collect_one_rollout_goal_conditioned(env, expert):
                 accept = False
             return accept, traj
 
-def collect_demos(env, expert, path="demos.npy", N=10):
+    return False, []
+
+def collect_demos(env, expert, path="demos.npy", N=10, horizon=200):
     data = []
 
     while len(data) < N:
-        accept, traj = collect_one_rollout_goal_conditioned(env, expert)
+        accept, traj = collect_one_rollout_goal_conditioned(env, expert, horizon)
+        if accept:
+            data.append(traj)
+            print("accepted trajectory length", len(traj["observations"]))
+            print("last reward", traj["rewards"][-1])
+            print("accepted", len(data), "trajectories")
+        else:
+            print("discarded trajectory")
+
+    np.save(path, data)
+
+
+def collect_demos_fixed(env, expert, path="demos.npy", N=10, horizon=200, render=False):
+    data = []
+
+    while len(data) < N:
+        accept, traj = collect_one_rollout(env, expert, horizon, render=render)
         if accept:
             data.append(traj)
             print("accepted trajectory length", len(traj["observations"]))
@@ -212,4 +276,3 @@ if __name__ == '__main__':
     # env.set_goal(env.sample_goals(1))
 
     collect_demos(env, expert)
-

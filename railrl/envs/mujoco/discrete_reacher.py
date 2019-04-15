@@ -6,13 +6,11 @@ from gym import spaces
 from gym.envs.mujoco import mujoco_env
 import itertools
 
-from railrl.core.serializable import Serializable
 from railrl.misc.eval_util import get_stat_in_paths, create_stats_ordered_dict
 
 
-class DiscreteReacherEnv(mujoco_env.MujocoEnv, Serializable):
+class DiscreteReacherEnv(mujoco_env.MujocoEnv):
     def __init__(self, num_bins=7, frame_skip=2):
-        self.quick_init(locals())
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', frame_skip=frame_skip)
         bounds = self.model.actuator_ctrlrange.copy()
         low = bounds[:, 0]

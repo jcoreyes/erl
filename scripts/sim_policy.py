@@ -1,4 +1,5 @@
 from railrl.envs.remote import RemoteRolloutEnv
+from railrl.misc import eval_util
 from railrl.samplers.util import rollout
 from railrl.torch.core import PyTorchModule
 import railrl.torch.pytorch_util as ptu
@@ -14,6 +15,8 @@ def simulate_policy(args):
     data = pickle.load(open(args.file, "rb"))
     if 'eval_policy' in data:
         policy = data['eval_policy']
+    elif 'evaluation policy' in data:
+        policy = data['evaluation policy']
     elif 'policy' in data:
         policy = data['policy']
     elif 'exploration_policy' in data:
@@ -28,7 +31,10 @@ def simulate_policy(args):
             data.keys()
         ))
 
-    env = data['env']
+    if 'env' in data:
+        env = data['env']
+    elif 'evaluation env' in data:
+        env = data['evaluation env']
     if isinstance(env, RemoteRolloutEnv):
         env = env._wrapped_env
     print("Policy loaded")
@@ -60,6 +66,8 @@ def simulate_policy(args):
         ))
         if hasattr(env, "log_diagnostics"):
             env.log_diagnostics(paths, logger)
+        for k, v in eval_util.get_generic_path_information(paths).items():
+            logger.record_tabular(k, v)
         logger.dump_tabular()
 
 

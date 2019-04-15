@@ -1,18 +1,13 @@
 import random
 
-from gym.spaces import Discrete
-
 from railrl.exploration_strategies.base import RawExplorationStrategy
-from railrl.core.serializable import Serializable
 
 
-class EpsilonGreedy(RawExplorationStrategy, Serializable):
+class EpsilonGreedy(RawExplorationStrategy):
     """
     Take a random discrete action with some probability.
     """
     def __init__(self, action_space, prob_random_action=0.1):
-        Serializable.quick_init(self, locals())
-        Serializable.quick_init(self, locals())
         self.prob_random_action = prob_random_action
         self.action_space = action_space
 

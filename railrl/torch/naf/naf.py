@@ -21,6 +21,7 @@ class NAF(TorchRLAlgorithm):
             self,
             env,
             policy,
+            target_policy,
             exploration_policy=None,
             policy_learning_rate=1e-3,
             target_hard_update_period=1000,
@@ -37,7 +38,7 @@ class NAF(TorchRLAlgorithm):
         )
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
-        self.target_policy = self.policy.copy()
+        self.target_policy = target_policy
         self.target_hard_update_period = target_hard_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
@@ -130,7 +131,6 @@ class NafPolicy(PyTorchModule):
             hidden_init=ptu.fanin_init,
             use_exp_for_diagonal_not_square=True,
     ):
-        self.save_init_params(locals())
         super(NafPolicy, self).__init__()
         self.obs_dim = obs_dim
         self.action_dim = action_dim

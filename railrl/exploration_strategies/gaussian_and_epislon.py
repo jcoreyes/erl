@@ -1,10 +1,9 @@
 import random
 from railrl.exploration_strategies.base import RawExplorationStrategy
-from railrl.core.serializable import Serializable
 import numpy as np
 
 
-class GaussianAndEpislonStrategy(RawExplorationStrategy, Serializable):
+class GaussianAndEpislonStrategy(RawExplorationStrategy):
     """
     With probability epsilon, take a completely random action.
     with probability 1-epsilon, add Gaussian noise to the action taken by a
@@ -13,7 +12,6 @@ class GaussianAndEpislonStrategy(RawExplorationStrategy, Serializable):
     def __init__(self, action_space, epsilon, max_sigma=1.0, min_sigma=None,
                  decay_period=1000000):
         assert len(action_space.shape) == 1
-        Serializable.quick_init(self, locals())
         if min_sigma is None:
             min_sigma = max_sigma
         self._max_sigma = max_sigma

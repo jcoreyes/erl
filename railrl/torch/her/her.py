@@ -1,141 +1,30 @@
-import numpy as np
 import torch
-from railrl.data_management.path_builder import PathBuilder
-from railrl.samplers.rollout_functions import (
-    create_rollout_function,
-    multitask_rollout,
-)
-from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+
+from railrl.torch.torch_rl_algorithm import TorchTrainer
 
 
-class HER(TorchRLAlgorithm):
-    """
-    Note: this assumes the env will sample the goal when reset() is called,
-    i.e. use a "silent" env.
+class HERTrainer(TorchTrainer):
+    def __init__(self, base_trainer: TorchTrainer):
+        super().__init__()
+        self._base_trainer = base_trainer
 
-    Hindsight Experience Replay
-
-    This is a template class that should be the first sub-class, i.e.[
-
-    ```
-    class HerDdpg(HER, DDPG):
-    ```
-
-    and not
-
-    ```
-    class HerDdpg(DDPG, HER):
-    ```
-
-    Or if you really want to make DDPG the first subclass, do alternatively:
-    ```
-    class HerDdpg(DDPG, HER):
-        def get_batch(self):
-            return HER.get_batch(self)
-    ```
-    for each function defined below.
-    """
-
-    def __init__(
-            self,
-            observation_key=None,
-            desired_goal_key=None,
-    ):
-        self.observation_key = observation_key
-        self.desired_goal_key = desired_goal_key
-        self._rollout_goal_vector = None
-
-    @property
-    def train_rollout_function(self):
-        return create_rollout_function(
-            multitask_rollout,
-            observation_key=self.observation_key,
-            desired_goal_key=self.desired_goal_key
-        )
-
-    @property
-    def eval_rollout_function(self):
-        return create_rollout_function(
-            multitask_rollout,
-            observation_key=self.observation_key,
-            desired_goal_key=self.desired_goal_key
-        )
-
-    def _handle_step(
-            self,
-            observation,
-            action,
-            reward,
-            next_observation,
-            terminal,
-            agent_info,
-            env_info,
-    ):
-        self._current_path_builder.add_all(
-            observations=observation,
-            actions=action,
-            rewards=reward,
-            next_observations=next_observation,
-            terminals=terminal,
-            agent_infos=agent_info,
-            env_infos=env_info,
-        )
-
-    def _handle_path(self, path):
-        self._n_rollouts_total += 1
-        self.replay_buffer.add_path(path)
-        self._exploration_paths.append(path)
-
-    def get_batch(self):
-        batch = super().get_batch()
+    def train_from_torch(self, batch):
         obs = batch['observations']
         next_obs = batch['next_observations']
         goals = batch['resampled_goals']
-        batch['observations'] = torch.cat((
-            obs,
-            goals
-        ), dim=1)
-        batch['next_observations'] = torch.cat((
-            next_obs,
-            goals
-        ), dim=1)
-        return batch
+        batch['observations'] = torch.cat((obs, goals), dim=1)
+        batch['next_observations'] = torch.cat((next_obs, goals), dim=1)
+        self._base_trainer.train_from_torch(batch)
 
-    def _handle_rollout_ending(self):
-        self._n_rollouts_total += 1
-        if len(self._current_path_builder) > 0:
-            path = self._current_path_builder.get_all_stacked()
-            self.replay_buffer.add_path(path)
-            self._exploration_paths.append(path)
-            self._current_path_builder = PathBuilder()
+    def get_diagnostics(self):
+        return self._base_trainer.get_diagnostics()
 
-    def _get_action_and_info(self, observation):
-        """
-        Get an action to take in the environment.
-        :param observation:
-        :return:
-        """
-        self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
-        new_obs = np.hstack((
-            observation[self.observation_key],
-            observation[self.desired_goal_key],
-        ))
-        return self.exploration_policy.get_action(new_obs)
+    def end_epoch(self, epoch):
+        self._base_trainer.end_epoch(epoch)
 
-    def get_eval_paths(self):
-        paths = []
-        n_steps_total = 0
-        while n_steps_total <= self.num_steps_per_eval:
-            path = self.eval_multitask_rollout()
-            paths.append(path)
-            n_steps_total += len(path['observations'])
-        return paths
+    @property
+    def networks(self):
+        return self._base_trainer.networks
 
-    def eval_multitask_rollout(self):
-        return self.eval_rollout_function(
-            self.env,
-            self.eval_policy,
-            self.max_path_length,
-            animated=self.render_during_eval
-        )
-
+    def get_snapshot(self):
+        return self._base_trainer.get_snapshot()

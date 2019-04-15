@@ -22,7 +22,6 @@ class FeedForwardZFunction(PyTorchModule):
             hidden_init=ptu.fanin_init,
             batchnorm_obs=False,
     ):
-        self.save_init_params(locals())
         super().__init__()
 
         self.obs_dim = obs_dim

@@ -26,6 +26,9 @@ class TD3BC(TorchRLAlgorithm):
             qf1,
             qf2,
             policy,
+            target_qf1,
+            target_qf2,
+            target_policy,
             exploration_policy,
             demo_path,
             demo_train_buffer,
@@ -70,9 +73,9 @@ class TD3BC(TorchRLAlgorithm):
         self.tau = tau
         self.qf_criterion = qf_criterion
 
-        self.target_policy = policy.copy()
-        self.target_qf1 = self.qf1.copy()
-        self.target_qf2 = self.qf2.copy()
+        self.target_policy = target_policy
+        self.target_qf1 = target_qf1
+        self.target_qf2 = target_qf2
         self.qf1_optimizer = optimizer_class(
             self.qf1.parameters(),
             lr=qf_learning_rate,

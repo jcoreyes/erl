@@ -11,7 +11,6 @@ class OneHotTauTanhGaussianPolicy(TanhGaussianPolicy):
             hidden_sizes,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=observation_dim + action_dim + goal_dim + max_tau + 1,

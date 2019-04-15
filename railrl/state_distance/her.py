@@ -48,7 +48,6 @@ class HerQFunction(TdmQf):
             env,
             **kwargs
     ):
-        self.save_init_params(locals())
         super().__init__(
             env,
             False,

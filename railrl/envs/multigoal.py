@@ -1,14 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from cached_property import cached_property
 from gym import Env
 from gym.spaces import Box
 
-from railrl.core.serializable import Serializable
 from railrl.core import logger
 
 
-class MultiGoalEnv(Env, Serializable):
+class MultiGoalEnv(Env):
     """
     Move a 2D point mass to one of the goal positions. Cost is the distance to
     the closest goal.
@@ -20,7 +18,6 @@ class MultiGoalEnv(Env, Serializable):
     def __init__(self, goal_reward=10, actuation_cost_coeff=30,
                  distance_cost_coeff=1):
         super().__init__()
-        Serializable.quick_init(self, locals())
 
         self.dynamics = PointDynamics(dim=2, sigma=0)
         self.init_mu = np.array((0, 0), dtype=np.float32)

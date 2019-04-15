@@ -1,29 +1,36 @@
 import argparse
 import pickle
 
-import numpy as np
-
 from railrl.core import logger
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.vae_wrappers import VAEWrappedEnv
-from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.samplers.rollout_functions import multitask_rollout
 from railrl.torch.core import PyTorchModule
-from railrl.torch.pytorch_util import set_gpu_mode
+import railrl.torch.pytorch_util as ptu
 
 
 def simulate_policy(args):
     if args.pause:
         import ipdb; ipdb.set_trace()
     data = pickle.load(open(args.file, "rb")) # joblib.load(args.file)
-    policy = data['policy']
+    if 'policy' in data:
+        policy = data['policy']
+    elif 'evaluation/policy' in data:
+        policy = data['evaluation/policy']
 
-    env = data['env']
+    if 'env' in data:
+        env = data['env']
+    elif 'evaluation/env' in data:
+        env = data['evaluation/env']
+
     if isinstance(env, RemoteRolloutEnv):
         env = env._wrapped_env
     print("Policy loaded")
     if args.gpu:
-        set_gpu_mode(True)
+        ptu.set_gpu_mode(True)
+        policy.to(ptu.device)
+    else:
+        ptu.set_gpu_mode(False)
         policy.to(ptu.device)
     if isinstance(env, VAEWrappedEnv):
         env.mode(args.mode)

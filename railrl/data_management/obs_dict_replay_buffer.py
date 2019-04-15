@@ -1,10 +1,10 @@
 import numpy as np
-from gym import GoalEnv
 from gym.spaces import Dict, Discrete
 
 from multiworld.core.multitask_env import MultitaskEnv
 from railrl.data_management.replay_buffer import ReplayBuffer
 from multiworld.core.image_env import unormalize_image, normalize_image
+
 
 class ObsDictRelabelingBuffer(ReplayBuffer):
     """
@@ -43,7 +43,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         :param ob_keys_to_save: List of keys to save
         """
         if ob_keys_to_save is None:
-            ob_keys_to_save = ['observation', 'desired_goal', 'achieved_goal']
+            ob_keys_to_save = []
         else:  # in case it's a tuple
             ob_keys_to_save = list(ob_keys_to_save)
         if internal_keys is None:
@@ -69,7 +69,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         self.achieved_goal_key = achieved_goal_key
 
         self._action_dim = env.action_space.low.size
-        self._actions = np.zeros((max_size, self._action_dim))
+        self._actions = np.zeros((max_size, self._action_dim), dtype=np.float32)
         # Make everything a 2D np array to make it easier for other code to
         # reason about the shape of the data
         self.vectorized = vectorized
@@ -85,7 +85,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         for key in ob_keys_to_save + internal_keys:
             assert key in self.ob_spaces, \
                 "Key not found in the observation space: %s" % key
-            type = np.float64
+            type = np.float32
             if key.startswith('image'):
                 type = np.uint8
             self._obs[key] = np.zeros(
@@ -189,7 +189,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         new_next_obs_dict = self._batch_next_obs_dict(indices)
 
         if num_env_goals > 0:
-            env_goals = self.env.sample_goals(num_env_goals)
+            env_goals = self._sample_goals_from_env(num_env_goals)
             env_goals = preprocess_obs_dict(env_goals)
             last_env_goal_idx = num_rollout_goals + num_env_goals
             resampled_goals[num_rollout_goals:last_env_goal_idx] = (
@@ -256,6 +256,9 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         }
         return batch
 
+    def _sample_goals_from_env(self, batch_size):
+        return self.env.sample_goals(batch_size)
+
     def _batch_obs_dict(self, indices):
         return {
             key: self._obs[key][indices]
@@ -298,5 +301,5 @@ def postprocess_obs_dict(obs_dict):
     """
     for obs_key, obs in obs_dict.items():
         if 'image' in obs_key and obs is not None:
-            obs_dict[obs_key] = normalize_image(obs)
+            obs_dict[obs_key] = normalize_image(obs, dtype=np.float32)
     return obs_dict

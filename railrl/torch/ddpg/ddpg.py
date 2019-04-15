@@ -28,6 +28,8 @@ class DDPG(TorchRLAlgorithm):
             env,
             qf,
             policy,
+            target_qf,
+            target_policy,
             exploration_policy,
 
             policy_learning_rate=1e-4,
@@ -76,7 +78,7 @@ class DDPG(TorchRLAlgorithm):
         that varies with the epoch.
         :param kwargs:
         """
-        self.target_policy = policy.copy()
+        self.target_policy = target_policy
         if eval_with_target_policy:
             eval_policy = self.target_policy
         else:
@@ -111,7 +113,7 @@ class DDPG(TorchRLAlgorithm):
         self.min_q_value = min_q_value
         self.max_q_value = max_q_value
 
-        self.target_qf = self.qf.copy()
+        self.target_qf = target_qf
         self.qf_optimizer = optimizer_class(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
