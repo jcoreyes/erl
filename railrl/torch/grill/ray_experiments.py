@@ -33,6 +33,114 @@ def grill_her_twin_sac_online_vae_full_experiment():
         (grill_her_twin_sac_experiment_online_vae, 'progress.csv'),
     ]
 
+def grill_her_sac_full_experiment():
+    return [(grill_her_sac_experiment, 'progress.csv')]
+
+def grill_her_sac_experiment(variant):
+    import railrl.samplers.rollout_functions as rf
+    import railrl.torch.pytorch_util as ptu
+    from railrl.data_management.obs_dict_replay_buffer import \
+        ObsDictRelabelingBuffer
+    from railrl.torch.networks import FlattenMlp
+    from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+    from railrl.torch.sac.sac import SACTrainer
+    from railrl.torch.her.her import HERTrainer
+    from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+    from railrl.exploration_strategies.base import (
+        PolicyWrappedWithExplorationStrategy
+    )
+    from railrl.samplers.data_collector import GoalConditionedPathCollector
+    from railrl.torch.grill.launcher import (
+        grill_preprocess_variant,
+        get_envs,
+        get_exploration_strategy
+    )
+
+    full_experiment_variant_preprocess(variant)
+    variant = variant['grill_variant']
+    grill_preprocess_variant(variant)
+    env = get_envs(variant)
+    es = get_exploration_strategy(variant, env)
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    obs_dim = (
+            env.observation_space.spaces[observation_key].low.size
+            + env.observation_space.spaces[desired_goal_key].low.size
+    )
+    action_dim = env.action_space.low.size
+    qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    target_qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    target_qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+
+    policy = TanhGaussianPolicy(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        **variant['policy_kwargs']
+    )
+    eval_policy = MakeDeterministic(policy)
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+    eval_path_collector = GoalConditionedPathCollector(
+        env,
+        eval_policy,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+    )
+    expl_path_collector = GoalConditionedPathCollector(
+        env,
+        exploration_policy,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+    )
+    replay_buffer = ObsDictRelabelingBuffer(
+        env=env,
+        observation_key=observation_key,
+        desired_goal_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+        **variant['replay_buffer_kwargs']
+    )
+
+    trainer = SACTrainer(
+        env=env,
+        policy=policy,
+        qf1=qf1,
+        qf2=qf2,
+        target_qf1=target_qf1,
+        target_qf2=target_qf2,
+        **variant['sac_trainer_kwargs']
+    )
+    trainer = HERTrainer(trainer)
+    algorithm = TorchBatchRLAlgorithm(
+        trainer=trainer,
+        exploration_env=env,
+        evaluation_env=env,
+        exploration_data_collector=expl_path_collector,
+        evaluation_data_collector=eval_path_collector,
+        replay_buffer=replay_buffer,
+        **variant['algo_kwargs']
+    )
+    return algorithm
+
 def grill_her_twin_sac_experiment_online_vae(vae_exp, variant):
 
     import railrl.torch.pytorch_util as ptu
@@ -167,7 +275,6 @@ def grill_her_twin_sac_experiment_online_vae(vae_exp, variant):
 
 
 def vae_experiment(variant):
-    full_experiment_variant_preprocess(variant)
     return train_vae_and_update_variant(variant)
 
 
