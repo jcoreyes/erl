@@ -1,3 +1,4 @@
+import cloudpickle
 import logging
 
 import ray
