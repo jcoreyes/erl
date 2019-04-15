@@ -25,7 +25,7 @@ def add_prefix(log_dict: OrderedDict, prefix: str):
         with_prefix[prefix + key] = val
     return with_prefix
 
-def add_log(log_dict, to_add_dict, prefix=None):
+def append_log(log_dict, to_add_dict, prefix=None):
     if prefix is not None:
         to_add_dict = add_prefix(to_add_dict, prefix=prefix)
     return log_dict.update(to_add_dict)

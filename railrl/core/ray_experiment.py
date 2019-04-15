@@ -87,32 +87,3 @@ class SequentialRayExperiment(tune.Trainable):
             info = cloudpickle.load(f)
             self.cur_algo = info['cur_algo']
             self.cur_algo_idx = info['cur_algo_idx']
-
-class RayExperiment(tune.Trainable):
-
-    def _setup(self, config):
-        init_algo_function = config['init_algo_function']
-        init_algo_variant = config['algo_variant']
-        gpu_id = config.get('gpu_id', 0)
-        use_gpu = config['use_gpu']
-        set_gpu_mode(use_gpu, gpu_id)
-
-        self.algorithm = init_algo_function(init_algo_variant)
-        self.algorithm.to(ptu.device)
-
-    def _train(self):
-        log_dict, done = self.algorithm._train()
-        log_dict['global_done'] = done
-        return log_dict
-
-    def _save(self, checkpoint_dir):
-        algo_path = osp.join(checkpoint_dir, 'algo.pkl')
-        with open(algo_path, 'wb') as f:
-            cloudpickle.dump(self.algorithm, f)
-        return algo_path
-
-    def _restore(self, checkpoint_dir):
-        with open(checkpoint_dir, 'rb') as f:
-            self.algorithm = cloudpickle.load(f)
-
-

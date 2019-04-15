@@ -20,7 +20,6 @@ from railrl.torch.data import (
 class VAEExperiment:
     def __init__(self, vae_trainer, num_epochs, save_period=1,
                  dump_skew_debug_plots=False):
-        vae_trainer.set_vae(vae)
         self.vae_trainer = vae_trainer
         self.num_epochs = num_epochs
         self.save_period = save_period
