@@ -7,7 +7,7 @@ def always_train(epoch):
 
 def custom_schedule(epoch):
     if epoch < 10:
-        return True, 500
+        return True, 1000
     elif epoch < 300:
         return True, 200
     else:

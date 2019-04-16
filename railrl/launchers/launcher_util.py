@@ -682,6 +682,7 @@ def run_experiment_here(
         trial_dir_suffix=trial_dir_suffix,
         **setup_logger_kwargs
     )
+
     set_seed(seed)
     from railrl.torch.pytorch_util import set_gpu_mode
     set_gpu_mode(use_gpu, gpu_id)
