@@ -22,19 +22,32 @@ from railrl.torch.torch_rl_algorithm import (
 
 
 def experiment(variant):
-    from softlearning.environments.gym import register_image_reach
-    register_image_reach()
-    env = gym.make('Pusher2d-ImageReach-v0')
+    # from softlearning.environments.gym import register_image_reach
+    # register_image_reach()
+    # env = gym.envs.make(
+    #     'Pusher2d-ImageReach-v0',
+    # )
+    from softlearning.environments.gym.mujoco.image_pusher_2d import (
+        ImageForkReacher2dEnv
+    )
 
-    import ipdb; ipdb.set_trace()
-    input_width, input_height = env.image_shape
+    env_kwargs = {
+        'image_shape': (32, 32, 3),
+        'arm_goal_distance_cost_coeff': 1.0,
+        'arm_object_distance_cost_coeff': 0.0,
+    }
 
-    action_dim = int(np.prod(env.action_space.shape))
+    eval_env = ImageForkReacher2dEnv(**env_kwargs)
+    expl_env = ImageForkReacher2dEnv(**env_kwargs)
+
+    input_width, input_height, input_channels = eval_env.image_shape
+
+    action_dim = int(np.prod(eval_env.action_space.shape))
     cnn_params = variant['cnn_params']
     cnn_params.update(
         input_width=input_width,
         input_height=input_height,
-        input_channels=3,
+        input_channels=input_channels,
         added_fc_input_size=4,
         output_conv_channels=True,
         output_size=None,
@@ -93,14 +106,13 @@ def experiment(variant):
             input_size=action_dim+cnn_output_dim,
             **variant['qf_kwargs']
         )
-    action_dim = int(np.prod(env.action_space.shape))
+    action_dim = int(np.prod(eval_env.action_space.shape))
     policy_cnn = CNN(**cnn_params)
     policy = TanhGaussianPolicyAdapter(
         policy_cnn,
         policy_cnn.conv_output_flat_size,
         action_dim,
     )
-    eval_env = expl_env = env
 
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
@@ -157,14 +169,6 @@ def experiment(variant):
 
 if __name__ == "__main__":
     variant = dict(
-        env_kwargs=dict(
-            fixed_goal=(0, 0),
-            images_are_rgb=True,
-            render_onscreen=False,
-            show_goal=True,
-            ball_radius=2,
-            render_size=8,
-        ),
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
@@ -176,13 +180,13 @@ if __name__ == "__main__":
             target_entropy=-1,
         ),
         algo_kwargs=dict(
-            max_path_length=50,
+            max_path_length=1000,
             batch_size=256,
-            num_epochs=50,
+            num_epochs=2000,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
-            min_num_steps_before_training=500,
+            min_num_steps_before_training=10*1000,
             # num_epochs=100,
             # num_eval_steps_per_epoch=100,
             # num_expl_steps_per_train_loop=100,
@@ -208,18 +212,8 @@ if __name__ == "__main__":
             hidden_sizes=[128, 128],
         ),
         replay_buffer_size=int(5E4),
-        expl_path_collector_kwargs=dict(
-            # render=False,
-            # render_kwargs=dict(
-            #     mode='cv2',
-            # ),
-        ),
-        eval_path_collector_kwargs=dict(
-            # render=False,
-            # render_kwargs=dict(
-            #     mode='cv2',
-            # ),
-        ),
+        expl_path_collector_kwargs=dict(),
+        eval_path_collector_kwargs=dict(),
         shared_qf_conv=False,
     )
     n_seeds = 1
@@ -227,10 +221,11 @@ if __name__ == "__main__":
     exp_prefix = 'dev-{}'.format(
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
+    exp_prefix = 'dev-railrl-code-kristian-env-image-reach'
 
     n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = 'online-match-hps-point2d-8x8-img-all-fc-goal00'
+    exp_prefix = 'railrl-code-kristian-env-image-reach'
 
     search_space = {
         'shared_qf_conv': [
