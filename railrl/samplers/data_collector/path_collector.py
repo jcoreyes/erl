@@ -44,7 +44,7 @@ class MdpPathCollector(PathCollector):
                 self._env,
                 self._policy,
                 max_path_length=max_path_length_this_loop,
-                animated=self._render,
+                render=self._render,
                 render_kwargs=self._render_kwargs,
             )
             path_len = len(path['actions'])
