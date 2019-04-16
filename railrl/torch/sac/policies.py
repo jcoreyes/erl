@@ -338,17 +338,6 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
         prob. Will not need to be differentiated through, so this can be a
         number.
         """
-        # #for i, fc in enumerate(self.fcs):
-        # #    h = self.hidden_activation(fc(h))
-        # h = obs.view(obs.shape[0],
-        #                self.input_channels,
-        #                self.input_height,
-        #                self.input_width)
-        #
-        # h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers)
-        # # flatten channels for fc layers
-        # h = h.view(h.size(0), -1)
-        # h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers)
         h = super().forward(obs, return_last_activations=True)
 
         mean = self.last_fc(h)
