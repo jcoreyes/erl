@@ -247,4 +247,4 @@ class GoalConditionedStepCollector(StepCollector):
                 return
             self._epoch_paths.append(path)
             self._num_paths_total += 1
-            self._num_steps_total += path_leV
+            self._num_steps_total += path_len
