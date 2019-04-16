@@ -6,7 +6,7 @@ import gtimer as gt
 from railrl.core import logger
 from railrl.misc import eval_util
 from railrl.data_management.replay_buffer import ReplayBuffer
-from railrl.samplers.data_collector import BaseCollector
+from railrl.samplers.data_collector import DataCollector
 
 
 def _get_epoch_timings():
@@ -28,8 +28,8 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             trainer,
             exploration_env,
             evaluation_env,
-            exploration_data_collector: BaseCollector,
-            evaluation_data_collector: BaseCollector,
+            exploration_data_collector: DataCollector,
+            evaluation_data_collector: DataCollector,
             replay_buffer: ReplayBuffer,
     ):
         self.trainer = trainer
