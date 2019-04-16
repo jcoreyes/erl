@@ -1,3 +1,10 @@
+"""
+Each item in this list specifies a file_mount.
+
+local_dir: directory/file on the local machine.
+remote_dir: directory/file name to copy to on the remote instance.
+mount_point: where the directory/file will be mounted in the docker instance.
+"""
 DIR_AND_MOUNT_POINT_MAPPINGS = [
     dict(
         local_dir='/home/steven/.mujoco',
@@ -28,10 +35,8 @@ EXPERIMENT_INFO_PKL_FILEPATH = '/tmp/local_exp.pkl'
 # before launching.
 LAUNCH_FILEPATH = '/tmp/autoscaler_launch.yaml'
 
+# TODO:Steven remove this. File syncing from s3 still uses this.
 LOCAL_LOG_DIR = '/home/steven/logs'
-RUN_DOODAD_EXPERIMENT_SCRIPT_PATH = (
-    '/home/steven/res/railrl-private/scripts/run_experiment_from_doodad.py'
-)
 
 AWS_CONFIG_NO_GPU=dict(
     REGION='us-west-2',
@@ -82,12 +87,18 @@ GCP_CONFIG = {
     False: GCP_CONFIG_GPU,
 }
 
-DOODAD_DOCKER_IMAGE = 'vitchyr/railrl-torch4cuda9'
-# If not set, default will be chosen by doodad
-# AWS_S3_PATH = 's3://bucket/directory
-GPU_DOODAD_DOCKER_IMAGE = 'stevenlin598/ray_railrl'
+GPU_DOCKER_IMAGE = 'stevenlin598/ray_railrl'
+"""
+DOCKER_IMAGE['use_gpu']
+I think for our case, the GPU docker image can be used as the non-gpu image as well.
+"""
 DOCKER_IMAGE = {
-    True: GPU_DOODAD_DOCKER_IMAGE,
-    False: GPU_DOODAD_DOCKER_IMAGE
+    True: GPU_DOCKER_IMAGE,
+    False: GPU_DOCKER_IMAGE
 }
 LOG_BUCKET = 's3://steven.railrl/ray'
+
+try:
+    from railrl.launchers.ray_config_personal import *
+except ImportError:
+    print("No personal ray_config.py found")

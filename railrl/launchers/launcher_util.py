@@ -144,7 +144,7 @@ def run_experiment(
         import doodad
         import doodad.mode
         import doodad.ssh
-    except:
+    except ImportError:
         print("Doodad not set up! Running experiment here.")
         mode = 'here_no_doodad'
     global ec2_okayed

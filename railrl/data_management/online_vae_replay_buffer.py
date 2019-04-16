@@ -126,10 +126,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             if exploration_counter_kwargs is None:
                 exploration_counter_kwargs = dict()
             self.exploration_counter = CountExploration(env=self.env, **exploration_counter_kwargs)
-
         self.epoch = 0
-        # self._register_mp_array("_exploration_rewards")
-        # self._register_mp_array("_vae_sample_priorities")
 
     def add_path(self, path):
         self.add_decoded_vae_goals_to_path(path)
