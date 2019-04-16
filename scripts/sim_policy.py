@@ -1,6 +1,6 @@
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc import eval_util
-from railrl.samplers.util import rollout
+from railrl.samplers.rollout_functions import rollout
 from railrl.torch.core import PyTorchModule
 import railrl.torch.pytorch_util as ptu
 import argparse
@@ -62,7 +62,7 @@ def simulate_policy(args):
             env,
             policy,
             max_path_length=args.H,
-            animated=not args.hide,
+            render=not args.hide,
         ))
         if hasattr(env, "log_diagnostics"):
             env.log_diagnostics(paths, logger)
