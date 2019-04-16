@@ -29,11 +29,13 @@ def generate_gcp_config(region=None, head_instance_type=None,
     guestAccelerators = {}
     if use_gpu:
         guestAccelerators = {
-            'acceleratorType': 'projects/{project_id}/'
-                                'zones/{zone}/'
-                                'acceleratorTypes/nvidia-tesla-k80'
-                                .format(project_id=project_id, zone=avail_zone),
-            'acceleratorCount': 1
+            'guestAccelerators': [
+                { 'acceleratorType': 'projects/{project_id}/'
+                                    'zones/{zone}/'
+                                    'acceleratorTypes/nvidia-tesla-k80'
+                                    .format(project_id=project_id, zone=avail_zone),
+                'acceleratorCount': 1}
+            ]
         }
 
     return {
@@ -57,7 +59,7 @@ def generate_gcp_config(region=None, head_instance_type=None,
             'scheduling': {
                 'onHostMaintenance': 'TERMINATE',
             },
-            'guestAccelerators': [guestAccelerators.copy()],
+            # **guestAccelerators.copy()
         },
         'worker_nodes': {
             'machineType': worker_instance_type,
@@ -74,8 +76,7 @@ def generate_gcp_config(region=None, head_instance_type=None,
                 'preemptible': True,
                 'onHostMaintenance': 'TERMINATE',
             },
-            'guestAccelerators': [guestAccelerators.copy()],
-
+            **guestAccelerators.copy()
         }
     }
 
@@ -139,16 +140,40 @@ def load_base_config():
         return yaml.load(f)
 
 
-def generate_docker_config(docker_run_options, docker_image=None,
-                           use_gpu=False):
+def generate_docker_config(docker_image=None, use_gpu=False):
+    docker_run_options = []
+    # see Ray bug #4403
+    docker_run_options.extend([
+        "-v /home/ubuntu/ray_results:/home/ubuntu/ray_results",
+        "--env LOGNAME=ubuntu",
+        "--env HOME=/home/ubuntu",
+
+        "--shm-size=50gb"
+    ])
+
+    python_path = ""
+    for mount_info in config.DIR_AND_MOUNT_POINT_MAPPINGS:
+        docker_run_options.append(
+            '-v {remote_path}:{docker_path}'.format(
+                remote_path=mount_info['remote_dir'],
+                docker_path=mount_info['mount_point']))
+        python_path += mount_info['mount_point'] + ":"
+    docker_run_options.append('-e PYTHONPATH={}'.format(python_path))
 
     if docker_image is None:
         docker_image = config.DOCKER_IMAGE[use_gpu]
+
+    worker_run_options = []
+    if use_gpu:
+        # Make the worker do the GPU work and let the head node schedule without
+        # GPU.
+        worker_run_options.append('--runtime=nvidia')
     return {
         'docker': {
             'image': docker_image,
             'container_name': 'ray-docker',
-            'run_options': docker_run_options
+            'run_options': docker_run_options,
+            'worker_run_options': worker_run_options,
         }
     }
 
@@ -176,27 +201,7 @@ def launch_remote_experiment(mode, local_launch_variant, use_gpu,
     for mount_pair in config.DIR_AND_MOUNT_POINT_MAPPINGS:
         file_mounts[mount_pair['remote_dir']] = mount_pair['local_dir']
 
-    docker_run_options = []
-    # see Ray bug #4403
-    docker_run_options.extend([
-        "-v /home/ubuntu/ray_results:/home/ubuntu/ray_results",
-        "--env LOGNAME=ubuntu",
-        "--env HOME=/home/ubuntu",
-    ])
-
-    python_path = ""
-    for mount_info in config.DIR_AND_MOUNT_POINT_MAPPINGS:
-        docker_run_options.append(
-            '-v {remote_path}:{docker_path}'.format(
-                remote_path=mount_info['remote_dir'],
-                docker_path=mount_info['mount_point']))
-        python_path += mount_info['mount_point'] + ":"
-    docker_run_options.append('-e PYTHONPATH={}'.format(python_path))
-    if docker_variant['use_gpu']:
-        docker_run_options.append('--runtime=nvidia')
-
-    docker_config = generate_docker_config(docker_run_options,
-                                           **docker_variant)
+    docker_config = generate_docker_config(**docker_variant)
     provider_specific_config = {
         'gcp': generate_gcp_config,
         'aws': generate_aws_config,

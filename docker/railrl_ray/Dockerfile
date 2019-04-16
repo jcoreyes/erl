@@ -100,10 +100,12 @@ RUN pip install numpy-stl==2.7.0
 RUN pip install pyquaternion==0.9.2
 RUN pip install moviepy==0.2.3.5
 RUN pip install scikit-image
-RUN pip install https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-0.7.0.dev2-cp35-cp35m-manylinux1_x86_64.whl
 RUN pip install cryptography
 RUN pip install google-api-python-client==1.7.8
+RUN pip install gsutil
+RUN pip install psutil
 RUN apt-get -y update && apt-get -y upgrade && apt-get install -y git wget cmake psmisc
 # Figure out how to get ray to run without this
 ENV PATH /env/bin:${PATH}
 ENV LD_LIBRARY_PATH /home/ubuntu/.mujoco/mjpro150/bin:${LD_LIBRARY_PATH}
+RUN pip install https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-0.7.0.dev2-cp35-cp35m-manylinux1_x86_64.whl

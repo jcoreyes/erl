@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 from multiworld.core.image_env import normalize_image
 from railrl.core import logger
+import railrl.core.util as util
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.torch import pytorch_util as ptu
@@ -406,7 +407,7 @@ class ConvVAETrainer(object):
                         self.imsize,
                     )[:n].transpose(2, 3)
                 ])
-                save_dir = osp.join(os.getcwd(), 'r%d.png' % epoch)
+                save_dir = osp.join(util.LOG_DIR, 'r%d.png' % epoch)
                 save_image(comparison.data.cpu(), save_dir, nrow=n)
 
         zs = np.array(zs)
@@ -470,7 +471,7 @@ class ConvVAETrainer(object):
         self.model.eval()
         sample = ptu.randn(64, self.representation_size)
         sample = self.model.decode(sample)[0].cpu()
-        save_dir = osp.join(os.getcwd(), 's%d.png' % epoch)
+        save_dir = osp.join(util.LOG_DIR, 's%d.png' % epoch)
         save_image(
             sample.data.view(64, self.input_channels, self.imsize, self.imsize).transpose(2, 3),
             save_dir
@@ -493,7 +494,7 @@ class ConvVAETrainer(object):
         plt.xlabel('Indices')
         plt.ylabel('Number of Samples')
         plt.title('VAE Priority Histogram')
-        save_file = osp.join(os.getcwd(), 'hist{}.png'.format(
+        save_file = osp.join(util.LOG_DIR, 'hist{}.png'.format(
             epoch))
         plt.savefig(save_file)
 
@@ -505,7 +506,7 @@ class ConvVAETrainer(object):
         plt.xlabel('Indices')
         plt.ylabel('Number of Samples')
         plt.title('VAE Priority Histogram Batch')
-        save_file = osp.join(os.getcwd(), 'hist_batch{}.png'.format(
+        save_file = osp.join(util.LOG_DIR, 'hist_batch{}.png'.format(
             epoch))
         plt.savefig(save_file)
 
@@ -533,7 +534,7 @@ class ConvVAETrainer(object):
             imgs.append(img)
             recons.append(rimg)
         all_imgs = torch.stack(imgs + recons)
-        save_file = osp.join(os.getcwd(), filename)
+        save_file = osp.join(util.LOG_DIR, filename)
         save_image(
             all_imgs.data,
             save_file,
@@ -593,7 +594,7 @@ class ConvVAETrainer(object):
             imgs.append(img)
             recons.append(rimg)
         all_imgs = torch.stack(imgs + recons)
-        save_file = osp.join(os.getcwd(), filename)
+        save_file = osp.join(util.LOG_DIR, filename)
         save_image(
             all_imgs.data,
             save_file,
@@ -640,7 +641,7 @@ class ConvVAETrainer(object):
         axes.set_ylim([-6, 6])
         axes.set_title('dim {} vs dim {}'.format(dim1, dim2))
         plt.grid(True)
-        save_file = osp.join(os.getcwd(), 'scatter%d.png' % epoch)
+        save_file = osp.join(util.LOG_DIR, 'scatter%d.png' % epoch)
         plt.savefig(save_file)
 
 

@@ -22,6 +22,11 @@ DIR_AND_MOUNT_POINT_MAPPINGS = [
         mount_point='/home/steven/res/multiworld',
     ),
     dict(
+        local_dir='/home/steven/.aws',
+        remote_dir='/home/ubuntu/.aws',
+        mount_point='/home/ubuntu/.aws',
+    ),
+    dict(
         local_dir='/tmp/local_exp.pkl',
         remote_dir='/home/ubuntu/local_exp.pkl',
         mount_point='/tmp/local_exp.pkl',
