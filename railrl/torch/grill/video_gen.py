@@ -70,7 +70,7 @@ def dump_video(
             env,
             policy,
             max_path_length=horizon,
-            animated=False,
+            render=False,
         )
         is_vae_env = isinstance(env, VAEWrappedEnv)
         l = []

@@ -1,5 +1,5 @@
 from railrl.samplers.data_collector.base import (
-    BaseCollector,
+    DataCollector,
     PathCollector,
     StepCollector,
 )
