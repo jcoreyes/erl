@@ -36,8 +36,9 @@ dependencies:
     - boto3==1.4.8
     - google-api-python-client
     - google-cloud-storage
+    - cryptography
     # I use these, but very rarely
     - dominate==2.3.1
-    - ray==0.2.2
+    - ray-0.7.0.dev2-cp35-cp35m-manylinux1_x86_64.whl
     # More optional ones:
     - ipdb==0.10.3

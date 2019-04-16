@@ -14,11 +14,6 @@ DIR_AND_MOUNT_POINT_MAPPINGS = [
         remote_dir='/home/ubuntu/res/multiworld',
         mount_point='/home/steven/res/multiworld',
     ),
-    # dict(
-        # local_dir='/home/steven/res/rllab-curriculum',
-        # remote_dir='/home/ubuntu/res/rllab-curriculum',
-        # mount_point='/home/steven/res/rllab-curriculum',
-    # ),
     dict(
         local_dir='/tmp/local_exp.pkl',
         remote_dir='/home/ubuntu/local_exp.pkl',
@@ -41,43 +36,40 @@ RUN_DOODAD_EXPERIMENT_SCRIPT_PATH = (
 AWS_CONFIG_NO_GPU=dict(
     REGION='us-west-2',
     INSTANCE_TYPE = 'g2.2xlarge',
-    SPOT_PRICE = 0.2,
+    SPOT_PRICE = 0.05,
     REGION_TO_AWS_IMAGE_ID = {
-        'us-east-1': "ami-ce73adb1",
-        # 'us-west-2': 'ami-0eb3c807c9088a837'
         'us-west-2': 'ami-0d5bb58171e5325a8'
     },
     REGION_TO_AWS_AVAIL_ZONE = {
-        'us-east-1': "us-east-1a",
         'us-west-2': 'us-west-2a,us-west-2b'
     },
 
 )
 
 AWS_CONFIG_GPU = dict(
-    # REGION='us-east-1',
     REGION='us-west-2',
     INSTANCE_TYPE = 'g3.4xlarge',
     SPOT_PRICE = 0.6,
     REGION_TO_AWS_IMAGE_ID = {
-        'us-east-1': "ami-ce73adb1",
-        # 'us-west-2': 'ami-0b294f219d14e6a82'
         'us-west-2': 'ami-0d5bb58171e5325a8'
     },
     REGION_TO_AWS_AVAIL_ZONE = {
-        'us-east-1': "us-east-1a",
         'us-west-2': 'us-west-2a,us-west-2b'
     },
 )
 
 GCP_CONFIG_GPU = dict(
-    ZONE='us-west2-c',
+    REGION='us-west1',
     INSTANCE_TYPE='n1-highmem-8',
-    IMAGE_PROJECT='railrl-private-gcp',
+    SOURCE_IMAGE='https://www.googleapis.com/compute/v1/projects/railrl-private-gcp/global/images/railrl-private-ray',
     PROJECT_ID='railrl-private-gcp',
     gpu_kwargs=dict(
         num_gpu=1,
-    )
+    ),
+    REGION_TO_GCP_AVAIL_ZONE = {
+        'us-west1': "us-west1-b",
+    },
+
 )
 
 
@@ -98,32 +90,4 @@ DOCKER_IMAGE = {
     True: GPU_DOODAD_DOCKER_IMAGE,
     False: GPU_DOODAD_DOCKER_IMAGE
 }
-
-
-# You probably don't need to change things below
-# Specifically, the docker image is looked up on dockerhub.com.
-GPU_SINGULARITY_IMAGE = None
-# GPU_DOODAD_DOCKER_IMAGE = 'mdalal/railrl_auto_goal_gan_v2'
-#ec2 image
-# GPU_DOODAD_DOCKER_IMAGE = 'vitchyr/railrl-torch4cuda9'
-# These AMI images have the docker images already installed.
-
-# BEGIN GCP
-GCP_IMAGE_NAME = 'railrl-torch-4-cpu'
-# GCP_GPU_IMAGE_NAME = 'railrl-torch4cuda9'
-GCP_GPU_IMAGE_NAME = 'stevenjqcuda9nvidia396'
-GCP_BUCKET_NAME='railrl-steven'
-AWS_S3_PATH = 's3://steven.railrl/ray'
-
 LOG_BUCKET = 's3://steven.railrl/ray'
-
-GCP_PREEMPTION_BUCKET_NAME='preemptible-restarts'
-
-
-
-# This really shouldn't matter and in theory could be whatever
-OUTPUT_DIR_FOR_DOODAD_TARGET = '/tmp/doodad-output/'
-SSH_HOSTS = {'':''}
-SSH_DEFAULT_HOST = ""
-
-

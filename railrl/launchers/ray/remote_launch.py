@@ -8,62 +8,73 @@ import ray
 from ray.autoscaler.commands import exec_cluster
 import railrl.launchers.ray.local_launch as ray_local_launch
 
-def generate_gcp_config(zone=None, head_instance_type=None,
+def generate_gcp_config(region=None, head_instance_type=None,
                         worker_instance_type=None, source_image=None,
-                        project_id=None, disk_size=100, use_gpu=False):
+                        project_id=None, disk_size=100, use_gpu=False,
+                        avail_zone=None):
     default_config = config.GCP_CONFIG[use_gpu]
-    if zone is None:
-        zone = default_config['ZONE']
+    if region is None:
+        region = default_config['REGION']
+    if avail_zone is None:
+        avail_zone = default_config['REGION_TO_GCP_AVAIL_ZONE'][region]
     if head_instance_type is None:
         head_instance_type = default_config['INSTANCE_TYPE']
     if worker_instance_type is None:
         worker_instance_type = default_config['INSTANCE_TYPE']
     if source_image is None:
-        source_image = default_config['IMAGE_PROJECT']
+        source_image = default_config['SOURCE_IMAGE']
     if project_id is None:
         project_id = default_config['PROJECT_ID']
 
     guestAccelerators = {}
     if use_gpu:
         guestAccelerators = {
-            {'acceleratorType': 'projects/{project_id}/'
+            'acceleratorType': 'projects/{project_id}/'
                                 'zones/{zone}/'
                                 'acceleratorTypes/nvidia-tesla-k80'
-                                .format(project_id=project_id, zone=zone)},
-            {'acceleratorCount': 1}
+                                .format(project_id=project_id, zone=avail_zone),
+            'acceleratorCount': 1
         }
 
     return {
         'provider': {
             'type': 'gcp',
-            'region': zone,
-            'project_id': project_id
+            'region': region,
+            'project_id': project_id,
+            'availability_zone': avail_zone,
         },
         'head_node': {
             'machineType': head_instance_type,
-            'disks': {
+            'disks': [{
+                'boot': True,
                 'autoDelete': True,
                 'type': 'PERSISTENT',
                 'initializeParams': {
                     'diskSizeGb': disk_size,
-                    'source_image': source_image
+                    'sourceImage': source_image
                 }
-            }
+            }],
+            'scheduling': {
+                'onHostMaintenance': 'TERMINATE',
+            },
+            'guestAccelerators': [guestAccelerators.copy()],
         },
         'worker_nodes': {
-            'machineType': head_instance_type,
-            'disks': {
+            'machineType': worker_instance_type,
+            'disks': [{
+                'boot': True,
                 'autoDelete': True,
                 'type': 'PERSISTENT',
                 'initializeParams': {
                     'diskSizeGb': disk_size,
-                    'source_image': source_image
+                    'sourceImage': source_image
                 }
-            },
+            }],
             'scheduling': {
-                'preemptible': True
+                'preemptible': True,
+                'onHostMaintenance': 'TERMINATE',
             },
-            'guestAccelerators': guestAccelerators,
+            'guestAccelerators': [guestAccelerators.copy()],
 
         }
     }
@@ -146,25 +157,21 @@ def launch_remote_experiment(mode, local_launch_variant, use_gpu,
                              remote_launch_variant=None, docker_variant=None,
                              cluster_name=None):
     """
-    Temporary workaround for non-sudo file mounts: specify a remote path on the
-    instance machine for each filemount, but when executing inside docker,
-    mount with mount_point
+    We generate a ray autoscaler file dynamically here and use `exec_cluster`
+    to execute `python /path_to/local_launch.py`, which runs the experiment
+    on the instance. The local_launch_variant is pkl'd and uploaded to each node
     """
     if remote_launch_variant is None:
         remote_launch_variant = {}
     if docker_variant is None:
         docker_variant = {}
-    remote_launch_variant['use_gpu'] = False
-    docker_variant['use_gpu'] = False
-    if use_gpu:
-        remote_launch_variant['use_gpu'] = True
-        docker_variant['use_gpu'] = True
-    with open(config.EXPERIMENT_INFO_PKL_FILEPATH, 'wb') as f:
-        # signal to the instance that this should be a remote experiment
-        local_launch_variant['from_remote'] = True
-        local_launch_variant['resume'] = True
-        cloudpickle.dump(local_launch_variant, f)
-
+    remote_launch_variant['use_gpu'] = use_gpu
+    docker_variant['use_gpu'] = use_gpu
+    """
+    Temporary workaround for non-sudo file mounts: specify a remote path on the
+    instance machine for each filemount, but when executing inside docker,
+    mount with mount_point
+    """
     file_mounts = {}
     for mount_pair in config.DIR_AND_MOUNT_POINT_MAPPINGS:
         file_mounts[mount_pair['remote_dir']] = mount_pair['local_dir']
@@ -197,12 +204,20 @@ def launch_remote_experiment(mode, local_launch_variant, use_gpu,
     base_config = load_base_config()
 
     launch_config = {
-        'file_mounts': file_mounts,
-        **docker_config,
-        **provider_specific_config,
         **base_config,
+        **provider_specific_config,
+        **docker_config,
+        'file_mounts': file_mounts,
+        'initialization_commands': [
+            'docker pull {}'.format(docker_config['docker']['image'])
+        ],
     }
 
+    # signal to the instance that this should be a remote experiment
+    local_launch_variant['from_remote'] = True
+    local_launch_variant['resume'] = True
+    with open(config.EXPERIMENT_INFO_PKL_FILEPATH, 'wb') as f:
+        cloudpickle.dump(local_launch_variant, f)
     with open(config.LAUNCH_FILEPATH, 'w') as f:
         yaml.dump(launch_config, f)
     if cluster_name is None:
