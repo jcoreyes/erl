@@ -7,6 +7,7 @@ from torch import nn as nn
 from railrl.torch import pytorch_util as ptu
 
 
+# TODO: remove this module
 class PyTorchModule(nn.Module, metaclass=abc.ABCMeta):
     def regularizable_parameters(self):
         """
@@ -21,21 +22,25 @@ class PyTorchModule(nn.Module, metaclass=abc.ABCMeta):
                 yield param
 
     def eval_np(self, *args, **kwargs):
-        """
-        Eval this module with a numpy interface
+        return eval_np(self, *args, **kwargs)
 
-        Same as a call to __call__ except all Variable input/outputs are
-        replaced with numpy equivalents.
 
-        Assumes the output is either a single object or a tuple of objects.
-        """
-        torch_args = tuple(torch_ify(x) for x in args)
-        torch_kwargs = {k: torch_ify(v) for k, v in kwargs.items()}
-        outputs = self.__call__(*torch_args, **torch_kwargs)
-        if isinstance(outputs, tuple):
-            return tuple(np_ify(x) for x in outputs)
-        else:
-            return np_ify(outputs)
+def eval_np(module, *args, **kwargs):
+    """
+    Eval this module with a numpy interface
+
+    Same as a call to __call__ except all Variable input/outputs are
+    replaced with numpy equivalents.
+
+    Assumes the output is either a single object or a tuple of objects.
+    """
+    torch_args = tuple(torch_ify(x) for x in args)
+    torch_kwargs = {k: torch_ify(v) for k, v in kwargs.items()}
+    outputs = module(*torch_args, **torch_kwargs)
+    if isinstance(outputs, tuple):
+        return tuple(np_ify(x) for x in outputs)
+    else:
+        return np_ify(outputs)
 
 
 def torch_ify(np_array_or_other):
