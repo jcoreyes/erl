@@ -13,28 +13,22 @@ filename = str(uuid.uuid4())
 
 def simulate_policy(args):
     data = pickle.load(open(args.file, "rb"))
-    if 'eval_policy' in data:
-        policy = data['eval_policy']
-    elif 'evaluation policy' in data:
-        policy = data['evaluation policy']
-    elif 'policy' in data:
-        policy = data['policy']
-    elif 'exploration_policy' in data:
-        policy = data['exploration_policy']
-    elif 'naf_policy' in data:
-        policy = data['naf_policy']
-    elif 'optimizable_qfunction' in data:
-        qf = data['optimizable_qfunction']
-        policy = qf.implicit_policy
+    policy_key = args.policy_type+'/policy'
+    if policy_key in data:
+        policy = data[policy_key]
     else:
         raise Exception("No policy found in loaded dict. Keys: {}".format(
             data.keys()
         ))
 
-    if 'env' in data:
-        env = data['env']
-    elif 'evaluation env' in data:
-        env = data['evaluation env']
+    env_key = args.env_type + '/env'
+    if env_key in data:
+        env = data[env_key]
+    else:
+        raise Exception("No environment found in loaded dict. Keys: {}".format(
+            data.keys()
+        ))
+
     if isinstance(env, RemoteRolloutEnv):
         env = env._wrapped_env
     print("Policy loaded")
@@ -42,9 +36,6 @@ def simulate_policy(args):
     if args.enable_render:
         # some environments need to be reconfigured for visualization
         env.enable_render()
-    if args.multitaskpause:
-        env.pause_on_goal = True
-
     if args.gpu:
         ptu.set_gpu_mode(True)
     if hasattr(policy, "to"):
@@ -64,11 +55,12 @@ def simulate_policy(args):
             max_path_length=args.H,
             render=not args.hide,
         ))
-        if hasattr(env, "log_diagnostics"):
-            env.log_diagnostics(paths, logger)
-        for k, v in eval_util.get_generic_path_information(paths).items():
-            logger.record_tabular(k, v)
-        logger.dump_tabular()
+        if args.log_diagnostics:
+            if hasattr(env, "log_diagnostics"):
+                env.log_diagnostics(paths, logger)
+            for k, v in eval_util.get_generic_path_information(paths).items():
+                logger.record_tabular(k, v)
+            logger.dump_tabular()
 
 
 if __name__ == "__main__":
@@ -80,11 +72,13 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--speedup', type=float, default=10,
                         help='Speedup')
+    parser.add_argument('--policy_type', type=str, default='evaluation')
+    parser.add_argument('--env_type', type=str, default='evaluation')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--pause', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--enable_render', action='store_true')
-    parser.add_argument('--multitaskpause', action='store_true')
+    parser.add_argument('--log_diagnostics', action='store_true')
     args = parser.parse_args()
 
     simulate_policy(args)
