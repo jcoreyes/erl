@@ -23,11 +23,8 @@ from railrl.envs.mujoco.image_pusher_2d_brandon import ImageForkReacher2dEnv
 
 def experiment(variant):
 
-<<<<<<< HEAD
     ptu.set_gpu_mode(True, 0)
     
-=======
->>>>>>> fd243dcbb2e02164c4119d05ce7d9d50e788467b
     imsize = variant['imsize']
 
     env = ImageForkReacher2dEnv(
