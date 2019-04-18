@@ -24,7 +24,7 @@ class _ImageNumpyArr:
         self.dtype = np.uint8
 
     def __getitem__(self, idxs):
-        return normalize_image(self.np_array[idxs])
+        return normalize_image(self.np_array[idxs], dtype=np.float32)
 
     def __setitem__(self, idxs, value):
         self.np_array[idxs] = unormalize_image(value)
