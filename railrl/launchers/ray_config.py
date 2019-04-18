@@ -46,7 +46,7 @@ LOCAL_LOG_DIR = '/home/steven/logs'
 AWS_CONFIG_NO_GPU=dict(
     REGION='us-west-2',
     INSTANCE_TYPE = 'c5.large',
-    SPOT_PRICE = 0.05,
+    SPOT_PRICE = 0.07,
     REGION_TO_AWS_IMAGE_ID = {
         'us-west-2': 'ami-0d5bb58171e5325a8'
     },

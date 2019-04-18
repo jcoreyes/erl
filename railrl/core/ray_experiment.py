@@ -5,11 +5,6 @@ import os.path as osp
 import pickle as cloudpickle
 import logging
 
-# Is this really needed? ray/torch claim that this is recommended...
-import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-import numpy
 
 class SequentialRayExperiment(tune.Trainable):
 
@@ -30,11 +25,11 @@ class SequentialRayExperiment(tune.Trainable):
         use_gpu = config['use_gpu']
         set_gpu_mode(use_gpu, gpu_id)
         logging.info('Using GPU mode={}'.format(use_gpu))
-        import torch
-        if 'cpu' in config['resources_per_trial']:
-            num_threads = config['resources_per_trial']['cpu']
-            torch.set_num_threads(num_threads)
-            logging.info('Setting {} CPU threads'.format(num_threads))
+        # import torch
+        # if 'cpu' in config['resources_per_trial']:
+            # num_threads = config['resources_per_trial']['cpu']
+            # torch.set_num_threads(num_threads)
+            # logging.info('Setting {} CPU threads'.format(num_threads))
 
         self.init_algo_functions_and_log_fnames = config['init_algo_functions_and_log_fnames']
         self.init_algo_functions = [

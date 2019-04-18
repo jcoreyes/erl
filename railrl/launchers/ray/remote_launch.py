@@ -107,12 +107,12 @@ def generate_aws_config(region=None, head_instance_type=None,
         'head_node': {
             'InstanceType': head_instance_type,
             'ImageId': source_image,
-            'InstanceMarketOptions': {
-                'MarketType': 'spot',
-                'SpotOptions': {
-                    'MaxPrice': str(max_spot_price),
-                }
-            },
+            # 'InstanceMarketOptions': {
+                # 'MarketType': 'spot',
+                # 'SpotOptions': {
+                    # 'MaxPrice': str(max_spot_price),
+                # }
+            # },
             'BlockDeviceMappings': [
                 {
                     'DeviceName': '/dev/sda1',
