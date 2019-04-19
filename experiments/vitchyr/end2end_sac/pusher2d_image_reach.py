@@ -130,6 +130,7 @@ def experiment(variant):
         policy_obs_processor,
         policy_cnn.conv_output_flat_size + non_image_dim,
         action_dim,
+        **variant['policy_kwargs']
     )
 
     eval_policy = MakeDeterministic(policy)
@@ -199,7 +200,7 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             batch_size=256,
             max_path_length=1000,
-            num_epochs=500,
+            num_epochs=800,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
@@ -241,9 +242,9 @@ if __name__ == "__main__":
     )
     exp_prefix = 'dev-railrl-code-kristian-env-image-reach'
 
-    n_seeds = 10
+    n_seeds = 5
     # mode = 'ec2'
-    exp_prefix = 'railrl-code-sl-image-reach-prop-info-match-hps'
+    exp_prefix = 'railrl-code-sl-image-reach-prop-info-match-policy-size'
 
     search_space = {
         'shared_qf_conv': [

@@ -26,25 +26,17 @@ class TanhGaussianPolicyAdapter(nn.Module, ExplorationPolicy):
             obs_processor,
             obs_processor_output_dim,
             action_dim,
-            std=None,
+            hidden_sizes,
     ):
         super().__init__()
         self.obs_processor = obs_processor
         self.obs_processor_output_dim = obs_processor_output_dim
-        self.log_std = None
-        self.std = std
-        self.last_fc = nn.Linear(
-            obs_processor_output_dim,
-            action_dim,
+        self.mean_and_log_std_net = Mlp(
+            hidden_sizes=hidden_sizes,
+            output_size=action_dim*2,
+            input_size=obs_processor_output_dim,
         )
-        if std is None:
-            self.last_fc_log_std = nn.Linear(
-                obs_processor_output_dim,
-                action_dim,
-            )
-        else:
-            self.log_std = np.log(std)
-            assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
+        self.action_dim = action_dim
 
     def get_action(self, obs_np, deterministic=False):
         actions = self.get_actions(obs_np[None], deterministic=deterministic)
@@ -74,15 +66,10 @@ class TanhGaussianPolicyAdapter(nn.Module, ExplorationPolicy):
         number.
         """
         h = self.obs_processor(obs)
-        h = h.view(h.size(0), -1)
-        mean = self.last_fc(h)
-        if self.std is None:
-            log_std = self.last_fc_log_std(h)
-            log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
-            std = torch.exp(log_std)
-        else:
-            std = self.std
-            log_std = self.log_std
+        h = self.mean_and_log_std_net(h)
+        mean, log_std = torch.split(h, self.action_dim, dim=1)
+        log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+        std = torch.exp(log_std)
 
         log_prob = None
         entropy = None
