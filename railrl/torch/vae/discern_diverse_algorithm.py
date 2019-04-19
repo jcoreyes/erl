@@ -1,7 +1,7 @@
 from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm, _train_vae, _test_vae
 from railrl.data_management.online_vae_replay_buffer import OnlineVaeRelabelingBuffer
 from railrl.torch.her.online_vae_her_twin_sac import OnlineVaeHerTwinSac
-from multiworld.core.image_env import unormalize_image, normalize_image
+from railrl.data_management.images import normalize_image, unormalize_image
 import numpy as np
 
 class DiverseGoals(OnlineVaeHerTwinSac):

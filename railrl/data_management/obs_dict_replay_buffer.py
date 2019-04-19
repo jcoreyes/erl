@@ -3,7 +3,7 @@ from gym.spaces import Dict, Discrete
 
 from multiworld.core.multitask_env import MultitaskEnv
 from railrl.data_management.replay_buffer import ReplayBuffer
-import railrl.data_management.image_numpy_wrapper as image_np
+import railrl.data_management.images as image_np
 
 class ObsDictRelabelingBuffer(ReplayBuffer):
     """

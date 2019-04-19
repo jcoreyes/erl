@@ -1,8 +1,4 @@
 import numpy as np
-from multiworld.core.image_env import (
-    normalize_image,
-    unormalize_image,
-)
 
 
 class _ImageNumpyArr:
@@ -39,3 +35,13 @@ def zeros(shape, *args, **kwargs):
 
 def from_np(np_arr):
     return _ImageNumpyArr(np_arr)
+
+
+def normalize_image(image, dtype=np.float64):
+    assert image.dtype == np.uint8
+    return dtype(image) / 255.0
+
+
+def unormalize_image(image):
+    assert image.dtype != np.uint8
+    return np.uint8(image * 255.0)
