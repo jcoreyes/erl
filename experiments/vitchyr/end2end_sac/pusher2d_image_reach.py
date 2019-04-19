@@ -1,15 +1,22 @@
+import copy
+
 import gym
 import numpy as np
+import torch.nn as nn
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.launchers.launcher_util import run_experiment
+from railrl.pythonplusplus import identity
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import (
     CNN,
     MlpQfWithObsProcessor,
+    Split,
+    FlattenEach,
+    Concat,
 )
 from railrl.torch.sac.policies import (
     MakeDeterministic, TanhGaussianPolicyAdapter,
@@ -41,6 +48,7 @@ def experiment(variant):
     expl_env = ImageForkReacher2dEnv(**env_kwargs)
 
     input_width, input_height, input_channels = eval_env.image_shape
+    image_dim = input_width * input_height * input_channels
 
     action_dim = int(np.prod(eval_env.action_space.shape))
     cnn_params = variant['cnn_params']
@@ -52,33 +60,38 @@ def experiment(variant):
         output_conv_channels=True,
         output_size=None,
     )
+    non_image_dim = int(np.prod(eval_env.observation_space.shape)) - image_dim
     if variant['shared_qf_conv']:
         qf_cnn = CNN(**cnn_params)
-        qf1 = MlpQfWithObsProcessor(
-            obs_processor=qf_cnn,
-            output_size=1,
-            input_size=action_dim+qf_cnn.conv_output_flat_size,
-            **variant['qf_kwargs']
+        qf_obs_processor = nn.Sequential(
+            Split(qf_cnn, identity, image_dim),
+            FlattenEach(),
+            Concat(),
         )
-        qf2 = MlpQfWithObsProcessor(
-            obs_processor=qf_cnn,
-            output_size=1,
-            input_size=action_dim+qf_cnn.conv_output_flat_size,
-            **variant['qf_kwargs']
+
+        qf_kwargs = copy.deepcopy(variant['qf_kwargs'])
+        qf_kwargs['obs_processor'] = qf_obs_processor
+        qf_kwargs['output_size'] = 1
+        qf_kwargs['input_size'] = (
+                action_dim + qf_cnn.conv_output_flat_size + non_image_dim
         )
+        qf1 = MlpQfWithObsProcessor(**qf_kwargs)
+        qf2 = MlpQfWithObsProcessor(**qf_kwargs)
+
         target_qf_cnn = CNN(**cnn_params)
-        target_qf1 = MlpQfWithObsProcessor(
-            obs_processor=target_qf_cnn,
-            output_size=1,
-            input_size=action_dim+qf_cnn.conv_output_flat_size,
-            **variant['qf_kwargs']
+        target_qf_obs_processor = nn.Sequential(
+            Split(target_qf_cnn, identity, image_dim),
+            FlattenEach(),
+            Concat(),
         )
-        target_qf2 = MlpQfWithObsProcessor(
-            obs_processor=target_qf_cnn,
-            output_size=1,
-            input_size=action_dim+qf_cnn.conv_output_flat_size,
-            **variant['qf_kwargs']
+        target_qf_kwargs = copy.deepcopy(variant['qf_kwargs'])
+        target_qf_kwargs['obs_processor'] = target_qf_obs_processor
+        target_qf_kwargs['output_size'] = 1
+        target_qf_kwargs['input_size'] = (
+                action_dim + target_qf_cnn.conv_output_flat_size + non_image_dim
         )
+        target_qf1 = MlpQfWithObsProcessor(**target_qf_kwargs)
+        target_qf2 = MlpQfWithObsProcessor(**target_qf_kwargs)
     else:
         qf1_cnn = CNN(**cnn_params)
         cnn_output_dim = qf1_cnn.conv_output_flat_size
@@ -108,9 +121,14 @@ def experiment(variant):
         )
     action_dim = int(np.prod(eval_env.action_space.shape))
     policy_cnn = CNN(**cnn_params)
+    policy_obs_processor = nn.Sequential(
+        Split(policy_cnn, identity, image_dim),
+        FlattenEach(),
+        Concat(),
+    )
     policy = TanhGaussianPolicyAdapter(
-        policy_cnn,
-        policy_cnn.conv_output_flat_size,
+        policy_obs_processor,
+        policy_cnn.conv_output_flat_size + non_image_dim,
         action_dim,
     )
 
@@ -177,20 +195,20 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
-            target_entropy=-1,
         ),
         algo_kwargs=dict(
-            max_path_length=1000,
             batch_size=256,
-            num_epochs=2000,
+            max_path_length=1000,
+            num_epochs=500,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
             min_num_steps_before_training=10*1000,
+            # max_path_length=10,
             # num_epochs=100,
             # num_eval_steps_per_epoch=100,
             # num_expl_steps_per_train_loop=100,
-            # num_trains_per_train_loop=1,
+            # num_trains_per_train_loop=100,
             # min_num_steps_before_training=100,
         ),
         cnn_params=dict(
@@ -206,12 +224,12 @@ if __name__ == "__main__":
         ),
         # replay_buffer_size=int(1E6),
         qf_kwargs=dict(
-            hidden_sizes=[128, 128],
+            hidden_sizes=[256, 256],
         ),
         policy_kwargs=dict(
-            hidden_sizes=[128, 128],
+            hidden_sizes=[256, 256],
         ),
-        replay_buffer_size=int(5E4),
+        replay_buffer_size=int(1E6),
         expl_path_collector_kwargs=dict(),
         eval_path_collector_kwargs=dict(),
         shared_qf_conv=False,
@@ -223,9 +241,9 @@ if __name__ == "__main__":
     )
     exp_prefix = 'dev-railrl-code-kristian-env-image-reach'
 
-    n_seeds = 3
+    n_seeds = 10
     # mode = 'ec2'
-    exp_prefix = 'railrl-code-kristian-env-image-reach'
+    exp_prefix = 'railrl-code-sl-image-reach-prop-info-match-hps'
 
     search_space = {
         'shared_qf_conv': [
@@ -249,5 +267,5 @@ if __name__ == "__main__":
                 variant=variant,
                 exp_id=exp_id,
                 use_gpu=True,
-                gpu_id=0,
+                gpu_id=1,
             )

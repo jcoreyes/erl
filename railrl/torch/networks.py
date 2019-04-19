@@ -203,6 +203,36 @@ class MergedCNN(CNN):
         return output
 
 
+class Split(nn.Module):
+    """
+    Split input and process each chunk with a separate module.
+    """
+    def __init__(self, module1, module2, split_idx):
+        super().__init__()
+        self.module1 = module1
+        self.module2 = module2
+        self.split_idx = split_idx
+
+    def forward(self, x):
+        in1 = x[:, :self.split_idx]
+        out1 = self.module1(in1)
+
+        in2 = x[:, self.split_idx:]
+        out2 = self.module2(in2)
+
+        return out1, out2
+
+
+class FlattenEach(nn.Module):
+    def forward(self, inputs):
+        return tuple(x.view(x.size(0), -1) for x in inputs)
+
+
+class Concat(nn.Module):
+    def forward(self, inputs):
+        return torch.cat(inputs, dim=1)
+
+
 class CNNPolicy(CNN, Policy):
     """
     A simpler interface for creating policies.
@@ -327,7 +357,6 @@ class MlpQfWithObsProcessor(Mlp):
 
     def forward(self, obs, actions, **kwargs):
         h = self.obs_processor(obs)
-        h = h.view(h.size(0), -1)
         flat_inputs = torch.cat((h, actions), dim=1)
         return super().forward(flat_inputs, **kwargs)
 
