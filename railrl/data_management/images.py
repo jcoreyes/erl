@@ -25,7 +25,7 @@ class _ImageNumpyArr:
         return normalize_image(self.np_array[idxs], dtype=np.float32)
 
     def __setitem__(self, idxs, value):
-        self.np_array[idxs] = unormalize_image(value)
+        self.np_array[idxs] = unnormalize_image(value)
 
 
 def zeros(shape, *args, **kwargs):
@@ -42,6 +42,6 @@ def normalize_image(image, dtype=np.float64):
     return dtype(image) / 255.0
 
 
-def unormalize_image(image):
+def unnormalize_image(image):
     assert image.dtype != np.uint8
     return np.uint8(image * 255.0)

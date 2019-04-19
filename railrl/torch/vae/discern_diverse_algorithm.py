@@ -1,7 +1,7 @@
 from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm, _train_vae, _test_vae
 from railrl.data_management.online_vae_replay_buffer import OnlineVaeRelabelingBuffer
 from railrl.torch.her.online_vae_her_twin_sac import OnlineVaeHerTwinSac
-from railrl.data_management.images import normalize_image, unormalize_image
+from railrl.data_management.images import normalize_image, unnormalize_image
 import numpy as np
 
 class DiverseGoals(OnlineVaeHerTwinSac):
@@ -66,7 +66,7 @@ class DiverseGoals(OnlineVaeHerTwinSac):
         next_observation as goals are sampled based on next_observation.
         """
         self.goal_buffer._next_obs['image_observation'][idx] = \
-                unormalize_image(next_obs['image_observation'])
+                unnormalize_image(next_obs['image_observation'])
         self.goal_buffer._next_obs['latent_observation'][idx] = \
                 next_obs['latent_observation']
 
