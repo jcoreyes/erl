@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, Sampler
 
-from multiworld.core.image_env import normalize_image
+from railrl.data_management.images import normalize_image
 
 
 class ImageDataset(Dataset):

@@ -5,7 +5,8 @@ import cv2
 import numpy as np
 import joblib
 
-from multiworld.core.image_env import normalize_image
+from railrl.data_management.images import normalize_image
+
 
 filename = str(uuid.uuid4())
 
