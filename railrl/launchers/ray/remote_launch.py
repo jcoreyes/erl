@@ -148,7 +148,7 @@ def generate_docker_config(docker_image=None, use_gpu=False):
         "--env LOGNAME=ubuntu",
         "--env HOME=/home/ubuntu",
 
-        "--shm-size=50gb"
+        # "--shm-size=50gb"
     ])
 
     python_path = ""
