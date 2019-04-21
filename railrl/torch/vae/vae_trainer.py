@@ -6,7 +6,7 @@ from torch import optim
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
-from multiworld.core.image_env import normalize_image
+from railrl.data_management.images import normalize_image
 from railrl.core import logger
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
