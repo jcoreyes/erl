@@ -162,9 +162,11 @@ class ConvVAETrainer(object):
             lr=self.lr,
             weight_decay=weight_decay,
         )
-        self.train_dataset, self.test_dataset = train_dataset, test_dataset
-        assert self.train_dataset.dtype == np.uint8
-        assert self.test_dataset.dtype == np.uint8
+        
+
+        #assert self.train_dataset.dtype == np.uint8
+        #assert self.test_dataset.dtype == np.uint8
+        
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
 
@@ -361,10 +363,11 @@ class ConvVAETrainer(object):
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
             if sample_batch is not None:
-                data = sample_batch(self.batch_size, epoch)
-                # obs = data['obs']
-                next_obs = data['next_obs']
-                # actions = data['actions']
+                #samples = next(dataloader).to(ptu.device)
+                data = sample_batch(self.batch_size) #add epoch argument
+                obs = ptu.from_numpy(data['obs'])
+                next_obs = ptu.from_numpy(data['next_obs'])
+                actions = ptu.from_numpy(data['actions'])
             else:
                 next_obs = self.get_batch(epoch=epoch)
                 obs = None

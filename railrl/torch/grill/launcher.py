@@ -9,6 +9,7 @@ from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
+from railrl.data_management.dataset  import Dataset, TrajectoryDataset
 
 
 def grill_tdm_td3_full_experiment(variant):
@@ -153,11 +154,17 @@ def train_vae(variant, return_data=False):
     import torch
     beta = variant["beta"]
     representation_size = variant["representation_size"]
+    use_linear_dynamics = variant['algo_kwargs']['use_linear_dynamics']
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
                                             generate_vae_dataset)
-    train_data, test_data, info = generate_vae_dataset_fctn(
-        variant['generate_vae_dataset_kwargs']
-    )
+    
+    dataset = generate_vae_dataset_fctn(
+        variant['generate_vae_dataset_kwargs'])
+   
+    train_data = dataset.train_data
+    test_data = dataset.test_data
+    info = dataset.info
+    
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
     if 'beta_schedule_kwargs' in variant:
@@ -191,7 +198,10 @@ def train_vae(variant, return_data=False):
     dump_skew_debug_plots = variant.get('dump_skew_debug_plots', False)
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
-        t.train_epoch(epoch)
+        if use_linear_dynamics:
+            t.train_epoch(epoch, sample_batch=dataset.sample_trajectories)
+        else:
+            t.train_epoch(epoch)
         t.test_epoch(
             epoch,
             save_reconstruction=should_save_imgs,
@@ -212,6 +222,7 @@ def train_vae(variant, return_data=False):
 
 
 def generate_vae_dataset(variant):
+    print(variant)
     env_class = variant.get('env_class', None)
     env_kwargs = variant.get('env_kwargs',None)
     env_id = variant.get('env_id', None)
@@ -292,7 +303,16 @@ def generate_vae_dataset(variant):
             if random_rollout_data:
                 from railrl.exploration_strategies.ou_strategy import OUStrategy
                 policy = OUStrategy(env.action_space)
-            dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
+
+            use_linear_dynamics = variant.get('use_linear_dynamics', False)
+            if use_linear_dynamics:
+                dataset = {
+                    'obs': np.zeros((N // n_random_steps, n_random_steps, imsize * imsize * num_channels), dtype=np.uint8),
+                    'acts': np.zeros((N // n_random_steps, n_random_steps, env.action_dim), dtype=np.uint8)
+                    }
+            else: 
+                dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
+
             for i in range(N):
                 if random_and_oracle_policy_data:
                     num_random_steps = int(N*random_and_oracle_policy_data_split)
@@ -320,15 +340,23 @@ def generate_vae_dataset(variant):
                         g = dict(state_desired_goal=env.sample_goal_for_rollout())
                         env.set_to_goal(g)
                         policy.reset()
-                        # env.reset()
+                        env.reset()
                     u = policy.get_action_from_raw_action(env.action_space.sample())
                     obs = env.step(u)[0]
                 else:
                     env.reset()
                     for _ in range(n_random_steps):
                         obs = env.step(env.action_space.sample())[0]
+
                 img = obs['image_observation']
-                dataset[i, :] = unormalize_image(img)
+
+                if use_linear_dynamics:
+                    #MAKE SURE NOT ONE INDEX
+                    dataset['obs'][i // n_random_steps, i % n_random_steps, :] = unormalize_image(img)
+                    dataset['acts'][i // n_random_steps, i % n_random_steps, :] = u
+                else: 
+                    dataset[i, :] = unormalize_image(img)
+
                 if show:
                     img = img.reshape(3, imsize, imsize).transpose()
                     img = img[::-1, :, ::-1]
@@ -336,12 +364,25 @@ def generate_vae_dataset(variant):
                     cv2.waitKey(1)
                     # radius = input('waiting...')
             print("done making training data", filename, time.time() - now)
+        
             np.save(filename, dataset)
 
+
     n = int(N * test_p)
-    train_dataset = dataset[:n, :]
-    test_dataset = dataset[n:, :]
-    return train_dataset, test_dataset, info
+    if use_linear_dynamics:
+        train_data = {
+            'obs': dataset['obs'][:n, :],
+            'acts': dataset['acts'][:n, :]
+            }
+        test_data = {
+            'obs': dataset['obs'][n:, :],
+            'acts': dataset['acts'][n:, :]
+            }
+        return TrajectoryDataset(train_data, test_data, info)
+
+    train_data = dataset[:n, :]
+    test_data = dataset[n:, :]
+    return Dataset(train_data, test_data, info)
 
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv
