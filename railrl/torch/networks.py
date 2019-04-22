@@ -10,7 +10,7 @@ from torch.nn import functional as F
 from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.core import PyTorchModule
+from railrl.torch.core import PyTorchModule, eval_np
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 
@@ -257,7 +257,7 @@ class CNNPolicy(CNN, Policy):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 class Mlp(PyTorchModule):
@@ -385,7 +385,7 @@ class MlpPolicy(Mlp, Policy):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 class TanhMlpPolicy(MlpPolicy):
@@ -424,7 +424,7 @@ class ImageStatePolicy(PyTorchModule, Policy):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 class ImageStateQ(PyTorchModule):
@@ -550,7 +550,7 @@ class FeedForwardPolicy(PyTorchModule):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 """

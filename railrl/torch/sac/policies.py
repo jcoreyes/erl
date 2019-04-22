@@ -172,7 +172,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         return actions[0, :], {}
 
     def get_actions(self, obs_np, deterministic=False):
-        return self.eval_np(obs_np, deterministic=deterministic)[0]
+        return eval_np(self, obs_np, deterministic=deterministic)[0]
 
     def forward(
             self,
@@ -303,7 +303,7 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
         return actions[0, :], {}
 
     def get_actions(self, obs_np, deterministic=False):
-        return self.eval_np(obs_np, deterministic=deterministic)[0]
+        return eval_np(self, obs_np, deterministic=deterministic)[0]
 
     def forward(
             self,

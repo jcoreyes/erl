@@ -7,22 +7,11 @@ from torch import nn as nn
 from railrl.torch import pytorch_util as ptu
 
 
-# TODO: remove this module
 class PyTorchModule(nn.Module, metaclass=abc.ABCMeta):
-    def regularizable_parameters(self):
-        """
-        Return generator of regularizable parameters. Right now, all non-flat
-        vectors are assumed to be regularizabled, presumably because only
-        biases are flat.
-
-        :return:
-        """
-        for param in self.parameters():
-            if len(param.size()) > 1:
-                yield param
-
-    def eval_np(self, *args, **kwargs):
-        return eval_np(self, *args, **kwargs)
+    """
+    Keeping wrapper around to be a bit more future-proof.
+    """
+    pass
 
 
 def eval_np(module, *args, **kwargs):

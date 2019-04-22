@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from railrl.torch.core import eval_np
+
 
 class QFPolicyPlotter(object):
     def __init__(self, qf, policy, obs_lst, default_action, n_samples):
@@ -59,7 +61,7 @@ class QFPolicyPlotter(object):
                 actions.shape[0],
                 axis=0,
             )
-            qs = self._qf.eval_np(repeated_obs, actions)
+            qs = eval_np(self._qf, repeated_obs, actions)
             qs = qs.reshape(xgrid.shape)
 
             cs = ax.contour(xgrid, ygrid, qs, 20)
