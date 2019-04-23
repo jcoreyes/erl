@@ -264,7 +264,7 @@ def generate_vae_dataset(variant):
         filename = "/tmp/{}_N{}_{}_imsize{}_random_oracle_split_{}{}.npy".format(
             save_file_prefix,
             str(N),
-            init_camera.__name__ if init_camera else '',
+            init_camera.__name__ if init_camera and hasattr(init_camera, '__name__') else '',
             imsize,
             random_and_oracle_policy_data_split,
             tag,

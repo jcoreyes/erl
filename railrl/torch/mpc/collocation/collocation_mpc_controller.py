@@ -7,7 +7,7 @@ from torch import optim, nn as nn
 from railrl.misc.eval_util import get_stat_in_paths, create_stats_ordered_dict
 from railrl.state_distance.policies import UniversalPolicy
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.core import PyTorchModule
+from railrl.torch.core import PyTorchModule, eval_np
 import railrl.core.logger as default_logger
 
 
@@ -542,7 +542,8 @@ class LBfgsBCMC(UniversalPolicy):
             self.last_solution = full_solution
             self.t_in_plan = 0
 
-        tdm_actions = self.tdm_policy.eval_np(
+        tdm_actions = eval_np(
+            self.tdm_policy,
             self.best_obs_seq[:-1],
             self.best_obs_seq[1:],
             np.zeros((self.planning_horizon, 1))
