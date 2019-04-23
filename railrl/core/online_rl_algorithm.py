@@ -20,7 +20,6 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             replay_buffer: ReplayBuffer,
             batch_size,
             max_path_length,
-            num_epochs,
             num_eval_steps_per_epoch,
             num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
@@ -37,7 +36,6 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         )
         self.batch_size = batch_size
         self.max_path_length = max_path_length
-        self.num_epochs = num_epochs
         self.num_eval_steps_per_epoch = num_eval_steps_per_epoch
         self.num_trains_per_train_loop = num_trains_per_train_loop
         self.num_train_loops_per_epoch = num_train_loops_per_epoch
@@ -46,7 +44,6 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
         assert self.num_trains_per_train_loop >= self.num_expl_steps_per_train_loop, \
             'Online training presumes num_trains_per_train_loop >= num_expl_steps_per_train_loop'
-
     def _train(self):
         self.training_mode(False)
         if self.min_num_steps_before_training > 0:

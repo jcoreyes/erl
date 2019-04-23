@@ -18,10 +18,9 @@ from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-from railrl.core.ray_experiment import RayExperiment
 import ray
 import ray.tune as tune
-from railrl.launchers.ray_launcher import launch_experiment
+from railrl.launchers.ray.launcher import launch_experiment
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
@@ -180,16 +179,15 @@ if __name__ == "__main__":
 
     launch_experiment(
         mode=mode,
+        use_gpu=False,
         local_launch_variant=dict(
             seeds=n_seeds,
-            use_gpu=False,
-            exp_function=run_experiment_func,
+            init_algo_functions_and_log_fnames=[(run_experiment_func, 'progress.csv')],
             exp_variant=variant,
             checkpoint_freq=20,
             exp_prefix=exp_prefix,
             resources_per_trial={
-                'cpu': 4,
-                'gpu': .5,
+                'cpu': 2,
             }
         ),
         remote_launch_variant=dict(
@@ -197,6 +195,5 @@ if __name__ == "__main__":
             max_spot_price=.2,
         ),
         docker_variant=dict(),
-        cluster_name='ray-test-cluster-3'
     )
 

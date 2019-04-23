@@ -69,9 +69,9 @@ class SequentialRayExperiment(tune.Trainable):
         as well as the first argument
             cur_algo = algo2(algo1, init_algo_kwargs)
         """
+        self.cur_algo_idx += 1
         if self.cur_algo_idx >= len(self.init_algo_functions):
             raise StopIteration
-        self.cur_algo_idx += 1
         init_algo_function = self.init_algo_functions[self.cur_algo_idx]
         self.log_fname = self.log_fnames[self.cur_algo_idx]
         if self.cur_algo is None:

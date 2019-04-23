@@ -53,10 +53,9 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         super()._end_epoch()
 
     def _get_diagnostics(self):
-        return {
-            **self._get_vae_diagnostics(),
-            **super()._get_diagnostics()
-        }
+        vae_log = self._get_vae_diagnostics().copy()
+        vae_log.update(super()._get_diagnostics())
+        return vae_log
 
     def to(self, device):
         self.vae.to(device)

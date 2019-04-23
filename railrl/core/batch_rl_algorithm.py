@@ -13,7 +13,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
             self,
             batch_size,
             max_path_length,
-            num_epochs,
             num_eval_steps_per_epoch,
             num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
@@ -25,7 +24,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
         super().__init__(*args, **kwargs)
         self.batch_size = batch_size
         self.max_path_length = max_path_length
-        self.num_epochs = num_epochs
         self.num_eval_steps_per_epoch = num_eval_steps_per_epoch
         self.num_trains_per_train_loop = num_trains_per_train_loop
         self.num_train_loops_per_epoch = num_train_loops_per_epoch
@@ -36,7 +34,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
         self._begin_epoch()
         done = (self.epoch == self.num_epochs)
         if done:
-            return {}, done
+            return OrderedDict(), done
 
         if self.epoch == 0 and self.min_num_steps_before_training > 0:
             init_expl_paths = self.expl_data_collector.collect_new_paths(

@@ -29,6 +29,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             exploration_data_collector: BaseCollector,
             evaluation_data_collector: BaseCollector,
             replay_buffer: ReplayBuffer,
+            num_epochs,
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -39,6 +40,14 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self._start_epoch = 0
         self.post_epoch_funcs = []
         self.epoch = self._start_epoch
+        self.num_epochs = num_epochs
+
+    def train(self):
+        for epoch in range(self.num_epochs):
+            log_dict, _ = self._train()
+            logger.record_dict(log_dict)
+            logger.dump_tabular(with_prefix=False, with_timestamp=False)
+            logger.save_itr_params(epoch, self)
 
     def _train(self):
         """
@@ -60,7 +69,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.epoch += 1
 
     def _get_diagnostics(self):
-        algo_log = {}
+        algo_log = OrderedDict()
         algo_log['epoch'] = self.epoch
         append_log(algo_log, self.replay_buffer.get_diagnostics(),
                    prefix='replay_buffer/')
