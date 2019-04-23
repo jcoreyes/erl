@@ -8,34 +8,28 @@ from railrl.torch import pytorch_util as ptu
 
 
 class PyTorchModule(nn.Module, metaclass=abc.ABCMeta):
-    def regularizable_parameters(self):
-        """
-        Return generator of regularizable parameters. Right now, all non-flat
-        vectors are assumed to be regularizabled, presumably because only
-        biases are flat.
+    """
+    Keeping wrapper around to be a bit more future-proof.
+    """
+    pass
 
-        :return:
-        """
-        for param in self.parameters():
-            if len(param.size()) > 1:
-                yield param
 
-    def eval_np(self, *args, **kwargs):
-        """
-        Eval this module with a numpy interface
+def eval_np(module, *args, **kwargs):
+    """
+    Eval this module with a numpy interface
 
-        Same as a call to __call__ except all Variable input/outputs are
-        replaced with numpy equivalents.
+    Same as a call to __call__ except all Variable input/outputs are
+    replaced with numpy equivalents.
 
-        Assumes the output is either a single object or a tuple of objects.
-        """
-        torch_args = tuple(torch_ify(x) for x in args)
-        torch_kwargs = {k: torch_ify(v) for k, v in kwargs.items()}
-        outputs = self.__call__(*torch_args, **torch_kwargs)
-        if isinstance(outputs, tuple):
-            return tuple(np_ify(x) for x in outputs)
-        else:
-            return np_ify(outputs)
+    Assumes the output is either a single object or a tuple of objects.
+    """
+    torch_args = tuple(torch_ify(x) for x in args)
+    torch_kwargs = {k: torch_ify(v) for k, v in kwargs.items()}
+    outputs = module(*torch_args, **torch_kwargs)
+    if isinstance(outputs, tuple):
+        return tuple(np_ify(x) for x in outputs)
+    else:
+        return np_ify(outputs)
 
 
 def torch_ify(np_array_or_other):

@@ -1,9 +1,11 @@
 import numpy as np
 from railrl.state_distance.policies import UniversalPolicy
 
+
 def tau_sampling_tdm_rollout(*args, tau_sampler=None, **kwargs):
     init_tau = tau_sampler()
     return tdm_rollout(*args, init_tau=init_tau, **kwargs)
+
 
 def create_rollout_function(rollout_function, **initial_kwargs):
     """
@@ -19,25 +21,30 @@ def create_rollout_function(rollout_function, **initial_kwargs):
             observation_key,
             desired_goal_key,
     """
+
     def wrapped_rollout_func(*args, **dynamic_kwargs):
         combined_args = {
             **initial_kwargs,
             **dynamic_kwargs
         }
         return rollout_function(*args, **combined_args)
+
     return wrapped_rollout_func
 
-# TODO: rename and refactor file
+
 def multitask_rollout(
         env,
         agent,
         max_path_length=np.inf,
-        animated=False,
+        render=False,
+        render_kwargs=None,
         observation_key=None,
         desired_goal_key=None,
         get_action_kwargs=None,
         return_dict_obs=False,
 ):
+    if render_kwargs is None:
+        render_kwargs = {}
     if get_action_kwargs is None:
         get_action_kwargs = {}
     dict_obs = []
@@ -52,8 +59,8 @@ def multitask_rollout(
     path_length = 0
     agent.reset()
     o = env.reset()
-    if animated:
-        env.render()
+    if render:
+        env.render(**render_kwargs)
     goal = o[desired_goal_key]
     while path_length < max_path_length:
         dict_obs.append(o)
@@ -62,8 +69,8 @@ def multitask_rollout(
         new_obs = np.hstack((o, goal))
         a, agent_info = agent.get_action(new_obs, **get_action_kwargs)
         next_o, r, d, env_info = env.step(a)
-        if animated:
-            env.render()
+        if render:
+            env.render(**render_kwargs)
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -96,7 +103,14 @@ def multitask_rollout(
         full_observations=dict_obs,
     )
 
-def rollout(env, agent, max_path_length=np.inf, animated=False):
+
+def rollout(
+        env,
+        agent,
+        max_path_length=np.inf,
+        render=False,
+        render_kwargs=None,
+):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -110,13 +124,9 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
     the list being the index into the time
      - agent_infos
      - env_infos
-
-    :param env:
-    :param agent:
-    :param max_path_length:
-    :param animated:
-    :return:
     """
+    if render_kwargs is None:
+        render_kwargs = {}
     observations = []
     actions = []
     rewards = []
@@ -127,8 +137,8 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
     agent.reset()
     next_o = None
     path_length = 0
-    if animated:
-        env.render()
+    if render:
+        env.render(**render_kwargs)
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
@@ -142,8 +152,8 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         if d:
             break
         o = next_o
-        if animated:
-            env.render()
+        if render:
+            env.render(**render_kwargs)
 
     actions = np.array(actions)
     if len(actions.shape) == 1:
@@ -167,86 +177,3 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         agent_infos=agent_infos,
         env_infos=env_infos,
     )
-
-def tdm_rollout(
-        env,
-        agent: UniversalPolicy,
-        max_path_length=np.inf,
-        animated=False,
-        init_tau=0.0,
-        decrement_tau=False,
-        cycle_tau=False,
-        get_action_kwargs=None,
-        observation_key=None,
-        desired_goal_key=None,
-):
-    full_observations = []
-    from railrl.state_distance.rollout_util import _expand_goal
-    if get_action_kwargs is None:
-        get_action_kwargs = {}
-    observations = []
-    next_observations = []
-    actions = []
-    rewards = []
-    terminals = []
-    agent_infos = []
-    env_infos = []
-    taus = []
-    agent.reset()
-    path_length = 0
-    if animated:
-        env.render()
-
-    tau = np.array([init_tau])
-    o = env.reset()
-    agent_goal = o[desired_goal_key]
-    while path_length < max_path_length:
-        full_observations.append(o)
-        agent_o = o
-        if observation_key:
-            agent_o = agent_o[observation_key]
-
-        a, agent_info = agent.get_action(agent_o, agent_goal, tau, **get_action_kwargs)
-        if animated:
-            env.render()
-        next_o, r, d, env_info = env.step(a)
-        next_observations.append(next_o)
-        observations.append(o)
-        rewards.append(r)
-        terminals.append(d)
-        actions.append(a)
-        agent_infos.append(agent_info)
-        env_infos.append(env_info)
-        taus.append(tau.copy())
-        path_length += 1
-        if decrement_tau:
-            tau -= 1
-        if tau < 0:
-            if cycle_tau:
-                tau = np.array([init_tau])
-            else:
-                tau = np.array([0])
-        if d:
-            break
-        o = next_o
-    full_observations.append(o)
-
-    actions = np.array(actions)
-    if len(actions.shape) == 1:
-        actions = np.expand_dims(actions, 1)
-    observations = np.array(observations)
-    next_observations = np.array(next_observations)
-
-    return dict(
-        observations=observations,
-        actions=actions,
-        rewards=np.array(rewards).reshape(-1, 1),
-        next_observations=next_observations,
-        terminals=np.array(terminals).reshape(-1, 1),
-        agent_infos=np.array(agent_infos),
-        env_infos=np.array(env_infos),
-        num_steps_left=np.array(taus),
-        goals=_expand_goal(agent_goal, len(terminals)),
-        full_observations=full_observations,
-    )
-

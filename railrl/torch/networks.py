@@ -10,7 +10,7 @@ from torch.nn import functional as F
 from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.core import PyTorchModule
+from railrl.torch.core import PyTorchModule, eval_np
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 
@@ -18,31 +18,39 @@ import numpy as np
 
 
 class CNN(PyTorchModule):
-    def __init__(self,
-                 input_width,
-                 input_height,
-                 input_channels,
-                 output_size,
-                 kernel_sizes,
-                 n_channels,
-                 strides,
-                 paddings,
-                 hidden_sizes=None,
-                 added_fc_input_size=0,
-                 batch_norm_conv=False,
-                 batch_norm_fc=False,
-                 init_w=1e-4,
-                 hidden_init=nn.init.xavier_uniform_,
-                 hidden_activation=nn.ReLU(),
-                 output_activation=identity,
-                 output_conv_channels=False,
-                 ):
+    def __init__(
+            self,
+            input_width,
+            input_height,
+            input_channels,
+            output_size,
+            kernel_sizes,
+            n_channels,
+            strides,
+            paddings,
+            hidden_sizes=None,
+            added_fc_input_size=0,
+            batch_norm_conv=False,
+            batch_norm_fc=False,
+            init_w=1e-4,
+            hidden_init=nn.init.xavier_uniform_,
+            hidden_activation=nn.ReLU(),
+            output_activation=identity,
+            output_conv_channels=False,
+            pool_type='none',
+            pool_sizes=None,
+            pool_strides=None,
+            pool_paddings=None,
+    ):
         if hidden_sizes is None:
             hidden_sizes = []
         assert len(kernel_sizes) == \
                len(n_channels) == \
                len(strides) == \
                len(paddings)
+        assert pool_type in {'none', 'max2d'}
+        if pool_type == 'max2d':
+            assert len(pool_sizes) == len(pool_strides) == len(pool_paddings)
         super().__init__()
 
         self.hidden_sizes = hidden_sizes
@@ -57,14 +65,17 @@ class CNN(PyTorchModule):
         self.added_fc_input_size = added_fc_input_size
         self.conv_input_length = self.input_width * self.input_height * self.input_channels
         self.output_conv_channels = output_conv_channels
+        self.pool_type = pool_type
 
         self.conv_layers = nn.ModuleList()
         self.conv_norm_layers = nn.ModuleList()
+        self.pool_layers = nn.ModuleList()
         self.fc_layers = nn.ModuleList()
         self.fc_norm_layers = nn.ModuleList()
 
-        for out_channels, kernel_size, stride, padding in \
-                zip(n_channels, kernel_sizes, strides, paddings):
+        for i, (out_channels, kernel_size, stride, padding) in enumerate(
+                zip(n_channels, kernel_sizes, strides, paddings)
+        ):
             conv = nn.Conv2d(input_channels,
                              out_channels,
                              kernel_size,
@@ -77,68 +88,99 @@ class CNN(PyTorchModule):
             self.conv_layers.append(conv_layer)
             input_channels = out_channels
 
-        # find output dim of conv_layers by trial and add normalization conv layers
-        test_mat = torch.zeros(1, self.input_channels, self.input_width,
-                               self.input_height)  # initially the model is on CPU (caller should then move it to GPU if
-        for conv_layer in self.conv_layers:
+            if pool_type == 'max2d':
+                self.pool_layers.append(
+                    nn.MaxPool2d(
+                        kernel_size=pool_sizes[i],
+                        stride=pool_strides[i],
+                        padding=pool_paddings[i],
+                    )
+                )
+
+        # use torch rather than ptu because initially the model is on CPU
+        test_mat = torch.zeros(
+            1,
+            self.input_channels,
+            self.input_width,
+            self.input_height,
+        )
+        # find output dim of conv_layers by trial and add norm conv layers
+        for i, conv_layer in enumerate(self.conv_layers):
             test_mat = conv_layer(test_mat)
-            self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
+            if self.batch_norm_conv:
+                self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
+            if self.pool_type != 'none':
+                test_mat = self.pool_layers[i](test_mat)
 
-        fc_input_size = int(np.prod(test_mat.shape))
-        # used only for injecting input directly into fc layers
-        fc_input_size += added_fc_input_size
+        self.conv_output_flat_size = int(np.prod(test_mat.shape))
+        if self.output_conv_channels:
+            self.last_fc = None
+        else:
+            fc_input_size = self.conv_output_flat_size
+            # used only for injecting input directly into fc layers
+            fc_input_size += added_fc_input_size
+            for idx, hidden_size in enumerate(hidden_sizes):
+                fc_layer = nn.Linear(fc_input_size, hidden_size)
+                fc_input_size = hidden_size
 
-        for idx, hidden_size in enumerate(hidden_sizes):
-            fc_layer = nn.Linear(fc_input_size, hidden_size)
+                fc_layer.weight.data.uniform_(-init_w, init_w)
+                fc_layer.bias.data.uniform_(-init_w, init_w)
 
-            norm_layer = nn.BatchNorm1d(hidden_size)
-            fc_layer.weight.data.uniform_(-init_w, init_w)
-            fc_layer.bias.data.uniform_(-init_w, init_w)
+                self.fc_layers.append(fc_layer)
 
-            self.fc_layers.append(fc_layer)
-            self.fc_norm_layers.append(norm_layer)
-            fc_input_size = hidden_size
+                if self.batch_norm_fc:
+                    norm_layer = nn.BatchNorm1d(hidden_size)
+                    self.fc_norm_layers.append(norm_layer)
 
-        self.last_fc = nn.Linear(fc_input_size, output_size)
-        self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
+            self.last_fc = nn.Linear(fc_input_size, output_size)
+            self.last_fc.weight.data.uniform_(-init_w, init_w)
+            self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, input):
-        fc_input = (self.added_fc_input_size != 0)
-
+    def forward(self, input, return_last_activations=False):
         conv_input = input.narrow(start=0,
                                   length=self.conv_input_length,
                                   dim=1).contiguous()
-        if fc_input:
-            extra_fc_input = input.narrow(start=self.conv_input_length,
-                                          length=self.added_fc_input_size,
-                                          dim=1)
-        # need to reshape from batch of flattened images into (channsls, w, h)
+        # reshape from batch of flattened images into (channels, w, h)
         h = conv_input.view(conv_input.shape[0],
                             self.input_channels,
                             self.input_height,
                             self.input_width)
 
-        h = self.apply_forward(h, self.conv_layers, self.conv_norm_layers, use_batch_norm=self.batch_norm_conv)
+        h = self.apply_forward_conv(h)
 
         if self.output_conv_channels:
             return h
 
         # flatten channels for fc layers
         h = h.view(h.size(0), -1)
-        if fc_input:
+        if self.added_fc_input_size != 0:
+            extra_fc_input = input.narrow(
+                start=self.conv_input_length,
+                length=self.added_fc_input_size,
+                dim=1,
+            )
             h = torch.cat((h, extra_fc_input), dim=1)
-        h = self.apply_forward(h, self.fc_layers, self.fc_norm_layers, use_batch_norm=self.batch_norm_fc)
+        h = self.apply_forward_fc(h)
 
-        output = self.output_activation(self.last_fc(h))
-        return output
+        if return_last_activations:
+            return h
+        return self.output_activation(self.last_fc(h))
 
-    def apply_forward(self, input, hidden_layers, norm_layers, use_batch_norm=False):
-        h = input
-        for layer, norm_layer in zip(hidden_layers, norm_layers):
+    def apply_forward_conv(self, h):
+        for i, layer in enumerate(self.conv_layers):
             h = layer(h)
-            if use_batch_norm:
-                h = norm_layer(h)
+            if self.batch_norm_conv:
+                h = self.conv_norm_layers[i](h)
+            if self.pool_type != 'none':
+                h = self.pool_layers[i](h)
+            h = self.hidden_activation(h)
+        return h
+
+    def apply_forward_fc(self, h):
+        for i, layer in enumerate(self.fc_layers):
+            h = layer(h)
+            if self.batch_norm_fc:
+                h = self.fc_norm_layers[i](h)
             h = self.hidden_activation(h)
         return h
 
@@ -159,6 +201,36 @@ class MergedCNN(CNN):
         h = torch.cat((conv_input, fc_input), dim=1)
         output = super().forward(h)
         return output
+
+
+class Split(nn.Module):
+    """
+    Split input and process each chunk with a separate module.
+    """
+    def __init__(self, module1, module2, split_idx):
+        super().__init__()
+        self.module1 = module1
+        self.module2 = module2
+        self.split_idx = split_idx
+
+    def forward(self, x):
+        in1 = x[:, :self.split_idx]
+        out1 = self.module1(in1)
+
+        in2 = x[:, self.split_idx:]
+        out2 = self.module2(in2)
+
+        return out1, out2
+
+
+class FlattenEach(nn.Module):
+    def forward(self, inputs):
+        return tuple(x.view(x.size(0), -1) for x in inputs)
+
+
+class Concat(nn.Module):
+    def forward(self, inputs):
+        return torch.cat(inputs, dim=1)
 
 
 class CNNPolicy(CNN, Policy):
@@ -185,7 +257,7 @@ class CNNPolicy(CNN, Policy):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 class Mlp(PyTorchModule):
@@ -278,6 +350,17 @@ class MlpQf(FlattenMlp):
         return super().forward(obs, actions, **kwargs)
 
 
+class MlpQfWithObsProcessor(Mlp):
+    def __init__(self, obs_processor, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.obs_processor = obs_processor
+
+    def forward(self, obs, actions, **kwargs):
+        h = self.obs_processor(obs)
+        flat_inputs = torch.cat((h, actions), dim=1)
+        return super().forward(flat_inputs, **kwargs)
+
+
 class MlpPolicy(Mlp, Policy):
     """
     A simpler interface for creating policies.
@@ -302,7 +385,7 @@ class MlpPolicy(Mlp, Policy):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 class TanhMlpPolicy(MlpPolicy):
@@ -341,7 +424,7 @@ class ImageStatePolicy(PyTorchModule, Policy):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 class ImageStateQ(PyTorchModule):
@@ -467,7 +550,7 @@ class FeedForwardPolicy(PyTorchModule):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 """
