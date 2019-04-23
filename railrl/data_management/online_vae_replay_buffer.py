@@ -125,7 +125,6 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             if exploration_counter_kwargs is None:
                 exploration_counter_kwargs = dict()
             self.exploration_counter = CountExploration(env=self.env, **exploration_counter_kwargs)
-
         self.epoch = 0
 
     def add_path(self, path):
