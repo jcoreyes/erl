@@ -109,8 +109,8 @@ variant = dict(
 
     trainer_kwargs=dict(
         discount=0.99,
-        policy_lr=3E-4,
-        qf_lr=3E-4,
+        policy_lr=1e-3,
+        qf_lr=1e-3,
         reward_scale=1,
         soft_target_tau=1e-3,  # 1e-2
         target_update_period=1,  # 1
