@@ -70,7 +70,6 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
     def _get_diagnostics(self):
         algo_log = OrderedDict()
-        algo_log['epoch'] = self.epoch
         append_log(algo_log, self.replay_buffer.get_diagnostics(),
                    prefix='replay_buffer/')
         append_log(algo_log, self.trainer.get_diagnostics(), prefix='trainer/')
@@ -96,6 +95,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
         timer.stamp('logging')
         append_log(algo_log, _get_epoch_timings())
+        algo_log['epoch'] = self.epoch
         return algo_log
 
     @abc.abstractmethod

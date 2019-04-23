@@ -45,8 +45,12 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         assert self.num_trains_per_train_loop >= self.num_expl_steps_per_train_loop, \
             'Online training presumes num_trains_per_train_loop >= num_expl_steps_per_train_loop'
     def _train(self):
+        done = (self.epoch == self.num_epochs)
+        if done:
+            return OrderedDict(), done
+
         self.training_mode(False)
-        if self.min_num_steps_before_training > 0:
+        if self.min_num_steps_before_training > 0 && self.epoch == 0:
             self.expl_data_collector.collect_new_steps(
                 self.max_path_length,
                 self.min_num_steps_before_training,
@@ -57,36 +61,35 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.expl_data_collector.end_epoch(-1)
 
         num_trains_per_expl_step = self.num_trains_per_train_loop // self.num_expl_steps_per_train_loop
-        for epoch in gt.timed_for(
-                range(self._start_epoch, self.num_epochs),
-                save_itrs=True,
-        ):
-            self.eval_data_collector.collect_new_paths(
-                self.max_path_length,
-                self.num_eval_steps_per_epoch,
-                discard_incomplete_paths=True,
-            )
-            timer.stamp('evaluation sampling')
+        self.eval_data_collector.collect_new_paths(
+            self.max_path_length,
+            self.num_eval_steps_per_epoch,
+            discard_incomplete_paths=True,
+        )
+        timer.stamp('evaluation sampling')
 
-            for _ in range(self.num_train_loops_per_epoch):
-                for _ in range(self.num_expl_steps_per_train_loop):
-                    self.expl_data_collector.collect_new_steps(
-                        self.max_path_length,
-                        1,  # num steps
-                        discard_incomplete_paths=False,
-                    )
-                    timer.stamp('exploration sampling', unique=False)
+        for _ in range(self.num_train_loops_per_epoch):
+            for _ in range(self.num_expl_steps_per_train_loop):
+                self.expl_data_collector.collect_new_steps(
+                    self.max_path_length,
+                    1,  # num steps
+                    discard_incomplete_paths=False,
+                )
+                timer.stamp('exploration sampling', unique=False)
 
-                    self.training_mode(True)
-                    for _ in range(num_trains_per_expl_step):
-                        train_data = self.replay_buffer.random_batch(
-                            self.batch_size)
-                        self.trainer.train(train_data)
-                    timer.stamp('training', unique=False)
-                    self.training_mode(False)
+                self.training_mode(True)
+                for _ in range(num_trains_per_expl_step):
+                    train_data = self.replay_buffer.random_batch(
+                        self.batch_size)
+                    self.trainer.train(train_data)
+                timer.stamp('training', unique=False)
+                self.training_mode(False)
 
-            new_expl_paths = self.expl_data_collector.get_epoch_paths()
-            self.replay_buffer.add_paths(new_expl_paths)
-            timer.stamp('data storing', unique=False)
+        new_expl_paths = self.expl_data_collector.get_epoch_paths()
+        self.replay_buffer.add_paths(new_expl_paths)
+        timer.stamp('data storing', unique=False)
 
-            self._end_epoch(epoch)
+        log_stats = self._get_diagnostics()
+        self._end_epoch(epoch)
+
+        return log_stats, False
