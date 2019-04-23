@@ -46,7 +46,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         for epoch in range(self.num_epochs):
             log_dict, _ = self._train()
             logger.record_dict(log_dict)
-            logger.dump_tabular(with_prefix=False, with_timestamp=False)
+            logger.dump_tabular(with_prefix=True, with_timestamp=False)
             logger.save_itr_params(epoch, self)
 
     def _train(self):
