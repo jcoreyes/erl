@@ -9,7 +9,6 @@ from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
-from railrl.data_management.dataset  import Dataset, TrajectoryDataset
 
 
 def grill_tdm_td3_full_experiment(variant):
@@ -147,24 +146,21 @@ def train_vae(variant, return_data=False):
         AutoEncoder,
     )
     import railrl.torch.vae.conv_vae as conv_vae
-    from railrl.torch.vae.vae_trainer import ConvVAETrainer
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer, ConvDynamicsVAETrainer
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
     from railrl.pythonplusplus import identity
     import torch
     beta = variant["beta"]
     representation_size = variant["representation_size"]
-    use_linear_dynamics = variant['algo_kwargs']['use_linear_dynamics']
+    use_linear_dynamics = variant.get('use_linear_dynamics', False)
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
                                             generate_vae_dataset)
-    
-    dataset = generate_vae_dataset_fctn(
+
+    variant['generate_vae_dataset_kwargs']['use_linear_dynamics'] = use_linear_dynamics
+    train_dataset, test_dataset, info = generate_vae_dataset_fctn(
         variant['generate_vae_dataset_kwargs'])
-   
-    train_data = dataset.train_data
-    test_data = dataset.test_data
-    info = dataset.info
-    
+
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
     if 'beta_schedule_kwargs' in variant:
@@ -185,40 +181,44 @@ def train_vae(variant, return_data=False):
     variant['vae_kwargs']['imsize'] = variant.get('imsize')
 
     if variant['algo_kwargs'].get('is_auto_encoder', False):
-        m = AutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+        model = AutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     elif variant.get('use_spatial_auto_encoder', False):
-        m = SpatialAutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+        model = SpatialAutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     else:
         vae_class = variant.get('vae_class', ConvVAE)
-        m = vae_class(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
-    m.to(ptu.device)
-    t = ConvVAETrainer(train_data, test_data, m, beta=beta,
+        model = vae_class(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+    model.to(ptu.device)
+
+    if use_linear_dynamics:
+        vae_trainer_class = ConvDynamicsVAETrainer
+    else:
+        vae_trainer_class = variant.get('vae_trainer_class', ConvVAETrainer)
+    trainer = vae_trainer_class(model, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
     save_period = variant['save_period']
+
     dump_skew_debug_plots = variant.get('dump_skew_debug_plots', False)
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
-        if use_linear_dynamics:
-            t.train_epoch(epoch, sample_batch=dataset.sample_trajectories)
-        else:
-            t.train_epoch(epoch)
-        t.test_epoch(
+        trainer.train_epoch(epoch, train_dataset)
+        trainer.test_epoch(
             epoch,
+            test_dataset,
             save_reconstruction=should_save_imgs,
             save_scatterplot=should_save_imgs,
             # save_vae=False,
         )
         if should_save_imgs:
-            t.dump_samples(epoch)
+            trainer.dump_samples(epoch)
             if dump_skew_debug_plots:
-                t.dump_best_reconstruction(epoch)
-                t.dump_worst_reconstruction(epoch)
-                t.dump_sampling_histogram(epoch)
-        t.update_train_weights()
-    logger.save_extra_data(m, 'vae.pkl', mode='pickle')
+                trainer.dump_best_reconstruction(epoch)
+                trainer.dump_worst_reconstruction(epoch)
+                trainer.dump_sampling_histogram(epoch)
+        trainer.update_train_weights()
+    logger.save_extra_data(model, 'vae.pkl', mode='pickle')
     if return_data:
-        return m, train_data, test_data
-    return m
+        return model, train_dataset, test_dataset
+    return model
 
 
 def generate_vae_dataset(variant):
@@ -244,9 +244,12 @@ def generate_vae_dataset(variant):
     save_file_prefix = variant.get('save_file_prefix', None)
     non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
     tag = variant.get('tag', '')
+
     from multiworld.core.image_env import ImageEnv, unormalize_image
     import railrl.torch.pytorch_util as ptu
     from railrl.misc.asset_loader import load_local_or_remote_file
+    from railrl.data_management.dataset  import TrajectoryDataset, ImageObservationDataset
+
     info = {}
     if dataset_path is not None:
         dataset = load_local_or_remote_file(dataset_path)
@@ -307,10 +310,10 @@ def generate_vae_dataset(variant):
             use_linear_dynamics = variant.get('use_linear_dynamics', False)
             if use_linear_dynamics:
                 dataset = {
-                    'obs': np.zeros((N // n_random_steps, n_random_steps, imsize * imsize * num_channels), dtype=np.uint8),
-                    'acts': np.zeros((N // n_random_steps, n_random_steps, env.action_dim), dtype=np.uint8)
+                    'observations': np.zeros((N // n_random_steps, n_random_steps, imsize * imsize * num_channels), dtype=np.uint8),
+                    'actions': np.zeros((N // n_random_steps, n_random_steps, env.action_space.shape[0]), dtype=np.uint8)
                     }
-            else: 
+            else:
                 dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
 
             for i in range(N):
@@ -337,7 +340,7 @@ def generate_vae_dataset(variant):
                     obs = env._get_obs()
                 elif random_rollout_data:
                     if i % n_random_steps == 0:
-                        g = dict(state_desired_goal=env.sample_goal_for_rollout())
+                        g = dict(state_desired_goal=env.sample_goal())
                         env.set_to_goal(g)
                         policy.reset()
                         env.reset()
@@ -352,9 +355,9 @@ def generate_vae_dataset(variant):
 
                 if use_linear_dynamics:
                     #MAKE SURE NOT ONE INDEX
-                    dataset['obs'][i // n_random_steps, i % n_random_steps, :] = unormalize_image(img)
-                    dataset['acts'][i // n_random_steps, i % n_random_steps, :] = u
-                else: 
+                    dataset['observations'][i // n_random_steps, i % n_random_steps, :] = unormalize_image(img)
+                    dataset['actions'][i // n_random_steps, i % n_random_steps, :] = u
+                else:
                     dataset[i, :] = unormalize_image(img)
 
                 if show:
@@ -364,25 +367,25 @@ def generate_vae_dataset(variant):
                     cv2.waitKey(1)
                     # radius = input('waiting...')
             print("done making training data", filename, time.time() - now)
-        
+
             np.save(filename, dataset)
 
-
-    n = int(N * test_p)
     if use_linear_dynamics:
-        train_data = {
-            'obs': dataset['obs'][:n, :],
-            'acts': dataset['acts'][:n, :]
-            }
-        test_data = {
-            'obs': dataset['obs'][n:, :],
-            'acts': dataset['acts'][n:, :]
-            }
-        return TrajectoryDataset(train_data, test_data, info)
-
-    train_data = dataset[:n, :]
-    test_data = dataset[n:, :]
-    return Dataset(train_data, test_data, info)
+        num_trajectories = N // n_random_steps
+        n = int(num_trajectories * test_p)
+        train_dataset = TrajectoryDataset({
+            'observations': dataset['observations'][:n, :, :],
+            'actions': dataset['actions'][:n, :, :]
+        })
+        test_dataset = TrajectoryDataset({
+            'observations': dataset['observations'][n:, :, :],
+            'actions': dataset['actions'][n:, :, :]
+        })
+    else:
+        n = int(N * test_p)
+        train_dataset = ImageObservationDataset(dataset[:n, :])
+        test_dataset = ImageObservationDataset(dataset[n:, :])
+    return train_dataset, test_dataset, info
 
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv

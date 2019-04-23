@@ -15,7 +15,7 @@ from railrl.torch.data import (
     ImageDataset, InfiniteWeightedRandomSampler,
     InfiniteRandomSampler,
 )
-
+from railrl.torch.core import np_to_pytorch_batch
 
 def relative_probs_from_log_probs(log_probs):
     """
@@ -108,8 +108,6 @@ def compute_p_x_np_to_np(
 class ConvVAETrainer(object):
     def __init__(
             self,
-            train_dataset,
-            test_dataset,
             model,
             batch_size=128,
             log_interval=0,
@@ -162,13 +160,6 @@ class ConvVAETrainer(object):
             lr=self.lr,
             weight_decay=weight_decay,
         )
-        
-
-        #assert self.train_dataset.dtype == np.uint8
-        #assert self.test_dataset.dtype == np.uint8
-        
-        self.train_dataset = train_dataset
-        self.test_dataset = test_dataset
 
         self.batch_size = batch_size
         self.use_parallel_dataloading = use_parallel_dataloading
@@ -353,25 +344,16 @@ class ConvVAETrainer(object):
         prediction = self.model.linear_constraint_fc(action_obs_pair)
         return torch.norm(prediction - latent_next_obs) ** 2 / self.batch_size
 
-    def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
+    def train_epoch(self, epoch, dataset, batches=100, from_rl=False):
         self.model.train()
         losses = []
         log_probs = []
         kles = []
-        linear_losses = []
         zs = []
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
-            if sample_batch is not None:
-                #samples = next(dataloader).to(ptu.device)
-                data = sample_batch(self.batch_size) #add epoch argument
-                obs = ptu.from_numpy(data['obs'])
-                next_obs = ptu.from_numpy(data['next_obs'])
-                actions = ptu.from_numpy(data['actions'])
-            else:
-                next_obs = self.get_batch(epoch=epoch)
-                obs = None
-                actions = None
+            data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
+            next_obs = data["observations"]
             self.optimizer.zero_grad()
             reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
             log_prob = self.model.logprob(next_obs, obs_distribution_params)
@@ -382,14 +364,7 @@ class ConvVAETrainer(object):
             for i in range(len(z_data)):
                 zs.append(z_data[i, :])
 
-            if self.use_linear_dynamics:
-                linear_dynamics_loss = self.state_linearity_loss(
-                    obs, next_obs, actions
-                )
-                loss = -1 * log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
-                linear_losses.append(linear_dynamics_loss.data[0])
-            else:
-                loss = -1 * log_prob + beta * kle
+            loss = -1 * log_prob + beta * kle
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -413,8 +388,6 @@ class ConvVAETrainer(object):
         self.eval_statistics['train/log prob'] = np.mean(log_probs)
         self.eval_statistics['train/KL'] = np.mean(kles)
         self.eval_statistics['train/loss'] = np.mean(losses)
-        if self.use_linear_dynamics:
-            self.eval_statistics['train/linear loss'] = np.mean(linear_losses)
 
     def get_diagnostics(self):
         return self.eval_statistics
@@ -422,10 +395,12 @@ class ConvVAETrainer(object):
     def test_epoch(
             self,
             epoch,
+            dataset,
             save_reconstruction=True,
             save_scatterplot=True,
             save_vae=True,
             from_rl=False,
+            batches=10,
     ):
         self.model.eval()
         losses = []
@@ -433,8 +408,9 @@ class ConvVAETrainer(object):
         kles = []
         zs = []
         beta = float(self.beta_schedule.get_value(epoch))
-        for batch_idx in range(10):
-            next_obs = self.get_batch(train=False)
+        for batch_idx in range(batches):
+            data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
+            next_obs = data["observations"]
             reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
             log_prob = self.model.logprob(next_obs, obs_distribution_params)
             kle = self.model.kl_divergence(latent_distribution_params)
@@ -699,3 +675,137 @@ class ConvVAETrainer(object):
         plt.grid(True)
         save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
         plt.savefig(save_file)
+
+class ConvDynamicsVAETrainer(ConvVAETrainer):
+    def train_epoch(self, epoch, dataset, batches=100, from_rl=False):
+        self.model.train()
+        losses = []
+        log_probs = []
+        kles = []
+        linear_losses = []
+        zs = []
+        beta = float(self.beta_schedule.get_value(epoch))
+        for batch_idx in range(batches):
+            data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
+            obs = data["observations"]
+            next_obs = data["next_observations"]
+            actions = data["actions"]
+
+            self.optimizer.zero_grad()
+            reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
+            log_prob = self.model.logprob(next_obs, obs_distribution_params)
+            kle = self.model.kl_divergence(latent_distribution_params)
+
+            encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
+            z_data = ptu.get_numpy(encoder_mean.cpu())
+            for i in range(len(z_data)):
+                zs.append(z_data[i, :])
+
+            linear_dynamics_loss = self.state_linearity_loss(
+                obs, next_obs, actions
+            )
+            loss = -1 * log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
+            linear_losses.append(linear_dynamics_loss.data[0])
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            losses.append(loss.item())
+            log_probs.append(log_prob.item())
+            kles.append(kle.item())
+
+            self.optimizer.step()
+            if self.log_interval and batch_idx % self.log_interval == 0:
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epoch,
+                    batch_idx * len(data),
+                    len(self.train_loader.dataset),
+                    100. * batch_idx / len(self.train_loader),
+                    loss.item() / len(next_obs)))
+        if not from_rl:
+            zs = np.array(zs)
+            self.model.dist_mu = zs.mean(axis=0)
+            self.model.dist_std = zs.std(axis=0)
+
+        self.eval_statistics['train/log prob'] = np.mean(log_probs)
+        self.eval_statistics['train/KL'] = np.mean(kles)
+        self.eval_statistics['train/loss'] = np.mean(losses)
+        self.eval_statistics['train/linear loss'] = np.mean(linear_losses)
+
+    def get_diagnostics(self):
+        return self.eval_statistics
+
+    def test_epoch(
+            self,
+            epoch,
+            dataset,
+            save_reconstruction=True,
+            save_scatterplot=True,
+            save_vae=True,
+            from_rl=False,
+            batches=10,
+    ):
+        self.model.eval()
+        losses = []
+        linear_losses = []
+        log_probs = []
+        kles = []
+        zs = []
+        beta = float(self.beta_schedule.get_value(epoch))
+        for batch_idx in range(batches):
+            data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
+            obs = data["observations"]
+            next_obs = data["next_observations"]
+            actions = data["actions"]
+            reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
+            log_prob = self.model.logprob(next_obs, obs_distribution_params)
+            kle = self.model.kl_divergence(latent_distribution_params)
+
+            linear_dynamics_loss = self.state_linearity_loss(
+                obs, next_obs, actions
+            )
+            loss = -1 * log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
+            linear_losses.append(linear_dynamics_loss.data[0])
+
+            encoder_mean = latent_distribution_params[0]
+            z_data = ptu.get_numpy(encoder_mean.cpu())
+            for i in range(len(z_data)):
+                zs.append(z_data[i, :])
+            losses.append(loss.item())
+            log_probs.append(log_prob.item())
+            kles.append(kle.item())
+
+            if batch_idx == 0 and save_reconstruction:
+                n = min(next_obs.size(0), 8)
+                comparison = torch.cat([
+                    next_obs[:n].narrow(start=0, length=self.imlength, dim=1)
+                        .contiguous().view(
+                        -1, self.input_channels, self.imsize, self.imsize
+                    ).transpose(2, 3),
+                    reconstructions.view(
+                        self.batch_size,
+                        self.input_channels,
+                        self.imsize,
+                        self.imsize,
+                    )[:n].transpose(2, 3)
+                ])
+                save_dir = osp.join(logger.get_snapshot_dir(),
+                                    'r%d.png' % epoch)
+                save_image(comparison.data.cpu(), save_dir, nrow=n)
+
+        zs = np.array(zs)
+
+        if self.do_scatterplot and save_scatterplot:
+            self.plot_scattered(np.array(zs), epoch)
+
+        self.eval_statistics['epoch'] = epoch
+        self.eval_statistics['test/log prob'] = np.mean(log_probs)
+        self.eval_statistics['test/KL'] = np.mean(kles)
+        self.eval_statistics['test/loss'] = np.mean(losses)
+        self.eval_statistics['beta'] = beta
+        if not from_rl:
+            for k, v in self.eval_statistics.items():
+                logger.record_tabular(k, v)
+            logger.dump_tabular()
+            if save_vae:
+                logger.save_itr_params(epoch, self.model)
+
