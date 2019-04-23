@@ -50,7 +50,7 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             return OrderedDict(), done
 
         self.training_mode(False)
-        if self.min_num_steps_before_training > 0 && self.epoch == 0:
+        if self.min_num_steps_before_training > 0 and self.epoch == 0:
             self.expl_data_collector.collect_new_steps(
                 self.max_path_length,
                 self.min_num_steps_before_training,
