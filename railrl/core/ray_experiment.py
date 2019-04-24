@@ -45,7 +45,9 @@ class SequentialRayExperiment(tune.Trainable):
 
 
     def _train(self):
+        self.cur_algo._begin_epoch()
         log_dict, done = self.cur_algo._train()
+        self.cur_algo._end_epoch()
         log_dict['global_done'] = False
         log_dict['log_fname'] = self.log_fname
         if done:

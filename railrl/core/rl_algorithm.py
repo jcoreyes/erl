@@ -43,11 +43,13 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.num_epochs = num_epochs
 
     def train(self):
-        for epoch in range(self.num_epochs):
+        for _ in range(self.num_epochs):
+            self._begin_epoch()
             log_dict, _ = self._train()
             logger.record_dict(log_dict)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
-            logger.save_itr_params(epoch, self)
+            logger.save_itr_params(self.epoch, self)
+            self._end_epoch()
 
     def _train(self):
         """
