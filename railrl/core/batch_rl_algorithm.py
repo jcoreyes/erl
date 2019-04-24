@@ -31,7 +31,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
         self.min_num_steps_before_training = min_num_steps_before_training
 
     def _train(self):
-        self._begin_epoch()
         done = (self.epoch == self.num_epochs)
         if done:
             return OrderedDict(), done
@@ -68,5 +67,4 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
                 self.trainer.train(train_data)
             timer.stamp('training', unique=False)
         log_stats = self._get_diagnostics()
-        self._end_epoch()
         return log_stats, False
