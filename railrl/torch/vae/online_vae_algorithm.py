@@ -141,13 +141,21 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         )
 
 
+class ReplayBufferWrapper:
+    def __init__(self, replay_buffer):
+        self.replay_buffer = replay_buffer
+
+    def random_batch(self, batch_size):
+        return self.replay_buffer.random_vae_training_data(batch_size, epoch=0)
+
+
 def _train_vae(vae_trainer, replay_buffer, epoch, batches=50, oracle_data=False):
     batch_sampler = replay_buffer.random_vae_training_data
     if oracle_data:
         batch_sampler = None
     vae_trainer.train_epoch(
         epoch,
-        sample_batch=batch_sampler,
+        ReplayBufferWrapper(replay_buffer),
         batches=batches,
         from_rl=True,
     )
@@ -161,6 +169,7 @@ def _test_vae(vae_trainer, epoch, replay_buffer, vae_save_period=1, uniform_data
         replay_buffer.log_loss_under_uniform(uniform_dataset, vae_trainer.batch_size, rl_logger=vae_trainer.vae_logger_stats_for_rl)
     vae_trainer.test_epoch(
         epoch,
+        ReplayBufferWrapper(replay_buffer),
         from_rl=True,
         save_reconstruction=save_imgs,
     )

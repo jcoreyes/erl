@@ -322,7 +322,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
 
         next_image_obs = self._next_obs[self.decoded_obs_key][weighted_idxs]
         return dict(
-            next_obs=ptu.from_numpy(next_image_obs)
+            observations=ptu.from_numpy(next_image_obs)
         )
 
     def reconstruction_mse(self, next_vae_obs, indices):

@@ -305,11 +305,12 @@ class ConvVAETrainer(object):
         zs = []
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
-            data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
-            next_obs = data["observations"]
+            # data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
+            data = dataset.random_batch(self.batch_size)
+            obs = data["observations"]
             self.optimizer.zero_grad()
-            reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
-            log_prob = self.model.logprob(next_obs, obs_distribution_params)
+            reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
+            log_prob = self.model.logprob(obs, obs_distribution_params)
             kle = self.model.kl_divergence(latent_distribution_params)
 
             encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
@@ -332,7 +333,7 @@ class ConvVAETrainer(object):
                     batch_idx * len(data),
                     len(self.train_loader.dataset),
                     100. * batch_idx / len(self.train_loader),
-                    loss.item() / len(next_obs)))
+                    loss.item() / len(obs)))
         if not from_rl:
             zs = np.array(zs)
             self.model.dist_mu = zs.mean(axis=0)
@@ -362,10 +363,11 @@ class ConvVAETrainer(object):
         zs = []
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
-            data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
-            next_obs = data["observations"]
-            reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
-            log_prob = self.model.logprob(next_obs, obs_distribution_params)
+            # data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
+            data = dataset.random_batch(self.batch_size)
+            obs = data["observations"]
+            reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
+            log_prob = self.model.logprob(obs, obs_distribution_params)
             kle = self.model.kl_divergence(latent_distribution_params)
             loss = -1 * log_prob + beta * kle
 
@@ -378,9 +380,9 @@ class ConvVAETrainer(object):
             kles.append(kle.item())
 
             if batch_idx == 0 and save_reconstruction:
-                n = min(next_obs.size(0), 8)
+                n = min(obs.size(0), 8)
                 comparison = torch.cat([
-                    next_obs[:n].narrow(start=0, length=self.imlength, dim=1)
+                    obs[:n].narrow(start=0, length=self.imlength, dim=1)
                         .contiguous().view(
                         -1, self.input_channels, self.imsize, self.imsize
                     ).transpose(2, 3),
@@ -638,7 +640,8 @@ class ConvDynamicsVAETrainer(ConvVAETrainer):
         zs = []
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
-            data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
+            # data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
+            data = dataset.random_batch(self.batch_size)
             obs = data["observations"]
             next_obs = data["next_observations"]
             actions = data["actions"]
@@ -701,7 +704,8 @@ class ConvDynamicsVAETrainer(ConvVAETrainer):
         zs = []
         beta = float(self.beta_schedule.get_value(epoch))
         for batch_idx in range(batches):
-            data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
+            # data = np_to_pytorch_batch(dataset.random_batch(self.batch_size))
+            data = dataset.random_batch(self.batch_size)
             obs = data["observations"]
             next_obs = data["next_observations"]
             actions = data["actions"]
