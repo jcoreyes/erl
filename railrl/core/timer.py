@@ -27,10 +27,10 @@ class Timer:
 
     def get_times(self):
         global_times = {}
+        cur_time = time.time()
+        global_times['epoch_time'] = (cur_time - self.epoch_start_time)
         if self._return_global_times:
-            cur_time = time.time()
             global_times['global_time'] = (cur_time - self.global_start_time)
-            global_times['epoch_time'] = (cur_time - self.epoch_start_time)
         return {
             **self.stamps.copy(),
             **global_times,
