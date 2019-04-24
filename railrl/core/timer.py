@@ -3,9 +3,13 @@ import time
 
 class Timer:
     def __init__(self, return_global_times=False):
+        self.stamps = None
+        self.epoch_start_time = None
+        self.last_stamp_time = None
+        self.global_start_time = time.time()
+        self._return_global_times = return_global_times
+
         self.reset()
-        self.global_start_time = self.epoch_start_time
-        self.return_global_times = return_global_times
 
     def reset(self):
         self.stamps = {}
@@ -23,7 +27,7 @@ class Timer:
 
     def get_times(self):
         global_times = {}
-        if self.return_global_times:
+        if self._return_global_times:
             cur_time = time.time()
             global_times['global_time'] = (cur_time - self.global_start_time)
             global_times['epoch_time'] = (cur_time - self.epoch_start_time)
@@ -31,6 +35,14 @@ class Timer:
             **self.stamps.copy(),
             **global_times,
         }
+
+    @property
+    def return_global_times(self):
+        return self._return_global_times
+
+    @return_global_times.setter
+    def return_global_times(self, value):
+        self._return_global_times = value
 
 
 timer = Timer()
