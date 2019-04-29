@@ -89,11 +89,6 @@ class VAETrainer(object):
         else:
             self.priority_function_kwargs = priority_function_kwargs
 
-        if self.skew_dataset:
-            self._train_weights = self._compute_train_weights()
-        else:
-            self._train_weights = None
-
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
                 train_dataset,
@@ -331,11 +326,6 @@ class ConvVAETrainer(VAETrainer):
         stats['debug/MSE of reconstruction'] = ptu.get_numpy(
             recon_mse
         )[0]
-        if self.skew_dataset:
-            stats.update(create_stats_ordered_dict(
-                'train weight',
-                self._train_weights
-            ))
         return stats
 
     def dump_samples(self, epoch):
