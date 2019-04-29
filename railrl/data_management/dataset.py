@@ -10,18 +10,6 @@ class Dataset:
         raise NotImplementedError
 
 
-class ProcessingDataset:
-    def __init__(self, normalize=True, torchify=True, info=None):
-        self.normalize = normalize
-
-    def random_batch(self, batch_size):
-        data_dict = self.get_raw_batch(batch_size)
-        return data_dict
-
-    def get_raw_batch(self, batch_size):
-        raise NotImplementedError
-
-
 class ObservationDataset(Dataset):
     def __init__(self, data, info=None):
         self.data = data
@@ -107,8 +95,3 @@ class TripletReplayBufferWrapper(Dataset):
             x2=self.replay_buffer._obs["image_observation"][indices+2],
         )
         return np_to_pytorch_batch(batch)
-
-
-class SkewFitDatasetWrapper(Dataset):
-    def random_batch(self, batch_size):
-        return self.sample_weighted_indices(batch_size)
