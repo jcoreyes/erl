@@ -3,8 +3,7 @@ import copy
 import torch.utils.data
 from IPython.core.debugger import Pdb;
 
-from multiworld.core.image_env import normalize_image
-
+from railrl.data_management.images import normalize_image
 debug = Pdb().set_trace
 
 # Adapted from pytorch examples

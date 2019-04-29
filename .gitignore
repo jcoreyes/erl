@@ -26,3 +26,5 @@ experiments/ashvin/nips2018
 */*/.mujoco
 *.jpg
 *.img
+MANIFEST
+*.egg-info

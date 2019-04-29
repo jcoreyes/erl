@@ -10,7 +10,7 @@ from torch.nn import functional as F
 from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.core import PyTorchModule
+from railrl.torch.core import PyTorchModule, eval_np
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 
@@ -203,6 +203,41 @@ class MergedCNN(CNN):
         return output
 
 
+class Split(nn.Module):
+    """
+    Split input and process each chunk with a separate module.
+    """
+    def __init__(self, module1, module2, split_idx):
+        super().__init__()
+        self.module1 = module1
+        self.module2 = module2
+        self.split_idx = split_idx
+
+    def forward(self, x):
+        in1 = x[:, :self.split_idx]
+        out1 = self.module1(in1)
+
+        in2 = x[:, self.split_idx:]
+        out2 = self.module2(in2)
+
+        return out1, out2
+
+
+class FlattenEach(nn.Module):
+    def forward(self, inputs):
+        return tuple(x.view(x.size(0), -1) for x in inputs)
+
+
+class Flatten(nn.Module):
+    def forward(self, inputs):
+        return inputs.view(inputs.size(0), -1)
+
+
+class Concat(nn.Module):
+    def forward(self, inputs):
+        return torch.cat(inputs, dim=1)
+
+
 class CNNPolicy(CNN, Policy):
     """
     A simpler interface for creating policies.
@@ -227,7 +262,7 @@ class CNNPolicy(CNN, Policy):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 class Mlp(PyTorchModule):
@@ -327,7 +362,6 @@ class MlpQfWithObsProcessor(Mlp):
 
     def forward(self, obs, actions, **kwargs):
         h = self.obs_processor(obs)
-        h = h.view(h.size(0), -1)
         flat_inputs = torch.cat((h, actions), dim=1)
         return super().forward(flat_inputs, **kwargs)
 
@@ -356,7 +390,7 @@ class MlpPolicy(Mlp, Policy):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 class TanhMlpPolicy(MlpPolicy):
@@ -395,7 +429,7 @@ class ImageStatePolicy(PyTorchModule, Policy):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 class ImageStateQ(PyTorchModule):
@@ -521,7 +555,7 @@ class FeedForwardPolicy(PyTorchModule):
         return actions[0, :], {}
 
     def get_actions(self, obs):
-        return self.eval_np(obs)
+        return eval_np(self, obs)
 
 
 """

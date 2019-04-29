@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import os
 from os import path as osp
 import numpy as np
 import torch
@@ -6,8 +7,9 @@ from torch import optim
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
-from multiworld.core.image_env import normalize_image
+from railrl.data_management.images import normalize_image
 from railrl.core import logger
+import railrl.core.util as util
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.torch import pytorch_util as ptu
@@ -16,94 +18,38 @@ from railrl.torch.data import (
     InfiniteRandomSampler,
 )
 
+class VAEExperiment:
+    def __init__(self, vae_trainer, num_epochs, save_period=1,
+                 dump_skew_debug_plots=False):
+        self.vae_trainer = vae_trainer
+        self.num_epochs = num_epochs
+        self.save_period = save_period
+        self.dump_skew_debug_plots = dump_skew_debug_plots
+        self.epoch = 0
 
-def relative_probs_from_log_probs(log_probs):
-    """
-    Returns relative probability from the log probabilities. They're not exactly
-    equal to the probability, but relative scalings between them are all maintained.
+    def _train(self):
+        log = dict()
+        done = False
+        if self.epoch == self.num_epochs:
+            done = True
+            return log, done
+        should_save_imgs = (self.epoch % self.save_period == 0)
+        self.vae_trainer.train_epoch(self.epoch)
+        self.vae_trainer.test_epoch(self.epoch,
+                                    save_reconstruction=should_save_imgs,
+                                    save_scatterplot=should_save_imgs)
+        if should_save_imgs:
+            self.vae_trainer.dump_samples(self.epoch)
+            if self.dump_skew_debug_plots:
+                self.vae_trainer.dump_best_reconstruction(self.epoch)
+                self.vae_trainer.dump_worst_reconstruction(self.epoch)
+                self.vae_trainer.dump_sampling_histogram(self.epoch)
+        self.vae_trainer.update_train_weights()
+        self.epoch += 1
+        return log, done
 
-    For correctness, all log_probs must be passed in at the same time.
-    """
-    probs = np.exp(log_probs - log_probs.mean())
-    assert not np.any(probs <= 0), 'choose a smaller power'
-    return probs
-
-def compute_log_p_log_q_log_d(
-    model,
-    data,
-    decoder_distribution='bernoulli',
-    num_latents_to_sample=1,
-    sampling_method='importance_sampling'
-):
-    assert data.dtype != np.uint8, 'images should be normalized'
-    imgs = ptu.from_numpy(data)
-    latent_distribution_params = model.encode(imgs)
-    batch_size = data.shape[0]
-    representation_size = model.representation_size
-    log_p, log_q, log_d = ptu.zeros((batch_size, num_latents_to_sample)), ptu.zeros(
-        (batch_size, num_latents_to_sample)), ptu.zeros((batch_size, num_latents_to_sample))
-    true_prior = Normal(ptu.zeros((batch_size, representation_size)),
-                        ptu.ones((batch_size, representation_size)))
-    mus, logvars = latent_distribution_params
-    for i in range(num_latents_to_sample):
-        if sampling_method == 'importance_sampling':
-            latents = model.rsample(latent_distribution_params)
-        elif sampling_method == 'biased_sampling':
-            latents = model.rsample(latent_distribution_params)
-        elif sampling_method == 'true_prior_sampling':
-            latents = true_prior.rsample()
-        else:
-            raise EnvironmentError('Invalid Sampling Method Provided')
-
-        stds = logvars.exp().pow(.5)
-        vae_dist = Normal(mus, stds)
-        log_p_z = true_prior.log_prob(latents).sum(dim=1)
-        log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
-        if decoder_distribution == 'bernoulli':
-            decoded = model.decode(latents)[0]
-            log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
-        elif decoder_distribution == 'gaussian_identity_variance':
-            _, obs_distribution_params = model.decode(latents)
-            dec_mu, dec_logvar = obs_distribution_params
-            dec_var = dec_logvar.exp()
-            decoder_dist = Normal(dec_mu, dec_var.pow(.5))
-            log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
-        else:
-            raise EnvironmentError('Invalid Decoder Distribution Provided')
-
-        log_p[:, i] = log_p_z
-        log_q[:, i] = log_q_z_given_x
-        log_d[:, i] = log_d_x_given_z
-    return log_p, log_q, log_d
-
-def compute_p_x_np_to_np(
-    model,
-    data,
-    power,
-    decoder_distribution='bernoulli',
-    num_latents_to_sample=1,
-    sampling_method='importance_sampling'
-):
-    assert data.dtype != np.uint8, 'images should be normalized'
-    assert power >= -1 and power <= 0, 'power for skew-fit should belong to [-1, 0]'
-
-    log_p, log_q, log_d = compute_log_p_log_q_log_d(
-        model,
-        data,
-        decoder_distribution,
-        num_latents_to_sample,
-        sampling_method
-    )
-
-    if sampling_method == 'importance_sampling':
-        log_p_x = (log_p - log_q + log_d).mean(dim=1)
-    elif sampling_method == 'biased_sampling' or sampling_method == 'true_prior_sampling':
-        log_p_x = log_d.mean(dim=1)
-    else:
-        raise EnvironmentError('Invalid Sampling Method Provided')
-    log_p_x_skewed = power * log_p_x
-    return ptu.get_numpy(log_p_x_skewed)
-
+    def to(self, device):
+        self.vae_trainer.model.to(device)
 
 class ConvVAETrainer(object):
     def __init__(
@@ -123,7 +69,7 @@ class ConvVAETrainer(object):
             background_subtract=False,
             linearity_weight=0.0,
             use_linear_dynamics=False,
-            use_parallel_dataloading=True,
+            use_parallel_dataloading=False,
             train_data_workers=2,
             skew_dataset=False,
             skew_config=None,
@@ -131,6 +77,9 @@ class ConvVAETrainer(object):
             start_skew_epoch=0,
             weight_decay=0,
     ):
+        #TODO:steven fix pickling
+        assert not use_parallel_dataloading, "Have to fix pickling the dataloaders first"
+
         if skew_config is None:
             skew_config = {}
         self.log_interval = log_interval
@@ -148,7 +97,6 @@ class ConvVAETrainer(object):
             self.beta_schedule = ConstantSchedule(self.beta)
         self.imsize = model.imsize
         self.do_scatterplot = do_scatterplot
-
         model.to(ptu.device)
 
         self.model = model
@@ -459,8 +407,7 @@ class ConvVAETrainer(object):
                         self.imsize,
                     )[:n].transpose(2, 3)
                 ])
-                save_dir = osp.join(logger.get_snapshot_dir(),
-                                    'r%d.png' % epoch)
+                save_dir = osp.join(util.LOG_DIR, 'r%d.png' % epoch)
                 save_image(comparison.data.cpu(), save_dir, nrow=n)
 
         zs = np.array(zs)
@@ -524,7 +471,7 @@ class ConvVAETrainer(object):
         self.model.eval()
         sample = ptu.randn(64, self.representation_size)
         sample = self.model.decode(sample)[0].cpu()
-        save_dir = osp.join(logger.get_snapshot_dir(), 's%d.png' % epoch)
+        save_dir = osp.join(util.LOG_DIR, 's%d.png' % epoch)
         save_image(
             sample.data.view(64, self.input_channels, self.imsize, self.imsize).transpose(2, 3),
             save_dir
@@ -547,7 +494,7 @@ class ConvVAETrainer(object):
         plt.xlabel('Indices')
         plt.ylabel('Number of Samples')
         plt.title('VAE Priority Histogram')
-        save_file = osp.join(logger.get_snapshot_dir(), 'hist{}.png'.format(
+        save_file = osp.join(util.LOG_DIR, 'hist{}.png'.format(
             epoch))
         plt.savefig(save_file)
 
@@ -559,7 +506,7 @@ class ConvVAETrainer(object):
         plt.xlabel('Indices')
         plt.ylabel('Number of Samples')
         plt.title('VAE Priority Histogram Batch')
-        save_file = osp.join(logger.get_snapshot_dir(), 'hist_batch{}.png'.format(
+        save_file = osp.join(util.LOG_DIR, 'hist_batch{}.png'.format(
             epoch))
         plt.savefig(save_file)
 
@@ -587,7 +534,7 @@ class ConvVAETrainer(object):
             imgs.append(img)
             recons.append(rimg)
         all_imgs = torch.stack(imgs + recons)
-        save_file = osp.join(logger.get_snapshot_dir(), filename)
+        save_file = osp.join(util.LOG_DIR, filename)
         save_image(
             all_imgs.data,
             save_file,
@@ -647,7 +594,7 @@ class ConvVAETrainer(object):
             imgs.append(img)
             recons.append(rimg)
         all_imgs = torch.stack(imgs + recons)
-        save_file = osp.join(logger.get_snapshot_dir(), filename)
+        save_file = osp.join(util.LOG_DIR, filename)
         save_image(
             all_imgs.data,
             save_file,
@@ -694,5 +641,95 @@ class ConvVAETrainer(object):
         axes.set_ylim([-6, 6])
         axes.set_title('dim {} vs dim {}'.format(dim1, dim2))
         plt.grid(True)
-        save_file = osp.join(logger.get_snapshot_dir(), 'scatter%d.png' % epoch)
+        save_file = osp.join(util.LOG_DIR, 'scatter%d.png' % epoch)
         plt.savefig(save_file)
+
+
+
+def relative_probs_from_log_probs(log_probs):
+    """
+    Returns relative probability from the log probabilities. They're not exactly
+    equal to the probability, but relative scalings between them are all maintained.
+
+    For correctness, all log_probs must be passed in at the same time.
+    """
+    probs = np.exp(log_probs - log_probs.mean())
+    assert not np.any(probs <= 0), 'choose a smaller power'
+    return probs
+
+def compute_log_p_log_q_log_d(
+    model,
+    data,
+    decoder_distribution='bernoulli',
+    num_latents_to_sample=1,
+    sampling_method='importance_sampling'
+):
+    assert data.dtype != np.uint8, 'images should be normalized'
+    imgs = ptu.from_numpy(data)
+    latent_distribution_params = model.encode(imgs)
+    batch_size = data.shape[0]
+    representation_size = model.representation_size
+    log_p, log_q, log_d = ptu.zeros((batch_size, num_latents_to_sample)), ptu.zeros(
+        (batch_size, num_latents_to_sample)), ptu.zeros((batch_size, num_latents_to_sample))
+    true_prior = Normal(ptu.zeros((batch_size, representation_size)),
+                        ptu.ones((batch_size, representation_size)))
+    mus, logvars = latent_distribution_params
+    for i in range(num_latents_to_sample):
+        if sampling_method == 'importance_sampling':
+            latents = model.rsample(latent_distribution_params)
+        elif sampling_method == 'biased_sampling':
+            latents = model.rsample(latent_distribution_params)
+        elif sampling_method == 'true_prior_sampling':
+            latents = true_prior.rsample()
+        else:
+            raise EnvironmentError('Invalid Sampling Method Provided')
+
+        stds = logvars.exp().pow(.5)
+        vae_dist = Normal(mus, stds)
+        log_p_z = true_prior.log_prob(latents).sum(dim=1)
+        log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
+        if decoder_distribution == 'bernoulli':
+            decoded = model.decode(latents)[0]
+            log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
+        elif decoder_distribution == 'gaussian_identity_variance':
+            _, obs_distribution_params = model.decode(latents)
+            dec_mu, dec_logvar = obs_distribution_params
+            dec_var = dec_logvar.exp()
+            decoder_dist = Normal(dec_mu, dec_var.pow(.5))
+            log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
+        else:
+            raise EnvironmentError('Invalid Decoder Distribution Provided')
+
+        log_p[:, i] = log_p_z
+        log_q[:, i] = log_q_z_given_x
+        log_d[:, i] = log_d_x_given_z
+    return log_p, log_q, log_d
+
+def compute_p_x_np_to_np(
+    model,
+    data,
+    power,
+    decoder_distribution='bernoulli',
+    num_latents_to_sample=1,
+    sampling_method='importance_sampling'
+):
+    assert data.dtype != np.uint8, 'images should be normalized'
+    assert power >= -1 and power <= 0, 'power for skew-fit should belong to [-1, 0]'
+
+    log_p, log_q, log_d = compute_log_p_log_q_log_d(
+        model,
+        data,
+        decoder_distribution,
+        num_latents_to_sample,
+        sampling_method
+    )
+
+    if sampling_method == 'importance_sampling':
+        log_p_x = (log_p - log_q + log_d).mean(dim=1)
+    elif sampling_method == 'biased_sampling' or sampling_method == 'true_prior_sampling':
+        log_p_x = log_d.mean(dim=1)
+    else:
+        raise EnvironmentError('Invalid Sampling Method Provided')
+    log_p_x_skewed = power * log_p_x
+    return ptu.get_numpy(log_p_x_skewed)
+

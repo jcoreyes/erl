@@ -250,7 +250,7 @@ def generate_vae_dataset(variant):
         filename = "/tmp/{}_N{}_{}_imsize{}_random_oracle_split_{}{}.npy".format(
             save_file_prefix,
             str(N),
-            init_camera.__name__ if init_camera else '',
+            init_camera.__name__ if init_camera and hasattr(init_camera, '__name__') else '',
             imsize,
             random_and_oracle_policy_data_split,
             tag,
@@ -263,6 +263,8 @@ def generate_vae_dataset(variant):
 
             if env_id is not None:
                 import gym
+                import multiworld
+                multiworld.register_all_envs()
                 env = gym.make(env_id)
             else:
                 if vae_dataset_specific_env_kwargs is None:
@@ -360,7 +362,8 @@ def get_envs(variant):
     vae = load_local_or_remote_file(vae_path) if type(vae_path) is str else vae_path
     if 'env_id' in variant:
         import gym
-        # trigger registration
+        import multiworld
+        multiworld.register_all_envs()
         env = gym.make(variant['env_id'])
     else:
         env = variant["env_class"](**variant['env_kwargs'])
@@ -875,6 +878,7 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         env.vae,
         **variant['online_vae_trainer_kwargs']
     )
+    vae_trainer = SkewFitTrainer(vae_trainer, replay_buffer)
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     max_path_length = variant['max_path_length']
 
@@ -1460,7 +1464,8 @@ def HER_baseline_her_td3_experiment(variant):
 
     if 'env_id' in variant:
         import gym
-        # trigger registration
+        import multiworld
+        multiworld.register_all_envs()
         env = gym.make(variant['env_id'])
     else:
         env = variant["env_class"](**variant['env_kwargs'])
@@ -1605,7 +1610,8 @@ def HER_baseline_twin_sac_experiment(variant):
 
     if 'env_id' in variant:
         import gym
-        # trigger registration
+        import multiworld
+        multiworld.register_all_envs()
         env = gym.make(variant['env_id'])
     else:
         env = variant["env_class"](**variant['env_kwargs'])

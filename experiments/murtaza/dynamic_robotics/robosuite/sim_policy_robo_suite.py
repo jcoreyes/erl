@@ -29,6 +29,11 @@ def simulate_policy(args):
             data.keys()
         ))
 
+    #robosuite env specific things 
+    env._wrapped_env.has_renderer = True
+    env.reset()
+    env.viewer.set_camera(camera_id=0)
+
     if isinstance(env, RemoteRolloutEnv):
         env = env._wrapped_env
     print("Policy loaded")

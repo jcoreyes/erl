@@ -3,10 +3,12 @@ from railrl.exploration_strategies.count_based.count_based import CountExplorati
 from torchvision.utils import save_image
 
 from railrl.core import logger
-from railrl.data_management.obs_dict_replay_buffer import flatten_dict
+from railrl.data_management.obs_dict_replay_buffer import (
+    flatten_dict,
+    ObsDictRelabelingBuffer
+)
 from railrl.data_management.shared_obs_dict_replay_buffer import \
     SharedObsDictRelabelingBuffer
-from multiworld.core.image_env import normalize_image
 import railrl.torch.pytorch_util as ptu
 import numpy as np
 import torch
@@ -25,7 +27,7 @@ from railrl.torch.vae.vae_trainer import (
 import os.path as osp
 
 
-class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
+class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
 
     def __init__(
             self,
@@ -123,10 +125,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             if exploration_counter_kwargs is None:
                 exploration_counter_kwargs = dict()
             self.exploration_counter = CountExploration(env=self.env, **exploration_counter_kwargs)
-
         self.epoch = 0
-        self._register_mp_array("_exploration_rewards")
-        self._register_mp_array("_vae_sample_priorities")
 
     def add_path(self, path):
         self.add_decoded_vae_goals_to_path(path)
@@ -194,9 +193,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             next_idx = min(batch_size, self._size)
             while cur_idx < self._size:
                 idxs = np.arange(cur_idx, next_idx)
-                normalized_imgs = (
-                    normalize_image(self._next_obs[self.decoded_obs_key][idxs])
-                )
+                normalized_imgs = self._next_obs[self.decoded_obs_key][idxs]
                 self.update_hash_count(normalized_imgs)
                 cur_idx = next_idx
                 next_idx += batch_size
@@ -208,28 +205,18 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         while cur_idx < self._size:
             idxs = np.arange(cur_idx, next_idx)
             self._obs[self.observation_key][idxs] = \
-                self.env._encode(
-                    normalize_image(self._obs[self.decoded_obs_key][idxs])
-                )
+                self.env._encode(self._obs[self.decoded_obs_key][idxs])
             self._next_obs[self.observation_key][idxs] = \
-                self.env._encode(
-                    normalize_image(self._next_obs[self.decoded_obs_key][idxs])
-                )
+                self.env._encode(self._next_obs[self.decoded_obs_key][idxs])
             # WARNING: we only refresh the desired/achieved latents for
             # "next_obs". This means that obs[desired/achieve] will be invalid,
             # so make sure there's no code that references this.
             # TODO: enforce this with code and not a comment
             self._next_obs[self.desired_goal_key][idxs] = \
-                self.env._encode(
-                    normalize_image(self._next_obs[self.decoded_desired_goal_key][idxs])
-                )
+                self.env._encode(self._next_obs[self.decoded_desired_goal_key][idxs])
             self._next_obs[self.achieved_goal_key][idxs] = \
-                self.env._encode(
-                    normalize_image(self._next_obs[self.decoded_achieved_goal_key][idxs])
-                )
-            normalized_imgs = (
-                normalize_image(self._next_obs[self.decoded_obs_key][idxs])
-            )
+                self.env._encode(self._next_obs[self.decoded_achieved_goal_key][idxs])
+            normalized_imgs = self._next_obs[self.decoded_obs_key][idxs]
             if self._give_explr_reward_bonus:
                 rewards = self.exploration_reward_func(
                     normalized_imgs,
@@ -319,9 +306,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         weighted_idxs = self.sample_weighted_indices(
             batch_size,
         )
-        next_image_obs = normalize_image(
-            self._next_obs[self.decoded_obs_key][weighted_idxs]
-        )
+        next_image_obs = self._next_obs[self.decoded_obs_key][weighted_idxs]
         next_latent_obs = self._next_obs[self.achieved_goal_key][weighted_idxs]
         return {
             self.decoded_desired_goal_key:  next_image_obs,
@@ -335,9 +320,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
             batch_size,
         )
 
-        next_image_obs = normalize_image(
-            self._next_obs[self.decoded_obs_key][weighted_idxs]
-        )
+        next_image_obs = self._next_obs[self.decoded_obs_key][weighted_idxs]
         return dict(
             next_obs=ptu.from_numpy(next_image_obs)
         )
@@ -498,7 +481,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         recons = []
         for i in idxs:
             img_np = self._obs['image_observation'][i]
-            img_torch = ptu.from_numpy(normalize_image(img_np))
+            img_torch = ptu.from_numpy(img_np)
             recon, *_ = self.vae(img_torch.view(1, -1))
 
             img = img_torch.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1, 2)
@@ -521,7 +504,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         kles = []
         mses = []
         for i in range(0, data.shape[0], batch_size):
-            img = normalize_image(data[i:min(data.shape[0], i + batch_size), :])
+            img = data[i:min(data.shape[0], i + batch_size), :]
             torch_img = ptu.from_numpy(img)
             reconstructions, obs_distribution_params, latent_distribution_params = self.vae(torch_img)
 
@@ -558,7 +541,7 @@ class OnlineVaeRelabelingBuffer(SharedObsDictRelabelingBuffer):
         recons = []
         for i in idxs:
             img_np = dataset[i]
-            img_torch = ptu.from_numpy(normalize_image(img_np))
+            img_torch = ptu.from_numpy(img_np)
             recon, *_ = self.vae(img_torch.view(1, -1))
 
             img = img_torch.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1, 2)

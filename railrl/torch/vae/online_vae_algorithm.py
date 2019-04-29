@@ -1,5 +1,5 @@
-import gtimer as gt
 from railrl.core import logger
+from railrl.core.timer import timer
 from railrl.data_management.online_vae_replay_buffer import \
     OnlineVaeRelabelingBuffer
 from railrl.data_management.shared_obs_dict_replay_buffer \
@@ -13,7 +13,7 @@ import railrl.torch.pytorch_util as ptu
 from torch.multiprocessing import Process, Pipe
 from threading import Thread
 import numpy as np
-
+from railrl.core.logging import add_prefix
 
 class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
 
@@ -47,28 +47,19 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         self._update_subprocess_vae_thread = None
         self._vae_conn_pipe = None
 
-    def _train(self):
-        super()._train()
-        self._cleanup()
+    def _end_epoch(self):
+        self._train_vae(self.epoch)
+        timer.stamp('vae training')
+        super()._end_epoch()
 
-    def _end_epoch(self, epoch):
-        self._train_vae(epoch)
-        gt.stamp('vae training')
-        super()._end_epoch(epoch)
-
-    def _log_stats(self, epoch):
-        self._log_vae_stats()
-        super()._log_stats(epoch)
+    def _get_diagnostics(self):
+        vae_log = self._get_vae_diagnostics().copy()
+        vae_log.update(super()._get_diagnostics())
+        return vae_log
 
     def to(self, device):
         self.vae.to(device)
         super().to(device)
-
-    def _get_snapshot(self):
-        snapshot = super()._get_snapshot()
-        assert 'vae' not in snapshot
-        snapshot['vae'] = self.vae
-        return snapshot
 
     """
     VAE-specific Code
@@ -109,8 +100,8 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
                     uniform_dataset=self.uniform_dataset,
                 )
 
-    def _log_vae_stats(self):
-        logger.record_dict(
+    def _get_vae_diagnostics(self):
+        return add_prefix(
             self.vae_trainer.get_diagnostics(),
             prefix='vae_trainer/',
         )
