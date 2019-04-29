@@ -30,7 +30,6 @@ class ActiveRepresentationLearningAlgorithm(TorchBatchRLAlgorithm):
             **base_kwargs
     ):
         super().__init__(*base_args, **base_kwargs)
-        assert isinstance(self.replay_buffer, OnlineVaeRelabelingBuffer)
         self.model = model
         self.model_trainer = model_trainer
         self.model_trainer.model = self.model
@@ -52,27 +51,27 @@ class ActiveRepresentationLearningAlgorithm(TorchBatchRLAlgorithm):
         return vae_log
 
     def to(self, device):
-        self.vae.to(device)
+        self.model.to(device)
         super().to(device)
 
     """
     VAE-specific Code
     """
     def _train_vae(self, epoch):
-        should_train, amount_to_train = self.vae_training_schedule(epoch)
+        should_train, amount_to_train = self.model_training_schedule(epoch)
         rl_start_epoch = int(self.min_num_steps_before_training / (
                 self.num_expl_steps_per_train_loop * self.num_train_loops_per_epoch
         ))
         if should_train or epoch <= (rl_start_epoch - 1):
             _train_vae(
-                self.vae_trainer,
+                self.model_trainer,
                 self.replay_buffer,
                 epoch,
                 amount_to_train
             )
-            self.replay_buffer.refresh_latents(epoch)
+            # self.replay_buffer.refresh_latents(epoch)
             _test_vae(
-                self.vae_trainer,
+                self.model_trainer,
                 epoch,
                 self.replay_buffer,
                 vae_save_period=self.vae_save_period,
@@ -81,39 +80,38 @@ class ActiveRepresentationLearningAlgorithm(TorchBatchRLAlgorithm):
 
     def _get_vae_diagnostics(self):
         return add_prefix(
-            self.vae_trainer.get_diagnostics(),
+            self.model_trainer.get_diagnostics(),
             prefix='vae_trainer/',
         )
 
 
 def _train_vae(vae_trainer, replay_buffer, epoch, batches=50, oracle_data=False):
-    batch_sampler = replay_buffer.random_vae_training_data
     if oracle_data:
         batch_sampler = None
     vae_trainer.train_epoch(
         epoch,
-        sample_batch=batch_sampler,
+        replay_buffer,
         batches=batches,
         from_rl=True,
     )
-    replay_buffer.train_dynamics_model(batches=batches)
 
 
 def _test_vae(vae_trainer, epoch, replay_buffer, vae_save_period=1, uniform_dataset=None):
     save_imgs = epoch % vae_save_period == 0
-    log_fit_skew_stats = replay_buffer._prioritize_vae_samples and uniform_dataset is not None
-    if uniform_dataset is not None:
-        replay_buffer.log_loss_under_uniform(uniform_dataset, vae_trainer.batch_size, rl_logger=vae_trainer.vae_logger_stats_for_rl)
+    # log_fit_skew_stats = replay_buffer._prioritize_vae_samples and uniform_dataset is not None
+    # if uniform_dataset is not None:
+    #     replay_buffer.log_loss_under_uniform(uniform_dataset, vae_trainer.batch_size, rl_logger=vae_trainer.vae_logger_stats_for_rl)
     vae_trainer.test_epoch(
         epoch,
+        replay_buffer,
         from_rl=True,
         save_reconstruction=save_imgs,
     )
-    if save_imgs:
-        vae_trainer.dump_samples(epoch)
-        if log_fit_skew_stats:
-            replay_buffer.dump_best_reconstruction(epoch)
-            replay_buffer.dump_worst_reconstruction(epoch)
-            replay_buffer.dump_sampling_histogram(epoch, batch_size=vae_trainer.batch_size)
-        if uniform_dataset is not None:
-            replay_buffer.dump_uniform_imgs_and_reconstructions(dataset=uniform_dataset, epoch=epoch)
+    # if save_imgs:
+    #     vae_trainer.dump_samples(epoch)
+    #     if log_fit_skew_stats:
+    #         replay_buffer.dump_best_reconstruction(epoch)
+    #         replay_buffer.dump_worst_reconstruction(epoch)
+    #         replay_buffer.dump_sampling_histogram(epoch, batch_size=vae_trainer.batch_size)
+    #     if uniform_dataset is not None:
+    #         replay_buffer.dump_uniform_imgs_and_reconstructions(dataset=uniform_dataset, epoch=epoch)

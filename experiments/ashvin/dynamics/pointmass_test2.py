@@ -10,13 +10,9 @@ from railrl.launchers.arglauncher import run_variants
 
 from multiworld.envs.pygame.point2d import Point2DWallEnv
 
-from railrl.torch.arl.models.hinge_distance_model_trainer import HingeDistanceModelTrainer
-
-from railrl.torch.networks import CNN
-
-# def experiment(variant):
-#     full_experiment_variant_preprocess(variant)
-#     train_vae_and_update_variant(variant)
+def experiment(variant):
+    full_experiment_variant_preprocess(variant)
+    train_vae_and_update_variant(variant)
 
 if __name__ == "__main__":
     variant = dict(
@@ -37,22 +33,7 @@ if __name__ == "__main__":
         grill_variant=dict(
             save_video=True,
             custom_goal_sampler='replay_buffer',
-            model_class=CNN,
-            model_kwargs=dict(
-                kernel_sizes=[5, 3, 3],
-                n_channels=[16, 32, 64],
-                strides=[3, 2, 2],
-                hidden_sizes=[],
-                batch_norm_conv=False,
-                batch_norm_fc=False,
-                paddings=[0, 0, 0],
-                input_height=48,
-                input_width=48,
-                input_channels=3,
-                output_size=4,
-            ),
-            model_trainer_class=HingeDistanceModelTrainer,
-            model_trainer_kwargs=dict(
+            online_vae_trainer_kwargs=dict(
                 beta=20,
                 lr=1e-3,
             ),
@@ -74,9 +55,10 @@ if __name__ == "__main__":
                 num_expl_steps_per_train_loop=500,
                 num_trains_per_train_loop=1000,
                 min_num_steps_before_training=10000,
-                model_training_schedule=vae_schedules.custom_schedule_2,
+                vae_training_schedule=vae_schedules.custom_schedule_2,
                 oracle_data=False,
-                vae_save_period=1,
+                vae_save_period=50,
+                parallel_vae_train=False,
             ),
             twin_sac_trainer_kwargs=dict(
                 discount=0.99,
@@ -86,8 +68,20 @@ if __name__ == "__main__":
                 use_automatic_entropy_tuning=True,
             ),
             replay_buffer_kwargs=dict(
-                max_size=100000,
-                ob_keys_to_save=["image_observation"],
+                start_skew_epoch=10,
+                max_size=int(100000),
+                fraction_goals_rollout_goals=0.2,
+                fraction_goals_env_goals=0.5,
+                exploration_rewards_type='None',
+                vae_priority_type='vae_prob',
+                priority_function_kwargs=dict(
+                    sampling_method='importance_sampling',
+                    decoder_distribution='gaussian_identity_variance',
+                    # decoder_distribution='bernoulli',
+                    num_latents_to_sample=10,
+                ),
+                power=-1,
+                relabeling_goal_sampling_mode='vae_prior',
             ),
             exploration_goal_sampling_mode='vae_prior',
             evaluation_goal_sampling_mode='reset_of_env',
@@ -118,20 +112,22 @@ if __name__ == "__main__":
         ),
         train_vae_variant=dict(
             representation_size=4,
-            beta=20,
-            num_epochs=0,
+            beta=10,
+            num_epochs=501,
             dump_skew_debug_plots=False,
             # decoder_activation='gaussian',
             decoder_activation='sigmoid',
+            use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=100,
+                N=1000,
                 test_p=.9,
                 use_cached=False,
                 show=False,
-                oracle_dataset=True,
-                oracle_dataset_using_set_to_goal=True,
+                oracle_dataset=False,
+                oracle_dataset_using_set_to_goal=False,
                 n_random_steps=100,
-                non_presampled_goal_img_is_garbage=True,
+                non_presampled_goal_img_is_garbage=False,
+                random_rollout_data=True
             ),
             vae_kwargs=dict(
                 input_channels=3,
@@ -173,4 +169,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(arl_full_experiment, variants, run_id=1)
+    run_variants(experiment, variants, run_id=0)

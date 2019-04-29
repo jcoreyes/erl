@@ -88,3 +88,27 @@ class InitialObservationDataset(Dataset):
             'x_0': self.data['observations'][traj_i, 0, :],
         }
         return data_dict
+
+
+class TripletReplayBufferWrapper(Dataset):
+    def __init__(self, replay_buffer, horizon, info=None):
+        self.replay_buffer = replay_buffer
+        self.horizon = horizon
+
+    def random_batch(self, batch_size):
+        num_traj = self.replay_buffer._size // self.horizon
+        traj_i = np.random.choice(num_traj, batch_size)
+        trans_i = np.random.choice(self.horizon - 2, batch_size)
+
+        indices = traj_i * self.horizon + trans_i
+        batch = dict(
+            x0=self.replay_buffer._obs["image_observation"][indices],
+            x1=self.replay_buffer._obs["image_observation"][indices+1],
+            x2=self.replay_buffer._obs["image_observation"][indices+2],
+        )
+        return np_to_pytorch_batch(batch)
+
+
+class SkewFitDatasetWrapper(Dataset):
+    def random_batch(self, batch_size):
+        return self.sample_weighted_indices(batch_size)

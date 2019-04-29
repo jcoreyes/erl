@@ -44,6 +44,7 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
         assert self.num_trains_per_train_loop >= self.num_expl_steps_per_train_loop, \
             'Online training presumes num_trains_per_train_loop >= num_expl_steps_per_train_loop'
+
     def _train(self):
         done = (self.epoch == self.num_epochs)
         if done:

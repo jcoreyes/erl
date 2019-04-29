@@ -56,6 +56,12 @@ def grill_her_twin_sac_online_vae_full_experiment(variant):
     grill_her_twin_sac_experiment_online_vae(variant['grill_variant'])
 
 
+def arl_full_experiment(variant):
+    variant['grill_variant']['save_vae_data'] = True
+    full_experiment_variant_preprocess(variant)
+    active_representation_learning_experiment(variant['grill_variant'])
+
+
 def grill_tdm_td3_online_vae_full_experiment(variant):
     variant['grill_variant']['save_vae_data'] = True
     variant['grill_variant']['vae_trainer_kwargs'] = \
@@ -201,20 +207,24 @@ def train_vae(variant, return_data=False):
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
         trainer.train_epoch(epoch, train_dataset)
-        trainer.test_epoch(
-            epoch,
-            test_dataset,
-            save_reconstruction=should_save_imgs,
-            save_scatterplot=should_save_imgs,
-            # save_vae=False,
-        )
+        trainer.test_epoch(epoch, test_dataset)
+
         if should_save_imgs:
+            trainer.dump_reconstructions(epoch)
             trainer.dump_samples(epoch)
             if dump_skew_debug_plots:
                 trainer.dump_best_reconstruction(epoch)
                 trainer.dump_worst_reconstruction(epoch)
                 trainer.dump_sampling_histogram(epoch)
-        trainer.update_train_weights()
+
+        stats = trainer.get_diagnostics()
+        for k, v in stats.items():
+            logger.record_tabular(k, v)
+        logger.dump_tabular()
+        trainer.end_epoch(epoch)
+
+        if epoch % 50 == 0:
+            logger.save_itr_params(epoch, model)
     logger.save_extra_data(model, 'vae.pkl', mode='pickle')
     if return_data:
         return model, train_dataset, test_dataset
@@ -972,15 +982,41 @@ def grill_her_twin_sac_experiment_online_vae(variant):
 
 def active_representation_learning_experiment(variant):
     import railrl.torch.pytorch_util as ptu
-    from railrl.data_management.online_vae_replay_buffer import \
-        OnlineVaeRelabelingBuffer
+    from railrl.data_management.obs_dict_replay_buffer import ObsDictReplayBuffer
     from railrl.torch.networks import FlattenMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
-    from railrl.torch.arl.active_representation_learning_algorithm import ActiveRepresentationLearningAlgorithm
+    from railrl.torch.arl.active_representation_learning_algorithm import \
+        ActiveRepresentationLearningAlgorithm
+    from railrl.torch.arl.representation_wrappers import RepresentationWrappedEnv
+    from multiworld.core.image_env import ImageEnv
+    from multiworld.core.flat_env import FlatEnv
+    from railrl.samplers.data_collector import MdpPathCollector
 
     grill_preprocess_variant(variant)
-    env = get_envs(variant)
+
+    model_class = variant.get('model_class')
+    model_kwargs = variant.get('model_kwargs')
+
+    model = model_class(**model_kwargs)
+    model.representation_size = 4
+    model.imsize = 48
+    variant["vae_path"] = model
+
+    reward_params = variant.get("reward_params", dict())
+    init_camera = variant.get("init_camera", None)
+    env = variant["env_class"](**variant['env_kwargs'])
+    image_env = ImageEnv(
+        env,
+        variant.get('imsize'),
+        init_camera=init_camera,
+        transpose=True,
+        normalize=True,
+    )
+    env = RepresentationWrappedEnv(
+        image_env,
+        model,
+    )
 
     uniform_dataset_fn = variant.get('generate_uniform_dataset_fn', None)
     if uniform_dataset_fn:
@@ -993,10 +1029,7 @@ def active_representation_learning_experiment(variant):
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
-    obs_dim = (
-            env.observation_space.spaces[observation_key].low.size
-            + env.observation_space.spaces[desired_goal_key].low.size
-    )
+    obs_dim = env.observation_space.spaces[observation_key].low.size
     action_dim = env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
     qf1 = FlattenMlp(
@@ -1027,18 +1060,21 @@ def active_representation_learning_experiment(variant):
 
     vae = env.vae
 
-    replay_buffer = OnlineVaeRelabelingBuffer(
-        vae=env.vae,
+    replay_buffer = ObsDictReplayBuffer(
         env=env,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
-    vae_trainer = ConvVAETrainer(
-        env.vae,
-        **variant['online_vae_trainer_kwargs']
+
+    model_trainer_class = variant.get('model_trainer_class')
+    model_trainer_kwargs = variant.get('model_trainer_kwargs')
+    model_trainer = model_trainer_class(
+        model,
+        **model_trainer_kwargs,
     )
+    # vae_trainer = ConvVAETrainer(
+    #     env.vae,
+    #     **variant['online_vae_trainer_kwargs']
+    # )
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     max_path_length = variant['max_path_length']
 
@@ -1051,22 +1087,20 @@ def active_representation_learning_experiment(variant):
         target_qf2=target_qf2,
         **variant['twin_sac_trainer_kwargs']
     )
-    trainer = HERTrainer(trainer)
-    eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
+    # trainer = HERTrainer(trainer)
+    eval_path_collector = MdpPathCollector(
         env,
         MakeDeterministic(policy),
-        max_path_length,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
+        # max_path_length,
+        # observation_key=observation_key,
+        # desired_goal_key=desired_goal_key,
     )
-    expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
+    expl_path_collector = MdpPathCollector(
         env,
         policy,
-        max_path_length,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
+        # max_path_length,
+        # observation_key=observation_key,
+        # desired_goal_key=desired_goal_key,
     )
 
     algorithm = ActiveRepresentationLearningAlgorithm(
@@ -1076,15 +1110,12 @@ def active_representation_learning_experiment(variant):
         exploration_data_collector=expl_path_collector,
         evaluation_data_collector=eval_path_collector,
         replay_buffer=replay_buffer,
-        vae=vae,
-        vae_trainer=vae_trainer,
+        model=model,
+        model_trainer=model_trainer,
         uniform_dataset=uniform_dataset,
         max_path_length=max_path_length,
         **variant['algo_kwargs']
     )
-
-    if variant['custom_goal_sampler'] == 'replay_buffer':
-        env.custom_goal_sampler = replay_buffer.sample_buffer_goals
 
     algorithm.to(ptu.device)
     vae.to(ptu.device)

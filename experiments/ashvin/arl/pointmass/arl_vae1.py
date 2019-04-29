@@ -56,7 +56,7 @@ if __name__ == "__main__":
                 beta=20,
                 lr=1e-3,
             ),
-            save_video_period=100,
+            save_video_period=1,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -173,4 +173,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(arl_full_experiment, variants, run_id=1)
+    run_variants(arl_full_experiment, variants, run_id=0)

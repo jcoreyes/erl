@@ -311,7 +311,8 @@ def train_vae(beta, representation_size, imsize, num_epochs, save_period,
         AutoEncoder,
     )
     import railrl.torch.vae.conv_vae as conv_vae
-    from railrl.torch.vae.vae_trainer import ConvVAETrainer, VAEExperiment
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer
+    from railrl.torch.vae.vae_experiment import VAEExperiment
     from railrl.pythonplusplus import identity
     from railrl.torch.grill.launcher import generate_vae_dataset
     import torch
