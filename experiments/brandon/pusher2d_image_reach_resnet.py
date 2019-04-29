@@ -8,7 +8,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import (
-    ResNetCNN,
+    PretrainedCNN,
     MlpQfWithObsProcessor,
 )
 from railrl.torch.sac.policies import (
@@ -53,7 +53,7 @@ def experiment(variant):
         output_size=None,
     )
     if variant['shared_qf_conv']:
-        qf_cnn = ResNetCNN(**cnn_params)
+        qf_cnn = PretrainedCNN(**cnn_params)
         qf1 = MlpQfWithObsProcessor(
             obs_processor=qf_cnn,
             output_size=1,
@@ -66,7 +66,7 @@ def experiment(variant):
             input_size=action_dim+qf_cnn.conv_output_flat_size,
             **variant['qf_kwargs']
         )
-        target_qf_cnn = ResNetCNN(**cnn_params)
+        target_qf_cnn = PretrainedCNN(**cnn_params)
         target_qf1 = MlpQfWithObsProcessor(
             obs_processor=target_qf_cnn,
             output_size=1,
@@ -80,7 +80,7 @@ def experiment(variant):
             **variant['qf_kwargs']
         )
     else:
-        qf1_cnn = ResNetCNN(**cnn_params)
+        qf1_cnn = PretrainedCNN(**cnn_params)
         cnn_output_dim = qf1_cnn.conv_output_flat_size
         qf1 = MlpQfWithObsProcessor(
             obs_processor=qf1_cnn,
@@ -89,25 +89,25 @@ def experiment(variant):
             **variant['qf_kwargs']
         )
         qf2 = MlpQfWithObsProcessor(
-            obs_processor=ResNetCNN(**cnn_params),
+            obs_processor=PretrainedCNN(**cnn_params),
             output_size=1,
             input_size=action_dim+cnn_output_dim,
             **variant['qf_kwargs']
         )
         target_qf1 = MlpQfWithObsProcessor(
-            obs_processor=ResNetCNN(**cnn_params),
+            obs_processor=PretrainedCNN(**cnn_params),
             output_size=1,
             input_size=action_dim+cnn_output_dim,
             **variant['qf_kwargs']
         )
         target_qf2 = MlpQfWithObsProcessor(
-            obs_processor=ResNetCNN(**cnn_params),
+            obs_processor=PretrainedCNN(**cnn_params),
             output_size=1,
             input_size=action_dim+cnn_output_dim,
             **variant['qf_kwargs']
         )
     action_dim = int(np.prod(eval_env.action_space.shape))
-    policy_cnn = ResNetCNN(**cnn_params)
+    policy_cnn = PretrainedCNN(**cnn_params)
     policy = TanhGaussianPolicyAdapter(
         policy_cnn,
         policy_cnn.conv_output_flat_size,
