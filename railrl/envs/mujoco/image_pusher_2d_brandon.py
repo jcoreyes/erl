@@ -1,7 +1,11 @@
+from collections import OrderedDict
+
 import numpy as np
 
+from railrl.core import logger as default_logger
 from railrl.envs.mujoco.pusher_2d_brandon import Pusher2dEnv
 from railrl.misc.random_util import random_point_in_circle
+from railrl.misc.eval_util import get_stat_in_paths, create_stats_ordered_dict
 
 import matplotlib
 matplotlib.use("Agg")
@@ -137,7 +141,7 @@ class ImageForkReacher2dEnv(ImagePusher2dEnv):
 
         return self._get_obs()
 
-    def log_diagnostics(self, paths, logger=default_logger):
+    def get_diagnostics(self, paths):
         statistics = OrderedDict()
         for stat_name_in_paths, stat_name_to_print in [
             ('arm_object_distance', 'Distance hand to object'),
@@ -155,8 +159,7 @@ class ImageForkReacher2dEnv(ImagePusher2dEnv):
                 final_stats,
                 always_show_all_stats=True,
             ))
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
+        return statistics
 
 
 class BlindForkReacher2dEnv(ImageForkReacher2dEnv):
