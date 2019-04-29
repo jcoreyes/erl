@@ -18,8 +18,8 @@ from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 import numpy as np
 
 
-class ResNetCNN(PyTorchModule):
-    # Uses the pretrained ResNet-101 model architecture
+class PretrainedCNN(PyTorchModule):
+    # Uses a pretrained CNN architecture from torchvision
     def __init__(
             self,
             input_width,
@@ -34,6 +34,7 @@ class ResNetCNN(PyTorchModule):
             hidden_activation=nn.ReLU(),
             output_activation=identity,
             output_conv_channels=False,
+            torchvision_architecture=models.vgg19_bn,
     ):
         if hidden_sizes is None:
             hidden_sizes = []
@@ -51,7 +52,7 @@ class ResNetCNN(PyTorchModule):
         self.conv_input_length = self.input_width * self.input_height * self.input_channels
         self.output_conv_channels = output_conv_channels
 
-        self.resnet = nn.Sequential(*list(models.resnet101(pretrained=True).children())[:-1])
+        self.pretrained_model = nn.Sequential(*list(torchvision_architecture(pretrained=True).children())[:-1])
         self.fc_layers = nn.ModuleList()
         self.fc_norm_layers = nn.ModuleList()
 
@@ -63,7 +64,7 @@ class ResNetCNN(PyTorchModule):
             self.input_height,
         )
         # find output dim of conv_layers by trial and add norm conv layers
-        test_mat = self.resnet(test_mat)
+        test_mat = self.pretrained_model(test_mat)
 
         self.conv_output_flat_size = int(np.prod(test_mat.shape))
         if self.output_conv_channels:
@@ -120,7 +121,7 @@ class ResNetCNN(PyTorchModule):
         return self.output_activation(self.last_fc(h))
 
     def apply_forward_conv(self, h):
-        return self.resnet(h)
+        return self.pretrained_model(h)
 
     def apply_forward_fc(self, h):
         for i, layer in enumerate(self.fc_layers):
