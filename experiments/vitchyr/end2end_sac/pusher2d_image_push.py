@@ -40,8 +40,10 @@ def experiment(variant):
 
     env_kwargs = {
         'image_shape': (32, 32, 3),
-        'arm_goal_distance_cost_coeff': 1.0,
-        'arm_object_distance_cost_coeff': 0.0,
+        'arm_goal_distance_cost_coeff': 0.0,
+        'arm_object_distance_cost_coeff': 1.0,
+        'goal': (0, -1),
+
     }
 
     eval_env = ImageForkReacher2dEnv(**env_kwargs)
@@ -200,7 +202,7 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             batch_size=256,
             max_path_length=1000,
-            num_epochs=800,
+            num_epochs=1000,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
@@ -244,7 +246,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     # mode = 'ec2'
-    exp_prefix = 'railrl-code-sl-image-reach-prop-info-match-policy-size'
+    exp_prefix = 'railrl-code-sl-image-pusher-prop'
 
     search_space = {
         'shared_qf_conv': [

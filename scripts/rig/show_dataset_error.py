@@ -5,7 +5,8 @@ import cv2
 import numpy as np
 import joblib
 
-from multiworld.core.image_env import normalize_image
+from railrl.data_management.images import normalize_image
+from railrl.torch.core import eval_np
 
 filename = str(uuid.uuid4())
 
@@ -18,7 +19,7 @@ def vis(args):
     losses = []
     for i, image_obs in enumerate(imgs):
         img = normalize_image(image_obs)
-        recon, *_ = vae.eval_np(img)
+        recon, *_ = eval_np(vae, img)
         error = ((recon - img)**2).sum()
         losses.append((i, error))
 
@@ -26,7 +27,7 @@ def vis(args):
 
     for rank, (i, error) in enumerate(losses[:NUM_SHOWN]):
         image_obs = imgs[i]
-        recon, *_ = vae.eval_np(normalize_image(image_obs))
+        recon, *_ = eval_np(vae, normalize_image(image_obs))
 
         img = image_obs.reshape(3, 48, 48).transpose()
         rimg = recon.reshape(3, 48, 48).transpose()
@@ -43,7 +44,7 @@ def vis(args):
     for j, (i, error) in enumerate(losses[-NUM_SHOWN:]):
         rank = len(losses) - j - 1
         image_obs = imgs[i]
-        recon, *_ = vae.eval_np(normalize_image(image_obs))
+        recon, *_ = eval_np(vae, normalize_image(image_obs))
 
         img = image_obs.reshape(3, 48, 48).transpose()
         rimg = recon.reshape(3, 48, 48).transpose()
