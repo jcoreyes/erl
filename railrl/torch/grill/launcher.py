@@ -253,12 +253,16 @@ def generate_vae_dataset(variant):
     vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
     save_file_prefix = variant.get('save_file_prefix', None)
     non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
+    conditional_vae_dataset = variant.get('conditional_vae_dataset', False)
+    save_trajectories = variant.get('save_trajectories', False)
+    use_linear_dynamics = variant.get('use_linear_dynamics', False)
     tag = variant.get('tag', '')
 
     from multiworld.core.image_env import ImageEnv, unormalize_image
     import railrl.torch.pytorch_util as ptu
     from railrl.misc.asset_loader import load_local_or_remote_file
-    from railrl.data_management.dataset  import TrajectoryDataset, ImageObservationDataset
+    from railrl.data_management.dataset  import \
+        TrajectoryDataset, ImageObservationDataset, InitialObservationDataset
 
     info = {}
     if dataset_path is not None:
@@ -317,8 +321,7 @@ def generate_vae_dataset(variant):
                 from railrl.exploration_strategies.ou_strategy import OUStrategy
                 policy = OUStrategy(env.action_space)
 
-            use_linear_dynamics = variant.get('use_linear_dynamics', False)
-            if use_linear_dynamics:
+            if save_trajectories:
                 dataset = {
                     'observations': np.zeros((N // n_random_steps, n_random_steps, imsize * imsize * num_channels), dtype=np.uint8),
                     'actions': np.zeros((N // n_random_steps, n_random_steps, env.action_space.shape[0]), dtype=np.uint8)
@@ -363,7 +366,7 @@ def generate_vae_dataset(variant):
 
                 img = obs['image_observation']
 
-                if use_linear_dynamics:
+                if save_trajectories:
                     #MAKE SURE NOT ONE INDEX
                     dataset['observations'][i // n_random_steps, i % n_random_steps, :] = unormalize_image(img)
                     dataset['actions'][i // n_random_steps, i % n_random_steps, :] = u
@@ -390,6 +393,15 @@ def generate_vae_dataset(variant):
         test_dataset = TrajectoryDataset({
             'observations': dataset['observations'][n:, :, :],
             'actions': dataset['actions'][n:, :, :]
+        })
+    elif conditional_vae_dataset:
+        num_trajectories = N // n_random_steps
+        n = int(num_trajectories * test_p)
+        train_dataset = InitialObservationDataset({
+            'observations': dataset['observations'][:n, :, :],
+        })
+        test_dataset = InitialObservationDataset({
+            'observations': dataset['observations'][n:, :, :],
         })
     else:
         n = int(N * test_p)

@@ -71,11 +71,16 @@ class InitialObservationDataset(Dataset):
     def random_batch(self, batch_size):
         traj_i = np.random.choice(self.size, batch_size)
         trans_i = np.random.choice(self.traj_length, batch_size)
+
+        x_0 = normalize_image(self.data['observations'][traj_i, 0, :])
+        x_t = normalize_image(self.data['observations'][traj_i, trans_i, :])
+        x = np.concatenate((x_t, x_0), 1)
         data_dict = {
-            'observations': self.data['observations'][traj_i, trans_i, :],
-            'x_0': self.data['observations'][traj_i, 0, :],
+            'observations': x,
+            'x_t': x_t,
+            'x_0': x_0,
         }
-        return data_dict
+        return np_to_pytorch_batch(data_dict)
 
 
 class TripletReplayBufferWrapper(Dataset):
