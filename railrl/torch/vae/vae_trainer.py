@@ -477,7 +477,7 @@ class ConvDynamicsVAETrainer(ConvVAETrainer):
         prediction = self.model.linear_constraint_fc(action_obs_pair)
         return torch.norm(prediction - latent_next_obs) ** 2 / self.batch_size
 
-    def compute_loss(self, epoch, batch, train=False):
+    def compute_loss(self, epoch, batch, test=False):
         prefix = "test/" if test else "train/"
 
         beta = float(self.beta_schedule.get_value(epoch))
@@ -499,9 +499,64 @@ class ConvDynamicsVAETrainer(ConvVAETrainer):
         encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
         z_data = ptu.get_numpy(encoder_mean.cpu())
         for i in range(len(z_data)):
-            self.eval_statistics[prefix + "zs"].append(z_data[i, :])
-
-        if test:
-            self.test_last_batch = (obs, reconstructions)
+            self.eval_data[prefix + "zs"].append(z_data[i, :])
+        self.eval_data[prefix + "last_batch"] = (obs, reconstructions)
 
         return loss
+
+class ConditionalConvVAETrainer(ConvVAETrainer):
+    def compute_loss(self, epoch, batch, test=False):
+        prefix = "test/" if test else "train/"
+
+        beta = float(self.beta_schedule.get_value(epoch))
+        obs = batch["observations"]
+        reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
+        log_prob = self.model.logprob(batch["x_t"], obs_distribution_params)
+        kle = self.model.kl_divergence(latent_distribution_params)
+        loss = -1 * log_prob + beta * kle
+
+        self.eval_statistics['beta'] = beta
+        self.eval_statistics[prefix + "losses"].append(loss.item())
+        self.eval_statistics[prefix + "log_probs"].append(log_prob.item())
+        self.eval_statistics[prefix + "kles"].append(kle.item())
+
+        encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
+        z_data = ptu.get_numpy(encoder_mean.cpu())
+        for i in range(len(z_data)):
+            self.eval_data[prefix + "zs"].append(z_data[i, :])
+        self.eval_data[prefix + "last_batch"] = (batch, reconstructions)
+
+        return loss
+
+    def dump_reconstructions(self, epoch):
+        batch, reconstructions = self.eval_data["test/last_batch"]
+        obs = batch["x_t"]
+        n = min(obs.size(0), 8)
+        comparison = torch.cat([
+            obs[:n].narrow(start=0, length=self.imlength // 2, dim=1)
+                .contiguous().view(
+                -1,
+                3,
+                self.imsize,
+                self.imsize
+            ).transpose(2, 3),
+            reconstructions.view(
+                self.batch_size,
+                3,
+                self.imsize,
+                self.imsize,
+            )[:n].transpose(2, 3)
+        ])
+        save_dir = osp.join(self.log_dir, 'r%d.png' % epoch)
+        save_image(comparison.data.cpu(), save_dir, nrow=n)
+
+    def dump_samples(self, epoch):
+        self.model.eval()
+        batch, _ = self.eval_data["test/last_batch"]
+        sample = ptu.randn(64, self.representation_size)
+        sample = self.model.decode(sample, batch["observations"])[0].cpu()
+        save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
+        save_image(
+            sample.data.view(64, 3, self.imsize, self.imsize).transpose(2, 3),
+            save_dir
+        )
