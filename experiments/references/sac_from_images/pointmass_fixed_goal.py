@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+from torch import nn
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
@@ -8,13 +9,12 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import (
-    FlattenMlp, MergedCNN, CNN,
+    CNN,
     MlpQfWithObsProcessor,
+    Flatten,
 )
 from railrl.torch.sac.policies import (
-    MakeDeterministic, TanhGaussianPolicy,
-    TanhCNNGaussianPolicy,
-    TanhGaussianPolicyAdapter,
+    MakeDeterministic, TanhGaussianPolicyAdapter,
 )
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import (
@@ -24,7 +24,8 @@ from railrl.torch.torch_rl_algorithm import (
 
 
 def experiment(variant):
-    import multiworld.envs.pygame
+    import multiworld
+    multiworld.register_all_envs()
     env = gym.make('Point2DEnv-ImageFixedGoal-v0')
     input_width, input_height = env.image_shape
 
@@ -39,27 +40,29 @@ def experiment(variant):
     )
     if variant['shared_qf_conv']:
         qf_cnn = CNN(**cnn_params)
+        qf_obs_processor = nn.Sequential(qf_cnn, Flatten())
         qf1 = MlpQfWithObsProcessor(
-            obs_processor=qf_cnn,
+            obs_processor=qf_obs_processor,
             output_size=1,
             input_size=action_dim+qf_cnn.conv_output_flat_size,
             **variant['qf_kwargs']
         )
         qf2 = MlpQfWithObsProcessor(
-            obs_processor=qf_cnn,
+            obs_processor=qf_obs_processor,
             output_size=1,
             input_size=action_dim+qf_cnn.conv_output_flat_size,
             **variant['qf_kwargs']
         )
         target_qf_cnn = CNN(**cnn_params)
+        target_qf_obs_processor = nn.Sequential(target_qf_cnn, Flatten())
         target_qf1 = MlpQfWithObsProcessor(
-            obs_processor=target_qf_cnn,
+            obs_processor=target_qf_obs_processor,
             output_size=1,
             input_size=action_dim+qf_cnn.conv_output_flat_size,
             **variant['qf_kwargs']
         )
         target_qf2 = MlpQfWithObsProcessor(
-            obs_processor=target_qf_cnn,
+            obs_processor=target_qf_obs_processor,
             output_size=1,
             input_size=action_dim+qf_cnn.conv_output_flat_size,
             **variant['qf_kwargs']
@@ -68,25 +71,25 @@ def experiment(variant):
         qf1_cnn = CNN(**cnn_params)
         cnn_output_dim = qf1_cnn.conv_output_flat_size
         qf1 = MlpQfWithObsProcessor(
-            obs_processor=qf1_cnn,
+            obs_processor=nn.Sequential(qf1_cnn, Flatten()),
             output_size=1,
             input_size=action_dim+cnn_output_dim,
             **variant['qf_kwargs']
         )
         qf2 = MlpQfWithObsProcessor(
-            obs_processor=CNN(**cnn_params),
+            obs_processor=nn.Sequential(CNN(**cnn_params), Flatten()),
             output_size=1,
             input_size=action_dim+cnn_output_dim,
             **variant['qf_kwargs']
         )
         target_qf1 = MlpQfWithObsProcessor(
-            obs_processor=CNN(**cnn_params),
+            obs_processor=nn.Sequential(CNN(**cnn_params), Flatten()),
             output_size=1,
             input_size=action_dim+cnn_output_dim,
             **variant['qf_kwargs']
         )
         target_qf2 = MlpQfWithObsProcessor(
-            obs_processor=CNN(**cnn_params),
+            obs_processor=nn.Sequential(CNN(**cnn_params), Flatten()),
             output_size=1,
             input_size=action_dim+cnn_output_dim,
             **variant['qf_kwargs']
@@ -94,9 +97,10 @@ def experiment(variant):
     action_dim = int(np.prod(env.action_space.shape))
     policy_cnn = CNN(**cnn_params)
     policy = TanhGaussianPolicyAdapter(
-        policy_cnn,
+        nn.Sequential(policy_cnn, Flatten()),
         policy_cnn.conv_output_flat_size,
         action_dim,
+        **variant['policy_kwargs']
     )
     eval_env = expl_env = env
 
