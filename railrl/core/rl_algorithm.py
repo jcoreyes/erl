@@ -43,11 +43,16 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.num_epochs = num_epochs
 
     def train(self):
-        for epoch in range(self.num_epochs):
+        timer.return_global_times = True
+        for _ in range(self.num_epochs):
+            self._begin_epoch()
+            logger.save_itr_params(self.epoch, self._get_snapshot())
+            timer.stamp('saving')
             log_dict, _ = self._train()
             logger.record_dict(log_dict)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
-            logger.save_itr_params(epoch, self)
+            self._end_epoch()
+        logger.save_itr_params(self.epoch, self._get_snapshot())
 
     def _train(self):
         """
@@ -67,6 +72,18 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         for post_epoch_func in self.post_epoch_funcs:
             post_epoch_func(self, self.epoch)
         self.epoch += 1
+
+    def _get_snapshot(self):
+        snapshot = {}
+        for k, v in self.trainer.get_snapshot().items():
+            snapshot['trainer/' + k] = v
+        for k, v in self.expl_data_collector.get_snapshot().items():
+            snapshot['exploration/' + k] = v
+        for k, v in self.eval_data_collector.get_snapshot().items():
+            snapshot['evaluation/' + k] = v
+        for k, v in self.replay_buffer.get_snapshot().items():
+            snapshot['replay_buffer/' + k] = v
+        return snapshot
 
     def _get_diagnostics(self):
         algo_log = OrderedDict()

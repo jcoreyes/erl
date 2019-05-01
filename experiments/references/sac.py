@@ -17,11 +17,15 @@ from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
+from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import FlattenMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from railrl.torch.torch_rl_algorithm import (
+    TorchBatchRLAlgorithm,
+    TorchOnlineRLAlgorithm,
+)
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
@@ -117,10 +121,6 @@ def experiment(variant):
         eval_env,
         eval_policy,
     )
-    expl_path_collector = MdpPathCollector(
-        expl_env,
-        policy,
-    )
     replay_buffer = EnvReplayBuffer(
         variant['replay_buffer_size'],
         expl_env,
@@ -134,21 +134,46 @@ def experiment(variant):
         target_qf2=target_qf2,
         **variant['trainer_kwargs']
     )
-    algorithm = TorchBatchRLAlgorithm(
-        trainer=trainer,
-        exploration_env=expl_env,
-        evaluation_env=eval_env,
-        exploration_data_collector=expl_path_collector,
-        evaluation_data_collector=eval_path_collector,
-        replay_buffer=replay_buffer,
-        max_path_length=variant['max_path_length'],
-        batch_size=variant['batch_size'],
-        num_epochs=variant['num_epochs'],
-        num_eval_steps_per_epoch=variant['num_eval_steps_per_epoch'],
-        num_expl_steps_per_train_loop=variant['num_expl_steps_per_train_loop'],
-        num_trains_per_train_loop=variant['num_trains_per_train_loop'],
-        min_num_steps_before_training=variant['min_num_steps_before_training'],
-    )
+    if variant['collection_mode'] == 'online':
+        expl_path_collector = MdpStepCollector(
+            expl_env,
+            policy,
+        )
+        algorithm = TorchOnlineRLAlgorithm(
+            trainer=trainer,
+            exploration_env=expl_env,
+            evaluation_env=eval_env,
+            exploration_data_collector=expl_path_collector,
+            evaluation_data_collector=eval_path_collector,
+            replay_buffer=replay_buffer,
+            max_path_length=variant['max_path_length'],
+            batch_size=variant['batch_size'],
+            num_epochs=variant['num_epochs'],
+            num_eval_steps_per_epoch=variant['num_eval_steps_per_epoch'],
+            num_expl_steps_per_train_loop=variant['num_expl_steps_per_train_loop'],
+            num_trains_per_train_loop=variant['num_trains_per_train_loop'],
+            min_num_steps_before_training=variant['min_num_steps_before_training'],
+        )
+    else:
+        expl_path_collector = MdpPathCollector(
+            expl_env,
+            policy,
+        )
+        algorithm = TorchBatchRLAlgorithm(
+            trainer=trainer,
+            exploration_env=expl_env,
+            evaluation_env=eval_env,
+            exploration_data_collector=expl_path_collector,
+            evaluation_data_collector=eval_path_collector,
+            replay_buffer=replay_buffer,
+            max_path_length=variant['max_path_length'],
+            batch_size=variant['batch_size'],
+            num_epochs=variant['num_epochs'],
+            num_eval_steps_per_epoch=variant['num_eval_steps_per_epoch'],
+            num_expl_steps_per_train_loop=variant['num_expl_steps_per_train_loop'],
+            num_trains_per_train_loop=variant['num_trains_per_train_loop'],
+            min_num_steps_before_training=variant['min_num_steps_before_training'],
+        )
     algorithm.to(ptu.device)
     algorithm.train()
 
@@ -164,8 +189,9 @@ if __name__ == "__main__":
         batch_size=256,
         replay_buffer_size=int(1E6),
         layer_size=256,
-        algorithm="Twin-SAC",
+        algorithm="SAC",
         version="normal",
+        collection_mode='batch',
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
@@ -181,20 +207,20 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'dev'
 
-    n_seeds = 3
-    mode = 'sss'
-    exp_prefix = 'tsac-numerically-stable'
+    # n_seeds = 5
+    # mode = 'sss'
+    # exp_prefix = 'railrl-half-cheetah-online'
 
     search_space = {
         'env': [
             'half-cheetah',
             # 'inv-double-pendulum',
             # 'pendulum',
-            'ant',
-            'walker',
-            'hopper',
-            'humanoid',
-            'swimmer',
+            # 'ant',
+            # 'walker',
+            # 'hopper',
+            # 'humanoid',
+            # 'swimmer',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -208,5 +234,5 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-                time_in_mins=2 * 24 * 60,  # if you use mode=sss
+                time_in_mins=int(2.8 * 24 * 60),  # if you use mode=sss
             )

@@ -291,6 +291,8 @@ def generate_vae_dataset(variant):
 
             if env_id is not None:
                 import gym
+                import multiworld
+                multiworld.register_all_envs()
                 env = gym.make(env_id)
             else:
                 if vae_dataset_specific_env_kwargs is None:
@@ -426,7 +428,8 @@ def get_envs(variant):
     vae = load_local_or_remote_file(vae_path) if type(vae_path) is str else vae_path
     if 'env_id' in variant:
         import gym
-        # trigger registration
+        import multiworld
+        multiworld.register_all_envs()
         env = gym.make(variant['env_id'])
     else:
         env = variant["env_class"](**variant['env_kwargs'])
@@ -1667,7 +1670,8 @@ def HER_baseline_her_td3_experiment(variant):
 
     if 'env_id' in variant:
         import gym
-        # trigger registration
+        import multiworld
+        multiworld.register_all_envs()
         env = gym.make(variant['env_id'])
     else:
         env = variant["env_class"](**variant['env_kwargs'])
@@ -1812,7 +1816,8 @@ def HER_baseline_twin_sac_experiment(variant):
 
     if 'env_id' in variant:
         import gym
-        # trigger registration
+        import multiworld
+        multiworld.register_all_envs()
         env = gym.make(variant['env_id'])
     else:
         env = variant["env_class"](**variant['env_kwargs'])

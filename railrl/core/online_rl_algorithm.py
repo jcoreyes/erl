@@ -1,4 +1,5 @@
 import abc
+from collections import OrderedDict
 
 from railrl.core.rl_algorithm import BaseRLAlgorithm
 from railrl.core.timer import timer
@@ -18,6 +19,7 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             exploration_data_collector: StepCollector,
             evaluation_data_collector: PathCollector,
             replay_buffer: ReplayBuffer,
+            num_epochs,
             batch_size,
             max_path_length,
             num_eval_steps_per_epoch,
@@ -33,6 +35,7 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             exploration_data_collector,
             evaluation_data_collector,
             replay_buffer,
+            num_epochs,
         )
         self.batch_size = batch_size
         self.max_path_length = max_path_length
@@ -91,6 +94,5 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         timer.stamp('data storing', unique=False)
 
         log_stats = self._get_diagnostics()
-        self._end_epoch(epoch)
 
         return log_stats, False
