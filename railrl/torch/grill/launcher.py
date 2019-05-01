@@ -878,7 +878,6 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         env.vae,
         **variant['online_vae_trainer_kwargs']
     )
-    vae_trainer = SkewFitTrainer(vae_trainer, replay_buffer)
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
     max_path_length = variant['max_path_length']
 
