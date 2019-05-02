@@ -1,12 +1,21 @@
+from collections import OrderedDict
+
 import numpy as np
 
+from railrl.core import logger as default_logger
 from railrl.envs.mujoco.pusher_2d_brandon import Pusher2dEnv
 from railrl.misc.random_util import random_point_in_circle
+from railrl.misc.eval_util import get_stat_in_paths, create_stats_ordered_dict
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 
 class ImagePusher2dEnv(Pusher2dEnv):
     def __init__(self, image_shape, *args, **kwargs):
         self.image_shape = image_shape
+        self.i = 0
         Pusher2dEnv.__init__(self, *args, **kwargs)
 
     def _get_obs(self):
@@ -46,13 +55,13 @@ class ImageForkReacher2dEnv(ImagePusher2dEnv):
     def __init__(self,
                  arm_goal_distance_cost_coeff,
                  arm_object_distance_cost_coeff,
-                 *args,
+                 image_shape,
                  **kwargs):
 
         self._arm_goal_distance_cost_coeff = arm_goal_distance_cost_coeff
         self._arm_object_distance_cost_coeff = arm_object_distance_cost_coeff
 
-        super(ImageForkReacher2dEnv, self).__init__(*args, **kwargs)
+        super(ImageForkReacher2dEnv, self).__init__(image_shape, **kwargs)
 
     def compute_reward(self, observations, actions):
         is_batch = True
@@ -131,6 +140,26 @@ class ImageForkReacher2dEnv(ImagePusher2dEnv):
         self.set_state(qpos, qvel)
 
         return self._get_obs()
+
+    def get_diagnostics(self, paths):
+        statistics = OrderedDict()
+        for stat_name_in_paths, stat_name_to_print in [
+            ('arm_object_distance', 'Distance hand to object'),
+            ('arm_goal_distance', 'Distance hand to goal'),
+        ]:
+            stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
+            statistics.update(create_stats_ordered_dict(
+                stat_name_to_print,
+                stats,
+                always_show_all_stats=True,
+            ))
+            final_stats = [s[-1] for s in stats]
+            statistics.update(create_stats_ordered_dict(
+                "Final " + stat_name_to_print,
+                final_stats,
+                always_show_all_stats=True,
+            ))
+        return statistics
 
 
 class BlindForkReacher2dEnv(ImageForkReacher2dEnv):

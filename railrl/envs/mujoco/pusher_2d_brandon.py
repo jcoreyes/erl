@@ -139,7 +139,7 @@ class Pusher2dEnv(MujocoEnv):
             self.get_body_com("object"),
         ]).reshape(-1)
 
-    def log_diagnostics(self, paths, logger=default_logger):
+    def get_diagnostics (self, paths):
         statistics = OrderedDict()
         for stat_name_in_paths, stat_name_to_print in [
             ('arm_object_distance', 'Distance hand to object'),
@@ -157,8 +157,7 @@ class Pusher2dEnv(MujocoEnv):
                 final_stats,
                 always_show_all_stats=True,
             ))
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
+        return statistics
 
 
 class ForkReacherEnv(Pusher2dEnv):
@@ -260,4 +259,24 @@ class ForkReacherEnv(Pusher2dEnv):
             super_observation, self.get_body_com('goal')[:2]
         ])
         return observation
+
+    def get_diagnostics(self, paths):
+        statistics = OrderedDict()
+        for stat_name_in_paths, stat_name_to_print in [
+            ('arm_object_distance', 'Distance hand to object'),
+            ('arm_goal_distance', 'Distance hand to goal'),
+        ]:
+            stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
+            statistics.update(create_stats_ordered_dict(
+                stat_name_to_print,
+                stats,
+                always_show_all_stats=True,
+            ))
+            final_stats = [s[-1] for s in stats]
+            statistics.update(create_stats_ordered_dict(
+                "Final " + stat_name_to_print,
+                final_stats,
+                always_show_all_stats=True,
+            ))
+        return statistics
 
