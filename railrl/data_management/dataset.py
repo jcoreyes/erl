@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from railrl.data_management.images import normalize_image
+from railrl.data_management.images import normalize_image, unnormalize_image
 
 from railrl.torch.core import np_to_pytorch_batch
 

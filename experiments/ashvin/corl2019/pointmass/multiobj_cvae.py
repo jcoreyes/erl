@@ -122,13 +122,13 @@ if __name__ == "__main__":
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=1000,
+                N=10000,
+                n_random_steps=10,
                 test_p=.9,
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
                 oracle_dataset_using_set_to_goal=False,
-                n_random_steps=100,
                 non_presampled_goal_img_is_garbage=False,
                 random_rollout_data=True,
                 conditional_vae_dataset=True,
@@ -176,4 +176,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(experiment, variants, run_id=0)
+    run_variants(experiment, variants, run_id=1)

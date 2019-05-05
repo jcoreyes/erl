@@ -8,6 +8,11 @@ import numpy as np
 
 from PIL import Image, ImageTk
 from railrl.torch import pytorch_util as ptu
+from railrl.data_management.dataset  import \
+        TrajectoryDataset, ImageObservationDataset, InitialObservationDataset
+import torch
+
+from railrl.data_management.images import normalize_image, unnormalize_image
 
 def load_vae(vae_file):
     if vae_file[0] == "/":
@@ -15,7 +20,7 @@ def load_vae(vae_file):
     else:
         local_path = sync_down(vae_file)
     vae = pickle.load(open(local_path, "rb"))
-    # vae = torch.load(local_path, map_location=lambda storage, loc: storage)
+    # vae = torch.load(local_path, map_location='cpu')
     print("loaded", local_path)
     # import pdb; pdb.set_trace()
     vae.to("cpu")
@@ -182,10 +187,18 @@ class ConditionalVAEVisualizer(object):
 
     def load_dataset(filename, test_p=0.9):
         dataset = np.load(filename).item()
-        N = len(dataset)
-        n = int(N * test_p)
-        train_dataset = dataset[:n, :]
-        test_dataset = dataset[n:, :]
+
+        N = len(dataset["observations"])
+        n_random_steps = 10
+        num_trajectories = N // n_random_steps
+        n = int(num_trajectories * test_p)
+        train_dataset = InitialObservationDataset({
+            'observations': dataset['observations'][:n, :, :],
+        })
+        test_dataset = InitialObservationDataset({
+            'observations': dataset['observations'][n:, :, :],
+        })
+
         return train_dataset, test_dataset
 
     def update(self):
@@ -210,12 +223,12 @@ class ConditionalVAEVisualizer(object):
 
     def new_image(self, test=True):
         if test:
-            ind = np.random.randint(0, len(self.test_dataset), (1,))
-            self.sample = self.test_dataset[ind, :]
+            self.batch = self.test_dataset.random_batch(1)
         else:
-            ind = np.random.randint(0, len(self.train_dataset), (1,))
-            self.sample = self.train_dataset[ind, :]
-        full_img = self.sample.reshape((6, 48, 48)).transpose()
+            self.batch = self.train_dataset.random_batch(1)
+        self.sample = self.batch["observations"]
+        full_img = ptu.get_numpy(self.sample).reshape((6, 48, 48)).transpose()
+        full_img = unnormalize_image(full_img)
         img = full_img[:, :, :3]
         x0 = full_img[:, :, 3:]
         # img = (255 * img).astype(np.uint8)
@@ -227,7 +240,7 @@ class ConditionalVAEVisualizer(object):
         self.leftleftphoto = ImageTk.PhotoImage(image=self.x0)
         self.leftleftpanel.create_image(0,0,image=self.leftleftphoto,anchor=tk.NW)
 
-        batch = ptu.from_numpy(self.sample) / 255
+        batch = self.sample
         self.mu, self.logvar = self.vae.encode(batch)
         self.z = self.mu
         self.mean = ptu.get_numpy(self.z).flatten()
@@ -239,14 +252,14 @@ class ConditionalVAEVisualizer(object):
         latent_distribution = (self.mu, self.logvar)
         self.z = self.vae.reparameterize(latent_distribution)
         self.mean = ptu.get_numpy(self.z).flatten()
-        self.recon_batch = self.vae.decode(self.z, ptu.from_numpy(self.sample) / 255)[0]
+        self.recon_batch = self.vae.decode(self.z, self.sample)[0]
         self.update_sliders()
         self.check_change()
 
     def check_change(self):
         if not np.allclose(self.mean, self.last_mean):
             z = ptu.from_numpy(self.mean[:, None].transpose())
-            self.recon_batch = self.vae.decode(z, ptu.from_numpy(self.sample) / 255)[0]
+            self.recon_batch = self.vae.decode(z, self.sample)[0]
             self.update_reconstruction()
             self.last_mean = self.mean.copy()
 
