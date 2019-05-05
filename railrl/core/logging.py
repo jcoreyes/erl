@@ -89,6 +89,7 @@ class Logger(object):
 
         self._text_outputs = []
         self._tabular_outputs = []
+        self._tabular_keys = None
 
         self._text_fds = {}
         self._tabular_fds = {}
@@ -270,11 +271,17 @@ class Logger(object):
                 for line in tabulate(self._tabular).split('\n'):
                     self.log(line, *args, **kwargs)
             tabular_dict = dict(self._tabular)
-            # Also write to the csv files
-            # This assumes that the keys in each iteration won't change!
+
+            # Only saves keys in first iteration to CSV!
+            # (But every key is printed out in text)
+            if self._tabular_keys is None:
+                self._tabular_keys = list(sorted(tabular_dict.keys()))
+
+            # Write to the csv files
             for tabular_fd in list(self._tabular_fds.values()):
                 writer = csv.DictWriter(tabular_fd,
-                                        fieldnames=list(tabular_dict.keys()))
+                                        fieldnames=self._tabular_keys,
+                                        extrasaction="ignore",)
                 if wh or (
                         wh is None and tabular_fd not in self._tabular_header_written):
                     writer.writeheader()
