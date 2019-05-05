@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'skew-fit-door-reference-post-refactor'
+    exp_prefix = 'skewfit-door1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
