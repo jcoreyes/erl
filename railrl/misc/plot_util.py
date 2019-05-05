@@ -137,7 +137,6 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
             xs = x_data.setdefault(label, [])
 
             d = l['progress']
-            x = d[xlabel]
             y = [0]
             if type(key) is list:
                 vals = []
