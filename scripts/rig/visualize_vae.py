@@ -1,11 +1,28 @@
-from railrl.torch.vae.visualize_conditional_vae import VAEVisualizer, tk, load_dataset
+from railrl.torch.vae.visualize_vae import (
+    VAEVisualizer, ConditionalVAEVisualizer, tk, load_dataset
+)
 
-if __name__ == "__main__":
-    data_path = \
-        "/home/vitchyr/git/railrl/data/doodads3/manual-upload" \
-        "/SawyerMultiobjectEnv_N100000_sawyer_init_camera_zoomed_in_imsize84_random_oracle_split_0subsetv2_8cylinders_h100_saveevery5.npy"
+from railrl.torch import pytorch_util as ptu
+# ptu.set_gpu_mode(True)
+
+def visualize(args):
+    data_path = args.data_path
+    model_path = args.model_path
     train_data, test_data = load_dataset(data_path)
-    model_path = "/home/vitchyr/git/railrl/data/doodads3/01-29-latent-dim-6-2/01-29-latent-dim-6-2_2019_01_29_22_24_54_id000--s93792/params.pkl"
-    VAEVisualizer(model_path, train_data, test_data)
+
+    visualizer = ConditionalVAEVisualizer if conditional else VAEVisualizer
+    visualizer(model_path, train_data, test_data)
 
     tk.mainloop()
+
+if __name__ == "__main__":
+    # data_path = "/tmp/SawyerDoorHookResetFreeEnv-v1_N2_sawyer_door_env_camera_v0_imsize48_random_oracle_split_0.npy"
+    # model_path = "/home/ashvin/data/s3doodad/ashvin/arl/pusher/skewfit/run0/id0/vae.pkl"
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('data_path', type=str, help='path to the .npy data file')
+    parser.add_argument('model_path', type=str, help='path to the .pkl model file')
+    parser.add_argument('--conditional', action='store_true')
+    args = parser.parse_args()
+
+    simulate_policy(args)
