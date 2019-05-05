@@ -57,6 +57,14 @@ class VAEVisualizer(object):
 
         self.master.after(0, self.update)
 
+    def load_dataset(filename, test_p=0.9):
+        dataset = np.load(filename)
+        N = len(dataset)
+        n = int(N * test_p)
+        train_dataset = dataset[:n, :]
+        test_dataset = dataset[n:, :]
+        return train_dataset, test_dataset
+
     def update(self):
         for i in range(self.vae.representation_size):
             self.mean[i] = self.sliders[i].get()
@@ -171,6 +179,14 @@ class ConditionalVAEVisualizer(object):
         self.new_train_image()
 
         self.master.after(0, self.update)
+
+    def load_dataset(filename, test_p=0.9):
+        dataset = np.load(filename).item()
+        N = len(dataset)
+        n = int(N * test_p)
+        train_dataset = dataset[:n, :]
+        test_dataset = dataset[n:, :]
+        return train_dataset, test_dataset
 
     def update(self):
         for i in range(self.vae.representation_size):
@@ -290,14 +306,6 @@ class ConditionalVAEVisualizer(object):
         #         # time.sleep(0.1)
         #     self.mean[i] = t
         #     self.sliders[i].set(self.mean[i])
-
-def load_dataset(filename, test_p=0.9):
-    dataset = np.load(filename)
-    N = len(dataset)
-    n = int(N * test_p)
-    train_dataset = dataset[:n, :]
-    test_dataset = dataset[n:, :]
-    return train_dataset, test_dataset
 
 if __name__ == "__main__":
     # from railrl.torch.vae.sawyer2d_push_new_easy_data_wider import generate_vae_dataset
