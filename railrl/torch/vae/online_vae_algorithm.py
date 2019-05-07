@@ -141,17 +141,9 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         )
 
 
-class ReplayBufferWrapper:
-    def __init__(self, replay_buffer):
-        self.replay_buffer = replay_buffer
-
-    def random_batch(self, batch_size):
-        return self.replay_buffer.random_vae_training_data(batch_size, epoch=0)
-
-
 def _train_vae(vae_trainer, epoch, replay_buffer, batches=50, oracle_data=False):
-    batch = replay_buffer.random_vae_training_data(vae_trainer.batch_size, epoch)
     for b in range(batches):
+        batch = replay_buffer.random_vae_training_data(vae_trainer.batch_size, epoch)
         vae_trainer.train_batch(
             epoch,
             batch,
@@ -159,12 +151,12 @@ def _train_vae(vae_trainer, epoch, replay_buffer, batches=50, oracle_data=False)
     # replay_buffer.train_dynamics_model(batches=batches)
 
 def _test_vae(vae_trainer, epoch, replay_buffer, batches=10, vae_save_period=1, uniform_dataset=None):
-    batch = replay_buffer.random_vae_training_data(vae_trainer.batch_size, epoch)
     save_imgs = epoch % vae_save_period == 0
     log_fit_skew_stats = replay_buffer._prioritize_vae_samples and uniform_dataset is not None
     if uniform_dataset is not None:
         replay_buffer.log_loss_under_uniform(uniform_dataset, vae_trainer.batch_size, rl_logger=vae_trainer.vae_logger_stats_for_rl)
     for b in range(batches):
+        batch = replay_buffer.random_vae_training_data(vae_trainer.batch_size, epoch)
         vae_trainer.test_batch(
             epoch,
             batch,

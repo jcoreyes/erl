@@ -40,6 +40,7 @@ def generate_vae_dataset_from_params(
         n_random_steps=100,
         vae_dataset_specific_env_kwargs=None,
         save_file_prefix=None,
+        use_linear_dynamics=False,
 ):
     from multiworld.core.image_env import ImageEnv, unormalize_image
     from railrl.misc.asset_loader import local_path_from_s3_or_local_path

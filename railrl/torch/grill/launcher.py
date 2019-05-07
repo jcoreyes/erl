@@ -358,7 +358,7 @@ def generate_vae_dataset(variant):
                         g = dict(state_desired_goal=env.sample_goal())
                         env.set_to_goal(g)
                         policy.reset()
-                        env.reset()
+                        # env.reset()
                     u = policy.get_action_from_raw_action(env.action_space.sample())
                     obs = env.step(u)[0]
                 else:
