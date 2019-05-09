@@ -15,15 +15,12 @@ import torch
 from torch.optim import Adam
 from torch.nn import MSELoss
 
+from torch.distributions import Normal
+
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.networks import Mlp
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.vae_trainer import (
-    compute_log_p_log_q_log_d,
-    compute_p_x_np_to_np,
-    relative_probs_from_log_probs,
-)
 import os.path as osp
 
 
@@ -59,7 +56,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             if key not in internal_keys:
                 internal_keys.append(key)
         super().__init__(internal_keys=internal_keys, *args, **kwargs)
-        assert isinstance(self.env, VAEWrappedEnv)
+        # assert isinstance(self.env, VAEWrappedEnv)
         self.vae = vae
         self.decoded_obs_key = decoded_obs_key
         self.decoded_desired_goal_key = decoded_desired_goal_key
@@ -322,7 +319,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
 
         next_image_obs = self._next_obs[self.decoded_obs_key][weighted_idxs]
         return dict(
-            next_obs=ptu.from_numpy(next_image_obs)
+            observations=ptu.from_numpy(next_image_obs)
         )
 
     def reconstruction_mse(self, next_vae_obs, indices):
@@ -436,66 +433,6 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             mse.backward()
             self.dynamics_optimizer.step()
 
-    ''' Fit Skew Debug Stats '''
-
-    def dump_sampling_histogram(self, epoch, batch_size):
-        import matplotlib.pyplot as plt
-        weights = torch.from_numpy(self._vae_sample_probs)
-        samples = ptu.get_numpy(torch.multinomial(
-            weights, len(weights), replacement=True
-        ))
-        plt.clf()
-        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights), 1))
-        plt.xlabel('Indices')
-        plt.ylabel('Number of Samples')
-        plt.title('VAE Priority Histogram')
-        save_file = osp.join(logger.get_snapshot_dir(), 'hist{}.png'.format(
-            epoch))
-        plt.savefig(save_file)
-
-        samples = ptu.get_numpy(torch.multinomial(
-            weights, batch_size, replacement=True
-        ))
-        plt.clf()
-        n, bins, patches = plt.hist(samples, bins=np.arange(0, len(weights), 1))
-        plt.xlabel('Indices')
-        plt.ylabel('Number of Samples')
-        plt.title('VAE Priority Histogram Batch')
-        save_file = osp.join(logger.get_snapshot_dir(), 'hist_batch{}.png'.format(
-            epoch))
-        plt.savefig(save_file)
-
-    def dump_best_reconstruction(self, epoch, num_shown=4):
-        idx_and_weights = self._get_sorted_idx_and_train_weights()
-        idxs = [i for i, _ in idx_and_weights[:num_shown]]
-        self._dump_imgs_and_reconstructions(idxs, 'best{}.png'.format(epoch))
-
-    def dump_worst_reconstruction(self, epoch, num_shown=4):
-        idx_and_weights = self._get_sorted_idx_and_train_weights()
-        idx_and_weights = idx_and_weights[::-1]
-        idxs = [i for i, _ in idx_and_weights[:num_shown]]
-        self._dump_imgs_and_reconstructions(idxs, 'worst{}.png'.format(epoch))
-
-    def _dump_imgs_and_reconstructions(self, idxs, filename):
-        imgs = []
-        recons = []
-        for i in idxs:
-            img_np = self._obs['image_observation'][i]
-            img_torch = ptu.from_numpy(img_np)
-            recon, *_ = self.vae(img_torch.view(1, -1))
-
-            img = img_torch.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1, 2)
-            rimg = recon.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1, 2)
-            imgs.append(img)
-            recons.append(rimg)
-        all_imgs = torch.stack(imgs + recons)
-        save_file = osp.join(logger.get_snapshot_dir(), filename)
-        save_image(
-            all_imgs.data,
-            save_file,
-            nrow=4,
-        )
-
     def log_loss_under_uniform(self, model, data, batch_size, rl_logger, priority_function_kwargs):
         import torch.nn.functional as F
         log_probs_prior = []
@@ -534,29 +471,95 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         rl_logger["Uniform Data KL"] = np.mean(kles)
         rl_logger["Uniform Data MSE"] = np.mean(mses)
 
-    def dump_uniform_imgs_and_reconstructions(self, dataset, epoch):
-        idxs = np.random.choice(range(dataset.shape[0]), 4)
-        filename = 'uniform{}.png'.format(epoch)
-        imgs = []
-        recons = []
-        for i in idxs:
-            img_np = dataset[i]
-            img_torch = ptu.from_numpy(img_np)
-            recon, *_ = self.vae(img_torch.view(1, -1))
-
-            img = img_torch.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1, 2)
-            rimg = recon.view(self.vae.input_channels, self.vae.imsize, self.vae.imsize).transpose(1, 2)
-            imgs.append(img)
-            recons.append(rimg)
-        all_imgs = torch.stack(imgs + recons)
-        save_file = osp.join(logger.get_snapshot_dir(), filename)
-        save_image(
-            all_imgs.data,
-            save_file,
-            nrow=4,
-        )
-
     def _get_sorted_idx_and_train_weights(self):
         idx_and_weights = zip(range(len(self._vae_sample_probs)),
                               self._vae_sample_probs)
         return sorted(idx_and_weights, key=lambda x: x[1])
+
+
+def relative_probs_from_log_probs(log_probs):
+    """
+    Returns relative probability from the log probabilities. They're not exactly
+    equal to the probability, but relative scalings between them are all maintained.
+
+    For correctness, all log_probs must be passed in at the same time.
+    """
+    probs = np.exp(log_probs - log_probs.mean())
+    assert not np.any(probs <= 0), 'choose a smaller power'
+    return probs
+
+def compute_log_p_log_q_log_d(
+    model,
+    data,
+    decoder_distribution='bernoulli',
+    num_latents_to_sample=1,
+    sampling_method='importance_sampling'
+):
+    assert data.dtype != np.uint8, 'images should be normalized'
+    imgs = ptu.from_numpy(data)
+    latent_distribution_params = model.encode(imgs)
+    batch_size = data.shape[0]
+    representation_size = model.representation_size
+    log_p, log_q, log_d = ptu.zeros((batch_size, num_latents_to_sample)), ptu.zeros(
+        (batch_size, num_latents_to_sample)), ptu.zeros((batch_size, num_latents_to_sample))
+    true_prior = Normal(ptu.zeros((batch_size, representation_size)),
+                        ptu.ones((batch_size, representation_size)))
+    mus, logvars = latent_distribution_params
+    for i in range(num_latents_to_sample):
+        if sampling_method == 'importance_sampling':
+            latents = model.rsample(latent_distribution_params)
+        elif sampling_method == 'biased_sampling':
+            latents = model.rsample(latent_distribution_params)
+        elif sampling_method == 'true_prior_sampling':
+            latents = true_prior.rsample()
+        else:
+            raise EnvironmentError('Invalid Sampling Method Provided')
+
+        stds = logvars.exp().pow(.5)
+        vae_dist = Normal(mus, stds)
+        log_p_z = true_prior.log_prob(latents).sum(dim=1)
+        log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
+        if decoder_distribution == 'bernoulli':
+            decoded = model.decode(latents)[0]
+            log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
+        elif decoder_distribution == 'gaussian_identity_variance':
+            _, obs_distribution_params = model.decode(latents)
+            dec_mu, dec_logvar = obs_distribution_params
+            dec_var = dec_logvar.exp()
+            decoder_dist = Normal(dec_mu, dec_var.pow(.5))
+            log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
+        else:
+            raise EnvironmentError('Invalid Decoder Distribution Provided')
+
+        log_p[:, i] = log_p_z
+        log_q[:, i] = log_q_z_given_x
+        log_d[:, i] = log_d_x_given_z
+    return log_p, log_q, log_d
+
+def compute_p_x_np_to_np(
+    model,
+    data,
+    power,
+    decoder_distribution='bernoulli',
+    num_latents_to_sample=1,
+    sampling_method='importance_sampling'
+):
+    assert data.dtype != np.uint8, 'images should be normalized'
+    assert power >= -1 and power <= 0, 'power for skew-fit should belong to [-1, 0]'
+
+    log_p, log_q, log_d = compute_log_p_log_q_log_d(
+        model,
+        data,
+        decoder_distribution,
+        num_latents_to_sample,
+        sampling_method
+    )
+
+    if sampling_method == 'importance_sampling':
+        log_p_x = (log_p - log_q + log_d).mean(dim=1)
+    elif sampling_method == 'biased_sampling' or sampling_method == 'true_prior_sampling':
+        log_p_x = log_d.mean(dim=1)
+    else:
+        raise EnvironmentError('Invalid Sampling Method Provided')
+    log_p_x_skewed = power * log_p_x
+    return ptu.get_numpy(log_p_x_skewed)

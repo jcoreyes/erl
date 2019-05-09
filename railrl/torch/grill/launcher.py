@@ -56,6 +56,12 @@ def grill_her_twin_sac_online_vae_full_experiment(variant):
     grill_her_twin_sac_experiment_online_vae(variant['grill_variant'])
 
 
+def arl_full_experiment(variant):
+    variant['grill_variant']['save_vae_data'] = True
+    full_experiment_variant_preprocess(variant)
+    active_representation_learning_experiment(variant['grill_variant'])
+
+
 def grill_tdm_td3_online_vae_full_experiment(variant):
     variant['grill_variant']['save_vae_data'] = True
     variant['grill_variant']['vae_trainer_kwargs'] = \
@@ -146,18 +152,21 @@ def train_vae(variant, return_data=False):
         AutoEncoder,
     )
     import railrl.torch.vae.conv_vae as conv_vae
-    from railrl.torch.vae.vae_trainer import ConvVAETrainer
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer, ConvDynamicsVAETrainer
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
     from railrl.pythonplusplus import identity
     import torch
     beta = variant["beta"]
     representation_size = variant["representation_size"]
+    use_linear_dynamics = variant.get('use_linear_dynamics', False)
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
                                             generate_vae_dataset)
-    train_data, test_data, info = generate_vae_dataset_fctn(
-        variant['generate_vae_dataset_kwargs']
-    )
+
+    variant['generate_vae_dataset_kwargs']['use_linear_dynamics'] = use_linear_dynamics
+    train_dataset, test_dataset, info = generate_vae_dataset_fctn(
+        variant['generate_vae_dataset_kwargs'])
+
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
     if 'beta_schedule_kwargs' in variant:
@@ -178,40 +187,52 @@ def train_vae(variant, return_data=False):
     variant['vae_kwargs']['imsize'] = variant.get('imsize')
 
     if variant['algo_kwargs'].get('is_auto_encoder', False):
-        m = AutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+        model = AutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     elif variant.get('use_spatial_auto_encoder', False):
-        m = SpatialAutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+        model = SpatialAutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     else:
         vae_class = variant.get('vae_class', ConvVAE)
-        m = vae_class(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
-    m.to(ptu.device)
-    t = ConvVAETrainer(train_data, test_data, m, beta=beta,
+        model = vae_class(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+    model.to(ptu.device)
+
+    if use_linear_dynamics:
+        vae_trainer_class = ConvDynamicsVAETrainer
+    else:
+        vae_trainer_class = variant.get('vae_trainer_class', ConvVAETrainer)
+    trainer = vae_trainer_class(model, beta=beta,
                        beta_schedule=beta_schedule, **variant['algo_kwargs'])
     save_period = variant['save_period']
+
     dump_skew_debug_plots = variant.get('dump_skew_debug_plots', False)
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
-        t.train_epoch(epoch)
-        t.test_epoch(
-            epoch,
-            save_reconstruction=should_save_imgs,
-            save_scatterplot=should_save_imgs,
-            # save_vae=False,
-        )
+        trainer.train_epoch(epoch, train_dataset)
+        trainer.test_epoch(epoch, test_dataset)
+
         if should_save_imgs:
-            t.dump_samples(epoch)
+            trainer.dump_reconstructions(epoch)
+            trainer.dump_samples(epoch)
             if dump_skew_debug_plots:
-                t.dump_best_reconstruction(epoch)
-                t.dump_worst_reconstruction(epoch)
-                t.dump_sampling_histogram(epoch)
-        t.update_train_weights()
-    logger.save_extra_data(m, 'vae.pkl', mode='pickle')
+                trainer.dump_best_reconstruction(epoch)
+                trainer.dump_worst_reconstruction(epoch)
+                trainer.dump_sampling_histogram(epoch)
+
+        stats = trainer.get_diagnostics()
+        for k, v in stats.items():
+            logger.record_tabular(k, v)
+        logger.dump_tabular()
+        trainer.end_epoch(epoch)
+
+        if epoch % 50 == 0:
+            logger.save_itr_params(epoch, model)
+    logger.save_extra_data(model, 'vae.pkl', mode='pickle')
     if return_data:
-        return m, train_data, test_data
-    return m
+        return model, train_dataset, test_dataset
+    return model
 
 
 def generate_vae_dataset(variant):
+    print(variant)
     env_class = variant.get('env_class', None)
     env_kwargs = variant.get('env_kwargs',None)
     env_id = variant.get('env_id', None)
@@ -232,10 +253,17 @@ def generate_vae_dataset(variant):
     vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
     save_file_prefix = variant.get('save_file_prefix', None)
     non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
+    conditional_vae_dataset = variant.get('conditional_vae_dataset', False)
+    save_trajectories = variant.get('save_trajectories', False)
+    use_linear_dynamics = variant.get('use_linear_dynamics', False)
     tag = variant.get('tag', '')
+
     from multiworld.core.image_env import ImageEnv, unormalize_image
     import railrl.torch.pytorch_util as ptu
     from railrl.misc.asset_loader import load_local_or_remote_file
+    from railrl.data_management.dataset  import \
+        TrajectoryDataset, ImageObservationDataset, InitialObservationDataset
+
     info = {}
     if dataset_path is not None:
         dataset = load_local_or_remote_file(dataset_path)
@@ -294,7 +322,15 @@ def generate_vae_dataset(variant):
             if random_rollout_data:
                 from railrl.exploration_strategies.ou_strategy import OUStrategy
                 policy = OUStrategy(env.action_space)
-            dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
+
+            if save_trajectories:
+                dataset = {
+                    'observations': np.zeros((N // n_random_steps, n_random_steps, imsize * imsize * num_channels), dtype=np.uint8),
+                    'actions': np.zeros((N // n_random_steps, n_random_steps, env.action_space.shape[0]), dtype=np.uint8)
+                    }
+            else:
+                dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
+
             for i in range(N):
                 if random_and_oracle_policy_data:
                     num_random_steps = int(N*random_and_oracle_policy_data_split)
@@ -319,7 +355,7 @@ def generate_vae_dataset(variant):
                     obs = env._get_obs()
                 elif random_rollout_data:
                     if i % n_random_steps == 0:
-                        g = dict(state_desired_goal=env.sample_goal_for_rollout())
+                        g = dict(state_desired_goal=env.sample_goal())
                         env.set_to_goal(g)
                         policy.reset()
                         # env.reset()
@@ -329,8 +365,16 @@ def generate_vae_dataset(variant):
                     env.reset()
                     for _ in range(n_random_steps):
                         obs = env.step(env.action_space.sample())[0]
+
                 img = obs['image_observation']
-                dataset[i, :] = unormalize_image(img)
+
+                if save_trajectories:
+                    #MAKE SURE NOT ONE INDEX
+                    dataset['observations'][i // n_random_steps, i % n_random_steps, :] = unormalize_image(img)
+                    dataset['actions'][i // n_random_steps, i % n_random_steps, :] = u
+                else:
+                    dataset[i, :] = unormalize_image(img)
+
                 if show:
                     img = img.reshape(3, imsize, imsize).transpose()
                     img = img[::-1, :, ::-1]
@@ -338,11 +382,33 @@ def generate_vae_dataset(variant):
                     cv2.waitKey(1)
                     # radius = input('waiting...')
             print("done making training data", filename, time.time() - now)
+
             np.save(filename, dataset)
 
-    n = int(N * test_p)
-    train_dataset = dataset[:n, :]
-    test_dataset = dataset[n:, :]
+    if use_linear_dynamics:
+        num_trajectories = N // n_random_steps
+        n = int(num_trajectories * test_p)
+        train_dataset = TrajectoryDataset({
+            'observations': dataset['observations'][:n, :, :],
+            'actions': dataset['actions'][:n, :, :]
+        })
+        test_dataset = TrajectoryDataset({
+            'observations': dataset['observations'][n:, :, :],
+            'actions': dataset['actions'][n:, :, :]
+        })
+    elif conditional_vae_dataset:
+        num_trajectories = N // n_random_steps
+        n = int(num_trajectories * test_p)
+        train_dataset = InitialObservationDataset({
+            'observations': dataset['observations'][:n, :, :],
+        })
+        test_dataset = InitialObservationDataset({
+            'observations': dataset['observations'][n:, :, :],
+        })
+    else:
+        n = int(N * test_p)
+        train_dataset = ImageObservationDataset(dataset[:n, :])
+        test_dataset = ImageObservationDataset(dataset[n:, :])
     return train_dataset, test_dataset, info
 
 def get_envs(variant):
@@ -873,8 +939,6 @@ def grill_her_twin_sac_experiment_online_vae(variant):
         **variant['replay_buffer_kwargs']
     )
     vae_trainer = ConvVAETrainer(
-        variant['vae_train_data'],
-        variant['vae_test_data'],
         env.vae,
         **variant['online_vae_trainer_kwargs']
     )
@@ -924,6 +988,149 @@ def grill_her_twin_sac_experiment_online_vae(variant):
 
     if variant['custom_goal_sampler'] == 'replay_buffer':
         env.custom_goal_sampler = replay_buffer.sample_buffer_goals
+
+    algorithm.to(ptu.device)
+    vae.to(ptu.device)
+    algorithm.train()
+
+
+
+def active_representation_learning_experiment(variant):
+    import railrl.torch.pytorch_util as ptu
+    from railrl.data_management.obs_dict_replay_buffer import ObsDictReplayBuffer
+    from railrl.torch.networks import FlattenMlp
+    from railrl.torch.sac.policies import TanhGaussianPolicy
+    from railrl.torch.vae.vae_trainer import ConvVAETrainer
+    from railrl.torch.arl.active_representation_learning_algorithm import \
+        ActiveRepresentationLearningAlgorithm
+    from railrl.torch.arl.representation_wrappers import RepresentationWrappedEnv
+    from multiworld.core.image_env import ImageEnv
+    from multiworld.core.flat_env import FlatEnv
+    from railrl.samplers.data_collector import MdpPathCollector
+
+    grill_preprocess_variant(variant)
+
+    model_class = variant.get('model_class')
+    model_kwargs = variant.get('model_kwargs')
+
+    model = model_class(**model_kwargs)
+    model.representation_size = 4
+    model.imsize = 48
+    variant["vae_path"] = model
+
+    reward_params = variant.get("reward_params", dict())
+    init_camera = variant.get("init_camera", None)
+    env = variant["env_class"](**variant['env_kwargs'])
+    image_env = ImageEnv(
+        env,
+        variant.get('imsize'),
+        init_camera=init_camera,
+        transpose=True,
+        normalize=True,
+    )
+    env = RepresentationWrappedEnv(
+        image_env,
+        model,
+    )
+
+    uniform_dataset_fn = variant.get('generate_uniform_dataset_fn', None)
+    if uniform_dataset_fn:
+        uniform_dataset=uniform_dataset_fn(
+            **variant['generate_uniform_dataset_kwargs']
+        )
+    else:
+        uniform_dataset=None
+
+    observation_key = variant.get('observation_key', 'latent_observation')
+    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
+    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    obs_dim = env.observation_space.spaces[observation_key].low.size
+    action_dim = env.action_space.low.size
+    hidden_sizes = variant.get('hidden_sizes', [400, 300])
+    qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    target_qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    target_qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        hidden_sizes=hidden_sizes,
+    )
+    policy = TanhGaussianPolicy(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        hidden_sizes=hidden_sizes,
+    )
+
+    vae = env.vae
+
+    replay_buffer = ObsDictReplayBuffer(
+        env=env,
+        **variant['replay_buffer_kwargs']
+    )
+
+    model_trainer_class = variant.get('model_trainer_class')
+    model_trainer_kwargs = variant.get('model_trainer_kwargs')
+    model_trainer = model_trainer_class(
+        model,
+        **model_trainer_kwargs,
+    )
+    # vae_trainer = ConvVAETrainer(
+    #     env.vae,
+    #     **variant['online_vae_trainer_kwargs']
+    # )
+    assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
+    max_path_length = variant['max_path_length']
+
+    trainer = SACTrainer(
+        env=env,
+        policy=policy,
+        qf1=qf1,
+        qf2=qf2,
+        target_qf1=target_qf1,
+        target_qf2=target_qf2,
+        **variant['twin_sac_trainer_kwargs']
+    )
+    # trainer = HERTrainer(trainer)
+    eval_path_collector = MdpPathCollector(
+        env,
+        MakeDeterministic(policy),
+        # max_path_length,
+        # observation_key=observation_key,
+        # desired_goal_key=desired_goal_key,
+    )
+    expl_path_collector = MdpPathCollector(
+        env,
+        policy,
+        # max_path_length,
+        # observation_key=observation_key,
+        # desired_goal_key=desired_goal_key,
+    )
+
+    algorithm = ActiveRepresentationLearningAlgorithm(
+        trainer=trainer,
+        exploration_env=env,
+        evaluation_env=env,
+        exploration_data_collector=expl_path_collector,
+        evaluation_data_collector=eval_path_collector,
+        replay_buffer=replay_buffer,
+        model=model,
+        model_trainer=model_trainer,
+        uniform_dataset=uniform_dataset,
+        max_path_length=max_path_length,
+        **variant['algo_kwargs']
+    )
 
     algorithm.to(ptu.device)
     vae.to(ptu.device)

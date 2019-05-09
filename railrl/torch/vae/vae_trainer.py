@@ -17,45 +17,12 @@ from railrl.torch.data import (
     ImageDataset, InfiniteWeightedRandomSampler,
     InfiniteRandomSampler,
 )
+from railrl.torch.core import np_to_pytorch_batch
+import collections
 
-class VAEExperiment:
-    def __init__(self, vae_trainer, num_epochs, save_period=1,
-                 dump_skew_debug_plots=False):
-        self.vae_trainer = vae_trainer
-        self.num_epochs = num_epochs
-        self.save_period = save_period
-        self.dump_skew_debug_plots = dump_skew_debug_plots
-        self.epoch = 0
-
-    def _train(self):
-        log = dict()
-        done = False
-        if self.epoch == self.num_epochs:
-            done = True
-            return log, done
-        should_save_imgs = (self.epoch % self.save_period == 0)
-        self.vae_trainer.train_epoch(self.epoch)
-        self.vae_trainer.test_epoch(self.epoch,
-                                    save_reconstruction=should_save_imgs,
-                                    save_scatterplot=should_save_imgs)
-        if should_save_imgs:
-            self.vae_trainer.dump_samples(self.epoch)
-            if self.dump_skew_debug_plots:
-                self.vae_trainer.dump_best_reconstruction(self.epoch)
-                self.vae_trainer.dump_worst_reconstruction(self.epoch)
-                self.vae_trainer.dump_sampling_histogram(self.epoch)
-        self.vae_trainer.update_train_weights()
-        self.epoch += 1
-        return log, done
-
-    def to(self, device):
-        self.vae_trainer.model.to(device)
-
-class ConvVAETrainer(object):
+class VAETrainer(object):
     def __init__(
             self,
-            train_dataset,
-            test_dataset,
             model,
             batch_size=128,
             log_interval=0,
@@ -110,11 +77,6 @@ class ConvVAETrainer(object):
             lr=self.lr,
             weight_decay=weight_decay,
         )
-        self.train_dataset, self.test_dataset = train_dataset, test_dataset
-        assert self.train_dataset.dtype == np.uint8
-        assert self.test_dataset.dtype == np.uint8
-        self.train_dataset = train_dataset
-        self.test_dataset = test_dataset
 
         self.batch_size = batch_size
         self.use_parallel_dataloading = use_parallel_dataloading
@@ -126,11 +88,6 @@ class ConvVAETrainer(object):
             self.priority_function_kwargs = dict()
         else:
             self.priority_function_kwargs = priority_function_kwargs
-
-        if self.skew_dataset:
-            self._train_weights = self._compute_train_weights()
-        else:
-            self._train_weights = None
 
         if use_parallel_dataloading:
             self.train_dataset_pt = ImageDataset(
@@ -178,8 +135,15 @@ class ConvVAETrainer(object):
             )
         self.linearity_weight = linearity_weight
         self.use_linear_dynamics = use_linear_dynamics
-        self.eval_statistics = OrderedDict()
         self._extra_stats_to_log = None
+
+        # stateful tracking variables, reset every epoch
+        self.eval_statistics = collections.defaultdict(list)
+        self.eval_data = collections.defaultdict(list)
+
+    @property
+    def log_dir(self):
+        return logger.get_snapshot_dir()
 
     def get_dataset_stats(self, data):
         torch_input = ptu.from_numpy(normalize_image(data))
@@ -188,54 +152,6 @@ class ConvVAETrainer(object):
         mean = np.mean(mus, axis=0)
         std = np.std(mus, axis=0)
         return mus, mean, std
-
-    def update_train_weights(self):
-        if self.skew_dataset:
-            self._train_weights = self._compute_train_weights()
-            if self.use_parallel_dataloading:
-                self.train_dataloader = DataLoader(
-                    self.train_dataset_pt,
-                    sampler=InfiniteWeightedRandomSampler(self.train_dataset, self._train_weights),
-                    batch_size=self.batch_size,
-                    drop_last=False,
-                    num_workers=self.train_data_workers,
-                    pin_memory=True,
-                )
-                self.train_dataloader = iter(self.train_dataloader)
-
-    def _compute_train_weights(self):
-        method = self.skew_config.get('method', 'squared_error')
-        power = self.skew_config.get('power', 1)
-        batch_size = 512
-        size = self.train_dataset.shape[0]
-        next_idx = min(batch_size, size)
-        cur_idx = 0
-        weights = np.zeros(size)
-        while cur_idx < self.train_dataset.shape[0]:
-            idxs = np.arange(cur_idx, next_idx)
-            data = self.train_dataset[idxs, :]
-            if method == 'squared_error':
-                weights[idxs] = self._reconstruction_squared_error_np_to_np(
-                    data,
-                    **self.priority_function_kwargs
-                ) ** power
-            elif method == 'kl':
-                weights[idxs] = self._kl_np_to_np(data, **self.priority_function_kwargs)
-            elif method == 'vae_prob':
-                data = normalize_image(data)
-                weights[idxs] = compute_p_x_np_to_np(self.model, data, power=power, **self.priority_function_kwargs)
-            elif method == 'inv_exp_elbo':
-                data = normalize_image(data)
-                weights[idxs] = inv_exp_elbo(self.model, data, beta=self.beta) ** power
-            else:
-                raise NotImplementedError('Method {} not supported'.format(method))
-            cur_idx = next_idx
-            next_idx += batch_size
-            next_idx = min(next_idx, size)
-
-        if method == 'vae_prob':
-            weights = relative_probs_from_log_probs(weights)
-        return weights
 
     def _kl_np_to_np(self, np_imgs):
         torch_input = ptu.from_numpy(normalize_image(np_imgs))
@@ -254,36 +170,6 @@ class ConvVAETrainer(object):
         self.model = vae
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
-    def get_batch(self, train=True, epoch=None):
-        if self.use_parallel_dataloading:
-            if not train:
-                dataloader = self.test_dataloader
-            else:
-                dataloader = self.train_dataloader
-            samples = next(dataloader).to(ptu.device)
-            return samples
-
-        dataset = self.train_dataset if train else self.test_dataset
-        skew = False
-        if epoch is not None:
-            skew = (self.start_skew_epoch < epoch)
-        if train and self.skew_dataset and skew:
-            probs = self._train_weights / np.sum(self._train_weights)
-            ind = np.random.choice(
-                len(probs),
-                self.batch_size,
-                p=probs,
-            )
-            # print(stats.mode(ind))
-        else:
-            ind = np.random.randint(0, len(dataset), self.batch_size)
-        samples = normalize_image(dataset[ind, :])
-        if self.normalize:
-            samples = ((samples - self.train_data_mean) + 1) / 2
-        if self.background_subtract:
-            samples = samples - self.train_data_mean
-        return ptu.from_numpy(samples)
-
     def get_debug_batch(self, train=True):
         dataset = self.train_dataset if train else self.test_dataset
         X, Y = dataset
@@ -292,140 +178,120 @@ class ConvVAETrainer(object):
         Y = Y[ind, :]
         return ptu.from_numpy(X), ptu.from_numpy(Y)
 
-    def state_linearity_loss(self, obs, next_obs, actions):
-        latent_obs = self.model.encode(obs)[0]
-        latent_next_obs = self.model.encode(next_obs)[0]
-        action_obs_pair = torch.cat([latent_obs, actions], dim=1)
-        prediction = self.model.linear_constraint_fc(action_obs_pair)
-        return torch.norm(prediction - latent_next_obs) ** 2 / self.batch_size
+    def train_epoch(self, epoch, dataset, batches=100):
+        for b in range(batches):
+            self.train_batch(epoch, dataset.random_batch(self.batch_size))
 
-    def train_epoch(self, epoch, sample_batch=None, batches=100, from_rl=False):
-        self.model.train()
-        losses = []
-        log_probs = []
-        kles = []
-        linear_losses = []
-        zs = []
+    def test_epoch(self, epoch, dataset, batches=10):
+        for b in range(batches):
+            self.test_batch(epoch, dataset.random_batch(self.batch_size))
+
+    def compute_loss(self, epoch, batch, test=False):
+        prefix = "test/" if test else "train/"
+
         beta = float(self.beta_schedule.get_value(epoch))
-        for batch_idx in range(batches):
-            if sample_batch is not None:
-                data = sample_batch(self.batch_size, epoch)
-                # obs = data['obs']
-                next_obs = data['next_obs']
-                # actions = data['actions']
-            else:
-                next_obs = self.get_batch(epoch=epoch)
-                obs = None
-                actions = None
-            self.optimizer.zero_grad()
-            reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
-            log_prob = self.model.logprob(next_obs, obs_distribution_params)
-            kle = self.model.kl_divergence(latent_distribution_params)
-
-            encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
-            z_data = ptu.get_numpy(encoder_mean.cpu())
-            for i in range(len(z_data)):
-                zs.append(z_data[i, :])
-
-            if self.use_linear_dynamics:
-                linear_dynamics_loss = self.state_linearity_loss(
-                    obs, next_obs, actions
-                )
-                loss = -1 * log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
-                linear_losses.append(linear_dynamics_loss.data[0])
-            else:
-                loss = -1 * log_prob + beta * kle
-
-            self.optimizer.zero_grad()
-            loss.backward()
-            losses.append(loss.item())
-            log_probs.append(log_prob.item())
-            kles.append(kle.item())
-
-            self.optimizer.step()
-            if self.log_interval and batch_idx % self.log_interval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch,
-                    batch_idx * len(data),
-                    len(self.train_loader.dataset),
-                    100. * batch_idx / len(self.train_loader),
-                    loss.item() / len(next_obs)))
-        if not from_rl:
-            zs = np.array(zs)
-            self.model.dist_mu = zs.mean(axis=0)
-            self.model.dist_std = zs.std(axis=0)
-
-        self.eval_statistics['train/log prob'] = np.mean(log_probs)
-        self.eval_statistics['train/KL'] = np.mean(kles)
-        self.eval_statistics['train/loss'] = np.mean(losses)
-        if self.use_linear_dynamics:
-            self.eval_statistics['train/linear loss'] = np.mean(linear_losses)
-
-    def get_diagnostics(self):
-        return self.eval_statistics
-
-    def test_epoch(
-            self,
-            epoch,
-            save_reconstruction=True,
-            save_scatterplot=True,
-            save_vae=True,
-            from_rl=False,
-    ):
-        self.model.eval()
-        losses = []
-        log_probs = []
-        kles = []
-        zs = []
-        beta = float(self.beta_schedule.get_value(epoch))
-        for batch_idx in range(10):
-            next_obs = self.get_batch(train=False)
-            reconstructions, obs_distribution_params, latent_distribution_params = self.model(next_obs)
-            log_prob = self.model.logprob(next_obs, obs_distribution_params)
-            kle = self.model.kl_divergence(latent_distribution_params)
-            loss = -1 * log_prob + beta * kle
-
-            encoder_mean = latent_distribution_params[0]
-            z_data = ptu.get_numpy(encoder_mean.cpu())
-            for i in range(len(z_data)):
-                zs.append(z_data[i, :])
-            losses.append(loss.item())
-            log_probs.append(log_prob.item())
-            kles.append(kle.item())
-
-            if batch_idx == 0 and save_reconstruction:
-                n = min(next_obs.size(0), 8)
-                comparison = torch.cat([
-                    next_obs[:n].narrow(start=0, length=self.imlength, dim=1)
-                        .contiguous().view(
-                        -1, self.input_channels, self.imsize, self.imsize
-                    ).transpose(2, 3),
-                    reconstructions.view(
-                        self.batch_size,
-                        self.input_channels,
-                        self.imsize,
-                        self.imsize,
-                    )[:n].transpose(2, 3)
-                ])
-                save_dir = osp.join(util.LOG_DIR, 'r%d.png' % epoch)
-                save_image(comparison.data.cpu(), save_dir, nrow=n)
-
-        zs = np.array(zs)
-
-        if self.do_scatterplot and save_scatterplot:
-            self.plot_scattered(np.array(zs), epoch)
+        obs = batch["observations"]
+        reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
+        log_prob = self.model.logprob(obs, obs_distribution_params)
+        kle = self.model.kl_divergence(latent_distribution_params)
+        loss = -1 * log_prob + beta * kle
 
         self.eval_statistics['epoch'] = epoch
-        self.eval_statistics['test/log prob'] = np.mean(log_probs)
-        self.eval_statistics['test/KL'] = np.mean(kles)
-        self.eval_statistics['test/loss'] = np.mean(losses)
         self.eval_statistics['beta'] = beta
-        if not from_rl:
-            for k, v in self.eval_statistics.items():
-                logger.record_tabular(k, v)
-            logger.dump_tabular()
-            if save_vae:
-                logger.save_itr_params(epoch, self.model)
+        self.eval_statistics[prefix + "losses"].append(loss.item())
+        self.eval_statistics[prefix + "log_probs"].append(log_prob.item())
+        self.eval_statistics[prefix + "kles"].append(kle.item())
+
+        encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
+        z_data = ptu.get_numpy(encoder_mean.cpu())
+        for i in range(len(z_data)):
+            self.eval_data[prefix + "zs"].append(z_data[i, :])
+        self.eval_data[prefix + "last_batch"] = (obs, reconstructions)
+
+        return loss
+
+    def train_batch(self, epoch, batch):
+        self.model.train()
+        self.optimizer.zero_grad()
+
+        loss = self.compute_loss(epoch, batch, False)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+    def test_batch(
+            self,
+            epoch,
+            batch,
+    ):
+        self.model.eval()
+        loss = self.compute_loss(epoch, batch, True)
+
+    def end_epoch(self, epoch):
+        self.eval_statistics = collections.defaultdict(list)
+        self.test_last_batch = None
+
+    def get_diagnostics(self):
+        stats = OrderedDict()
+        for k in sorted(self.eval_statistics.keys()):
+            stats[k] = np.mean(self.eval_statistics[k])
+        return stats
+
+    def dump_scatterplot(self, z, epoch):
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            logger.log(__file__ + ": Unable to load matplotlib. Consider "
+                                  "setting do_scatterplot to False")
+            return
+        dim_and_stds = [(i, np.std(z[:, i])) for i in range(z.shape[1])]
+        dim_and_stds = sorted(
+            dim_and_stds,
+            key=lambda x: x[1]
+        )
+        dim1 = dim_and_stds[-1][0]
+        dim2 = dim_and_stds[-2][0]
+        plt.figure(figsize=(8, 8))
+        plt.scatter(z[:, dim1], z[:, dim2], marker='o', edgecolor='none')
+        if self.model.dist_mu is not None:
+            x1 = self.model.dist_mu[dim1:dim1 + 1]
+            y1 = self.model.dist_mu[dim2:dim2 + 1]
+            x2 = (
+                    self.model.dist_mu[dim1:dim1 + 1]
+                    + self.model.dist_std[dim1:dim1 + 1]
+            )
+            y2 = (
+                    self.model.dist_mu[dim2:dim2 + 1]
+                    + self.model.dist_std[dim2:dim2 + 1]
+            )
+        plt.plot([x1, x2], [y1, y2], color='k', linestyle='-', linewidth=2)
+        axes = plt.gca()
+        axes.set_xlim([-6, 6])
+        axes.set_ylim([-6, 6])
+        axes.set_title('dim {} vs dim {}'.format(dim1, dim2))
+        plt.grid(True)
+        save_file = osp.join(self.log_dir, 'scatter%d.png' % epoch)
+        plt.savefig(save_file)
+
+class ConvVAETrainer(VAETrainer):
+    def dump_reconstructions(self, epoch):
+        obs, reconstructions = self.eval_data["test/last_batch"]
+        n = min(obs.size(0), 8)
+        comparison = torch.cat([
+            obs[:n].narrow(start=0, length=self.imlength, dim=1)
+                .contiguous().view(
+                -1, self.input_channels, self.imsize, self.imsize
+            ).transpose(2, 3),
+            reconstructions.view(
+                self.batch_size,
+                self.input_channels,
+                self.imsize,
+                self.imsize,
+            )[:n].transpose(2, 3)
+        ])
+        save_dir = osp.join(self.log_dir, 'r%d.png' % epoch)
+        save_image(comparison.data.cpu(), save_dir, nrow=n)
 
     def debug_statistics(self):
         """
@@ -460,18 +326,13 @@ class ConvVAETrainer(object):
         stats['debug/MSE of reconstruction'] = ptu.get_numpy(
             recon_mse
         )[0]
-        if self.skew_dataset:
-            stats.update(create_stats_ordered_dict(
-                'train weight',
-                self._train_weights
-            ))
         return stats
 
     def dump_samples(self, epoch):
         self.model.eval()
         sample = ptu.randn(64, self.representation_size)
         sample = self.model.decode(sample)[0].cpu()
-        save_dir = osp.join(util.LOG_DIR, 's%d.png' % epoch)
+        save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
         save_image(
             sample.data.view(64, self.input_channels, self.imsize, self.imsize).transpose(2, 3),
             save_dir
@@ -494,7 +355,7 @@ class ConvVAETrainer(object):
         plt.xlabel('Indices')
         plt.ylabel('Number of Samples')
         plt.title('VAE Priority Histogram')
-        save_file = osp.join(util.LOG_DIR, 'hist{}.png'.format(
+        save_file = osp.join(self.log_dir, 'hist{}.png'.format(
             epoch))
         plt.savefig(save_file)
 
@@ -506,7 +367,7 @@ class ConvVAETrainer(object):
         plt.xlabel('Indices')
         plt.ylabel('Number of Samples')
         plt.title('VAE Priority Histogram Batch')
-        save_file = osp.join(util.LOG_DIR, 'hist_batch{}.png'.format(
+        save_file = osp.join(self.log_dir, 'hist_batch{}.png'.format(
             epoch))
         plt.savefig(save_file)
 
@@ -534,7 +395,7 @@ class ConvVAETrainer(object):
             imgs.append(img)
             recons.append(rimg)
         all_imgs = torch.stack(imgs + recons)
-        save_file = osp.join(util.LOG_DIR, filename)
+        save_file = osp.join(self.log_dir, filename)
         save_image(
             all_imgs.data,
             save_file,
@@ -594,7 +455,7 @@ class ConvVAETrainer(object):
             imgs.append(img)
             recons.append(rimg)
         all_imgs = torch.stack(imgs + recons)
-        save_file = osp.join(util.LOG_DIR, filename)
+        save_file = osp.join(self.log_dir, filename)
         save_image(
             all_imgs.data,
             save_file,
@@ -608,128 +469,94 @@ class ConvVAETrainer(object):
                               self._train_weights)
         return sorted(idx_and_weights, key=lambda x: x[1])
 
-    def plot_scattered(self, z, epoch):
-        try:
-            import matplotlib.pyplot as plt
-        except ImportError:
-            logger.log(__file__ + ": Unable to load matplotlib. Consider "
-                                  "setting do_scatterplot to False")
-            return
-        dim_and_stds = [(i, np.std(z[:, i])) for i in range(z.shape[1])]
-        dim_and_stds = sorted(
-            dim_and_stds,
-            key=lambda x: x[1]
+class ConvDynamicsVAETrainer(ConvVAETrainer):
+    def state_linearity_loss(self, obs, next_obs, actions):
+        latent_obs = self.model.encode(obs)[0]
+        latent_next_obs = self.model.encode(next_obs)[0]
+        action_obs_pair = torch.cat([latent_obs, actions], dim=1)
+        prediction = self.model.linear_constraint_fc(action_obs_pair)
+        return torch.norm(prediction - latent_next_obs) ** 2 / self.batch_size
+
+    def compute_loss(self, epoch, batch, test=False):
+        prefix = "test/" if test else "train/"
+
+        beta = float(self.beta_schedule.get_value(epoch))
+        obs = batch["observations"]
+        reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
+        log_prob = self.model.logprob(obs, obs_distribution_params)
+        kle = self.model.kl_divergence(latent_distribution_params)
+        linear_dynamics_loss = self.state_linearity_loss(
+            obs, next_obs, actions
         )
-        dim1 = dim_and_stds[-1][0]
-        dim2 = dim_and_stds[-2][0]
-        plt.figure(figsize=(8, 8))
-        plt.scatter(z[:, dim1], z[:, dim2], marker='o', edgecolor='none')
-        if self.model.dist_mu is not None:
-            x1 = self.model.dist_mu[dim1:dim1 + 1]
-            y1 = self.model.dist_mu[dim2:dim2 + 1]
-            x2 = (
-                    self.model.dist_mu[dim1:dim1 + 1]
-                    + self.model.dist_std[dim1:dim1 + 1]
-            )
-            y2 = (
-                    self.model.dist_mu[dim2:dim2 + 1]
-                    + self.model.dist_std[dim2:dim2 + 1]
-            )
-        plt.plot([x1, x2], [y1, y2], color='k', linestyle='-', linewidth=2)
-        axes = plt.gca()
-        axes.set_xlim([-6, 6])
-        axes.set_ylim([-6, 6])
-        axes.set_title('dim {} vs dim {}'.format(dim1, dim2))
-        plt.grid(True)
-        save_file = osp.join(util.LOG_DIR, 'scatter%d.png' % epoch)
-        plt.savefig(save_file)
+        loss = -1 * log_prob + beta * kle + self.linearity_weight * linear_dynamics_loss
 
+        self.eval_statistics['beta'] = beta
+        self.eval_statistics[prefix + "losses"].append(loss.item())
+        self.eval_statistics[prefix + "log_probs"].append(log_prob.item())
+        self.eval_statistics[prefix + "kles"].append(kle.item())
+        self.eval_statistics[prefix + "dynamics_loss"].append(linear_dynamics_loss.item())
 
+        encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
+        z_data = ptu.get_numpy(encoder_mean.cpu())
+        for i in range(len(z_data)):
+            self.eval_data[prefix + "zs"].append(z_data[i, :])
+        self.eval_data[prefix + "last_batch"] = (obs, reconstructions)
 
-def relative_probs_from_log_probs(log_probs):
-    """
-    Returns relative probability from the log probabilities. They're not exactly
-    equal to the probability, but relative scalings between them are all maintained.
+        return loss
 
-    For correctness, all log_probs must be passed in at the same time.
-    """
-    probs = np.exp(log_probs - log_probs.mean())
-    assert not np.any(probs <= 0), 'choose a smaller power'
-    return probs
+class ConditionalConvVAETrainer(ConvVAETrainer):
+    def compute_loss(self, epoch, batch, test=False):
+        prefix = "test/" if test else "train/"
 
-def compute_log_p_log_q_log_d(
-    model,
-    data,
-    decoder_distribution='bernoulli',
-    num_latents_to_sample=1,
-    sampling_method='importance_sampling'
-):
-    assert data.dtype != np.uint8, 'images should be normalized'
-    imgs = ptu.from_numpy(data)
-    latent_distribution_params = model.encode(imgs)
-    batch_size = data.shape[0]
-    representation_size = model.representation_size
-    log_p, log_q, log_d = ptu.zeros((batch_size, num_latents_to_sample)), ptu.zeros(
-        (batch_size, num_latents_to_sample)), ptu.zeros((batch_size, num_latents_to_sample))
-    true_prior = Normal(ptu.zeros((batch_size, representation_size)),
-                        ptu.ones((batch_size, representation_size)))
-    mus, logvars = latent_distribution_params
-    for i in range(num_latents_to_sample):
-        if sampling_method == 'importance_sampling':
-            latents = model.rsample(latent_distribution_params)
-        elif sampling_method == 'biased_sampling':
-            latents = model.rsample(latent_distribution_params)
-        elif sampling_method == 'true_prior_sampling':
-            latents = true_prior.rsample()
-        else:
-            raise EnvironmentError('Invalid Sampling Method Provided')
+        beta = float(self.beta_schedule.get_value(epoch))
+        obs = batch["observations"]
+        reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
+        log_prob = self.model.logprob(batch["x_t"], obs_distribution_params)
+        kle = self.model.kl_divergence(latent_distribution_params)
+        loss = -1 * log_prob + beta * kle
 
-        stds = logvars.exp().pow(.5)
-        vae_dist = Normal(mus, stds)
-        log_p_z = true_prior.log_prob(latents).sum(dim=1)
-        log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
-        if decoder_distribution == 'bernoulli':
-            decoded = model.decode(latents)[0]
-            log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)
-        elif decoder_distribution == 'gaussian_identity_variance':
-            _, obs_distribution_params = model.decode(latents)
-            dec_mu, dec_logvar = obs_distribution_params
-            dec_var = dec_logvar.exp()
-            decoder_dist = Normal(dec_mu, dec_var.pow(.5))
-            log_d_x_given_z = decoder_dist.log_prob(imgs).sum(dim=1)
-        else:
-            raise EnvironmentError('Invalid Decoder Distribution Provided')
+        self.eval_statistics['beta'] = beta
+        self.eval_statistics[prefix + "losses"].append(loss.item())
+        self.eval_statistics[prefix + "log_probs"].append(log_prob.item())
+        self.eval_statistics[prefix + "kles"].append(kle.item())
 
-        log_p[:, i] = log_p_z
-        log_q[:, i] = log_q_z_given_x
-        log_d[:, i] = log_d_x_given_z
-    return log_p, log_q, log_d
+        encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
+        z_data = ptu.get_numpy(encoder_mean.cpu())
+        for i in range(len(z_data)):
+            self.eval_data[prefix + "zs"].append(z_data[i, :])
+        self.eval_data[prefix + "last_batch"] = (batch, reconstructions)
 
-def compute_p_x_np_to_np(
-    model,
-    data,
-    power,
-    decoder_distribution='bernoulli',
-    num_latents_to_sample=1,
-    sampling_method='importance_sampling'
-):
-    assert data.dtype != np.uint8, 'images should be normalized'
-    assert power >= -1 and power <= 0, 'power for skew-fit should belong to [-1, 0]'
+        return loss
 
-    log_p, log_q, log_d = compute_log_p_log_q_log_d(
-        model,
-        data,
-        decoder_distribution,
-        num_latents_to_sample,
-        sampling_method
-    )
+    def dump_reconstructions(self, epoch):
+        batch, reconstructions = self.eval_data["test/last_batch"]
+        obs = batch["x_t"]
+        n = min(obs.size(0), 8)
+        comparison = torch.cat([
+            obs[:n].narrow(start=0, length=self.imlength // 2, dim=1)
+                .contiguous().view(
+                -1,
+                3,
+                self.imsize,
+                self.imsize
+            ).transpose(2, 3),
+            reconstructions.view(
+                self.batch_size,
+                3,
+                self.imsize,
+                self.imsize,
+            )[:n].transpose(2, 3)
+        ])
+        save_dir = osp.join(self.log_dir, 'r%d.png' % epoch)
+        save_image(comparison.data.cpu(), save_dir, nrow=n)
 
-    if sampling_method == 'importance_sampling':
-        log_p_x = (log_p - log_q + log_d).mean(dim=1)
-    elif sampling_method == 'biased_sampling' or sampling_method == 'true_prior_sampling':
-        log_p_x = log_d.mean(dim=1)
-    else:
-        raise EnvironmentError('Invalid Sampling Method Provided')
-    log_p_x_skewed = power * log_p_x
-    return ptu.get_numpy(log_p_x_skewed)
-
+    def dump_samples(self, epoch):
+        self.model.eval()
+        batch, _ = self.eval_data["test/last_batch"]
+        sample = ptu.randn(64, self.representation_size)
+        sample = self.model.decode(sample, batch["observations"])[0].cpu()
+        save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
+        save_image(
+            sample.data.view(64, 3, self.imsize, self.imsize).transpose(2, 3),
+            save_dir
+        )

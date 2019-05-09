@@ -103,7 +103,7 @@ def filter_by_flat_params(d):
     return f
 
 def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3.5),
-    xlabel="Number of env steps total", default_vary=False, xlim=None, ylim=None,
+    xlabel=None, default_vary=False, xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True, print_legend=True,
     reduce_op=sum, method_order=None, remap_keys={},
     label_to_color=None,
@@ -137,7 +137,6 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
             xs = x_data.setdefault(label, [])
 
             d = l['progress']
-            x = d[xlabel]
             y = [0]
             if type(key) is list:
                 vals = []
@@ -158,6 +157,10 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                     print(d.keys())
 
             y_smooth = smooth(y)
+            if xlabel:
+                x = d[xlabel]
+            else:
+                x = range(len(y_smooth))
             x_smooth = x[-len(y_smooth):]
             ys.append(y_smooth)
             xs.append(x_smooth)
@@ -212,7 +215,7 @@ def split(exps,
     smooth=identity_fn,
     figsize=(5, 3),
     suppress_output=False,
-    xlabel="Number of env steps total",
+    xlabel=None,
     default_vary=False,
     xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True):

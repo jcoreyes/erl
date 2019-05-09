@@ -6,6 +6,8 @@ from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_exper
 import railrl.torch.vae.vae_schedules as vae_schedules
 from railrl.torch.vae.conv_vae import imsize48_default_architecture
 
+from railrl.launchers.arglauncher import run_variants
+
 if __name__ == "__main__":
     variant = dict(
         double_algo=False,
@@ -125,7 +127,7 @@ if __name__ == "__main__":
                     method='vae_prob',
                     power=-1,
                 ),
-                skew_dataset=True,
+                skew_dataset=False,
                 priority_function_kwargs=dict(
                     decoder_distribution='gaussian_identity_variance',
                     sampling_method='importance_sampling',
@@ -138,36 +140,16 @@ if __name__ == "__main__":
             save_period=25,
         ),
     )
-    search_space = {}
+
+    search_space = {
+        'seedid': range(5),
+    }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'dev-{}'.format(
-        __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    )
+    variants = []
+    for variant in sweeper.iterate_hyperparameters():
+        variants.append(variant)
 
-    n_seeds = 5
-    mode = 'ec2'
-    exp_prefix = 'skewfit-pusher3'
-
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
-            run_experiment(
-                grill_her_twin_sac_online_vae_full_experiment,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                variant=variant,
-                use_gpu=True,
-                # num_exps_per_instance=2,
-                # gcp_kwargs=dict(
-                #     terminate=True,
-                #     zone='us-east1-c',
-                #     gpu_kwargs=dict(
-                #         gpu_model='nvidia-tesla-k80',
-                #         num_gpu=1,
-                #     )
-                # )
-          )
+    run_variants(grill_her_twin_sac_online_vae_full_experiment, variants, run_id=1)
