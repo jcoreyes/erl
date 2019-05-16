@@ -12,6 +12,7 @@ import pytz
 
 def example(variant):
     import torch
+    import mujoco_py
     logger.log(torch.__version__)
     date_format = '%m/%d/%Y %H:%M:%S %Z'
     date = datetime.now(tz=pytz.utc)
@@ -46,7 +47,7 @@ if __name__ == "__main__":
         num_seconds=10,
         launch_time=str(date.strftime(date_format)),
     )
-    for _ in range(2):
+    for _ in range(1):
         run_experiment(
             example,
             exp_prefix="ssh-slurm-test",
