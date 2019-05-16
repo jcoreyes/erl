@@ -89,7 +89,7 @@ From: nvidia/cuda:8.0-cudnn6-devel-ubuntu16.04
     pip3 install boto3==1.4.8
     pip3 install dominate==2.3.1
     pip3 install path.py==10.3.1
-    pip3 install http://download.pytorch.org/whl/cu80/torch-0.4.1-cp35-cp35m-linux_x86_64.whl
+    pip3 install http://download.pytorch.org/whl/cu80/torch-0.4.0-cp35-cp35m-linux_x86_64.whl
     pip3 install joblib==0.9.4
     pip3 install opencv-python==3.4.0.12
     pip3 install torchvision==0.2.0
@@ -99,7 +99,7 @@ From: nvidia/cuda:8.0-cudnn6-devel-ubuntu16.04
     pip3 install pyquaternion==0.9.2
     pip3 install moviepy==0.2.3.5
     pip3 install scikit-image
-    pip3 install google-api-python-client==1.7.8
+    #pip3 install google-api-python-client==1.7.8
     pip3 install gsutil
     pip3 install psutil
     pip3 install https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-0.7.0.dev2-cp35-cp35m-manylinux1_x86_64.whl
@@ -111,6 +111,6 @@ From: nvidia/cuda:8.0-cudnn6-devel-ubuntu16.04
     # RUN python -c 'import mujoco_py'
 
 %files
-    ./mjkey.txt /home
-    ./vendor/10_nvidia.json /home
-    ./vendor/Xdummy /home
+    ./files/mjkey.txt /home
+    ./files/10_nvidia.json /home
+    ./files/Xdummy /home

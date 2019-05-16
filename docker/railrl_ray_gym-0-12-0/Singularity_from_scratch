@@ -115,6 +115,6 @@ From: nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
     # RUN python -c 'import mujoco_py'
 
 %files
-    ./mjkey.txt /home
-    ./vendor/10_nvidia.json /home
-    ./vendor/Xdummy /home
+    ./files/mjkey.txt /home
+    ./files/10_nvidia.json /home
+    ./files/Xdummy /home
