@@ -115,14 +115,12 @@ RUN pip install torchvision==0.2.2
 ########
 RUN curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sci-artifacts/manual-builds/patchelf_0.9_amd64.elf \
     && chmod +x /usr/local/bin/patchelf
-# This is a hack required to make mujoco-py to compile in gpu mode
-RUN mkdir -p /usr/lib/nvidia-000
-ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/usr/lib/nvidia-000
 
 # For some reason mujoco 2 doesn't work well
 # See https://github.com/openai/mujoco-py/pull/403
 RUN pip install -U git+https://github.com/vitchyr/mujoco-py.git@4cd37df2def8417eeaab48e0db561f2091080f9a
 RUN pip install gym[all]==0.12.1
+RUN python -c 'import mujoco_py'
 
 ##########################################################
 ### Cleanup
