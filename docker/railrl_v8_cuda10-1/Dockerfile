@@ -4,6 +4,12 @@
 # If updating the base image, be sure to test on GPU since it has broken in the past.
 FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu16.04
 
+SHELL ["/bin/bash", "-c"]
+
+##########################################################
+### System dependencies
+##########################################################
+
 # Now let's download python 3 and all the dependencies
 RUN apt-get update -q \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -27,12 +33,19 @@ RUN apt-get update -q \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ENV LD_LIBRARY_PATH /usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
+
+# Not sure why this is needed
 ENV LANG C.UTF-8
+
+# Not sure what this is fixing
 COPY ./files/Xdummy /usr/local/bin/Xdummy
 RUN chmod +x /usr/local/bin/Xdummy
+
 # Workaround for https://bugs.launchpad.net/ubuntu/+source/nvidia-graphics-drivers-375/+bug/1674677
 COPY ./files/10_nvidia.json /usr/share/glvnd/egl_vendor.d/10_nvidia.json
+
+# Not sure why this is needed
+ENV LD_LIBRARY_PATH /usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
 
 ##########################################################
 ### MuJoCo
@@ -67,8 +80,6 @@ RUN echo "source activate railrl" >> ~/.bashrc
 # Use the railrl pip
 ENV OLDPATH $PATH
 ENV PATH /opt/conda/envs/railrl/bin:$PATH
-# TODO: move to top
-SHELL ["/bin/bash", "-c"]
 
 RUN pip install imagehash>=3.4
 RUN pip install ipdb
@@ -80,24 +91,24 @@ RUN pip install scipy>=0.18.0
 RUN pip install glfw>=1.4.0
 RUN pip install imageio>=2.1.2
 RUN pip install opencv-python==3.4.0.12
-RUN pip install torchvision==0.2.0
 RUN pip install sk-video==1.1.10
-RUN pip install matplotlib==2.2.2
 RUN pip install numpy-stl==2.7.0
 RUN pip install pyquaternion==0.9.2
 RUN pip install moviepy==0.2.3.5
 RUN pip install scikit-image
-RUN pip install awscli==1.11.179
-RUN pip install boto3==1.4.8
-RUN pip install torch torchvision
 RUN pip install gitpython==2.1.7
 RUN pip install gtimer==1.0.0b5
-RUN pip install pygame
 RUN pip install joblib==0.9.4
 RUN pip install dominate==2.3.1
 RUN pip install path.py==10.3.1
-RUN pip install cloudpickle==0.5.2
 RUN pip install cached-property==1.3.1
+RUN pip install cloudpickle==0.5.2
+RUN pip install matplotlib==2.2.2
+RUN pip install pygame==1.9.6
+RUN pip install awscli==1.11.179
+RUN pip install boto3==1.4.8
+RUN pip install torch==1.1.0
+RUN pip install torchvision==0.2.2
 
 ########
 ### Mujoco-py and gym
