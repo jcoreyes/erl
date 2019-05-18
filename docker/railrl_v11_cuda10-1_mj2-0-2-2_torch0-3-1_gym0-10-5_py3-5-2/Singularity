@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: vitchyr/railrl_v10_cuda10-1_mj2-0-2-2_torch0-4-1_gym0-10-5_py3-5-2
+From: vitchyr/railrl_v11_cuda10-1_mj2-0-2-2_torch0-3-1_gym0-10-5_py3-5-2
 
 %post
     mkdir -p /global/scratch

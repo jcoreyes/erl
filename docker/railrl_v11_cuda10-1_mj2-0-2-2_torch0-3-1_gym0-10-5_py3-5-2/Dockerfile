@@ -123,7 +123,7 @@ RUN curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sc
 
 # For some reason mujoco 2 doesn't work well
 # Custom branch to remove creating the lock inside
-RUN pip install -U git+https://github.com/vitchyr/mujoco-py.git@2ee6c39
+RUN pip install -U git+https://github.com/vitchyr/mujoco-py.git@2ee6c39f102b2892532aa99a1a845e80382035be
 RUN pip install gym[all]==0.10.5
 RUN python -c 'import mujoco_py'
 
