@@ -54,5 +54,5 @@ if __name__ == "__main__":
             mode='sss',
             variant=variant,
             use_gpu=False,
-            time_in_mins=2,
+            time_in_mins=10,
         )
