@@ -111,7 +111,7 @@ RUN pip install matplotlib==2.2.2
 RUN pip install pygame==1.9.6
 RUN pip install awscli==1.11.179
 RUN pip install boto3==1.4.8
-RUN pip install torch==0.4.1
+RUN pip install torch==0.3.1
 RUN pip install torchvision
 RUN pip install python-dateutil==2.6.1
 
