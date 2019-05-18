@@ -113,6 +113,7 @@ RUN pip install awscli==1.11.179
 RUN pip install boto3==1.4.8
 RUN pip install torch==0.4.1
 RUN pip install torchvision
+RUN pip install python-dateutil==2.6.1
 
 ########
 ### Mujoco-py and gym
@@ -121,8 +122,9 @@ RUN curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sc
     && chmod +x /usr/local/bin/patchelf
 
 # For some reason mujoco 2 doesn't work well
-# See https://github.com/openai/mujoco-py/pull/403
-RUN pip install mujoco_py==1.50.1.59
+# RUN pip install mujoco_py==1.50.1.59
+# RUN pip install mujoco_py==1.50.1.59
+RUN pip install -U git+https://github.com/vitchyr/mujoco-py.git@no-lock
 RUN pip install gym[all]==0.10.5
 RUN python -c 'import mujoco_py'
 

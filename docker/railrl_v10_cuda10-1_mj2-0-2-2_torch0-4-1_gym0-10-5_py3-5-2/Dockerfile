@@ -55,6 +55,10 @@ RUN mkdir -p /root/.mujoco \
     && wget https://www.roboti.us/download/mujoco200_linux.zip -O mujoco.zip \
     && unzip mujoco.zip -d /root/.mujoco \
     && rm mujoco.zip
+RUN mkdir -p /root/.mujoco \
+    && wget https://www.roboti.us/download/mjpro150_linux.zip -O mujoco.zip \
+    && unzip mujoco.zip -d /root/.mujoco \
+    && rm mujoco.zip
 COPY ./files/mjkey.txt /root/.mujoco/mjkey.txt
 RUN ln -s /root/.mujoco/mujoco200_linux /root/.mujoco/mujoco200
 ENV LD_LIBRARY_PATH /root/.mujoco/mjpro150/bin:${LD_LIBRARY_PATH}
@@ -75,7 +79,7 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
 
 RUN conda update -y --name base conda && conda clean --all -y
 
-RUN conda create --name railrl python=3.6.5 pip
+RUN conda create --name railrl python=3.5.2 pip
 RUN echo "source activate railrl" >> ~/.bashrc
 # Use the railrl pip
 ENV OLDPATH $PATH
@@ -107,8 +111,8 @@ RUN pip install matplotlib==2.2.2
 RUN pip install pygame==1.9.6
 RUN pip install awscli==1.11.179
 RUN pip install boto3==1.4.8
-RUN pip install torch==1.1.0
-RUN pip install torchvision==0.2.2
+RUN pip install torch==0.4.1
+RUN pip install torchvision
 RUN pip install python-dateutil==2.6.1
 
 ########
@@ -118,9 +122,9 @@ RUN curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sc
     && chmod +x /usr/local/bin/patchelf
 
 # For some reason mujoco 2 doesn't work well
-# See https://github.com/openai/mujoco-py/pull/403
-RUN pip install -U git+https://github.com/vitchyr/mujoco-py.git@4cd37df2def8417eeaab48e0db561f2091080f9a
-RUN pip install gym[all]==0.12.1
+# RUN pip install mujoco_py==1.50.1.59
+RUN pip install -U git+https://github.com/vitchyr/mujoco-py.git@2ee6c39
+RUN pip install gym[all]==0.10.5
 RUN python -c 'import mujoco_py'
 
 ##########################################################
