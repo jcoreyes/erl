@@ -130,4 +130,5 @@ RUN python -c 'import mujoco_py'
 ##########################################################
 ### Cleanup
 ##########################################################
-ENV PATH $OLDPATH
+# I'm going to keep PATH to prioritize the conda env
+# ENV PATH $OLDPATH
