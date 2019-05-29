@@ -17,7 +17,7 @@ class ObservationDataset(Dataset):
         self.info = info
 
     def random_batch(self, batch_size):
-        i = np.random.choice(self.size, batch_size, replace=False)
+        i = np.random.choice(self.size, batch_size, replace=(self.size < batch_size))
         data_dict = {
             'observations': self.data[i, :],
         }
@@ -33,7 +33,7 @@ class ImageObservationDataset(Dataset):
         self.normalize = normalize
 
     def random_batch(self, batch_size):
-        i = np.random.choice(self.size, batch_size, replace=False)
+        i = np.random.choice(self.size, batch_size, replace=(self.size < batch_size))
         obs = self.data[i, :]
         if self.normalize:
             obs = normalize_image(obs)

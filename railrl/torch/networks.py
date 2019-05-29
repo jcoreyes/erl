@@ -34,7 +34,9 @@ class PretrainedCNN(PyTorchModule):
             hidden_activation=nn.ReLU(),
             output_activation=identity,
             output_conv_channels=False,
-            torchvision_architecture=models.vgg19_bn,
+            model_architecture=models.resnet18,
+            model_pretrained=True,
+            model_freeze=False,
     ):
         if hidden_sizes is None:
             hidden_sizes = []
@@ -52,7 +54,12 @@ class PretrainedCNN(PyTorchModule):
         self.conv_input_length = self.input_width * self.input_height * self.input_channels
         self.output_conv_channels = output_conv_channels
 
-        self.pretrained_model = nn.Sequential(*list(torchvision_architecture(pretrained=True).children())[:-1])
+        self.pretrained_model = nn.Sequential(*list(model_architecture(
+            pretrained=model_pretrained).children())[:-1])
+        if model_freeze:
+            for child in self.pretrained_model.children():
+                for param in child.parameters():
+                    param.requires_grad = False
         self.fc_layers = nn.ModuleList()
         self.fc_norm_layers = nn.ModuleList()
 

@@ -179,7 +179,7 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             max_path_length=50,
             batch_size=256,
-            num_epochs=50,
+            num_epochs=20,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
@@ -193,6 +193,7 @@ if __name__ == "__main__":
         cnn_params=dict(
             hidden_sizes=[32, 32],
             model_architecture=models.resnet18, 
+            model_pretrained=False,
         ),
         # replay_buffer_size=int(1E6),
         qf_kwargs=dict(
