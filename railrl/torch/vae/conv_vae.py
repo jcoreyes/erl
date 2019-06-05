@@ -18,8 +18,6 @@ imsize48_default_architecture=dict(
         ),
         conv_kwargs=dict(
             hidden_sizes=[],
-            batch_norm_conv=False,
-            batch_norm_fc=False,
         ),
         deconv_args=dict(
             hidden_sizes=[],
@@ -37,8 +35,6 @@ imsize48_default_architecture=dict(
             strides=[2,2],
         ),
         deconv_kwargs=dict(
-            batch_norm_deconv=False,
-            batch_norm_fc=False,
         )
     )
 
@@ -78,8 +74,7 @@ imsize84_default_architecture=dict(
         ),
         conv_kwargs=dict(
             hidden_sizes=[],
-            batch_norm_conv=True,
-            batch_norm_fc=False,
+            conv_normalization_type='batch',
         ),
         deconv_args=dict(
             hidden_sizes=[],
@@ -97,8 +92,6 @@ imsize84_default_architecture=dict(
             strides=[3,3],
         ),
         deconv_kwargs=dict(
-            batch_norm_deconv=False,
-            batch_norm_fc=False,
         )
     )
 

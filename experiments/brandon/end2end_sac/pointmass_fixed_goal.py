@@ -97,6 +97,7 @@ def experiment(variant):
         policy_cnn,
         policy_cnn.conv_output_flat_size,
         action_dim,
+        **variant['policy_kwargs']
     )
     eval_env = expl_env = env
 
@@ -228,7 +229,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = 'online-match-hps-point2d-8x8-img-all-fc-goal00'
+    exp_prefix = 'online-match-hps-point2d-33x33-img-all-fc-goal00'
 
     search_space = {
         'shared_qf_conv': [

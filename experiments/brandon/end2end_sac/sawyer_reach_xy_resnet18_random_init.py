@@ -3,10 +3,10 @@ import numpy as np
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.obs_dict_replay_buffer import ObsDictReplayBuffer
 from railrl.launchers.launcher_util import run_experiment
-from railrl.samplers.data_collector import MdpPathCollector
-from railrl.samplers.data_collector.step_collector import MdpStepCollector
+from railrl.samplers.data_collector.path_collector import ObsDictPathCollector
+from railrl.samplers.data_collector.step_collector import ObsDictStepCollector
 from railrl.torch.networks import (
     FlattenMlp, MergedCNN, PretrainedCNN, Flatten,
     MlpQfWithObsProcessor,
@@ -26,8 +26,10 @@ import torch.nn as nn
 
 
 def experiment(variant):
-    import multiworld.envs.pygame
-    env = gym.make('Point2DEnv-ImageFixedGoal-v0')
+    import multiworld
+    multiworld.register_all_envs()
+    env = gym.make('Image48SawyerReachXYEnv-v1')
+    observation_key = 'image_proprio_observation'
     input_width, input_height = env.image_shape
 
     action_dim = int(np.prod(env.action_space.shape))
@@ -36,6 +38,7 @@ def experiment(variant):
         input_width=input_width,
         input_height=input_height,
         input_channels=3,
+        added_fc_input_size=3,
         output_conv_channels=True,
         output_size=None,
     )
@@ -93,7 +96,6 @@ def experiment(variant):
             input_size=action_dim+cnn_output_dim,
             **variant['qf_kwargs']
         )
-    action_dim = int(np.prod(env.action_space.shape))
     policy_cnn = PretrainedCNN(**cnn_params)
     policy = TanhGaussianPolicyAdapter(
         nn.Sequential(policy_cnn, Flatten()),
@@ -104,14 +106,17 @@ def experiment(variant):
     eval_env = expl_env = env
 
     eval_policy = MakeDeterministic(policy)
-    eval_path_collector = MdpPathCollector(
+    eval_path_collector = ObsDictPathCollector(
         eval_env,
         eval_policy,
+        observation_key=observation_key,
         **variant['eval_path_collector_kwargs']
     )
-    replay_buffer = EnvReplayBuffer(
+    replay_buffer = ObsDictReplayBuffer(
         variant['replay_buffer_size'],
         expl_env,
+        observation_key=observation_key,
+        **variant['replay_buffer_kwargs'],
     )
     trainer = SACTrainer(
         env=eval_env,
@@ -123,9 +128,10 @@ def experiment(variant):
         **variant['trainer_kwargs']
     )
     if variant['collection_mode'] == 'batch':
-        expl_path_collector = MdpPathCollector(
+        expl_path_collector = ObsDictPathCollector(
             expl_env,
             policy,
+            observation_key=observation_key,
             **variant['expl_path_collector_kwargs']
         )
         algorithm = TorchBatchRLAlgorithm(
@@ -138,9 +144,10 @@ def experiment(variant):
             **variant['algo_kwargs']
         )
     elif variant['collection_mode'] == 'online':
-        expl_path_collector = MdpStepCollector(
+        expl_path_collector = ObsDictStepCollector(
             expl_env,
             policy,
+            observation_key=observation_key,
             **variant['expl_path_collector_kwargs']
         )
         algorithm = TorchOnlineRLAlgorithm(
@@ -158,14 +165,6 @@ def experiment(variant):
 
 if __name__ == "__main__":
     variant = dict(
-        env_kwargs=dict(
-            fixed_goal=(0, 0),
-            images_are_rgb=True,
-            render_onscreen=False,
-            show_goal=True,
-            ball_radius=2,
-            render_size=8,
-        ),
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
@@ -179,7 +178,7 @@ if __name__ == "__main__":
         algo_kwargs=dict(
             max_path_length=50,
             batch_size=256,
-            num_epochs=50,
+            num_epochs=200,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
@@ -193,15 +192,19 @@ if __name__ == "__main__":
         cnn_params=dict(
             hidden_sizes=[32, 32],
             model_architecture=models.resnet18, 
+            model_pretrained=False,
         ),
-        # replay_buffer_size=int(1E6),
+        replay_buffer_size=int(1E6),
         qf_kwargs=dict(
             hidden_sizes=[128, 128],
         ),
         policy_kwargs=dict(
             hidden_sizes=[128, 128],
         ),
-        replay_buffer_size=int(5E4),
+        replay_buffer_kwargs=dict(
+            fraction_goals_rollout_goals=0.2,
+            fraction_goals_env_goals=0.0,
+        ),
         expl_path_collector_kwargs=dict(
             # render=False,
             # render_kwargs=dict(
@@ -224,7 +227,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = 'online-match-hps-point2d-33x33-img-all-fc-goal00-resnet18'
+    exp_prefix = 'sawyer-reach-xy-48x48-resnet18-random-init'
 
     search_space = {
         'shared_qf_conv': [

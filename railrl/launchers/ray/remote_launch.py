@@ -59,7 +59,7 @@ def generate_gcp_config(region=None, head_instance_type=None,
             'scheduling': {
                 'onHostMaintenance': 'TERMINATE',
             },
-            # **guestAccelerators.copy()
+            **guestAccelerators.copy()
         },
         'worker_nodes': {
             'machineType': worker_instance_type,
@@ -168,6 +168,7 @@ def generate_docker_config(docker_image=None, use_gpu=False):
         # Make the worker do the GPU work and let the head node schedule without
         # GPU.
         worker_run_options.append('--runtime=nvidia')
+        docker_run_options.append('--runtime=nvidia')
     return {
         'docker': {
             'image': docker_image,
