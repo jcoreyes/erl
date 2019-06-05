@@ -11,9 +11,14 @@ import pytz
 
 
 def example(variant):
+    import platform
+    logger.log("python {}".format(platform.python_version()))
     import torch
+    logger.log("torch version {}".format(torch.__version__))
     import mujoco_py
-    logger.log(torch.__version__)
+    logger.log("mujoco version {}".format(mujoco_py.__version__))
+    import gym
+    logger.log("gym version {}".format(gym.__version__))
     date_format = '%m/%d/%Y %H:%M:%S %Z'
     date = datetime.now(tz=pytz.utc)
     logger.log("start")
