@@ -1049,10 +1049,10 @@ class TwoHeadDCNN(PyTorchModule):
     def apply_forward(self, input, hidden_layers, norm_layers,
                       normalization_type='none'):
         h = input
-        for layer, norm_layer in zip(hidden_layers, norm_layers):
+        for i, layer in enumerate(hidden_layers):
             h = layer(h)
             if normalization_type != 'none':
-                h = norm_layer(h)
+                h = norm_layers[i](h)
             h = self.hidden_activation(h)
         return h
 
