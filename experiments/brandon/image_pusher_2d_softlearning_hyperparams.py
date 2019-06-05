@@ -12,7 +12,7 @@ from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.policies import TanhCNNGaussianPolicy
-from railrl.torch.sac.sac import TwinSAC
+from railrl.torch.sac.sac import SACTrainer
 
 from railrl.torch.networks import Mlp, CNN, CNNPolicy, MergedCNN
 from torch import nn as nn
@@ -65,7 +65,7 @@ def experiment(variant):
                                    input_channels=3,
                                    **variant['cnn_params'])
 
-    algorithm = TwinSAC(
+    algorithm = SACTrainer(
         env=env,
         policy=policy,
         qf1=qf1,

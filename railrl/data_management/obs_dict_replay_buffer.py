@@ -176,11 +176,10 @@ class ObsDictReplayBuffer(ReplayBuffer):
 
     def random_batch(self, batch_size):
         indices = np.random.randint(0, self._size, batch_size)
-        batch = dict()
-        obs = self._obs["observation"][indices]
+        obs = self._obs[self.observation_key][indices]
         actions = self._actions[indices]
         rewards = self._rewards[indices]
-        next_obs = self._next_obs["observation"][indices]
+        next_obs = self._next_obs[self.observation_key][indices]
         terminals = self._terminals[indices]
         batch = {
             'observations': obs,
