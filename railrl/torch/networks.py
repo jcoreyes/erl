@@ -139,6 +139,7 @@ class PretrainedCNN(PyTorchModule):
         return h
 
 
+# TODO: remove the FC parts of this code
 class CNN(PyTorchModule):
     def __init__(
             self,
@@ -152,8 +153,8 @@ class CNN(PyTorchModule):
             paddings,
             hidden_sizes=None,
             added_fc_input_size=0,
-            batch_norm_conv=False,
-            batch_norm_fc=False,
+            conv_normalization_type='none',
+            fc_normalization_type='none',
             init_w=1e-4,
             hidden_init=nn.init.xavier_uniform_,
             hidden_activation=nn.ReLU(),
@@ -170,6 +171,8 @@ class CNN(PyTorchModule):
                len(n_channels) == \
                len(strides) == \
                len(paddings)
+        assert conv_normalization_type in {'none', 'batch', 'layer'}
+        assert fc_normalization_type in {'none', 'batch', 'layer'}
         assert pool_type in {'none', 'max2d'}
         if pool_type == 'max2d':
             assert len(pool_sizes) == len(pool_strides) == len(pool_paddings)
@@ -182,8 +185,8 @@ class CNN(PyTorchModule):
         self.output_size = output_size
         self.output_activation = output_activation
         self.hidden_activation = hidden_activation
-        self.batch_norm_conv = batch_norm_conv
-        self.batch_norm_fc = batch_norm_fc
+        self.conv_normalization_type = conv_normalization_type
+        self.fc_normalization_type = fc_normalization_type
         self.added_fc_input_size = added_fc_input_size
         self.conv_input_length = self.input_width * self.input_height * self.input_channels
         self.output_conv_channels = output_conv_channels
@@ -229,8 +232,10 @@ class CNN(PyTorchModule):
         # find output dim of conv_layers by trial and add norm conv layers
         for i, conv_layer in enumerate(self.conv_layers):
             test_mat = conv_layer(test_mat)
-            if self.batch_norm_conv:
+            if self.conv_normalization_type == 'batch':
                 self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
+            if self.conv_normalization_type == 'layer':
+                self.conv_norm_layers.append(nn.LayerNorm(test_mat.shape[1:]))
             if self.pool_type != 'none':
                 test_mat = self.pool_layers[i](test_mat)
 
@@ -250,9 +255,10 @@ class CNN(PyTorchModule):
 
                 self.fc_layers.append(fc_layer)
 
-                if self.batch_norm_fc:
-                    norm_layer = nn.BatchNorm1d(hidden_size)
-                    self.fc_norm_layers.append(norm_layer)
+                if self.fc_normalization_type == 'batch':
+                    self.fc_norm_layers.append(nn.BatchNorm1d(hidden_size))
+                if self.fc_normalization_type == 'layer':
+                    self.fc_norm_layers.append(nn.LayerNorm(hidden_size))
 
             self.last_fc = nn.Linear(fc_input_size, output_size)
             self.last_fc.weight.data.uniform_(-init_w, init_w)
@@ -291,7 +297,7 @@ class CNN(PyTorchModule):
     def apply_forward_conv(self, h):
         for i, layer in enumerate(self.conv_layers):
             h = layer(h)
-            if self.batch_norm_conv:
+            if self.conv_normalization_type != 'none':
                 h = self.conv_norm_layers[i](h)
             if self.pool_type != 'none':
                 h = self.pool_layers[i](h)
@@ -301,7 +307,7 @@ class CNN(PyTorchModule):
     def apply_forward_fc(self, h):
         for i, layer in enumerate(self.fc_layers):
             h = layer(h)
-            if self.batch_norm_fc:
+            if self.fc_normalization_type != 'none':
                 h = self.fc_norm_layers[i](h)
             h = self.hidden_activation(h)
         return h
@@ -937,8 +943,8 @@ class TwoHeadDCNN(PyTorchModule):
                  strides,
                  paddings,
 
-                 batch_norm_deconv=False,
-                 batch_norm_fc=False,
+                 deconv_normalization_type='none',
+                 fc_normalization_type='none',
                  init_w=1e-3,
                  hidden_init=nn.init.xavier_uniform_,
                  hidden_activation=nn.ReLU(),
@@ -948,6 +954,8 @@ class TwoHeadDCNN(PyTorchModule):
                len(n_channels) == \
                len(strides) == \
                len(paddings)
+        assert deconv_normalization_type in {'none', 'batch', 'layer'}
+        assert fc_normalization_type in {'none', 'batch', 'layer'}
         super().__init__()
 
         self.hidden_sizes = hidden_sizes
@@ -958,8 +966,8 @@ class TwoHeadDCNN(PyTorchModule):
         self.deconv_input_height = deconv_input_height
         self.deconv_input_channels = deconv_input_channels
         deconv_input_size = self.deconv_input_channels * self.deconv_input_height * self.deconv_input_width
-        self.batch_norm_deconv = batch_norm_deconv
-        self.batch_norm_fc = batch_norm_fc
+        self.deconv_normalization_type = deconv_normalization_type
+        self.fc_normalization_type = fc_normalization_type
 
         self.deconv_layers = nn.ModuleList()
         self.deconv_norm_layers = nn.ModuleList()
@@ -969,12 +977,14 @@ class TwoHeadDCNN(PyTorchModule):
         for idx, hidden_size in enumerate(hidden_sizes):
             fc_layer = nn.Linear(fc_input_size, hidden_size)
 
-            norm_layer = nn.BatchNorm1d(hidden_size)
             fc_layer.weight.data.uniform_(-init_w, init_w)
             fc_layer.bias.data.uniform_(-init_w, init_w)
 
             self.fc_layers.append(fc_layer)
-            self.fc_norm_layers.append(norm_layer)
+            if self.fc_normalization_type == 'batch':
+                self.fc_norm_layers.append(nn.BatchNorm1d(hidden_size))
+            if self.fc_normalization_type == 'layer':
+                self.fc_norm_layers.append(nn.LayerNorm(hidden_size))
             fc_input_size = hidden_size
 
         self.last_fc = nn.Linear(fc_input_size, deconv_input_size)
@@ -999,7 +1009,12 @@ class TwoHeadDCNN(PyTorchModule):
                                self.deconv_input_height)  # initially the model is on CPU (caller should then move it to GPU if
         for deconv_layer in self.deconv_layers:
             test_mat = deconv_layer(test_mat)
-            self.deconv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
+            if self.deconv_normalization_type == 'batch':
+                self.deconv_norm_layers.append(
+                    nn.BatchNorm2d(test_mat.shape[1])
+                )
+            if self.deconv_normalization_type == 'layer':
+                self.deconv_norm_layers.append(nn.LayerNorm(test_mat.shape[1:]))
 
         self.first_deconv_output = nn.ConvTranspose2d(
             deconv_input_channels,
@@ -1020,19 +1035,23 @@ class TwoHeadDCNN(PyTorchModule):
         self.second_deconv_output.bias.data.fill_(0)
 
     def forward(self, input):
-        h = self.apply_forward(input, self.fc_layers, self.fc_norm_layers, use_batch_norm=self.batch_norm_fc)
+        h = self.apply_forward(input, self.fc_layers, self.fc_norm_layers,
+                               normalization_type=self.fc_normalization_type)
         h = self.hidden_activation(self.last_fc(h))
         h = h.view(-1, self.deconv_input_channels, self.deconv_input_width, self.deconv_input_height)
-        h = self.apply_forward(h, self.deconv_layers, self.deconv_norm_layers, use_batch_norm=self.batch_norm_deconv)
+        h = self.apply_forward(h, self.deconv_layers,
+                               self.deconv_norm_layers,
+                               normalization_type=self.deconv_normalization_type)
         first_output = self.output_activation(self.first_deconv_output(h))
         second_output = self.output_activation(self.second_deconv_output(h))
         return first_output, second_output
 
-    def apply_forward(self, input, hidden_layers, norm_layers, use_batch_norm=False):
+    def apply_forward(self, input, hidden_layers, norm_layers,
+                      normalization_type='none'):
         h = input
         for layer, norm_layer in zip(hidden_layers, norm_layers):
             h = layer(h)
-            if use_batch_norm:
+            if normalization_type != 'none':
                 h = norm_layer(h)
             h = self.hidden_activation(h)
         return h
