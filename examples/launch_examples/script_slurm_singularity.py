@@ -13,6 +13,7 @@ import pytz
 def example(variant):
     import platform
     logger.log("python {}".format(platform.python_version()))
+    logger.log("platform path {}".format(platform.__file__))
     import torch
     logger.log("torch version {}".format(torch.__version__))
     import mujoco_py
@@ -23,6 +24,9 @@ def example(variant):
     date = datetime.now(tz=pytz.utc)
     logger.log("start")
     logger.log('Current date & time is: {}'.format(date.strftime(date_format)))
+    logger.log('torch.cuda.is_available() {}'.format(
+        torch.cuda.is_available()
+    ))
     if torch.cuda.is_available():
         x = torch.randn(3)
         logger.log(str(x.cuda()))
@@ -58,6 +62,6 @@ if __name__ == "__main__":
             exp_prefix="ssh-slurm-test",
             mode='sss',
             variant=variant,
-            use_gpu=False,
-            time_in_mins=10,
+            use_gpu=True,
+            time_in_mins=int(2.8*24*60),
         )

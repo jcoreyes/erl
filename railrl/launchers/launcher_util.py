@@ -265,7 +265,10 @@ def run_experiment(
         if spot_price is None:
             spot_price = config.SPOT_PRICE
     if mode == 'sss':
-        singularity_image = config.SSS_IMAGE
+        if use_gpu:
+            singularity_image = config.SSS_CPU_IMAGE
+        else:
+            singularity_image = config.SSS_GPU_IMAGE
     elif mode in ['local_singularity', 'slurm_singularity']:
         singularity_image = config.SINGULARITY_IMAGE
     else:
