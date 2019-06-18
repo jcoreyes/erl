@@ -175,6 +175,7 @@ def run_experiment(
                 "Variants should not have periods in keys. Did you mean to "
                 "convert {} into a nested dictionary?".format(key)
             )
+    variant['base_exp_prefix'] = exp_prefix
     if prepend_date_to_exp_prefix:
         exp_prefix = time.strftime("%m-%d") + "-" + exp_prefix
     variant['seed'] = str(seed)
