@@ -63,7 +63,7 @@ def run_variant(experiment, variant):
         snapshot_mode=variant["snapshot_mode"],
         snapshot_gap=variant["snapshot_gap"],
         base_log_dir=variant["base_log_dir"],
-        num_exps_per_instance=variant.get("num_exps_per_instance", 1),
+        # num_exps_per_instance=variant.get("num_exps_per_instance", 1),
         prepend_date_to_exp_prefix=False,
         # spot_price=variant["spot_price"],
         region=variant.get("region", "us-east-1"),

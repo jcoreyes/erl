@@ -161,6 +161,7 @@ class ObsDictReplayBuffer(ReplayBuffer):
             self._actions[slc] = actions
             self._terminals[slc] = terminals
             self._rewards[slc] = rewards
+
             for key in self.ob_keys_to_save + self.internal_keys:
                 self._obs[key][slc] = obs[key]
                 self._next_obs[key][slc] = next_obs[key]
@@ -280,6 +281,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
         self._obs = {}
         self._next_obs = {}
         self.ob_spaces = self.env.observation_space.spaces
+
         for key in [observation_key, desired_goal_key, achieved_goal_key]:
             if key not in ob_keys_to_save:
                 ob_keys_to_save.append(key)
@@ -317,6 +319,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
         if num_env_goals > 0:
             env_goals = self._sample_goals_from_env(num_env_goals)
             last_env_goal_idx = num_rollout_goals + num_env_goals
+
             resampled_goals[num_rollout_goals:last_env_goal_idx] = (
                 env_goals[self.desired_goal_key]
             )
@@ -349,6 +352,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
         resampled_goals = new_next_obs_dict[self.desired_goal_key]
 
         new_actions = self._actions[indices]
+
         if isinstance(self.env, MultitaskEnv):
             new_rewards = self.env.compute_rewards(
                 new_actions,

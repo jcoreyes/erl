@@ -2,17 +2,15 @@ import railrl.misc.hyperparameter as hyp
 from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 from railrl.launchers.launcher_util import run_experiment
-# from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 from railrl.torch.grill.launcher import *
 import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.torch.vae.conv_vae import imsize48_default_architecture
+from railrl.torch.vae.conv_vae import imsize48_default_architecture, imsize48_default_architecture_with_more_hidden_layers
 from railrl.launchers.arglauncher import run_variants
-
-from multiworld.envs.pygame.point2d import Point2DWallEnv
-
-def experiment(variant):
-    full_experiment_variant_preprocess(variant)
-    train_vae_and_update_variant(variant)
+from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment, grill_her_twin_sac_full_experiment
+from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
+from railrl.torch.vae.conditional_conv_vae import CVAE
+from railrl.torch.vae.vae_trainer import CVAETrainer
 
 if __name__ == "__main__":
     variant = dict(
@@ -22,12 +20,19 @@ if __name__ == "__main__":
         init_camera=sawyer_init_camera_zoomed_in,
         # env_id='SawyerPushNIPSEasy-v0',
 
-        env_class=Point2DWallEnv,
+        env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
-            render_onscreen=False,
-            ball_radius=1,
-            images_are_rgb=True,
-            show_goal=False,
+            num_objects=3,
+            object_meshes=None,
+            fix_colors=True,
+            reset_to_initial_position=False,
+            num_scene_objects=[1],
+            # num_objects=3,
+            preload_obj_dict=[
+                dict(color2=(0.1, 0.1, 0.9)),
+                dict(color2=(0.1, 0.9, 0.1)),
+                dict(color2=(0.9, 0.1, 0.1)),
+            ],
         ),
 
         grill_variant=dict(
@@ -35,7 +40,7 @@ if __name__ == "__main__":
             custom_goal_sampler='replay_buffer',
             online_vae_trainer_kwargs=dict(
                 beta=20,
-                lr=1e-3,
+                lr=0,
             ),
             save_video_period=100,
             qf_kwargs=dict(
@@ -49,19 +54,19 @@ if __name__ == "__main__":
             ),
             max_path_length=50,
             algo_kwargs=dict(
-                batch_size=1024,
+                batch_size=128,
                 num_epochs=1000,
                 num_eval_steps_per_epoch=500,
                 num_expl_steps_per_train_loop=500,
-                num_trains_per_train_loop=1000,
-                min_num_steps_before_training=10000,
-                vae_training_schedule=vae_schedules.custom_schedule_2,
+                num_trains_per_train_loop=5,
+                min_num_steps_before_training=1000,
+                vae_training_schedule=vae_schedules.never_train,
                 oracle_data=False,
-                vae_save_period=50,
+                vae_save_period=25,
                 parallel_vae_train=False,
             ),
             twin_sac_trainer_kwargs=dict(
-                discount=0.99,
+                discount=0.98,
                 reward_scale=1,
                 soft_target_tau=1e-3,
                 target_update_period=1,  # 1
@@ -87,7 +92,7 @@ if __name__ == "__main__":
             evaluation_goal_sampling_mode='reset_of_env',
             normalize=False,
             render=False,
-            exploration_noise=0.0,
+            exploration_noise=0.2,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
@@ -100,52 +105,48 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            # generate_uniform_dataset_kwargs=dict(
-                # init_camera=sawyer_init_camera_zoomed_in,
-                # env_id='SawyerPushNIPS-v0',
-                # num_imgs=1000,
-                # use_cached_dataset=False,
-                # show=False,
-                # save_file_prefix='pusher',
-            # ),
-            # generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
+            # vae_path="/home/khazatsky/rail/data/rail-khazatsky/sasha/PCVAE/PCVAE/run2/id0/itr_800.pkl",
         ),
         train_vae_variant=dict(
             representation_size=4,
-            beta=0.0001,
-            num_epochs=501,
+            beta=10,
+            num_epochs=0,
             dump_skew_debug_plots=False,
             # decoder_activation='gaussian',
             decoder_activation='sigmoid',
+            use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=1000,
+                N=0,
+                n_random_steps=5000,
                 test_p=.9,
                 use_cached=False,
                 show=False,
-                oracle_dataset=False,
-                oracle_dataset_using_set_to_goal=False,
-                n_random_steps=100,
+                oracle_dataset=True,
+                oracle_dataset_using_set_to_goal=True,
                 non_presampled_goal_img_is_garbage=False,
-                use_linear_dynamics=True,
-                random_rollout_data=True
+                random_rollout_data=True,
+                conditional_vae_dataset=True,
+                save_trajectories=True,
+                enviorment_dataset=False,
             ),
+            vae_trainer_class=CVAETrainer,
+            vae_class=CVAE,
             vae_kwargs=dict(
-                input_channels=3,
-                architecture=imsize48_default_architecture,
+                architecture=imsize48_default_architecture_with_more_hidden_layers,
                 decoder_distribution='gaussian_identity_variance',
+                input_channels=3,
             ),
             # TODO: why the redundancy?
             algo_kwargs=dict(
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
-                batch_size=64,
+                batch_size=32,
                 lr=1e-3,
                 skew_config=dict(
                     method='vae_prob',
                     power=0,
                 ),
                 skew_dataset=False,
-                use_linear_dynamics=True,
                 priority_function_kwargs=dict(
                     decoder_distribution='gaussian_identity_variance',
                     sampling_method='importance_sampling',
@@ -160,7 +161,11 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(5),
+        'seedid': range(1),
+        'grill_variant.reward_params.type':['latent_distance'], #, 'latent_distance'
+        'train_vae_variant.representation_size': [(6, 6)], #(3 * objects, 3 * colors)
+        'train_vae_variant.beta': [1],
+        'train_vae_variant.generate_vae_dataset_kwargs.n_random_steps': [100]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -170,4 +175,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(experiment, variants, run_id=1)
+    run_variants(grill_her_twin_sac_online_vae_full_experiment, variants, run_id=1)

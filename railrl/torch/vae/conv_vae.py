@@ -18,6 +18,8 @@ imsize48_default_architecture=dict(
         ),
         conv_kwargs=dict(
             hidden_sizes=[],
+            conv_normalization_type="batch",
+            fc_normalization_type="batch",
         ),
         deconv_args=dict(
             hidden_sizes=[],
@@ -35,6 +37,8 @@ imsize48_default_architecture=dict(
             strides=[2,2],
         ),
         deconv_kwargs=dict(
+            deconv_normalization_type="batch",
+            fc_normalization_type="batch",
         )
     )
 
@@ -46,6 +50,8 @@ imsize48_default_architecture_with_more_hidden_layers = dict(
         ),
         conv_kwargs=dict(
             hidden_sizes=[500, 300, 150],
+            conv_normalization_type="batch",
+            fc_normalization_type="batch",
         ),
         deconv_args=dict(
             hidden_sizes=[150, 300, 500],
@@ -63,6 +69,8 @@ imsize48_default_architecture_with_more_hidden_layers = dict(
             strides=[2, 2],
         ),
         deconv_kwargs=dict(
+            deconv_normalization_type="batch",
+            fc_normalization_type="batch",
         )
     )
 
@@ -74,7 +82,8 @@ imsize84_default_architecture=dict(
         ),
         conv_kwargs=dict(
             hidden_sizes=[],
-            conv_normalization_type='batch',
+            batch_norm_conv=True,
+            batch_norm_fc=True,
         ),
         deconv_args=dict(
             hidden_sizes=[],
@@ -92,6 +101,8 @@ imsize84_default_architecture=dict(
             strides=[3,3],
         ),
         deconv_kwargs=dict(
+            batch_norm_deconv=True,
+            batch_norm_fc=True,
         )
     )
 
@@ -182,10 +193,10 @@ class ConvVAE(GaussianLatentVAE):
         self.fc1 = nn.Linear(self.encoder.output_size, representation_size)
         self.fc2 = nn.Linear(self.encoder.output_size, representation_size)
 
-        self.fc1.weight.data.uniform_(-init_w, init_w)
+        nn.init.xavier_uniform_(self.fc1.weight, gain=1)
         self.fc1.bias.data.uniform_(-init_w, init_w)
 
-        self.fc2.weight.data.uniform_(-init_w, init_w)
+        nn.init.xavier_uniform_(self.fc2.weight, gain=1)
         self.fc2.bias.data.uniform_(-init_w, init_w)
 
         self.decoder = decoder_class(
@@ -231,6 +242,93 @@ class ConvVAE(GaussianLatentVAE):
             return log_prob
         else:
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
+
+
+class ConvDynamicsVAE(ConvVAE):
+    def __init__(
+            self,
+            representation_size,
+            architecture,
+            action_dim,
+            encoder_class=CNN,
+            decoder_class=DCNN,
+            decoder_output_activation=identity,
+            decoder_distribution='bernoulli',
+            input_channels=1,
+            imsize=48,
+            dynamics_type=None,
+            init_w=1e-3,
+            min_variance=1e-3,
+            hidden_init=ptu.fanin_init,
+    ):
+
+        super().__init__(
+            representation_size,
+            architecture,
+            encoder_class,
+            decoder_class,
+            decoder_output_activation,
+            decoder_distribution,
+            input_channels,
+            imsize,
+            init_w,
+            min_variance,
+            hidden_init)
+
+        self.action_dim = action_dim
+        self.dynamics_type = dynamics_type
+
+        self.globally_linear = nn.Linear(representation_size + self.action_dim, representation_size)
+
+        self.locally_linear_f1 = nn.Linear(representation_size, 400)
+        self.locally_linear_f2 = nn.Linear(400, (representation_size + self.action_dim) * representation_size)
+
+        self.nonlinear_dynamics_f1 = nn.Linear(representation_size + self.action_dim, 400)
+        self.nonlinear_dynamics_f2 = nn.Linear(400, representation_size)
+
+        self.globally_linear.weight.data.uniform_(-init_w, init_w)
+
+        self.locally_linear_f1.weight.data.uniform_(-init_w, init_w)
+        self.locally_linear_f1.bias.data.uniform_(-init_w, init_w)
+
+        self.locally_linear_f2.weight.data.uniform_(-init_w, init_w)
+        self.locally_linear_f2.bias.data.uniform_(-init_w, init_w)
+
+        self.nonlinear_dynamics_f1.weight.data.uniform_(-init_w, init_w)
+        self.nonlinear_dynamics_f1.bias.data.uniform_(-init_w, init_w)
+
+        self.nonlinear_dynamics_f2.weight.data.uniform_(-init_w, init_w)
+        self.nonlinear_dynamics_f2.bias.data.uniform_(-init_w, init_w)
+
+
+    def process_dynamics(self, latents, actions):
+        if self.dynamics_type == 'global':
+            return self.global_linear_dynamics(latents, actions)
+        if self.dynamics_type == 'local':
+            return self.local_linear_dynamics(latents, actions)
+        if self.dynamics_type == 'nonlinear':
+            return self.nonlinear_dynamics(latents, actions)
+
+    def global_linear_dynamics(self, latents, actions):
+        action_obs_pair = torch.cat([latents, actions], dim=1)
+        z_prime = self.globally_linear(action_obs_pair)
+        return z_prime
+
+    def local_linear_dynamics(self, latents, actions):
+        output = self.locally_linear_f2(F.relu(self.locally_linear_f1(latents)))
+        dynamics = output.view(latents.shape[0], self.representation_size, self.representation_size + self.action_dim)
+
+        z_prime = ptu.zeros_like(latents)
+        action_obs_pair = torch.cat([latents, actions], dim=1)
+        for i in range(latents.shape[0]):
+            z_prime[i] = torch.matmul(dynamics[i], action_obs_pair[i])
+        return z_prime
+
+    def nonlinear_dynamics(self, latents, actions):
+        action_obs_pair = torch.cat([latents, actions], dim=1)
+        z_prime = self.nonlinear_dynamics_f2(F.relu(self.nonlinear_dynamics_f1(action_obs_pair)))
+        return z_prime
+
 
 class ConvVAEDouble(ConvVAE):
     def __init__(

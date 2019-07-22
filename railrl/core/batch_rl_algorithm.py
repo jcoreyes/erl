@@ -21,6 +21,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
             *args,
             **kwargs
     ):
+
         super().__init__(*args, **kwargs)
         self.batch_size = batch_size
         self.max_path_length = max_path_length

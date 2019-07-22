@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'skewfit-door3'
+    exp_prefix = 'skewfit-door4'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -145,6 +145,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
+                region='us-west-2'
                 # num_exps_per_instance=3,
                 # gcp_kwargs=dict(
                 #     zone='us-east1-c',

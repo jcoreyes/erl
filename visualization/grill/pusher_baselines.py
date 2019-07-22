@@ -82,7 +82,7 @@ plot.comparison(
     ["Final  puck_distance Mean", "Final  hand_distance Mean"],
     vary=["name"],
     smooth=plot.padded_ma_filter(10),
-    method_order=[4, 0, 1, 3, 2],
+    #method_order=[4, 0, 1, 3, 2],
     ylim=(0.1, 0.28),
     # xlim=(0, 250000),
     xlim=(0, 500000),

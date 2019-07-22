@@ -1,10 +1,10 @@
 from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
-from railrl.torch.her.her import HER
+from railrl.torch.her.her import HERTrainer
 from railrl.torch.td3.td3 import TD3
 
 
-class HerTd3(HER, TD3):
+class HerTd3(HERTrainer, TD3):
     def __init__(
             self,
             *args,
@@ -13,7 +13,7 @@ class HerTd3(HER, TD3):
             base_kwargs,
             **kwargs
     ):
-        HER.__init__(
+        HERTrainer.__init__(
             self,
             **her_kwargs,
         )

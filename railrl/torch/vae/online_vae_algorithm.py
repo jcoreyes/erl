@@ -71,7 +71,7 @@ class OnlineVaeAlgorithm(TorchBatchRLAlgorithm):
         rl_start_epoch = int(self.min_num_steps_before_training / (
                 self.num_expl_steps_per_train_loop * self.num_train_loops_per_epoch
         ))
-        if should_train or epoch <= (rl_start_epoch - 1):
+        if should_train: # or epoch <= (rl_start_epoch - 1):
             if self.parallel_vae_train:
                 assert self._vae_training_process.is_alive()
                 # Make sure the last vae update has finished before starting
@@ -163,6 +163,7 @@ def _test_vae(vae_trainer, epoch, replay_buffer, batches=10, vae_save_period=1, 
         )
     if save_imgs:
         vae_trainer.dump_samples(epoch)
+        vae_trainer.dump_reconstructions(epoch)
         if log_fit_skew_stats:
             vae_trainer.dump_best_reconstruction(epoch)
             vae_trainer.dump_worst_reconstruction(epoch)
