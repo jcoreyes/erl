@@ -6,12 +6,33 @@ from railrl.data_management.images import normalize_image, unnormalize_image
 
 from railrl.torch.core import np_to_pytorch_batch
 
-class Dataset:
+from torch.utils import data
+
+
+class BatchLoader:
     def random_batch(self, batch_size):
         raise NotImplementedError
 
 
-class ObservationDataset(Dataset):
+class InfiniteBatchLoader(BatchLoader):
+    """Wraps a PyTorch DataLoader"""
+    def __init__(self, dataset, batch_size)
+        self.batch_size = batch_size
+        self.dataset_loader = data.DataLoader(dataset, batch_size=batch_size, 
+            shuffle=True, num_workers=num_train_workers, drop_last=True)
+        self.iterator = iter(self.dataset_loader)
+
+    def random_batch(self, batch_size):
+        assert batch_size == self.batch_size
+        try:
+            batch = next(self.iterator)
+        except StopIteration:
+            self.iterator = iter(self.dataset_loader)
+            batch = next(self.iterator)
+        return batch
+
+
+class ObservationDataset(BatchLoader):
     def __init__(self, data, info=None):
         self.data = data
         self.size = data.shape[0]
@@ -25,7 +46,7 @@ class ObservationDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class ImageObservationDataset(Dataset):
+class ImageObservationDataset(BatchLoader):
     def __init__(self, data, normalize=True, info=None):
         assert data.dtype == np.uint8
         self.data = data
@@ -44,7 +65,7 @@ class ImageObservationDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class TrajectoryDataset(Dataset):
+class TrajectoryDataset(BatchLoader):
     def __init__(self, data, info=None):
         self.size = data['observations'].shape[0]
         self.traj_length = data['observations'].shape[1]
@@ -63,7 +84,7 @@ class TrajectoryDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class EnvironmentDataset(Dataset):
+class EnvironmentDataset(BatchLoader):
     def __init__(self, data, info=None):
         self.num_envs = data['observations'].shape[0]
         self.sample_size = data['observations'].shape[1]
@@ -100,7 +121,7 @@ class EnvironmentDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class InitialObservationDataset(Dataset):
+class InitialObservationDataset(BatchLoader):
     def __init__(self, data, info=None):
         self.size = data['observations'].shape[0]
         self.traj_length = data['observations'].shape[1]
@@ -130,7 +151,7 @@ class InitialObservationDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class ConditionalDynamicsDataset(Dataset):
+class ConditionalDynamicsDataset(BatchLoader):
     def __init__(self, data, info=None):
         self.size = data['observations'].shape[0]
         self.traj_length = data['observations'].shape[1]
@@ -163,7 +184,7 @@ class ConditionalDynamicsDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class TripletReplayBufferWrapper(Dataset):
+class TripletReplayBufferWrapper(BatchLoader):
     def __init__(self, replay_buffer, horizon, info=None):
         self.replay_buffer = replay_buffer
         self.horizon = horizon
