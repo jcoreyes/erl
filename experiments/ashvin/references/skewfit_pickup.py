@@ -147,15 +147,15 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'dev-{}'.format(
-        __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    )
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'dev-{}'.format(
+    #     __file__.replace('/', '-').replace('_', '-').split('.')[0]
+    # )
 
     n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'skewfit-pickup3'
+    exp_prefix = 'skewfit-pickup4'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -169,10 +169,11 @@ if __name__ == "__main__":
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
                 num_exps_per_instance=2,
-                gcp_kwargs=dict(
-                    zone='us-west1-b',
+                region='us-west-2'
+                # gcp_kwargs=dict(
+                #     zone='us-west1-b',
                     # preemptible=False,
                     # instance_type="n1-standard-4"
-                ),
+                # ),
 
             )

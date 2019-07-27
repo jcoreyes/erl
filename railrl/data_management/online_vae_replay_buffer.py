@@ -23,6 +23,9 @@ from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 import os.path as osp
 
+from multiworld.core.multitask_env import MultitaskEnv
+from railrl.data_management.replay_buffer import ReplayBuffer
+import railrl.data_management.images as image_np
 
 class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
 
@@ -43,6 +46,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             priority_function_kwargs=None,
             exploration_counter_kwargs=None,
             relabeling_goal_sampling_mode='vae_prior',
+            decode_vae_goals=False,
             **kwargs
     ):
         if internal_keys is None:
@@ -67,6 +71,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         self.vae_priority_type = vae_priority_type
         self.power = power
         self._relabeling_goal_sampling_mode = relabeling_goal_sampling_mode
+        self.decode_vae_goals = decode_vae_goals
 
         if exploration_schedule_kwargs is None:
             self.explr_reward_scale_schedule = \
@@ -125,7 +130,8 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         self.epoch = 0
 
     def add_path(self, path):
-        self.add_decoded_vae_goals_to_path(path)
+        if self.decode_vae_goals:
+            self.add_decoded_vae_goals_to_path(path)
         super().add_path(path)
 
     def add_decoded_vae_goals_to_path(self, path):
@@ -318,8 +324,9 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
         )
 
         next_image_obs = self._next_obs[self.decoded_obs_key][weighted_idxs]
+        observations = ptu.from_numpy(next_image_obs)
         return dict(
-            observations=ptu.from_numpy(next_image_obs)
+            observations=observations,
         )
 
     def reconstruction_mse(self, next_vae_obs, indices):
@@ -476,7 +483,6 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
                               self._vae_sample_probs)
         return sorted(idx_and_weights, key=lambda x: x[1])
 
-
 def relative_probs_from_log_probs(log_probs):
     """
     Returns relative probability from the log probabilities. They're not exactly
@@ -498,8 +504,8 @@ def compute_log_p_log_q_log_d(
     assert data.dtype != np.uint8, 'images should be normalized'
     imgs = ptu.from_numpy(data)
     latent_distribution_params = model.encode(imgs)
-    batch_size = data.shape[0]
     representation_size = model.representation_size
+    batch_size = data.shape[0]
     log_p, log_q, log_d = ptu.zeros((batch_size, num_latents_to_sample)), ptu.zeros(
         (batch_size, num_latents_to_sample)), ptu.zeros((batch_size, num_latents_to_sample))
     true_prior = Normal(ptu.zeros((batch_size, representation_size)),
@@ -519,6 +525,7 @@ def compute_log_p_log_q_log_d(
         vae_dist = Normal(mus, stds)
         log_p_z = true_prior.log_prob(latents).sum(dim=1)
         log_q_z_given_x = vae_dist.log_prob(latents).sum(dim=1)
+
         if decoder_distribution == 'bernoulli':
             decoded = model.decode(latents)[0]
             log_d_x_given_z = torch.log(imgs * decoded + (1 - imgs) * (1 - decoded) + 1e-8).sum(dim=1)

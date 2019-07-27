@@ -38,6 +38,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.eval_data_collector = evaluation_data_collector
         self.replay_buffer = replay_buffer
         self._start_epoch = 0
+        self.post_train_funcs = []
         self.post_epoch_funcs = []
         self.epoch = self._start_epoch
         self.num_epochs = num_epochs
@@ -64,6 +65,9 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         timer.reset()
 
     def _end_epoch(self):
+        for post_train_func in self.post_train_funcs:
+            post_train_func(self, self.epoch)
+
         self.expl_data_collector.end_epoch(self.epoch)
         self.eval_data_collector.end_epoch(self.epoch)
         self.replay_buffer.end_epoch(self.epoch)

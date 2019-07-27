@@ -23,6 +23,7 @@ visualization/grill/config_personal.py
 experiments/murtaza/colinestuff/mesh/
 experiments/murtaza/colinestuff/textures/
 experiments/ashvin/nips2018
+railrl/demos/spacemouse/config.py
 **/mjkey.txt
 */*/.mujoco
 *.jpg

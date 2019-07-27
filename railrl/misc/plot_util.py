@@ -102,11 +102,19 @@ def filter_by_flat_params(d):
         return True
     return f
 
+def exclude_by_flat_params(d):
+    def f(l):
+        for k in d:
+            if l['flat_params'][k] == d[k]:
+                return False
+        return True
+    return f
+
 def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3.5),
     xlabel=None, default_vary=False, xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True, print_legend=True,
     reduce_op=sum, method_order=None, remap_keys={},
-    label_to_color=None,
+    label_to_color=None, return_data=False,
 ):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
@@ -203,6 +211,9 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
 
     if print_legend:
         plt.legend(handles=lines, bbox_to_anchor=(1.5, 0.75))
+
+    if return_data:
+        return xs, ys
 
     return lines
 

@@ -18,16 +18,24 @@ from railrl.launchers.launcher_util import setup_logger
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-from railrl.torch.td3.td3 import TD3Trainer
+from railrl.torch.td3.td3 import TD3
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 
 from railrl.launchers.launcher_util import run_experiment
-import railrl.util.hyperparameter as hyp
+# import railrl.util.hyperparameter as hyp
 
 def experiment(variant):
-    import multiworld.envs.mujoco  # Trigger env registration
-    eval_env = gym.make('SawyerReachXYZEnv-v0')
-    expl_env = gym.make('SawyerReachXYZEnv-v0')
+    expl_env = variant['env_class'](**variant['env_kwargs'])
+    eval_env = variant['env_class'](**variant['env_kwargs'])
+
+
+
+
+
+
+
+
     observation_key = 'state_observation'
     desired_goal_key = 'state_desired_goal'
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
@@ -81,7 +89,7 @@ def experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
-    trainer = TD3Trainer(
+    trainer = TD3(
         policy=policy,
         qf1=qf1,
         qf2=qf2,
@@ -117,15 +125,37 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
+    x_var=0.2
+    x_low = -x_var
+    x_high = x_var
+    y_low = 0.5
+    y_high = 0.7
+    t = 0.05
     variant = dict(
+        env_class=SawyerMultiobjectEnv,
+        env_kwargs=dict(
+            num_objects=1,
+            object_meshes=None,
+            num_scene_objects=[1],
+            maxlen=0.1,
+            action_repeat=5,
+            puck_goal_low=(x_low + 1*t, y_low + t),
+            puck_goal_high=(x_high - 1*t, y_high - t),
+            hand_goal_low=(x_low, y_low),
+            hand_goal_high=(x_high, y_high),
+            mocap_low=(x_low, y_low, 0.0),
+            mocap_high=(x_high, y_high, 0.5),
+            object_low=(x_low + t, y_low + t, 0.02),
+            object_high=(x_high - t, y_high - t, 0.02),
+        ),
         algo_kwargs=dict(
-            num_epochs=100,
-            max_path_length=50,
+            num_epochs=2000,
+            max_path_length=20,
             batch_size=128,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
-            min_num_steps_before_training=10000,
+            min_num_steps_before_training=1000,
         ),
         trainer_kwargs=dict(
             discount=0.99,
@@ -142,31 +172,31 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
     )
-    # setup_logger('her-td3-sawyer-experiment', variant=variant)
-    # experiment(variant)
-    search_space = {
-    }
-    sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
-    )
-
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'dev-{}'.format(
-        __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    )
-
-    n_seeds = 5
-    mode = 'sss'
-    exp_prefix = 'railrl-her-sac-multiworld-sawyer-reach-min-num-steps'
-
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
-            run_experiment(
-                experiment,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                variant=variant,
-                use_gpu=True,
-                time_in_mins=1000,
-          )
+    setup_logger('her-td3-pusher-1', variant=variant)
+    experiment(variant)
+    # search_space = {
+    # }
+    # sweeper = hyp.DeterministicHyperparameterSweeper(
+    #     search_space, default_parameters=variant,
+    # )
+    #
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'dev-{}'.format(
+    #     __file__.replace('/', '-').replace('_', '-').split('.')[0]
+    # )
+    #
+    # n_seeds = 5
+    # mode = 'sss'
+    # exp_prefix = 'railrl-her-sac-multiworld-sawyer-reach-min-num-steps'
+    #
+    # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+    #     for _ in range(n_seeds):
+    #         run_experiment(
+    #             experiment,
+    #             exp_prefix=exp_prefix,
+    #             mode=mode,
+    #             variant=variant,
+    #             use_gpu=True,
+    #             time_in_mins=1000,
+    #       )
