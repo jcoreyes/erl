@@ -14,6 +14,10 @@ from railrl.torch.grill.video_gen import VideoSaveFunction
 
 from railrl.torch.grill.common import *
 
+def train_vae(variant):
+    variant['grill_variant']['save_vae_data'] = True
+    full_experiment_variant_preprocess(variant)
+    train_vae_and_update_variant(variant)
 
 def grill_her_td3_offpolicy_online_vae_full_experiment(variant):
     variant['grill_variant']['save_vae_data'] = True
