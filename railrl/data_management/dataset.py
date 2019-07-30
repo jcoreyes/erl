@@ -19,10 +19,10 @@ class BatchLoader:
 
 class InfiniteBatchLoader(BatchLoader):
     """Wraps a PyTorch DataLoader"""
-    def __init__(self, dataset, batch_size, num_train_workers=10):
+    def __init__(self, dataset, batch_size, num_workers=0):
         self.batch_size = batch_size
         self.dataset_loader = data.DataLoader(dataset, batch_size=batch_size,
-            shuffle=True, num_workers=num_train_workers, drop_last=True)
+            shuffle=True, num_workers=num_workers, drop_last=True)
         self.iterator = iter(self.dataset_loader)
 
     def random_batch(self, batch_size):

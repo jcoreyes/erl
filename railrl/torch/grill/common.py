@@ -430,8 +430,11 @@ def generate_vae_dataset(variant):
                 'observations': dataset['observations'][test_i, :, :],
             })
 
-        train_dataset = InfiniteBatchLoader(train_dataset, 32, 0)
-        test_dataset = InfiniteBatchLoader(test_dataset, 32, 0)
+        train_batch_loader_kwargs = variant.get('train_batch_loader_kwargs', None)
+        test_batch_loader_kwargs = variant.get('test_batch_loader_kwargs', None)
+
+        train_dataset = InfiniteBatchLoader(train_dataset, **train_batch_loader_kwargs)
+        test_dataset = InfiniteBatchLoader(test_dataset, **test_batch_loader_kwargs)
     else:
         n = int(N * test_p)
         train_dataset = ImageObservationDataset(dataset[:n, :])

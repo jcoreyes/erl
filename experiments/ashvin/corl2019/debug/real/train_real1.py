@@ -161,6 +161,14 @@ if __name__ == "__main__":
                 save_trajectories=False,
                 enviorment_dataset=False,
                 tag="ccrig1",
+                train_batch_loader_kwargs=dict(
+                    batch_size=32,
+                    num_workers=0, # 10
+                ),
+                test_batch_loader_kwargs=dict(
+                    batch_size=32,
+                    num_workers=0,
+                ),
             ),
             vae_trainer_class=DeltaCVAETrainer,
             vae_class=DeltaCVAE,
