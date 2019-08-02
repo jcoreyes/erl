@@ -8,14 +8,14 @@ from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 from multiworld.core.image_env import normalize_image
 from railrl.core import logger
-from railrl.core.eval_util import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.data import (
     ImageDataset,
     InfiniteWeightedRandomSampler,
     InfiniteRandomSampler,
 )
-from railrl.util.ml_util import ConstantSchedule
+from railrl.misc.ml_util import ConstantSchedule
 import collections
 
 from railrl.torch.core import np_to_pytorch_batch

@@ -42,7 +42,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        "dataset_kwargs.dataset_name": ["doors2", ],
+        "dataset_kwargs.dataset_name": ["doors2", "pour1"],
         "model_kwargs.delta_features": [True, ],
         "model_kwargs.pretrained_features": [True, False, ],
         "model_kwargs.normalize": [True, ],
@@ -55,4 +55,4 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    run_variants(train_rfeatures_model, sweeper.iterate_hyperparameters(), run_id=6)
+    run_variants(train_rfeatures_model, sweeper.iterate_hyperparameters(), run_id=1)

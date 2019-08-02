@@ -11,8 +11,8 @@ import railrl.data_management.external.epic_kitchens_data as epic
 def get_data(variant):
     import numpy as np
     from multiworld.core.image_env import ImageEnv, unormalize_image
-    import rlkit.torch.pytorch_util as ptu
-    from rlkit.data_management.external.epic_kitchens_data import EpicTimePredictionDataset
+    import railrl.torch.pytorch_util as ptu
+    from railrl.data_management.external.epic_kitchens_data import EpicTimePredictionDataset
     
     dataset_name = variant.get("dataset_name")
     full_dataset_path = "/private/home/anair17/ashvindev/rlkit/notebooks/outputs/%s_train_trajectories.p" % dataset_name
@@ -26,17 +26,17 @@ def get_data(variant):
     return train_dataset, test_dataset, {}
 
 def train_rfeatures_model(variant, return_data=False):
-    from rlkit.util.ml_util import PiecewiseLinearSchedule
-    from rlkit.torch.vae.conv_vae import (
-        ConvVAE, ConvResnetVAE
-    )
-    import rlkit.torch.vae.conv_vae as conv_vae
-    from rlkit.torch.vae.vae_trainer import ConvVAETrainer
-    from rlkit.torch.vae.rfeatures_model import TimestepPredictionModel
-    from rlkit.torch.vae.rfeatures_trainer import TimePredictionTrainer
-    from rlkit.core import logger
-    import rlkit.torch.pytorch_util as ptu
-    from rlkit.pythonplusplus import identity
+    from railrl.misc.ml_util import PiecewiseLinearSchedule
+    # from railrl.torch.vae.conv_vae import (
+    #     ConvVAE, ConvResnetVAE
+    # )
+    import railrl.torch.vae.conv_vae as conv_vae
+    # from railrl.torch.vae.vae_trainer import ConvVAETrainer
+    from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
+    from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
+    from railrl.core import logger
+    import railrl.torch.pytorch_util as ptu
+    from railrl.pythonplusplus import identity
     import torch
     output_classes = variant["output_classes"]
     representation_size = variant["representation_size"]

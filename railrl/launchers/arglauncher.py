@@ -110,6 +110,8 @@ def process_variant_cmd(variant):
         variant["mode"] = "local_docker"
     if "--sss" in sys.argv:
         variant["mode"] = "sss"
+    if "--slurm" in sys.argv:
+        variant["mode"] = "slurm"
     if "--ssh" in sys.argv:
         variant["mode"] = "ssh"
         i = sys.argv.index("--ssh")

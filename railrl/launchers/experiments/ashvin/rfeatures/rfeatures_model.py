@@ -2,17 +2,16 @@ import torch
 import torch.utils.data
 from torch import nn
 from torch.nn import functional as F
-from rlkit.pythonplusplus import identity
-from rlkit.torch import pytorch_util as ptu
+from railrl.pythonplusplus import identity
+from railrl.torch import pytorch_util as ptu
 import numpy as np
-from rlkit.torch.conv_networks import CNN, DCNN
-from rlkit.torch.networks import Mlp
-from rlkit.torch.vae.vae_base import GaussianLatentVAE
+from railrl.torch.networks import CNN, TwoHeadDCNN, DCNN, Mlp
+from railrl.torch.vae.vae_base import GaussianLatentVAE
 
 import torchvision
 import torchvision.transforms as transforms
 
-import rlkit.data_management.external.epic_kitchens_data as epic
+import railrl.data_management.external.epic_kitchens_data as epic
 from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
 MAX_BATCH_SIZE = 100
