@@ -8,6 +8,8 @@ from torch.utils import data
 
 import railrl.data_management.external.epic_kitchens_data as epic
 
+from railrl.data_management.dataset import InfiniteBatchLoader
+
 def get_data(variant):
     import numpy as np
     from multiworld.core.image_env import ImageEnv, unormalize_image
@@ -46,11 +48,9 @@ def train_rfeatures_model(variant, return_data=False):
         variant['dataset_kwargs']
     )
 
-    num_train_workers = variant.get("num_train_workers", 8) # 0 uses main process (good for pdb)
-    train_dataset_loader = data.DataLoader(train_dataset, batch_size=batch_size, 
-        shuffle=True, num_workers=num_train_workers, drop_last=True)
-    test_dataset_loader = data.DataLoader(test_dataset, batch_size=batch_size, 
-        shuffle=True, drop_last=True)
+    num_train_workers = variant.get("num_train_workers", 0) # 0 uses main process (good for pdb)
+    train_dataset_loader = InfiniteBatchLoader(train_dataset, batch_size=batch_size, num_workers=num_train_workers, )
+    test_dataset_loader = InfiniteBatchLoader(test_dataset, batch_size=batch_size, )
 
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
@@ -75,6 +75,7 @@ def train_rfeatures_model(variant, return_data=False):
     # model = torch.nn.DataParallel(model)
     model.to(ptu.device)
 
+    variant['trainer_kwargs']['batch_size'] = batch_size
     trainer_class = variant.get('trainer_class', TimePredictionTrainer)
     trainer = trainer_class(
         model,
@@ -87,8 +88,8 @@ def train_rfeatures_model(variant, return_data=False):
     dump_skew_debug_plots = variant.get('dump_skew_debug_plots', False)
     for epoch in range(variant['num_epochs']):
         should_save_imgs = (epoch % save_period == 0)
-        trainer.train_epoch(epoch, train_dataset_loader)
-        trainer.test_epoch(epoch, test_dataset_loader)
+        trainer.train_epoch(epoch, train_dataset_loader, batches=10)
+        trainer.test_epoch(epoch, test_dataset_loader, batches=1)
 
         if should_save_imgs:
             trainer.dump_reconstructions(epoch)

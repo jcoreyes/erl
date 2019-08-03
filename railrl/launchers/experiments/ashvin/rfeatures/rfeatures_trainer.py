@@ -94,6 +94,7 @@ class TimePredictionTrainer(object):
             priority_function_kwargs=None,
             start_skew_epoch=0,
             weight_decay=0,
+            batch_size=64,
     ):
         #TODO:steven fix pickling
         assert not use_parallel_dataloading, "Have to fix pickling the dataloaders first"
@@ -119,6 +120,7 @@ class TimePredictionTrainer(object):
             weight_decay=weight_decay,
         )
 
+        self.batch_size = batch_size
         self.use_parallel_dataloading = use_parallel_dataloading
         self.train_data_workers = train_data_workers
         self.skew_dataset = skew_dataset
@@ -186,25 +188,49 @@ class TimePredictionTrainer(object):
         for key in batch:
             batch[key] = batch[key].float().to(ptu.device)
 
-    def train_epoch(self, epoch, dataset_loader):
-        start_loop = time.time()
-        for batch in dataset_loader:
+    def train_epoch(self, epoch, dataset, batches=100):
+        start_time = time.time()
+        start_loop = start_time
+        for b in range(batches):
+            batch = dataset.random_batch(self.batch_size)
             data_time = time.time()
             self.eval_statistics["train/data_duration"].append(data_time - start_loop)
-            self.to_device(batch)
             self.train_batch(epoch, batch)
             start_loop = time.time()
             self.eval_statistics["train/batch_duration"].append(start_loop - data_time)
+        self.eval_statistics["train/epoch_duration"].append(time.time() - start_time)
 
-    def test_epoch(self, epoch, dataset_loader):
-        start_loop = time.time()
-        for batch in dataset_loader:
+    def test_epoch(self, epoch, dataset, batches=10):
+        start_time = time.time()
+        start_loop = start_time
+        for b in range(batches):
+            batch = dataset.random_batch(self.batch_size)
             data_time = time.time()
             self.eval_statistics["test/data_duration"].append(data_time - start_loop)
-            self.to_device(batch)
             self.test_batch(epoch, batch)
             start_loop = time.time()
             self.eval_statistics["test/batch_duration"].append(start_loop - data_time)
+        self.eval_statistics["test/epoch_duration"].append(time.time() - start_time)
+
+    # def train_epoch(self, epoch, dataset_loader):
+    #     start_loop = time.time()
+    #     for batch in dataset_loader:
+    #         data_time = time.time()
+    #         self.eval_statistics["train/data_duration"].append(data_time - start_loop)
+    #         self.to_device(batch)
+    #         self.train_batch(epoch, batch)
+    #         start_loop = time.time()
+    #         self.eval_statistics["train/batch_duration"].append(start_loop - data_time)
+
+    # def test_epoch(self, epoch, dataset_loader):
+    #     start_loop = time.time()
+    #     for batch in dataset_loader:
+    #         data_time = time.time()
+    #         self.eval_statistics["test/data_duration"].append(data_time - start_loop)
+    #         self.to_device(batch)
+    #         self.test_batch(epoch, batch)
+    #         start_loop = time.time()
+    #         self.eval_statistics["test/batch_duration"].append(start_loop - data_time)
 
     def compute_loss(self, epoch, batch, test=False, slc=None):
         prefix = "test/" if test else "train/"
