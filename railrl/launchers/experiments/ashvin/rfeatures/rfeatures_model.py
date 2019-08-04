@@ -11,7 +11,7 @@ from railrl.torch.vae.vae_base import GaussianLatentVAE
 import torchvision
 import torchvision.transforms as transforms
 
-import railrl.data_management.external.epic_kitchens_data as epic
+import railrl.data_management.external.epic_kitchens_data_stub as epic
 from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
 MAX_BATCH_SIZE = 100

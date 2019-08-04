@@ -4,7 +4,7 @@ import warnings
 
 import torch
 
-import cv2
+# import cv2
 import numpy as np
 from gym import Env
 from gym.spaces import Box, Dict
