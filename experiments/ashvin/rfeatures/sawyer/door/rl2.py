@@ -35,6 +35,12 @@ from railrl.misc.asset_loader import load_local_or_remote_file
 import torch
 
 from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
+import numpy as np
+
+from railrl.torch.grill.video_gen import VideoSaveFunction
+
+from railrl.launchers.arglauncher import run_variants
+import railrl.misc.hyperparameter as hyp
 
 # from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
 
@@ -57,6 +63,15 @@ def experiment(variant):
     model.load_state_dict(state_dict)
     model.to(ptu.device)
 
+    demos = np.load("demo_v2_1.npy", allow_pickle=True)
+    traj = demos[0]
+    goal_image = traj["observations"][-1]["image_observation"].reshape(1, 3, 500, 300)
+    goal_image = goal_image[:, ::-1, :, :].copy() # flip bgr
+    goal_latent = model.encoder(ptu.from_numpy(goal_image)).detach().cpu().numpy()
+    reward_params = dict(
+        goal_latent=goal_latent,
+    )
+
     env = variant['env_class'](**variant['env_kwargs'])
     env = ImageEnv(env,
         recompute_reward=False,
@@ -65,7 +80,7 @@ def experiment(variant):
         reward_type="image_distance",
         # init_camera=sawyer_pusher_camera_upright_v2,
     )
-    env = EncoderWrappedEnv(env, model)
+    env = EncoderWrappedEnv(env, model, reward_params)
 
     expl_env = env # variant['env_class'](**variant['env_kwargs'])
     eval_env = env # variant['env_class'](**variant['env_kwargs'])
@@ -154,6 +169,14 @@ def experiment(variant):
         replay_buffer=replay_buffer,
         **variant['algo_kwargs']
     )
+
+    if variant.get("save_video", True):
+        video_func = VideoSaveFunction(
+            env,
+            **variant["dump_video_kwargs"],
+        )
+        algorithm.post_train_funcs.append(video_func)
+
     algorithm.to(ptu.device)
     algorithm.train()
 
@@ -172,14 +195,23 @@ if __name__ == "__main__":
             max_speed = 0.05, 
             camera="sawyer_head"
         ),
+        # algo_kwargs=dict(
+        #     num_epochs=3000,
+        #     max_path_length=20,
+        #     batch_size=128,
+        #     num_eval_steps_per_epoch=1000,
+        #     num_expl_steps_per_train_loop=1000,
+        #     num_trains_per_train_loop=1000,
+        #     min_num_steps_before_training=1000,
+        # ),
         algo_kwargs=dict(
             num_epochs=3000,
-            max_path_length=20,
-            batch_size=128,
-            num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000,
-            min_num_steps_before_training=1000,
+            max_path_length=10,
+            batch_size=5,
+            num_eval_steps_per_epoch=10,
+            num_expl_steps_per_train_loop=10,
+            num_trains_per_train_loop=10,
+            min_num_steps_before_training=10,
         ),
         model_kwargs=dict(
             decoder_distribution='gaussian_identity_variance',
@@ -205,6 +237,23 @@ if __name__ == "__main__":
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
+
+        save_video=True,
+        dump_video_kwargs=dict(
+            save_period=1,
+            # imsize=(3, 500, 300),
+        )
     )
-    setup_logger('her-td3-pusher-0', variant=variant)
-    experiment(variant)
+
+    search_space = {
+        'seedid': range(1),
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+
+    variants = []
+    for variant in sweeper.iterate_hyperparameters():
+        variants.append(variant)
+
+    run_variants(experiment, variants, run_id=0)

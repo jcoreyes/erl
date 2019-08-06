@@ -19,7 +19,7 @@ import rospy
 # from sawyer_control.envs.sawyer_insertion_refined_USB_sparse_RLonly import SawyerHumanControlEnv
 
 if __name__ == '__main__':
-    scale = 0.1
+    scale = 1.0
     expert = SpaceMouseExpert(
         xyz_dims=3,
         xyz_remap=[0, 1, 2],
@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     # env.reset()
 
-    collect_demos_fixed(env, expert, "demo.npy", 2, horizon=1000, pause=0.05)
+    collect_demos_fixed(env, expert, "demo.npy", 1, horizon=1000, pause=0.05)
 
     # o = None
     # while True:

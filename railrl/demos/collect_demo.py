@@ -24,8 +24,8 @@ import time
 # import robosuite.utils.transform_utils as T
 
 # from multiworld.envs.mujoco.sawyer_xyz.sawyer_multiple_objects import MultiSawyerEnv
-from multiworld.core.image_env import ImageEnv
-from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
+# from multiworld.core.image_env import ImageEnv
+# from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 
 
 import sys
@@ -35,7 +35,7 @@ import sys
 # import cv2
 # sys.path.insert(0,'/opt/ros/kinetic/lib/python2.7/dist-packages')
 
-import cv2
+# import cv2
 
 class Expert:
     def __init__(self, action_dim=3, **kwargs):
@@ -92,7 +92,7 @@ class SpaceMouseExpert(Expert):
 
         return (a, valid, reset, accept)
 
-def collect_one_rollout(env, expert, horizon=200, render=False):
+def collect_one_rollout(env, expert, horizon=200, render=False, pause=0):
     o = env.reset()
 
     traj = dict(
@@ -105,7 +105,7 @@ def collect_one_rollout(env, expert, horizon=200, render=False):
         env_infos=[],
     )
 
-    for _ in range(horizon):
+    for i in range(10000):
         a, valid, reset, accept = expert.get_action(o)
 
         if valid:
@@ -124,6 +124,9 @@ def collect_one_rollout(env, expert, horizon=200, render=False):
             if render:
                 env.render()
 
+            if pause:
+                time.sleep(pause)
+
         if reset or accept:
             if len(traj["rewards"]) == 0:
                 accept = False
@@ -133,7 +136,7 @@ def collect_one_rollout(env, expert, horizon=200, render=False):
 
     return False, []
 
-def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=cv2.LINE_AA, pxstep=20):
+def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=None, pxstep=20):
     '''(ndarray, 3-tuple, int, int) -> void
     draw gridlines on img
     line_color:
@@ -145,6 +148,8 @@ def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=cv2.LINE_AA, pxstep=
     pxstep:
         grid line frequency in pixels
     '''
+    if type_ is None:
+        type_ = cv2.LINE_AA
     x = pxstep
     y = pxstep
     while x < img.shape[1]:
@@ -227,11 +232,13 @@ def collect_demos(env, expert, path="demos.npy", N=10, horizon=200):
     np.save(path, data)
 
 
-def collect_demos_fixed(env, expert, path="demos.npy", N=10, horizon=200, render=False):
+def collect_demos_fixed(env, expert, path="demos.npy", N=10, **kwargs):
     data = []
 
-    while len(data) < N:
-        accept, traj = collect_one_rollout(env, expert, horizon, render=render)
+    i = 0
+    while len(data) < N and i < 1000:
+        i += 1
+        accept, traj = collect_one_rollout(env, expert, **kwargs)
         if accept:
             data.append(traj)
             print("accepted trajectory length", len(traj["observations"]))

@@ -353,19 +353,19 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
 
         new_actions = self._actions[indices]
 
-        if isinstance(self.env, MultitaskEnv):
-            new_rewards = self.env.compute_rewards(
-                new_actions,
-                new_next_obs_dict,
-            )
-        else:  # Assuming it's a (possibly wrapped) gym GoalEnv
-            new_rewards = np.ones((batch_size, 1))
-            for i in range(batch_size):
-                new_rewards[i] = self.env.compute_reward(
-                    new_next_obs_dict[self.achieved_goal_key][i],
-                    new_next_obs_dict[self.desired_goal_key][i],
-                    None
-                )
+        # if isinstance(self.env, MultitaskEnv):
+        new_rewards = self.env.compute_rewards(
+            new_actions,
+            new_next_obs_dict,
+        )
+        # else:  # Assuming it's a (possibly wrapped) gym GoalEnv
+        #     new_rewards = np.ones((batch_size, 1))
+        #     for i in range(batch_size):
+        #         new_rewards[i] = self.env.compute_reward(
+        #             new_next_obs_dict[self.achieved_goal_key][i],
+        #             new_next_obs_dict[self.desired_goal_key][i],
+        #             None
+        #         )
         if not self.vectorized:
             new_rewards = new_rewards.reshape(-1, 1)
 

@@ -15,6 +15,13 @@ from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
 import time
 
+from os import path as osp
+from torchvision.utils import save_image
+from rlkit.core import logger
+import railrl.data_management.external.epic_kitchens_data_stub as epic
+
+eps = 1e-5
+
 class EncoderWrappedEnv(ProxyEnv):
     """This class wraps an image-based environment with a VAE.
     Assumes you get flattened (channels,84,84) observations from wrapped_env.
@@ -41,7 +48,10 @@ class EncoderWrappedEnv(ProxyEnv):
         self.input_channels = self.vae.input_channels
         self.imsize = imsize
         self.reward_params = reward_params
-        self.reward_type = self.reward_params.get("type", 'latent_distance')
+        # self.reward_type = self.reward_params.get("type", 'latent_distance')
+        self.zT = self.reward_params["goal_latent"]
+        self.z0 = self.reward_params["initial_latent"]
+        self.dT = self.zT - self.z0
         self.vae_input_observation_key = vae_input_observation_key
 
         latent_space = Box(
@@ -49,19 +59,24 @@ class EncoderWrappedEnv(ProxyEnv):
             10 * np.ones(obs_size or self.representation_size),
             dtype=np.float32,
         )
+        goal_space = Box(
+            np.zeros((0, )),
+            np.zeros((0, )),
+            dtype=np.float32,
+        )
         spaces = self.wrapped_env.observation_space.spaces
         spaces['observation'] = latent_space
-        spaces['desired_goal'] = latent_space
-        spaces['achieved_goal'] = latent_space
+        spaces['desired_goal'] = goal_space
+        spaces['achieved_goal'] = goal_space
         spaces['latent_observation'] = latent_space
-        spaces['latent_desired_goal'] = latent_space
-        spaces['latent_achieved_goal'] = latent_space
+        spaces['latent_desired_goal'] = goal_space
+        spaces['latent_achieved_goal'] = goal_space
         self.observation_space = Dict(spaces)
 
     def reset(self):
         self.vae.eval()
         obs = self.wrapped_env.reset()
-        self._initial_obs = obs
+        self.x0 = obs["image_observation"]
         goal = self.sample_goal()
         self.set_goal(goal)
         obs = self._update_obs(obs)
@@ -82,11 +97,14 @@ class EncoderWrappedEnv(ProxyEnv):
 
     def _update_obs(self, obs):
         self.vae.eval()
-        latent_obs = self._encode_one(obs[self.vae_input_observation_key])
+        self.zt = self._encode_one(obs[self.vae_input_observation_key])
+        latent_obs = self.zt - self.z0
         obs['latent_observation'] = latent_obs
         obs['latent_achieved_goal'] = np.array([])
+        obs['latent_desired_goal'] = np.array([])
         obs['observation'] = latent_obs
         obs['achieved_goal'] = np.array([])
+        obs['desired_goal'] = np.array([])
         # obs = {**obs, **self.desired_goal}
         return obs
 
@@ -110,52 +128,76 @@ class EncoderWrappedEnv(ProxyEnv):
         # info["vae_dist_l1"] = np.linalg.norm(dist, ord=1)
         # info["vae_dist_l2"] = np.linalg.norm(dist, ord=2)
 
-    def compute_reward(self, action, obs):
-        actions = action[None]
-        return np.linalg.norm(obs["latent_observation"])
+    def compute_reward(self, action, obs, info=None):
+        self.vae.eval()
+
+        dt = obs["latent_observation"]
+        dT = self.dT
+
+        # import ipdb; ipdb.set_trace()
+
+        regression_pred_yt = (dt * dT).sum() / ((dT ** 2).sum() + eps)
+
+        return -np.abs(1-regression_pred_yt)
+
         # next_obs = {
         #     k: v[None] for k, v in obs.items()
         # }
         # reward = self.compute_rewards(actions, next_obs)
         # return reward[0]
 
-    def compute_rewards(self, actions, obs):
+    def compute_rewards(self, actions, obs, info=None):
         self.vae.eval()
+
+        dt = obs["latent_observation"]
+        dT = self.dT
+
+        regression_pred_yt = (dt * dT).sum(axis=1) / ((dT ** 2).sum() + eps)
+
+        return -np.abs(1-regression_pred_yt)
+
         # TODO: implement log_prob/mdist
-        if self.reward_type == 'latent_distance':
-            achieved_goals = obs['latent_achieved_goal']
-            desired_goals = obs['latent_desired_goal']
-            dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
-            return -dist
-        elif self.reward_type == 'wrapped_env':
-            return self.wrapped_env.compute_rewards(actions, obs)
-        else:
-            raise NotImplementedError
+        # if self.reward_type == 'latent_distance':
+        #     achieved_goals = obs['latent_achieved_goal']
+        #     desired_goals = obs['latent_desired_goal']
+        #     dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
+        #     return -dist
+        # elif self.reward_type == 'wrapped_env':
+        #     return self.wrapped_env.compute_rewards(actions, obs)
+        # else:
+        #     raise NotImplementedError
 
     def get_diagnostics(self, paths, **kwargs):
-        statistics = self.wrapped_env.get_diagnostics(paths, **kwargs)
-        for stat_name_in_paths in ["vae_mdist", "vae_success", "vae_dist"]:
-            stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
-            statistics.update(create_stats_ordered_dict(
-                stat_name_in_paths,
-                stats,
-                always_show_all_stats=True,
-            ))
-            final_stats = [s[-1] for s in stats]
-            statistics.update(create_stats_ordered_dict(
-                "Final " + stat_name_in_paths,
-                final_stats,
-                always_show_all_stats=True,
-            ))
+        statistics = dict()
+        # statistics = self.wrapped_env.get_diagnostics(paths, **kwargs)
+        # for stat_name_in_paths in ["vae_mdist", "vae_success", "vae_dist"]:
+        #     stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
+        #     statistics.update(create_stats_ordered_dict(
+        #         stat_name_in_paths,
+        #         stats,
+        #         always_show_all_stats=True,
+        #     ))
+        #     final_stats = [s[-1] for s in stats]
+        #     statistics.update(create_stats_ordered_dict(
+        #         "Final " + stat_name_in_paths,
+        #         final_stats,
+        #         always_show_all_stats=True,
+        #     ))
         return statistics
 
     def _encode_one(self, img):
-        im = img.reshape(300, 500, 3, 1).transpose()
+        im = img.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
+        im = im[:, :, 60:300, 30:470]
         return self._encode(im)[0]
 
     def _encode(self, imgs):
         self.vae.eval()
-        latent_distribution_params = self.vae.encoder(ptu.from_numpy(imgs))
+        pt_img = ptu.from_numpy(imgs).view(-1, 3, epic.CROP_HEIGHT, epic.CROP_WIDTH)
+
+        # save_dir = osp.join(logger.get_snapshot_dir(), )
+        save_image(pt_img.data.cpu(), 'forward.png', nrow=1)
+
+        latent_distribution_params = self.vae.encode(pt_img)
         return ptu.get_numpy(latent_distribution_params)
 
     def _image_and_proprio_from_decoded(self, decoded):

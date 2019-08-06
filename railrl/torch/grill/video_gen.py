@@ -26,10 +26,10 @@ from railrl.core import logger
 from railrl.envs.vae_wrappers import temporary_mode
 
 class VideoSaveFunction:
-    def __init__(self, env, variant):
+    def __init__(self, env, save_period=50, **kwargs):
         self.logdir = logger.get_snapshot_dir()
-        self.save_period = variant.get('save_video_period', 50)
-        self.dump_video_kwargs = variant.get("self.dump_video_kwargs", dict())
+        self.save_period = save_period
+        self.dump_video_kwargs = kwargs
         self.dump_video_kwargs['imsize'] = env.imsize
 
     def __call__(self, algo, epoch):
@@ -41,7 +41,7 @@ class VideoSaveFunction:
                 filename,
                 expl_paths,
                 "decoded_goal_image",
-                rows=2,
+                rows=1,
                 columns=5,
                 **self.dump_video_kwargs,
             )
@@ -54,7 +54,7 @@ class VideoSaveFunction:
                 filename,
                 eval_paths,
                 "image_desired_goal",
-                rows=2,
+                rows=1,
                 columns=5,
                 **self.dump_video_kwargs,
             )
@@ -69,13 +69,23 @@ def add_border(img, pad_length, pad_color, imsize=84):
     return img2
 
 
-def get_image(goal, obs, recon_obs, imsize=84, pad_length=1, pad_color=255):
-    if len(goal.shape) == 1:
-        goal = goal.reshape(-1, imsize, imsize).transpose(2, 1, 0)
-        obs = obs.reshape(-1, imsize, imsize).transpose(2,1,0)
-        recon_obs = recon_obs.reshape(-1, imsize, imsize).transpose(2,1,0)
-    img = np.concatenate((goal, obs, recon_obs))
-    img = np.uint8(255 * img)
+# def get_image(goal, obs, recon_obs, imsize=84, pad_length=1, pad_color=255):
+#     if len(goal.shape) == 1:
+#         goal = goal.reshape(-1, imsize, imsize).transpose(2, 1, 0)
+#         obs = obs.reshape(-1, imsize, imsize).transpose(2,1,0)
+#         recon_obs = recon_obs.reshape(-1, imsize, imsize).transpose(2,1,0)
+#     img = np.concatenate((goal, obs, recon_obs))
+#     img = np.uint8(255 * img)
+#     if pad_length > 0:
+#         img = add_border(img, pad_length, pad_color)
+#     return img
+
+def get_image(imgs, imsize=84, pad_length=1, pad_color=255):
+    if len(imgs[0].shape) == 1:
+        for i in range(len(imgs)):
+            imgs[i] = imgs[i].reshape(3, 500, 300).transpose(2, 1, 0)
+    img = np.concatenate(imgs)
+    # img = np.uint8(255 * img)
     if pad_length > 0:
         img = add_border(img, pad_length, pad_color)
     return img
@@ -129,9 +139,9 @@ def dump_video(
                 recon = d['image_observation']
             l.append(
                 get_image(
-                    d['decoded_goal_image'], # d['image_desired_goal'],
+                    [d['decoded_goal_image'], # d['image_desired_goal'],
                     d['image_observation'],
-                    recon,
+                    recon, ], 
                     pad_length=pad_length,
                     pad_color=pad_color,
                     imsize=imsize,
@@ -192,8 +202,14 @@ def dump_paths(
     # num_channels = env.vae.input_channels
     num_channels = 1 if env.grayscale else 3
     frames = []
-    H = 3 * imsize
-    W = imsize
+    
+    imwidth = 500
+    imheight = 300
+    num_imgs = 1 # 2
+    num_gaps = num_imgs - 1 # 2
+
+    H = num_imgs * imheight # imsize
+    W = imwidth # imsize
     rows = min(rows, int(len(paths) / columns))
     N = rows * columns
     is_vae_env = isinstance(env, VAEWrappedEnv)
@@ -212,9 +228,9 @@ def dump_paths(
                 recon = d['image_observation']
             l.append(
                 get_image(
-                    d[goal_image_key], # d['image_desired_goal'],
-                    d['image_observation'],
-                    recon,
+                    [ # d[goal_image_key], # d['image_desired_goal'],
+                    # d['image_observation'],
+                    recon, ],
                     pad_length=pad_length,
                     pad_color=pad_color,
                     imsize=imsize,
@@ -238,10 +254,10 @@ def dump_paths(
 
     frames = np.array(frames, dtype=np.uint8)
     path_length = frames.size // (
-            N * (H + 2*pad_length) * (W + 2*pad_length) * num_channels
+            N * (H + num_gaps * pad_length) * (W + num_gaps * pad_length) * num_channels
     )
     frames = np.array(frames, dtype=np.uint8).reshape(
-        (N, path_length, H + 2 * pad_length, W + 2 * pad_length, num_channels)
+        (N, path_length, H + num_gaps * pad_length, W + num_gaps * pad_length, num_channels)
     )
     f1 = []
     for k1 in range(columns):
@@ -249,7 +265,7 @@ def dump_paths(
         for k2 in range(rows):
             k = k1 * rows + k2
             f2.append(frames[k:k+1, :, :, :, :].reshape(
-                (path_length, H + 2 * pad_length, W + 2 * pad_length, num_channels)
+                (path_length, H + num_gaps * pad_length, W + num_gaps * pad_length, num_channels)
             ))
         f1.append(np.concatenate(f2, axis=1))
     outputdata = np.concatenate(f1, axis=2)

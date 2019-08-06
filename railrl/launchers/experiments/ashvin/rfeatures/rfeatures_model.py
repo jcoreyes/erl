@@ -134,19 +134,20 @@ class TimestepPredictionModel(torch.nn.Module):
 
         x = torch.cat([x0, xt, xT], dim=0).view(-1, 3, epic.CROP_HEIGHT, epic.CROP_WIDTH, )
 
-        # import pdb; pdb.set_trace()
-        if self.normalize:
-            x = x - self.img_mean
-            x = x / self.img_std
-            # x = self.img_normalizer(x)
+        z = self.encode(x)
+        # # import pdb; pdb.set_trace()
+        # if self.normalize:
+        #     x = x - self.img_mean
+        #     x = x / self.img_std
+        #     # x = self.img_normalizer(x)
 
-        zs = []
-        for i in range(0, 3 * bz, MAX_BATCH_SIZE):
-            z = self.encoder(x[i:i+MAX_BATCH_SIZE, :, :, :])
-            zs.append(z)
+        # zs = []
+        # for i in range(0, 3 * bz, MAX_BATCH_SIZE):
+        #     z = self.encoder(x[i:i+MAX_BATCH_SIZE, :, :, :])
+        #     zs.append(z)
 
-        # z = self.encoder(x)
-        z = torch.cat(zs) # self.encoder(x) # .to("cuda:0")
+        # # z = self.encoder(x)
+        # z = torch.cat(zs) # self.encoder(x) # .to("cuda:0")
 
         z0, zt, zT = z[:bz, :], z[bz:2*bz, :], z[2*bz:3*bz, :]
 
@@ -169,3 +170,19 @@ class TimestepPredictionModel(torch.nn.Module):
         out = self.predictor(z)
         
         return out
+
+    def encode(self, x):
+        bz = x.shape[0]
+
+        if self.normalize:
+            x = x - self.img_mean
+            x = x / self.img_std
+
+        zs = []
+        for i in range(0, bz, MAX_BATCH_SIZE):
+            z = self.encoder(x[i:i+MAX_BATCH_SIZE, :, :, :])
+            zs.append(z)
+
+        z = torch.cat(zs)
+
+        return z
