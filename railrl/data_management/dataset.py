@@ -188,6 +188,8 @@ class TripletReplayBufferWrapper(BatchLoader):
 
 class InitialObservationNumpyDataset(data.Dataset):
     def __init__(self, data, info=None):
+        assert data['observations'].dtype == np.uint8
+
         self.size = data['observations'].shape[0]
         self.traj_length = data['observations'].shape[1]
         self.data = data
