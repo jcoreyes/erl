@@ -4,6 +4,8 @@ import time
 import cv2
 import numpy as np
 
+from torch.utils import data
+
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
@@ -430,11 +432,22 @@ def generate_vae_dataset(variant):
                 'observations': dataset['observations'][test_i, :, :],
             })
 
-        train_batch_loader_kwargs = variant.get('train_batch_loader_kwargs', None)
-        test_batch_loader_kwargs = variant.get('test_batch_loader_kwargs', None)
+        train_batch_loader_kwargs = variant.get(
+            'train_batch_loader_kwargs',
+            dict(batch_size=32, num_workers=0, )
+        )
+        test_batch_loader_kwargs = variant.get(
+            'test_batch_loader_kwargs',
+            dict(batch_size=32, num_workers=0, )
+        )
 
-        train_dataset = InfiniteBatchLoader(train_dataset, **train_batch_loader_kwargs)
-        test_dataset = InfiniteBatchLoader(test_dataset, **test_batch_loader_kwargs)
+        train_data_loader = data.DataLoader(train_dataset,
+            shuffle=True, drop_last=True, **train_batch_loader_kwargs)
+        test_data_loader = data.DataLoader(test_dataset,
+            shuffle=True, drop_last=True, **test_batch_loader_kwargs)
+
+        train_dataset = InfiniteBatchLoader(train_data_loader)
+        test_dataset = InfiniteBatchLoader(test_data_loader)
     else:
         n = int(N * test_p)
         train_dataset = ImageObservationDataset(dataset[:n, :])

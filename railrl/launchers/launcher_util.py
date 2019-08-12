@@ -847,6 +847,12 @@ def setup_logger(
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
 
+    logger_variant = variant.get("logger_variant", dict())
+
+    if logger_variant.get("tensorboard", False):
+        tensorboard_log_path = osp.join(log_dir, "tensorboard")
+        logger.add_tensorboard_output(tensorboard_log_path)
+
     logger.add_text_output(text_log_path)
     if first_time:
         logger.add_tabular_output(tabular_log_path)
