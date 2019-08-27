@@ -9,7 +9,7 @@ from railrl.exploration_strategies.gaussian_and_epislon import \
 from railrl.launchers.launcher_util import setup_logger
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import FlattenMlp, TanhMlpPolicy, TorchMaxClamp
 # from railrl.torch.td3.td3 import TD3
 from railrl.demos.td3_bc import TD3BCTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
@@ -52,7 +52,7 @@ def encoder_wrapped_td3bc_experiment(variant):
     )
     # model = torch.nn.DataParallel(model)
 
-    model_path = "/home/lerrel/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id2/itr_4000.pt"
+    model_path = variant.get("model_path")
     # model = load_local_or_remote_file(model_path)
     state_dict = torch.load(model_path)
     model.load_state_dict(state_dict)
@@ -110,21 +110,25 @@ def encoder_wrapped_td3bc_experiment(variant):
     qf1 = FlattenMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
+        # output_activation=TorchMaxClamp(0.0),
         **variant['qf_kwargs']
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
+        # output_activation=TorchMaxClamp(0.0),
         **variant['qf_kwargs']
     )
     target_qf1 = FlattenMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
+        # output_activation=TorchMaxClamp(0.0),
         **variant['qf_kwargs']
     )
     target_qf2 = FlattenMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
+        # output_activation=TorchMaxClamp(0.0),
         **variant['qf_kwargs']
     )
     policy = TanhMlpPolicy(
@@ -209,5 +213,6 @@ def encoder_wrapped_td3bc_experiment(variant):
 
     td3bc_trainer.load_demos()
     td3bc_trainer.pretrain_policy_with_bc()
+    td3bc_trainer.pretrain_q_with_bc_data()
 
     algorithm.train()

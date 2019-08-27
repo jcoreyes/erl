@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     # env.reset()
 
-    collect_demos_fixed(env, expert, "demo.npy", 1, horizon=1000, pause=0.05)
+    collect_demos_fixed(env, expert, "demos/demo.pkl", 1, horizon=1000, pause=0.05)
 
     # o = None
     # while True:

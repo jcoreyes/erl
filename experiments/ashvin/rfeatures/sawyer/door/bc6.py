@@ -50,7 +50,7 @@ if __name__ == "__main__":
             num_eval_steps_per_epoch=500,
             num_expl_steps_per_train_loop=500,
             num_trains_per_train_loop=500,
-            min_num_steps_before_training=500,
+            min_num_steps_before_training=0,
         ),
         model_kwargs=dict(
             decoder_distribution='gaussian_identity_variance',
@@ -64,12 +64,12 @@ if __name__ == "__main__":
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path="/home/lerrel/ros_ws/src/railrl-private/demo_v4_processed.npy",
+            demo_path="/home/lerrel/ros_ws/src/railrl-private/demos/demo_grey9_10_processed.pkl",
             add_demo_latents=False, # already done
             bc_num_pretrain_steps=1000,
-            rl_weight=0.1,
+            rl_weight=0.0,
             bc_weight=1.0,
-            weight_decay=0.001,
+            weight_decay=0.01,
         ),
         replay_buffer_kwargs=dict(
             max_size=100000,
@@ -80,7 +80,7 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
         policy_kwargs=dict(
-            hidden_sizes=[32, 32],
+            hidden_sizes=[400, 300],
         ),
 
         save_video=True,
@@ -88,9 +88,8 @@ if __name__ == "__main__":
             save_period=1,
             # imsize=(3, 500, 300),
         ),
-        desired_trajectory="demo_v4.npy",
-        snapshot_mode="all",
-        
+        desired_trajectory="demos/demo_grey9_10_processed.pkl",
+
         logger_variant=dict(
             tensorboard=True,
         ),
@@ -107,4 +106,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=1)
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=0)

@@ -64,12 +64,16 @@ if __name__ == "__main__":
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path="/home/lerrel/ros_ws/src/railrl-private/demo_v4_processed.npy",
+            demo_path="/home/lerrel/ros_ws/src/railrl-private/demos/demo_grey10_10_processed.pkl",
             add_demo_latents=False, # already done
             bc_num_pretrain_steps=1000,
-            rl_weight=0.1,
+            q_num_pretrain_steps=10000,
+            rl_weight=100.0,
             bc_weight=1.0,
             weight_decay=0.001,
+            reward_scale=0.0001,
+            target_update_period=20,
+            policy_update_period=100,
         ),
         replay_buffer_kwargs=dict(
             max_size=100000,
@@ -88,9 +92,9 @@ if __name__ == "__main__":
             save_period=1,
             # imsize=(3, 500, 300),
         ),
-        desired_trajectory="demo_v4.npy",
+        desired_trajectory="demos/demo_grey10_10_processed.pkl",
         snapshot_mode="all",
-        
+
         logger_variant=dict(
             tensorboard=True,
         ),
@@ -107,4 +111,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=1)
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=15)

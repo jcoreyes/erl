@@ -29,6 +29,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 from torchvision.utils import save_image
+import pickle
 
 demo_trajectory_rewards = []
 
@@ -71,11 +72,12 @@ def load_path(path):
     demo_trajectory_rewards.append(rewards)
 
 def load_demos(demo_path, ):
-    data = load_local_or_remote_file(demo_path)
+    data = pickle.load(open(demo_path, "rb"))
     for path in data:
         load_path(path)
-    processed_demo_path = demo_path[:-4] + "_processed.npy"
-    np.save(processed_demo_path, data)
+    processed_demo_path = demo_path[:-4] + "_processed_imagenet.pkl"
+    # np.save(processed_demo_path, data)
+    pickle.dump(data, open(processed_demo_path, "wb"), protocol=2)
 
     plt.figure(figsize=(8, 8))
     for r in demo_trajectory_rewards:
@@ -168,14 +170,15 @@ if __name__ == "__main__":
     )
     # model = torch.nn.DataParallel(model)
 
-    model_path = "/home/lerrel/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id2/itr_4000.pt"
+    # model_path = "/home/lerrel/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id2/itr_4000.pt"
+    model_path = "/home/lerrel/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id0/itr_0.pt"
     # model = load_local_or_remote_file(model_path)
     state_dict = torch.load(model_path)
     model.load_state_dict(state_dict)
     model.to(ptu.device)
     model.eval()
 
-    traj = np.load("demo_v4.npy", allow_pickle=True)[0]
+    traj = np.load("demos/demo_grey10_10.pkl", allow_pickle=True)[0]
 
     goal_image_flat = traj["observations"][-1]["image_observation"]
     goal_image = goal_image_flat.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
@@ -210,5 +213,5 @@ if __name__ == "__main__":
     )
     env = EncoderWrappedEnv(env, model, reward_params)
 
-    demo_path="/home/lerrel/ros_ws/src/railrl-private/demo_v4.npy"
+    demo_path="/home/lerrel/ros_ws/src/railrl-private/demos/demo_grey10_10.pkl"
     load_demos(demo_path)
