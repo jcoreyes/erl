@@ -81,9 +81,9 @@ class OnlineVaeOffpolicyAlgorithm(TorchBatchRLAlgorithm):
             x = ptu.from_numpy(observations[n, :, :] / 255.0)
             latents = self.vae.encode(x, x0, distrib=False)
 
-            r1, r2 = self.vae.representation_size
+            r1, r2 = self.vae.latent_sizes
             conditioning = latents[0, r1:]
-            goal = torch.cat([ptu.randn(self.vae.representation_size[0]), conditioning])
+            goal = torch.cat([ptu.randn(self.vae.latent_sizes[0]), conditioning])
             goal = ptu.get_numpy(goal) # latents[-1, :]
 
             latents = ptu.get_numpy(latents)

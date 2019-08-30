@@ -3,15 +3,19 @@ import itertools
 import torch
 
 from railrl.data_management.images import normalize_image, unnormalize_image
-
 from railrl.torch.core import np_to_pytorch_batch
+import railrl.torch.pytorch_util as ptu
 
-class Dataset:
-    def random_batch(self, batch_size):
-        raise NotImplementedError
+from torch.utils import data
+from torchvision.transforms import ColorJitter, RandomResizedCrop
+from PIL import Image
+
+import torchvision.transforms.functional as F
+
+from railrl.torch.data import BatchLoader, InfiniteBatchLoader
 
 
-class ObservationDataset(Dataset):
+class ObservationDataset(BatchLoader):
     def __init__(self, data, info=None):
         self.data = data
         self.size = data.shape[0]
@@ -25,7 +29,7 @@ class ObservationDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class ImageObservationDataset(Dataset):
+class ImageObservationDataset(BatchLoader):
     def __init__(self, data, normalize=True, info=None):
         assert data.dtype == np.uint8
         self.data = data
@@ -44,7 +48,7 @@ class ImageObservationDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class TrajectoryDataset(Dataset):
+class TrajectoryDataset(BatchLoader):
     def __init__(self, data, info=None):
         self.size = data['observations'].shape[0]
         self.traj_length = data['observations'].shape[1]
@@ -63,7 +67,7 @@ class TrajectoryDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class EnvironmentDataset(Dataset):
+class EnvironmentDataset(BatchLoader):
     def __init__(self, data, info=None):
         self.num_envs = data['observations'].shape[0]
         self.sample_size = data['observations'].shape[1]
@@ -100,7 +104,7 @@ class EnvironmentDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class InitialObservationDataset(Dataset):
+class InitialObservationDataset(BatchLoader):
     def __init__(self, data, info=None):
         self.size = data['observations'].shape[0]
         self.traj_length = data['observations'].shape[1]
@@ -130,7 +134,7 @@ class InitialObservationDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class ConditionalDynamicsDataset(Dataset):
+class ConditionalDynamicsDataset(BatchLoader):
     def __init__(self, data, info=None):
         self.size = data['observations'].shape[0]
         self.traj_length = data['observations'].shape[1]
@@ -163,7 +167,7 @@ class ConditionalDynamicsDataset(Dataset):
         return np_to_pytorch_batch(data_dict)
 
 
-class TripletReplayBufferWrapper(Dataset):
+class TripletReplayBufferWrapper(BatchLoader):
     def __init__(self, replay_buffer, horizon, info=None):
         self.replay_buffer = replay_buffer
         self.horizon = horizon
@@ -180,3 +184,48 @@ class TripletReplayBufferWrapper(Dataset):
             x2=self.replay_buffer._obs["image_observation"][indices+2],
         )
         return np_to_pytorch_batch(batch)
+
+
+class InitialObservationNumpyDataset(data.Dataset):
+    def __init__(self, data, info=None):
+        assert data['observations'].dtype == np.uint8
+
+        self.size = data['observations'].shape[0]
+        self.traj_length = data['observations'].shape[1]
+        self.data = data
+        self.info = info
+
+        self.jitter = ColorJitter((0.5,1.5), (0.9,1.1), (0.9,1.1), (-0.1,0.1))
+        self.crop = RandomResizedCrop((48, 48), (0.9, 0.9), (1, 1))
+        # RandomResizedCrop((int(sqrt(self.imlength)), int(sqrt(self.imlength))), (0.9, 0.9), (1, 1))
+
+        if 'env' not in self.data:
+            self.data['env'] = self.data['observations'][:, 0, :]
+
+    def __len__(self):
+        return self.size * self.traj_length
+
+    def __getitem__(self, idx):
+        traj_i = idx // self.traj_length
+        trans_i = idx % self.traj_length
+
+        x = Image.fromarray(self.data['observations'][traj_i, trans_i].reshape(48, 48, 3), mode='RGB')
+        c = Image.fromarray(self.data['env'][traj_i].reshape(48, 48, 3), mode='RGB')
+
+        # upsampling gives bad images so random resizing params set to 1 for now
+        # crop = self.crop.get_params(c, (0.9, 0.9), (1, 1))
+        crop = self.crop.get_params(c, (1, 1), (1, 1))
+
+        # jitter = self.jitter.get_params((0.5,1.5), (0.9,1.1), (0.9,1.1), (-0.1,0.1))
+        jitter = self.jitter.get_params(0.5, 0.1, 0.1, 0.1)
+
+        x = jitter(F.resized_crop(x, crop[0], crop[1], crop[2], crop[3], (48, 48), Image.BICUBIC))
+        c = jitter(F.resized_crop(c, crop[0], crop[1], crop[2], crop[3], (48, 48), Image.BICUBIC))
+        x_t = normalize_image(np.array(x).flatten()).squeeze()
+        env = normalize_image(np.array(c).flatten()).squeeze()
+
+        data_dict = {
+            'x_t': x_t,
+            'env': env,
+        }
+        return data_dict

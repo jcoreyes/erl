@@ -44,6 +44,7 @@ from railrl.torch.data import (
 )
 from railrl.torch.core import np_to_pytorch_batch
 import collections
+import time
 
 class VAETrainer(object):
     def __init__(
@@ -238,12 +239,16 @@ class VAETrainer(object):
         return ptu.from_numpy(X), ptu.from_numpy(Y)
 
     def train_epoch(self, epoch, dataset, batches=100):
+        start_time = time.time()
         for b in range(batches):
             self.train_batch(epoch, dataset.random_batch(self.batch_size))
+        self.eval_statistics["train/epoch_duration"].append(time.time() - start_time)
 
     def test_epoch(self, epoch, dataset, batches=10):
+        start_time = time.time()
         for b in range(batches):
             self.test_batch(epoch, dataset.random_batch(self.batch_size))
+        self.eval_statistics["test/epoch_duration"].append(time.time() - start_time)
 
     def compute_loss(self, epoch, batch, test=False):
         prefix = "test/" if test else "train/"
