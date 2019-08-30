@@ -23,6 +23,8 @@ y_high = 0.7
 t = 0.05
 
 if __name__ == "__main__":
+    vae_batch_size = 32
+
     variant = dict(
         double_algo=False,
         online_vae_exploration=False,
@@ -162,11 +164,11 @@ if __name__ == "__main__":
                 enviorment_dataset=False,
                 tag="ccrig1",
                 train_batch_loader_kwargs=dict(
-                    batch_size=32,
+                    batch_size=vae_batch_size,
                     num_workers=0, # 10
                 ),
                 test_batch_loader_kwargs=dict(
-                    batch_size=32,
+                    batch_size=vae_batch_size,
                     num_workers=0,
                 ),
             ),
@@ -181,7 +183,7 @@ if __name__ == "__main__":
             algo_kwargs=dict(
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
-                batch_size=32,
+                batch_size=vae_batch_size,
                 lr=1e-3,
                 skew_config=dict(
                     method='vae_prob',

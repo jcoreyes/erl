@@ -12,29 +12,7 @@ from PIL import Image
 
 import torchvision.transforms.functional as F
 
-class BatchLoader:
-    def random_batch(self, batch_size):
-        raise NotImplementedError
-
-
-class InfiniteBatchLoader(BatchLoader):
-    """Wraps a PyTorch DataLoader"""
-    def __init__(self, dataset, batch_size, num_workers=0):
-        self.batch_size = batch_size
-        self.dataset_loader = data.DataLoader(dataset, batch_size=batch_size,
-            shuffle=True, num_workers=num_workers, drop_last=True)
-        self.iterator = iter(self.dataset_loader)
-
-    def random_batch(self, batch_size):
-        assert batch_size == self.batch_size
-        try:
-            batch = next(self.iterator)
-        except StopIteration:
-            self.iterator = iter(self.dataset_loader)
-            batch = next(self.iterator)
-        for key in batch:
-            batch[key] = batch[key].float().to(ptu.device)
-        return batch
+from railrl.torch.data import BatchLoader, InfiniteBatchLoader
 
 
 class ObservationDataset(BatchLoader):
@@ -210,6 +188,8 @@ class TripletReplayBufferWrapper(BatchLoader):
 
 class InitialObservationNumpyDataset(data.Dataset):
     def __init__(self, data, info=None):
+        assert data['observations'].dtype == np.uint8
+
         self.size = data['observations'].shape[0]
         self.traj_length = data['observations'].shape[1]
         self.data = data
@@ -223,11 +203,11 @@ class InitialObservationNumpyDataset(data.Dataset):
             self.data['env'] = self.data['observations'][:, 0, :]
 
     def __len__(self):
-        return self.size
+        return self.size * self.traj_length
 
     def __getitem__(self, idx):
-        traj_i = idx
-        trans_i = np.random.choice(self.traj_length)
+        traj_i = idx // self.traj_length
+        trans_i = idx % self.traj_length
 
         x = Image.fromarray(self.data['observations'][traj_i, trans_i].reshape(48, 48, 3), mode='RGB')
         c = Image.fromarray(self.data['env'][traj_i].reshape(48, 48, 3), mode='RGB')
