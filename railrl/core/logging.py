@@ -103,6 +103,9 @@ class Logger(object):
         self._header_printed = False
         self.table_printer = TerminalTablePrinter()
 
+        self._use_tensorboard = False
+        self.epoch = 0
+
     def reset(self):
         self.__init__()
 
@@ -128,6 +131,12 @@ class Logger(object):
 
     def remove_text_output(self, file_name):
         self._remove_output(file_name, self._text_outputs, self._text_fds)
+
+    def add_tensorboard_output(self, file_name):
+        import tensorboard_logger
+        self._use_tensorboard = True
+        self.tensorboard_logger = tensorboard_logger
+        self.tensorboard_logger.configure(file_name)
 
     def add_tabular_output(self, file_name, relative_to_snapshot_dir=False):
         if relative_to_snapshot_dir:
@@ -184,6 +193,8 @@ class Logger(object):
 
     def record_tabular(self, key, val):
         self._tabular.append((self._tabular_prefix_str + str(key), str(val)))
+        if self._use_tensorboard:
+            self.tensorboard_logger.log_value(key, val, self.epoch)
 
     def record_dict(self, d, prefix=None):
         if prefix is not None:
@@ -263,6 +274,7 @@ class Logger(object):
             self.record_tabular(prefix + "Max" + suffix, np.nan)
 
     def dump_tabular(self, *args, **kwargs):
+        self.epoch += 1
         wh = kwargs.pop("write_header", None)
         if len(self._tabular) > 0:
             if self._log_tabular_only:
