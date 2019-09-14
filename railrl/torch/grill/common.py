@@ -4,6 +4,8 @@ import time
 import cv2
 import numpy as np
 
+from torch.utils import data
+
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
@@ -208,8 +210,11 @@ def generate_vae_dataset(variant):
     from multiworld.core.image_env import ImageEnv, unormalize_image
     import railrl.torch.pytorch_util as ptu
     from railrl.misc.asset_loader import load_local_or_remote_file
-    from railrl.data_management.dataset  import \
-        TrajectoryDataset, ImageObservationDataset, InitialObservationDataset, EnvironmentDataset, ConditionalDynamicsDataset
+    from railrl.data_management.dataset  import (
+        TrajectoryDataset, ImageObservationDataset, InitialObservationDataset,
+        EnvironmentDataset, ConditionalDynamicsDataset, InitialObservationNumpyDataset,
+        InfiniteBatchLoader,
+    )
 
     info = {}
     if dataset_path is not None:
@@ -410,22 +415,39 @@ def generate_vae_dataset(variant):
         np.random.shuffle(indices)
         train_i, test_i = indices[:n], indices[n:]
 
-        try:
-            train_dataset = InitialObservationDataset({
+        if 'env' in dataset:
+            train_dataset = InitialObservationNumpyDataset({
                 'observations': dataset['observations'][train_i, :, :],
                 'env': dataset['env'][train_i, :]
             })
-            test_dataset = InitialObservationDataset({
+            test_dataset = InitialObservationNumpyDataset({
                 'observations': dataset['observations'][test_i, :, :],
                 'env': dataset['env'][test_i, :]
             })
-        except:
-            train_dataset = InitialObservationDataset({
+        else:
+            train_dataset = InitialObservationNumpyDataset({
                 'observations': dataset['observations'][train_i, :, :],
             })
-            test_dataset = InitialObservationDataset({
+            test_dataset = InitialObservationNumpyDataset({
                 'observations': dataset['observations'][test_i, :, :],
             })
+
+        train_batch_loader_kwargs = variant.get(
+            'train_batch_loader_kwargs',
+            dict(batch_size=32, num_workers=0, )
+        )
+        test_batch_loader_kwargs = variant.get(
+            'test_batch_loader_kwargs',
+            dict(batch_size=32, num_workers=0, )
+        )
+
+        train_data_loader = data.DataLoader(train_dataset,
+            shuffle=True, drop_last=True, **train_batch_loader_kwargs)
+        test_data_loader = data.DataLoader(test_dataset,
+            shuffle=True, drop_last=True, **test_batch_loader_kwargs)
+
+        train_dataset = InfiniteBatchLoader(train_data_loader)
+        test_dataset = InfiniteBatchLoader(test_data_loader)
     else:
         n = int(N * test_p)
         train_dataset = ImageObservationDataset(dataset[:n, :])

@@ -105,11 +105,13 @@ def process_variant_cmd(variant):
     if "--ec2" in sys.argv:
         variant["mode"] = "ec2"
     if "--local" in sys.argv:
-        variant["mode"] = "local"
+        variant["mode"] = "here_no_doodad"
     if "--localdocker" in sys.argv:
         variant["mode"] = "local_docker"
     if "--sss" in sys.argv:
         variant["mode"] = "sss"
+    if "--slurm" in sys.argv:
+        variant["mode"] = "slurm"
     if "--ssh" in sys.argv:
         variant["mode"] = "ssh"
         i = sys.argv.index("--ssh")

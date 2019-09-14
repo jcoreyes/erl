@@ -209,7 +209,7 @@ def run_experiment(
                 ))
             except git.exc.InvalidGitRepositoryError:
                 pass
-    except ImportError:
+    except (ImportError, UnboundLocalError, NameError):
         git_infos = None
     run_experiment_kwargs = dict(
         exp_prefix=exp_prefix,
@@ -230,6 +230,37 @@ def run_experiment(
             method_call,
             **run_experiment_kwargs
         )
+
+    if mode == 'slurm':
+        import submitit
+
+        slurm_variant = variant.get("slurm_variant", {})
+        slurm_kwargs = dict(
+            timeout_min=240,
+            partition="learnfair", # partition="dev",
+            gpus_per_node=1,
+            cpus_per_task=10,
+        )
+        slurm_kwargs.update(slurm_variant)
+
+        executor = submitit.AutoExecutor(folder=base_log_dir + "/slurm/%j")
+        executor.update_parameters(
+            **slurm_kwargs
+        )
+
+        def run():
+            run_experiment_kwargs['base_log_dir'] = base_log_dir
+            return run_experiment_here(
+                method_call,
+                **run_experiment_kwargs
+            )
+
+        job = executor.submit(run)  # will compute add(5, 7)
+        print("Launched job", job.job_id)  # ID of your job
+
+        # output = job.result()
+
+        return job.job_id
 
     """
     Safety Checks
@@ -802,6 +833,11 @@ def setup_logger(
             variant=variant,
             **create_log_dir_kwargs
         )
+
+    logger_variant = variant.get("logger_variant", dict())
+    if logger_variant.get("tensorboard", False):
+        tensorboard_log_path = osp.join(log_dir, "tensorboard")
+        logger.add_tensorboard_output(tensorboard_log_path)
 
     if variant is not None:
         if 'unique_id' not in variant:

@@ -4,6 +4,7 @@ from torch.utils.data import Dataset, Sampler
 
 from railrl.data_management.images import normalize_image
 
+import railrl.torch.pytorch_util as ptu
 
 class ImageDataset(Dataset):
 
@@ -79,3 +80,28 @@ class InfiniteWeightedRandomSampler(Sampler):
 
     def __len__(self):
         return 2 ** 62
+
+
+
+class BatchLoader:
+    def random_batch(self, batch_size):
+        raise NotImplementedError
+
+
+class InfiniteBatchLoader(BatchLoader):
+    """Wraps a PyTorch DataLoader"""
+    def __init__(self, data_loader):
+        self.dataset_loader = data_loader
+        self.iterator = iter(self.dataset_loader)
+
+    def random_batch(self, batch_size):
+        assert batch_size == self.dataset_loader.batch_size
+        try:
+            batch = next(self.iterator)
+        except StopIteration:
+            self.iterator = iter(self.dataset_loader)
+            batch = next(self.iterator)
+
+        for key in batch:
+            batch[key] = batch[key].float().to(ptu.device)
+        return batch
