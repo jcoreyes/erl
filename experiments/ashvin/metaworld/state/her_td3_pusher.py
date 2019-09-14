@@ -42,7 +42,7 @@ if __name__ == "__main__":
             num_epochs=3000,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000,
+            num_trains_per_train_loop=4000,
             min_num_steps_before_training=1000,
             max_path_length=100,
             # oracle_data=False,
@@ -51,7 +51,7 @@ if __name__ == "__main__":
             # dataset_path=None,
             # rl_offpolicy_num_training_steps=0,
         ),
-        td3_trainer_kwargs=dict(),
+        trainer_kwargs=dict(),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
             # fraction_goals_rollout_goals=0.1,
@@ -90,14 +90,15 @@ if __name__ == "__main__":
 
         wrap_mujoco_gym_to_multi_env=False,
         num_exps_per_instance=1,
+        region='us-west-2',
     )
 
     search_space = {
         # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
         'seedid': range(5),
         # 'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
-        # 'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.1, ],
-        # 'replay_buffer_kwargs.fraction_goals_env_goals': [0.5, ],
+        'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.1, ],
+        'replay_buffer_kwargs.fraction_goals_env_goals': [0.5, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -116,4 +117,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(her_td3_experiment, variants, run_id=0)
+    run_variants(her_td3_experiment, variants, run_id=12)

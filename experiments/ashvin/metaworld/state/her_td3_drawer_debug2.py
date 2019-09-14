@@ -1,10 +1,7 @@
 from railrl.launchers.experiments.ashvin.multiworld import her_td3_experiment
 import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
-    SawyerPushAndReachXYEnv
-)
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_nips import SawyerPushAndReachXYHarderEnv
+from metaworld.envs.mujoco.sawyer_xyz.sawyer_drawer_open_6dof import SawyerDrawerOpen6DOFEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 
@@ -42,7 +39,7 @@ if __name__ == "__main__":
             num_epochs=3000,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000,
+            num_trains_per_train_loop=4000,
             min_num_steps_before_training=1000,
             max_path_length=100,
             # oracle_data=False,
@@ -51,7 +48,7 @@ if __name__ == "__main__":
             # dataset_path=None,
             # rl_offpolicy_num_training_steps=0,
         ),
-        td3_trainer_kwargs=dict(),
+        trainer_kwargs=dict(),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
             # fraction_goals_rollout_goals=0.1,
@@ -80,24 +77,27 @@ if __name__ == "__main__":
         snapshot_mode='gap_and_last',
         snapshot_gap=50,
 
-        env_class=SawyerPushAndReachXYHarderEnv,
+        env_class=SawyerDrawerOpen6DOFEnv,
         env_kwargs=dict(
-            hide_goal=True,
-            reward_info=dict(
-                type="state_distance",
-            ),
+            random_init=True,
         ),
+        #     hide_goal=True,
+        #     reward_info=dict(
+        #         type="state_distance",
+        #     ),
+        # ),
 
         wrap_mujoco_gym_to_multi_env=False,
         num_exps_per_instance=1,
+        region='us-east-2',
     )
 
     search_space = {
         # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
         'seedid': range(5),
         # 'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
-        # 'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.1, ],
-        # 'replay_buffer_kwargs.fraction_goals_env_goals': [0.5, ],
+        'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.1, ],
+        'replay_buffer_kwargs.fraction_goals_env_goals': [0.5, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -116,4 +116,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(her_td3_experiment, variants, run_id=0)
+    run_variants(her_td3_experiment, variants, run_id=1)
