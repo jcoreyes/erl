@@ -140,13 +140,13 @@ if __name__ == "__main__":
                 x_values=(0, 1500),
                 y_values=(1, 50),
             ),
-            num_epochs=10,
+            num_epochs=1000,
             dump_skew_debug_plots=False,
             # decoder_activation='gaussian',
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=1020,
+                N=102000,
                 n_random_steps=51,
                 test_p=.9,
                 use_cached=False,
@@ -197,7 +197,7 @@ if __name__ == "__main__":
         ),
 
         slurm_variant=dict(
-            timeout_min=1 * 60,
+            timeout_min=48 * 60,
             cpus_per_task=10,
             gpus_per_node=1,
         ),

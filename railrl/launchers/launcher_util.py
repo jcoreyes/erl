@@ -145,8 +145,8 @@ def run_experiment(
         import doodad.mode
         import doodad.ssh
     except ImportError:
-        print("Doodad not set up! Running experiment here.")
-        mode = 'here_no_doodad'
+        print("Doodad not set up! Running experiment mode:", mode)
+        # mode = 'here_no_doodad'
     global ec2_okayed
     global gpu_ec2_okayed
     global target_mount

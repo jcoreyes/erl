@@ -66,15 +66,7 @@ if __name__ == "__main__":
                 lr=0,
             ),
             save_video_period=50,
-            qf_kwargs=dict(
-                hidden_sizes=[400, 300],
-            ),
-            policy_kwargs=dict(
-                hidden_sizes=[400, 300],
-            ),
-            vf_kwargs=dict(
-                hidden_sizes=[400, 300],
-            ),
+            hidden_sizes=[400, 300, 300, ],
             max_path_length=100,
             algo_kwargs=dict(
                 batch_size=128,
@@ -140,13 +132,13 @@ if __name__ == "__main__":
                 x_values=(0, 1500),
                 y_values=(1, 50),
             ),
-            num_epochs=10,
+            num_epochs=1000,
             dump_skew_debug_plots=False,
             # decoder_activation='gaussian',
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=1020,
+                N=102000,
                 n_random_steps=51,
                 test_p=.9,
                 use_cached=False,
@@ -197,7 +189,7 @@ if __name__ == "__main__":
         ),
 
         slurm_variant=dict(
-            timeout_min=1 * 60,
+            timeout_min=48 * 60,
             cpus_per_task=10,
             gpus_per_node=1,
         ),
