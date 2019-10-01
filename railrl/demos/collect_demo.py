@@ -29,6 +29,7 @@ import time
 
 
 import sys
+import pickle
 
 ### workaround to solve cv2 version conflicts (ROS adds Python2 version of cv2)
 # sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
@@ -247,7 +248,8 @@ def collect_demos_fixed(env, expert, path="demos.npy", N=10, **kwargs):
         else:
             print("discarded trajectory")
 
-    np.save(path, data)
+    # np.save(path, data)
+    pickle.dump(data, open(path, "wb"), protocol=2)
 
 if __name__ == '__main__':
     # device = SpaceMouse()

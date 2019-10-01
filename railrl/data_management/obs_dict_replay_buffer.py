@@ -170,9 +170,12 @@ class ObsDictReplayBuffer(ReplayBuffer):
                     i, self._top + path_len
                 )
         self._top = (self._top + path_len) % self.max_size
+        print("SIZES: %i, %i, %i"%(self._size, path_len, self.max_size))
         self._size = min(self._size + path_len, self.max_size)
 
     def _sample_indices(self, batch_size):
+        print(self._size)
+        print(batch_size)
         return np.random.randint(0, self._size, batch_size)
 
     def random_batch(self, batch_size):

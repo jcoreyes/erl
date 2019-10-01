@@ -51,7 +51,7 @@ class EncoderWrappedEnv(ProxyEnv):
         # self.reward_type = self.reward_params.get("type", 'latent_distance')
         self.zT = self.reward_params["goal_latent"]
         self.z0 = self.reward_params["initial_latent"]
-        self.dT = self.zT - self.z0
+        self.dT = self.zT #- self.z0
         self.vae_input_observation_key = vae_input_observation_key
 
         latent_space = Box(
@@ -98,7 +98,20 @@ class EncoderWrappedEnv(ProxyEnv):
     def _update_obs(self, obs):
         self.vae.eval()
         self.zt = self._encode_one(obs[self.vae_input_observation_key])
-        latent_obs = self.zt - self.z0
+        latent_obs = self.zt # - self.z0
+        obs['latent_observation'] = latent_obs
+        obs['latent_achieved_goal'] = np.array([])
+        obs['latent_desired_goal'] = np.array([])
+        obs['observation'] = latent_obs
+        obs['achieved_goal'] = np.array([])
+        obs['desired_goal'] = np.array([])
+        # obs = {**obs, **self.desired_goal}
+        return obs
+
+    def _update_obs_latent(self, obs, z):
+        self.vae.eval()
+        self.zt = z
+        latent_obs = self.zt # - self.z0
         obs['latent_observation'] = latent_obs
         obs['latent_achieved_goal'] = np.array([])
         obs['latent_desired_goal'] = np.array([])
@@ -136,9 +149,12 @@ class EncoderWrappedEnv(ProxyEnv):
 
         # import ipdb; ipdb.set_trace()
 
-        regression_pred_yt = (dt * dT).sum() / ((dT ** 2).sum() + eps)
-
-        return -np.abs(1-regression_pred_yt)
+        reward_type = self.reward_params.get("type", "regression_distance")
+        if reward_type == "regression_distance":
+            regression_pred_yt = (dt * dT).sum() / ((dT ** 2).sum() + eps)
+            return -np.abs(1-regression_pred_yt)
+        if reward_type == "latent_distance":
+            return -np.linalg.norm(dt - dT)
 
         # next_obs = {
         #     k: v[None] for k, v in obs.items()
@@ -190,12 +206,18 @@ class EncoderWrappedEnv(ProxyEnv):
         im = im[:, :, 60:300, 30:470]
         return self._encode(im)[0]
 
+    def _encode_batch(self, imgs):
+        im = imgs.reshape(-1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
+        im = im[:, :, 60:300, 30:470]
+        return self._encode(im)
+
     def _encode(self, imgs):
         self.vae.eval()
         pt_img = ptu.from_numpy(imgs).view(-1, 3, epic.CROP_HEIGHT, epic.CROP_WIDTH)
 
         # save_dir = osp.join(logger.get_snapshot_dir(), )
-        save_image(pt_img.data.cpu(), 'forward.png', nrow=1)
+        # save_image(pt_img.data.cpu(), 'forward.png', nrow=1)
+        # save_image(pt_img[:1, :, :, :].data.cpu(), 'forward.png', nrow=1)
 
         latent_distribution_params = self.vae.encode(pt_img)
         return ptu.get_numpy(latent_distribution_params)

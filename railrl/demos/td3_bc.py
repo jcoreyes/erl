@@ -19,6 +19,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
+from railrl.core import logger
 
 class TD3BCTrainer(TorchTrainer):
     """
@@ -46,6 +47,7 @@ class TD3BCTrainer(TorchTrainer):
             bc_batch_size=64,
             bc_weight=1.0,
             rl_weight=1.0,
+            q_num_pretrain_steps=0,
             weight_decay=0,
             eval_policy=None,
 
@@ -56,7 +58,8 @@ class TD3BCTrainer(TorchTrainer):
 
             policy_learning_rate=1e-3,
             qf_learning_rate=1e-3,
-            policy_and_target_update_period=2,
+            target_update_period=2,
+            policy_update_period=10,
             tau=0.005,
             qf_criterion=None,
             optimizer_class=optim.Adam,
@@ -74,7 +77,8 @@ class TD3BCTrainer(TorchTrainer):
         self.target_policy_noise = target_policy_noise
         self.target_policy_noise_clip = target_policy_noise_clip
 
-        self.policy_and_target_update_period = policy_and_target_update_period
+        self.target_update_period = target_update_period
+        self.policy_update_period = policy_update_period
         self.tau = tau
         self.qf_criterion = qf_criterion
 
@@ -116,6 +120,7 @@ class TD3BCTrainer(TorchTrainer):
         self._need_to_update_eval_statistics = True
 
         self.bc_num_pretrain_steps = bc_num_pretrain_steps
+        self.q_num_pretrain_steps = q_num_pretrain_steps
         self.demo_trajectory_rewards = []
 
     def _update_obs_with_latent(self, obs):
@@ -130,6 +135,10 @@ class TD3BCTrainer(TorchTrainer):
         return obs
 
     def load_path(self, path, replay_buffer):
+        # print("Loading path: ", path)
+        # print("Path len", len(path))
+        # print("Path observations: ", type(path), type(path[0]), print(path[0].keys()))
+        path = path[0]
         final_achieved_goal = path["observations"][-1]["state_achieved_goal"].copy()
         rewards = []
         path_builder = PathBuilder()
@@ -188,8 +197,16 @@ class TD3BCTrainer(TorchTrainer):
         replay_buffer.add_path(path)
 
     def load_demos(self, ):
-        data = load_local_or_remote_file(self.demo_path)
-        random.shuffle(data)
+        if type(self.demo_path) is list:
+            for demo_path in self.demo_path:
+                self.load_demo_path(demo_path)
+        else:
+            self.load_demo_path(self.demo_path)
+
+    def load_demo_path(self, demo_path):
+        data = load_local_or_remote_file(demo_path)
+        print("Data len %i" %len(data))
+        # random.shuffle(data)
         N = int(len(data) * self.demo_train_split)
         print("using", N, "paths for training")
 
@@ -249,9 +266,33 @@ class TD3BCTrainer(TorchTrainer):
 
             train_loss_mean = np.mean(ptu.get_numpy(train_bc_loss))
             test_loss_mean = np.mean(ptu.get_numpy(test_bc_loss))
-            print("BC: train %f test %f" % (train_loss_mean, test_loss_mean))
+
+            stats = {
+                "pretrain_bc/train_loss_mean": train_loss_mean,
+                "pretrain_bc/test_loss_mean": test_loss_mean,
+            }
+            logger.record_dict(stats)
+            logger.dump_tabular(with_prefix=True, with_timestamp=False)
+
+
+    def pretrain_q_with_bc_data(self):
+        logger.push_tabular_prefix("pretrain_q/")
+        for i in range(self.q_num_pretrain_steps):
+            # self.eval_statistics = dict()
+            # self._need_to_update_eval_statistics = True
+
+            train_data = self.replay_buffer.random_batch(128)
+            self.train(train_data)
+
+            # logger.record_dict(self.eval_statistics)
+            # logger.dump_tabular(with_prefix=True, with_timestamp=False)
+        logger.pop_tabular_prefix()
 
     def train_from_torch(self, batch):
+        logger.push_tabular_prefix("train_q/")
+        self.eval_statistics = dict()
+        self._need_to_update_eval_statistics = True
+
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -293,7 +334,7 @@ class TD3BCTrainer(TorchTrainer):
         self.qf2_optimizer.step()
 
         policy_actions = policy_loss = None
-        if self._n_train_steps_total % self.policy_and_target_update_period == 0:
+        if self._n_train_steps_total % self.policy_update_period == 0:
             policy_actions = self.policy(obs)
             q_output = self.qf1(obs, policy_actions)
 
@@ -310,6 +351,15 @@ class TD3BCTrainer(TorchTrainer):
             policy_loss.backward()
             self.policy_optimizer.step()
 
+
+            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
+                policy_loss
+            ))
+            self.eval_statistics['BC Loss'] = np.mean(ptu.get_numpy(
+                train_bc_loss
+            ))
+
+        if self._n_train_steps_total % self.target_update_period == 0:
             ptu.soft_update_from_to(self.policy, self.target_policy, self.tau)
             ptu.soft_update_from_to(self.qf1, self.target_qf1, self.tau)
             ptu.soft_update_from_to(self.qf2, self.target_qf2, self.tau)
@@ -323,12 +373,6 @@ class TD3BCTrainer(TorchTrainer):
 
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
-            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
-                policy_loss
-            ))
-            self.eval_statistics['BC Loss'] = np.mean(ptu.get_numpy(
-                train_bc_loss
-            ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q1 Predictions',
                 ptu.get_numpy(q1_pred),
@@ -364,6 +408,10 @@ class TD3BCTrainer(TorchTrainer):
                 test_bc_loss
             ))
         self._n_train_steps_total += 1
+
+        logger.record_dict(self.eval_statistics)
+        logger.dump_tabular(with_prefix=True, with_timestamp=False)
+        logger.pop_tabular_prefix()
 
     def get_diagnostics(self):
         stats = super().get_diagnostics()

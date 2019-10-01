@@ -90,6 +90,10 @@ if __name__ == "__main__":
         ),
         desired_trajectory="demo_v4.npy",
         snapshot_mode="all",
+        
+        logger_variant=dict(
+            tensorboard=True,
+        ),
     )
 
     search_space = {
@@ -103,4 +107,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=0)
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=1)

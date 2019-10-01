@@ -64,7 +64,7 @@ if __name__ == "__main__":
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path="/home/lerrel/ros_ws/src/railrl-private/demo_v2_2_processed.npy",
+            demo_path="/home/anair/ros_ws/src/railrl-private/demo_v2_2_processed.npy",
             add_demo_latents=False, # already done
             bc_num_pretrain_steps=100,
             rl_weight=0.0,

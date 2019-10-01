@@ -1,1 +1,1 @@
-HOSTNAME = "192.168.0.100"
+HOSTNAME = "euler1.banatao.berkeley.edu"

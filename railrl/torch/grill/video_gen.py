@@ -20,6 +20,7 @@ import numpy as np
 import time
 
 import scipy.misc
+import pickle
 
 from multiworld.core.image_env import ImageEnv
 from railrl.core import logger
@@ -272,3 +273,5 @@ def dump_paths(
     skvideo.io.vwrite(filename, outputdata)
     print("Saved video to ", filename)
 
+    pickle_filename = filename[:-4] + ".p"
+    pickle.dump(paths, open(pickle_filename, "wb"))

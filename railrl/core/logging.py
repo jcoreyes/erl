@@ -194,7 +194,7 @@ class Logger(object):
     def record_tabular(self, key, val):
         self._tabular.append((self._tabular_prefix_str + str(key), str(val)))
         if self._use_tensorboard:
-            self.tensorboard_logger.log_value(key, val, self.epoch)
+            self.tensorboard_logger.log_value(self._tabular_prefix_str + str(key), val, self.epoch)
 
     def record_dict(self, d, prefix=None):
         if prefix is not None:
