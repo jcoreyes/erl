@@ -110,4 +110,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=6)
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=17)

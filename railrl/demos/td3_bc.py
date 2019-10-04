@@ -39,6 +39,7 @@ class TD3BCTrainer(TorchTrainer):
             replay_buffer,
             demo_train_buffer,
             demo_test_buffer,
+            demo_off_policy_path=[],
             apply_her_to_demos=False,
             add_demo_latents=False,
             demo_train_split=0.9,
@@ -114,6 +115,7 @@ class TD3BCTrainer(TorchTrainer):
         self.apply_her_to_demos = apply_her_to_demos
 
         self.demo_path = demo_path
+        self.demo_off_policy_path = demo_off_policy_path
 
         self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
@@ -138,6 +140,7 @@ class TD3BCTrainer(TorchTrainer):
         # print("Loading path: ", path)
         # print("Path len", len(path))
         # print("Path observations: ", type(path), type(path[0]), print(path[0].keys()))
+        # import ipdb; ipdb.set_trace()
         path = path[0]
         final_achieved_goal = path["observations"][-1]["state_achieved_goal"].copy()
         rewards = []
@@ -182,7 +185,7 @@ class TD3BCTrainer(TorchTrainer):
 
             reward = np.array([reward])
             rewards.append(reward)
-            terminal = np.array([terminal])
+            terminal = np.array([terminal]).reshape((1, ))
             path_builder.add_all(
                 observations=ob,
                 actions=action,
@@ -197,21 +200,34 @@ class TD3BCTrainer(TorchTrainer):
         replay_buffer.add_path(path)
 
     def load_demos(self, ):
+        # Off policy
+        if type(self.demo_off_policy_path) is list:
+            for demo_path in self.demo_off_policy_path:
+                self.load_demo_path(demo_path, False)
+        else:
+            self.load_demo_path(self.demo_off_policy_path, False)
+        
+        # On policy
         if type(self.demo_path) is list:
             for demo_path in self.demo_path:
                 self.load_demo_path(demo_path)
         else:
             self.load_demo_path(self.demo_path)
 
-    def load_demo_path(self, demo_path):
-        data = load_local_or_remote_file(demo_path)
-        print("Data len %i" %len(data))
+
+    # If on_policy is False, we only add the demos to the
+    # replay buffer, and not to the demo_test or demo_train buffers
+    def load_demo_path(self, demo_path, on_policy=True):
+        data = list(load_local_or_remote_file(demo_path))
+        if not on_policy:
+            data = [data]
         # random.shuffle(data)
         N = int(len(data) * self.demo_train_split)
         print("using", N, "paths for training")
 
-        for path in data[:N]:
-            self.load_path(path, self.demo_train_buffer)
+        if on_policy:
+            for path in data[:N]:
+                self.load_path(path, self.demo_train_buffer)
 
         plt.figure(figsize=(8, 8))
         for r in self.demo_trajectory_rewards:
@@ -222,8 +238,9 @@ class TD3BCTrainer(TorchTrainer):
             for path in data[:N]:
                 self.load_path(path, self.replay_buffer)
 
-        for path in data[N:]:
-            self.load_path(path, self.demo_test_buffer)
+        if on_policy:
+            for path in data[N:]:
+                self.load_path(path, self.demo_test_buffer)
 
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)

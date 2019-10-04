@@ -33,10 +33,13 @@ class EncoderWrappedEnv(ProxyEnv):
         wrapped_env,
         vae,
         reward_params=None,
+        config_params=None,
         imsize=84,
         obs_size=None,
         vae_input_observation_key="image_observation",
     ):
+        if config_params is None:
+            config_params = dict
         if reward_params is None:
             reward_params = dict()
         super().__init__(wrapped_env)
@@ -47,11 +50,17 @@ class EncoderWrappedEnv(ProxyEnv):
         self.representation_size = self.vae.representation_size
         self.input_channels = self.vae.input_channels
         self.imsize = imsize
+        self.config_params = config_params
         self.reward_params = reward_params
         # self.reward_type = self.reward_params.get("type", 'latent_distance')
         self.zT = self.reward_params["goal_latent"]
         self.z0 = self.reward_params["initial_latent"]
-        self.dT = self.zT #- self.z0
+        self.dT = self.zT - self.z0
+        if self.config_params["use_initial"]:
+            self.dT = self.zT - self.z0
+        else:
+            self.dT = self.zT
+
         self.vae_input_observation_key = vae_input_observation_key
 
         latent_space = Box(
@@ -72,15 +81,40 @@ class EncoderWrappedEnv(ProxyEnv):
         spaces['latent_desired_goal'] = goal_space
         spaces['latent_achieved_goal'] = goal_space
         self.observation_space = Dict(spaces)
+        # Consider calling reset in init
 
     def reset(self):
         self.vae.eval()
         obs = self.wrapped_env.reset()
+        # start_rollout(obs)
         self.x0 = obs["image_observation"]
+        x0 = self.x0.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
+        x0 = x0[:, :, 60:300, 30:470]
+        pt_img = ptu.from_numpy(self.x0)
+
+        # save_dir = osp.join(logger.get_snapshot_dir(), )
+        save_image(pt_img.data.cpu(), 'x0_image.png', nrow=1)
+        # save_image(pt_img[:1, :, :, :].data.cpu(), 'forward.png', nrow=1)
         goal = self.sample_goal()
         self.set_goal(goal)
         obs = self._update_obs(obs)
+        self.z0 = obs["latent_observation"]
+        if self.config_params["use_initial"]:
+            self.dT = self.zT - self.z0
+        else:
+            self.dT = self.zT
         return obs
+
+    def initialize(self, zs):
+        if self.config_params["initial_type"] == "use_initial_from_trajectory":
+            self.z0 = zs[0]
+        if self.config_params["goal_type"] == "use_goal_from_trajectory":
+            self.zT = zs[-1]
+
+        if self.config_params["use_initial"]:
+            self.dT = self.zT - self.z0
+        else:
+            self.dT = self.zT
 
     def step(self, action):
         self.vae.eval()
@@ -98,7 +132,10 @@ class EncoderWrappedEnv(ProxyEnv):
     def _update_obs(self, obs):
         self.vae.eval()
         self.zt = self._encode_one(obs[self.vae_input_observation_key])
-        latent_obs = self.zt # - self.z0
+        if self.config_params["use_initial"]:
+            latent_obs = self.zt - self.z0
+        else:
+            latent_obs = self.zt
         obs['latent_observation'] = latent_obs
         obs['latent_achieved_goal'] = np.array([])
         obs['latent_desired_goal'] = np.array([])
@@ -111,7 +148,10 @@ class EncoderWrappedEnv(ProxyEnv):
     def _update_obs_latent(self, obs, z):
         self.vae.eval()
         self.zt = z
-        latent_obs = self.zt # - self.z0
+        if self.config_params["use_initial"]:
+            latent_obs = self.zt - self.z0
+        else:
+            latent_obs = self.zt
         obs['latent_observation'] = latent_obs
         obs['latent_achieved_goal'] = np.array([])
         obs['latent_desired_goal'] = np.array([])

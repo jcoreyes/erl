@@ -80,7 +80,16 @@ def encoder_wrapped_td3bc_experiment(variant):
     reward_params = dict(
         goal_latent=goal_latent,
         initial_latent=initial_latent,
+        type="latent_distance",
     )
+    config_params = dict(
+        initial_type="use_initial_from_trajectory",
+        # initial_type="use_initial_from_trajectory",
+        # goal_type="use_goal_from_trajectory",
+        goal_type="",
+        use_initial=True
+    )
+
 
     env = variant['env_class'](**variant['env_kwargs'])
     env = ImageEnv(env,
@@ -90,7 +99,7 @@ def encoder_wrapped_td3bc_experiment(variant):
         reward_type="image_distance",
         # init_camera=sawyer_pusher_camera_upright_v2,
     )
-    env = EncoderWrappedEnv(env, model, reward_params)
+    env = EncoderWrappedEnv(env, model, reward_params, config_params)
 
     expl_env = env # variant['env_class'](**variant['env_kwargs'])
     eval_env = env # variant['env_class'](**variant['env_kwargs'])

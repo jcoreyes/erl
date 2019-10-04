@@ -28,7 +28,8 @@ from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_rl import encoder_w
 
 if __name__ == "__main__":
     demo_path = ["/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_jitter2.pkl" % color for color in ["grey", "beige", "green", "brownhatch"]]
-
+    demo_off_policy_path = ["/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/bc-v3-varied1/run%s/id0/video_0_env.p" % str(i) for i in [0, 1]]
+    print(demo_off_policy_path)
     variant = dict(
         env_class=SawyerReachXYZEnv,
         env_kwargs=dict(
@@ -67,11 +68,13 @@ if __name__ == "__main__":
         trainer_kwargs=dict(
             discount=0.99,
             demo_path=demo_path,
+            demo_off_policy_path=demo_off_policy_path,
             # demo_path="/home/anair/ros_ws/src/railrl-private/demos/door_demos_10_2/processed_demos_imagenet.pkl",
             add_demo_latents=False, # already done
             bc_num_pretrain_steps=10000,
             q_num_pretrain_steps=10000,
-            rl_weight=100.0,
+            # rl_weight=100.0,
+            rl_weight=.0,
             bc_weight=1.0,
             reward_scale=0.0001,
             weight_decay=0.001,
@@ -93,7 +96,7 @@ if __name__ == "__main__":
             save_period=1,
             # imsize=(3, 500, 300),
         ),
-        desired_trajectory="/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/demo_v3_beige_0.pkl",
+        desired_trajectory="/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/demo_v3_grey_0.pkl",
 
         logger_variant=dict(
             tensorboard=True,
@@ -112,4 +115,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=6)
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=11)
