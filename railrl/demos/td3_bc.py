@@ -355,26 +355,29 @@ class TD3BCTrainer(TorchTrainer):
             policy_actions = self.policy(obs)
             q_output = self.qf1(obs, policy_actions)
 
-            train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
-            train_o = train_batch["observations"]
-            train_u = train_batch["actions"]
-            train_pred_u = self.policy(train_o)
-            train_error = (train_pred_u - train_u) ** 2
-            train_bc_loss = train_error.mean()
+            if self.demo_train_buffer._size >= self.bc_batch_size:
+                train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
+                train_o = train_batch["observations"]
+                train_u = train_batch["actions"]
+                train_pred_u = self.policy(train_o)
+                train_error = (train_pred_u - train_u) ** 2
+                train_bc_loss = train_error.mean()
 
-            policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
+                policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
+                self.eval_statistics['BC Loss'] = np.mean(ptu.get_numpy(
+                    train_bc_loss
+                ))
+            else:
+                policy_loss = - self.rl_weight * q_output.mean()
 
             self.policy_optimizer.zero_grad()
             policy_loss.backward()
             self.policy_optimizer.step()
 
-
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
-            self.eval_statistics['BC Loss'] = np.mean(ptu.get_numpy(
-                train_bc_loss
-            ))
+
 
         if self._n_train_steps_total % self.target_update_period == 0:
             ptu.soft_update_from_to(self.policy, self.target_policy, self.tau)
@@ -415,15 +418,16 @@ class TD3BCTrainer(TorchTrainer):
                 ptu.get_numpy(policy_actions),
             ))
 
-            test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
-            test_o = test_batch["observations"]
-            test_u = test_batch["actions"]
-            test_pred_u = self.policy(test_o)
-            test_error = (test_pred_u - test_u) ** 2
-            test_bc_loss = test_error.mean()
-            self.eval_statistics['Test BC Loss'] = np.mean(ptu.get_numpy(
-                test_bc_loss
-            ))
+            if self.demo_test_buffer._size >= self.bc_batch_size:
+                test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
+                test_o = test_batch["observations"]
+                test_u = test_batch["actions"]
+                test_pred_u = self.policy(test_o)
+                test_error = (test_pred_u - test_u) ** 2
+                test_bc_loss = test_error.mean()
+                self.eval_statistics['Test BC Loss'] = np.mean(ptu.get_numpy(
+                    test_bc_loss
+                ))
         self._n_train_steps_total += 1
 
         logger.record_dict(self.eval_statistics)
