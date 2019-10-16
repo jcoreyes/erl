@@ -1,4 +1,3 @@
-import gym
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
 from railrl.exploration_strategies.base import \
@@ -15,6 +14,9 @@ from railrl.torch.grill.video_gen import VideoSaveFunction
 
 def state_td3bc_experiment(variant):
     if variant.get('env_id', None):
+        import gym
+        import multiworld
+        multiworld.register_all_envs()
         env = gym.make(variant['env_id'])
     else:
         env = variant['env_class'](**variant['env_kwargs'])
@@ -134,7 +136,7 @@ def state_td3bc_experiment(variant):
 
     algorithm.to(ptu.device)
 
-    td3bc_trainer.load_demos()
+    # td3bc_trainer.load_demos()
     # td3bc_trainer.pretrain_policy_with_bc()
     # td3bc_trainer.pretrain_q_with_bc_data()
 
