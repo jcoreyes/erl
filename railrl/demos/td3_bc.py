@@ -15,9 +15,9 @@ import random
 from railrl.torch.core import PyTorchModule, np_to_pytorch_batch
 from railrl.data_management.path_builder import PathBuilder
 
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
+# import matplotlib
+# matplotlib.use('TkAgg')
+# import matplotlib.pyplot as plt
 
 from railrl.core import logger
 
@@ -229,10 +229,10 @@ class TD3BCTrainer(TorchTrainer):
             for path in data[:N]:
                 self.load_path(path, self.demo_train_buffer)
 
-        plt.figure(figsize=(8, 8))
-        for r in self.demo_trajectory_rewards:
-            plt.plot(r)
-        plt.savefig("demo_rewards.png")
+        # plt.figure(figsize=(8, 8))
+        # for r in self.demo_trajectory_rewards:
+            # plt.plot(r)
+        # plt.savefig("demo_rewards.png")
 
         if self.add_demos_to_replay_buffer:
             for path in data[:N]:

@@ -52,15 +52,15 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'dev-{}'.format(
-        __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    )
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'dev-{}'.format(
+        # __file__.replace('/', '-').replace('_', '-').split('.')[0]
+    # )
 
-    # n_seeds = 3
-    # mode = 'gcp'
-    # exp_prefix = 'skew-fit-door-reference-post-refactor'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'test_td3_door_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -69,13 +69,5 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                use_gpu=True,
                 num_exps_per_instance=3,
-                gcp_kwargs=dict(
-                    zone='us-east1-c',
-                    gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-k80',
-                        num_gpu=1,
-                    )
-                ),
             )
