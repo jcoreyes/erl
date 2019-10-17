@@ -33,12 +33,14 @@ class SpaceMouseExpert:
         self.xyz_remap = np.array(xyz_remap)
         self.xyz_scale = np.array(xyz_scale)
         self.thread = Thread(target = start_server)
+        self.thread.daemon = True
         self.thread.start()
         self.device_state = DeviceState()
 
     def get_action(self, obs):
         """Must return (action, valid, reset, accept)"""
         state = self.device_state.get_state()
+        print(state)
         if state is None:
             return None, False, False, False
 

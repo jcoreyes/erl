@@ -9,7 +9,7 @@ from PIL import Image
 from collections import deque
 import mujoco_py
 import torch
-import cv2
+# import cv2
 
 
 class ProxyEnv(Env):

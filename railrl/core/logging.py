@@ -129,6 +129,12 @@ class Logger(object):
         self._add_output(file_name, self._text_outputs, self._text_fds,
                          mode='a')
 
+    def add_tensorboard_output(self, file_name):
+        import tensorboard_logger
+        self._use_tensorboard = True
+        self.tensorboard_logger = tensorboard_logger
+        self.tensorboard_logger.configure(file_name)
+
     def remove_text_output(self, file_name):
         self._remove_output(file_name, self._text_outputs, self._text_fds)
 
@@ -194,7 +200,7 @@ class Logger(object):
     def record_tabular(self, key, val):
         self._tabular.append((self._tabular_prefix_str + str(key), str(val)))
         if self._use_tensorboard:
-            self.tensorboard_logger.log_value(key, val, self.epoch)
+            self.tensorboard_logger.log_value(self._tabular_prefix_str + str(key), val, self.epoch)
 
     def record_dict(self, d, prefix=None):
         if prefix is not None:
