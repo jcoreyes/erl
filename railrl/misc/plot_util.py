@@ -34,7 +34,7 @@ def load_exps(dirnames, filter_fn=true_fn, suppress_output=False, progress_filen
         if progress_filename == "progress.csv":
             return core.load_exps_data(dirnames)
         else:
-            return core.load_exps_data(dirnames, progress_filename=progress_filename)
+            return core.load_exps_data(dirnames, data_filename=progress_filename)
 
     if suppress_output:
         with suppress_stdout():
@@ -155,6 +155,8 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                         k_new = remap_keys[k]
                         vals.append(d[k_new])
                     else:
+                        print("not found key", k)
+                        print(d.keys())
                         error_key_not_found_in_logs
                 y = reduce_op(vals)
             else:

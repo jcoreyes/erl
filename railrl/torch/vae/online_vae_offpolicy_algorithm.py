@@ -90,10 +90,10 @@ class OnlineVaeOffpolicyAlgorithm(TorchBatchRLAlgorithm):
             latent_delta = latents - goal
             distances = np.zeros((H - 1, 1))
             for i in range(H - 1):
-                distances[i, 0] = np.linalg.norm(latent_delta[i, :])
+                distances[i, 0] = np.linalg.norm(latent_delta[i+1, :])
 
             terminals = np.zeros((H - 1, 1))
-            terminals[-1, 0] = 1
+            # terminals[-1, 0] = 1
             path = dict(
                 observations=[],
                 actions=actions[n, :H-1, :],

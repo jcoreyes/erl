@@ -115,17 +115,17 @@ def dump_video(
     N = rows * columns
     for i in range(N):
         start = time.time()
-        # path = rollout_function(
-        #     env,
-        #     policy,
-        #     max_path_length=horizon,
-        #     render=False,
-        # )
         path = rollout_function(
-            horizon,
-            horizon,
-            discard_incomplete_paths=True,
-        )[0]
+            env,
+            policy,
+            max_path_length=horizon,
+            render=False,
+        )
+        # path = rollout_function(
+        #     horizon,
+        #     horizon,
+            # discard_incomplete_paths=True,
+        # )[0]
         is_vae_env = isinstance(env, VAEWrappedEnv)
         is_conditional_vae_env = isinstance(env, ConditionalVAEWrappedEnv)
 
@@ -139,8 +139,8 @@ def dump_video(
             else:
                 recon = d['image_observation']
             l.append(
-                get_image(
-                    [d['decoded_goal_image'], # d['image_desired_goal'],
+                get_image([
+                    d['image_desired_goal'], # d['decoded_goal_image'], # d['image_desired_goal'],
                     d['image_observation'],
                     recon, ], 
                     pad_length=pad_length,
