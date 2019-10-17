@@ -47,6 +47,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             exploration_counter_kwargs=None,
             relabeling_goal_sampling_mode='vae_prior',
             decode_vae_goals=False,
+            save_decoded_to_internal_keys=True,
             **kwargs
     ):
         if internal_keys is None:
@@ -57,8 +58,9 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
             decoded_achieved_goal_key,
             decoded_desired_goal_key
         ]:
-            if key not in internal_keys:
+            if save_decoded_to_internal_keys and key not in internal_keys:
                 internal_keys.append(key)
+
         super().__init__(internal_keys=internal_keys, *args, **kwargs)
         # assert isinstance(self.env, VAEWrappedEnv)
         self.vae = vae

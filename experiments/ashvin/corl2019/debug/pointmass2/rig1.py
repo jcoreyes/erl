@@ -8,7 +8,7 @@ from railrl.launchers.arglauncher import run_variants
 from railrl.torch.grill.cvae_experiments import (
     grill_her_td3_offpolicy_online_vae_full_experiment,
 )
-from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
+from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DWallEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 from railrl.torch.vae.conditional_conv_vae import DeltaCVAE
 from railrl.torch.vae.conditional_vae_trainer import DeltaCVAETrainer
@@ -28,35 +28,18 @@ if __name__ == "__main__":
         online_vae_exploration=False,
         imsize=48,
         init_camera=sawyer_init_camera_zoomed_in,
-        env_class=SawyerMultiobjectEnv,
+        
+        env_class=Multiobj2DWallEnv,
         env_kwargs=dict(
-            num_objects=10,
-            object_meshes=None,
-            fixed_start=True,
-            num_scene_objects=[1],
-            maxlen=0.1,
-            action_repeat=1,
-            puck_goal_low=(x_low + 0.01, y_low + 0.01),
-            puck_goal_high=(x_high - 0.01, y_high - 0.01),
-            hand_goal_low=(x_low + 3*t, y_low + t),
-            hand_goal_high=(x_high - 3*t, y_high -t),
-            mocap_low=(x_low + 2*t, y_low , 0.0),
-            mocap_high=(x_high - 2*t, y_high, 0.5),
-            object_low=(x_low + 0.01, y_low + 0.01, 0.02),
-            object_high=(x_high - 0.01, y_high - 0.01, 0.02),
-            preload_obj_dict=[
-                dict(color2=(1, 0, 0)),
-                dict(color2=(0, 1, 0)),
-                dict(color2=(0, 0, 1)),
-                dict(color2=(1, .4, .7)),
-                dict(color2=(0, .4, .8)),
-                dict(color2=(.8, .8, 0)),
-                dict(color2=(1, .5, 0)),
-                dict(color2=(.4, 0, .4)),
-                dict(color2=(.4, .2, 0)),
-                dict(color2=(0, .4, .4)),
-            ],
-        ),
+           render_onscreen=False,
+           ball_radius=1.2,
+           wall_thickness=1.5,
+           inner_wall_max_dist=1.5,
+           images_are_rgb=True,
+           show_goal=False,
+           change_colors=True,
+           change_walls=True,
+       ),
 
         grill_variant=dict(
             save_video=True,
@@ -78,7 +61,7 @@ if __name__ == "__main__":
             max_path_length=100,
             algo_kwargs=dict(
                 batch_size=128,
-                num_epochs=3000,
+                num_epochs=1000,
                 num_eval_steps_per_epoch=1000,
                 num_expl_steps_per_train_loop=1000,
                 num_trains_per_train_loop=1000,
@@ -134,19 +117,18 @@ if __name__ == "__main__":
             # vae_path="datasets/pusher_color_spectrum/itr_1900.pkl",
         ),
         train_vae_variant=dict(
-            latent_sizes=4,
             beta=10,
             beta_schedule_kwargs=dict(
                 x_values=(0, 1500),
                 y_values=(1, 50),
             ),
-            num_epochs=10,
+            num_epochs=1000,
             dump_skew_debug_plots=False,
             # decoder_activation='gaussian',
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=1020,
+                N=102000,
                 n_random_steps=51,
                 test_p=.9,
                 use_cached=False,
@@ -161,8 +143,8 @@ if __name__ == "__main__":
                 enviorment_dataset=False,
                 tag="ccrig1",
             ),
-            vae_trainer_class=DeltaCVAETrainer,
-            vae_class=DeltaCVAE,
+            # vae_trainer_class=DeltaCVAETrainer,
+            # vae_class=DeltaCVAE,
             vae_kwargs=dict(
                 input_channels=3,
                 architecture=imsize48_default_architecture_with_more_hidden_layers,
@@ -197,7 +179,7 @@ if __name__ == "__main__":
         ),
 
         slurm_variant=dict(
-            timeout_min=1 * 60,
+            timeout_min=48 * 60,
             cpus_per_task=10,
             gpus_per_node=1,
         ),
@@ -206,8 +188,9 @@ if __name__ == "__main__":
     search_space = {
         'seedid': range(5),
         'grill_variant.exploration_noise': [0.2, ],
-        'train_vae_variant.latent_sizes': [(8, 8),], #(3 * objects, 3 * colors)
+        'train_vae_variant.representation_size': [8,], #(3 * objects, 3 * colors)
         'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000, ],
+        'grill_variant.algo_kwargs.batch_size': [128, ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -217,4 +200,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=2)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=0)
