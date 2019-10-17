@@ -2,8 +2,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.gaussian_and_epislon import \
-    GaussianAndEpislonStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
@@ -27,11 +26,10 @@ def state_td3bc_experiment(variant):
     observation_key = 'state_observation'
     desired_goal_key = 'state_desired_goal'
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
-    es = GaussianAndEpislonStrategy(
+    es = OUStrategy(
         action_space=expl_env.action_space,
-        max_sigma=.2,
-        min_sigma=.2,  # constant sigma
-        epsilon=.3,
+        max_sigma=variant['exploration_noise'],
+        min_sigma=variant['exploration_noise'],
     )
     obs_dim = expl_env.observation_space.spaces['observation'].low.size
     goal_dim = expl_env.observation_space.spaces['desired_goal'].low.size

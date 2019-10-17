@@ -14,10 +14,10 @@ if __name__ == "__main__":
             num_epochs=200,
             max_path_length=100,
             batch_size=128,
-            num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=500,
+            num_eval_steps_per_epoch=500,
+            num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
-            min_num_steps_before_training=1000,
+            min_num_steps_before_training=10000,
         ),
         trainer_kwargs=dict(
             discount=0.99,
@@ -43,6 +43,7 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
         save_video=False,
+        exploration_noise=.2,
     )
 
     search_space = {
