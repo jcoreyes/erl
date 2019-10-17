@@ -64,7 +64,7 @@ def encoder_wrapped_td3bc_experiment(variant):
     goal_image = traj["observations"][-1]["image_observation"]
     goal_image = goal_image.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
     # goal_image = goal_image[:, ::-1, :, :].copy() # flip bgr
-    goal_image = goal_image[:, :, 60:300, 30:470]
+    goal_image = goal_image[:, :, :240, 60:500]
     goal_image_pt = ptu.from_numpy(goal_image)
     save_image(goal_image_pt.data.cpu(), 'goal.png', nrow=1)
     goal_latent = model.encode(goal_image_pt).detach().cpu().numpy().flatten()
@@ -72,15 +72,19 @@ def encoder_wrapped_td3bc_experiment(variant):
     initial_image = traj["observations"][0]["image_observation"]
     initial_image = initial_image.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
     # initial_image = initial_image[:, ::-1, :, :].copy() # flip bgr
-    initial_image = initial_image[:, :, 60:300, 30:470]
+    initial_image = initial_image[:, :, :240, 60:500]
     initial_image_pt = ptu.from_numpy(initial_image)
     save_image(initial_image_pt.data.cpu(), 'initial.png', nrow=1)
     initial_latent = model.encode(initial_image_pt).detach().cpu().numpy().flatten()
 
+    # Move these to td3_bc and bc_v3 (or at least type for reward_params)
     reward_params = dict(
         goal_latent=goal_latent,
         initial_latent=initial_latent,
+        type=variant.get("reward_params_type"),
     )
+
+    config_params = variant.get("config_params")
 
     env = variant['env_class'](**variant['env_kwargs'])
     env = ImageEnv(env,
@@ -90,7 +94,7 @@ def encoder_wrapped_td3bc_experiment(variant):
         reward_type="image_distance",
         # init_camera=sawyer_pusher_camera_upright_v2,
     )
-    env = EncoderWrappedEnv(env, model, reward_params)
+    env = EncoderWrappedEnv(env, model, reward_params, config_params)
 
     expl_env = env # variant['env_class'](**variant['env_kwargs'])
     eval_env = env # variant['env_class'](**variant['env_kwargs'])

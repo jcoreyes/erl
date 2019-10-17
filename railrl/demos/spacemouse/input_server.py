@@ -40,6 +40,7 @@ class SpaceMouseExpert:
     def get_action(self, obs):
         """Must return (action, valid, reset, accept)"""
         state = self.device_state.get_state()
+        print(state)
         if state is None:
             return None, False, False, False
 

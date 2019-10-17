@@ -30,4 +30,6 @@ railrl/demos/spacemouse/config.py
 *.img
 MANIFEST
 *.egg-info
+demos/
+reset.p
 gitignore/

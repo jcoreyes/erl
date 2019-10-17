@@ -1,4 +1,9 @@
 import numpy as np
+
+import sys
+# print(sys.path)
+sys.path.remove("/opt/ros/kinetic/lib/python2.7/dist-packages")
+
 import cv2
 import sys
 import pickle
@@ -11,7 +16,7 @@ def play_demos(path):
         obs = traj["observations"]
 
         for o in obs:
-            img = o["image_observation"].reshape(3, 500, 300).transpose()
+            img = o["image_observation"].reshape(3, 500, 300)[:, 60:, :240].transpose()
             img = img[:, :, ::-1]
             cv2.imshow('window', img)
             cv2.waitKey(100)

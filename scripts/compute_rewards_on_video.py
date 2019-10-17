@@ -39,12 +39,16 @@ from PIL import Image
 import torchvision.transforms.functional as TF
 import random
 
+import skvideo.io
+
 RANDOM_CROP_X = 16
 RANDOM_CROP_Y = 16
 WIDTH = 456
 HEIGHT = 256
 CROP_WIDTH = WIDTH - RANDOM_CROP_X
 CROP_HEIGHT = HEIGHT - RANDOM_CROP_Y
+
+eps = 1e-5
 
 t_to_pil = torchvision.transforms.ToPILImage()
 t_random_resize = torchvision.transforms.RandomResizedCrop(
@@ -80,112 +84,97 @@ def get_random_crop_params(img, scale_x, scale_y):
     
     return i, j, h, w
 
-def load_path(path, reference_path):
-    goal_image_transformed = None
-    final_achieved_goal = path["observations"][-1]["state_achieved_goal"].copy()
+def load_path(data, demo_path):
+    H = len(data)
+    print("loading video, size", data.shape)
 
-    print("loading path, length", len(path["observations"]), len(path["actions"]))
-    H = min(len(path["observations"]), len(path["actions"]))
     rewards = []
 
     # import ipdb; ipdb.set_trace()
 
     t_color_jitter_instance = None
 
-    num_obs = len(path["observations"])
-    obs_batch = np.zeros((num_obs, 240, 440, 3))
-    for idx in range(num_obs):
-        ob = path["observations"][idx][env.vae_input_observation_key].reshape(3, 500, 300).transpose()
-        img = Image.fromarray(ob, 'RGB')
-
-        if t_color_jitter_instance is None:
-            i, j, h, w = get_random_crop_params(
-                img, 
-                t_random_resize.scale, 
-                t_random_resize.scale,
-            )
-
-            t_color_jitter_instance = t_color_jitter.get_params(
-                t_color_jitter.brightness,
-                t_color_jitter.contrast,
-                t_color_jitter.saturation,
-                t_color_jitter.hue,
-            )
-            traj = np.load("demos/door_demos_v3/demo_v3_%s_0.pkl"%color, allow_pickle=True)[0]
-            goal_image_transformed = traj["observations"][-1][env.vae_input_observation_key].reshape(3, 500, 300).transpose()
-            goal_image_transformed = Image.fromarray(goal_image_transformed, 'RGB')
-            goal_image_transformed = TF.resized_crop(goal_image_transformed, i, j, h, w, (CROP_HEIGHT, CROP_WIDTH,), t_random_resize.interpolation)
-            goal_image_transformed = t_color_jitter_instance(goal_image_transformed)
-            goal_image_transformed = np.array(goal_image_transformed)[None]
-            goal_image_transformed = goal_image_transformed.transpose(0, 3, 1, 2) / 255.0
-            goal_image_transformed = env._encode(goal_image_transformed)[0]
-
-        x0 = TF.resized_crop(img, i, j, h, w, (CROP_HEIGHT, CROP_WIDTH,), t_random_resize.interpolation)
-        x0 = t_color_jitter_instance(x0)
-
-        # x0 = t_to_tensor(x0)
-
-        obs_batch[idx, :] = np.array(x0) # [60:300, 30:470, :] # ob
-
+    # obs_batch = data[:, 60:, :440, :] # right
+    obs_batch = data[:, 60:, 60:, :] # left
+    # np.zeros((num_obs, 240, 440, 3))
     obs_batch = obs_batch.transpose(0, 3, 1, 2) / 255.0
     zs = env._encode(obs_batch)
 
-    # Order of these two lines matters
-    env.zT = goal_image_transformed
-    env.initialize(zs)
-    # print("z0", env.z0, "zT", env.zT, "dT", env.dT)
+    z0 = zs[0, :]
+    zT = zs[-1, :]
 
-    for i in range(H):
-        ob = path["observations"][i]
-        action = path["actions"][i]
-        reward = path["rewards"][i]
-        next_ob = path["next_observations"][i]
-        terminal = path["terminals"][i]
-        agent_info = path["agent_infos"][i]
-        env_info = path["env_infos"][i]
+    for reward_type in ["latent_distance", "regression_distance"]:
 
-        # goal = path["goal"]["state_desired_goal"][0, :]
-        # import ipdb; ipdb.set_trace()
-        # print(goal.shape, ob["state_observation"])
-        # state_observation = np.concatenate((ob["state_observation"], goal))
-        # action = action[:2]
+        for i in range(len(zs)):
+            dt = zs[i, :] - z0
+            dT = zT - z0
 
-        # update_obs_with_latent(ob)
-        # update_obs_with_latent(next_ob)
-        env._update_obs_latent(ob, zs[i, :])
-        env._update_obs_latent(next_ob, zs[i+1, :])
-        reward = env.compute_reward(
-            action,
-            next_ob,
-        )
-        path["rewards"][i] = reward
-        # reward = np.array([reward])
-        # terminal = np.array([terminal])
+            if reward_type == "regression_distance":
+                regression_pred_yt = (dt * dT).sum() / ((dT ** 2).sum() + eps)
+                r = -np.abs(1-regression_pred_yt)
+            if reward_type == "latent_distance":
+                r = -np.linalg.norm(dt - dT)
 
-        # print(reward)
-        rewards.append(reward)
-    demo_trajectory_rewards.append(rewards)
+            rewards.append(r)
+
+        reward_filename = demo_path[:-4] + "_%s_imagenet.png" % reward_type
+        plt.figure(figsize=(8, 8))
+        plt.plot(rewards)
+        plt.savefig(reward_filename)
+
+    # # Order of these two lines matters
+    # env.zT = goal_image_transformed
+    # env.initialize(zs)
+    # # print("z0", env.z0, "zT", env.zT, "dT", env.dT)
+
+    # for i in range(H):
+    #     ob = path[i]
+    #     action = path["actions"][i]
+    #     reward = path["rewards"][i]
+    #     next_ob = path["next_observations"][i]
+    #     terminal = path["terminals"][i]
+    #     agent_info = path["agent_infos"][i]
+    #     env_info = path["env_infos"][i]
+
+    #     # goal = path["goal"]["state_desired_goal"][0, :]
+    #     # import ipdb; ipdb.set_trace()
+    #     # print(goal.shape, ob["state_observation"])
+    #     # state_observation = np.concatenate((ob["state_observation"], goal))
+    #     # action = action[:2]
+
+    #     # update_obs_with_latent(ob)
+    #     # update_obs_with_latent(next_ob)
+    #     env._update_obs_latent(ob, zs[i, :])
+    #     env._update_obs_latent(next_ob, zs[i+1, :])
+    #     reward = env.compute_reward(
+    #         action,
+    #         next_ob,
+    #     )
+    #     path["rewards"][i] = reward
+    #     # reward = np.array([reward])
+    #     # terminal = np.array([terminal])
+
+    #     # print(reward)
+    #     rewards.append(reward)
+    # demo_trajectory_rewards.append(rewards)
 
 def load_demos(demo_paths, processed_demo_path, reference_path, name):
     datas = []
     for demo_path in demo_paths:
-        for i in range(10):
-            data = pickle.load(open(demo_path, "rb"))
-            for path in data:
-                load_path(path, reference_path)
-            datas.append(data)
+        data = skvideo.io.vread(demo_path)
+        load_path(data, demo_path)
         print("Finished loading demo: " + demo_path)
 
     # np.save(processed_demo_path, data)
     print("Dumping data")
-    pickle.dump(datas, open(processed_demo_path, "wb"), protocol=4)
+    # pickle.dump(datas, open(processed_demo_path, "wb"), protocol=4)
 
     plt.figure(figsize=(8, 8))
     print("Demo trajectory rewards len: ", len(demo_trajectory_rewards), "Data len: ", len(datas))
-    pickle.dump(demo_trajectory_rewards, open("demo_rewards_%s.p" % name, "wb"), protocol=4)
+    pickle.dump(demo_trajectory_rewards, open("demos/rlbench/demo_rewards_%s.p" % name, "wb"), protocol=4)
     for r in demo_trajectory_rewards:
         plt.plot(r)
-    plt.savefig("demo_rewards_%s.png" %name)
+    plt.savefig("demos/rlbench/demo_rewards_%s.png" %name)
 
 def update_obs_with_latent(obs):
     latent_obs = env._encode_one(obs["image_observation"])
@@ -274,11 +263,10 @@ if __name__ == "__main__":
     )
     # model = torch.nn.DataParallel(model)
 
-    # imagenets = [True, False]
-    imagenets = [False]
-    reg_types = ["latent_distance"]
-    for use_imagenet in imagenets:
-        for reg_type in reg_types:
+    imagenets = [True, False]
+    reg_types = ["regression_distance", "latent_distance"]
+    for use_imagenet in [True]:
+        for reg_type in ["latent_distance"]:
             print("Processing with imagenet: %s, type: %s" %(str(use_imagenet), reg_type))
             if use_imagenet:
                 model_path = "/home/anair/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id0/itr_0.pt" # imagenet
@@ -291,7 +279,7 @@ if __name__ == "__main__":
             model.to(ptu.device)
             model.eval()
 
-            for color in ["grey", "beige", "green", "brownhatch"]:
+            for color in ["grey"]:
                 reference_path = "demos/door_demos_v3/demo_v3_%s_0.pkl"%color
                 traj = np.load("demos/door_demos_v3/demo_v3_%s_0.pkl"%color, allow_pickle=True)[0]
 
@@ -321,10 +309,10 @@ if __name__ == "__main__":
                     type=reg_type
                 )
                 config_params = dict(
-                    # initial_type="",
                     initial_type="use_initial_from_trajectory",
-                    goal_type="use_goal_from_trajectory",
-                    # goal_type="",
+                    # initial_type="use_initial_from_trajectory",
+                    # goal_type="use_goal_from_trajectory",
+                    goal_type="",
                     use_initial=True
                 )
 
@@ -338,18 +326,19 @@ if __name__ == "__main__":
                 )
                 env = EncoderWrappedEnv(env, model, reward_params, config_params)
                 print("Finished creating env")
-                demo_paths=["/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/demo_v3_%s_%i.pkl" % (color, i) for i in range(10)]
+                demo_paths=["/home/anair/ros_ws/src/railrl-private/demos/rlbench/demo_left_%i.mp4" % i for i in range(10)]
+                # demo_paths+=["/home/anair/ros_ws/src/railrl-private/demos/rlbench/demo_left_%i.pkl" % i for i in range(10)]
 
+            # processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_imagenet2.pkl" # use this for imagenet
+            # processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_imagenet_jitter2.pkl"
+                if use_imagenet:
+                    processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/rlbench/demo_right_%s_imagenet_jitter2.pkl" % color
+                else:
+                    processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_jitter2.pkl" % color
                 name = color
                 if use_imagenet:
                     name = "_imagenet_%s"%color
-                name = "%s_%s"%(name,reward_params["type"])
-                if config_params["use_initial"]:
-                    name = name + "_use_initial"
-                name = name + "_%s_%s" %(config_params["initial_type"], config_params["goal_type"])
-
-                processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_jitter2.pkl" % name
-
+                name = "demos/rlbench/%s_%s"%(name,reward_params["type"])
                 print("Loading demos for: ", name)
                 load_demos(demo_paths, processed_demo_path, reference_path, name)
                 demo_trajectory_rewards = []

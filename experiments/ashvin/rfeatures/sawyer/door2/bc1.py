@@ -64,11 +64,13 @@ if __name__ == "__main__":
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path="/home/anair/ros_ws/src/railrl-private/demo_v2_2_processed.npy",
+            demo_path="/home/anair/ros_ws/src/railrl-private/demos/door_demos_10_2/processed_demos.pkl",
+            # demo_path="/home/anair/ros_ws/src/railrl-private/demos/door_demos_10_2/processed_demos_imagenet.pkl",
             add_demo_latents=False, # already done
-            bc_num_pretrain_steps=100,
+            bc_num_pretrain_steps=1000,
             rl_weight=0.0,
             bc_weight=1.0,
+            weight_decay=0.01,
         ),
         replay_buffer_kwargs=dict(
             max_size=100000,
@@ -79,14 +81,21 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
         policy_kwargs=dict(
-            hidden_sizes=[400, 300],
+            hidden_sizes=[32, 32],
         ),
 
         save_video=True,
         dump_video_kwargs=dict(
             save_period=1,
             # imsize=(3, 500, 300),
-        )
+        ),
+        desired_trajectory="/home/anair/ros_ws/src/railrl-private/demos/door_demos_10_2/demo_0.pkl",
+
+        logger_variant=dict(
+            tensorboard=True,
+        ),
+        model_path="/home/anair/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id2/itr_4000.pt",
+        # model_path ="/home/anair/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id0/itr_0.pt" # imagenet
     )
 
     search_space = {
@@ -100,4 +109,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=2)
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=14)

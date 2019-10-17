@@ -27,6 +27,8 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_rl import encoder_wrapped_td3bc_experiment
 
 if __name__ == "__main__":
+    demo_path = ["/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_jitter2.pkl" % color for color in ["grey", "beige", "green", "brownhatch"]]
+
     variant = dict(
         env_class=SawyerReachXYZEnv,
         env_kwargs=dict(
@@ -64,14 +66,16 @@ if __name__ == "__main__":
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path="/home/anair/ros_ws/src/railrl-private/demo_v2_2_processed.npy",
+            demo_path=demo_path,
+            # demo_path="/home/anair/ros_ws/src/railrl-private/demos/door_demos_10_2/processed_demos_imagenet.pkl",
             add_demo_latents=False, # already done
-            bc_num_pretrain_steps=100,
+            bc_num_pretrain_steps=10000,
             rl_weight=0.0,
             bc_weight=1.0,
+            weight_decay=0.001,
         ),
         replay_buffer_kwargs=dict(
-            max_size=100000,
+            max_size=1000000,
             fraction_goals_rollout_goals=1.0,
             fraction_goals_env_goals=0.0,
         ),
@@ -79,14 +83,21 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
         policy_kwargs=dict(
-            hidden_sizes=[400, 300],
+            hidden_sizes=[128, 128],
         ),
 
         save_video=True,
         dump_video_kwargs=dict(
             save_period=1,
             # imsize=(3, 500, 300),
-        )
+        ),
+        desired_trajectory="/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/demo_v3_beige_0.pkl",
+
+        logger_variant=dict(
+            tensorboard=True,
+        ),
+        # model_path="/home/anair/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id2/itr_4000.pt",
+        model_path="/home/anair/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id0/itr_0.pt",
     )
 
     search_space = {
@@ -100,4 +111,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=2)
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=4)
