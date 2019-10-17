@@ -77,19 +77,14 @@ def encoder_wrapped_td3bc_experiment(variant):
     save_image(initial_image_pt.data.cpu(), 'initial.png', nrow=1)
     initial_latent = model.encode(initial_image_pt).detach().cpu().numpy().flatten()
 
+    # Move these to td3_bc and bc_v3 (or at least type for reward_params)
     reward_params = dict(
         goal_latent=goal_latent,
         initial_latent=initial_latent,
-        type="latent_distance",
-    )
-    config_params = dict(
-        initial_type="use_initial_from_trajectory",
-        # initial_type="use_initial_from_trajectory",
-        # goal_type="use_goal_from_trajectory",
-        goal_type="",
-        use_initial=True
+        type=variant.get("reward_params_type"),
     )
 
+    config_params = variant.get("config_params")
 
     env = variant['env_class'](**variant['env_kwargs'])
     env = ImageEnv(env,

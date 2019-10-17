@@ -27,8 +27,10 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_rl import encoder_wrapped_td3bc_experiment
 
 if __name__ == "__main__":
-    demo_path = ["/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_jitter2.pkl" % color for color in ["grey", "beige", "green", "brownhatch"]]
-
+    colors = ["grey", "beige", "green", "brownhatch"]
+    # colors = ["grey"]
+    # demo_path = ["/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_latent_distance__use_goal_from_trajectory_jitter2.pkl" % color for color in colors]
+    demo_path = ["/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_latent_distance_use_initial_use_initial_from_trajectory_use_goal_from_trajectory_jitter2.pkl" % color for color in colors]
     variant = dict(
         env_class=SawyerReachXYZEnv,
         env_kwargs=dict(
@@ -54,6 +56,17 @@ if __name__ == "__main__":
             num_trains_per_train_loop=500,
             min_num_steps_before_training=0,
         ),
+        # config_params = dict(
+        #     initial_type="",
+        #     goal_type="",
+        #     use_initial=False
+        # ),
+        config_params = dict(
+            initial_type="use_initial_from_trajectory",
+            goal_type="",
+            use_initial=True
+        ),
+        reward_params_type="latent_distance",
         model_kwargs=dict(
             decoder_distribution='gaussian_identity_variance',
             input_channels=3,
@@ -91,7 +104,7 @@ if __name__ == "__main__":
             save_period=1,
             # imsize=(3, 500, 300),
         ),
-        desired_trajectory="/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/demo_v3_beige_0.pkl",
+        desired_trajectory="/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/demo_v3_grey_0.pkl",
 
         logger_variant=dict(
             tensorboard=True,
@@ -110,4 +123,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=17)
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=28)

@@ -81,20 +81,13 @@ class EncoderWrappedEnv(ProxyEnv):
         spaces['latent_desired_goal'] = goal_space
         spaces['latent_achieved_goal'] = goal_space
         self.observation_space = Dict(spaces)
-        # Consider calling reset in init
 
     def reset(self):
         self.vae.eval()
         obs = self.wrapped_env.reset()
         # start_rollout(obs)
         self.x0 = obs["image_observation"]
-        x0 = self.x0.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
-        x0 = x0[:, :, 60:300, 30:470]
-        pt_img = ptu.from_numpy(self.x0)
-
-        # save_dir = osp.join(logger.get_snapshot_dir(), )
-        save_image(pt_img.data.cpu(), 'x0_image.png', nrow=1)
-        # save_image(pt_img[:1, :, :, :].data.cpu(), 'forward.png', nrow=1)
+        # self.save_image_util(self.x0, "initial")
         goal = self.sample_goal()
         self.set_goal(goal)
         obs = self._update_obs(obs)
@@ -241,17 +234,22 @@ class EncoderWrappedEnv(ProxyEnv):
         #     ))
         return statistics
 
-    def _encode_one(self, img):
+    def _encode_one(self, img, name=None):
         im = img.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
         im = im[:, :, 60:300, 30:470]
-        return self._encode(im)[0]
+        return self._encode(im, name)[0]
 
     def _encode_batch(self, imgs):
         im = imgs.reshape(-1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
         im = im[:, :, 60:300, 30:470]
         return self._encode(im)
 
-    def _encode(self, imgs):
+    def save_image_util(self, img, name):
+        pt_img = ptu.from_numpy(img).view(-1, 3, epic.CROP_HEIGHT, epic.CROP_WIDTH)
+        save_image(pt_img.data.cpu(), '%s.png'%name, nrow=1)
+        # save_image(pt_img[:1, :, :, :].data.cpu(), 'forward.png', nrow=1)
+
+    def _encode(self, imgs, name=None):
         self.vae.eval()
         pt_img = ptu.from_numpy(imgs).view(-1, 3, epic.CROP_HEIGHT, epic.CROP_WIDTH)
 
