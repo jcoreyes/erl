@@ -154,12 +154,9 @@ class ObsDictReplayBuffer(ReplayBuffer):
                     i, self._top + path_len
                 )
         self._top = (self._top + path_len) % self.max_size
-        print("SIZES: %i, %i, %i"%(self._size, path_len, self.max_size))
         self._size = min(self._size + path_len, self.max_size)
 
     def _sample_indices(self, batch_size):
-        print(self._size)
-        print(batch_size)
         return np.random.randint(0, self._size, batch_size)
 
     def random_batch(self, batch_size):
@@ -330,19 +327,19 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
 
         new_actions = self._actions[indices]
 
-        # if isinstance(self.env, MultitaskEnv):
-        new_rewards = self.env.compute_rewards(
-            new_actions,
-            new_next_obs_dict,
-        )
-        # else:  # Assuming it's a (possibly wrapped) gym GoalEnv
-        #     new_rewards = np.ones((batch_size, 1))
-        #     for i in range(batch_size):
-        #         new_rewards[i] = self.env.compute_reward(
-        #             new_next_obs_dict[self.achieved_goal_key][i],
-        #             new_next_obs_dict[self.desired_goal_key][i],
-        #             None
-        #         )
+        if isinstance(self.env, MultitaskEnv):
+            new_rewards = self.env.compute_rewards(
+                new_actions,
+                new_next_obs_dict,
+            )
+        else:  # Assuming it's a (possibly wrapped) gym GoalEnv
+            new_rewards = np.ones((batch_size, 1))
+            for i in range(batch_size):
+                new_rewards[i] = self.env.compute_reward(
+                    new_next_obs_dict[self.achieved_goal_key][i],
+                    new_next_obs_dict[self.desired_goal_key][i],
+                    None
+                )
         if not self.vectorized:
             new_rewards = new_rewards.reshape(-1, 1)
 
