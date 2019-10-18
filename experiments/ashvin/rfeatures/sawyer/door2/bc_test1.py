@@ -109,7 +109,8 @@ if __name__ == "__main__":
             exploration_goal_image_key="image_observation",
             evaluation_goal_image_key="image_observation",
             rows=1,
-            columns=1,
+            columns=5,
+            unnormalize=False,
         ),
         desired_trajectory="/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/demo_v3_grey_0.pkl",
 
@@ -130,4 +131,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=29)
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=1)

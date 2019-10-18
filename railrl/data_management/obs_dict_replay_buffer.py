@@ -239,6 +239,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             achieved_goal_key='achieved_goal',
             vectorized=False,
             ob_keys_to_save=None,
+            use_multitask_rewards=True,
             **kwargs
     ):
         """
@@ -279,6 +280,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
         self.desired_goal_key = desired_goal_key
         self.achieved_goal_key = achieved_goal_key
         self.vectorized = vectorized
+        self.use_multitask_rewards = use_multitask_rewards
 
     def random_batch(self, batch_size):
         indices = self._sample_indices(batch_size)
@@ -327,7 +329,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
 
         new_actions = self._actions[indices]
 
-        if isinstance(self.env, MultitaskEnv):
+        if self.use_multitask_rewards: # isinstance(self.env, MultitaskEnv):
             new_rewards = self.env.compute_rewards(
                 new_actions,
                 new_next_obs_dict,

@@ -24,13 +24,19 @@ import scipy.misc
 from multiworld.core.image_env import ImageEnv
 from railrl.core import logger
 from railrl.envs.vae_wrappers import temporary_mode
+import pickle
 
 class VideoSaveFunction:
     def __init__(self, env, variant):
         self.logdir = logger.get_snapshot_dir()
         self.save_period = variant.get('save_video_period', 50)
-        self.dump_video_kwargs = variant.get("self.dump_video_kwargs", dict())
+        self.dump_video_kwargs = variant.get("dump_video_kwargs", dict())
         self.dump_video_kwargs['imsize'] = env.imsize
+        self.dump_video_kwargs.setdefault("rows", 2)
+        self.dump_video_kwargs.setdefault("columns", 5)
+        self.dump_video_kwargs.setdefault("unnormalize", True)
+        self.exploration_goal_image_key = self.dump_video_kwargs.pop("exploration_goal_image_key", "decoded_goal_image")
+        self.evaluation_goal_image_key = self.dump_video_kwargs.pop("evaluation_goal_image_key", "image_desired_goal")
 
     def __call__(self, algo, epoch):
         expl_data_collector = algo.expl_data_collector
@@ -40,9 +46,7 @@ class VideoSaveFunction:
             dump_paths(algo.expl_env,
                 filename,
                 expl_paths,
-                "decoded_goal_image",
-                rows=2,
-                columns=5,
+                self.exploration_goal_image_key,
                 **self.dump_video_kwargs,
             )
 
@@ -53,9 +57,7 @@ class VideoSaveFunction:
             dump_paths(algo.eval_env,
                 filename,
                 eval_paths,
-                "image_desired_goal",
-                rows=2,
-                columns=5,
+                self.evaluation_goal_image_key,
                 **self.dump_video_kwargs,
             )
 
@@ -68,18 +70,16 @@ def add_border(img, pad_length, pad_color, imsize=84):
     img2[pad_length:-pad_length, pad_length:-pad_length, :] = img
     return img2
 
-
-def get_image(goal, obs, recon_obs, imsize=84, pad_length=1, pad_color=255):
-    if len(goal.shape) == 1:
-        goal = goal.reshape(-1, imsize, imsize).transpose(2, 1, 0)
-        obs = obs.reshape(-1, imsize, imsize).transpose(2,1,0)
-        recon_obs = recon_obs.reshape(-1, imsize, imsize).transpose(2,1,0)
-    img = np.concatenate((goal, obs, recon_obs))
-    img = np.uint8(255 * img)
+def get_image(imgs, imwidth, imheight, pad_length=1, pad_color=255, unnormalize=True):
+    if len(imgs[0].shape) == 1:
+        for i in range(len(imgs)):
+            imgs[i] = imgs[i].reshape(-1, imwidth, imheight).transpose(2, 1, 0)
+    img = np.concatenate(imgs)
+    if unnormalize:
+        img = np.uint8(255 * img)
     if pad_length > 0:
         img = add_border(img, pad_length, pad_color)
     return img
-
 
 def dump_video(
         env,
@@ -128,13 +128,14 @@ def dump_video(
             else:
                 recon = d['image_observation']
             l.append(
-                get_image(
+                get_image([
                     d['image_desired_goal'], # d['decoded_goal_image'], # d['image_desired_goal'],
                     d['image_observation'],
-                    recon,
+                    recon,],
+                    imwidth=imsize,
+                    imheight=imsize,
                     pad_length=pad_length,
                     pad_color=pad_color,
-                    imsize=imsize,
                 )
             )
         frames += l
@@ -188,12 +189,25 @@ def dump_paths(
         dirname_to_save_images=None,
         subdirname="rollouts",
         imsize=84,
+        imwidth=None,
+        imheight=None,
+        num_imgs=3, # how many vertical images we stack per rollout
+        dump_pickle=False,
+        unnormalize=True,
 ):
     # num_channels = env.vae.input_channels
     num_channels = 1 if env.grayscale else 3
     frames = []
-    H = 3 * imsize
-    W = imsize
+
+    imwidth = imwidth or imsize # 500
+    imheight = imheight or imsize # 300
+    num_gaps = num_imgs - 1 # 2
+
+    H = num_imgs * imheight # imsize
+    W = imwidth # imsize
+
+    # H = 3 * imsize
+    # W = imsize
     rows = min(rows, int(len(paths) / columns))
     N = rows * columns
     is_vae_env = isinstance(env, VAEWrappedEnv)
@@ -210,14 +224,19 @@ def dump_paths(
                 recon = np.clip(env._reconstruct_img(d['image_observation']), 0, 1)
             else:
                 recon = d['image_observation']
+            imgs = [
+                d[goal_image_key], # d['image_desired_goal'],
+                d['image_observation'],
+                recon,
+            ][:num_imgs]
             l.append(
                 get_image(
-                    d[goal_image_key], # d['image_desired_goal'],
-                    d['image_observation'],
-                    recon,
+                    imgs,
+                    imwidth,
+                    imheight,
                     pad_length=pad_length,
                     pad_color=pad_color,
-                    imsize=imsize,
+                    unnormalize=unnormalize,
                 )
             )
         frames += l
@@ -238,10 +257,10 @@ def dump_paths(
 
     frames = np.array(frames, dtype=np.uint8)
     path_length = frames.size // (
-            N * (H + 2*pad_length) * (W + 2*pad_length) * num_channels
+            N * (H + num_gaps*pad_length) * (W + num_gaps*pad_length) * num_channels
     )
     frames = np.array(frames, dtype=np.uint8).reshape(
-        (N, path_length, H + 2 * pad_length, W + 2 * pad_length, num_channels)
+        (N, path_length, H + num_gaps * pad_length, W + num_gaps * pad_length, num_channels)
     )
     f1 = []
     for k1 in range(columns):
@@ -249,10 +268,13 @@ def dump_paths(
         for k2 in range(rows):
             k = k1 * rows + k2
             f2.append(frames[k:k+1, :, :, :, :].reshape(
-                (path_length, H + 2 * pad_length, W + 2 * pad_length, num_channels)
+                (path_length, H + num_gaps * pad_length, W + num_gaps * pad_length, num_channels)
             ))
         f1.append(np.concatenate(f2, axis=1))
     outputdata = np.concatenate(f1, axis=2)
     skvideo.io.vwrite(filename, outputdata)
     print("Saved video to ", filename)
 
+    if dump_pickle:
+        pickle_filename = filename[:-4] + ".p"
+        pickle.dump(paths, open(pickle_filename, "wb"))
