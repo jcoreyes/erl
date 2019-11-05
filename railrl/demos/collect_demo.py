@@ -168,14 +168,15 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200):
     # goal_image = goal_obs["image_observation"].reshape((84, 84, 3))
     o = env.reset()
 
-    goal_image = o["image_desired_goal"].reshape((84, 84, 3)).copy() # .transpose()
-    draw_grid(goal_image)
-    cv2.imshow('goal', goal_image)
-    cv2.waitKey(10)
+    #changed by MURTAZA
+    # goal_image = o["image_desired_goal"].reshape((84, 84, 3)).copy() # .transpose()
+    # draw_grid(goal_image)
+    # cv2.imshow('goal', goal_image)
+    # cv2.waitKey(10)
 
-    img = o["image_observation"].reshape((84, 84, 3)).copy()
-    # o["image_observation"].reshape((84, 84, 3))
-    draw_grid(img)
+    # img = o["image_observation"].reshape((84, 84, 3)).copy()
+    # # o["image_observation"].reshape((84, 84, 3))
+    # draw_grid(img)
     # env.set_goal(goal)
     traj = dict(
         observations=[o],
@@ -204,16 +205,16 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200):
             print(r)
 
             # env.render()
-            img = o["image_observation"].reshape((84, 84, 3)).copy()
-            draw_grid(img)
+            # img = o["image_observation"].reshape((84, 84, 3)).copy()
+            # draw_grid(img)
 
-        cv2.imshow('window', img)
-        cv2.waitKey(100)
+        # cv2.imshow('window', img)
+        # cv2.waitKey(100)
 
-        if reset or accept:
-            if len(traj["rewards"]) == 0:
-                accept = False
-            return accept, traj
+        # if reset or accept:
+            # if len(traj["rewards"]) == 0:
+                # accept = False
+            # return accept, traj
 
     return False, []
 

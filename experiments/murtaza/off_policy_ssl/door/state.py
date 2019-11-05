@@ -23,13 +23,10 @@ if __name__ == "__main__":
             discount=0.99,
             demo_path=demo_path,
             demo_off_policy_path=demo_off_policy_path,
-            add_demo_latents=False, # already done
             bc_num_pretrain_steps=10000,
             q_num_pretrain_steps=10000,
             rl_weight=1.0,
             bc_weight=0,
-            # reward_scale=0.0001,
-            # weight_decay=0.001,
         ),
         replay_buffer_kwargs=dict(
             max_size=1000000,
@@ -43,24 +40,25 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
         save_video=False,
-        exploration_noise=.2,
+        exploration_noise=.3,
     )
 
     search_space = {
+        'exploration_noise':[.1, .2, .3, .5],
+
+
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'dev-{}'.format(
-        # __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    # )
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'test_td3_door_v2'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'door_reset_free_state_td3_sweep_exp_noise'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -70,4 +68,5 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=3,
+                skip_wait=True,
             )
