@@ -1,13 +1,5 @@
 from railrl.demos.collect_demo import collect_demos
-from railrl.torch.networks import TanhMlpPolicy
 import pickle
-import gym
-import multiworld
-from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
-from multiworld.core.image_env import ImageEnv
-from railrl.misc.asset_loader import load_local_or_remote_file
-import multiworld.envs.mujoco as mwmj
-import os.path as osp
 if __name__ == '__main__':
     data_file = '/home/murtaza/research/railrl/data/local/10-16-dev-experiments-murtaza-off-policy-ssl-door-state/10-16-dev-experiments-murtaza-off-policy-ssl-door-state_2019_10_16_17_24_54_id000--s53075/params.pkl'
     f = open(data_file, 'rb')
