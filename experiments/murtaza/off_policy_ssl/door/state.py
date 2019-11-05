@@ -44,7 +44,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'exploration_noise':[.1, .2, .3, .5],
+        # 'exploration_noise':[.1, .2, .3, .5],
+        'exploration_noise':[.1],
 
 
     }
@@ -58,7 +59,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'ec2'
-    # exp_prefix = 'door_reset_free_state_td3_sweep_exp_noise'
+    # exp_prefix = 'door_reset_free_state_td3_test_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

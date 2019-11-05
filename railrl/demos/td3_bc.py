@@ -434,8 +434,8 @@ class TD3BCTrainer(TorchTrainer):
                 ))
         self._n_train_steps_total += 1
 
-        logger.record_dict(self.eval_statistics)
-        logger.dump_tabular(with_prefix=True, with_timestamp=False)
+        # logger.record_dict(self.eval_statistics)
+        # logger.dump_tabular(with_prefix=True, with_timestamp=False)
         logger.pop_tabular_prefix()
 
     def get_diagnostics(self):
