@@ -68,5 +68,5 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=3,
-                skip_wait=True,
+                skip_wait=False,
             )
