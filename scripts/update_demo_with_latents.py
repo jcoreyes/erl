@@ -274,10 +274,11 @@ if __name__ == "__main__":
     )
     # model = torch.nn.DataParallel(model)
 
-    imagenets = [True, False]
-    reg_types = ["regression_distance", "latent_distance"]
-    for use_imagenet in [False]:
-        for reg_type in ["latent_distance"]:
+    # imagenets = [True, False]
+    imagenets = [False]
+    reg_types = ["latent_distance"]
+    for use_imagenet in imagenets:
+        for reg_type in reg_types:
             print("Processing with imagenet: %s, type: %s" %(str(use_imagenet), reg_type))
             if use_imagenet:
                 model_path = "/home/anair/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id0/itr_0.pt" # imagenet
@@ -320,10 +321,10 @@ if __name__ == "__main__":
                     type=reg_type
                 )
                 config_params = dict(
+                    # initial_type="",
                     initial_type="use_initial_from_trajectory",
-                    # initial_type="use_initial_from_trajectory",
-                    # goal_type="use_goal_from_trajectory",
-                    goal_type="",
+                    goal_type="use_goal_from_trajectory",
+                    # goal_type="",
                     use_initial=True
                 )
 
@@ -339,16 +340,16 @@ if __name__ == "__main__":
                 print("Finished creating env")
                 demo_paths=["/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/demo_v3_%s_%i.pkl" % (color, i) for i in range(10)]
 
-            # processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_imagenet2.pkl" # use this for imagenet
-            # processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_imagenet_jitter2.pkl"
-                if use_imagenet:
-                    processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_imagenet_jitter2.pkl" % color
-                else:
-                    processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_jitter2.pkl" % color
                 name = color
                 if use_imagenet:
                     name = "_imagenet_%s"%color
                 name = "%s_%s"%(name,reward_params["type"])
+                if config_params["use_initial"]:
+                    name = name + "_use_initial"
+                name = name + "_%s_%s" %(config_params["initial_type"], config_params["goal_type"])
+
+                processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_jitter2.pkl" % name
+
                 print("Loading demos for: ", name)
                 load_demos(demo_paths, processed_demo_path, reference_path, name)
                 demo_trajectory_rewards = []

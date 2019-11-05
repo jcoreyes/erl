@@ -140,13 +140,13 @@ def run_experiment(
     config.SSH_DEFAULT_HOST
     :return:
     """
-    # try:
-    #     import doodad
-    #     import doodad.mode
-    #     import doodad.ssh
-    # except ImportError:
-    #     print("Doodad not set up! Running experiment here.")
-    #     mode = 'here_no_doodad'
+    try:
+        import doodad
+        import doodad.mode
+        import doodad.ssh
+    except ImportError:
+        print("Doodad not set up! Running experiment mode:", mode)
+        # mode = 'here_no_doodad'
     global ec2_okayed
     global gpu_ec2_okayed
     global target_mount
@@ -232,22 +232,22 @@ def run_experiment(
         )
 
     if mode == 'slurm':
-        import submitit                                                                                                                                                              
-                                                                                                                                                                                     
-        slurm_variant = variant.get("slurm_variant", {})                                                                                                                             
-        slurm_kwargs = dict(                                                                                                                                                         
-            timeout_min=240,                                                                                                                                                         
-            partition="learnfair", # partition="dev",                                                                                                                                
-            gpus_per_node=1,                                                                                                                                                         
-            cpus_per_task=10,                                                                                                                                                        
-        )                                                                                                                                                                            
-        slurm_kwargs.update(slurm_variant)                                                                                                                                           
-                                                                                                                                                                                     
-        executor = submitit.AutoExecutor(folder=base_log_dir + "/slurm/%j")                                                                                                          
-        executor.update_parameters(                                                                                                                                                  
-            **slurm_kwargs                                                                                                                                                           
-        )                                                                                                                                                                            
-                                                                                                                                                                                     
+        import submitit
+
+        slurm_variant = variant.get("slurm_variant", {})
+        slurm_kwargs = dict(
+            timeout_min=240,
+            partition="learnfair", # partition="dev",
+            gpus_per_node=1,
+            cpus_per_task=10,
+        )
+        slurm_kwargs.update(slurm_variant)
+
+        executor = submitit.AutoExecutor(folder=base_log_dir + "/slurm/%j")
+        executor.update_parameters(
+            **slurm_kwargs
+        )
+
         def run():
             run_experiment_kwargs['base_log_dir'] = base_log_dir
             return run_experiment_here(
@@ -834,6 +834,11 @@ def setup_logger(
             **create_log_dir_kwargs
         )
 
+    logger_variant = variant.get("logger_variant", dict())
+    if logger_variant.get("tensorboard", False):
+        tensorboard_log_path = osp.join(log_dir, "tensorboard")
+        logger.add_tensorboard_output(tensorboard_log_path)
+
     if variant is not None:
         if 'unique_id' not in variant:
             variant['unique_id'] = str(uuid.uuid4())
@@ -846,12 +851,6 @@ def setup_logger(
 
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
-
-    logger_variant = variant.get("logger_variant", dict())
-
-    if logger_variant.get("tensorboard", False):
-        tensorboard_log_path = osp.join(log_dir, "tensorboard")
-        logger.add_tensorboard_output(tensorboard_log_path)
 
     logger.add_text_output(text_log_path)
     if first_time:

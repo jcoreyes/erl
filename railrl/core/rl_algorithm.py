@@ -9,6 +9,7 @@ from railrl.misc import eval_util
 from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.samplers.data_collector import DataCollector
 
+
 def _get_epoch_timings():
     times_itrs = timer.get_times()
     times = OrderedDict()

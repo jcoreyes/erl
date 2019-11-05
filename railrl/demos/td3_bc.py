@@ -150,6 +150,7 @@ class TD3BCTrainer(TorchTrainer):
         H = min(len(path["observations"]), len(path["actions"]))
         print("actions", np.min(path["actions"]), np.max(path["actions"]))
 
+        zs = []
         for i in range(H):
             ob = path["observations"][i]
             action = path["actions"][i]
@@ -158,6 +159,8 @@ class TD3BCTrainer(TorchTrainer):
             terminal = path["terminals"][i]
             agent_info = path["agent_infos"][i]
             env_info = path["env_infos"][i]
+
+            zs.append(ob['latent_observation'])
             # goal = path["goal"]["state_desired_goal"][0, :]
             # import pdb; pdb.set_trace()
             # print(goal.shape, ob["state_observation"])
@@ -198,6 +201,7 @@ class TD3BCTrainer(TorchTrainer):
         self.demo_trajectory_rewards.append(rewards)
         path = path_builder.get_all_stacked()
         replay_buffer.add_path(path)
+        self.env.initialize(zs)
 
     def load_demos(self, ):
         # Off policy
@@ -207,7 +211,6 @@ class TD3BCTrainer(TorchTrainer):
         else:
             self.load_demo_path(self.demo_off_policy_path, False)
         
-        # On policy
         if type(self.demo_path) is list:
             for demo_path in self.demo_path:
                 self.load_demo_path(demo_path)
@@ -215,6 +218,7 @@ class TD3BCTrainer(TorchTrainer):
             self.load_demo_path(self.demo_path)
 
 
+    # Parameterize which demo is being tested (and all jitter variants)
     # If on_policy is False, we only add the demos to the
     # replay buffer, and not to the demo_test or demo_train buffers
     def load_demo_path(self, demo_path, on_policy=True):

@@ -66,7 +66,7 @@ def encoder_wrapped_td3bc_experiment(variant):
     # goal_image = goal_image[:, ::-1, :, :].copy() # flip bgr
     goal_image = goal_image[:, :, :240, 60:500]
     goal_image_pt = ptu.from_numpy(goal_image)
-    save_image(goal_image_pt.data.cpu(), 'goal.png', nrow=1)
+    save_image(goal_image_pt.data.cpu(), 'demos/goal.png', nrow=1)
     goal_latent = model.encode(goal_image_pt).detach().cpu().numpy().flatten()
 
     initial_image = traj["observations"][0]["image_observation"]
@@ -74,22 +74,17 @@ def encoder_wrapped_td3bc_experiment(variant):
     # initial_image = initial_image[:, ::-1, :, :].copy() # flip bgr
     initial_image = initial_image[:, :, :240, 60:500]
     initial_image_pt = ptu.from_numpy(initial_image)
-    save_image(initial_image_pt.data.cpu(), 'initial.png', nrow=1)
+    save_image(initial_image_pt.data.cpu(), 'demos/initial.png', nrow=1)
     initial_latent = model.encode(initial_image_pt).detach().cpu().numpy().flatten()
 
+    # Move these to td3_bc and bc_v3 (or at least type for reward_params)
     reward_params = dict(
         goal_latent=goal_latent,
         initial_latent=initial_latent,
-        type="latent_distance",
-    )
-    config_params = dict(
-        initial_type="use_initial_from_trajectory",
-        # initial_type="use_initial_from_trajectory",
-        # goal_type="use_goal_from_trajectory",
-        goal_type="",
-        use_initial=True
+        type=variant.get("reward_params_type"),
     )
 
+    config_params = variant.get("config_params")
 
     env = variant['env_class'](**variant['env_kwargs'])
     env = ImageEnv(env,
@@ -214,7 +209,7 @@ def encoder_wrapped_td3bc_experiment(variant):
     if variant.get("save_video", True):
         video_func = VideoSaveFunction(
             env,
-            **variant["dump_video_kwargs"],
+            variant,
         )
         algorithm.post_train_funcs.append(video_func)
 

@@ -22,23 +22,15 @@ class ObsDictReplayBuffer(ReplayBuffer):
             self,
             max_size,
             env,
-            fraction_goals_rollout_goals=1.0,
-            fraction_goals_env_goals=0.0,
             ob_keys_to_save=None,
             internal_keys=None,
-            goal_keys=None,
             observation_key='observation',
-            desired_goal_key='desired_goal',
-            achieved_goal_key='achieved_goal',
-            vectorized=False,
+            save_data_in_snapshot=False,
     ):
         """
 
         :param max_size:
         :param env:
-        :param fraction_goals_rollout_goals: Default, no her
-        :param fraction_resampled_goals_env_goals:  of the resampled
-        goals, what fraction are sampled from the env. Reset are sampled from future.
         :param ob_keys_to_save: List of keys to save
         """
         if ob_keys_to_save is None:
@@ -49,24 +41,16 @@ class ObsDictReplayBuffer(ReplayBuffer):
             internal_keys = []
         self.internal_keys = internal_keys
         assert isinstance(env.observation_space, Dict)
-        assert 0 <= fraction_goals_rollout_goals
-        assert 0 <= fraction_goals_env_goals
-        assert 0 <= fraction_goals_rollout_goals + fraction_goals_env_goals
-        assert fraction_goals_rollout_goals + fraction_goals_env_goals <= 1
         self.max_size = max_size
         self.env = env
-        self.fraction_goals_rollout_goals = fraction_goals_rollout_goals
-        self.fraction_goals_env_goals = fraction_goals_env_goals
         self.ob_keys_to_save = ob_keys_to_save
         self.observation_key = observation_key
-        self.desired_goal_key = desired_goal_key
-        self.achieved_goal_key = achieved_goal_key
+        self.save_data_in_snapshot = save_data_in_snapshot
 
         self._action_dim = env.action_space.low.size
         self._actions = np.zeros((max_size, self._action_dim), dtype=np.float32)
         # Make everything a 2D np array to make it easier for other code to
         # reason about the shape of the data
-        self.vectorized = vectorized
         # self._terminals[i] = a terminal was received at time i
         self._terminals = np.zeros((max_size, 1), dtype='uint8')
         self._rewards = np.zeros((max_size, 1))
@@ -170,12 +154,9 @@ class ObsDictReplayBuffer(ReplayBuffer):
                     i, self._top + path_len
                 )
         self._top = (self._top + path_len) % self.max_size
-        print("SIZES: %i, %i, %i"%(self._size, path_len, self.max_size))
         self._size = min(self._size + path_len, self.max_size)
 
     def _sample_indices(self, batch_size):
-        print(self._size)
-        print(batch_size)
         return np.random.randint(0, self._size, batch_size)
 
     def random_batch(self, batch_size):
@@ -210,6 +191,30 @@ class ObsDictReplayBuffer(ReplayBuffer):
             for key in self.ob_keys_to_save
         }
 
+    def get_snapshot(self):
+        snapshot = super().get_snapshot()
+        if self.save_data_in_snapshot:
+            snapshot.update({
+                'observations': self.get_slice(self._obs, slice(0, self._top)),
+                'next_observations': self.get_slice(
+                    self._next_obs, slice(0, self._top)
+                ),
+                'actions': self._actions[:self._top],
+                'terminals': self._terminals[:self._top],
+                'rewards': self._rewards[:self._top],
+                'idx_to_future_obs_idx': (
+                    self._idx_to_future_obs_idx[:self._top]
+                ),
+            })
+        return snapshot
+
+    def get_slice(self, obs_dict, slc):
+        new_dict = {}
+        for key in self.ob_keys_to_save + self.internal_keys:
+            new_dict[key] = obs_dict[key][slc]
+        return new_dict
+
+
 class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
     """
     Save goals from the same trajectory into the replay buffer.
@@ -229,13 +234,13 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             env,
             fraction_goals_rollout_goals=1.0,
             fraction_goals_env_goals=0.0,
-            ob_keys_to_save=None,
-            internal_keys=None,
             goal_keys=None,
-            observation_key='observation',
             desired_goal_key='desired_goal',
             achieved_goal_key='achieved_goal',
             vectorized=False,
+            ob_keys_to_save=None,
+            use_multitask_rewards=True,
+            **kwargs
     ):
         """
 
@@ -250,9 +255,16 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             ob_keys_to_save = []
         else:  # in case it's a tuple
             ob_keys_to_save = list(ob_keys_to_save)
-        if internal_keys is None:
-            internal_keys = []
-        self.internal_keys = internal_keys
+        if desired_goal_key not in ob_keys_to_save:
+            ob_keys_to_save.append(desired_goal_key)
+        if achieved_goal_key not in ob_keys_to_save:
+            ob_keys_to_save.append(achieved_goal_key)
+        super().__init__(
+            max_size,
+            env,
+            ob_keys_to_save=ob_keys_to_save,
+            **kwargs
+        )
         if goal_keys is None:
             goal_keys = [desired_goal_key]
         self.goal_keys = goal_keys
@@ -263,51 +275,12 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
         assert 0 <= fraction_goals_env_goals
         assert 0 <= fraction_goals_rollout_goals + fraction_goals_env_goals
         assert fraction_goals_rollout_goals + fraction_goals_env_goals <= 1
-        self.max_size = max_size
-        self.env = env
         self.fraction_goals_rollout_goals = fraction_goals_rollout_goals
         self.fraction_goals_env_goals = fraction_goals_env_goals
-        self.ob_keys_to_save = ob_keys_to_save
-        self.observation_key = observation_key
         self.desired_goal_key = desired_goal_key
         self.achieved_goal_key = achieved_goal_key
-
-        self._action_dim = env.action_space.low.size
-        self._actions = np.zeros((max_size, self._action_dim), dtype=np.float32)
-        # Make everything a 2D np array to make it easier for other code to
-        # reason about the shape of the data
         self.vectorized = vectorized
-        # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros((max_size, 1), dtype='uint8')
-        self._rewards = np.zeros((max_size, 1))
-        # self._obs[key][i] is the value of observation[key] at time i
-        self._obs = {}
-        self._next_obs = {}
-        self.ob_spaces = self.env.observation_space.spaces
-
-        for key in [observation_key, desired_goal_key, achieved_goal_key]:
-            if key not in ob_keys_to_save:
-                ob_keys_to_save.append(key)
-        for key in ob_keys_to_save + internal_keys:
-            assert key in self.ob_spaces, \
-                "Key not found in the observation space: %s" % key
-            arr_initializer = np
-            if key.startswith('image'):
-                arr_initializer = image_np
-            self._obs[key] = arr_initializer.zeros(
-                (max_size, self.ob_spaces[key].low.size), dtype=np.float32)
-            self._next_obs[key] = arr_initializer.zeros(
-                (max_size, self.ob_spaces[key].low.size), dtype=np.float32)
-
-        self._top = 0
-        self._size = 0
-
-        # Let j be any index in self._idx_to_future_obs_idx[i]
-        # Then self._next_obs[j] is a valid next observation for observation i
-        self._idx_to_future_obs_idx = [None] * max_size
-
-        if isinstance(self.env.action_space, Discrete):
-            raise NotImplementedError("TODO")
+        self.use_multitask_rewards = use_multitask_rewards
 
     def random_batch(self, batch_size):
         indices = self._sample_indices(batch_size)
@@ -356,19 +329,19 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
 
         new_actions = self._actions[indices]
 
-        # if isinstance(self.env, MultitaskEnv):
-        new_rewards = self.env.compute_rewards(
-            new_actions,
-            new_next_obs_dict,
-        )
-        # else:  # Assuming it's a (possibly wrapped) gym GoalEnv
-        #     new_rewards = np.ones((batch_size, 1))
-        #     for i in range(batch_size):
-        #         new_rewards[i] = self.env.compute_reward(
-        #             new_next_obs_dict[self.achieved_goal_key][i],
-        #             new_next_obs_dict[self.desired_goal_key][i],
-        #             None
-        #         )
+        if self.use_multitask_rewards: # isinstance(self.env, MultitaskEnv):
+            new_rewards = self.env.compute_rewards(
+                new_actions,
+                new_next_obs_dict,
+            )
+        else:  # Assuming it's a (possibly wrapped) gym GoalEnv
+            new_rewards = np.ones((batch_size, 1))
+            for i in range(batch_size):
+                new_rewards[i] = self.env.compute_reward(
+                    new_next_obs_dict[self.achieved_goal_key][i],
+                    new_next_obs_dict[self.desired_goal_key][i],
+                    None
+                )
         if not self.vectorized:
             new_rewards = new_rewards.reshape(-1, 1)
 

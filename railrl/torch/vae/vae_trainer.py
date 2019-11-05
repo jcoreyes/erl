@@ -254,7 +254,7 @@ class VAETrainer(object):
         prefix = "test/" if test else "train/"
 
         beta = float(self.beta_schedule.get_value(epoch))
-        obs = batch["observations"]
+        obs = batch["x_t"]
         reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
         log_prob = self.model.logprob(obs, obs_distribution_params)
         kle = self.model.kl_divergence(latent_distribution_params)
