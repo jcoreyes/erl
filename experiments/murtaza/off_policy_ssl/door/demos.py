@@ -1,9 +1,8 @@
 from railrl.demos.collect_demo import collect_demos
 import pickle
 if __name__ == '__main__':
-    data_file = '/home/murtaza/research/railrl/data/local/10-16-dev-experiments-murtaza-off-policy-ssl-door-state/10-16-dev-experiments-murtaza-off-policy-ssl-door-state_2019_10_16_17_24_54_id000--s53075/params.pkl'
-    f = open(data_file, 'rb')
-    data = pickle.load(f)
+    data_file = '/home/murtaza/research/railrl/data/doodads3/11-06-door-reset-free-state-td3-confirm/11-06-door_reset_free_state_td3_confirm_2019_11_06_17_34_12_id000--s50047/params.pkl'
+    data = pickle.load(open(data_file, 'rb'))
     env = data['evaluation/env']
     policy = data['trainer/trained_policy']
     # presampled_goals_path = osp.join(
@@ -22,4 +21,4 @@ if __name__ == '__main__':
                 # normalize=True,
                 # presampled_goals=presampled_goals,
     # )
-    collect_demos(env, policy, "door_demos_100.npy", 100)
+    collect_demos(env, policy, "door_demos_100.npy", horizon=100, threshold=.1)

@@ -161,7 +161,7 @@ def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=None, pxstep=20):
         cv2.line(img, (0, y), (img.shape[1], y), color=line_color, lineType=type_, thickness=thickness)
         y += pxstep
 
-def collect_one_rollout_goal_conditioned(env, expert, horizon=200):
+def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1):
     # goal = env.sample_goal()
     # env.set_to_goal(goal)
     # goal_obs = env._get_obs()
@@ -188,21 +188,20 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200):
         env_infos=[],
     )
 
-    for _ in range(horizon):
-        a, valid, reset, accept = expert.get_action(o)
+    for i in range(horizon):
+        a, _ = expert.get_action(np.concatenate((o['observation'], o['desired_goal'])))
 
-        if valid:
-            traj["observations"].append(o)
+        traj["observations"].append(o)
 
-            o, r, done, info = env.step(a)
+        o, r, done, info = env.step(a)
 
-            traj["actions"].append(a)
-            traj["rewards"].append(r)
-            traj["next_observations"].append(o)
-            traj["terminals"].append(done)
-            traj["agent_infos"].append(info)
-            traj["env_infos"].append(info)
-            print(r)
+        traj["actions"].append(a)
+        traj["rewards"].append(r)
+        traj["next_observations"].append(o)
+        traj["terminals"].append(done)
+        traj["agent_infos"].append(info)
+        traj["env_infos"].append(info)
+
 
             # env.render()
             # img = o["image_observation"].reshape((84, 84, 3)).copy()
@@ -215,14 +214,19 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200):
             # if len(traj["rewards"]) == 0:
                 # accept = False
             # return accept, traj
+    if threshold == -1:
+        accept = True
+    elif np.abs(r) < threshold:
+        accept = True
+    else:
+        accept = False
+    return accept, traj
 
-    return False, []
-
-def collect_demos(env, expert, path="demos.npy", N=10, horizon=200):
+def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1):
     data = []
 
     while len(data) < N:
-        accept, traj = collect_one_rollout_goal_conditioned(env, expert, horizon)
+        accept, traj = collect_one_rollout_goal_conditioned(env, expert, horizon, threshold=threshold)
         if accept:
             data.append(traj)
             print("accepted trajectory length", len(traj["observations"]))
