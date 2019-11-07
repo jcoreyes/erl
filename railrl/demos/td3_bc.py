@@ -141,7 +141,7 @@ class TD3BCTrainer(TorchTrainer):
         # print("Path len", len(path))
         # print("Path observations: ", type(path), type(path[0]), print(path[0].keys()))
         # import ipdb; ipdb.set_trace()
-        path = path[0]
+        # path = path[0]
         final_achieved_goal = path["observations"][-1]["state_achieved_goal"].copy()
         rewards = []
         path_builder = PathBuilder()
@@ -150,7 +150,7 @@ class TD3BCTrainer(TorchTrainer):
         H = min(len(path["observations"]), len(path["actions"]))
         print("actions", np.min(path["actions"]), np.max(path["actions"]))
 
-        zs = []
+        # zs = []
         for i in range(H):
             ob = path["observations"][i]
             action = path["actions"][i]
@@ -160,7 +160,7 @@ class TD3BCTrainer(TorchTrainer):
             agent_info = path["agent_infos"][i]
             env_info = path["env_infos"][i]
 
-            zs.append(ob['latent_observation'])
+            # zs.append(ob['latent_observation'])
             # goal = path["goal"]["state_desired_goal"][0, :]
             # import pdb; pdb.set_trace()
             # print(goal.shape, ob["state_observation"])
@@ -185,7 +185,6 @@ class TD3BCTrainer(TorchTrainer):
                 action,
                 next_ob,
             )
-
             reward = np.array([reward])
             rewards.append(reward)
             terminal = np.array([terminal]).reshape((1, ))
@@ -201,15 +200,16 @@ class TD3BCTrainer(TorchTrainer):
         self.demo_trajectory_rewards.append(rewards)
         path = path_builder.get_all_stacked()
         replay_buffer.add_path(path)
-        self.env.initialize(zs)
+        # self.env.initialize(zs)
 
     def load_demos(self, ):
         # Off policy
-        if type(self.demo_off_policy_path) is list:
-            for demo_path in self.demo_off_policy_path:
-                self.load_demo_path(demo_path, False)
-        else:
-            self.load_demo_path(self.demo_off_policy_path, False)
+        if self.demo_off_policy_path:
+            if type(self.demo_off_policy_path) is list:
+                for demo_path in self.demo_off_policy_path:
+                    self.load_demo_path(demo_path, False)
+            else:
+                self.load_demo_path(self.demo_off_policy_path, False)
         
         if type(self.demo_path) is list:
             for demo_path in self.demo_path:
@@ -228,7 +228,6 @@ class TD3BCTrainer(TorchTrainer):
         # random.shuffle(data)
         N = int(len(data) * self.demo_train_split)
         print("using", N, "paths for training")
-
         if on_policy:
             for path in data[:N]:
                 self.load_path(path, self.demo_train_buffer)
@@ -363,7 +362,8 @@ class TD3BCTrainer(TorchTrainer):
                 train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
                 train_o = train_batch["observations"]
                 train_u = train_batch["actions"]
-                train_pred_u = self.policy(train_o)
+                train_g = train_batch["resampled_goals"]
+                train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
                 train_error = (train_pred_u - train_u) ** 2
                 train_bc_loss = train_error.mean()
 
@@ -426,7 +426,8 @@ class TD3BCTrainer(TorchTrainer):
                 test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
                 test_o = test_batch["observations"]
                 test_u = test_batch["actions"]
-                test_pred_u = self.policy(test_o)
+                test_g = test_batch["resampled_goals"]
+                test_pred_u = self.policy(torch.cat((test_o, test_g), dim=1))
                 test_error = (test_pred_u - test_u) ** 2
                 test_bc_loss = test_error.mean()
                 self.eval_statistics['Test BC Loss'] = np.mean(ptu.get_numpy(

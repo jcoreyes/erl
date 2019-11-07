@@ -80,14 +80,16 @@ def state_td3bc_experiment(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        **variant['replay_buffer_kwargs']
+        max_size=variant['replay_buffer_kwargs']['max_size']
+        # **variant['replay_buffer_kwargs']
     )
     demo_test_buffer = ObsDictRelabelingBuffer(
         env=env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        **variant['replay_buffer_kwargs']
+        max_size=variant['replay_buffer_kwargs']['max_size'],
+        # **variant['replay_buffer_kwargs']
     )
     td3bc_trainer = TD3BCTrainer(
         env=env,
@@ -132,9 +134,10 @@ def state_td3bc_experiment(variant):
         )
         algorithm.post_train_funcs.append(video_func)
 
+    if variant.get('load_demos', False):
+        td3bc_trainer.load_demos()
     algorithm.to(ptu.device)
 
-    # td3bc_trainer.load_demos()
     # td3bc_trainer.pretrain_policy_with_bc()
     # td3bc_trainer.pretrain_q_with_bc_data()
 

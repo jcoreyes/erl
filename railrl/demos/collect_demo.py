@@ -202,7 +202,6 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1)
         traj["agent_infos"].append(info)
         traj["env_infos"].append(info)
 
-
             # env.render()
             # img = o["image_observation"].reshape((84, 84, 3)).copy()
             # draw_grid(img)
