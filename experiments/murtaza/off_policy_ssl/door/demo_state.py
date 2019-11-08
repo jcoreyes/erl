@@ -3,6 +3,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.experiments.murtaza.rfeatures_rl import state_td3bc_experiment
 
 if __name__ == "__main__":
+    # demo_path = "demos/door_demos_noisy_200.npy"
     demo_path = "demos/door_demos_200.npy"
     # demo_off_policy_path = ["/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/bc-v3-varied1/run%s/id0/video_0_env.p" % str(i) for i in [0, 1]]
     # print(demo_off_policy_path)
@@ -46,20 +47,18 @@ if __name__ == "__main__":
     search_space = {
         'exploration_noise':[.3],
         'trainer_kwargs.bc_weight':[0, .1, .5, 1, 10, 100]
-
-
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local_docker'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'door_reset_free_state_td3_sweep_bc_weight'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'door_reset_free_state_td3_sweep_noisy_action_bc_weight_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
