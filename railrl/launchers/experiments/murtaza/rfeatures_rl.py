@@ -1,7 +1,10 @@
+from multiworld.core.image_env import ImageEnv
+
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.gaussian_and_epislon import GaussianAndEpislonStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
@@ -16,21 +19,32 @@ def state_td3bc_experiment(variant):
         import gym
         import multiworld
         multiworld.register_all_envs()
-        env = gym.make(variant['env_id'])
+        eval_env = gym.make(variant['env_id'])
+        expl_env = gym.make(variant['env_id'])
     else:
-        env = variant['env_class'](**variant['env_kwargs'])
-
-    expl_env = env # variant['env_class'](**variant['env_kwargs'])
-    eval_env = env # variant['env_class'](**variant['env_kwargs'])
+        eval_env_kwargs = variant.get('eval_env_kwargs', variant['env_kwargs'])
+        eval_env = variant['env_class'](**eval_env_kwargs)
+        expl_env = variant['env_class'](**variant['env_kwargs'])
 
     observation_key = 'state_observation'
     desired_goal_key = 'state_desired_goal'
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
-    es = OUStrategy(
-        action_space=expl_env.action_space,
-        max_sigma=variant['exploration_noise'],
-        min_sigma=variant['exploration_noise'],
-    )
+    es_strat =  variant.get('es', 'ou')
+    if es_strat == 'ou':
+        es = OUStrategy(
+            action_space=expl_env.action_space,
+            max_sigma=variant['exploration_noise'],
+            min_sigma=variant['exploration_noise'],
+        )
+    elif es_strat == 'gauss_eps':
+        es = GaussianAndEpislonStrategy(
+            action_space=expl_env.action_space,
+            max_sigma=.2,
+            min_sigma=.2,  # constant sigma
+            epsilon=.3,
+        )
+    else:
+        raise ValueError("invalid exploration strategy provided")
     obs_dim = expl_env.observation_space.spaces['observation'].low.size
     goal_dim = expl_env.observation_space.spaces['desired_goal'].low.size
     action_dim = expl_env.action_space.low.size
@@ -76,23 +90,21 @@ def state_td3bc_experiment(variant):
         **variant['replay_buffer_kwargs']
     )
     demo_train_buffer = ObsDictRelabelingBuffer(
-        env=env,
+        env=eval_env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
         max_size=variant['replay_buffer_kwargs']['max_size']
-        # **variant['replay_buffer_kwargs']
     )
     demo_test_buffer = ObsDictRelabelingBuffer(
-        env=env,
+        env=eval_env,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
         max_size=variant['replay_buffer_kwargs']['max_size'],
-        # **variant['replay_buffer_kwargs']
     )
     td3bc_trainer = TD3BCTrainer(
-        env=env,
+        env=expl_env,
         policy=policy,
         qf1=qf1,
         qf2=qf2,
@@ -129,8 +141,8 @@ def state_td3bc_experiment(variant):
 
     if variant.get("save_video", True):
         video_func = VideoSaveFunction(
-            env,
-            **variant["dump_video_kwargs"],
+            ImageEnv(eval_env, **variant["image_env_kwargs"]),
+            variant,
         )
         algorithm.post_train_funcs.append(video_func)
 

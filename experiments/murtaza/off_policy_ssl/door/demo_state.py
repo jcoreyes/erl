@@ -18,7 +18,7 @@ if __name__ == "__main__":
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path="demos/door_demos_200.npy",
+            demo_path="demos/door_demos_1000.npy",
             # demo_path = "demos/door_demos_noisy_200.npy"
             demo_off_policy_path=None,
             bc_num_pretrain_steps=1000,
@@ -56,9 +56,9 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'test'
 
-    # n_seeds = 1
+    # n_seeds = 3
     # mode = 'ec2'
-    # exp_prefix = 'door_reset_free_state_td3_sweep_noisy_action_bc_weight_v1'
+    # exp_prefix = 'door_reset_free_state_td3_sweep_bc_weight_1000_demos_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

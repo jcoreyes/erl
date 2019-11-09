@@ -1,23 +1,78 @@
+from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
+
 from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.experiments.murtaza.rfeatures_rl import state_td3bc_experiment
 
+x_var = 0.2
+x_low = -x_var
+x_high = x_var
+y_low = 0.5
+y_high = 0.7
+t = 0.05
+
 if __name__ == "__main__":
-    # demo_path = ["/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_jitter2.pkl" % color for color in ["grey", "beige", "green", "brownhatch"]]
-    # demo_off_policy_path = ["/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/bc-v3-varied1/run%s/id0/video_0_env.p" % str(i) for i in [0, 1]]
-    # print(demo_off_policy_path)
     demo_path = None
     demo_off_policy_path = None
     variant = dict(
-        env_id='SawyerPushNIPSEasy-v0',
+        env_class=SawyerMultiobjectEnv,
+        env_kwargs=dict(
+            fixed_start=True,  # CHECK
+            # reset_frequency=5, #CHECK
+            fixed_colors=False,
+            num_objects=1,
+            object_meshes=None,
+            num_scene_objects=[1],
+            maxlen=0.1,
+            action_repeat=1,
+            puck_goal_low=(x_low + 0.01, y_low + 0.01),
+            puck_goal_high=(x_high - 0.01, y_high - 0.01),
+            hand_goal_low=(x_low + 3 * t, y_low + t),
+            hand_goal_high=(x_high - 3 * t, y_high - t),
+            mocap_low=(x_low + 2 * t, y_low, 0.0),
+            mocap_high=(x_high - 2 * t, y_high, 0.5),
+            object_low=(x_low + 0.01, y_low + 0.01, 0.02),
+            object_high=(x_high - 0.01, y_high - 0.01, 0.02),
+            use_textures=False,
+            init_camera=sawyer_init_camera_zoomed_in,
+        ),
+        eval_env_kwargs=dict(
+            fixed_start=True,  # CHECK
+            # reset_frequency=1, #CHECK
+            fixed_colors=False,
+            num_objects=1,
+            object_meshes=None,
+            num_scene_objects=[1],
+            maxlen=0.1,
+            action_repeat=1,
+            puck_goal_low=(x_low + 0.01, y_low + 0.01),
+            puck_goal_high=(x_high - 0.01, y_high - 0.01),
+            hand_goal_low=(x_low + 3 * t, y_low + t),
+            hand_goal_high=(x_high - 3 * t, y_high - t),
+            mocap_low=(x_low + 2 * t, y_low, 0.0),
+            mocap_high=(x_high - 2 * t, y_high, 0.5),
+            object_low=(x_low + 0.01, y_low + 0.01, 0.02),
+            object_high=(x_high - 0.01, y_high - 0.01, 0.02),
+            use_textures=False,
+            init_camera=sawyer_init_camera_zoomed_in,
+        ),
         algo_kwargs=dict(
-            num_epochs=1000,
-            max_path_length=50,
             batch_size=128,
-            num_eval_steps_per_epoch=500,
+            num_epochs=3000,
+            num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000,
-            min_num_steps_before_training=10000,
+            num_trains_per_train_loop=4000,
+            min_num_steps_before_training=1000,
+            max_path_length=100,
+            #
+            # num_epochs=1000,
+            # max_path_length=50,
+            # batch_size=128,
+            # num_eval_steps_per_epoch=500,
+            # num_expl_steps_per_train_loop=1000,
+            # num_trains_per_train_loop=1000,
+            # min_num_steps_before_training=10000,
         ),
         trainer_kwargs=dict(
             discount=0.99,
@@ -29,8 +84,8 @@ if __name__ == "__main__":
             bc_weight=0,
         ),
         replay_buffer_kwargs=dict(
-            max_size=1000000,
-            fraction_goals_rollout_goals=0.5,
+            max_size=int(1E6),
+            fraction_goals_rollout_goals=0.1,
             fraction_goals_env_goals=0.5,
         ),
         qf_kwargs=dict(
@@ -39,26 +94,34 @@ if __name__ == "__main__":
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
+        exploration_noise=.2,
+        algorithm='HER-TD3',
+        load_demos=False,
+        pretrain_rl=False,
+        pretrain_policy=False,
+        es='gauss_eps',
         save_video=False,
-        exploration_noise=.3,
+        image_env_kwargs=dict(
+            imsize=48,
+            init_camera=sawyer_init_camera_zoomed_in,
+        ),
+        save_video_period=50,
     )
 
     search_space = {
-        'exploration_noise':[.3],
-        'replay_buffer_kwargs.fraction_goals_rollout_goals':[.2, .5, 1],
-        'replay_buffer_kwargs.fraction_goals_env_goals':[0, .5, 1]
+        # 'exploration_noise':[.3],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'pusher_state_td3_sweep_goal_params'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'pusher_state_td3_sweep_goal_params'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
