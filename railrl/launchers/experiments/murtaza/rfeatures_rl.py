@@ -134,11 +134,11 @@ def state_td3bc_experiment(variant):
         )
         algorithm.post_train_funcs.append(video_func)
 
+    algorithm.to(ptu.device)
     if variant.get('load_demos', False):
         td3bc_trainer.load_demos()
-    algorithm.to(ptu.device)
-
-    # td3bc_trainer.pretrain_policy_with_bc()
-    # td3bc_trainer.pretrain_q_with_bc_data()
-
+    if variant.get('pretrain_policy', False):
+        td3bc_trainer.pretrain_policy_with_bc()
+    if variant.get('pretrain_rl', False):
+        td3bc_trainer.pretrain_q_with_bc_data()
     algorithm.train()

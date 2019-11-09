@@ -263,11 +263,13 @@ class TD3BCTrainer(TorchTrainer):
         return batch
 
     def pretrain_policy_with_bc(self):
+        logger.push_tabular_prefix("pretrain_policy/")
         for i in range(self.bc_num_pretrain_steps):
             train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
             train_o = train_batch["observations"]
             train_u = train_batch["actions"]
-            train_pred_u = self.policy(train_o)
+            train_g = train_batch["resampled_goals"]
+            train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
             train_error = (train_pred_u - train_u) ** 2
             train_bc_loss = train_error.mean()
 
@@ -280,7 +282,8 @@ class TD3BCTrainer(TorchTrainer):
             test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
             test_o = test_batch["observations"]
             test_u = test_batch["actions"]
-            test_pred_u = self.policy(test_o)
+            test_g = test_batch["resampled_goals"]
+            test_pred_u = self.policy(torch.cat((test_o, test_g), dim=1))
             test_error = (test_pred_u - test_u) ** 2
             test_bc_loss = test_error.mean()
 
@@ -293,7 +296,7 @@ class TD3BCTrainer(TorchTrainer):
             }
             logger.record_dict(stats)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
-
+        logger.pop_tabular_prefix()
 
     def pretrain_q_with_bc_data(self):
         logger.push_tabular_prefix("pretrain_q/")
@@ -381,7 +384,6 @@ class TD3BCTrainer(TorchTrainer):
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
-
 
         if self._n_train_steps_total % self.target_update_period == 0:
             ptu.soft_update_from_to(self.policy, self.target_policy, self.tau)

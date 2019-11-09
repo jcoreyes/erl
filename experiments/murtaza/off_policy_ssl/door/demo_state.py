@@ -4,9 +4,6 @@ from railrl.launchers.experiments.murtaza.rfeatures_rl import state_td3bc_experi
 
 if __name__ == "__main__":
     # demo_path = "demos/door_demos_noisy_200.npy"
-    demo_path = "demos/door_demos_200.npy"
-    # demo_off_policy_path = ["/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/bc-v3-varied1/run%s/id0/video_0_env.p" % str(i) for i in [0, 1]]
-    # print(demo_off_policy_path)
     demo_off_policy_path = None
     variant = dict(
         env_id='SawyerDoorHookResetFreeEnv-v1',
@@ -21,10 +18,11 @@ if __name__ == "__main__":
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path=demo_path,
-            demo_off_policy_path=demo_off_policy_path,
-            bc_num_pretrain_steps=10000,
-            q_num_pretrain_steps=10000,
+            demo_path="demos/door_demos_200.npy",
+            # demo_path = "demos/door_demos_noisy_200.npy"
+            demo_off_policy_path=None,
+            bc_num_pretrain_steps=1000,
+            q_num_pretrain_steps=1000,
             rl_weight=1.0,
             bc_weight=0.1,
         ),
@@ -42,23 +40,25 @@ if __name__ == "__main__":
         save_video=False,
         exploration_noise=.3,
         load_demos=True,
+        pretrain_rl=False,
+        pretrain_policy=False,
     )
 
     search_space = {
         'exploration_noise':[.3],
-        'trainer_kwargs.bc_weight':[0, .1, .5, 1, 10, 100]
+        'trainer_kwargs.bc_weight':[.1, .5, 1]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
-
     n_seeds = 1
-    mode = 'ec2'
-    exp_prefix = 'door_reset_free_state_td3_sweep_noisy_action_bc_weight_v1'
+    mode = 'local'
+    exp_prefix = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_prefix = 'door_reset_free_state_td3_sweep_noisy_action_bc_weight_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
