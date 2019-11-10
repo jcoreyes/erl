@@ -228,20 +228,14 @@ class TD3BCTrainer(TorchTrainer):
         # random.shuffle(data)
         N = int(len(data) * self.demo_train_split)
         print("using", N, "paths for training")
-        if on_policy:
-            for path in data[:N]:
-                self.load_path(path, self.demo_train_buffer)
-
-        # plt.figure(figsize=(8, 8))
-        # for r in self.demo_trajectory_rewards:
-            # plt.plot(r)
-        # plt.savefig("demo_rewards.png")
 
         if self.add_demos_to_replay_buffer:
             for path in data[:N]:
                 self.load_path(path, self.replay_buffer)
 
         if on_policy:
+            for path in data[:N]:
+                self.load_path(path, self.demo_train_buffer)
             for path in data[N:]:
                 self.load_path(path, self.demo_test_buffer)
 
@@ -291,8 +285,9 @@ class TD3BCTrainer(TorchTrainer):
             test_loss_mean = np.mean(ptu.get_numpy(test_bc_loss))
 
             stats = {
-                "pretrain_bc/train_loss_mean": train_loss_mean,
-                "pretrain_bc/test_loss_mean": test_loss_mean,
+                "pretrain_bc/Train BC Loss": train_loss_mean,
+                "pretrain_bc/Test BC Loss": test_loss_mean,
+                "pretrain_bc/policy_loss": ptu.get_numpy(policy_loss),
             }
             logger.record_dict(stats)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)

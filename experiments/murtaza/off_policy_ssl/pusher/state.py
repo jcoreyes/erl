@@ -13,8 +13,6 @@ y_high = 0.7
 t = 0.05
 
 if __name__ == "__main__":
-    demo_path = None
-    demo_off_policy_path = None
     variant = dict(
         env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
@@ -65,19 +63,11 @@ if __name__ == "__main__":
             num_trains_per_train_loop=4000,
             min_num_steps_before_training=1000,
             max_path_length=100,
-            #
-            # num_epochs=1000,
-            # max_path_length=50,
-            # batch_size=128,
-            # num_eval_steps_per_epoch=500,
-            # num_expl_steps_per_train_loop=1000,
-            # num_trains_per_train_loop=1000,
-            # min_num_steps_before_training=10000,
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path=demo_path,
-            demo_off_policy_path=demo_off_policy_path,
+            demo_path=None,
+            demo_off_policy_path=None,
             bc_num_pretrain_steps=10000,
             q_num_pretrain_steps=10000,
             rl_weight=1.0,
@@ -115,13 +105,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'pusher_state_td3_sweep_goal_params'
+    # mode = 'local'
+    # exp_prefix = 'test'
+
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'pusher_state_td3_ashvin_params_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

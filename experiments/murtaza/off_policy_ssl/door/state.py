@@ -3,11 +3,6 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.experiments.murtaza.rfeatures_rl import state_td3bc_experiment
 
 if __name__ == "__main__":
-    # demo_path = ["/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_jitter2.pkl" % color for color in ["grey", "beige", "green", "brownhatch"]]
-    # demo_off_policy_path = ["/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/bc-v3-varied1/run%s/id0/video_0_env.p" % str(i) for i in [0, 1]]
-    # print(demo_off_policy_path)
-    demo_path = None
-    demo_off_policy_path = None
     variant = dict(
         env_id='SawyerDoorHookResetFreeEnv-v1',
         algo_kwargs=dict(
@@ -21,8 +16,8 @@ if __name__ == "__main__":
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path=demo_path,
-            demo_off_policy_path=demo_off_policy_path,
+            demo_path=None,
+            demo_off_policy_path=None,
             bc_num_pretrain_steps=10000,
             q_num_pretrain_steps=10000,
             rl_weight=1.0,

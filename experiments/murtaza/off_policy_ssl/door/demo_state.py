@@ -3,8 +3,6 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.experiments.murtaza.rfeatures_rl import state_td3bc_experiment
 
 if __name__ == "__main__":
-    # demo_path = "demos/door_demos_noisy_200.npy"
-    demo_off_policy_path = None
     variant = dict(
         env_id='SawyerDoorHookResetFreeEnv-v1',
         algo_kwargs=dict(
@@ -25,6 +23,7 @@ if __name__ == "__main__":
             q_num_pretrain_steps=1000,
             rl_weight=1.0,
             bc_weight=0.1,
+            add_demos_to_replay_buffer=True,
         ),
         replay_buffer_kwargs=dict(
             max_size=1000000,
@@ -42,11 +41,14 @@ if __name__ == "__main__":
         load_demos=True,
         pretrain_rl=False,
         pretrain_policy=False,
+        es='ou',
     )
 
     search_space = {
-        'exploration_noise':[.3],
-        'trainer_kwargs.bc_weight':[.1, .5, 1]
+        'trainer_kwargs.bc_weight':[10, 1, .1, 0],
+        'trainer_kwargs.add_demos_to_replay_buffer':[True, False],
+        'pretrain_rl':[True, False],
+        'pretrain_policy':[True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -56,11 +58,13 @@ if __name__ == "__main__":
     mode = 'local'
     exp_prefix = 'test'
 
-    # n_seeds = 3
+    # n_seeds = 2
     # mode = 'ec2'
-    # exp_prefix = 'door_reset_free_state_td3_sweep_bc_weight_1000_demos_v1'
+    # exp_prefix = 'door_reset_free_state_td3_bc_fixed_params_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['pretrain_rl'] and variant['pretrain_policy'] or not (variant['pretrain_rl'] or variant['pretrain_policy']):
+            continue
         for _ in range(n_seeds):
             run_experiment(
                 state_td3bc_experiment,
