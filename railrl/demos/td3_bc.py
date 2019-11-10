@@ -12,7 +12,7 @@ from railrl.torch.torch_rl_algorithm import TorchTrainer
 from railrl.misc.asset_loader import load_local_or_remote_file
 
 import random
-from railrl.torch.core import PyTorchModule, np_to_pytorch_batch
+from railrl.torch.core import np_to_pytorch_batch
 from railrl.data_management.path_builder import PathBuilder
 
 # import matplotlib
@@ -257,7 +257,7 @@ class TD3BCTrainer(TorchTrainer):
         return batch
 
     def pretrain_policy_with_bc(self):
-        logger.push_tabular_prefix("pretrain_policy/")
+        # logger.push_tabular_prefix("pretrain_policy/")
         for i in range(self.bc_num_pretrain_steps):
             train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
             train_o = train_batch["observations"]
@@ -289,9 +289,9 @@ class TD3BCTrainer(TorchTrainer):
                 "pretrain_bc/Test BC Loss": test_loss_mean,
                 "pretrain_bc/policy_loss": ptu.get_numpy(policy_loss),
             }
-            logger.record_dict(stats)
-            logger.dump_tabular(with_prefix=True, with_timestamp=False)
-        logger.pop_tabular_prefix()
+        #     logger.record_dict(stats)
+        #     logger.dump_tabular(with_prefix=True, with_timestamp=False)
+        # logger.pop_tabular_prefix()
 
     def pretrain_q_with_bc_data(self):
         logger.push_tabular_prefix("pretrain_q/")
@@ -300,7 +300,13 @@ class TD3BCTrainer(TorchTrainer):
             # self._need_to_update_eval_statistics = True
 
             train_data = self.replay_buffer.random_batch(128)
-            self.train(train_data)
+            train_data = np_to_pytorch_batch(train_data)
+            obs = train_data['observations']
+            next_obs = train_data['next_observations']
+            goals = train_data['resampled_goals']
+            train_data['observations'] = torch.cat((obs, goals), dim=1)
+            train_data['next_observations'] = torch.cat((next_obs, goals), dim=1)
+            self.train_from_torch(train_data)
 
             # logger.record_dict(self.eval_statistics)
             # logger.dump_tabular(with_prefix=True, with_timestamp=False)

@@ -4,10 +4,10 @@ from railrl.launchers.experiments.murtaza.rfeatures_rl import state_td3bc_experi
 
 if __name__ == "__main__":
     variant = dict(
-        env_id='SawyerDoorHookResetFreeEnv-v1',
+        env_id="SawyerPickupEnvYZEasy-v0",
         algo_kwargs=dict(
-            num_epochs=500,
-            max_path_length=100,
+            num_epochs=1000,
+            max_path_length=50,
             batch_size=128,
             num_eval_steps_per_epoch=500,
             num_expl_steps_per_train_loop=1000,
@@ -16,17 +16,15 @@ if __name__ == "__main__":
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path="demos/door_demos_1000.npy",
-            # demo_path = "demos/door_demos_noisy_200.npy"
+            demo_path=None,
             demo_off_policy_path=None,
-            bc_num_pretrain_steps=1000,
-            q_num_pretrain_steps=1000,
+            bc_num_pretrain_steps=10000,
+            q_num_pretrain_steps=10000,
             rl_weight=1.0,
-            bc_weight=0.1,
-            add_demos_to_replay_buffer=True,
+            bc_weight=0,
         ),
         replay_buffer_kwargs=dict(
-            max_size=1000000,
+            max_size=int(1e6),
             fraction_goals_rollout_goals=0.5,
             fraction_goals_env_goals=0.5,
         ),
@@ -38,19 +36,14 @@ if __name__ == "__main__":
         ),
         save_video=False,
         exploration_noise=.3,
-        load_demos=True,
-        pretrain_rl=False,
-        pretrain_policy=False,
-        es='ou',
     )
 
     search_space = {
-        'trainer_kwargs.bc_weight':[10, 1, .1, 0],
-        'trainer_kwargs.add_demos_to_replay_buffer':[True],
-        # 'pretrain_rl':[True],
-        # 'pretrain_policy':[False],
-        'pretrain_rl': [True],
-        'pretrain_policy': [False],
+        'exploration_noise':[.3, .5, .8],
+        'trainer_kwargs.reward_scale':[1, 10, 100],
+        'algo_kwargs.max_path_length':[50,100],
+
+
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -62,7 +55,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'door_reset_free_state_td3_bc_pretrain_rl_v1'
+    exp_prefix = 'pickup_state_td3_sweep_params'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
