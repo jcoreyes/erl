@@ -47,24 +47,24 @@ if __name__ == "__main__":
     search_space = {
         'trainer_kwargs.bc_weight':[10, 1, .1, 0],
         'trainer_kwargs.add_demos_to_replay_buffer':[True, False],
-        'pretrain_rl':[True, False],
-        'pretrain_policy':[True, False],
+        # 'pretrain_rl':[True],
+        # 'pretrain_policy':[False],
+        'pretrain_rl': [False],
+        'pretrain_policy': [True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'door_reset_free_state_td3_bc_fixed_params_v1'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'door_reset_free_state_td3_bc_pretrain_policy_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if variant['pretrain_rl'] and variant['pretrain_policy'] or not (variant['pretrain_rl'] or variant['pretrain_policy']):
-            continue
         for _ in range(n_seeds):
             run_experiment(
                 state_td3bc_experiment,
