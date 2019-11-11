@@ -7,7 +7,7 @@ if __name__ == "__main__":
         env_id='SawyerPushNIPSEasy-v0',
         algo_kwargs=dict(
             num_epochs=1000,
-            max_path_length=50,
+            max_path_length=100,
             batch_size=128,
             num_eval_steps_per_epoch=500,
             num_expl_steps_per_train_loop=1000,
@@ -22,6 +22,7 @@ if __name__ == "__main__":
             q_num_pretrain_steps=10000,
             rl_weight=1.0,
             bc_weight=0,
+            reward_scale=1.0
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1e6),
@@ -35,15 +36,10 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
         save_video=False,
-        exploration_noise=.3,
+        exploration_noise=.5,
     )
 
     search_space = {
-        'exploration_noise':[.3, .5, .8],
-        'trainer_kwargs.reward_scale':[1, 10, 100],
-        'algo_kwargs.max_path_length':[50,100],
-
-
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
