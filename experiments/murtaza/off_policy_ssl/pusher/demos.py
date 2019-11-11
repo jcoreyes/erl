@@ -21,4 +21,4 @@ if __name__ == '__main__':
                 # normalize=True,
                 # presampled_goals=presampled_goals,
     # )
-    collect_demos(env, policy, "data/local/demos/pusher_demos_1000.npy", N=1000, horizon=100, threshold=.085, add_action_noise=False)
+    collect_demos(env, policy, "data/local/demos/pusher_demos_1000.npy", N=1000, horizon=100, threshold=.07, add_action_noise=False)
