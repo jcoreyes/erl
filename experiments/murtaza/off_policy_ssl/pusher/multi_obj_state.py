@@ -105,13 +105,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local_docker'
-    exp_prefix = 'test'
-
     # n_seeds = 1
-    # mode = 'ec2'
-    # exp_prefix = 'pusher_state_td3_ashvin_params_v1'
+    # mode = 'local_docker'
+    # exp_prefix = 'test'
+
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = 'pusher_state_td3_ashvin_params_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -120,6 +120,6 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                num_exps_per_instance=3,
+                num_exps_per_instance=1,
                 skip_wait=False,
             )
