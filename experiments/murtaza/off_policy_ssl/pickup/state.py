@@ -14,13 +14,18 @@ if __name__ == "__main__":
             num_trains_per_train_loop=1000,
             min_num_steps_before_training=10000,
         ),
-        trainer_kwargs=dict(
+        td3_trainer_kwargs=dict(
             discount=0.99,
-            # demo_path=None,
-            # demo_off_policy_path=None,
-            # q_num_pretrain_steps=10000,
-            # rl_weight=1.0,
-            # bc_weight=0,
+        ),
+        td3_bc_trainer_kwargs=dict(
+            discount=0.99,
+            demo_path=None,
+            demo_off_policy_path=None,
+            bc_num_pretrain_steps=10000,
+            q_num_pretrain_steps=10000,
+            rl_weight=1.0,
+            bc_weight=0,
+            reward_scale=1.0
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1e6),
@@ -39,7 +44,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-
+        'exploration_noise': [.1, .3, .5, .8],
+        'td3_bc': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

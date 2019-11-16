@@ -116,7 +116,7 @@ def state_td3bc_experiment(variant):
             target_qf1=target_qf1,
             target_qf2=target_qf2,
             target_policy=target_policy,
-            **variant['trainer_kwargs']
+            **variant['td3_bc_trainer_kwargs']
         )
     else:
         td3_trainer = TD3(
@@ -126,7 +126,7 @@ def state_td3bc_experiment(variant):
             target_qf1=target_qf1,
             target_qf2=target_qf2,
             target_policy=target_policy,
-            **variant['trainer_kwargs']
+            **variant['td3_trainer_kwargs']
         )
     trainer = HERTrainer(td3_trainer)
     eval_path_collector = GoalConditionedPathCollector(
@@ -160,9 +160,9 @@ def state_td3bc_experiment(variant):
 
     algorithm.to(ptu.device)
     if variant.get('load_demos', False):
-        td3bc_trainer.load_demos()
+        td3_trainer.load_demos()
     if variant.get('pretrain_policy', False):
-        td3bc_trainer.pretrain_policy_with_bc()
+        td3_trainer.pretrain_policy_with_bc()
     if variant.get('pretrain_rl', False):
-        td3bc_trainer.pretrain_q_with_bc_data()
+        td3_trainer.pretrain_q_with_bc_data()
     algorithm.train()

@@ -6,15 +6,18 @@ if __name__ == "__main__":
     variant = dict(
         env_id='SawyerDoorHookResetFreeEnv-v1',
         algo_kwargs=dict(
-            num_epochs=500,
-            max_path_length=100,
-            batch_size=128,
+            batch_size=1024,
+            num_epochs=170,
             num_eval_steps_per_epoch=500,
-            num_expl_steps_per_train_loop=1000,
+            num_expl_steps_per_train_loop=500,
             num_trains_per_train_loop=1000,
             min_num_steps_before_training=10000,
+            max_path_length=100,
         ),
-        trainer_kwargs=dict(
+        td3_trainer_kwargs=dict(
+            discount=0.99,
+        ),
+        td3_bc_trainer_kwargs=dict(
             discount=0.99,
             demo_path=None,
             demo_off_policy_path=None,
@@ -22,10 +25,11 @@ if __name__ == "__main__":
             q_num_pretrain_steps=10000,
             rl_weight=1.0,
             bc_weight=0,
+            reward_scale=1.0
         ),
         replay_buffer_kwargs=dict(
-            max_size=1000000,
-            fraction_goals_rollout_goals=0.5,
+            max_size=int(1e6),
+            fraction_goals_rollout_goals=0.2,
             fraction_goals_env_goals=0.5,
         ),
         qf_kwargs=dict(
@@ -36,10 +40,12 @@ if __name__ == "__main__":
         ),
         save_video=False,
         exploration_noise=.3,
+        td3_bc=False,
     )
 
     search_space = {
-        'exploration_noise':[.3],
+        'exploration_noise': [.1, .3, .5, .8],
+        'td3_bc': [True, False],
 
 
     }
@@ -51,9 +57,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'test'
 
-    n_seeds = 1
+    n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'door_reset_free_state_td3_confirm'
+    exp_prefix = 'door_reset_free_state_td3_sweep_params'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

@@ -45,11 +45,12 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'trainer_kwargs.bc_weight':[10, 1, .1, 0],
+        'trainer_kwargs.bc_weight':[1],
         'trainer_kwargs.add_demos_to_replay_buffer':[True],
+        'trainer_kwargs.num_trains_per_train_loop':[1000, 2000, 4000, 10000, 16000],
         # 'pretrain_rl':[True],
         # 'pretrain_policy':[False],
-        'pretrain_rl': [True],
+        'pretrain_rl': [False],
         'pretrain_policy': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -62,7 +63,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'door_reset_free_state_td3_bc_pretrain_rl_v1'
+    exp_prefix = 'door_reset_free_state_td3_bc_sweep_nupo'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
