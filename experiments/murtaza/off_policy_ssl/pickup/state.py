@@ -7,26 +7,24 @@ if __name__ == "__main__":
         env_id="SawyerPickupEnvYZEasy-v0",
         algo_kwargs=dict(
             num_epochs=1000,
-            max_path_length=100,
-            batch_size=128,
+            max_path_length=50,
+            batch_size=1024,
             num_eval_steps_per_epoch=500,
-            num_expl_steps_per_train_loop=1000,
+            num_expl_steps_per_train_loop=500,
             num_trains_per_train_loop=1000,
             min_num_steps_before_training=10000,
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path=None,
-            demo_off_policy_path=None,
-            bc_num_pretrain_steps=10000,
-            q_num_pretrain_steps=10000,
-            rl_weight=1.0,
-            bc_weight=0,
-            reward_scale=0.8,
+            # demo_path=None,
+            # demo_off_policy_path=None,
+            # q_num_pretrain_steps=10000,
+            # rl_weight=1.0,
+            # bc_weight=0,
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1e6),
-            fraction_goals_rollout_goals=0.5,
+            fraction_goals_rollout_goals=0.2,
             fraction_goals_env_goals=0.5,
         ),
         qf_kwargs=dict(
@@ -36,7 +34,8 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
         save_video=False,
-        exploration_noise=.8,
+        exploration_noise=.3,
+        td3_bc=False,
     )
 
     search_space = {

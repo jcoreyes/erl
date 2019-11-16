@@ -10,6 +10,7 @@ from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.demos.td3_bc import TD3BCTrainer
+from railrl.torch.td3.td3 import TD3
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from railrl.torch.grill.video_gen import VideoSaveFunction
 
@@ -103,20 +104,31 @@ def state_td3bc_experiment(variant):
         achieved_goal_key=achieved_goal_key,
         max_size=variant['replay_buffer_kwargs']['max_size'],
     )
-    td3bc_trainer = TD3BCTrainer(
-        env=expl_env,
-        policy=policy,
-        qf1=qf1,
-        qf2=qf2,
-        replay_buffer=replay_buffer,
-        demo_train_buffer=demo_train_buffer,
-        demo_test_buffer=demo_test_buffer,
-        target_qf1=target_qf1,
-        target_qf2=target_qf2,
-        target_policy=target_policy,
-        **variant['trainer_kwargs']
-    )
-    trainer = HERTrainer(td3bc_trainer)
+    if variant.get('td3_bc', True):
+        td3_trainer = TD3BCTrainer(
+            env=expl_env,
+            policy=policy,
+            qf1=qf1,
+            qf2=qf2,
+            replay_buffer=replay_buffer,
+            demo_train_buffer=demo_train_buffer,
+            demo_test_buffer=demo_test_buffer,
+            target_qf1=target_qf1,
+            target_qf2=target_qf2,
+            target_policy=target_policy,
+            **variant['trainer_kwargs']
+        )
+    else:
+        td3_trainer = TD3(
+            policy=policy,
+            qf1=qf1,
+            qf2=qf2,
+            target_qf1=target_qf1,
+            target_qf2=target_qf2,
+            target_policy=target_policy,
+            **variant['trainer_kwargs']
+        )
+    trainer = HERTrainer(td3_trainer)
     eval_path_collector = GoalConditionedPathCollector(
         eval_env,
         policy,
