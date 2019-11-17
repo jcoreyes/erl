@@ -132,17 +132,10 @@ class Logger(object):
     def add_tensorboard_output(self, file_name):
         import tensorboard_logger
         self._use_tensorboard = True
-        self.tensorboard_logger = tensorboard_logger
-        self.tensorboard_logger.configure(file_name)
+        self.tensorboard_logger = tensorboard_logger.Logger(file_name)
 
     def remove_text_output(self, file_name):
         self._remove_output(file_name, self._text_outputs, self._text_fds)
-
-    def add_tensorboard_output(self, file_name):
-        import tensorboard_logger
-        self._use_tensorboard = True
-        self.tensorboard_logger = tensorboard_logger
-        self.tensorboard_logger.configure(file_name)
 
     def add_tabular_output(self, file_name, relative_to_snapshot_dir=False):
         if relative_to_snapshot_dir:
