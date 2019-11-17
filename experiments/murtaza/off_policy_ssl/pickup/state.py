@@ -6,7 +6,7 @@ if __name__ == "__main__":
     variant = dict(
         env_id="SawyerPickupEnvYZEasy-v0",
         algo_kwargs=dict(
-            num_epochs=1000,
+            num_epochs=300,
             max_path_length=50,
             batch_size=1024,
             num_eval_steps_per_epoch=500,
@@ -41,13 +41,11 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
         save_video=False,
-        exploration_noise=.3,
-        td3_bc=False,
+        exploration_noise=.8,
+        td3_bc=True,
     )
 
     search_space = {
-        'exploration_noise': [.5, .8],
-        'td3_bc': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -59,7 +57,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'pickup_state_td3_sweep_params_policy_update_period'
+    exp_prefix = 'pickup_state_td3_confirm'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

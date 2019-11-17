@@ -60,7 +60,7 @@ class TD3BCTrainer(TorchTrainer):
             policy_learning_rate=1e-3,
             qf_learning_rate=1e-3,
             target_update_period=2,
-            policy_update_period=10,
+            policy_update_period=2,
             tau=0.005,
             qf_criterion=None,
             optimizer_class=optim.Adam,
