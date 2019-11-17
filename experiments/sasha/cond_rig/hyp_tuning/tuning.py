@@ -136,7 +136,7 @@ if __name__ == "__main__":
             generate_vae_dataset_kwargs=dict(
                 N=100000,
                 #dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
-                n_random_steps=1,
+                n_random_steps=5,
                 test_p=.9,
                 use_cached=False,
                 show=False,
@@ -185,7 +185,7 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        region='us-west-2',
+        region='us-east-1',
 
         logger_variant=dict(
             tensorboard=True,
@@ -199,17 +199,17 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(3),
+        'seedid': range(2),
         'train_vae_variant.latent_sizes': [(4, 8),],
         'train_vae_variant.context_schedule':[
-        dict(x_values=(0, 1500), y_values=(1, 0)),
-        dict(x_values=(0, 1500), y_values=(0, 0)),
-        dict(x_values=(0, 1500), y_values=(1, 1))],
+        dict(x_values=(0, 1500), y_values=(1, 0)),],
+        #dict(x_values=(0, 1500), y_values=(0, 0)),
+        #dict(x_values=(0, 1500), y_values=(1, 1))],
         'train_vae_variant.algo_kwargs.batch_size': [128],
-        'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000], #4000, ],
+        'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000, 4000], #4000, ],
         #VAE BATCH: 128. 256, 512, 1024
-        'grill_variant.algo_kwargs.batch_size': [128, 1012],
-        'grill_variant.exploration_noise': [0.2, 0.5],
+        'grill_variant.algo_kwargs.batch_size': [128,],
+        'grill_variant.exploration_noise': [0.5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -219,4 +219,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=9)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=56)
