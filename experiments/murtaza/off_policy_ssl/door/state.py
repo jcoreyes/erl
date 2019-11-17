@@ -25,7 +25,9 @@ if __name__ == "__main__":
             q_num_pretrain_steps=10000,
             rl_weight=1.0,
             bc_weight=0,
-            reward_scale=1.0
+            reward_scale=1.0,
+            target_update_period=2,
+            policy_update_period=2,
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1e6),
@@ -44,7 +46,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'exploration_noise': [.1, .3, .5, .8],
+        'exploration_noise': [.5, .8],
         'td3_bc': [True, False],
 
 
@@ -59,7 +61,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'door_reset_free_state_td3_sweep_params'
+    exp_prefix = 'door_reset_free_state_td3_sweep_params_policy_update_period'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

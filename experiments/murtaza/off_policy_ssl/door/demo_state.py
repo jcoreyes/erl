@@ -14,7 +14,10 @@ if __name__ == "__main__":
             num_trains_per_train_loop=1000,
             min_num_steps_before_training=10000,
         ),
-        trainer_kwargs=dict(
+        td3_trainer_kwargs=dict(
+            discount=0.99,
+        ),
+        td3_bc_trainer_kwargs=dict(
             discount=0.99,
             demo_path="demos/door_demos_1000.npy",
             # demo_path = "demos/door_demos_noisy_200.npy"
@@ -26,7 +29,7 @@ if __name__ == "__main__":
             add_demos_to_replay_buffer=True,
         ),
         replay_buffer_kwargs=dict(
-            max_size=1000000,
+            max_size=int(1e6),
             fraction_goals_rollout_goals=0.5,
             fraction_goals_env_goals=0.5,
         ),
@@ -42,6 +45,7 @@ if __name__ == "__main__":
         pretrain_rl=False,
         pretrain_policy=False,
         es='ou',
+        td3_bc=True,
     )
 
     search_space = {
