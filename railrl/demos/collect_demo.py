@@ -161,7 +161,7 @@ def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=None, pxstep=20):
         cv2.line(img, (0, y), (img.shape[1], y), color=line_color, lineType=type_, thickness=thickness)
         y += pxstep
 
-def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1, add_action_noise=False):
+def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1, add_action_noise=False, key=''):
     # goal = env.sample_goal()
     # env.set_to_goal(goal)
     # goal_obs = env._get_obs()
@@ -217,21 +217,22 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
             # return accept, traj
     if threshold == -1:
         accept = True
-    elif np.abs(traj["rewards"][-1]) < threshold:
+    elif np.abs(traj["env_infos"][-1][key]) < threshold:
         accept = True
     else:
         accept = False
     return accept, traj
 
-def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1, add_action_noise=False):
+def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1, add_action_noise=False, key=''):
     data = []
 
     while len(data) < N:
-        accept, traj = collect_one_rollout_goal_conditioned(env, expert, horizon, threshold=threshold, add_action_noise=add_action_noise)
+        accept, traj = collect_one_rollout_goal_conditioned(env, expert, horizon, threshold=threshold, add_action_noise=add_action_noise, key=key)
         if accept:
             data.append(traj)
             print("accepted trajectory length", len(traj["observations"]))
             print("last reward", traj["rewards"][-1])
+            print("last " + key, traj["env_infos"][-1][key])
             print("accepted", len(data), "trajectories")
         else:
             print("discarded trajectory")
