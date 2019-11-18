@@ -42,6 +42,9 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
         GaussianAndEpislonStrategy
     from railrl.torch.vae.online_vae_offpolicy_algorithm import OnlineVaeOffpolicyAlgorithm
 
+    import gc
+    gc.collect() # Ashvin: this line for a GPU memory error
+
     grill_preprocess_variant(variant)
     env = get_envs(variant)
 
