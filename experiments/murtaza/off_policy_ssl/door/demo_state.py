@@ -51,7 +51,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'td3_bc_trainer_kwargs.bc_weight':[1],
+        'td3_bc_trainer_kwargs.bc_weight':[0, 1],
         'td3_bc_trainer_kwargs.add_demos_to_replay_buffer':[True, False],
         # 'td3_bc_trainer_kwargs.num_trains_per_train_loop':[1000, 2000, 4000, 10000, 16000],
         'exploration_noise':[0, .1, .3, .5, .8],
