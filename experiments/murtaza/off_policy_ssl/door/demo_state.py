@@ -51,10 +51,12 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'td3_bc_trainer_kwargs.use_awr':[False],
+        'td3_bc_trainer_kwargs.demo_beta':[1],
         'td3_bc_trainer_kwargs.bc_weight':[0, 1],
         'td3_bc_trainer_kwargs.add_demos_to_replay_buffer':[True, False],
         # 'td3_bc_trainer_kwargs.num_trains_per_train_loop':[1000, 2000, 4000, 10000, 16000],
-        'exploration_noise':[0, .1, .3, .5, .8],
+        'exploration_noise':[0.1, .3, .5, .8],
         # 'pretrain_rl':[True],
         # 'pretrain_policy':[False],
         'pretrain_rl': [False],
@@ -68,9 +70,9 @@ if __name__ == "__main__":
     # mode = 'local_docker'
     # exp_prefix = 'test1'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'door_state_td3_bc_sweep_exp_noise_v1'
+    n_seeds = 1
+    mode = 'gcp'
+    exp_prefix = 'door_state_td3_bc_sweep_exp_noise_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

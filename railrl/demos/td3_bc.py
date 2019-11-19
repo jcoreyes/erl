@@ -65,6 +65,9 @@ class TD3BCTrainer(TorchTrainer):
             qf_criterion=None,
             optimizer_class=optim.Adam,
 
+            use_awr=False,
+            demo_beta=1,
+
             **kwargs
     ):
         super().__init__()
@@ -124,6 +127,8 @@ class TD3BCTrainer(TorchTrainer):
         self.bc_num_pretrain_steps = bc_num_pretrain_steps
         self.q_num_pretrain_steps = q_num_pretrain_steps
         self.demo_trajectory_rewards = []
+        self.demo_beta = demo_beta
+        self.use_awr = use_awr
 
     def _update_obs_with_latent(self, obs):
         latent_obs = self.env._encode_one(obs["image_observation"])
@@ -371,10 +376,18 @@ class TD3BCTrainer(TorchTrainer):
                 train_error = (train_pred_u - train_u) ** 2
                 train_bc_loss = train_error.mean()
 
-                policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
-                self.eval_statistics['BC Loss'] = np.mean(ptu.get_numpy(
+                policy_q_output_demo_state = self.qf1(torch.cat((train_o, train_g), dim=1), train_pred_u)
+                demo_q_output = self.qf1(torch.cat((train_o, train_g), dim=1), train_u)
+
+                advantage = demo_q_output-policy_q_output_demo_state
+                self.eval_statistics['Train BC Loss'] = np.mean(ptu.get_numpy(
                     train_bc_loss
                 ))
+                if self.use_awr:
+                    train_bc_loss = (train_error * torch.exp((advantage)*1/self.demo_beta))
+                    self.eval_statistics['Advantage'] = np.mean(ptu.get_numpy(advantage))
+                policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
+
             else:
                 policy_loss = - self.rl_weight * q_output.mean()
 
@@ -433,8 +446,13 @@ class TD3BCTrainer(TorchTrainer):
                 test_pred_u = self.policy(torch.cat((test_o, test_g), dim=1))
                 test_error = (test_pred_u - test_u) ** 2
                 test_bc_loss = test_error.mean()
+
+                demo_q_output = self.qf1(torch.cat((test_o, test_g), dim=1), test_u)
                 self.eval_statistics['Test BC Loss'] = np.mean(ptu.get_numpy(
                     test_bc_loss
+                ))
+                self.eval_statistics['Test Demo Q Values'] = np.mean(ptu.get_numpy(
+                    demo_q_output
                 ))
         self._n_train_steps_total += 1
 
