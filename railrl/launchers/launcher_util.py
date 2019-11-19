@@ -408,20 +408,20 @@ def run_experiment(
 
         if gcp_kwargs is None:
             gcp_kwargs = {}
-        # config_kwargs = {
-            # **config.GCP_DEFAULT_KWARGS,
-            # **dict(image_name=image_name),
-            # **gcp_kwargs
-        # }
-        # dmode = doodad.mode.GCPDocker(
-            # image=docker_image,
-            # gpu=use_gpu,
-            # gcp_bucket_name=config.GCP_BUCKET_NAME,
-            # gcp_log_prefix=exp_prefix,
-            # gcp_log_name="",
-            # num_exps=num_exps_per_instance,
-            # **config_kwargs
-        # )
+        config_kwargs = {
+            **config.GCP_DEFAULT_KWARGS,
+            **dict(image_name=image_name),
+            **gcp_kwargs
+        }
+        dmode = doodad.mode.GCPDocker(
+            image=docker_image,
+            gpu=use_gpu,
+            gcp_bucket_name=config.GCP_BUCKET_NAME,
+            gcp_log_prefix=exp_prefix,
+            gcp_log_name="",
+            num_exps=num_exps_per_instance,
+            **config_kwargs
+        )
     else:
         raise NotImplementedError("Mode not supported: {}".format(mode))
 
