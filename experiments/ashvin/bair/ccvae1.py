@@ -76,7 +76,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(5),
+        # 'seedid': range(5),
+        'latent_sizes': [(8, 8), (16, 16), (32, 32), (64, 64)],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -86,4 +87,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(train_vae, variants, run_id=1)
+    run_variants(train_vae, variants, run_id=2)
