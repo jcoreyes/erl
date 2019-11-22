@@ -384,7 +384,7 @@ class TD3BCTrainer(TorchTrainer):
                     train_bc_loss
                 ))
                 if self.use_awr:
-                    train_bc_loss = (train_error * torch.exp((advantage)*1/self.demo_beta))
+                    train_bc_loss = (train_error * torch.exp((advantage)*self.demo_beta))
                     self.eval_statistics['Advantage'] = np.mean(ptu.get_numpy(advantage))
                 policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
 
@@ -445,15 +445,29 @@ class TD3BCTrainer(TorchTrainer):
                 test_g = test_batch["resampled_goals"]
                 test_pred_u = self.policy(torch.cat((test_o, test_g), dim=1))
                 test_error = (test_pred_u - test_u) ** 2
-                test_bc_loss = test_error.mean()
+                test_bc_loss = test_error
 
+                policy_q_output_demo_state = self.qf1(torch.cat((test_o, test_g), dim=1), test_pred_u)
                 demo_q_output = self.qf1(torch.cat((test_o, test_g), dim=1), test_u)
-                self.eval_statistics['Test BC Loss'] = np.mean(ptu.get_numpy(
-                    test_bc_loss
+
+                advantage = demo_q_output - policy_q_output_demo_state
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'Test BC Loss',
+                    ptu.get_numpy(test_bc_loss),
                 ))
-                self.eval_statistics['Test Demo Q Values'] = np.mean(ptu.get_numpy(
-                    demo_q_output
+
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'Test Demo Advantage',
+                    ptu.get_numpy(advantage),
                 ))
+
+                rewards = (test_o - test_g) ** 2
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'Test Demo Rewards',
+                    ptu.get_numpy(rewards),
+                ))
+
+
         self._n_train_steps_total += 1
 
         logger.pop_tabular_prefix()

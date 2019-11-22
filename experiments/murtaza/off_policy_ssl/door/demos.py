@@ -3,7 +3,6 @@ import multiworld.envs.mujoco as mwmj
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
 
 from railrl.demos.collect_demo import collect_demos
-import pickle
 import os.path as osp
 
 from railrl.misc.asset_loader import load_local_or_remote_file
@@ -28,4 +27,4 @@ if __name__ == '__main__':
                 normalize=True,
                 presampled_goals=presampled_goals,
     )
-    collect_demos(env, policy, "data/local/demos/door_demos_1000.npy", N=1000, horizon=100, threshold=.075, add_action_noise=False, key='angle_difference')
+    collect_demos(image_env, policy, "data/local/demos/door_demos_1000.npy", N=1000, horizon=100, threshold=.05, add_action_noise=False, key='angle_difference')

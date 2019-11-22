@@ -51,11 +51,11 @@ if __name__ == "__main__":
 
     search_space = {
         'td3_bc_trainer_kwargs.use_awr':[True],
-        'td3_bc_trainer_kwargs.demo_beta':[.1, 1, 10],
-        'td3_bc_trainer_kwargs.bc_weight':[0, .1, 1, 10],
-        'td3_bc_trainer_kwargs.add_demos_to_replay_buffer':[True, False],
+        'td3_bc_trainer_kwargs.demo_beta':[1, 10],
+        'td3_bc_trainer_kwargs.bc_weight':[0, .1, 1,],
+        # 'td3_bc_trainer_kwargs.add_demos_to_replay_buffer':[True, False],
         # 'td3_bc_trainer_kwargs.num_trains_per_train_loop':[1000, 2000, 4000, 10000, 16000],
-        # 'exploration_noise':[0.1, .3, .5, .8],
+        'exploration_noise':[0.1, .3, .5],
         # 'pretrain_rl':[True],
         # 'pretrain_policy':[False],
         'pretrain_rl': [False],
@@ -69,11 +69,13 @@ if __name__ == "__main__":
     # mode = 'local_docker'
     # exp_prefix = 'test'
 
-    n_seeds = 1
+    n_seeds = 2
     mode = 'gcp'
-    exp_prefix = 'pusher_state_td3_awr_sweep'
+    exp_prefix = 'pusher_state_td3_awr_sweep_exp_noise'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['td3_bc_trainer_kwargs']['bc_weight'] == 0 and variant['td3_bc_trainer_kwargs']['demo_beta'] != 1:
+            continue
         for _ in range(n_seeds):
             run_experiment(
                 state_td3bc_experiment,

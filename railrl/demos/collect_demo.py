@@ -8,7 +8,7 @@ robosuite/devices/spacemouse.py
 
 You will likely have to `pip install hidapi` and Spacemouse drivers.
 """
-
+import cv2
 import os
 import shutil
 import time
@@ -189,7 +189,7 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
     )
 
     for i in range(horizon):
-        a, _ = expert.get_action(np.concatenate((o['observation'], o['desired_goal'])))
+        a, _ = expert.get_action(np.concatenate((o['state_observation'], o['state_desired_goal'])))
         if add_action_noise:
             a += np.random.normal(0, .3, a.shape)
 
@@ -218,9 +218,26 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
     if threshold == -1:
         accept = True
     elif np.abs(traj["env_infos"][-1][key]) < threshold:
+        img = o['image_observation'].reshape(
+            3,
+            env.imsize,
+            env.imsize,
+        ).transpose()[::-1]
+        cv2.imshow('env', img)
+        cv2.waitKey(1)
+
+        img = o['image_desired_goal'].reshape(
+            3,
+            env.imsize,
+            env.imsize,
+        ).transpose()[::-1]
+        cv2.imshow('goal_env', img)
+        cv2.waitKey(1)
+
         accept = True
     else:
         accept = False
+
     return accept, traj
 
 def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1, add_action_noise=False, key=''):
