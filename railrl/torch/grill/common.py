@@ -1,7 +1,7 @@
 import os.path as osp
 import time
 
-import cv2
+#import cv2
 import numpy as np
 
 from torch.utils import data
@@ -114,6 +114,12 @@ def train_vae(variant, return_data=False):
             **variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
+    context_schedule = PiecewiseLinearSchedule(
+            **variant.get(
+                'context_schedule',
+                dict(x_values=(0, 10000), y_values=(1, 1))
+            )
+        )
     if variant.get('decoder_activation', None) == 'sigmoid':
         decoder_activation = torch.nn.Sigmoid()
     else:
@@ -140,7 +146,9 @@ def train_vae(variant, return_data=False):
 
     vae_trainer_class = variant.get('vae_trainer_class', ConvVAETrainer)
     trainer = vae_trainer_class(model, beta=beta,
-                       beta_schedule=beta_schedule, **variant['algo_kwargs'])
+                       beta_schedule=beta_schedule,
+                       context_schedule=context_schedule,
+                       **variant['algo_kwargs'])
     save_period = variant['save_period']
 
     dump_skew_debug_plots = variant.get('dump_skew_debug_plots', False)

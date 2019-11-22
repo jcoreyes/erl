@@ -1,7 +1,7 @@
 import os.path as osp
 import time
 
-import cv2
+#import cv2
 import numpy as np
 
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
@@ -41,6 +41,9 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
     from railrl.exploration_strategies.gaussian_and_epislon import \
         GaussianAndEpislonStrategy
     from railrl.torch.vae.online_vae_offpolicy_algorithm import OnlineVaeOffpolicyAlgorithm
+
+    import gc
+    gc.collect() # Ashvin: this line for a GPU memory error
 
     grill_preprocess_variant(variant)
     env = get_envs(variant)
@@ -94,12 +97,12 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
         hidden_sizes=hidden_sizes,
         # **variant['policy_kwargs']
     )
-
+    #es = get_exploration_strategy(varient, env)
     es = GaussianAndEpislonStrategy(
         action_space=env.action_space,
         max_sigma=.2,
         min_sigma=.2,  # constant sigma
-        epsilon=.3,
+        epsilon=variant.get('exploration_noise', 0.1),
     )
     expl_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,

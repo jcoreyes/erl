@@ -33,3 +33,5 @@ MANIFEST
 demos/
 reset.p
 gitignore/
+build/
+dist/
