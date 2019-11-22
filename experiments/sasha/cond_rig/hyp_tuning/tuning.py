@@ -119,7 +119,7 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            #vae_path="/home/ashvin/data/sasha/cond-rig/hyp-tuning/tuning/run5/id0/vae.pkl",
+            vae_path="/home/ashvin/data/rail-khazatsky/sasha/cond-rig/hyp-tuning/tuning/run100/id5/vae.pkl",
         ),
         train_vae_variant=dict(
             latent_sizes=4,
@@ -135,8 +135,8 @@ if __name__ == "__main__":
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
                 N=100000,
-                #dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
-                n_random_steps=10,
+                dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
+                n_random_steps=50,
                 test_p=.9,
                 use_cached=False,
                 show=False,
@@ -149,13 +149,6 @@ if __name__ == "__main__":
                 save_trajectories=False,
                 enviorment_dataset=False,
                 tag="ccrig_tuning",
-
-                train_batch_loader_kwargs=dict(
-                    batch_size=128,
-                ),
-                test_batch_loader_kwargs=dict(
-                    batch_size=128,
-                ),
             ),
             vae_trainer_class=DeltaCVAETrainer,
             vae_class=DeltaCVAE,
@@ -185,7 +178,7 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        region='us-east-2',
+        region='us-west-1',
 
         logger_variant=dict(
             tensorboard=True,
@@ -199,16 +192,13 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(3),
-        'train_vae_variant.latent_sizes': [(4, 8),],
+        'seedid': range(10),
+        'train_vae_variant.latent_sizes': [(6, 2),], #Tune Latent sizes
         'train_vae_variant.context_schedule':[
-        dict(x_values=(0, 1500), y_values=(1, 0)),],
-        #dict(x_values=(0, 1500), y_values=(0, 0)),
-        #dict(x_values=(0, 1500), y_values=(1, 1))],
-        'train_vae_variant.algo_kwargs.batch_size': [128],
+        dict(x_values=(0, 1500), y_values=(1, 1)),],
+        'train_vae_variant.algo_kwargs.batch_size': [64, 128, 256, 512, 1024],
         'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000,], #4000, ],
-        #VAE BATCH: 128. 256, 512, 1024
-        'grill_variant.algo_kwargs.batch_size': [128, 1024],
+        'grill_variant.algo_kwargs.batch_size': [128,],
         'grill_variant.exploration_noise': [0.5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -219,4 +209,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=102)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=160)

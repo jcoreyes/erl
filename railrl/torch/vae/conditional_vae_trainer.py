@@ -449,14 +449,14 @@ class CDVAETrainer(CVAETrainer):
 
     def state_linearity_loss(self, x_t, x_next, env, actions):
         latent_obs = self.model.encode(x_t, env, distrib=False)
-        latent_next_obs = self.model.encode(x_next, env, distrib=False)
+        latent_next_obs = self.model.encode(x_next, env, distrib=False).detach()
         predicted_latent = self.model.process_dynamics(latent_obs, actions)
         return torch.norm(predicted_latent - latent_next_obs) ** 2 / self.batch_size
 
-    def state_distance_loss(self, x_t, x_next, env):
-        latent_obs = self.model.encode(x_t, env, distrib=False)
-        latent_next_obs = self.model.encode(x_next, env, distrib=False)
-        return torch.norm(latent_obs - latent_next_obs) ** 2 / self.batch_size
+    # def state_distance_loss(self, x_t, x_next, env):
+    #     latent_obs = self.model.encode(x_t, env, distrib=False)
+    #     latent_next_obs = self.model.encode(x_next, env, distrib=False)
+    #     return torch.norm(latent_obs - latent_next_obs) ** 2 / self.batch_size
 
     def compute_loss(self, epoch, batch, test=False):
         prefix = "test/" if test else "train/"
