@@ -67,6 +67,7 @@ class TD3BCTrainer(TorchTrainer):
 
             use_awr=False,
             demo_beta=1,
+            max_steps_till_train_rl=0,
 
             **kwargs
     ):
@@ -129,6 +130,7 @@ class TD3BCTrainer(TorchTrainer):
         self.demo_trajectory_rewards = []
         self.demo_beta = demo_beta
         self.use_awr = use_awr
+        self.max_steps_till_train_rl = max_steps_till_train_rl
 
     def _update_obs_with_latent(self, obs):
         latent_obs = self.env._encode_one(obs["image_observation"])
@@ -383,10 +385,17 @@ class TD3BCTrainer(TorchTrainer):
                 self.eval_statistics['Train BC Loss'] = np.mean(ptu.get_numpy(
                     train_bc_loss
                 ))
+
                 if self.use_awr:
                     train_bc_loss = (train_error * torch.exp((advantage)*self.demo_beta))
                     self.eval_statistics['Advantage'] = np.mean(ptu.get_numpy(advantage))
-                policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
+
+                if self._n_train_steps_total < self.max_steps_till_train_rl:
+                    rl_weight = 0
+                else:
+                    rl_weight = self.rl_weight
+
+                policy_loss = - rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
 
             else:
                 policy_loss = - self.rl_weight * q_output.mean()
@@ -439,6 +448,19 @@ class TD3BCTrainer(TorchTrainer):
             ))
 
             if self.demo_test_buffer._size >= self.bc_batch_size:
+                train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
+                train_o = train_batch["observations"]
+                train_u = train_batch["actions"]
+                train_g = train_batch["resampled_goals"]
+                train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
+                train_error = (train_pred_u - train_u) ** 2
+                train_bc_loss = train_error
+
+                policy_q_output_demo_state = self.qf1(torch.cat((train_o, train_g), dim=1), train_pred_u)
+                demo_q_output = self.qf1(torch.cat((train_o, train_g), dim=1), train_u)
+
+                train_advantage = demo_q_output - policy_q_output_demo_state
+
                 test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
                 test_o = test_batch["observations"]
                 test_u = test_batch["actions"]
@@ -450,7 +472,18 @@ class TD3BCTrainer(TorchTrainer):
                 policy_q_output_demo_state = self.qf1(torch.cat((test_o, test_g), dim=1), test_pred_u)
                 demo_q_output = self.qf1(torch.cat((test_o, test_g), dim=1), test_u)
 
-                advantage = demo_q_output - policy_q_output_demo_state
+                test_advantage = demo_q_output - policy_q_output_demo_state
+
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'Train BC Loss',
+                    ptu.get_numpy(train_bc_loss),
+                ))
+
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'Train Demo Advantage',
+                    ptu.get_numpy(train_advantage),
+                ))
+
                 self.eval_statistics.update(create_stats_ordered_dict(
                     'Test BC Loss',
                     ptu.get_numpy(test_bc_loss),
@@ -458,7 +491,7 @@ class TD3BCTrainer(TorchTrainer):
 
                 self.eval_statistics.update(create_stats_ordered_dict(
                     'Test Demo Advantage',
-                    ptu.get_numpy(advantage),
+                    ptu.get_numpy(test_advantage),
                 ))
 
                 rewards = (test_o - test_g) ** 2
