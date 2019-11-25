@@ -28,6 +28,9 @@ if __name__ == "__main__":
             reward_scale=1.0,
             target_update_period=2,
             policy_update_period=2,
+            obs_key='state_observation',
+            env_info_key='puck_distance',
+            max_path_length=50,
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1e6),
@@ -54,6 +57,8 @@ if __name__ == "__main__":
         # 'td3_bc_trainer_kwargs.demo_beta':[1, 10],
         'td3_bc_trainer_kwargs.bc_weight':[1, 0],
         'algo_kwargs.num_epochs':[100],
+        'algo_kwargs.num_eval_steps_per_epoch':[100],
+        'algo_kwargs.num_expl_steps_per_train_loop':[100],
         'algo_kwargs.min_num_steps_before_training':[0],
         'td3_bc_trainer_kwargs.max_steps_till_train_rl':[int(1e7)],
         # 'td3_bc_trainer_kwargs.add_demos_to_replay_buffer':[True, False],
@@ -74,7 +79,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'gcp'
-    exp_prefix = 'pusher_state_bc'
+    exp_prefix = 'pusher_state_better_logging'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['td3_bc_trainer_kwargs']['bc_weight'] == 0 and variant['td3_bc_trainer_kwargs']['demo_beta'] != 1:

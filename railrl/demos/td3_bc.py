@@ -68,6 +68,9 @@ class TD3BCTrainer(TorchTrainer):
             use_awr=False,
             demo_beta=1,
             max_steps_till_train_rl=0,
+            env_info_key=None,
+            obs_key=None,
+            max_path_length=0,
 
             **kwargs
     ):
@@ -131,6 +134,9 @@ class TD3BCTrainer(TorchTrainer):
         self.demo_beta = demo_beta
         self.use_awr = use_awr
         self.max_steps_till_train_rl = max_steps_till_train_rl
+        self.env_info_key = env_info_key
+        self.obs_key = obs_key
+        self.max_path_length=max_path_length
 
     def _update_obs_with_latent(self, obs):
         latent_obs = self.env._encode_one(obs["image_observation"])
@@ -507,6 +513,53 @@ class TD3BCTrainer(TorchTrainer):
 
     def get_diagnostics(self):
         stats = super().get_diagnostics()
+
+        train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
+        train_g = train_batch["resampled_goals"]
+
+        test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
+        test_g = test_batch["resampled_goals"]
+
+        key_logs = np.zeros(5)
+        for i, goal in enumerate(train_g[:5]):
+            o = self.env.reset()
+            path_length = 0
+            while path_length < self.max_path_length:
+                o = o[self.obs_key]
+                new_obs = np.hstack((o, goal))
+                a, agent_info = self.policy.get_action(new_obs)
+                next_o, r, d, env_info = self.env.step(a)
+                path_length += 1
+                if d:
+                    break
+                o = next_o
+            key_logs[i] = env_info[self.env_info_key]
+
+        self.eval_statistics.update(create_stats_ordered_dict(
+            'Train Goals {}'.format(self.env_info_key),
+            key_logs,
+        ))
+
+        key_logs = np.zeros(5)
+        for i, goal in enumerate(test_g[:5]):
+            o = self.env.reset()
+            path_length = 0
+            while path_length < self.max_path_length:
+                o = o[self.obs_key]
+                new_obs = np.hstack((o, goal))
+                a, agent_info = self.policy.get_action(new_obs)
+                next_o, r, d, env_info = self.env.step(a)
+                path_length += 1
+                if d:
+                    break
+                o = next_o
+            key_logs[i] = env_info[self.env_info_key]
+
+        self.eval_statistics.update(create_stats_ordered_dict(
+            'Test Goals {}'.format(self.env_info_key),
+            key_logs,
+        ))
+
         stats.update(self.eval_statistics)
         return stats
 

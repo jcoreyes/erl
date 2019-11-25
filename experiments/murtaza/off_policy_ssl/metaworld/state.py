@@ -51,7 +51,6 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(5),
         'replay_buffer_kwargs.fraction_goals_rollout_goals': [1.0, ],
         'replay_buffer_kwargs.fraction_goals_env_goals': [0.0, ],
     }
@@ -64,9 +63,9 @@ if __name__ == "__main__":
     # mode = 'local_docker'
     # exp_prefix = 'test'
 
-    n_seeds = 1
+    n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sawyer_drawer_open_ashvin_exp_v1'
+    exp_prefix = 'sawyer_drawer_open_ashvin_exp_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -75,7 +74,7 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                num_exps_per_instance=3,
+                num_exps_per_instance=2,
                 skip_wait=False,
                 gcp_kwargs=dict(
                     preemptible=False,
