@@ -1,3 +1,4 @@
+from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.experiments.murtaza.rfeatures_rl import state_td3bc_experiment
@@ -45,24 +46,28 @@ if __name__ == "__main__":
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
-        save_video=False,
         exploration_noise=.8,
         load_demos=True,
         pretrain_rl=False,
         pretrain_policy=False,
         es='ou',
         td3_bc=True,
+        save_video=True,
+        image_env_kwargs=dict(
+            imsize=48,
+            init_camera=sawyer_door_env_camera_v0,
+        ),
     )
 
     search_space = {
         'td3_bc_trainer_kwargs.use_awr':[False],
         # 'td3_bc_trainer_kwargs.demo_beta':[1, 10],
         'td3_bc_trainer_kwargs.bc_weight':[1, 0],
+        'td3_bc_trainer_kwargs.rl_weight':[0],
         'algo_kwargs.num_epochs':[100],
         'algo_kwargs.num_eval_steps_per_epoch':[100],
         'algo_kwargs.num_expl_steps_per_train_loop':[100],
         'algo_kwargs.min_num_steps_before_training':[0],
-        'td3_bc_trainer_kwargs.max_steps_till_train_rl':[int(1e7)],
         # 'td3_bc_trainer_kwargs.add_demos_to_replay_buffer':[True, False],
         # 'td3_bc_trainer_kwargs.num_trains_per_train_loop':[1000, 2000, 4000, 10000, 16000],
         # 'exploration_noise':[0.1, .3, .5],

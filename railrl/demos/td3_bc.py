@@ -405,10 +405,10 @@ class TD3BCTrainer(TorchTrainer):
 
             else:
                 policy_loss = - self.rl_weight * q_output.mean()
-
-            self.policy_optimizer.zero_grad()
-            policy_loss.backward()
-            self.policy_optimizer.step()
+            if not (self.rl_weight == 0 and self.bc_weight == 0):
+                self.policy_optimizer.zero_grad()
+                policy_loss.backward()
+                self.policy_optimizer.step()
 
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
