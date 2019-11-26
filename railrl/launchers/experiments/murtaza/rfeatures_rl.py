@@ -154,7 +154,7 @@ def state_td3bc_experiment(variant):
 
     if variant.get("save_video", True):
         if variant.get("presampled_goals", None):
-            variant['image_env_kwargs']['presampled_goals'] = load_local_or_remote_file(variant['presampled_goals'])
+            variant['image_env_kwargs']['presampled_goals'] = load_local_or_remote_file(variant['presampled_goals']).item()
         image_eval_env = ImageEnv(eval_env, **variant["image_env_kwargs"])
         image_eval_path_collector = GoalConditionedPathCollector(
             image_eval_env,

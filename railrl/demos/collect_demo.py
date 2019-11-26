@@ -161,7 +161,7 @@ def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=None, pxstep=20):
         cv2.line(img, (0, y), (img.shape[1], y), color=line_color, lineType=type_, thickness=thickness)
         y += pxstep
 
-def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1, add_action_noise=False, key='', render=False,):
+def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1, add_action_noise=False, key='', render=False, noise_sigma=0.3):
     # goal = env.sample_goal()
     # env.set_to_goal(goal)
     # goal_obs = env._get_obs()
@@ -192,7 +192,7 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
         a, _ = expert.get_action(np.concatenate((o['state_observation'], o['state_desired_goal'])))
         traj["observations"].append(o)
         if add_action_noise:
-            exec_a = a + np.random.normal(0, 2, a.shape)
+            exec_a = a + np.random.normal(0, noise_sigma, a.shape)
         else:
             exec_a = a
         o, r, done, info = env.step(exec_a)
@@ -260,11 +260,11 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
 
     return accept, traj
 
-def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1, add_action_noise=False, key='', render=False):
+def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1, add_action_noise=False, key='', render=False, noise_sigma=.3):
     data = []
 
     while len(data) < N:
-        accept, traj = collect_one_rollout_goal_conditioned(env, expert, horizon, threshold=threshold, add_action_noise=add_action_noise, key=key, render=render)
+        accept, traj = collect_one_rollout_goal_conditioned(env, expert, horizon, threshold=threshold, add_action_noise=add_action_noise, key=key, render=render, noise_sigma=noise_sigma)
         if accept:
             data.append(traj)
             print("accepted trajectory length", len(traj["observations"]))

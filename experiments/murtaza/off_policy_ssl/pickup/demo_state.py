@@ -54,6 +54,8 @@ if __name__ == "__main__":
         image_env_kwargs=dict(
             imsize=48,
             init_camera=sawyer_pick_and_place_camera,
+            transpose=True,
+            normalize=True,
         ),
     )
 

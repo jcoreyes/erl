@@ -56,6 +56,8 @@ if __name__ == "__main__":
         image_env_kwargs=dict(
             imsize=48,
             init_camera=sawyer_door_env_camera_v0,
+            transpose=True,
+            normalize=True,
         ),
         presampled_goals="goals/door_goals.npy",
     )
@@ -81,13 +83,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test1'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test1'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'door_state_bc_noisy_demo_v3'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'door_state_bc_noisy_demo_v3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['td3_bc_trainer_kwargs']['bc_weight'] == 0 and variant['td3_bc_trainer_kwargs']['demo_beta'] != 1:
