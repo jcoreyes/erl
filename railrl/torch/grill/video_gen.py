@@ -40,11 +40,18 @@ class VideoSaveFunction:
         self.evaluation_goal_image_key = self.dump_video_kwargs.pop("evaluation_goal_image_key", "image_desired_goal")
         self.expl_path_collector = expl_path_collector
         self.eval_path_collector = eval_path_collector
+        self.variant = variant
 
 
     def __call__(self, algo, epoch):
-        expl_data_collector = self.expl_path_collector if self.expl_path_collector else algo.expl_data_collector
-        expl_paths = expl_data_collector.get_epoch_paths()
+        if self.expl_path_collector:
+            expl_paths = self.expl_path_collector.collect_new_paths(
+                max_path_length=self.variant['algo_kwargs']['max_path_length'],
+                num_steps = self.variant['algo_kwargs']['max_path_length']*5,
+                discard_incomplete_paths=False
+            )
+        else:
+            expl_paths = algo.expl_data_collector.get_epoch_paths()
         if epoch % self.save_period == 0 or epoch == algo.num_epochs:
             filename = osp.join(self.logdir, 'video_{epoch}_vae.mp4'.format(epoch=epoch))
             dump_paths(self.env,
@@ -54,8 +61,14 @@ class VideoSaveFunction:
                 **self.dump_video_kwargs,
             )
 
-        eval_path_collector = self.eval_path_collector if self.eval_path_collector else algo.eval_data_collector
-        eval_paths = eval_path_collector.get_epoch_paths()
+        if self.expl_path_collector:
+            eval_paths = self.eval_path_collector.collect_new_paths(
+                max_path_length=self.variant['algo_kwargs']['max_path_length'],
+                num_steps = self.variant['algo_kwargs']['max_path_length']*5,
+                discard_incomplete_paths=False
+            )
+        else:
+            eval_paths = algo.eval_path_collector.get_epoch_paths()
         if epoch % self.save_period == 0 or epoch == algo.num_epochs:
             filename = osp.join(self.logdir, 'video_{epoch}_env.mp4'.format(epoch=epoch))
             dump_paths(self.env,
