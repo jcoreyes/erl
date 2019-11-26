@@ -27,7 +27,8 @@ from railrl.envs.vae_wrappers import temporary_mode
 import pickle
 
 class VideoSaveFunction:
-    def __init__(self, env, variant):
+    def __init__(self, env, variant, expl_path_collector=None, eval_path_collector=None):
+        self.env = env
         self.logdir = logger.get_snapshot_dir()
         self.save_period = variant.get('save_video_period', 50)
         self.dump_video_kwargs = variant.get("dump_video_kwargs", dict())
@@ -37,24 +38,27 @@ class VideoSaveFunction:
         self.dump_video_kwargs.setdefault("unnormalize", True)
         self.exploration_goal_image_key = self.dump_video_kwargs.pop("exploration_goal_image_key", "decoded_goal_image")
         self.evaluation_goal_image_key = self.dump_video_kwargs.pop("evaluation_goal_image_key", "image_desired_goal")
+        self.expl_path_collector = expl_path_collector
+        self.eval_path_collector = eval_path_collector
+
 
     def __call__(self, algo, epoch):
-        expl_data_collector = algo.expl_data_collector
+        expl_data_collector = self.expl_path_collector if self.expl_path_collector else algo.expl_data_collector
         expl_paths = expl_data_collector.get_epoch_paths()
         if epoch % self.save_period == 0 or epoch == algo.num_epochs:
             filename = osp.join(self.logdir, 'video_{epoch}_vae.mp4'.format(epoch=epoch))
-            dump_paths(algo.expl_env,
+            dump_paths(self.env,
                 filename,
                 expl_paths,
                 self.exploration_goal_image_key,
                 **self.dump_video_kwargs,
             )
 
-        eval_path_collector = algo.eval_data_collector
+        eval_path_collector = self.eval_path_collector if self.eval_path_collector else algo.eval_data_collector
         eval_paths = eval_path_collector.get_epoch_paths()
         if epoch % self.save_period == 0 or epoch == algo.num_epochs:
             filename = osp.join(self.logdir, 'video_{epoch}_env.mp4'.format(epoch=epoch))
-            dump_paths(algo.eval_env,
+            dump_paths(self.env,
                 filename,
                 eval_paths,
                 self.evaluation_goal_image_key,

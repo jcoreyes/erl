@@ -6,6 +6,7 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.gaussian_and_epislon import GaussianAndEpislonStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.misc.asset_loader import load_local_or_remote_file
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
@@ -152,9 +153,27 @@ def state_td3bc_experiment(variant):
     )
 
     if variant.get("save_video", True):
+        if variant.get("presampled_goals", None):
+            variant['image_env_kwargs']['presampled_goals'] = load_local_or_remote_file(variant['presampled_goals'])
+        image_eval_env = ImageEnv(eval_env, **variant["image_env_kwargs"])
+        image_eval_path_collector = GoalConditionedPathCollector(
+            image_eval_env,
+            policy,
+            observation_key='image_observation',
+            desired_goal_key='image_desired_goal',
+        )
+        image_expl_env = ImageEnv(expl_env, **variant["image_env_kwargs"])
+        image_expl_path_collector = GoalConditionedPathCollector(
+            image_expl_env,
+            policy,
+            observation_key='image_observation',
+            desired_goal_key='image_desired_goal',
+        )
         video_func = VideoSaveFunction(
-            ImageEnv(eval_env, **variant["image_env_kwargs"]),
+            image_eval_env,
             variant,
+            image_expl_path_collector,
+            image_eval_path_collector,
         )
         algorithm.post_train_funcs.append(video_func)
 
