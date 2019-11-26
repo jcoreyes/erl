@@ -119,7 +119,7 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            vae_path="/home/ashvin/data/rail-khazatsky/sasha/cond-rig/hyp-tuning/tuning/run100/id5/vae.pkl",
+            #vae_path="/home/ashvin/data/rail-khazatsky/sasha/cond-rig/hyp-tuning/tuning/run100/id5/vae.pkl",
         ),
         train_vae_variant=dict(
             latent_sizes=4,
@@ -135,7 +135,7 @@ if __name__ == "__main__":
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
                 N=100000,
-                dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
+                #dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 n_random_steps=50,
                 test_p=.9,
                 use_cached=False,
@@ -162,11 +162,12 @@ if __name__ == "__main__":
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
                 batch_size=128,
-                lr=1e-3,
+                lr=1e-3, #1E-4
                 skew_config=dict(
                     method='vae_prob',
                     power=0,
                 ),
+                weight_decay=1e-4,
                 skew_dataset=False,
                 priority_function_kwargs=dict(
                     decoder_distribution='gaussian_identity_variance',
@@ -178,7 +179,7 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        region='us-west-1',
+        region='us-east-2',
 
         logger_variant=dict(
             tensorboard=True,
@@ -192,11 +193,14 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(10),
-        'train_vae_variant.latent_sizes': [(6, 2),], #Tune Latent sizes
+    #Train longer, higher KL term
+        'seedid': range(3),
+        'train_vae_variant.latent_sizes': [(6, 4),], #Tune Latent sizes
         'train_vae_variant.context_schedule':[
         dict(x_values=(0, 1500), y_values=(1, 1)),],
-        'train_vae_variant.algo_kwargs.batch_size': [64, 128, 256, 512, 1024],
+        'train_vae_variant.algo_kwargs.batch_size': [128, ],
+        'train_vae_variant.algo_kwargs.lr': [5e-4, ],
+        'train_vae_variant.algo_kwargs.weight_decay': [1e-3, 1e-4],
         'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000,], #4000, ],
         'grill_variant.algo_kwargs.batch_size': [128,],
         'grill_variant.exploration_noise': [0.5],
@@ -209,4 +213,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=160)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=202)

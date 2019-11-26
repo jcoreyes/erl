@@ -441,17 +441,21 @@ class CVAE(GaussianLatentVAE):
 
         self.c = nn.Linear(self.encoder.output_size, latent_sizes[1])
         self.z = nn.Linear(self.encoder.output_size, self.representation_size)
-        self.z_mu = nn.Linear(self.representation_size + latent_sizes[1], latent_sizes[0])
-        self.z_var = nn.Linear(self.representation_size + latent_sizes[1], latent_sizes[0])
+        self.l = nn.Linear(self.representation_size + latent_sizes[1], self.encoder.output_size)
+        self.z_mu = nn.Linear(self.encoder.output_size, latent_sizes[0])
+        self.z_var = nn.Linear(self.encoder.output_size, latent_sizes[0])
         self.bn_z = nn.BatchNorm1d(self.representation_size)
+        self.bn_l = nn.BatchNorm1d(self.encoder.output_size)
         self.bn_c = nn.BatchNorm1d(latent_sizes[1])
 
         nn.init.xavier_uniform_(self.z.weight, gain=self.gain)
         nn.init.xavier_uniform_(self.c.weight, gain=self.gain)
+        nn.init.xavier_uniform_(self.l.weight, gain=self.gain)
         nn.init.xavier_uniform_(self.z_mu.weight, gain=self.gain)
         nn.init.xavier_uniform_(self.z_var.weight, gain=self.gain)
 
         self.z.bias.data.uniform_(-init_w, init_w)
+        self.l.bias.data.uniform_(-init_w, init_w)
         self.c.bias.data.uniform_(-init_w, init_w)
         self.z_mu.bias.data.uniform_(-init_w, init_w)
         self.z_var.bias.data.uniform_(-init_w, init_w)
@@ -476,7 +480,10 @@ class CVAE(GaussianLatentVAE):
 
         latents = self.bn_z(self.z(self.dropout(self.encoder(x_t))))
         conditioning = self.bn_c(self.c(self.dropout(self.cond_encoder(x_0))))
-        cond_latents = torch.cat([latents, conditioning], dim=1)
+        merged_latents = torch.cat([latents, conditioning], dim=1)
+        cond_latents = self.dropout(self.relu(self.bn_l(self.l(merged_latents))))
+
+
         mu = self.z_mu(cond_latents)
 
         if not distrib: return torch.cat([mu, conditioning], dim=1)
