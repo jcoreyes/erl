@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # exp_prefix = 'test'
 
     n_seeds = 2
-    mode = 'ec2'
+    mode = 'gcp'
     exp_prefix = 'sawyer_drawer_open_ashvin_exp_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):

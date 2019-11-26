@@ -19,7 +19,7 @@ if __name__ == "__main__":
         ),
         td3_bc_trainer_kwargs=dict(
             discount=0.99,
-            demo_path="demos/pickup_demos_1000.npy",
+            demo_path="demos/pickup_demos_action_noise_1000.npy",
             demo_off_policy_path=None,
             bc_num_pretrain_steps=10000,
             q_num_pretrain_steps=10000,
@@ -73,13 +73,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local_docker'
-    # exp_prefix = 'test1'
+    n_seeds = 1
+    mode = 'local_docker'
+    exp_prefix = 'test1'
 
-    n_seeds = 2
-    mode = 'gcp'
-    exp_prefix = 'pickup_state_bc_better_logging'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'pickup_state_bc_noisy_demo_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['td3_bc_trainer_kwargs']['bc_weight'] == 0 and variant['td3_bc_trainer_kwargs']['demo_beta'] != 1:
@@ -90,7 +90,7 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                num_exps_per_instance=3,
+                num_exps_per_instance=2,
                 skip_wait=False,
                 gcp_kwargs=dict(
                     preemptible=False,

@@ -27,4 +27,4 @@ if __name__ == '__main__':
                 normalize=True,
                 presampled_goals=presampled_goals,
     )
-    collect_demos(image_env, policy, "data/local/demos/door_demos_1000.npy", N=1000, horizon=100, threshold=.05, add_action_noise=False, key='angle_difference')
+    collect_demos(image_env, policy, "data/local/demos/door_demos_action_noise_1000.npy", N=1000, horizon=100, threshold=.1, add_action_noise=True, key='angle_difference', render=False)

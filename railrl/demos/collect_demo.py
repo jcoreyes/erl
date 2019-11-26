@@ -161,7 +161,7 @@ def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=None, pxstep=20):
         cv2.line(img, (0, y), (img.shape[1], y), color=line_color, lineType=type_, thickness=thickness)
         y += pxstep
 
-def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1, add_action_noise=False, key=''):
+def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1, add_action_noise=False, key='', render=False,):
     # goal = env.sample_goal()
     # env.set_to_goal(goal)
     # goal_obs = env._get_obs()
@@ -190,12 +190,32 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
 
     for i in range(horizon):
         a, _ = expert.get_action(np.concatenate((o['state_observation'], o['state_desired_goal'])))
-        if add_action_noise:
-            a += np.random.normal(0, .3, a.shape)
-
         traj["observations"].append(o)
-
-        o, r, done, info = env.step(a)
+        if add_action_noise:
+            exec_a = a + np.random.normal(0, .2, a.shape)
+        else:
+            exec_a = a
+        o, r, done, info = env.step(exec_a)
+        img = o['image_observation']
+        img_goal = o['image_desired_goal']
+        del o['image_observation']
+        del o['image_desired_goal']
+        del o['image_achieved_goal']
+        del o['observation']
+        del o['desired_goal']
+        del o['achieved_goal']
+        if 'proprio_observation' in o:
+            del o['proprio_observation']
+        if 'proprio_desired_goal' in o:
+            del o['proprio_desired_goal']
+        if 'proprio_achieved_goal' in o:
+            del o['proprio_achieved_goal']
+        if 'image_proprio_observation' in o:
+            del o['image_proprio_observation']
+        if 'image_proprio_desired_goal' in o:
+            del o['image_proprio_desired_goal']
+        if 'image_proprio_achieved_goal' in o:
+            del o['image_proprio_achieved_goal']
 
         traj["actions"].append(a)
         traj["rewards"].append(r)
@@ -215,10 +235,8 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
             # if len(traj["rewards"]) == 0:
                 # accept = False
             # return accept, traj
-    if threshold == -1:
-        accept = True
-    elif np.abs(traj["env_infos"][-1][key]) < threshold:
-        img = o['image_observation'].reshape(
+    if render:
+        img = img.reshape(
             3,
             env.imsize,
             env.imsize,
@@ -226,25 +244,27 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
         cv2.imshow('env', img)
         cv2.waitKey(1)
 
-        img = o['image_desired_goal'].reshape(
+        img = img_goal.reshape(
             3,
             env.imsize,
             env.imsize,
         ).transpose()[::-1]
         cv2.imshow('goal_env', img)
         cv2.waitKey(1)
-
+    if threshold == -1:
+        accept = True
+    elif np.abs(traj["env_infos"][-1][key]) < threshold:
         accept = True
     else:
         accept = False
 
     return accept, traj
 
-def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1, add_action_noise=False, key=''):
+def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1, add_action_noise=False, key='', render=False):
     data = []
 
     while len(data) < N:
-        accept, traj = collect_one_rollout_goal_conditioned(env, expert, horizon, threshold=threshold, add_action_noise=add_action_noise, key=key)
+        accept, traj = collect_one_rollout_goal_conditioned(env, expert, horizon, threshold=threshold, add_action_noise=add_action_noise, key=key, render=render)
         if accept:
             data.append(traj)
             print("accepted trajectory length", len(traj["observations"]))

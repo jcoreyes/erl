@@ -500,13 +500,6 @@ class TD3BCTrainer(TorchTrainer):
                     ptu.get_numpy(test_advantage),
                 ))
 
-                rewards = (test_o - test_g) ** 2
-                self.eval_statistics.update(create_stats_ordered_dict(
-                    'Test Demo Rewards',
-                    ptu.get_numpy(rewards),
-                ))
-
-
         self._n_train_steps_total += 1
 
         logger.pop_tabular_prefix()
@@ -524,6 +517,7 @@ class TD3BCTrainer(TorchTrainer):
         for i, goal in enumerate(train_g[:5]):
             o = self.env.reset()
             path_length = 0
+            self.env.set_goal({'state_desired_goal': ptu.get_numpy(goal)})
             while path_length < self.max_path_length:
                 o = o[self.obs_key]
                 new_obs = np.hstack((o, goal))
@@ -544,6 +538,7 @@ class TD3BCTrainer(TorchTrainer):
         for i, goal in enumerate(test_g[:5]):
             o = self.env.reset()
             path_length = 0
+            self.env.set_goal({'state_desired_goal': ptu.get_numpy(goal)})
             while path_length < self.max_path_length:
                 o = o[self.obs_key]
                 new_obs = np.hstack((o, goal))
