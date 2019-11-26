@@ -159,15 +159,15 @@ def state_td3bc_experiment(variant):
         image_eval_path_collector = GoalConditionedPathCollector(
             image_eval_env,
             policy,
-            observation_key='image_observation',
-            desired_goal_key='image_desired_goal',
+            observation_key='state_observation',
+            desired_goal_key='state_desired_goal',
         )
         image_expl_env = ImageEnv(expl_env, **variant["image_env_kwargs"])
         image_expl_path_collector = GoalConditionedPathCollector(
             image_expl_env,
             policy,
-            observation_key='image_observation',
-            desired_goal_key='image_desired_goal',
+            observation_key='state_observation',
+            desired_goal_key='state_desired_goal',
         )
         video_func = VideoSaveFunction(
             image_eval_env,
