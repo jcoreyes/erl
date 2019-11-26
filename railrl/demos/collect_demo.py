@@ -192,7 +192,7 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
         a, _ = expert.get_action(np.concatenate((o['state_observation'], o['state_desired_goal'])))
         traj["observations"].append(o)
         if add_action_noise:
-            exec_a = a + np.random.normal(0, .2, a.shape)
+            exec_a = a + np.random.normal(0, 2, a.shape)
         else:
             exec_a = a
         o, r, done, info = env.step(exec_a)
