@@ -51,6 +51,7 @@ class TD3BCTrainer(TorchTrainer):
             q_num_pretrain_steps=0,
             weight_decay=0,
             eval_policy=None,
+            recompute_reward=False,
 
             reward_scale=1.0,
             discount=0.99,
@@ -82,6 +83,7 @@ class TD3BCTrainer(TorchTrainer):
         self.policy_update_period = policy_update_period
         self.tau = tau
         self.qf_criterion = qf_criterion
+        self.recompute_reward = recompute_reward
 
         self.target_policy = target_policy
         self.target_qf1 = target_qf1
@@ -141,7 +143,7 @@ class TD3BCTrainer(TorchTrainer):
         # print("Path len", len(path))
         # print("Path observations: ", type(path), type(path[0]), print(path[0].keys()))
         # import ipdb; ipdb.set_trace()
-        path = path[0]
+        # path = path[0]
         final_achieved_goal = path["observations"][-1]["state_achieved_goal"].copy()
         rewards = []
         path_builder = PathBuilder()
@@ -150,7 +152,7 @@ class TD3BCTrainer(TorchTrainer):
         H = min(len(path["observations"]), len(path["actions"]))
         print("actions", np.min(path["actions"]), np.max(path["actions"]))
 
-        zs = []
+        # zs = []
         for i in range(H):
             ob = path["observations"][i]
             action = path["actions"][i]
@@ -160,7 +162,7 @@ class TD3BCTrainer(TorchTrainer):
             agent_info = path["agent_infos"][i]
             env_info = path["env_infos"][i]
 
-            zs.append(ob['latent_observation'])
+            # zs.append(ob['latent_observation'])
             # goal = path["goal"]["state_desired_goal"][0, :]
             # import pdb; pdb.set_trace()
             # print(goal.shape, ob["state_observation"])
@@ -181,10 +183,11 @@ class TD3BCTrainer(TorchTrainer):
                     next_ob,
                 )
 
-            reward = self.env.compute_reward(
-                action,
-                next_ob,
-            )
+            if self.recompute_reward:
+                reward = self.env.compute_reward(
+                    action,
+                    next_ob,
+                )
 
             reward = np.array([reward])
             rewards.append(reward)
@@ -201,7 +204,7 @@ class TD3BCTrainer(TorchTrainer):
         self.demo_trajectory_rewards.append(rewards)
         path = path_builder.get_all_stacked()
         replay_buffer.add_path(path)
-        self.env.initialize(zs)
+        # self.env.initialize(zs)
 
     def load_demos(self, ):
         # Off policy
@@ -210,7 +213,7 @@ class TD3BCTrainer(TorchTrainer):
                 self.load_demo_path(demo_path, False)
         else:
             self.load_demo_path(self.demo_off_policy_path, False)
-        
+
         if type(self.demo_path) is list:
             for demo_path in self.demo_path:
                 self.load_demo_path(demo_path)

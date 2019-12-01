@@ -17,6 +17,8 @@ from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 # from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
 
 from multiworld.core.image_env import ImageEnv
+# from multiworld.envs.real_world.sawyer.sawyer_reaching import SawyerReachXYZEnv
+# from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
 
 from railrl.launchers.launcher_util import run_experiment
 # import railrl.util.hyperparameter as hyp
@@ -37,83 +39,28 @@ import railrl.misc.hyperparameter as hyp
 
 from torchvision.utils import save_image
 
-def encoder_wrapped_td3bc_experiment(variant):
-    representation_size = 128
-    output_classes = 20
-
-    model_class = variant.get('model_class', TimestepPredictionModel)
-    model = model_class(
-        representation_size,
-        # decoder_output_activation=decoder_activation,
-        output_classes=output_classes,
-        **variant['model_kwargs'],
-    )
-    # model = torch.nn.DataParallel(model)
-
-    model_path = variant.get("model_path")
-    # model = load_local_or_remote_file(model_path)
-    state_dict = torch.load(model_path)
-    model.load_state_dict(state_dict)
-    model.to(ptu.device)
-    model.eval()
-
-    traj = np.load(variant.get("desired_trajectory"), allow_pickle=True)[0]
-
-    goal_image = traj["observations"][-1]["image_observation"]
-    goal_image = goal_image.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
-    # goal_image = goal_image.reshape(1, 300, 500, 3).transpose([0, 3, 1, 2]) / 255.0 # BECAUSE RLBENCH DEMOS ARENT IMAGE_ENV WRAPPED
-    # goal_image = goal_image[:, :, :240, 60:500]
-    goal_image = goal_image[:, :, 60:, 60:500]
-    goal_image_pt = ptu.from_numpy(goal_image)
-    save_image(goal_image_pt.data.cpu(), 'demos/goal.png', nrow=1)
-    goal_latent = model.encode(goal_image_pt).detach().cpu().numpy().flatten()
-
-    initial_image = traj["observations"][0]["image_observation"]
-    initial_image = initial_image.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
-    # initial_image = initial_image.reshape(1, 300, 500, 3).transpose([0, 3, 1, 2]) / 255.0
-    # initial_image = initial_image[:, :, :240, 60:500]
-    initial_image = initial_image[:, :, 60:, 60:500]
-    initial_image_pt = ptu.from_numpy(initial_image)
-    save_image(initial_image_pt.data.cpu(), 'demos/initial.png', nrow=1)
-    initial_latent = model.encode(initial_image_pt).detach().cpu().numpy().flatten()
-
-    # Move these to td3_bc and bc_v3 (or at least type for reward_params)
-    reward_params = dict(
-        goal_latent=goal_latent,
-        initial_latent=initial_latent,
-        type=variant["reward_params_type"],
-    )
-
-    config_params = variant.get("config_params")
-
+def state_td3bc_experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
     env = ImageEnv(env,
         recompute_reward=False,
         transpose=True,
-        image_length=450000,
-        reward_type="image_distance",
+        image_length=3 * 84 * 84,
+        reward_type="not_used",
         # init_camera=sawyer_pusher_camera_upright_v2,
     )
-    env = EncoderWrappedEnv(env, model, reward_params, config_params)
 
     expl_env = env # variant['env_class'](**variant['env_kwargs'])
     eval_env = env # variant['env_class'](**variant['env_kwargs'])
 
-    use_state_observation=True
-    if use_state_observation:
-        observation_key = 'state_observation'
-        desired_goal_key = 'state_desired_goal'
-    else:
-        observation_key = 'latent_observation'
-        desired_goal_key = 'latent_desired_goal'
-
+    observation_key = 'state_observation'
+    desired_goal_key = 'state_desired_goal'
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     es = GaussianAndEpislonStrategy(
         action_space=expl_env.action_space,
         **variant["exploration_kwargs"],
     )
-    obs_dim = expl_env.observation_space.spaces[observation_key].low.size
-    goal_dim = expl_env.observation_space.spaces[desired_goal_key].low.size
+    obs_dim = expl_env.wrapped_env.observation_space.spaces['observation'].low.size
+    goal_dim = expl_env.wrapped_env.observation_space.spaces['desired_goal'].low.size
     action_dim = expl_env.action_space.low.size
     qf1 = FlattenMlp(
         input_size=obs_dim + goal_dim + action_dim,
@@ -220,7 +167,6 @@ def encoder_wrapped_td3bc_experiment(variant):
     algorithm.to(ptu.device)
 
     td3bc_trainer.load_demos()
-
     td3bc_trainer.pretrain_policy_with_bc()
     td3bc_trainer.pretrain_q_with_bc_data()
 
