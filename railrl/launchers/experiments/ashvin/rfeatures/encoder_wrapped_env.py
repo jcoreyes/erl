@@ -203,7 +203,6 @@ class EncoderWrappedEnv(ProxyEnv):
         if reward_type == "latent_distance":
             r = -np.linalg.norm(dt - dT)
 
-        print(reward_type, r)
         return r
 
         # next_obs = {

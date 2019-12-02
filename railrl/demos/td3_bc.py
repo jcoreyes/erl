@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 from torch import nn as nn
+import torch.nn.functional as F
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
@@ -20,6 +21,8 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 from railrl.core import logger
+
+import glob
 
 class TD3BCTrainer(TorchTrainer):
     """
@@ -65,6 +68,7 @@ class TD3BCTrainer(TorchTrainer):
             tau=0.005,
             qf_criterion=None,
             optimizer_class=optim.Adam,
+            beta=1.0,
 
             **kwargs
     ):
@@ -122,10 +126,12 @@ class TD3BCTrainer(TorchTrainer):
         self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
+        self.beta = beta
 
         self.bc_num_pretrain_steps = bc_num_pretrain_steps
         self.q_num_pretrain_steps = q_num_pretrain_steps
         self.demo_trajectory_rewards = []
+        self.update_policy = True
 
     def _update_obs_with_latent(self, obs):
         latent_obs = self.env._encode_one(obs["image_observation"])
@@ -209,8 +215,10 @@ class TD3BCTrainer(TorchTrainer):
     def load_demos(self, ):
         # Off policy
         if type(self.demo_off_policy_path) is list:
-            for demo_path in self.demo_off_policy_path:
-                self.load_demo_path(demo_path, False)
+            for demo_pattern in self.demo_off_policy_path:
+                for demo_path in glob.glob(demo_pattern):
+                    print("loading off-policy path", demo_path)
+                    self.load_demo_path(demo_path, False)
         else:
             self.load_demo_path(self.demo_off_policy_path, False)
 
@@ -301,6 +309,9 @@ class TD3BCTrainer(TorchTrainer):
 
     def pretrain_q_with_bc_data(self):
         logger.push_tabular_prefix("pretrain_q/")
+
+        self.update_policy = False
+        # first train only the Q function
         for i in range(self.q_num_pretrain_steps):
             # self.eval_statistics = dict()
             # self._need_to_update_eval_statistics = True
@@ -310,6 +321,19 @@ class TD3BCTrainer(TorchTrainer):
 
             # logger.record_dict(self.eval_statistics)
             # logger.dump_tabular(with_prefix=True, with_timestamp=False)
+
+        self.update_policy = True
+        # then train policy and Q function together
+        for i in range(self.q_num_pretrain_steps):
+            # self.eval_statistics = dict()
+            # self._need_to_update_eval_statistics = True
+
+            train_data = self.replay_buffer.random_batch(128)
+            self.train(train_data)
+
+            # logger.record_dict(self.eval_statistics)
+            # logger.dump_tabular(with_prefix=True, with_timestamp=False)
+
         logger.pop_tabular_prefix()
 
     def train_from_torch(self, batch):
@@ -369,18 +393,29 @@ class TD3BCTrainer(TorchTrainer):
             train_error = (train_pred_u - train_u) ** 2
             train_bc_loss = train_error.mean()
 
-            policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
+            # policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
 
-            self.policy_optimizer.zero_grad()
-            policy_loss.backward()
-            self.policy_optimizer.step()
+            # Advantage-weighted regression
+            policy_error = (policy_actions - actions) ** 2
+            policy_error = policy_error.mean(dim=1)
+            advantage = q1_pred - q_output
+            weights = F.softmax((advantage / self.beta)[:, 0])
+            policy_loss = self.bc_weight * (policy_error * weights.detach() * self.bc_batch_size).mean()
 
+            if self.update_policy:
+                self.policy_optimizer.zero_grad()
+                policy_loss.backward()
+                self.policy_optimizer.step()
 
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
             self.eval_statistics['BC Loss'] = np.mean(ptu.get_numpy(
                 train_bc_loss
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Advantage Weights',
+                ptu.get_numpy(weights),
             ))
 
         if self._n_train_steps_total % self.target_update_period == 0:
