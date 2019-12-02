@@ -17,7 +17,6 @@ import time
 
 from os import path as osp
 from torchvision.utils import save_image
-from rlkit.core import logger
 import railrl.data_management.external.epic_kitchens_data_stub as epic
 
 eps = 1e-5
@@ -91,7 +90,7 @@ class EncoderWrappedEnv(ProxyEnv):
         obs = self.wrapped_env.reset()
         # start_rollout(obs)
         self.x0 = obs["image_observation"]
-        self.save_image_util(self.x0, "demos/reset_initial")
+        # self.save_image_util(self.x0, "demos/reset_initial")
         goal = self.sample_goal()
         self.set_goal(goal)
         obs = self._update_obs(obs)

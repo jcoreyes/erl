@@ -49,7 +49,7 @@ if __name__ == "__main__":
         #     min_num_steps_before_training=1000,
         # ),
         algo_kwargs=dict(
-            num_epochs=51,
+            num_epochs=11,
             max_path_length=50,
             batch_size=128,
             num_eval_steps_per_epoch=250,
@@ -70,20 +70,15 @@ if __name__ == "__main__":
         trainer_kwargs=dict(
             discount=0.99,
             demo_path="/home/ashvin/code/railrl-private/gitignore/rlbench/demo_door_fixed1/demos5b_10_dict.npy",
-            demo_off_policy_path=[
-                "/home/ashvin/data/s3doodad/ashvin/rfeatures/rlbench/open-drawer-vision/td3bc-with-state3/run0/id0/video_*_vae.p",
-            ],
             add_demo_latents=True, # already done
             bc_num_pretrain_steps=10000,
-            q_num_pretrain_steps=20000,
-            rl_weight=1.0,
+            q_num_pretrain_steps=0,
+            rl_weight=0.0,
             bc_weight=1.0,
             weight_decay=0.0001,
-            reward_scale=0.0001,
+            reward_scale=0.01,
             target_update_period=2,
             policy_update_period=2,
-            beta=0.0001,
-            awr_policy_update=True,
         ),
         replay_buffer_kwargs=dict(
             max_size=100000,
@@ -115,7 +110,7 @@ if __name__ == "__main__":
             imwidth=500,
             imheight=300,
             num_imgs=1,
-            dump_pickle=True,
+            dump_pickle=False,
             exploration_goal_image_key="image_observation",
             evaluation_goal_image_key="image_observation",
             rows=1,

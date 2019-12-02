@@ -115,7 +115,7 @@ if __name__ == "__main__":
             imwidth=500,
             imheight=300,
             num_imgs=1,
-            dump_pickle=True,
+            dump_pickle=False,
             exploration_goal_image_key="image_observation",
             evaluation_goal_image_key="image_observation",
             rows=1,
@@ -136,7 +136,7 @@ if __name__ == "__main__":
         logger_variant=dict(
             tensorboard=True,
         ),
-        model_path="/home/ashvin/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id2/itr_4000.pt",
+        model_path="/home/ashvin/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id0/itr_0.pt",
     )
 
     search_space = {

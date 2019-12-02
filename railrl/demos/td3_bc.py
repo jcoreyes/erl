@@ -70,6 +70,8 @@ class TD3BCTrainer(TorchTrainer):
             optimizer_class=optim.Adam,
             beta=1.0,
 
+            awr_policy_update=False,
+
             **kwargs
     ):
         super().__init__()
@@ -132,6 +134,7 @@ class TD3BCTrainer(TorchTrainer):
         self.q_num_pretrain_steps = q_num_pretrain_steps
         self.demo_trajectory_rewards = []
         self.update_policy = True
+        self.awr_policy_update = awr_policy_update
 
     def _update_obs_with_latent(self, obs):
         latent_obs = self.env._encode_one(obs["image_observation"])
@@ -393,14 +396,16 @@ class TD3BCTrainer(TorchTrainer):
             train_error = (train_pred_u - train_u) ** 2
             train_bc_loss = train_error.mean()
 
-            # policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
-
             # Advantage-weighted regression
             policy_error = (policy_actions - actions) ** 2
             policy_error = policy_error.mean(dim=1)
             advantage = q1_pred - q_output
             weights = F.softmax((advantage / self.beta)[:, 0])
-            policy_loss = self.bc_weight * (policy_error * weights.detach() * self.bc_batch_size).mean()
+
+            if self.awr_policy_update:
+                policy_loss = self.bc_weight * (policy_error * weights.detach() * self.bc_batch_size).mean()
+            else:
+                policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
 
             if self.update_policy:
                 self.policy_optimizer.zero_grad()

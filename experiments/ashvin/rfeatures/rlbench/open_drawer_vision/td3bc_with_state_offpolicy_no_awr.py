@@ -83,7 +83,7 @@ if __name__ == "__main__":
             target_update_period=2,
             policy_update_period=2,
             beta=0.0001,
-            awr_policy_update=True,
+            awr_policy_update=False,
         ),
         replay_buffer_kwargs=dict(
             max_size=100000,
@@ -115,7 +115,7 @@ if __name__ == "__main__":
             imwidth=500,
             imheight=300,
             num_imgs=1,
-            dump_pickle=True,
+            dump_pickle=False,
             exploration_goal_image_key="image_observation",
             evaluation_goal_image_key="image_observation",
             rows=1,

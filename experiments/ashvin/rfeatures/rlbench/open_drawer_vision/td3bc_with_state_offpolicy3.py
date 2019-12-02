@@ -115,7 +115,7 @@ if __name__ == "__main__":
             imwidth=500,
             imheight=300,
             num_imgs=1,
-            dump_pickle=True,
+            dump_pickle=False,
             exploration_goal_image_key="image_observation",
             evaluation_goal_image_key="image_observation",
             rows=1,
