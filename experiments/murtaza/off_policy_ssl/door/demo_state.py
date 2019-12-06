@@ -63,17 +63,17 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'td3_bc_trainer_kwargs.use_awr':[False],
+        # 'td3_bc_trainer_kwargs.use_awr':[False, True],
         # 'td3_bc_trainer_kwargs.demo_beta':[1, 10],
-        'td3_bc_trainer_kwargs.bc_weight':[1, 0],
-        'td3_bc_trainer_kwargs.rl_weight':[0],
-        'algo_kwargs.num_epochs':[100],
-        'algo_kwargs.num_eval_steps_per_epoch':[100],
-        'algo_kwargs.num_expl_steps_per_train_loop':[100],
-        'algo_kwargs.min_num_steps_before_training':[0],
+        'td3_bc_trainer_kwargs.bc_weight':[10, 1, .1, 0],
+        # 'td3_bc_trainer_kwargs.rl_weight':[0],
+        # 'algo_kwargs.num_epochs':[100],
+        # 'algo_kwargs.num_eval_steps_per_epoch':[100],
+        # 'algo_kwargs.num_expl_steps_per_train_loop':[100],
+        # 'algo_kwargs.min_num_steps_before_training':[0],
         # 'td3_bc_trainer_kwargs.add_demos_to_replay_buffer':[True, False],
         # 'td3_bc_trainer_kwargs.num_trains_per_train_loop':[1000, 2000, 4000, 10000, 16000],
-        # 'exploration_noise':[0.1, .3, .5],
+        'exploration_noise':[0.1, .3, .5],
         # 'pretrain_rl':[True],
         # 'pretrain_policy':[False],
         'pretrain_rl': [False],
@@ -83,13 +83,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test1'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test1'
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'door_state_bc_noisy_demo_v3'
+    n_seeds = 2
+    mode = 'gcp'
+    exp_prefix = 'door_state_td3_bc_noisy_demo_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['td3_bc_trainer_kwargs']['bc_weight'] == 0 and variant['td3_bc_trainer_kwargs']['demo_beta'] != 1:
@@ -100,7 +100,7 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                num_exps_per_instance=3,
+                num_exps_per_instance=2,
                 skip_wait=False,
                 gcp_kwargs=dict(
                     preemptible=False,

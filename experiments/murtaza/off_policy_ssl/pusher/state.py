@@ -7,9 +7,9 @@ if __name__ == "__main__":
         env_id='SawyerPushNIPSEasy-v0',
         algo_kwargs=dict(
             batch_size=1024,
-            num_epochs=300,
-            num_eval_steps_per_epoch=500,
-            num_expl_steps_per_train_loop=500,
+            num_epochs=1000,
+            num_eval_steps_per_epoch=1000,
+            num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
             min_num_steps_before_training=10000,
             max_path_length=50,
@@ -41,7 +41,7 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
         save_video=False,
-        exploration_noise=.8,
+        exploration_noise=.5,
         td3_bc=True,
     )
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     # exp_prefix = 'test'
 
     n_seeds = 2
-    mode = 'ec2'
+    mode = 'gcp'
     exp_prefix = 'pusher_state_td3_confirm'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
@@ -68,4 +68,7 @@ if __name__ == "__main__":
                 variant=variant,
                 num_exps_per_instance=3,
                 skip_wait=False,
+                gcp_kwargs=dict(
+                    preemptible=False,
+                )
             )

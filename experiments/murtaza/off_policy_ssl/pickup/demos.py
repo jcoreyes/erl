@@ -14,4 +14,4 @@ if __name__ == '__main__':
         transpose=True,
         normalize=True,
     )
-    collect_demos(image_env, policy, "data/local/demos/pickup_demos_action_noise_1000.npy", N=1000, horizon=50, threshold=.02, add_action_noise=True, key='obj_distance', render=False, noise_sigma=.5)
+    collect_demos(image_env, policy, "data/local/demos/pickup_demos_action_noise_1000.npy", N=1000, horizon=50, threshold=.02, add_action_noise=False, key='obj_distance', render=False, noise_sigma=.5)

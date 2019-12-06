@@ -6,11 +6,11 @@ if __name__ == "__main__":
     variant = dict(
         env_id="SawyerPickupEnvYZEasy-v0",
         algo_kwargs=dict(
-            num_epochs=300,
+            num_epochs=1000,
             max_path_length=50,
             batch_size=1024,
-            num_eval_steps_per_epoch=500,
-            num_expl_steps_per_train_loop=500,
+            num_eval_steps_per_epoch=1000,
+            num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
             min_num_steps_before_training=10000,
         ),
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     # exp_prefix = 'test1'
 
     n_seeds = 2
-    mode = 'ec2'
+    mode = 'gcp'
     exp_prefix = 'pickup_state_td3_confirm'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
@@ -68,4 +68,7 @@ if __name__ == "__main__":
                 variant=variant,
                 num_exps_per_instance=3,
                 skip_wait=False,
+                gcp_kwargs=dict(
+                    preemptible=False,
+                )
             )

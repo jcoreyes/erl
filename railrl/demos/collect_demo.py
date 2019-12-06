@@ -262,7 +262,8 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
 
 def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1, add_action_noise=False, key='', render=False, noise_sigma=.3):
     data = []
-
+    accepted = 0
+    running_total = 0
     while len(data) < N:
         accept, traj = collect_one_rollout_goal_conditioned(env, expert, horizon, threshold=threshold, add_action_noise=add_action_noise, key=key, render=render, noise_sigma=noise_sigma)
         if accept:
@@ -271,8 +272,11 @@ def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1
             print("last reward", traj["rewards"][-1])
             print("last " + key, traj["env_infos"][-1][key])
             print("accepted", len(data), "trajectories")
+            accepted+=1
         else:
             print("discarded trajectory")
+        running_total +=1
+        print('Percent Accepted Trajectories So Far: ', accepted/running_total)
 
     np.save(path, data)
 
