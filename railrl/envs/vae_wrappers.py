@@ -511,7 +511,6 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
             score = np.sum(np.where(dist < self.epsilon, 1, 0), axis=1)
             return np.square(score)
 
-
             return reward
         elif self.reward_type == 'latent_bound':
             dist = np.abs(obs['latent_achieved_goal'] - obs['latent_desired_goal'])

@@ -179,7 +179,7 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        region='us-west-1',
+        region='us-west-2',
 
         logger_variant=dict(
             tensorboard=True,
@@ -194,8 +194,8 @@ if __name__ == "__main__":
 
     search_space = {
     #Train longer, higher KL term
-        'seedid': range(),
-        'train_vae_variant.latent_sizes': [(4, 4),], #Tune Latent sizes
+        'seedid': range(2),
+        'train_vae_variant.latent_sizes': [(4, 4),(6, 4), (4, 3)], #Tune Latent sizes
         'train_vae_variant.context_schedule':[
         dict(x_values=(0, 1000), y_values=(1, 1)),],
         'train_vae_variant.beta_schedule_kwargs': [
@@ -219,4 +219,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=600)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=3)

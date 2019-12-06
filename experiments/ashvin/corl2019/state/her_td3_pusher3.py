@@ -44,11 +44,11 @@ if __name__ == "__main__":
         # ),
         algo_kwargs=dict(
             batch_size=128,
-            num_epochs=3000,
+            num_epochs=500,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=4000,
-            min_num_steps_before_training=1000,
+            num_trains_per_train_loop=1000,
+            min_num_steps_before_training=4000,
             max_path_length=100,
             # oracle_data=False,
             # vae_save_period=25,
@@ -89,7 +89,7 @@ if __name__ == "__main__":
         env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
             fixed_start=True, #CHECK
-            reset_frequency=5, #CHECK
+            #reset_frequency=1, #CHECK
             fixed_colors=False,
             num_objects=1,
             object_meshes=None,
@@ -109,7 +109,7 @@ if __name__ == "__main__":
         ),
         eval_env_kwargs=dict(
             fixed_start=True, #CHECK
-            reset_frequency=1, #CHECK
+            #reset_frequency=1, #CHECK
             fixed_colors=False,
             num_objects=1,
             object_meshes=None,
@@ -135,13 +135,13 @@ if __name__ == "__main__":
 
     search_space = {
         # 'env_id': ['SawyerPushAndReacherXYEnv-v0', ],
-        'seedid': range(5),
+        'seedid': range(3),
         # 'algo_kwargs.base_kwargs.num_updates_per_env_step': [4, ],
-        'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.1, ],
+        'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.2, ],
         'replay_buffer_kwargs.fraction_goals_env_goals': [0.5, ],
-        'env_kwargs.fixed_start': [True, False],
-        'env_kwargs.reset_frequency': [1, 2, 5, 10, 50, ],
-        'eval_env_kwargs.fixed_start': [False, ],
+        'env_kwargs.fixed_start': [True,],
+        #'env_kwargs.reset_frequency': [1, 2, 5, 10, 50, ],
+        #'eval_env_kwargs.fixed_start': [False, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

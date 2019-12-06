@@ -346,6 +346,7 @@ class CVAE(GaussianLatentVAE):
             reconstruction_channels=3,
             base_depth=32,
             weight_init_gain=1.0,
+            z_coeff=1,
     ):
         """
         :param representation_size:
@@ -439,23 +440,20 @@ class CVAE(GaussianLatentVAE):
             hidden_init=hidden_init,
             **deconv_kwargs)
 
+        self.z_coeff = 4
         self.c = nn.Linear(self.encoder.output_size, latent_sizes[1])
-        self.z = nn.Linear(self.encoder.output_size, self.representation_size)
-        self.l = nn.Linear(self.representation_size + latent_sizes[1], self.encoder.output_size)
-        self.z_mu = nn.Linear(self.encoder.output_size, latent_sizes[0])
-        self.z_var = nn.Linear(self.encoder.output_size, latent_sizes[0])
-        self.bn_z = nn.BatchNorm1d(self.representation_size)
-        self.bn_l = nn.BatchNorm1d(self.encoder.output_size)
+        self.z = nn.Linear(self.encoder.output_size, z_coeff * self.representation_size)
+        self.z_mu = nn.Linear(z_coeff * self.representation_size + latent_sizes[1], latent_sizes[0])
+        self.z_var = nn.Linear(z_coeff * self.representation_size + latent_sizes[1], latent_sizes[0])
+        self.bn_z = nn.BatchNorm1d(z_coeff * self.representation_size)
         self.bn_c = nn.BatchNorm1d(latent_sizes[1])
 
         nn.init.xavier_uniform_(self.z.weight, gain=self.gain)
         nn.init.xavier_uniform_(self.c.weight, gain=self.gain)
-        nn.init.xavier_uniform_(self.l.weight, gain=self.gain)
         nn.init.xavier_uniform_(self.z_mu.weight, gain=self.gain)
         nn.init.xavier_uniform_(self.z_var.weight, gain=self.gain)
 
         self.z.bias.data.uniform_(-init_w, init_w)
-        self.l.bias.data.uniform_(-init_w, init_w)
         self.c.bias.data.uniform_(-init_w, init_w)
         self.z_mu.bias.data.uniform_(-init_w, init_w)
         self.z_var.bias.data.uniform_(-init_w, init_w)
@@ -478,12 +476,12 @@ class CVAE(GaussianLatentVAE):
             batch_size = len(x_t)
             x_0 = x_0.repeat(batch_size, 1)
 
-        latents = self.bn_z(self.z(self.dropout(self.encoder(x_t))))
+        if self.z_coeff == 1:
+            latents = self.dropout(self.relu(self.bn_z(self.z(self.dropout(self.encoder(x_t))))))
+        else:
+            latents = self.bn_z(self.z(self.dropout(self.encoder(x_t))))
         conditioning = self.bn_c(self.c(self.dropout(self.cond_encoder(x_0))))
-        merged_latents = torch.cat([latents, conditioning], dim=1)
-        cond_latents = self.dropout(self.relu(self.bn_l(self.l(merged_latents))))
-
-
+        cond_latents = torch.cat([latents, conditioning], dim=1)
         mu = self.z_mu(cond_latents)
 
         if not distrib: return torch.cat([mu, conditioning], dim=1)
@@ -494,6 +492,62 @@ class CVAE(GaussianLatentVAE):
             logvar = self.log_min_variance + torch.abs(self.z_var(cond_latents))
 
         return (mu, logvar, conditioning)
+
+    #     self.c = nn.Linear(self.encoder.output_size, latent_sizes[1])
+    #     self.z = nn.Linear(self.encoder.output_size, self.representation_size)
+    #     self.l = nn.Linear(self.representation_size + latent_sizes[1], self.encoder.output_size)
+    #     self.z_mu = nn.Linear(self.encoder.output_size, latent_sizes[0])
+    #     self.z_var = nn.Linear(self.encoder.output_size, latent_sizes[0])
+    #     self.bn_z = nn.BatchNorm1d(self.representation_size)
+    #     self.bn_l = nn.BatchNorm1d(self.encoder.output_size)
+    #     self.bn_c = nn.BatchNorm1d(latent_sizes[1])
+
+    #     nn.init.xavier_uniform_(self.z.weight, gain=self.gain)
+    #     nn.init.xavier_uniform_(self.c.weight, gain=self.gain)
+    #     nn.init.xavier_uniform_(self.l.weight, gain=self.gain)
+    #     nn.init.xavier_uniform_(self.z_mu.weight, gain=self.gain)
+    #     nn.init.xavier_uniform_(self.z_var.weight, gain=self.gain)
+
+    #     self.z.bias.data.uniform_(-init_w, init_w)
+    #     self.l.bias.data.uniform_(-init_w, init_w)
+    #     self.c.bias.data.uniform_(-init_w, init_w)
+    #     self.z_mu.bias.data.uniform_(-init_w, init_w)
+    #     self.z_var.bias.data.uniform_(-init_w, init_w)
+
+    #     self.epoch = 0
+    #     self.decoder_distribution=decoder_distribution
+
+    # def forward(self, x_t, x_0):
+    #     """
+    #     :param input:
+    #     :return: reconstructed input, obs_distribution_params, latent_distribution_params
+    #     """
+    #     latent_distribution_params = self.encode(x_t, x_0)
+    #     latents = self.reparameterize(latent_distribution_params)
+    #     obs_recononstruction, obs_distribution_params = self.decode(latents)
+    #     return obs_recononstruction, obs_distribution_params, latent_distribution_params
+
+    # def encode(self, x_t, x_0, distrib=True):
+    #     if x_0.shape[0] == 1:
+    #         batch_size = len(x_t)
+    #         x_0 = x_0.repeat(batch_size, 1)
+
+    #     latents = self.bn_z(self.z(self.dropout(self.encoder(x_t))))
+    #     conditioning = self.bn_c(self.c(self.dropout(self.cond_encoder(x_0))))
+    #     merged_latents = torch.cat([latents, conditioning], dim=1)
+    #     cond_latents = self.dropout(self.relu(self.bn_l(self.l(merged_latents))))
+
+
+    #     mu = self.z_mu(cond_latents)
+
+    #     if not distrib: return torch.cat([mu, conditioning], dim=1)
+
+    #     if self.log_min_variance is None:
+    #         logvar = self.z_var(cond_latents)
+    #     else:
+    #         logvar = self.log_min_variance + torch.abs(self.z_var(cond_latents))
+
+    #     return (mu, logvar, conditioning)
 
     def reparameterize(self, latent_distribution_params):
         if self.training:
