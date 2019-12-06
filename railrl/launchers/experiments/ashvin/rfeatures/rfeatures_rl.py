@@ -94,7 +94,13 @@ def encoder_wrapped_td3bc_experiment(variant):
         reward_type="image_distance",
         # init_camera=sawyer_pusher_camera_upright_v2,
     )
-    env = EncoderWrappedEnv(env, model, reward_params, config_params)
+    env = EncoderWrappedEnv(
+        env,
+        model,
+        reward_params,
+        config_params,
+        **variant.get("encoder_wrapped_env_kwargs", dict())
+    )
 
     expl_env = env # variant['env_class'](**variant['env_kwargs'])
     eval_env = env # variant['env_class'](**variant['env_kwargs'])

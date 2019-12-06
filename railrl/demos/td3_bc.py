@@ -404,7 +404,7 @@ class TD3BCTrainer(TorchTrainer):
             weights = F.softmax((advantage / self.beta)[:, 0])
 
             if self.awr_policy_update:
-                policy_loss = self.bc_weight * (policy_error * weights.detach() * self.bc_batch_size).mean()
+                policy_loss = self.rl_weight * (policy_error * weights.detach() * self.bc_batch_size).mean()
             else:
                 policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
 
