@@ -30,7 +30,8 @@ for demo in x:
         s1 = o["task_low_dim_state"]
         s2 = o["gripper_pose"]
         s3 = o["joint_positions"]
-        s = np.concatenate((s1, s2, s3))
+        # s = np.concatenate((s1, s2, s3))
+        s = np.concatenate((s2, s3))
         o["state_observation"] = s
         o["state_achieved_goal"] = np.zeros((0, ))
         o["state_desired_goal"] = np.zeros((0, ))
@@ -59,4 +60,4 @@ for demo in x:
 
     y.append(traj)
 
-np.save(save_to_dir + "demos5b_10_dict.npy", y)
+np.save(save_to_dir + "demos5b_10_dict_joints.npy", y)

@@ -64,9 +64,10 @@ class EncoderWrappedEnv(ProxyEnv):
 
         self.vae_input_observation_key = vae_input_observation_key
 
+        latent_size = obs_size or self.representation_size
         latent_space = Box(
-            -10 * np.ones(obs_size or self.representation_size),
-            10 * np.ones(obs_size or self.representation_size),
+            -10 * np.ones(latent_size),
+            10 * np.ones(latent_size),
             dtype=np.float32,
         )
         goal_space = Box(
@@ -81,6 +82,15 @@ class EncoderWrappedEnv(ProxyEnv):
         spaces['latent_observation'] = latent_space
         spaces['latent_desired_goal'] = goal_space
         spaces['latent_achieved_goal'] = goal_space
+
+        concat_size = latent_size + spaces["state_observation"].low.size
+        concat_space = Box(
+            -10 * np.ones(concat_size),
+            10 * np.ones(concat_size),
+            dtype=np.float32,
+        )
+        spaces['concat_observation'] = concat_space
+
         self.observation_space = Dict(spaces)
 
     def reset(self):
@@ -93,7 +103,7 @@ class EncoderWrappedEnv(ProxyEnv):
         # self.save_image_util(self.x0, "demos/reset_initial")
         goal = self.sample_goal()
         self.set_goal(goal)
-        obs = self._update_obs(obs)
+        obs = self.update_obs(obs)
         self.z0 = obs["latent_observation"]
         # if self.config_params["use_initial"]:
         #     print(self.dT)
@@ -116,7 +126,7 @@ class EncoderWrappedEnv(ProxyEnv):
     def step(self, action):
         self.vae.eval()
         obs, reward, done, info = self.wrapped_env.step(action)
-        new_obs = self._update_obs(obs)
+        new_obs = self.update_obs(obs)
         self._update_info(info, new_obs)
         reward = self.compute_reward(
             action,
@@ -126,7 +136,7 @@ class EncoderWrappedEnv(ProxyEnv):
         )
         return new_obs, reward, done, info
 
-    def _update_obs(self, obs):
+    def update_obs(self, obs):
         self.vae.eval()
         self.zt = self._encode_one(obs[self.vae_input_observation_key])
         # if self.config_params["use_initial"]:
@@ -143,6 +153,9 @@ class EncoderWrappedEnv(ProxyEnv):
         obs['achieved_goal'] = np.array([])
         obs['desired_goal'] = np.array([])
         # obs = {**obs, **self.desired_goal}
+        state_obs = obs['state_observation'].copy()
+        concat_obs = np.concatenate((latent_obs, state_obs))
+        obs['concat_observation'] = concat_obs
         return obs
 
     def _update_obs_latent(self, obs, z):

@@ -137,14 +137,15 @@ class TD3BCTrainer(TorchTrainer):
         self.awr_policy_update = awr_policy_update
 
     def _update_obs_with_latent(self, obs):
-        latent_obs = self.env._encode_one(obs["image_observation"])
-        latent_goal = np.array([]) # self.env._encode_one(obs["image_desired_goal"])
-        obs['latent_observation'] = latent_obs
-        obs['latent_achieved_goal'] = latent_goal
-        obs['latent_desired_goal'] = latent_goal
-        obs['observation'] = latent_obs
-        obs['achieved_goal'] = latent_goal
-        obs['desired_goal'] = latent_goal
+        obs = self.env.update_obs(obs)
+        # latent_obs = self.env._encode_one(obs["image_observation"])
+        # latent_goal = np.array([]) # self.env._encode_one(obs["image_desired_goal"])
+        # obs['latent_observation'] = latent_obs
+        # obs['latent_achieved_goal'] = latent_goal
+        # obs['latent_desired_goal'] = latent_goal
+        # obs['observation'] = latent_obs
+        # obs['achieved_goal'] = latent_goal
+        # obs['desired_goal'] = latent_goal
         return obs
 
     def load_path(self, path, replay_buffer):

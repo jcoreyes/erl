@@ -99,13 +99,9 @@ def encoder_wrapped_td3bc_experiment(variant):
     expl_env = env # variant['env_class'](**variant['env_kwargs'])
     eval_env = env # variant['env_class'](**variant['env_kwargs'])
 
-    use_state_observation=True
-    if use_state_observation:
-        observation_key = 'state_observation'
-        desired_goal_key = 'state_desired_goal'
-    else:
-        observation_key = 'latent_observation'
-        desired_goal_key = 'latent_desired_goal'
+    observation_key = variant.get("observation_key", 'state_observation')
+    # one of 'state_observation', 'latent_observation', 'concat_observation'
+    desired_goal_key = 'latent_desired_goal'
 
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     es = GaussianAndEpislonStrategy(
