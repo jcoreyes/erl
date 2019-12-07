@@ -26,7 +26,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         wrapped_env,
         vae,
         vae_input_key_prefix='image',
-        sample_from_true_prior=False,
+        sample_from_true_prior=True,
         decode_goals=False,
         decode_goals_on_reset=True,
         render_goals=False,
@@ -95,6 +95,8 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         self._initial_obs = None
         self._custom_goal_sampler = None
         self._goal_sampling_mode = goal_sampling_mode
+        self.prior_var = np.concatenate([np.exp(self.vae.prior_logvar), \
+            np.ones(self.representation_size - self.vae.prior_logvar.shape[0])])
 
 
     def reset(self):
@@ -483,6 +485,7 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
         mdist = np.sum(err)  # mahalanobis distance
         info["vae_mdist"] = mdist
         info["vae_success"] = 1 if mdist < self.epsilon else 0
+        import ipdb; ipdb.set_trace()
         info["vae_dist"] = np.linalg.norm(dist, ord=self.norm_order)
         info["vae_dist_l1"] = np.linalg.norm(dist, ord=1)
         info["vae_dist_l2"] = np.linalg.norm(dist, ord=2)
@@ -493,6 +496,7 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
         if self.reward_type == 'latent_distance':
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
+            #distance = np.multiply(1 / self.prior_var, desired_goals - achieved_goals)
             dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
             return -dist
         elif self.reward_type == 'vectorized_latent_distance':
@@ -572,7 +576,7 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
         if x0_latent is None:
             x0 = ptu.from_numpy(self._initial_obs["image_observation"][None])
             if not self.sample_from_true_prior:
-                return 1/0 #NOT IMPLEMENTED
+                return ptu.get_numpy(self.vae.sample_prior(batch_size, x0, true_prior=True))
             return ptu.get_numpy(self.vae.sample_prior(batch_size, x0))
         else:
             mu, sigma = 0, 1  # sample from prior

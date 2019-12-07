@@ -350,6 +350,19 @@ class DeltaCVAETrainer(ConditionalConvVAETrainer):
             lr=self.lr,
             weight_decay=weight_decay,
         )
+        self.mean_mu, self.mean_logvar = None, None
+
+    def update_prior(self, latent_distribution_params, epoch):
+        mu = ptu.get_numpy(latent_distribution_params[0].mean(dim=0))
+        logvar = ptu.get_numpy(latent_distribution_params[0].var(dim=0).log())
+
+        try:
+            self.mean_mu = (epoch - 1)/epoch * self.mean_mu + (1/epoch) * mu
+            self.mean_logvar = (epoch - 1)/epoch * self.mean_logvar + (1/epoch) * logvar
+        except:
+            self.mean_mu = mu
+            self.mean_logvar = logvar
+        self.model.update_prior(self.mean_mu, self.mean_logvar)
 
     def compute_loss(self, epoch, batch, test=False):
         prefix = "test/" if test else "train/"
@@ -363,6 +376,7 @@ class DeltaCVAETrainer(ConditionalConvVAETrainer):
         kle = self.model.kl_divergence(latent_distribution_params)
         loss = -1 * (log_prob + context_weight * env_log_prob) + beta * kle
 
+        self.update_prior(latent_distribution_params, epoch)
         self.eval_statistics['epoch'] = epoch
         self.eval_statistics['beta'] = beta
         self.eval_statistics[prefix + "losses"].append(loss.item())

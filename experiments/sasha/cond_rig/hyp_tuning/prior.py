@@ -47,7 +47,7 @@ if __name__ == "__main__":
             object_high=(x_high - 0.01, y_high - 0.01, 0.02),
             use_textures=True,
             init_camera=sawyer_init_camera_zoomed_in,
-            cylinder_radius=0.075, #HERHEHERHEHEHREHREHR
+            cylinder_radius=0.075,
         ),
 
         grill_variant=dict(
@@ -180,7 +180,7 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        region='us-west-1',
+        region='us-east-2',
 
         logger_variant=dict(
             tensorboard=True,
@@ -194,7 +194,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(1),
+        'seedid': range(5),
         'train_vae_variant.latent_sizes': [(6, 4),],
         'train_vae_variant.context_schedule':[
         dict(x_values=(0, 1500), y_values=(1, 1)),],
@@ -214,6 +214,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=12)
-
-    #NOTES : P IN VAEWRAPPER NEEDS TO GO BACK TO 2
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=3)
