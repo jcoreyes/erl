@@ -453,8 +453,8 @@ class CVAE(GaussianLatentVAE):
         nn.init.xavier_uniform_(self.z_mu.weight, gain=self.gain)
         nn.init.xavier_uniform_(self.z_var.weight, gain=self.gain)
 
-        #self.z.bias.data.uniform_(-init_w, init_w)
-        #self.c.bias.data.uniform_(-init_w, init_w)
+        self.z.bias.data.uniform_(-init_w, init_w)
+        self.c.bias.data.uniform_(-init_w, init_w)
         self.z_mu.bias.data.uniform_(-init_w, init_w)
         self.z_var.bias.data.uniform_(-init_w, init_w)
         self.prior_mu, self.prior_logvar = None, None

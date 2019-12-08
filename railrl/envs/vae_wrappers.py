@@ -26,7 +26,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         wrapped_env,
         vae,
         vae_input_key_prefix='image',
-        sample_from_true_prior=True,
+        sample_from_true_prior=False,
         decode_goals=False,
         decode_goals_on_reset=True,
         render_goals=False,
@@ -485,7 +485,6 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
         mdist = np.sum(err)  # mahalanobis distance
         info["vae_mdist"] = mdist
         info["vae_success"] = 1 if mdist < self.epsilon else 0
-        import ipdb; ipdb.set_trace()
         info["vae_dist"] = np.linalg.norm(dist, ord=self.norm_order)
         info["vae_dist_l1"] = np.linalg.norm(dist, ord=1)
         info["vae_dist_l2"] = np.linalg.norm(dist, ord=2)

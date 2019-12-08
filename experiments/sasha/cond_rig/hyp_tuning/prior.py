@@ -70,7 +70,7 @@ if __name__ == "__main__":
             max_path_length=100,
             algo_kwargs=dict(
                 batch_size=128,
-                num_epochs=301,
+                num_epochs=1001,
                 num_eval_steps_per_epoch=1000,
                 num_expl_steps_per_train_loop=1000,
                 num_trains_per_train_loop=1000,
@@ -130,13 +130,13 @@ if __name__ == "__main__":
                 y_values=(1, 100),
             ),
             context_schedule=1,
-            num_epochs=26,
+            num_epochs=1500,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
                 N=100000,
-                #dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
+                dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 n_random_steps=10,
                 test_p=.9,
                 use_cached=False,
@@ -180,7 +180,7 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        region='us-east-2',
+        region='us-west-2',
 
         logger_variant=dict(
             tensorboard=True,
@@ -214,4 +214,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=3)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=14)
