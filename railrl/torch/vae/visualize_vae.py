@@ -2,7 +2,7 @@ import tkinter as tk
 
 from railrl.misc.asset_loader import sync_down
 from railrl.misc.asset_loader import load_local_or_remote_file
-import cv2
+#import cv2
 import pickle
 import numpy as np
 
@@ -196,7 +196,7 @@ class ConditionalVAEVisualizer(object):
         self.master = tk.Tk()
 
         self.sliders = []
-        for i in range(self.vae.latent_size):
+        for i in range(self.vae.representation_size):
             w = tk.Scale(self.master, from_=-3, to=3, orient=tk.HORIZONTAL, resolution=0.01,)
             x, y = (i % 4), 13 + (i // 4)
             w.grid(row=x, column=y)
@@ -219,7 +219,7 @@ class ConditionalVAEVisualizer(object):
         self.leftpanel.grid(row=0, column=4, columnspan=4, rowspan=4)
         self.rightpanel.grid(row=0, column=8, columnspan=4, rowspan=4)
 
-        self.last_mean = np.zeros((self.vae.latent_size))
+        self.last_mean = np.zeros((self.vae.representation_size))
 
         # import pdb; pdb.set_trace()
         self.new_train_image()
@@ -243,7 +243,7 @@ class ConditionalVAEVisualizer(object):
         return train_dataset, test_dataset
 
     def update(self):
-        for i in range(self.vae.latent_size):
+        for i in range(self.vae.representation_size):
             self.mean[i] = self.sliders[i].get()
         self.check_change()
 
@@ -303,7 +303,7 @@ class ConditionalVAEVisualizer(object):
             self.last_mean = self.mean.copy()
 
     def update_sliders(self):
-        for i in range(self.vae.latent_size):
+        for i in range(self.vae.representation_size):
             self.sliders[i].set(self.mean[i])
 
     def update_reconstruction(self):
@@ -323,7 +323,7 @@ class ConditionalVAEVisualizer(object):
         return ptu.from_numpy(samples)
 
     def sweep_element(self):
-        if self.sweep_i < self.vae.representation_size[0]:
+        if self.sweep_i < self.vae.latent_sizes[0]:
             i = self.sweep_i
             if self.sweep_k > 10:
                 self.mean[i] = self.original_mean[i]
@@ -408,9 +408,10 @@ if __name__ == "__main__":
     # train_data, test_data, info = generate_vae_dataset(
     #     N=10000
     # )
-    data_path = "/tmp/SawyerMultiobjectEnv_N100000_sawyer_init_camera_zoomed_in_imsize48_random_oracle_split_0.npy"
+    data_path = "/home/ashvin/Desktop/sim_puck_data.npy"
     train_data, test_data = load_dataset(data_path)
-    model_path = "/home/khazatsky/rail/data/rail-khazatsky/sasha/PCVAE/dynamics-cvae/run106/id0/vae.pkl"
+    #model_path = "/home/ashvin/data/rail-khazatsky/sasha/cond-rig/hyp-tuning/tuning/run550/id1/vae.pkl"
+    model_path = "/home/ashvin/data/sasha/cond-rig/hyp-tuning/dropout/run1/id0/itr_100.pkl"
     ConditionalVAEVisualizer(model_path, train_data, test_data)
 
     tk.mainloop()

@@ -1,7 +1,7 @@
 import os.path as osp
 import time
 
-import cv2
+#import cv2
 import numpy as np
 
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
