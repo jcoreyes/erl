@@ -1,27 +1,3 @@
-
-from collections import OrderedDict
-import os
-from os import path as osp
-import numpy as np
-import torch
-from torch import optim
-from torch.distributions import Normal
-from torch.utils.data import DataLoader
-from torch.nn import functional as F
-from torchvision.utils import save_image
-from railrl.data_management.images import normalize_image
-from railrl.core import logger
-import railrl.core.util as util
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch import pytorch_util as ptu
-from railrl.torch.data import (
-    ImageDataset, InfiniteWeightedRandomSampler,
-    InfiniteRandomSampler,
-)
-from railrl.torch.core import np_to_pytorch_batch
-import collections
-
 from collections import OrderedDict
 import os
 from os import path as osp
@@ -350,19 +326,6 @@ class DeltaCVAETrainer(ConditionalConvVAETrainer):
             lr=self.lr,
             weight_decay=weight_decay,
         )
-        self.mean_mu, self.mean_logvar = None, None
-
-    def update_prior(self, latent_distribution_params, epoch):
-        mu = ptu.get_numpy(latent_distribution_params[0].mean(dim=0))
-        logvar = ptu.get_numpy(latent_distribution_params[0].var(dim=0).log())
-
-        try:
-            self.mean_mu = (epoch - 1)/epoch * self.mean_mu + (1/epoch) * mu
-            self.mean_logvar = (epoch - 1)/epoch * self.mean_logvar + (1/epoch) * logvar
-        except:
-            self.mean_mu = mu
-            self.mean_logvar = logvar
-        self.model.update_prior(self.mean_mu, self.mean_logvar)
 
     def compute_loss(self, epoch, batch, test=False):
         prefix = "test/" if test else "train/"
@@ -376,7 +339,6 @@ class DeltaCVAETrainer(ConditionalConvVAETrainer):
         kle = self.model.kl_divergence(latent_distribution_params)
         loss = -1 * (log_prob + context_weight * env_log_prob) + beta * kle
 
-        self.update_prior(latent_distribution_params, epoch)
         self.eval_statistics['epoch'] = epoch
         self.eval_statistics['beta'] = beta
         self.eval_statistics[prefix + "losses"].append(loss.item())
@@ -463,14 +425,14 @@ class CDVAETrainer(CVAETrainer):
 
     def state_linearity_loss(self, x_t, x_next, env, actions):
         latent_obs = self.model.encode(x_t, env, distrib=False)
-        latent_next_obs = self.model.encode(x_next, env, distrib=False).detach()
+        latent_next_obs = self.model.encode(x_next, env, distrib=False)
         predicted_latent = self.model.process_dynamics(latent_obs, actions)
         return torch.norm(predicted_latent - latent_next_obs) ** 2 / self.batch_size
 
-    # def state_distance_loss(self, x_t, x_next, env):
-    #     latent_obs = self.model.encode(x_t, env, distrib=False)
-    #     latent_next_obs = self.model.encode(x_next, env, distrib=False)
-    #     return torch.norm(latent_obs - latent_next_obs) ** 2 / self.batch_size
+    def state_distance_loss(self, x_t, x_next, env):
+        latent_obs = self.model.encode(x_t, env, distrib=False)
+        latent_next_obs = self.model.encode(x_next, env, distrib=False)
+        return torch.norm(latent_obs - latent_next_obs) ** 2 / self.batch_size
 
     def compute_loss(self, epoch, batch, test=False):
         prefix = "test/" if test else "train/"

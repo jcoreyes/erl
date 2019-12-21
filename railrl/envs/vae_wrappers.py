@@ -95,8 +95,8 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         self._initial_obs = None
         self._custom_goal_sampler = None
         self._goal_sampling_mode = goal_sampling_mode
-        self.prior_var = np.concatenate([np.exp(self.vae.prior_logvar), \
-            np.ones(self.representation_size - self.vae.prior_logvar.shape[0])])
+        # self.prior_var = np.concatenate([np.exp(self.vae.prior_logvar), \
+            # np.ones(self.representation_size - self.vae.prior_logvar.shape[0])])
 
 
     def reset(self):

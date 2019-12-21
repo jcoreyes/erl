@@ -119,9 +119,10 @@ def train_vae(variant, return_data=False):
     if 'context_schedule' in variant:
         context_schedule = PiecewiseLinearSchedule(
             **variant['context_schedule'])
-    else:
-        context_schedule = PiecewiseLinearSchedule(
-            **dict(x_values=(0, 100000), y_values=(1, 1)))
+        variant['algo_kwargs']['context_schedule'] = context_schedule
+    # else:
+    #     context_schedule = PiecewiseLinearSchedule(
+    #         **dict(x_values=(0, 100000), y_values=(1, 1)))
     if variant.get('decoder_activation', None) == 'sigmoid':
         decoder_activation = torch.nn.Sigmoid()
     else:
@@ -148,8 +149,7 @@ def train_vae(variant, return_data=False):
 
     vae_trainer_class = variant.get('vae_trainer_class', ConvVAETrainer)
     trainer = vae_trainer_class(model, beta=beta,
-                       beta_schedule=beta_schedule, 
-                       context_schedule=context_schedule,
+                       beta_schedule=beta_schedule,
                        **variant['algo_kwargs'])
     save_period = variant['save_period']
 
