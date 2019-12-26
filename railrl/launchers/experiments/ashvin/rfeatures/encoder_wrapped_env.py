@@ -17,7 +17,6 @@ import time
 
 from os import path as osp
 from torchvision.utils import save_image
-from rlkit.core import logger
 import railrl.data_management.external.epic_kitchens_data_stub as epic
 
 eps = 1e-5
@@ -37,6 +36,7 @@ class EncoderWrappedEnv(ProxyEnv):
         imsize=84,
         obs_size=None,
         vae_input_observation_key="image_observation",
+        small_image_step=6,
     ):
         if config_params is None:
             config_params = dict
@@ -51,21 +51,26 @@ class EncoderWrappedEnv(ProxyEnv):
         self.input_channels = self.vae.input_channels
         self.imsize = imsize
         self.config_params = config_params
+        self.t = 0
+        self.episode_num = 0
         self.reward_params = reward_params
-        # self.reward_type = self.reward_params.get("type", 'latent_distance')
+        self.reward_type = self.reward_params.get("type", 'latent_distance')
         self.zT = self.reward_params["goal_latent"]
         self.z0 = self.reward_params["initial_latent"]
         self.dT = self.zT - self.z0
-        if self.config_params["use_initial"]:
-            self.dT = self.zT - self.z0
-        else:
-            self.dT = self.zT
+
+        self.small_image_step = small_image_step
+        # if self.config_params["use_initial"]:
+        #     self.dT = self.zT - self.z0
+        # else:
+        #     self.dT = self.zT
 
         self.vae_input_observation_key = vae_input_observation_key
 
+        latent_size = obs_size or self.representation_size
         latent_space = Box(
-            -10 * np.ones(obs_size or self.representation_size),
-            10 * np.ones(obs_size or self.representation_size),
+            -10 * np.ones(latent_size),
+            10 * np.ones(latent_size),
             dtype=np.float32,
         )
         goal_space = Box(
@@ -80,22 +85,42 @@ class EncoderWrappedEnv(ProxyEnv):
         spaces['latent_observation'] = latent_space
         spaces['latent_desired_goal'] = goal_space
         spaces['latent_achieved_goal'] = goal_space
+
+        concat_size = latent_size + spaces["state_observation"].low.size
+        concat_space = Box(
+            -10 * np.ones(concat_size),
+            10 * np.ones(concat_size),
+            dtype=np.float32,
+        )
+        spaces['concat_observation'] = concat_space
+        small_image_size = 288 // self.small_image_step
+        small_image_imglength = small_image_size * small_image_size * 3
+        small_image_space = Box(
+            0 * np.ones(small_image_imglength),
+            1 * np.ones(small_image_imglength),
+            dtype=np.float32,
+        )
+        spaces['small_image_observation'] = small_image_space
+
         self.observation_space = Dict(spaces)
 
     def reset(self):
         self.vae.eval()
+        self.t = 0
+        self.episode_num += 1
         obs = self.wrapped_env.reset()
         # start_rollout(obs)
         self.x0 = obs["image_observation"]
-        # self.save_image_util(self.x0, "initial")
+        # self.save_image_util(self.x0, "demos/reset_initial")
         goal = self.sample_goal()
         self.set_goal(goal)
-        obs = self._update_obs(obs)
+        obs = self.update_obs(obs)
         self.z0 = obs["latent_observation"]
-        if self.config_params["use_initial"]:
-            self.dT = self.zT - self.z0
-        else:
-            self.dT = self.zT
+        # if self.config_params["use_initial"]:
+        #     print(self.dT)
+        #     self.dT = self.zT - self.z0
+        # else:
+        #     self.dT = self.zT
         return obs
 
     def initialize(self, zs):
@@ -104,15 +129,15 @@ class EncoderWrappedEnv(ProxyEnv):
         if self.config_params["goal_type"] == "use_goal_from_trajectory":
             self.zT = zs[-1]
 
-        if self.config_params["use_initial"]:
-            self.dT = self.zT - self.z0
-        else:
-            self.dT = self.zT
+        # if self.config_params["use_initial"]:
+        #     self.dT = self.zT - self.z0
+        # else:
+        #     self.dT = self.zT
 
     def step(self, action):
         self.vae.eval()
         obs, reward, done, info = self.wrapped_env.step(action)
-        new_obs = self._update_obs(obs)
+        new_obs = self.update_obs(obs)
         self._update_info(info, new_obs)
         reward = self.compute_reward(
             action,
@@ -122,13 +147,16 @@ class EncoderWrappedEnv(ProxyEnv):
         )
         return new_obs, reward, done, info
 
-    def _update_obs(self, obs):
+    def update_obs(self, obs):
         self.vae.eval()
         self.zt = self._encode_one(obs[self.vae_input_observation_key])
-        if self.config_params["use_initial"]:
-            latent_obs = self.zt - self.z0
-        else:
-            latent_obs = self.zt
+        # if self.config_params["use_initial"]:
+        #     latent_obs = self.zt - self.z0
+        # else:
+        #     latent_obs = self.zt
+        latent_obs = self.zt
+        obs['z0'] = self.z0.copy()
+        obs['zt'] = self.zt.copy()
         obs['latent_observation'] = latent_obs
         obs['latent_achieved_goal'] = np.array([])
         obs['latent_desired_goal'] = np.array([])
@@ -136,15 +164,24 @@ class EncoderWrappedEnv(ProxyEnv):
         obs['achieved_goal'] = np.array([])
         obs['desired_goal'] = np.array([])
         # obs = {**obs, **self.desired_goal}
+
+        state_obs = obs['state_observation'].copy()
+        concat_obs = np.concatenate((latent_obs, state_obs))
+        obs['concat_observation'] = concat_obs
+
+        S = self.small_image_step
+        small_image_obs = obs['image_observation'].reshape(3, 500, 300)[:, 106:394:S, 6:294:S] / 255.0
+        obs['small_image_observation'] = small_image_obs.flatten()
+
         return obs
 
     def _update_obs_latent(self, obs, z):
         self.vae.eval()
         self.zt = z
-        if self.config_params["use_initial"]:
-            latent_obs = self.zt - self.z0
-        else:
-            latent_obs = self.zt
+        # if self.config_params["use_initial"]:
+        #     latent_obs = self.zt - self.z0
+        # else:
+        #     latent_obs = self.zt
         obs['latent_observation'] = latent_obs
         obs['latent_achieved_goal'] = np.array([])
         obs['latent_desired_goal'] = np.array([])
@@ -177,17 +214,25 @@ class EncoderWrappedEnv(ProxyEnv):
     def compute_reward(self, action, obs, info=None):
         self.vae.eval()
 
-        dt = obs["latent_observation"]
-        dT = self.dT
+        # dt = obs["latent_observation"]
+        # dT = self.dT
+
+        zt = obs["latent_observation"]
+        z0 = self.z0
+        zg = self.zT
+        dt = zt - z0
+        dT = zg - z0
 
         # import ipdb; ipdb.set_trace()
 
         reward_type = self.reward_params.get("type", "regression_distance")
         if reward_type == "regression_distance":
             regression_pred_yt = (dt * dT).sum() / ((dT ** 2).sum() + eps)
-            return -np.abs(1-regression_pred_yt)
+            r = -np.abs(1-regression_pred_yt)
         if reward_type == "latent_distance":
-            return -np.linalg.norm(dt - dT)
+            r = -np.linalg.norm(dt - dT)
+
+        return r
 
         # next_obs = {
         #     k: v[None] for k, v in obs.items()
@@ -236,25 +281,26 @@ class EncoderWrappedEnv(ProxyEnv):
 
     def _encode_one(self, img, name=None):
         im = img.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
-        im = im[:, :, 60:300, 30:470]
+        im = im[:, :, 60:, 60:500]
         return self._encode(im, name)[0]
 
     def _encode_batch(self, imgs):
         im = imgs.reshape(-1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
-        im = im[:, :, 60:300, 30:470]
+        im = im[:, :, 60:, 60:500]
         return self._encode(im)
 
     def save_image_util(self, img, name):
-        pt_img = ptu.from_numpy(img).view(-1, 3, epic.CROP_HEIGHT, epic.CROP_WIDTH)
-        save_image(pt_img.data.cpu(), '%s.png'%name, nrow=1)
+        im = img.reshape(-1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
+        im = im[:, :, 60:, 60:500]
+        pt_img = ptu.from_numpy(im).view(-1, 3, epic.CROP_HEIGHT, epic.CROP_WIDTH)
+        save_image(pt_img.data.cpu(), '%s_%d.png'% (name, self.episode_num), nrow=1)
         # save_image(pt_img[:1, :, :, :].data.cpu(), 'forward.png', nrow=1)
 
     def _encode(self, imgs, name=None):
         self.vae.eval()
         pt_img = ptu.from_numpy(imgs).view(-1, 3, epic.CROP_HEIGHT, epic.CROP_WIDTH)
 
-        # save_dir = osp.join(logger.get_snapshot_dir(), )
-        # save_image(pt_img.data.cpu(), 'forward.png', nrow=1)
+        # save_image(pt_img.data.cpu(), 'demos/forward_%d.png' % self.t, nrow=1)
         # save_image(pt_img[:1, :, :, :].data.cpu(), 'forward.png', nrow=1)
 
         latent_distribution_params = self.vae.encode(pt_img)

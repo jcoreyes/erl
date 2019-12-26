@@ -16,39 +16,24 @@ from railrl.torch.vae.conditional_vae_trainer import DeltaCVAETrainer
 from railrl.data_management.online_conditional_vae_replay_buffer import \
         OnlineConditionalVaeRelabelingBuffer
 
-x_var = 0.2 # determines size of the workspace
-x_low = -x_var
-x_high = x_var
-y_low = 0.5
-y_high = 0.7
-t = 0.05 # border of the workspace for the hand
+from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DWallEnv
 
 if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         online_vae_exploration=False,
         imsize=48,
-        init_camera=sawyer_init_camera_zoomed_in,
-        env_class=SawyerMultiobjectEnv,
+        env_class=Multiobj2DWallEnv,
         env_kwargs=dict(
-            num_objects=1,
-            object_meshes=None,
-            fixed_start=True,
-            num_scene_objects=[1],
-            maxlen=0.1,
-            action_repeat=1,
-            puck_goal_low=(x_low + 0.01, y_low + 0.01),
-            puck_goal_high=(x_high - 0.01, y_high - 0.01),
-            hand_goal_low=(x_low + 3*t, y_low + t),
-            hand_goal_high=(x_high - 3*t, y_high -t),
-            mocap_low=(x_low + 2*t, y_low , 0.0),
-            mocap_high=(x_high - 2*t, y_high, 0.5),
-            object_low=(x_low + 0.01, y_low + 0.01, 0.02),
-            object_high=(x_high - 0.01, y_high - 0.01, 0.02),
-            use_textures=True,
-            init_camera=sawyer_init_camera_zoomed_in,
-            cylinder_radius=0.075,
-        ),
+           render_onscreen=False,
+           ball_radius=1.2,
+           wall_thickness=1.5,
+           inner_wall_max_dist=1.5,
+           images_are_rgb=True,
+           show_goal=False,
+           change_colors=True,
+           change_walls=True,
+       ),
 
         grill_variant=dict(
             save_video=True,
@@ -87,7 +72,7 @@ if __name__ == "__main__":
                 reward_scale=1.0,
                 tau=1e-2,
             ),
-            # replay_buffer_class=OnlineConditionalVaeRelabelingBuffer,
+            replay_buffer_class=OnlineConditionalVaeRelabelingBuffer,
             replay_buffer_kwargs=dict(
                 start_skew_epoch=10,
                 max_size=int(100000),
@@ -129,12 +114,13 @@ if __name__ == "__main__":
                 x_values=(0, 1000),
                 y_values=(1, 100),
             ),
-            num_epochs=5,
+            context_schedule=1,
+            num_epochs=1500,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=2000,
+                N=100000,
                 # dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 n_random_steps=10,
                 test_p=.9,
@@ -150,8 +136,8 @@ if __name__ == "__main__":
                 enviorment_dataset=False,
                 tag="ccrig_tuning_orig_network",
             ),
-            # vae_trainer_class=DeltaCVAETrainer,
-            # vae_class=DeltaCVAE,
+            vae_trainer_class=DeltaCVAETrainer,
+            vae_class=DeltaCVAE,
             vae_kwargs=dict(
                 input_channels=3,
                 architecture=imsize48_default_architecture_with_more_hidden_layers,
@@ -194,12 +180,16 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(5),
-        'train_vae_variant.representation_size': [10,],
+        'train_vae_variant.latent_sizes': [(2, 4),],
+        'train_vae_variant.context_schedule':[
+            1.0,
+        ],
         'train_vae_variant.beta_schedule_kwargs': [
             dict(x_values=(0, 1500,), y_values=(1, 50)),
         ],
         'train_vae_variant.algo_kwargs.batch_size': [128, ],
         'train_vae_variant.algo_kwargs.lr': [1e-3, ],
+        'train_vae_variant.algo_kwargs.weight_decay': [1e-3, ],
         'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000,],
         'grill_variant.algo_kwargs.batch_size': [128,],
         'grill_variant.exploration_noise': [0.3],

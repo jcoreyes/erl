@@ -29,12 +29,13 @@ import pickle
 class VideoSaveFunction:
     def __init__(self, env, variant):
         self.logdir = logger.get_snapshot_dir()
-        self.save_period = variant.get('save_video_period', 50)
         self.dump_video_kwargs = variant.get("dump_video_kwargs", dict())
-        self.dump_video_kwargs['imsize'] = env.imsize
+        if 'imsize' not in self.dump_video_kwargs:
+            self.dump_video_kwargs['imsize'] = env.imsize
         self.dump_video_kwargs.setdefault("rows", 2)
         self.dump_video_kwargs.setdefault("columns", 5)
         self.dump_video_kwargs.setdefault("unnormalize", True)
+        self.save_period = self.dump_video_kwargs.pop('save_video_period', 50)
         self.exploration_goal_image_key = self.dump_video_kwargs.pop("exploration_goal_image_key", "decoded_goal_image")
         self.evaluation_goal_image_key = self.dump_video_kwargs.pop("evaluation_goal_image_key", "image_desired_goal")
 
@@ -95,9 +96,10 @@ def dump_video(
         dirname_to_save_images=None,
         subdirname="rollouts",
         imsize=84,
+        grayscale=False,
 ):
     # num_channels = env.vae.input_channels
-    num_channels = 1 if env.grayscale else 3
+    num_channels = 1 if grayscale else 3
     frames = []
     H = 3*imsize
     W=imsize
@@ -194,9 +196,10 @@ def dump_paths(
         num_imgs=3, # how many vertical images we stack per rollout
         dump_pickle=False,
         unnormalize=True,
+        grayscale=False,
 ):
     # num_channels = env.vae.input_channels
-    num_channels = 1 if env.grayscale else 3
+    num_channels = 1 if grayscale else 3
     frames = []
 
     imwidth = imwidth or imsize # 500

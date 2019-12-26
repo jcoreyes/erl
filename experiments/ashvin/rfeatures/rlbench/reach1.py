@@ -2,6 +2,7 @@ from rlbench.environment import Environment
 from rlbench.action_modes import ActionMode, ArmActionMode
 from rlbench.tasks import FS10_V1
 from rlbench.tasks.open_drawer import OpenDrawer
+from rlbench.tasks import ReachTarget
 from rlbench.observation_config import ObservationConfig, CameraConfig
 import numpy as np
 
@@ -10,7 +11,7 @@ import skvideo.io
 live_demos = True
 DATASET = '' if live_demos else 'PATH/TO/YOUR/DATASET'
 
-save_to_dir = 'gitignore/rbench/'
+save_to_dir = 'gitignore/rbench/reach_'
 
 camera_config = CameraConfig(image_size=(500, 300))
 obs_config = ObservationConfig()
@@ -30,14 +31,10 @@ env.launch()
 
 # print(action_mode.action_size)
 
-task = env.get_task(OpenDrawer)
+task = env.get_task(ReachTarget)
 task.sample_variation()  # random variation
 descriptions, obs = task.reset()
 # obs, reward, terminate = task.step(np.random.normal(size=action_mode.action_size))
-
-# import ipdb; ipdb.set_trace()
-
-task._robot
 
 for j in range(3, 10):
     demos = task.get_demos(1, live_demos=True)  # -> List[List[Observation]]

@@ -155,8 +155,6 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                         k_new = remap_keys[k]
                         vals.append(d[k_new])
                     else:
-                        print("not found key", k)
-                        print(d.keys())
                         error_key_not_found_in_logs
                 y = reduce_op(vals)
             else:

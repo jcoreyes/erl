@@ -18,7 +18,7 @@ if __name__ == "__main__":
         latent_sizes=(8, 8),
         beta=10,
         beta_schedule_kwargs=dict(
-            x_values=(0, 1500),
+            x_values=(0, 10000),
             y_values=(1, 50),
         ),
         num_epochs=10000,
@@ -77,7 +77,18 @@ if __name__ == "__main__":
 
     search_space = {
         # 'seedid': range(5),
-        'latent_sizes': [(8, 8), (16, 16), (32, 32), (64, 64)],
+        'latent_sizes': [(8, 32), (16, 32), (32, 32),],
+        'algo_kwargs.lr': [1e-3, 1e-4],
+        'beta_schedule_kwargs': [
+            dict(
+                x_values=(0, 10000),
+                y_values=(1, 50),
+            ),
+            dict(
+                x_values=(0, 10000),
+                y_values=(1, 1),
+            ),
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

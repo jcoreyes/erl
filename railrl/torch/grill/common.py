@@ -7,13 +7,13 @@ import numpy as np
 
 from torch.utils import data
 
-from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
-from railrl.torch.her.her import HERTrainer
-from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
+# from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
+# from railrl.torch.her.her import HERTrainer
+# from railrl.torch.sac.policies import MakeDeterministic
+# from railrl.torch.sac.sac import SACTrainer
+# from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
 
-from railrl.torch.grill.video_gen import VideoSaveFunction
+# from railrl.torch.grill.video_gen import VideoSaveFunction
 
 
 def full_experiment_variant_preprocess(variant):
@@ -82,7 +82,7 @@ def train_vae_and_update_variant(variant):
 
 
 def train_vae(variant, return_data=False):
-    from railrl.misc.ml_util import PiecewiseLinearSchedule
+    from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
     from railrl.torch.vae.conv_vae import (
         ConvVAE,
         ConvDynamicsVAE,
@@ -117,8 +117,11 @@ def train_vae(variant, return_data=False):
     else:
         beta_schedule = None
     if 'context_schedule' in variant:
-        context_schedule = PiecewiseLinearSchedule(
-            **variant['context_schedule'])
+        schedule = variant['context_schedule']
+        if type(schedule) is dict:
+            context_schedule = PiecewiseLinearSchedule(**schedule)
+        else:
+            context_schedule = ConstantSchedule(schedule)
         variant['algo_kwargs']['context_schedule'] = context_schedule
     if variant.get('decoder_activation', None) == 'sigmoid':
         decoder_activation = torch.nn.Sigmoid()
