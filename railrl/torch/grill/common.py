@@ -81,7 +81,7 @@ def train_vae_and_update_variant(variant):
 
 
 def train_vae(variant, return_data=False):
-    from railrl.misc.ml_util import PiecewiseLinearSchedule
+    from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
     from railrl.torch.vae.conv_vae import (
         ConvVAE,
         ConvDynamicsVAE,
@@ -114,12 +114,13 @@ def train_vae(variant, return_data=False):
             **variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    context_schedule = PiecewiseLinearSchedule(
-            **variant.get(
-                'context_schedule',
-                dict(x_values=(0, 10000), y_values=(1, 1))
-            )
-        )
+    if 'context_schedule' in variant:
+        schedule = variant['context_schedule']
+        if type(schedule) is dict:
+            context_schedule = PiecewiseLinearSchedule(**schedule)
+        else:
+            context_schedule = ConstantSchedule(schedule)
+        variant['algo_kwargs']['context_schedule'] = context_schedule
     if variant.get('decoder_activation', None) == 'sigmoid':
         decoder_activation = torch.nn.Sigmoid()
     else:
