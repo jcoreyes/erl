@@ -4,7 +4,6 @@ import tkinter as tk
 from railrl.misc.asset_loader import sync_down
 from railrl.misc.asset_loader import load_local_or_remote_file
 import torch
-import cv2
 import pickle
 import numpy as np
 import io
@@ -396,10 +395,6 @@ class ConditionalVAEVisualizer(object):
             self.check_change()
             self.rightim.save('tmp/ccvae/img_{}.jpg'.format(i + 1))
             data.append(np.copy(self.mean))
-            self.master.after(100, self.sweep_element)
-        # np.save('/home/ashvin/ros_ws/src/railrl-private/visualizer/ccvae/latents.npy', np.array(data))
-        self.mean = self.original_mean
-
 
     def sweep(self):
         self.original_mean = self.mean.copy()
@@ -480,11 +475,10 @@ if __name__ == "__main__":
     # train_data, test_data, info = generate_vae_dataset(
     #     N=10000
     # )
-    data_path = "/Users/ashvin/data/pusher_pucks/dog.npy"
+    data_path = "/home/ashvin/Desktop/sim_puck_data.npy"
     train_data, test_data = load_dataset(data_path)
-    # model_path = "/Users/ashvin/data/pusher_pucks/ccvae.pt"
-    # ConditionalVAEVisualizer(model_path, train_data, test_data)
-    model_path = "/Users/ashvin/data/pusher_pucks/vae.pt"
-    VAEVisualizer(model_path, train_data, test_data)
+    #model_path = "/home/ashvin/data/rail-khazatsky/sasha/cond-rig/hyp-tuning/tuning/run550/id1/vae.pkl"
+    model_path = "/home/ashvin/data/sasha/cond-rig/hyp-tuning/dropout/run1/id0/itr_100.pkl"
+    ConditionalVAEVisualizer(model_path, train_data, test_data)
 
     tk.mainloop()

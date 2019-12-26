@@ -1,6 +1,7 @@
 import os.path as osp
 import time
-
+#import sys
+#sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 #import cv2
 import numpy as np
 
@@ -101,6 +102,7 @@ def train_vae(variant, return_data=False):
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
                                             generate_vae_dataset)
     variant['generate_vae_dataset_kwargs']['use_linear_dynamics'] = use_linear_dynamics
+    variant['generate_vae_dataset_kwargs']['batch_size'] = variant['algo_kwargs']['batch_size']
     train_dataset, test_dataset, info = generate_vae_dataset_fctn(
         variant['generate_vae_dataset_kwargs'])
 
@@ -148,7 +150,6 @@ def train_vae(variant, return_data=False):
     vae_trainer_class = variant.get('vae_trainer_class', ConvVAETrainer)
     trainer = vae_trainer_class(model, beta=beta,
                        beta_schedule=beta_schedule,
-                       context_schedule=context_schedule,
                        **variant['algo_kwargs'])
     save_period = variant['save_period']
 
@@ -187,6 +188,7 @@ def generate_vae_dataset(variant):
     env_kwargs = variant.get('env_kwargs',None)
     env_id = variant.get('env_id', None)
     N = variant.get('N', 10000)
+    batch_size = variant.get('batch_size', 128)
     test_p = variant.get('test_p', 0.9)
     use_cached = variant.get('use_cached', True)
     imsize = variant.get('imsize', 84)
@@ -443,11 +445,11 @@ def generate_vae_dataset(variant):
 
         train_batch_loader_kwargs = variant.get(
             'train_batch_loader_kwargs',
-            dict(batch_size=32, num_workers=0, )
+            dict(batch_size=batch_size, num_workers=0, )
         )
         test_batch_loader_kwargs = variant.get(
             'test_batch_loader_kwargs',
-            dict(batch_size=32, num_workers=0, )
+            dict(batch_size=batch_size, num_workers=0, )
         )
 
         train_data_loader = data.DataLoader(train_dataset,

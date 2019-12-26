@@ -16,12 +16,12 @@ from railrl.torch.vae.conditional_vae_trainer import DeltaCVAETrainer
 from railrl.data_management.online_conditional_vae_replay_buffer import \
         OnlineConditionalVaeRelabelingBuffer
 
-x_var = 0.2
+x_var = 0.2 # determines size of the workspace
 x_low = -x_var
 x_high = x_var
 y_low = 0.5
 y_high = 0.7
-t = 0.05
+t = 0.05 # border of the workspace for the hand
 
 if __name__ == "__main__":
     variant = dict(
@@ -47,6 +47,7 @@ if __name__ == "__main__":
             object_high=(x_high - 0.01, y_high - 0.01, 0.02),
             use_textures=True,
             init_camera=sawyer_init_camera_zoomed_in,
+            cylinder_radius=0.05,
         ),
 
         grill_variant=dict(
@@ -69,7 +70,7 @@ if __name__ == "__main__":
             max_path_length=100,
             algo_kwargs=dict(
                 batch_size=128,
-                num_epochs=301,
+                num_epochs=1001,
                 num_eval_steps_per_epoch=1000,
                 num_expl_steps_per_train_loop=1000,
                 num_trains_per_train_loop=1000,
@@ -119,7 +120,7 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            #vae_path="/home/ashvin/data/rail-khazatsky/sasha/cond-rig/hyp-tuning/tuning/run100/id5/vae.pkl",
+            #vae_path="/home/ashvin/data/sasha/cond-rig/hyp-tuning/dropout/run12/id0/vae.pkl",
         ),
         train_vae_variant=dict(
             latent_sizes=4,
@@ -129,13 +130,13 @@ if __name__ == "__main__":
                 y_values=(1, 100),
             ),
             context_schedule=1,
-            num_epochs=1000,
+            num_epochs=1500,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
                 N=100000,
-                #dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
+                # dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 n_random_steps=10,
                 test_p=.9,
                 use_cached=False,
@@ -179,7 +180,7 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        region='us-west-1',
+        region='us-west-2',
 
         logger_variant=dict(
             tensorboard=True,
@@ -193,21 +194,18 @@ if __name__ == "__main__":
     )
 
     search_space = {
-    #Train longer, higher KL term
-        'seedid': range(),
-        'train_vae_variant.latent_sizes': [(4, 4),], #Tune Latent sizes
+        'seedid': range(5),
+        'train_vae_variant.latent_sizes': [(6, 4),],
         'train_vae_variant.context_schedule':[
-        dict(x_values=(0, 1000), y_values=(1, 1)),],
+            dict(x_values=(0, 1500), y_values=(1, 1)),
+        ],
         'train_vae_variant.beta_schedule_kwargs': [
-        #dict(x_values=(0, 1000), y_values=(1, 50)),
-        dict(x_values=(0, 1000,), y_values=(1, 10)),
-        #dict(x_values=(0, 1000,), y_values=(1, 1)),
-        #dict(x_values=(0, 1000), y_values=(10, 10)),
+            dict(x_values=(0, 1500,), y_values=(1, 50)),
         ],
         'train_vae_variant.algo_kwargs.batch_size': [128, ],
-        'train_vae_variant.algo_kwargs.lr': [1e-3, ],
-        'train_vae_variant.algo_kwargs.weight_decay': [1e-3,],
-        'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000,], #4000, ],
+        'train_vae_variant.algo_kwargs.lr': [1e-3, 1e-4],
+        'train_vae_variant.algo_kwargs.weight_decay': [1e-3, 1e-4],
+        'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000,],
         'grill_variant.algo_kwargs.batch_size': [128,],
         'grill_variant.exploration_noise': [0.3],
     }
@@ -219,4 +217,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=600)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=0)
