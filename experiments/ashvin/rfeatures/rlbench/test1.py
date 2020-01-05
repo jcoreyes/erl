@@ -10,11 +10,14 @@ import skvideo.io
 live_demos = True
 DATASET = '' if live_demos else 'PATH/TO/YOUR/DATASET'
 
+save_to_dir = 'gitignore/rbench/'
+
 camera_config = CameraConfig(image_size=(500, 300))
 obs_config = ObservationConfig()
 obs_config.set_all(False)
 obs_config.left_shoulder_camera = camera_config
 obs_config.right_shoulder_camera = camera_config
+obs_config.set_all_low_dim(True)
 
 action_mode = ActionMode(ArmActionMode.ABS_JOINT_VELOCITY)
 env = Environment(action_mode, DATASET, obs_config, False)
@@ -32,11 +35,15 @@ task.sample_variation()  # random variation
 descriptions, obs = task.reset()
 # obs, reward, terminate = task.step(np.random.normal(size=action_mode.action_size))
 
+# import ipdb; ipdb.set_trace()
+
+task._robot
+
 for j in range(3, 10):
     demos = task.get_demos(1, live_demos=True)  # -> List[List[Observation]]
     demos = np.array(demos).flatten()
 
-    np.save("demos_%d.npy" % j, demos)
+    np.save(save_to_dir + "demos_%d.npy" % j, demos)
 
     d = demos
 
@@ -47,9 +54,9 @@ for j in range(3, 10):
         obs_right.append(d[i].right_shoulder_rgb)
 
     videodata = (np.array(obs_left) * 255).astype(int)
-    filename = "demo_left_%d.mp4" % j
+    filename = save_to_dir + "demo_left_%d.mp4" % j
     skvideo.io.vwrite(filename, videodata)
 
     videodata = (np.array(obs_right) * 255).astype(int)
-    filename = "demo_right_%d.mp4" % j
+    filename = save_to_dir + "demo_right_%d.mp4" % j
     skvideo.io.vwrite(filename, videodata)

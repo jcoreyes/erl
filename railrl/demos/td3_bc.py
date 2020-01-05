@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 from torch import nn as nn
+import torch.nn.functional as F
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
@@ -20,6 +21,8 @@ from railrl.data_management.path_builder import PathBuilder
 # import matplotlib.pyplot as plt
 
 from railrl.core import logger
+
+import glob
 
 class TD3BCTrainer(TorchTrainer):
     """
@@ -51,6 +54,7 @@ class TD3BCTrainer(TorchTrainer):
             q_num_pretrain_steps=0,
             weight_decay=0,
             eval_policy=None,
+            recompute_reward=False,
 
             reward_scale=1.0,
             discount=0.99,
@@ -64,6 +68,9 @@ class TD3BCTrainer(TorchTrainer):
             tau=0.005,
             qf_criterion=None,
             optimizer_class=optim.Adam,
+            beta=1.0,
+
+            awr_policy_update=False,
 
             use_awr=False,
             demo_beta=1,
@@ -89,6 +96,7 @@ class TD3BCTrainer(TorchTrainer):
         self.policy_update_period = policy_update_period
         self.tau = tau
         self.qf_criterion = qf_criterion
+        self.recompute_reward = recompute_reward
 
         self.target_policy = target_policy
         self.target_qf1 = target_qf1
@@ -127,10 +135,12 @@ class TD3BCTrainer(TorchTrainer):
         self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
+        self.beta = beta
 
         self.bc_num_pretrain_steps = bc_num_pretrain_steps
         self.q_num_pretrain_steps = q_num_pretrain_steps
         self.demo_trajectory_rewards = []
+
         self.demo_beta = demo_beta
         self.use_awr = use_awr
         self.max_steps_till_train_rl = max_steps_till_train_rl
@@ -138,15 +148,19 @@ class TD3BCTrainer(TorchTrainer):
         self.obs_key = obs_key
         self.max_path_length=max_path_length
 
+        self.update_policy = True
+        self.awr_policy_update = awr_policy_update
+
     def _update_obs_with_latent(self, obs):
-        latent_obs = self.env._encode_one(obs["image_observation"])
-        latent_goal = np.array([]) # self.env._encode_one(obs["image_desired_goal"])
-        obs['latent_observation'] = latent_obs
-        obs['latent_achieved_goal'] = latent_goal
-        obs['latent_desired_goal'] = latent_goal
-        obs['observation'] = latent_obs
-        obs['achieved_goal'] = latent_goal
-        obs['desired_goal'] = latent_goal
+        obs = self.env.update_obs(obs)
+        # latent_obs = self.env._encode_one(obs["image_observation"])
+        # latent_goal = np.array([]) # self.env._encode_one(obs["image_desired_goal"])
+        # obs['latent_observation'] = latent_obs
+        # obs['latent_achieved_goal'] = latent_goal
+        # obs['latent_desired_goal'] = latent_goal
+        # obs['observation'] = latent_obs
+        # obs['achieved_goal'] = latent_goal
+        # obs['desired_goal'] = latent_goal
         return obs
 
     def load_path(self, path, replay_buffer):
@@ -194,10 +208,12 @@ class TD3BCTrainer(TorchTrainer):
                     next_ob,
                 )
 
-            reward = self.env.compute_reward(
-                action,
-                next_ob,
-            )
+            if self.recompute_reward:
+                reward = self.env.compute_reward(
+                    action,
+                    next_ob,
+                )
+
             reward = np.array([reward])
             rewards.append(reward)
             terminal = np.array([terminal]).reshape((1, ))
@@ -217,13 +233,14 @@ class TD3BCTrainer(TorchTrainer):
 
     def load_demos(self, ):
         # Off policy
-        if self.demo_off_policy_path:
-            if type(self.demo_off_policy_path) is list:
-                for demo_path in self.demo_off_policy_path:
+        if type(self.demo_off_policy_path) is list:
+            for demo_pattern in self.demo_off_policy_path:
+                for demo_path in glob.glob(demo_pattern):
+                    print("loading off-policy path", demo_path)
                     self.load_demo_path(demo_path, False)
-            else:
-                self.load_demo_path(self.demo_off_policy_path, False)
-        
+        else:
+            self.load_demo_path(self.demo_off_policy_path, False)
+
         if type(self.demo_path) is list:
             for demo_path in self.demo_path:
                 self.load_demo_path(demo_path)
@@ -308,6 +325,9 @@ class TD3BCTrainer(TorchTrainer):
 
     def pretrain_q_with_bc_data(self):
         logger.push_tabular_prefix("pretrain_q/")
+
+        self.update_policy = False
+        # first train only the Q function
         for i in range(self.q_num_pretrain_steps):
             # self.eval_statistics = dict()
             # self._need_to_update_eval_statistics = True
@@ -323,6 +343,19 @@ class TD3BCTrainer(TorchTrainer):
 
             # logger.record_dict(self.eval_statistics)
             # logger.dump_tabular(with_prefix=True, with_timestamp=False)
+
+        self.update_policy = True
+        # then train policy and Q function together
+        for i in range(self.q_num_pretrain_steps):
+            # self.eval_statistics = dict()
+            # self._need_to_update_eval_statistics = True
+
+            train_data = self.replay_buffer.random_batch(128)
+            self.train(train_data)
+
+            # logger.record_dict(self.eval_statistics)
+            # logger.dump_tabular(with_prefix=True, with_timestamp=False)
+
         logger.pop_tabular_prefix()
 
     def train_from_torch(self, batch):
@@ -375,43 +408,72 @@ class TD3BCTrainer(TorchTrainer):
             policy_actions = self.policy(obs)
             q_output = self.qf1(obs, policy_actions)
 
-            if self.demo_train_buffer._size >= self.bc_batch_size:
-                train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
-                train_o = train_batch["observations"]
-                train_u = train_batch["actions"]
-                train_g = train_batch["resampled_goals"]
-                train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
-                train_error = (train_pred_u - train_u) ** 2
-                train_bc_loss = train_error.mean()
+# <<<<<<< HEAD
+#             if self.demo_train_buffer._size >= self.bc_batch_size:
+#                 train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
+#                 train_o = train_batch["observations"]
+#                 train_u = train_batch["actions"]
+#                 train_g = train_batch["resampled_goals"]
+#                 train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
+#                 train_error = (train_pred_u - train_u) ** 2
+#                 train_bc_loss = train_error.mean()
 
-                policy_q_output_demo_state = self.qf1(torch.cat((train_o, train_g), dim=1), train_pred_u)
-                demo_q_output = self.qf1(torch.cat((train_o, train_g), dim=1), train_u)
+#                 policy_q_output_demo_state = self.qf1(torch.cat((train_o, train_g), dim=1), train_pred_u)
+#                 demo_q_output = self.qf1(torch.cat((train_o, train_g), dim=1), train_u)
 
-                advantage = demo_q_output-policy_q_output_demo_state
-                self.eval_statistics['Train BC Loss'] = np.mean(ptu.get_numpy(
-                    train_bc_loss
-                ))
+#                 advantage = demo_q_output-policy_q_output_demo_state
+#                 self.eval_statistics['Train BC Loss'] = np.mean(ptu.get_numpy(
+#                     train_bc_loss
+#                 ))
 
-                if self.use_awr:
-                    train_bc_loss = (train_error * torch.exp((advantage)*self.demo_beta))
-                    self.eval_statistics['Advantage'] = np.mean(ptu.get_numpy(advantage))
+#                 if self.use_awr:
+#                     train_bc_loss = (train_error * torch.exp((advantage)*self.demo_beta))
+#                     self.eval_statistics['Advantage'] = np.mean(ptu.get_numpy(advantage))
 
-                if self._n_train_steps_total < self.max_steps_till_train_rl:
-                    rl_weight = 0
-                else:
-                    rl_weight = self.rl_weight
+#                 if self._n_train_steps_total < self.max_steps_till_train_rl:
+#                     rl_weight = 0
+#                 else:
+#                     rl_weight = self.rl_weight
 
-                policy_loss = - rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
+#                 policy_loss = - rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
 
+#             else:
+#                 policy_loss = - self.rl_weight * q_output.mean()
+#             if not (self.rl_weight == 0 and self.bc_weight == 0):
+# =======
+            train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
+            train_o = train_batch["observations"]
+            train_u = train_batch["actions"]
+            train_pred_u = self.policy(train_o)
+            train_error = (train_pred_u - train_u) ** 2
+            train_bc_loss = train_error.mean()
+
+            # Advantage-weighted regression
+            policy_error = (policy_actions - actions) ** 2
+            policy_error = policy_error.mean(dim=1)
+            advantage = q1_pred - q_output
+            weights = F.softmax((advantage / self.beta)[:, 0])
+
+            if self.awr_policy_update:
+                policy_loss = self.rl_weight * (policy_error * weights.detach() * self.bc_batch_size).mean()
             else:
-                policy_loss = - self.rl_weight * q_output.mean()
-            if not (self.rl_weight == 0 and self.bc_weight == 0):
+                policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
+
+            if self.update_policy:
+# >>>>>>> ashvin-master
                 self.policy_optimizer.zero_grad()
                 policy_loss.backward()
                 self.policy_optimizer.step()
 
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
+            ))
+            self.eval_statistics['BC Loss'] = np.mean(ptu.get_numpy(
+                train_bc_loss
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Advantage Weights',
+                ptu.get_numpy(weights),
             ))
 
         if self._n_train_steps_total % self.target_update_period == 0:
@@ -507,53 +569,53 @@ class TD3BCTrainer(TorchTrainer):
     def get_diagnostics(self):
         stats = super().get_diagnostics()
 
-        train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
-        train_g = train_batch["resampled_goals"]
+        # train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
+        # train_g = train_batch["resampled_goals"]
 
-        test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
-        test_g = test_batch["resampled_goals"]
+        # test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
+        # test_g = test_batch["resampled_goals"]
 
-        key_logs = np.zeros(5)
-        for i, goal in enumerate(train_g[:5]):
-            o = self.env.reset()
-            path_length = 0
-            self.env.set_goal({'state_desired_goal': ptu.get_numpy(goal)})
-            while path_length < self.max_path_length:
-                o = o[self.obs_key]
-                new_obs = np.hstack((o, goal))
-                a, agent_info = self.policy.get_action(new_obs)
-                next_o, r, d, env_info = self.env.step(a)
-                path_length += 1
-                if d:
-                    break
-                o = next_o
-            key_logs[i] = env_info[self.env_info_key]
+        # key_logs = np.zeros(5)
+        # for i, goal in enumerate(train_g[:5]):
+        #     o = self.env.reset()
+        #     path_length = 0
+        #     self.env.set_goal({'state_desired_goal': ptu.get_numpy(goal)})
+        #     while path_length < self.max_path_length:
+        #         o = o[self.obs_key]
+        #         new_obs = np.hstack((o, goal))
+        #         a, agent_info = self.policy.get_action(new_obs)
+        #         next_o, r, d, env_info = self.env.step(a)
+        #         path_length += 1
+        #         if d:
+        #             break
+        #         o = next_o
+        #     key_logs[i] = env_info[self.env_info_key]
 
-        self.eval_statistics.update(create_stats_ordered_dict(
-            'Train Goals {}'.format(self.env_info_key),
-            key_logs,
-        ))
+        # self.eval_statistics.update(create_stats_ordered_dict(
+        #     'Train Goals {}'.format(self.env_info_key),
+        #     key_logs,
+        # ))
 
-        key_logs = np.zeros(5)
-        for i, goal in enumerate(test_g[:5]):
-            o = self.env.reset()
-            path_length = 0
-            self.env.set_goal({'state_desired_goal': ptu.get_numpy(goal)})
-            while path_length < self.max_path_length:
-                o = o[self.obs_key]
-                new_obs = np.hstack((o, goal))
-                a, agent_info = self.policy.get_action(new_obs)
-                next_o, r, d, env_info = self.env.step(a)
-                path_length += 1
-                if d:
-                    break
-                o = next_o
-            key_logs[i] = env_info[self.env_info_key]
+        # key_logs = np.zeros(5)
+        # for i, goal in enumerate(test_g[:5]):
+        #     o = self.env.reset()
+        #     path_length = 0
+        #     self.env.set_goal({'state_desired_goal': ptu.get_numpy(goal)})
+        #     while path_length < self.max_path_length:
+        #         o = o[self.obs_key]
+        #         new_obs = np.hstack((o, goal))
+        #         a, agent_info = self.policy.get_action(new_obs)
+        #         next_o, r, d, env_info = self.env.step(a)
+        #         path_length += 1
+        #         if d:
+        #             break
+        #         o = next_o
+        #     key_logs[i] = env_info[self.env_info_key]
 
-        self.eval_statistics.update(create_stats_ordered_dict(
-            'Test Goals {}'.format(self.env_info_key),
-            key_logs,
-        ))
+        # self.eval_statistics.update(create_stats_ordered_dict(
+        #     'Test Goals {}'.format(self.env_info_key),
+        #     key_logs,
+        # ))
 
         stats.update(self.eval_statistics)
         return stats

@@ -60,6 +60,7 @@ def run_variant(experiment, variant):
         exp_id=variant["exp_id"],
         instance_type=variant["instance_type"],
         use_gpu=variant["use_gpu"],
+        gpu_id=variant["gpu_id"],
         snapshot_mode=variant["snapshot_mode"],
         snapshot_gap=variant["snapshot_gap"],
         base_log_dir=variant["base_log_dir"],
