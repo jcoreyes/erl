@@ -71,8 +71,8 @@ class TD3BCTrainer(TorchTrainer):
             beta=1.0,
 
             awr_policy_update=False,
+            use_awr=False, # unused
 
-            use_awr=False,
             demo_beta=1,
             max_steps_till_train_rl=0,
             env_info_key=None,
@@ -239,7 +239,8 @@ class TD3BCTrainer(TorchTrainer):
                     print("loading off-policy path", demo_path)
                     self.load_demo_path(demo_path, False)
         else:
-            self.load_demo_path(self.demo_off_policy_path, False)
+            if self.demo_off_policy_path is not None:
+                self.load_demo_path(self.demo_off_policy_path, False)
 
         if type(self.demo_path) is list:
             for demo_path in self.demo_path:
@@ -287,7 +288,7 @@ class TD3BCTrainer(TorchTrainer):
         return batch
 
     def pretrain_policy_with_bc(self):
-        # logger.push_tabular_prefix("pretrain_policy/")
+        logger.push_tabular_prefix("pretrain_policy/")
         for i in range(self.bc_num_pretrain_steps):
             train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
             train_o = train_batch["observations"]
@@ -319,9 +320,9 @@ class TD3BCTrainer(TorchTrainer):
                 "pretrain_bc/Test BC Loss": test_loss_mean,
                 "pretrain_bc/policy_loss": ptu.get_numpy(policy_loss),
             }
-        #     logger.record_dict(stats)
-        #     logger.dump_tabular(with_prefix=True, with_timestamp=False)
-        # logger.pop_tabular_prefix()
+            logger.record_dict(stats)
+            logger.dump_tabular(with_prefix=True, with_timestamp=False)
+        logger.pop_tabular_prefix()
 
     def pretrain_q_with_bc_data(self):
         logger.push_tabular_prefix("pretrain_q/")
@@ -329,8 +330,8 @@ class TD3BCTrainer(TorchTrainer):
         self.update_policy = False
         # first train only the Q function
         for i in range(self.q_num_pretrain_steps):
-            # self.eval_statistics = dict()
-            # self._need_to_update_eval_statistics = True
+            self.eval_statistics = dict()
+            self._need_to_update_eval_statistics = True
 
             train_data = self.replay_buffer.random_batch(128)
             train_data = np_to_pytorch_batch(train_data)
@@ -341,20 +342,26 @@ class TD3BCTrainer(TorchTrainer):
             train_data['next_observations'] = torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
 
-            # logger.record_dict(self.eval_statistics)
-            # logger.dump_tabular(with_prefix=True, with_timestamp=False)
+            logger.record_dict(self.eval_statistics)
+            logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
         self.update_policy = True
         # then train policy and Q function together
         for i in range(self.q_num_pretrain_steps):
-            # self.eval_statistics = dict()
-            # self._need_to_update_eval_statistics = True
+            self.eval_statistics = dict()
+            self._need_to_update_eval_statistics = True
 
             train_data = self.replay_buffer.random_batch(128)
-            self.train(train_data)
+            train_data = np_to_pytorch_batch(train_data)
+            obs = train_data['observations']
+            next_obs = train_data['next_observations']
+            goals = train_data['resampled_goals']
+            train_data['observations'] = torch.cat((obs, goals), dim=1)
+            train_data['next_observations'] = torch.cat((next_obs, goals), dim=1)
+            self.train_from_torch(train_data)
 
-            # logger.record_dict(self.eval_statistics)
-            # logger.dump_tabular(with_prefix=True, with_timestamp=False)
+            logger.record_dict(self.eval_statistics)
+            logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
         logger.pop_tabular_prefix()
 
@@ -409,7 +416,7 @@ class TD3BCTrainer(TorchTrainer):
             q_output = self.qf1(obs, policy_actions)
 
 # <<<<<<< HEAD
-#             if self.demo_train_buffer._size >= self.bc_batch_size:
+            if self.demo_train_buffer._size >= self.bc_batch_size:
 #                 train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
 #                 train_o = train_batch["observations"]
 #                 train_u = train_batch["actions"]
@@ -441,23 +448,37 @@ class TD3BCTrainer(TorchTrainer):
 #                 policy_loss = - self.rl_weight * q_output.mean()
 #             if not (self.rl_weight == 0 and self.bc_weight == 0):
 # =======
-            train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
-            train_o = train_batch["observations"]
-            train_u = train_batch["actions"]
-            train_pred_u = self.policy(train_o)
-            train_error = (train_pred_u - train_u) ** 2
-            train_bc_loss = train_error.mean()
+                train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
 
-            # Advantage-weighted regression
-            policy_error = (policy_actions - actions) ** 2
-            policy_error = policy_error.mean(dim=1)
-            advantage = q1_pred - q_output
-            weights = F.softmax((advantage / self.beta)[:, 0])
+                train_o = train_batch["observations"]
+                # train_pred_u = self.policy(train_o)
+                train_g = train_batch["resampled_goals"]
+                train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
+                train_u = train_batch["actions"]
+                train_error = (train_pred_u - train_u) ** 2
+                train_bc_loss = train_error.mean()
 
-            if self.awr_policy_update:
-                policy_loss = self.rl_weight * (policy_error * weights.detach() * self.bc_batch_size).mean()
-            else:
-                policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
+                # Advantage-weighted regression
+                policy_error = (policy_actions - actions) ** 2
+                policy_error = policy_error.mean(dim=1)
+                advantage = q1_pred - q_output
+                weights = F.softmax((advantage / self.beta)[:, 0])
+
+                if self.awr_policy_update:
+                    policy_loss = self.rl_weight * (policy_error * weights.detach() * self.bc_batch_size).mean()
+                else:
+                    policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
+
+                self.eval_statistics['BC Loss'] = np.mean(ptu.get_numpy(
+                    train_bc_loss
+                ))
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'Advantage Weights',
+                    ptu.get_numpy(weights),
+                ))
+
+            else: # Normal TD3 update
+                policy_loss = - self.rl_weight * q_output.mean()
 
             if self.update_policy:
 # >>>>>>> ashvin-master
@@ -467,13 +488,6 @@ class TD3BCTrainer(TorchTrainer):
 
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
-            ))
-            self.eval_statistics['BC Loss'] = np.mean(ptu.get_numpy(
-                train_bc_loss
-            ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Advantage Weights',
-                ptu.get_numpy(weights),
             ))
 
         if self._n_train_steps_total % self.target_update_period == 0:
@@ -517,8 +531,8 @@ class TD3BCTrainer(TorchTrainer):
 
             if self.demo_test_buffer._size >= self.bc_batch_size:
                 train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
-                train_o = train_batch["observations"]
                 train_u = train_batch["actions"]
+                train_o = train_batch["observations"]
                 train_g = train_batch["resampled_goals"]
                 train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
                 train_error = (train_pred_u - train_u) ** 2
