@@ -666,6 +666,49 @@ class ConditionalConvVAETrainer(ConvVAETrainer):
         save_image(x0_img.data.cpu(), save_dir)
 
 
+class VQ_VAETrainer(ConvVAETrainer):
+    def compute_loss(self, epoch, batch, test=False):
+        prefix = "test/" if test else "train/"
+        beta = float(self.beta_schedule.get_value(epoch))
+        obs = batch["x_t"]
+        loss, quantized, data_recon, perplexity, recon_error = self.model.compute_loss(obs)
+
+        self.eval_statistics['epoch'] = epoch
+        self.eval_statistics[prefix + "losses"].append(loss.item())
+        self.eval_statistics[prefix + "Recon Error"].append(recon_error.item())
+        self.eval_statistics[prefix + "VQ Loss"].append(loss.item() - recon_error.item())
+        self.eval_statistics[prefix + "Perplexity"].append(perplexity.item())
+
+        z_data = ptu.get_numpy(quantized.cpu())
+        for i in range(len(z_data)):
+            self.eval_data[prefix + "zs"].append(z_data[i, :])
+        self.eval_data[prefix + "last_batch"] = (obs, data_recon)
+
+        return loss
+
+    def dump_samples(self, epoch):
+        return None
+        self.model.eval()
+        batch, _ = self.eval_data["test/last_batch"]
+        sample = self.model.sample_prior(64)
+        sample = self.model.decode(sample, batch["observations"])[0].cpu()
+        save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
+        save_image(
+            sample.data.view(64, 3, self.imsize, self.imsize).transpose(2, 3),
+            save_dir
+        )
+
+        x0 = batch["x_0"]
+        x0_img = x0[:64].narrow(start=0, length=self.imlength // 2, dim=1).contiguous().view(
+            -1,
+            3,
+            self.imsize,
+            self.imsize
+        ).transpose(2, 3)
+        save_dir = osp.join(self.log_dir, 'x0_%d.png' % epoch)
+        save_image(x0_img.data.cpu(), save_dir)
+
+
 class CVAETrainer(ConditionalConvVAETrainer):
 
     def __init__(
