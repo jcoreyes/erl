@@ -1,4 +1,5 @@
 # modified from https://github.com/anderskm/exportTensorFlowLog/blob/master/exportTensorFlowLog.py
+# this (very hacky) version should just output the RL part
 
 # import tensorflow as tf
 import time
@@ -144,7 +145,7 @@ def convert(inputLogFile, outputFolder, summaries):
 
     if ('scalars' in summaries):
         print(' ');
-        csvFileName =  os.path.join(outputFolder,'tensorboard_log.csv');
+        csvFileName =  os.path.join(outputFolder,'tensorboard_log2.csv');
         print('Exporting scalars to csv-file...');
         print('   CSV-path: ' + csvFileName);
         scalarTags = tags['scalars'];
@@ -153,45 +154,20 @@ def convert(inputLogFile, outputFolder, summaries):
                 logWriter = csv.writer(csvfile, delimiter=',');
 
                 # Write headers to columns
-                # headers = ['wall_time','step'];
-                # for s in scalarTags:
-                headers = scalarTags[:]
-                # headers.append(s);
-                logWriter.writerow(headers)
-
-                max_step = 0
+                headers = ['wall_time','step'];
                 for s in scalarTags:
-                    vals = ea.Scalars(s)
-                    for i in range(len(vals)):
-                        S = vals[i].step
-                        max_step = max(S, max_step)
+                    headers.append(s);
+                logWriter.writerow(headers);
 
-                num_tags = len(scalarTags)
-                num_steps = max_step + 1 # assume 0 is a step
-                D = np.empty((num_steps, num_tags))
-                D[:] = np.nan
-
-                for j, s in enumerate(scalarTags):
-                    vals = ea.Scalars(s)
-                    for i in range(len(vals)):
-                        S = vals[i].step
-                        V = vals[i].value
-                        W = vals[i].wall_time
-                        D[S, j] = V
-
-                for i in range(len(D)):
-                    data = D[i, :]
-                    row = [None if np.isnan(v) else v for v in data]
-                    logWriter.writerow(row)
-
-                # for i in range(len(vals)):
-                #     v = vals[i];
-                #     data = [v.wall_time, v.step];
-                #     for s in scalarTags:
-                #         scalarTag = ea.Scalars(s);
-                #         S = scalarTag[i];
-                #         data.append(S.value);
-                #     logWriter.writerow(data);
+                vals = ea.Scalars(scalarTags[0]);
+                for i in range(len(vals)):
+                    v = vals[i];
+                    data = [v.wall_time, v.step];
+                    for s in scalarTags:
+                        scalarTag = ea.Scalars(s);
+                        S = scalarTag[i];
+                        data.append(S.value);
+                    logWriter.writerow(data);
 
     print(' ');
     print('Bye bye...');
