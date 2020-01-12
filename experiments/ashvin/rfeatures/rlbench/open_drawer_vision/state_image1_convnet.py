@@ -9,7 +9,7 @@ from railrl.exploration_strategies.gaussian_and_epislon import \
 from railrl.launchers.launcher_util import setup_logger
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import FlattenMlp, TanhMlpPolicy #?????
 # from railrl.torch.td3.td3 import TD3
 from railrl.demos.td3_bc import TD3BCTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
@@ -41,7 +41,7 @@ if __name__ == "__main__":
             state_observation_type="joints",
         ),
         encoder_wrapped_env_kwargs=dict(
-            small_image_step=24,
+            small_image_step=6, # 48x48
         ),
         observation_key="small_image_observation",
         # algo_kwargs=dict(
@@ -65,10 +65,41 @@ if __name__ == "__main__":
         model_kwargs=dict(
             decoder_distribution='gaussian_identity_variance',
             input_channels=3,
-            imsize=224,
+            imsize=48,
             architecture=dict(
                 hidden_sizes=[200, 200],
             ),
+            # architecture=dict(
+            #     conv_args = dict(
+            #         kernel_sizes=[5, 3, 3],
+            #         n_channels=[16, 32, 64],
+            #         strides=[3, 2, 2],
+            #     ),
+            #     conv_kwargs=dict(
+            #         hidden_sizes=[],
+            #         conv_normalization_type="batch",
+            #         fc_normalization_type="batch",
+            #     ),
+            #     deconv_args=dict(
+            #         hidden_sizes=[],
+
+            #         deconv_input_width=3,
+            #         deconv_input_height=3,
+            #         deconv_input_channels=64,
+
+            #         deconv_output_kernel_size=6,
+            #         deconv_output_strides=3,
+            #         deconv_output_channels=3,
+
+            #         kernel_sizes=[3,3],
+            #         n_channels=[32, 16],
+            #         strides=[2,2],
+            #     ),
+            #     deconv_kwargs=dict(
+            #         deconv_normalization_type="batch",
+            #         fc_normalization_type="batch",
+            #     )
+            # ),
             delta_features=True,
             pretrained_features=False,
         ),
@@ -76,7 +107,7 @@ if __name__ == "__main__":
             discount=0.99,
             demo_path="/home/anair/code/railrl-private/gitignore/rlbench/demo_door_fixed2/demos5b_10_dict.npy",
             demo_off_policy_path=[
-                "/home/ashvin/data/s3doodad/ashvin/rfeatures/rlbench/open-drawer-vision/td3bc-with-state3/run0/id0/video_*_vae.p",
+                "/home/anair/data/s3doodad/ashvin/rfeatures/rlbench/open-drawer-vision/td3bc-with-state3/run0/id0/video_*_vae.p",
             ],
             add_demo_latents=True, # already done
             bc_num_pretrain_steps=10000,
@@ -94,13 +125,22 @@ if __name__ == "__main__":
             max_size=100000,
             fraction_goals_rollout_goals=1.0,
             fraction_goals_env_goals=0.0,
-            recompute_rewards=False,
+            # recompute_rewards=False,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
         policy_kwargs=dict(
             hidden_sizes=[128, 128],
+        ),
+        cnn_params=dict(
+            kernel_sizes=[3, 3],
+            n_channels=[16, 16],
+            strides=[2, 2],
+            pool_sizes=[1, 1],
+            hidden_sizes=[400, 300],
+            paddings=[0, 0],
+            # use_batch_norm=False,
         ),
         exploration_kwargs=dict(
             max_sigma=.03,
@@ -141,7 +181,7 @@ if __name__ == "__main__":
         logger_variant=dict(
             tensorboard=True,
         ),
-        model_path="/home/ashvin/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id2/itr_4000.pt",
+        model_path="/home/anair/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id2/itr_4000.pt",
     )
 
     search_space = {
