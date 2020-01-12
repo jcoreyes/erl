@@ -105,9 +105,9 @@ def collect_one_rollout(env, expert, horizon=200, threshold=-1, add_action_noise
         agent_infos=[],
         env_infos=[],
     )
-
+    ret = 0
     for i in range(horizon):
-        a, _ = expert.get_action(np.concatenate(o))
+        a, _ = expert.get_action(o)
         traj["observations"].append(o)
         if add_action_noise:
             exec_a = a + np.random.normal(0, noise_sigma, a.shape)
@@ -121,15 +121,14 @@ def collect_one_rollout(env, expert, horizon=200, threshold=-1, add_action_noise
         traj["terminals"].append(done)
         traj["agent_infos"].append(info)
         traj["env_infos"].append(info)
-
+        ret += r 
         if render:
             env.render()
         if pause:
             time.sleep(pause)
-
     if threshold == -1:
         accept = True
-    elif np.abs(traj["rewards"][-1]) < threshold:
+    elif ret > threshold:
         accept = True
     else:
         accept = False
