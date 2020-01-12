@@ -93,7 +93,7 @@ class SpaceMouseExpert(Expert):
 
         return (a, valid, reset, accept)
 
-def collect_one_rollout(env, expert, horizon=200, render=False, pause=0):
+def collect_one_rollout(env, expert, horizon=200, threshold=-1, add_action_noise=False, render=False, noise_sigma=0.3, pause=0,):
     o = env.reset()
 
     traj = dict(
@@ -106,36 +106,35 @@ def collect_one_rollout(env, expert, horizon=200, render=False, pause=0):
         env_infos=[],
     )
 
-    for i in range(10000):
-        a, valid, reset, accept = expert.get_action(o)
+    for i in range(horizon):
+        a, _ = expert.get_action(np.concatenate(o))
+        traj["observations"].append(o)
+        if add_action_noise:
+            exec_a = a + np.random.normal(0, noise_sigma, a.shape)
+        else:
+            exec_a = a
+        o, r, done, info = env.step(exec_a)
 
-        if valid:
-            traj["observations"].append(o)
+        traj["actions"].append(a)
+        traj["rewards"].append(r)
+        traj["next_observations"].append(o)
+        traj["terminals"].append(done)
+        traj["agent_infos"].append(info)
+        traj["env_infos"].append(info)
 
-            o, r, done, info = env.step(a)
+        if render:
+            env.render()
+        if pause:
+            time.sleep(pause)
 
-            traj["actions"].append(a)
-            traj["rewards"].append(r)
-            traj["next_observations"].append(o)
-            traj["terminals"].append(done)
-            traj["agent_infos"].append(info)
-            traj["env_infos"].append(info)
-            print(r)
+    if threshold == -1:
+        accept = True
+    elif np.abs(traj["rewards"][-1]) < threshold:
+        accept = True
+    else:
+        accept = False
 
-            if render:
-                env.render()
-
-            if pause:
-                time.sleep(pause)
-
-        if reset or accept:
-            if len(traj["rewards"]) == 0:
-                accept = False
-            return accept, traj
-
-        time.sleep(0.01)
-
-    return False, []
+    return accept, traj
 
 def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=None, pxstep=20):
     '''(ndarray, 3-tuple, int, int) -> void
@@ -281,13 +280,13 @@ def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1
     np.save(path, data)
 
 
-def collect_demos_fixed(env, expert, path="demos.npy", N=10, **kwargs):
+def collect_demos_fixed(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1, add_action_noise=False, render=False, noise_sigma=.3):
     data = []
 
     i = 0
     while len(data) < N and i < 1000:
         i += 1
-        accept, traj = collect_one_rollout(env, expert, **kwargs)
+        accept, traj = collect_one_rollout(env, expert, horizon, threshold=threshold, add_action_noise=add_action_noise, render=render, noise_sigma=noise_sigma)
         if accept:
             data.append(traj)
             print("accepted trajectory length", len(traj["observations"]))
