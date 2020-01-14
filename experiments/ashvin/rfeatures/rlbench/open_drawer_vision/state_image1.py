@@ -6,7 +6,7 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.gaussian_and_epislon import \
     GaussianAndEpislonStrategy
-# from railrl.launchers.launcher_util import setup_logger
+from railrl.launchers.launcher_util import setup_logger
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy

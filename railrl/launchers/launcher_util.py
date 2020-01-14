@@ -7,7 +7,6 @@ import sys
 import time
 import uuid
 from collections import namedtuple
-import doodad
 import __main__ as main
 import datetime
 import dateutil.tz
