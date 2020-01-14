@@ -125,7 +125,7 @@ if __name__ == "__main__":
             max_size=100000,
             fraction_goals_rollout_goals=1.0,
             fraction_goals_env_goals=0.0,
-            # recompute_rewards=False,
+            recompute_rewards=False,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
