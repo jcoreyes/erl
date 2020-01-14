@@ -155,6 +155,7 @@ def encoder_wrapped_td3bc_experiment(variant):
                        input_channels=3,
                        **variant['cnn_params'],
                        output_activation=torch.tanh,
+    )
     # policy = TanhMlpPolicy(
     #     input_size=obs_dim + goal_dim,
     #     output_size=action_dim,
