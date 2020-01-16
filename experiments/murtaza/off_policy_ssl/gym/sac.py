@@ -203,13 +203,13 @@ if __name__ == "__main__":
         ),
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'dev'
+    # n_seeds = 1
+    # mode = 'local_docker'
+    # exp_prefix = 'dev'
 
-    # n_seeds = 5
-    # mode = 'sss'
-    # exp_prefix = 'railrl-half-cheetah-online'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'sac_mujoco_envs'
 
     search_space = {
         'env': [
@@ -230,6 +230,7 @@ if __name__ == "__main__":
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
+                num_exps_per_instance=3,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
