@@ -78,7 +78,7 @@ class TD3BCTrainer(TorchTrainer):
             env_info_key=None,
             obs_key=None,
             max_path_length=0,
-
+            goal_conditioned=True,
             **kwargs
     ):
         super().__init__()
@@ -150,6 +150,7 @@ class TD3BCTrainer(TorchTrainer):
 
         self.update_policy = True
         self.awr_policy_update = awr_policy_update
+        self.goal_conditioned=goal_conditioned
 
     def _update_obs_with_latent(self, obs):
         obs = self.env.update_obs(obs)
@@ -169,7 +170,8 @@ class TD3BCTrainer(TorchTrainer):
         # print("Path observations: ", type(path), type(path[0]), print(path[0].keys()))
         # import ipdb; ipdb.set_trace()
         # path = path[0]
-        final_achieved_goal = path["observations"][-1]["state_achieved_goal"].copy()
+        if self.apply_her_to_demos:
+            final_achieved_goal = path["observations"][-1]["state_achieved_goal"].copy()
         rewards = []
         path_builder = PathBuilder()
 
@@ -293,8 +295,11 @@ class TD3BCTrainer(TorchTrainer):
             train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
             train_o = train_batch["observations"]
             train_u = train_batch["actions"]
-            train_g = train_batch["resampled_goals"]
-            train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
+            if self.goal_conditioned:
+                train_g = train_batch["resampled_goals"]
+                train_o = torch.cat((train_o, train_g))
+
+            train_pred_u = self.policy(train_o, dim=1)
             train_error = (train_pred_u - train_u) ** 2
             train_bc_loss = train_error.mean()
 
@@ -307,8 +312,13 @@ class TD3BCTrainer(TorchTrainer):
             test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
             test_o = test_batch["observations"]
             test_u = test_batch["actions"]
-            test_g = test_batch["resampled_goals"]
-            test_pred_u = self.policy(torch.cat((test_o, test_g), dim=1))
+
+            if self.goal_conditioned:
+                test_g = test_batch["resampled_goals"]
+                test_o = torch.cat((test_o, test_g))
+
+            test_pred_u = self.policy(test_o, dim=1)
+
             test_error = (test_pred_u - test_u) ** 2
             test_bc_loss = test_error.mean()
 
@@ -337,9 +347,10 @@ class TD3BCTrainer(TorchTrainer):
             train_data = np_to_pytorch_batch(train_data)
             obs = train_data['observations']
             next_obs = train_data['next_observations']
-            goals = train_data['resampled_goals']
-            train_data['observations'] = torch.cat((obs, goals), dim=1)
-            train_data['next_observations'] = torch.cat((next_obs, goals), dim=1)
+            if self.goal_conditioned:
+                goals = train_data['resampled_goals']
+                train_data['observations'] = torch.cat((obs, goals), dim=1)
+                train_data['next_observations'] = torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
 
             logger.record_dict(self.eval_statistics)
@@ -355,9 +366,10 @@ class TD3BCTrainer(TorchTrainer):
             train_data = np_to_pytorch_batch(train_data)
             obs = train_data['observations']
             next_obs = train_data['next_observations']
-            goals = train_data['resampled_goals']
-            train_data['observations'] = torch.cat((obs, goals), dim=1)
-            train_data['next_observations'] = torch.cat((next_obs, goals), dim=1)
+            if self.goal_conditioned:
+                goals = train_data['resampled_goals']
+                train_data['observations'] = torch.cat((obs, goals), dim=1)
+                train_data['next_observations'] = torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
 
             logger.record_dict(self.eval_statistics)
@@ -452,8 +464,10 @@ class TD3BCTrainer(TorchTrainer):
 
                 train_o = train_batch["observations"]
                 # train_pred_u = self.policy(train_o)
-                train_g = train_batch["resampled_goals"]
-                train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
+                if self.goal_conditioned:
+                    train_g = train_batch["resampled_goals"]
+                    train_o = torch.cat((train_o, train_g))
+                train_pred_u = self.policy(train_o, dim=1)
                 train_u = train_batch["actions"]
                 train_error = (train_pred_u - train_u) ** 2
                 train_bc_loss = train_error.mean()
@@ -533,8 +547,10 @@ class TD3BCTrainer(TorchTrainer):
                 train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
                 train_u = train_batch["actions"]
                 train_o = train_batch["observations"]
-                train_g = train_batch["resampled_goals"]
-                train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
+                if self.goal_conditioned:
+                    train_g = train_batch["resampled_goals"]
+                    train_o = torch.cat((train_o, train_g))
+                train_pred_u = self.policy(train_o, dim=1)
                 train_error = (train_pred_u - train_u) ** 2
                 train_bc_loss = train_error
 
@@ -546,8 +562,10 @@ class TD3BCTrainer(TorchTrainer):
                 test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
                 test_o = test_batch["observations"]
                 test_u = test_batch["actions"]
-                test_g = test_batch["resampled_goals"]
-                test_pred_u = self.policy(torch.cat((test_o, test_g), dim=1))
+                if self.goal_conditioned:
+                    test_g = test_batch["resampled_goals"]
+                    test_o = torch.cat((test_o, test_g))
+                test_pred_u = self.policy(test_o, dim=1)
                 test_error = (test_pred_u - test_u) ** 2
                 test_bc_loss = test_error
 
