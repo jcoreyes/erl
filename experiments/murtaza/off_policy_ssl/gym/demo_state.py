@@ -29,28 +29,28 @@ ENV_PARAMS = {
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 1000,
-        'td3_bc_trainer_kwargs.demo_path':"demos/hc_action_noise_1000.npy",
+        'demo_path':"demos/hc_action_noise_1000.npy",
     },
     'hopper': {  # 6 DoF
         'env_class': HopperEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 1000,
-        'td3_bc_trainer_kwargs.demo_path':"demos/hopper_action_noise_1000.npy",
+        'demo_path':"demos/hopper_action_noise_1000.npy",
     },
     'ant': {  # 6 DoF
         'env_class': AntEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 3000,
-        'td3_bc_trainer_kwargs.demo_path':"demos/ant_action_noise_1000.npy",
+        'demo_path':"demos/ant_action_noise_1000.npy",
     },
     'walker': {  # 6 DoF
         'env_class': Walker2dEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 3000,
-        'td3_bc_trainer_kwargs.demo_path':"demos/walker_action_noise_1000.npy",
+        'demo_path':"demos/walker_action_noise_1000.npy",
     },
 }
 
@@ -137,6 +137,7 @@ def experiment(variant):
             target_qf1=target_qf1,
             target_qf2=target_qf2,
             target_policy=target_policy,
+            demo_path=env_params['demo_path'],
             **variant['td3_bc_trainer_kwargs']
         )
     else:
@@ -218,7 +219,6 @@ if __name__ == "__main__":
         pretrain_rl=True,
         td3_bc_trainer_kwargs=dict(
             discount=0.99,
-            demo_path="demos/hc_action_noise_1000.npy",
             demo_off_policy_path=None,
             bc_num_pretrain_steps=10000,
             q_num_pretrain_steps=20000,
@@ -257,7 +257,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'gym_demos_exps'
+    exp_prefix = 'gym_demos_exps_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['td3_bc_trainer_kwargs']['bc_weight'] == 0 and variant['td3_bc_trainer_kwargs']['demo_beta'] != 1:
