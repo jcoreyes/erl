@@ -29,7 +29,7 @@ ENV_PARAMS = {
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 1000,
-        'td3_bc_trainer_kwargs.demo_path':"demos/hc_demos_action_noise_1000.npy",
+        'td3_bc_trainer_kwargs.demo_path':"demos/hc_action_noise_1000.npy",
     },
     'hopper': {  # 6 DoF
         'env_class': HopperEnv,
@@ -214,43 +214,50 @@ if __name__ == "__main__":
         collection_mode='batch',
         td3_bc=True,
         load_demos=True,
-        pretrain_policy=False,
-        pretrain_rl=False,
+        pretrain_policy=True,
+        pretrain_rl=True,
         td3_bc_trainer_kwargs=dict(
             discount=0.99,
-            demo_path="demos/hc_demos_action_noise_1000.npy",
+            demo_path="demos/hc_action_noise_1000.npy",
             demo_off_policy_path=None,
             bc_num_pretrain_steps=10000,
             q_num_pretrain_steps=20000,
             rl_weight=1.0,
             bc_weight=0,
             reward_scale=1.0,
+            weight_decay=0.0001,
             target_update_period=2,
             policy_update_period=2,
+            beta=0.0001,
             max_path_length=1000,
             goal_conditioned=False,
+            use_demo_awr=False,
         ),
     )
 
     search_space = {
+        'td3_bc_trainer_kwargs.rl_weight':[0, 1.0],
+        'td3_bc_trainer_kwargs.bc_weight':[0, 1.0],
+        'td3_bc_trainer_kwargs.use_demo_awr':[True, False],
+        'td3_bc_trainer_kwargs.awr_policy_update':[True, False],
         'env': [
             'half-cheetah',
-            # 'ant',
-            # 'walker',
-            # 'hopper',
+            'ant',
+            'walker',
+            'hopper',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'pusher_state_bc_noisy_demo_v2'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'gym_demos_exps'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['td3_bc_trainer_kwargs']['bc_weight'] == 0 and variant['td3_bc_trainer_kwargs']['demo_beta'] != 1:
@@ -261,7 +268,7 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                num_exps_per_instance=3,
+                num_exps_per_instance=2,
                 skip_wait=False,
                 gcp_kwargs=dict(
                     preemptible=False,

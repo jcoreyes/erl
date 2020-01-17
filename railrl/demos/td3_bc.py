@@ -71,7 +71,6 @@ class TD3BCTrainer(TorchTrainer):
             beta=1.0,
 
             awr_policy_update=False,
-            use_awr=False, # unused
 
             demo_beta=1,
             max_steps_till_train_rl=0,
@@ -79,6 +78,7 @@ class TD3BCTrainer(TorchTrainer):
             obs_key=None,
             max_path_length=0,
             goal_conditioned=True,
+            use_demo_awr=False,
             **kwargs
     ):
         super().__init__()
@@ -142,7 +142,7 @@ class TD3BCTrainer(TorchTrainer):
         self.demo_trajectory_rewards = []
 
         self.demo_beta = demo_beta
-        self.use_awr = use_awr
+        self.use_demo_awr = use_demo_awr
         self.max_steps_till_train_rl = max_steps_till_train_rl
         self.env_info_key = env_info_key
         self.obs_key = obs_key
@@ -297,9 +297,9 @@ class TD3BCTrainer(TorchTrainer):
             train_u = train_batch["actions"]
             if self.goal_conditioned:
                 train_g = train_batch["resampled_goals"]
-                train_o = torch.cat((train_o, train_g))
+                train_o = torch.cat((train_o, train_g), dim=1)
 
-            train_pred_u = self.policy(train_o, dim=1)
+            train_pred_u = self.policy(train_o)
             train_error = (train_pred_u - train_u) ** 2
             train_bc_loss = train_error.mean()
 
@@ -315,9 +315,9 @@ class TD3BCTrainer(TorchTrainer):
 
             if self.goal_conditioned:
                 test_g = test_batch["resampled_goals"]
-                test_o = torch.cat((test_o, test_g))
+                test_o = torch.cat((test_o, test_g), dim=1)
 
-            test_pred_u = self.policy(test_o, dim=1)
+            test_pred_u = self.policy(test_o)
 
             test_error = (test_pred_u - test_u) ** 2
             test_bc_loss = test_error.mean()
@@ -429,73 +429,73 @@ class TD3BCTrainer(TorchTrainer):
 
 # <<<<<<< HEAD
             if self.demo_train_buffer._size >= self.bc_batch_size:
-#                 train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
-#                 train_o = train_batch["observations"]
-#                 train_u = train_batch["actions"]
-#                 train_g = train_batch["resampled_goals"]
-#                 train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
-#                 train_error = (train_pred_u - train_u) ** 2
-#                 train_bc_loss = train_error.mean()
+                if self.use_demo_awr:
+                    train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
+                    train_o = train_batch["observations"]
+                    train_u = train_batch["actions"]
+                    if self.goal_conditioned:
+                        train_g = train_batch["resampled_goals"]
+                        train_o = torch.cat((train_o, train_g), dim=1)
+                    train_pred_u = self.policy(train_o)
+                    train_error = (train_pred_u - train_u) ** 2
+                    train_bc_loss = train_error.mean()
 
-#                 policy_q_output_demo_state = self.qf1(torch.cat((train_o, train_g), dim=1), train_pred_u)
-#                 demo_q_output = self.qf1(torch.cat((train_o, train_g), dim=1), train_u)
+                    policy_q_output_demo_state = self.qf1(train_o, train_pred_u)
+                    demo_q_output = self.qf1(train_o, train_u)
 
-#                 advantage = demo_q_output-policy_q_output_demo_state
-#                 self.eval_statistics['Train BC Loss'] = np.mean(ptu.get_numpy(
-#                     train_bc_loss
-#                 ))
+                    advantage = demo_q_output - policy_q_output_demo_state
+                    self.eval_statistics['Train BC Loss'] = np.mean(ptu.get_numpy(
+                        train_bc_loss
+                    ))
 
-#                 if self.use_awr:
-#                     train_bc_loss = (train_error * torch.exp((advantage)*self.demo_beta))
-#                     self.eval_statistics['Advantage'] = np.mean(ptu.get_numpy(advantage))
+                    if self.awr_policy_update:
+                        train_bc_loss = (train_error * torch.exp((advantage) * self.demo_beta))
+                        self.eval_statistics['Advantage'] = np.mean(ptu.get_numpy(advantage))
 
-#                 if self._n_train_steps_total < self.max_steps_till_train_rl:
-#                     rl_weight = 0
-#                 else:
-#                     rl_weight = self.rl_weight
+                    if self._n_train_steps_total < self.max_steps_till_train_rl:
+                        rl_weight = 0
+                    else:
+                        rl_weight = self.rl_weight
 
-#                 policy_loss = - rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
-
-#             else:
-#                 policy_loss = - self.rl_weight * q_output.mean()
-#             if not (self.rl_weight == 0 and self.bc_weight == 0):
-# =======
-                train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
-
-                train_o = train_batch["observations"]
-                # train_pred_u = self.policy(train_o)
-                if self.goal_conditioned:
-                    train_g = train_batch["resampled_goals"]
-                    train_o = torch.cat((train_o, train_g))
-                train_pred_u = self.policy(train_o, dim=1)
-                train_u = train_batch["actions"]
-                train_error = (train_pred_u - train_u) ** 2
-                train_bc_loss = train_error.mean()
-
-                # Advantage-weighted regression
-                policy_error = (policy_actions - actions) ** 2
-                policy_error = policy_error.mean(dim=1)
-                advantage = q1_pred - q_output
-                weights = F.softmax((advantage / self.beta)[:, 0])
-
-                if self.awr_policy_update:
-                    policy_loss = self.rl_weight * (policy_error * weights.detach() * self.bc_batch_size).mean()
+                    policy_loss = - rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
                 else:
-                    policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
+                    train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
+
+                    train_o = train_batch["observations"]
+                    # train_pred_u = self.policy(train_o)
+                    if self.goal_conditioned:
+                        train_g = train_batch["resampled_goals"]
+                        train_o = torch.cat((train_o, train_g), dim=1)
+                    train_pred_u = self.policy(train_o)
+                    train_u = train_batch["actions"]
+                    train_error = (train_pred_u - train_u) ** 2
+                    train_bc_loss = train_error.mean()
+
+                    # Advantage-weighted regression
+                    policy_error = (policy_actions - actions) ** 2
+                    policy_error = policy_error.mean(dim=1)
+                    advantage = q1_pred - q_output
+                    weights = F.softmax((advantage / self.beta)[:, 0])
+
+                    if self.awr_policy_update:
+                        policy_loss = self.rl_weight * (policy_error * weights.detach() * self.bc_batch_size).mean()
+                    else:
+                        policy_loss = - self.rl_weight * q_output.mean() + self.bc_weight * train_bc_loss.mean()
+
+                    self.eval_statistics.update(create_stats_ordered_dict(
+                        'Advantage Weights',
+                        ptu.get_numpy(weights),
+                    ))
 
                 self.eval_statistics['BC Loss'] = np.mean(ptu.get_numpy(
                     train_bc_loss
                 ))
-                self.eval_statistics.update(create_stats_ordered_dict(
-                    'Advantage Weights',
-                    ptu.get_numpy(weights),
-                ))
+
 
             else: # Normal TD3 update
                 policy_loss = - self.rl_weight * q_output.mean()
 
-            if self.update_policy:
-# >>>>>>> ashvin-master
+            if self.update_policy and not (self.rl_weight==0 and self.bc_weight==0):
                 self.policy_optimizer.zero_grad()
                 policy_loss.backward()
                 self.policy_optimizer.step()
@@ -549,13 +549,13 @@ class TD3BCTrainer(TorchTrainer):
                 train_o = train_batch["observations"]
                 if self.goal_conditioned:
                     train_g = train_batch["resampled_goals"]
-                    train_o = torch.cat((train_o, train_g))
-                train_pred_u = self.policy(train_o, dim=1)
+                    train_o = torch.cat((train_o, train_g), dim=1)
+                train_pred_u = self.policy(train_o)
                 train_error = (train_pred_u - train_u) ** 2
                 train_bc_loss = train_error
 
-                policy_q_output_demo_state = self.qf1(torch.cat((train_o, train_g), dim=1), train_pred_u)
-                demo_q_output = self.qf1(torch.cat((train_o, train_g), dim=1), train_u)
+                policy_q_output_demo_state = self.qf1(train_o, train_pred_u)
+                demo_q_output = self.qf1(train_o, train_u)
 
                 train_advantage = demo_q_output - policy_q_output_demo_state
 
@@ -564,13 +564,13 @@ class TD3BCTrainer(TorchTrainer):
                 test_u = test_batch["actions"]
                 if self.goal_conditioned:
                     test_g = test_batch["resampled_goals"]
-                    test_o = torch.cat((test_o, test_g))
-                test_pred_u = self.policy(test_o, dim=1)
+                    test_o = torch.cat((test_o, test_g), dim=1)
+                test_pred_u = self.policy(test_o)
                 test_error = (test_pred_u - test_u) ** 2
                 test_bc_loss = test_error
 
-                policy_q_output_demo_state = self.qf1(torch.cat((test_o, test_g), dim=1), test_pred_u)
-                demo_q_output = self.qf1(torch.cat((test_o, test_g), dim=1), test_u)
+                policy_q_output_demo_state = self.qf1(test_o, test_pred_u)
+                demo_q_output = self.qf1(test_o, test_u)
 
                 test_advantage = demo_q_output - policy_q_output_demo_state
 
