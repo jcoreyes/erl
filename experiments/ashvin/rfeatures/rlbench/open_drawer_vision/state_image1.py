@@ -74,7 +74,7 @@ if __name__ == "__main__":
         ),
         trainer_kwargs=dict(
             discount=0.99,
-            demo_path="/home/anair/code/railrl-private/gitignore/rlbench/demo_door_fixed2/demos5b_10_dict.npy",
+            demo_path="/home/ashvin/code/railrl-private/gitignore/rlbench/demo_door_fixed1/demos5b_10_dict_joints.npy",
             demo_off_policy_path=[
                 "/home/ashvin/data/s3doodad/ashvin/rfeatures/rlbench/open-drawer-vision/td3bc-with-state3/run0/id0/video_*_vae.p",
             ],
@@ -128,7 +128,7 @@ if __name__ == "__main__":
             unnormalize=False,
             save_video_period=1,
         ),
-        desired_trajectory="/home/anair/code/railrl-private/gitignore/rlbench/demo_door_fixed2/demos5b_10_dict.npy",
+        desired_trajectory="/home/ashvin/code/railrl-private/gitignore/rlbench/demo_door_fixed1/demos5b_10_dict_joints.npy",
 
         # save_video=True,
         # dump_video_kwargs=dict(
