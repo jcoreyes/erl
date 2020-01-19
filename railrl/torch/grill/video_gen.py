@@ -279,9 +279,12 @@ def dump_paths(
     path_length = frames.size // (
             N * (H + num_gaps*pad_length) * (W + num_gaps*pad_length) * num_channels
     )
-    frames = np.array(frames, dtype=np.uint8).reshape(
-        (N, path_length, H + num_gaps * pad_length, W + num_gaps * pad_length, num_channels)
-    )
+    try:
+        frames = np.array(frames, dtype=np.uint8).reshape(
+            (N, path_length, H + num_gaps * pad_length, W + num_gaps * pad_length, num_channels)
+        )
+    except:
+        import ipdb; ipdb.set_trace()
     f1 = []
     for k1 in range(columns):
         f2 = []
@@ -295,6 +298,7 @@ def dump_paths(
     skvideo.io.vwrite(filename, outputdata)
     print("Saved video to ", filename)
 
+    print("Pickle?", dump_pickle)
     if dump_pickle:
         pickle_filename = filename[:-4] + ".p"
         pickle.dump(paths, open(pickle_filename, "wb"))

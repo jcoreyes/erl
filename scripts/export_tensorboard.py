@@ -168,7 +168,7 @@ def convert(inputLogFile, outputFolder, summaries):
 
                 num_tags = len(scalarTags)
                 num_steps = max_step + 1 # assume 0 is a step
-                D = np.empty((num_steps, num_tags))
+                D = np.empty((num_steps, num_tags), dtype=np.float16)
                 D[:] = np.nan
 
                 for j, s in enumerate(scalarTags):
@@ -179,10 +179,15 @@ def convert(inputLogFile, outputFolder, summaries):
                         W = vals[i].wall_time
                         D[S, j] = V
 
-                for i in range(len(D)):
-                    data = D[i, :]
-                    row = [None if np.isnan(v) else v for v in data]
-                    logWriter.writerow(row)
+                npyFileName =  os.path.join(outputFolder,'tensorboard_log.npy')
+                keysFileName =  os.path.join(outputFolder,'tensorboard_keys.npy')
+                np.save(npyFileName, D)
+                np.save(keysFileName, scalarTags)
+
+                # for i in range(len(D)):
+                #     data = D[i, :]
+                #     row = [None if np.isnan(v) else v for v in data]
+                #     logWriter.writerow(row)
 
                 # for i in range(len(vals)):
                 #     v = vals[i];

@@ -7,6 +7,7 @@ try:
     import rllab.viskit.core as core
 except:
     import viskit.core as core
+from rllab.misc import ext
 
 read_tb = lambda: None
 import glob
@@ -33,6 +34,8 @@ def load_exps(dirnames, filter_fn=true_fn, suppress_output=False, progress_filen
     def load():
         if progress_filename == "progress.csv":
             return core.load_exps_data(dirnames)
+        elif progress_filename == "tensorboard_log.npy":
+            return load_exps_data_numpy(dirnames, progress_filename=progress_filename)
         else:
             return core.load_exps_data(dirnames, progress_filename=progress_filename)
 
@@ -46,6 +49,45 @@ def load_exps(dirnames, filter_fn=true_fn, suppress_output=False, progress_filen
         if filter_fn(e):
             good_exps.append(e)
     return good_exps
+
+def load_exps_data_numpy(exp_folder_paths,disable_variant=False,progress_filename="progress.csv"):
+    exps = []
+    for exp_folder_path in exp_folder_paths:
+        exps += [x[0] for x in os.walk(exp_folder_path)]
+    exps_data = []
+    for exp in exps:
+        try:
+            exp_path = exp
+            # params_json_path = os.path.join(exp_path, "params.json")
+            params_json_path = os.path.join(exp_path, "params.pkl")
+            variant_json_path = os.path.join(exp_path, "variant.json")
+            progress_csv_path = os.path.join(exp_path, progress_filename)
+            progress = load_progress_numpy(exp_path)
+            if disable_variant:
+                params = core.load_params(params_json_path)
+            else:
+                try:
+                    params = core.load_params(variant_json_path)
+                except IOError:
+                    params = core.load_params(params_json_path)
+            exps_data.append(ext.AttrDict(
+                progress=progress, params=params, flat_params=core.flatten_dict(params)))
+        except IOError as e:
+            print(e)
+    return exps_data
+
+def load_progress_numpy(progress_path):
+    data_path = os.path.join(progress_path, "tensorboard_log.npy")
+    keys_path = os.path.join(progress_path, "tensorboard_keys.npy")
+
+    D = np.load(data_path).T
+    keys = np.load(keys_path)
+
+    d = dict()
+    for i in range(len(keys)):
+        d[keys[i]] = D[i, :]
+
+    return d
 
 def tag_exps(exps, tag_key, tag_value):
     for e in exps:
@@ -166,11 +208,15 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                     print("not found", key)
                     print(d.keys())
 
-            y_smooth = smooth(y)
+            is_not_nan = np.logical_not(np.isnan(y))
             if xlabel:
                 x = d[xlabel]
             else:
-                x = range(len(y_smooth))
+                x = np.array(range(len(y)))
+            y = y[is_not_nan]
+            x = x[is_not_nan]
+
+            y_smooth = smooth(y)
             x_smooth = x[-len(y_smooth):]
             ys.append(y_smooth)
             xs.append(x_smooth)

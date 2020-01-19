@@ -169,7 +169,7 @@ class TD3BCTrainer(TorchTrainer):
         # print("Path observations: ", type(path), type(path[0]), print(path[0].keys()))
         # import ipdb; ipdb.set_trace()
         # path = path[0]
-        final_achieved_goal = path["observations"][-1]["state_achieved_goal"].copy()
+        # final_achieved_goal = path["observations"][-1]["state_achieved_goal"].copy()
         rewards = []
         path_builder = PathBuilder()
 
@@ -293,8 +293,10 @@ class TD3BCTrainer(TorchTrainer):
             train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
             train_o = train_batch["observations"]
             train_u = train_batch["actions"]
-            train_g = train_batch["resampled_goals"]
-            train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
+            # train_g = train_batch["resampled_goals"]
+            # train_og = torch.cat((train_o, train_g), dim=1)
+            train_og = train_o
+            train_pred_u = self.policy(train_og)
             train_error = (train_pred_u - train_u) ** 2
             train_bc_loss = train_error.mean()
 
@@ -307,8 +309,10 @@ class TD3BCTrainer(TorchTrainer):
             test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
             test_o = test_batch["observations"]
             test_u = test_batch["actions"]
-            test_g = test_batch["resampled_goals"]
-            test_pred_u = self.policy(torch.cat((test_o, test_g), dim=1))
+            # test_g = test_batch["resampled_goals"]
+            # test_og = torch.cat((test_o, test_g), dim=1)
+            test_og = test_o
+            test_pred_u = self.policy(test_og)
             test_error = (test_pred_u - test_u) ** 2
             test_bc_loss = test_error.mean()
 
@@ -337,9 +341,9 @@ class TD3BCTrainer(TorchTrainer):
             train_data = np_to_pytorch_batch(train_data)
             obs = train_data['observations']
             next_obs = train_data['next_observations']
-            goals = train_data['resampled_goals']
-            train_data['observations'] = torch.cat((obs, goals), dim=1)
-            train_data['next_observations'] = torch.cat((next_obs, goals), dim=1)
+            # goals = train_data['resampled_goals']
+            train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
+            train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
 
             logger.record_dict(self.eval_statistics)
@@ -355,9 +359,9 @@ class TD3BCTrainer(TorchTrainer):
             train_data = np_to_pytorch_batch(train_data)
             obs = train_data['observations']
             next_obs = train_data['next_observations']
-            goals = train_data['resampled_goals']
-            train_data['observations'] = torch.cat((obs, goals), dim=1)
-            train_data['next_observations'] = torch.cat((next_obs, goals), dim=1)
+            # goals = train_data['resampled_goals']
+            train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
+            train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
 
             logger.record_dict(self.eval_statistics)
@@ -451,9 +455,11 @@ class TD3BCTrainer(TorchTrainer):
                 train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
 
                 train_o = train_batch["observations"]
-                # train_pred_u = self.policy(train_o)
-                train_g = train_batch["resampled_goals"]
-                train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
+                train_pred_u = self.policy(train_o)
+
+                # train_g = train_batch["resampled_goals"]
+                # train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
+
                 train_u = train_batch["actions"]
                 train_error = (train_pred_u - train_u) ** 2
                 train_bc_loss = train_error.mean()
@@ -533,26 +539,30 @@ class TD3BCTrainer(TorchTrainer):
                 train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
                 train_u = train_batch["actions"]
                 train_o = train_batch["observations"]
-                train_g = train_batch["resampled_goals"]
-                train_pred_u = self.policy(torch.cat((train_o, train_g), dim=1))
+                # train_g = train_batch["resampled_goals"]
+                # train_og = torch.cat((train_o, train_g), dim=1)
+                train_og = train_o
+                train_pred_u = self.policy(train_og)
                 train_error = (train_pred_u - train_u) ** 2
                 train_bc_loss = train_error
 
-                policy_q_output_demo_state = self.qf1(torch.cat((train_o, train_g), dim=1), train_pred_u)
-                demo_q_output = self.qf1(torch.cat((train_o, train_g), dim=1), train_u)
+                policy_q_output_demo_state = self.qf1(train_og, train_pred_u)
+                demo_q_output = self.qf1(train_og, train_u)
 
                 train_advantage = demo_q_output - policy_q_output_demo_state
 
                 test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
                 test_o = test_batch["observations"]
                 test_u = test_batch["actions"]
-                test_g = test_batch["resampled_goals"]
-                test_pred_u = self.policy(torch.cat((test_o, test_g), dim=1))
+                # test_g = test_batch["resampled_goals"]
+                # test_og = torch.cat((test_o, test_g), dim=1)
+                test_og = test_o
+                test_pred_u = self.policy(test_og)
                 test_error = (test_pred_u - test_u) ** 2
                 test_bc_loss = test_error
 
-                policy_q_output_demo_state = self.qf1(torch.cat((test_o, test_g), dim=1), test_pred_u)
-                demo_q_output = self.qf1(torch.cat((test_o, test_g), dim=1), test_u)
+                policy_q_output_demo_state = self.qf1(test_og, test_pred_u)
+                demo_q_output = self.qf1(test_og, test_u)
 
                 test_advantage = demo_q_output - policy_q_output_demo_state
 

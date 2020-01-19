@@ -1,13 +1,13 @@
 from multiworld.core.image_env import ImageEnv
 
 import railrl.torch.pytorch_util as ptu
-from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
+from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer, ObsDictReplayBuffer
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.gaussian_and_epislon import GaussianAndEpislonStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.misc.asset_loader import load_local_or_remote_file
-from railrl.samplers.data_collector import GoalConditionedPathCollector
+from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector, ObsDictPathCollector
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.demos.td3_bc import TD3BCTrainer
@@ -15,15 +15,25 @@ from railrl.torch.td3.td3 import TD3
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from railrl.torch.grill.video_gen import VideoSaveFunction
 
+from multiworld.core.gym_to_multi_env import MujocoGymToMultiEnv
+
+from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
 
 def state_td3bc_experiment(variant):
     if variant.get('env_id', None):
         import gym
         import multiworld
+
         import mj_envs
         multiworld.register_all_envs()
+
         eval_env = gym.make(variant['env_id'])
+        eval_env = MujocoGymToMultiEnv(eval_env)
+        # eval_env = EncoderWrappedEnv(eval_env)
+
         expl_env = gym.make(variant['env_id'])
+        expl_env = MujocoGymToMultiEnv(expl_env)
+        # expl_env = EncoderWrappedEnv(expl_env)
     else:
         eval_env_kwargs = variant.get('eval_env_kwargs', variant['env_kwargs'])
         eval_env = variant['env_class'](**eval_env_kwargs)
@@ -42,14 +52,14 @@ def state_td3bc_experiment(variant):
     elif es_strat == 'gauss_eps':
         es = GaussianAndEpislonStrategy(
             action_space=expl_env.action_space,
-            max_sigma=.2,
-            min_sigma=.2,  # constant sigma
-            epsilon=.3,
+            max_sigma=variant['exploration_noise'],
+            min_sigma=variant['exploration_noise'],  # constant sigma
+            epsilon=0,
         )
     else:
         raise ValueError("invalid exploration strategy provided")
     obs_dim = expl_env.observation_space.spaces['observation'].low.size
-    goal_dim = expl_env.observation_space.spaces['desired_goal'].low.size
+    goal_dim = 0 # expl_env.observation_space.spaces['desired_goal'].low.size
     action_dim = expl_env.action_space.low.size
     qf1 = FlattenMlp(
         input_size=obs_dim + goal_dim + action_dim,
@@ -85,25 +95,25 @@ def state_td3bc_experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    replay_buffer = ObsDictRelabelingBuffer(
+    replay_buffer = ObsDictReplayBuffer(
         env=eval_env,
         observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        achieved_goal_key=achieved_goal_key,
+        # desired_goal_key=desired_goal_key,
+        # achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
-    demo_train_buffer = ObsDictRelabelingBuffer(
+    demo_train_buffer = ObsDictReplayBuffer(
         env=eval_env,
         observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        achieved_goal_key=achieved_goal_key,
+        # desired_goal_key=desired_goal_key,
+        # achieved_goal_key=achieved_goal_key,
         max_size=variant['replay_buffer_kwargs']['max_size']
     )
-    demo_test_buffer = ObsDictRelabelingBuffer(
+    demo_test_buffer = ObsDictReplayBuffer(
         env=eval_env,
         observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        achieved_goal_key=achieved_goal_key,
+        # desired_goal_key=desired_goal_key,
+        # achieved_goal_key=achieved_goal_key,
         max_size=variant['replay_buffer_kwargs']['max_size'],
     )
     if variant.get('td3_bc', True):
@@ -130,18 +140,18 @@ def state_td3bc_experiment(variant):
             target_policy=target_policy,
             **variant['td3_trainer_kwargs']
         )
-    trainer = HERTrainer(td3_trainer)
-    eval_path_collector = GoalConditionedPathCollector(
+    trainer = td3_trainer # HERTrainer(td3_trainer)
+    eval_path_collector = ObsDictPathCollector( # GoalConditionedPathCollector(
         eval_env,
         policy,
         observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
+        # desired_goal_key=desired_goal_key,
     )
-    expl_path_collector = GoalConditionedPathCollector(
+    expl_path_collector = ObsDictPathCollector( # GoalConditionedPathCollector(
         expl_env,
         expl_policy,
         observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
+        # desired_goal_key=desired_goal_key,
     )
     algorithm = TorchBatchRLAlgorithm(
         trainer=trainer,
@@ -157,18 +167,18 @@ def state_td3bc_experiment(variant):
         if variant.get("presampled_goals", None):
             variant['image_env_kwargs']['presampled_goals'] = load_local_or_remote_file(variant['presampled_goals']).item()
         image_eval_env = ImageEnv(eval_env, **variant["image_env_kwargs"])
-        image_eval_path_collector = GoalConditionedPathCollector(
+        image_eval_path_collector = ObsDictPathCollector( # GoalConditionedPathCollector(
             image_eval_env,
             policy,
             observation_key='state_observation',
-            desired_goal_key='state_desired_goal',
+            # desired_goal_key='state_desired_goal',
         )
         image_expl_env = ImageEnv(expl_env, **variant["image_env_kwargs"])
-        image_expl_path_collector = GoalConditionedPathCollector(
+        image_expl_path_collector = ObsDictPathCollector( # GoalConditionedPathCollector(
             image_expl_env,
             expl_policy,
             observation_key='state_observation',
-            desired_goal_key='state_desired_goal',
+            # desired_goal_key='state_desired_goal',
         )
         video_func = VideoSaveFunction(
             image_eval_env,
