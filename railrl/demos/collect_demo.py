@@ -170,6 +170,9 @@ def collect_one_rollout_mdp(env, expert, horizon=200, render=False, pause=0):
         if pause:
             time.sleep(pause)
 
+        if done:
+            break
+
     return True, traj
 
 def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=None, pxstep=20):
