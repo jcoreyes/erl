@@ -102,7 +102,12 @@ class AWRSACTrainer(TorchTrainer):
         return batch
 
     def pretrain_policy_with_bc(self):
-        logger.push_tabular_prefix("pretrain_policy/")
+        logger.remove_tabular_output(
+            'progress.csv', relative_to_snapshot_dir=True
+        )
+        logger.add_tabular_output(
+            'pretrain_policy.csv', relative_to_snapshot_dir=True
+        )
         for i in range(self.bc_num_pretrain_steps):
             train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
             train_o = train_batch["observations"]
@@ -140,10 +145,22 @@ class AWRSACTrainer(TorchTrainer):
             }
             logger.record_dict(stats)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
-        logger.pop_tabular_prefix()
+        logger.remove_tabular_output(
+            'pretrain_policy.csv',
+            relative_to_snapshot_dir=True,
+        )
+        logger.add_tabular_output(
+            'progress.csv',
+            relative_to_snapshot_dir=True,
+        )
 
     def pretrain_q_with_bc_data(self):
-        logger.push_tabular_prefix("pretrain_q/")
+        logger.remove_tabular_output(
+            'progress.csv', relative_to_snapshot_dir=True
+        )
+        logger.add_tabular_output(
+            'pretrain_q.csv', relative_to_snapshot_dir=True
+        )
 
         self.update_policy = False
         # first train only the Q function
@@ -181,7 +198,14 @@ class AWRSACTrainer(TorchTrainer):
             logger.record_dict(self.eval_statistics)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
-        logger.pop_tabular_prefix()
+        logger.remove_tabular_output(
+            'pretrain_q.csv',
+            relative_to_snapshot_dir=True,
+        )
+        logger.add_tabular_output(
+            'progress.csv',
+            relative_to_snapshot_dir=True,
+        )
 
     def train_from_torch(self, batch):
         rewards = batch['rewards']

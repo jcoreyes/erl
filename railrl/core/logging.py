@@ -120,6 +120,7 @@ class Logger(object):
             fds[file_name].close()
             del fds[file_name]
             arr.remove(file_name)
+        self._tabular_keys=None
 
     def push_prefix(self, prefix):
         self._prefixes.append(prefix)

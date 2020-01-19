@@ -93,7 +93,7 @@ class SpaceMouseExpert(Expert):
 
         return (a, valid, reset, accept)
 
-def collect_one_rollout(env, expert, horizon=200, render=False, pause=0):
+def collect_one_rollout(env, expert, horizon=200, threshold=-1, add_action_noise=False, render=False, noise_sigma=0.3, pause=0,):
     o = env.reset()
 
     traj = dict(
@@ -105,6 +105,14 @@ def collect_one_rollout(env, expert, horizon=200, render=False, pause=0):
         agent_infos=[],
         env_infos=[],
     )
+    for i in range(horizon):
+        a, _ = expert.get_action(o)
+        traj["observations"].append(o)
+        if add_action_noise:
+            exec_a = a + np.random.normal(0, noise_sigma, a.shape)
+        else:
+            exec_a = a
+        o, r, done, info = env.step(exec_a)
 
     for i in range(horizon):
         a, valid, reset, accept = expert.get_action(o)
@@ -134,10 +142,9 @@ def collect_one_rollout(env, expert, horizon=200, render=False, pause=0):
             return accept, traj
 
         time.sleep(0.01)
+    return accept, traj
 
-    return False, []
-
-def collect_one_rollout_mdp(env, expert, horizon=200, render=False, pause=0):
+def collect_one_rollout_mdp(env, expert, horizon=200, render=False, pause=0,  threshold=-1,):
     o = env.reset()
 
     traj = dict(
@@ -149,7 +156,7 @@ def collect_one_rollout_mdp(env, expert, horizon=200, render=False, pause=0):
         agent_infos=[],
         env_infos=[],
     )
-
+    ret = 0
     for i in range(horizon):
         a, _ = expert.get_action(o)
 
@@ -163,7 +170,7 @@ def collect_one_rollout_mdp(env, expert, horizon=200, render=False, pause=0):
         traj["terminals"].append(done)
         traj["agent_infos"].append(info)
         traj["env_infos"].append(info)
-
+        ret += r
         if render:
             env.render()
 
@@ -172,8 +179,13 @@ def collect_one_rollout_mdp(env, expert, horizon=200, render=False, pause=0):
 
         if done:
             break
-
-    return True, traj
+    if threshold == -1:
+        accept = True
+    elif ret > threshold:
+        accept = True
+    else:
+        accept = False
+    return accept, traj
 
 def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=None, pxstep=20):
     '''(ndarray, 3-tuple, int, int) -> void
@@ -319,12 +331,12 @@ def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1
     np.save(path, data)
 
 
-def collect_demos_fixed(env, expert, path="demos.npy", N=10, **kwargs):
+def collect_demos_fixed(env, expert, path="demos.npy", N=10, horizon=200, **kwargs):
     data = []
 
     i = 0
     while len(data) < N:
-        accept, traj = collect_one_rollout_mdp(env, expert, **kwargs)
+        accept, traj = collect_one_rollout_mdp(env, expert, horizon, **kwargs)
         if accept:
             data.append(traj)
             print("accepted trajectory length", len(traj["observations"]))
