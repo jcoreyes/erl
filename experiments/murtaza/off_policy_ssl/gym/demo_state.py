@@ -220,8 +220,8 @@ if __name__ == "__main__":
         td3_bc_trainer_kwargs=dict(
             discount=0.99,
             demo_off_policy_path=None,
-            bc_num_pretrain_steps=10000,
-            q_num_pretrain_steps=20000,
+            bc_num_pretrain_steps=10,
+            q_num_pretrain_steps=20,
             rl_weight=1.0,
             bc_weight=0,
             reward_scale=1.0,
@@ -251,13 +251,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'gym_demos_exps_v2'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'gym_demos_exps_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['td3_bc_trainer_kwargs']['bc_weight'] == 0 and variant['td3_bc_trainer_kwargs']['demo_beta'] != 1:

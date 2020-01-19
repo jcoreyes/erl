@@ -290,7 +290,12 @@ class TD3BCTrainer(TorchTrainer):
         return batch
 
     def pretrain_policy_with_bc(self):
-        logger.push_tabular_prefix("pretrain_policy/")
+        logger.remove_tabular_output(
+            'progress.csv', relative_to_snapshot_dir=True
+        )
+        logger.add_tabular_output(
+            'pretrain_policy.csv', relative_to_snapshot_dir=True
+        )
         for i in range(self.bc_num_pretrain_steps):
             train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
             train_o = train_batch["observations"]
@@ -326,17 +331,29 @@ class TD3BCTrainer(TorchTrainer):
             test_loss_mean = np.mean(ptu.get_numpy(test_bc_loss))
 
             stats = {
-                "pretrain_bc/Train BC Loss": train_loss_mean,
-                "pretrain_bc/Test BC Loss": test_loss_mean,
-                "pretrain_bc/policy_loss": ptu.get_numpy(policy_loss),
+                "Train BC Loss": train_loss_mean,
+                "Test BC Loss": test_loss_mean,
+                "policy_loss": ptu.get_numpy(policy_loss),
             }
             logger.record_dict(stats)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
-        logger.pop_tabular_prefix()
+
+        logger.remove_tabular_output(
+            'pretrain_policy.csv',
+            relative_to_snapshot_dir=True,
+        )
+        logger.add_tabular_output(
+            'progress.csv',
+            relative_to_snapshot_dir=True,
+        )
 
     def pretrain_q_with_bc_data(self):
-        logger.push_tabular_prefix("pretrain_q/")
-
+        logger.remove_tabular_output(
+            'progress.csv', relative_to_snapshot_dir=True
+        )
+        logger.add_tabular_output(
+            'pretrain_q.csv', relative_to_snapshot_dir=True
+        )
         self.update_policy = False
         # first train only the Q function
         for i in range(self.q_num_pretrain_steps):
@@ -375,7 +392,14 @@ class TD3BCTrainer(TorchTrainer):
             logger.record_dict(self.eval_statistics)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
-        logger.pop_tabular_prefix()
+        logger.remove_tabular_output(
+            'pretrain_q.csv',
+            relative_to_snapshot_dir=True,
+        )
+        logger.add_tabular_output(
+            'progress.csv',
+            relative_to_snapshot_dir=True,
+        )
 
     def train_from_torch(self, batch):
         logger.push_tabular_prefix("train_q/")
