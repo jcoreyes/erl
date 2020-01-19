@@ -8,6 +8,7 @@ from gym.envs.mujoco import (
     SwimmerEnv,
 )
 from gym.envs.classic_control import PendulumEnv
+import gym
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv
@@ -76,6 +77,13 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 2000,
     },
+
+    'pen-v0': {
+        'env_id': 'pen-v0',
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 200,
+        'num_epochs': 2000,
+    },
 }
 
 
@@ -83,8 +91,14 @@ def experiment(variant):
     env_params = ENV_PARAMS[variant['env']]
     variant.update(env_params)
 
-    expl_env = NormalizedBoxEnv(variant['env_class']())
-    eval_env = NormalizedBoxEnv(variant['env_class']())
+    if 'env_id' in env_params:
+        import mj_envs
+
+        expl_env = NormalizedBoxEnv(gym.make(env_params['env_id']))
+        eval_env = NormalizedBoxEnv(gym.make(env_params['env_id']))
+    else:
+        expl_env = NormalizedBoxEnv(variant['env_class']())
+        eval_env = NormalizedBoxEnv(variant['env_class']())
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
 
