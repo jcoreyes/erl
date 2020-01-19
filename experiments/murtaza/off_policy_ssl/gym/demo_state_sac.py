@@ -207,12 +207,8 @@ if __name__ == "__main__":
             reward_scale=1,
             beta=1,
             use_automatic_entropy_tuning=True,
-
-            # bc_num_pretrain_steps=10000,
-            # q_num_pretrain_steps=10000,
-
-            bc_num_pretrain_steps=10,
-            q_num_pretrain_steps=20,
+            bc_num_pretrain_steps=10000,
+            q_num_pretrain_steps=10000,
         ),
         path_loader_kwargs=dict(
             demo_path=None
@@ -220,9 +216,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'trainer_kwargs.rl_weight':[0, 1.0],
-        'trainer_kwargs.bc_weight':[0, 1.0],
-        'sac_bc_trainer_kwargs.awr_policy_update':[True, False],
+        'trainer_kwargs.beta':[.0001, .001, .01, .1, 1, 10, 100],
         'env': [
             'half-cheetah',
             'ant',
@@ -234,13 +228,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'gym_demos_exps_v2'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'gym_awr_sac_exps_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['sac_bc_trainer_kwargs']['bc_weight'] == 0 and variant['sac_bc_trainer_kwargs']['demo_beta'] != 1:
