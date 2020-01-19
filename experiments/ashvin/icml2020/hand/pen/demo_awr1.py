@@ -1,103 +1,66 @@
-from railrl.launchers.launcher_util import run_experiment
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.experiments.ashvin.awr_rl import state_td3bc_experiment
+"""
+AWR + SAC from demo experiment
+"""
 
+from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
+
+import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
 
 if __name__ == "__main__":
     variant = dict(
-        env_id='pen-v0',
-        algo_kwargs=dict(
-            batch_size=1024,
-            num_epochs=1000,
-            num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000,
-            min_num_steps_before_training=10000,
-            max_path_length=200,
-        ),
-        td3_trainer_kwargs=dict(
+        num_epochs=3000,
+        num_eval_steps_per_epoch=5000,
+        num_trains_per_train_loop=1000,
+        num_expl_steps_per_train_loop=1000,
+        min_num_steps_before_training=1000,
+        max_path_length=1000,
+        batch_size=256,
+        replay_buffer_size=int(1E6),
+        layer_size=256,
+        algorithm="SAC",
+        version="normal",
+        collection_mode='batch',
+        trainer_kwargs=dict(
             discount=0.99,
-        ),
-        td3_bc_trainer_kwargs=dict(
-            discount=0.99,
-            demo_path=["demos/icml2020/hand/pen.npy"],
-            demo_off_policy_path=[
-                "ashvin/icml2020/hand/pen/demo-bc1/run5/id0/video_*_env.p",
-            ],
-            bc_num_pretrain_steps=20000,
-            q_num_pretrain_steps=10000,
-            rl_weight=1.0,
-            bc_weight=0,
-            reward_scale=0.0001,
-            beta=0.0001,
-            target_update_period=2,
-            policy_update_period=2,
-            obs_key='state_observation',
-            # env_info_key='puck_distance',
-            max_path_length=200,
-        ),
-        replay_buffer_kwargs=dict(
-            max_size=int(1e6),
-            # fraction_goals_rollout_goals=0.2,
-            # fraction_goals_env_goals=0.5,
-        ),
-        qf_kwargs=dict(
-            hidden_sizes=[400, 300],
-        ),
-        policy_kwargs=dict(
-            hidden_sizes=[400, 300],
-        ),
-        save_video=True,
-        load_demos=True,
-        dump_video_kwargs=dict(
-            # imsize=(3, 84, 84),
-            imwidth=84,
-            imheight=84,
-            num_imgs=1,
-            dump_pickle=False,
-            exploration_goal_image_key="image_observation",
-            evaluation_goal_image_key="image_observation",
-            rows=1,
-            columns=5,
-            # unnormalize=False,
-            save_video_period=1,
-        ),
-        image_env_kwargs=dict(
-            imsize=84,
-            init_camera=None, # the environment initializes the camera already
-            transpose=True,
-            normalize=True,
-            recompute_reward=False,
-        ),
-        exploration_noise=.1,
-        td3_bc=True,
+            soft_target_tau=5e-3,
+            target_update_period=1,
+            policy_lr=3E-4,
+            qf_lr=3E-4,
+            reward_scale=1,
+            beta=1,
+            use_automatic_entropy_tuning=True,
 
+            bc_num_pretrain_steps=10000,
+            q_num_pretrain_steps=10000,
+        ),
         num_exps_per_instance=1,
         region='us-west-2',
+
+        path_loader_class=DictToMDPPathLoader,
+        path_loader_kwargs=dict(
+            obs_key="state_observation",
+            demo_path=["demos/icml2020/hand/pen.npy"],
+            # demo_off_policy_path=[
+            #     "ashvin/icml2020/hand/door/demo-bc1/run3/video_*.p",
+            #     "ashvin/icml2020/hand/door/demo-bc1/run4/video_*.p",
+            #     "ashvin/icml2020/hand/door/demo-bc1/run5/video_*.p",
+            # ],
+        ),
 
         logger_variant=dict(
             tensorboard=True,
         ),
+        load_demos=True,
+        pretrain_policy=True,
+        pretrain_rl=True,
     )
 
     search_space = {
-        'td3_bc_trainer_kwargs.awr_policy_update': [True],
-        # 'td3_bc_trainer_kwargs.demo_beta':[1, 10],
-        'td3_bc_trainer_kwargs.bc_weight': [1],
-        'td3_bc_trainer_kwargs.rl_weight': [1],
-        'algo_kwargs.num_epochs': [100],
-        'algo_kwargs.num_eval_steps_per_epoch': [1000],
-        'algo_kwargs.num_expl_steps_per_train_loop': [1000],
-        'algo_kwargs.min_num_steps_before_training': [0],
-        # 'td3_bc_trainer_kwargs.add_demos_to_replay_buffer':[True, False],
-        # 'td3_bc_trainer_kwargs.num_trains_per_train_loop':[1000, 2000, 4000, 10000, 16000],
-        # 'exploration_noise':[0.1, .3, .5],
-        # 'pretrain_rl':[True],
-        # 'pretrain_policy':[False],
-        'pretrain_rl': [True],
-        'pretrain_policy': [True],
-        'seedid': range(5),
+        'env': ["pen-v0", ],
+        'seedid': range(3),
+        'trainer_kwargs.beta': [0.1, 1, 10],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -108,4 +71,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(state_td3bc_experiment, variants, run_id=0)
+    run_variants(experiment, variants, run_id=0)
