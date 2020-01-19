@@ -9,6 +9,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.core import np_to_pytorch_batch
 from railrl.torch.torch_rl_algorithm import TorchTrainer
+from railrl.core import logger
 
 import torch.nn.functional as F
 
@@ -38,6 +39,10 @@ class AWRSACTrainer(TorchTrainer):
             use_automatic_entropy_tuning=True,
             target_entropy=None,
             path_loader=None,
+
+            bc_num_pretrain_steps=0,
+            q_num_pretrain_steps=0,
+            bc_batch_size=128,
     ):
         super().__init__()
         self.env = env
@@ -87,6 +92,97 @@ class AWRSACTrainer(TorchTrainer):
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
 
+        self.bc_num_pretrain_steps = bc_num_pretrain_steps
+        self.q_num_pretrain_steps = q_num_pretrain_steps
+        self.bc_batch_size = bc_batch_size
+
+    def get_batch_from_buffer(self, replay_buffer):
+        batch = replay_buffer.random_batch(self.bc_batch_size)
+        batch = np_to_pytorch_batch(batch)
+        return batch
+
+    def pretrain_policy_with_bc(self):
+        logger.push_tabular_prefix("pretrain_policy/")
+        for i in range(self.bc_num_pretrain_steps):
+            train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
+            train_o = train_batch["observations"]
+            train_u = train_batch["actions"]
+            # train_g = train_batch["resampled_goals"]
+            # train_og = torch.cat((train_o, train_g), dim=1)
+            train_og = train_o
+            train_pred_u, *_ = self.policy(train_og)
+            train_error = (train_pred_u - train_u) ** 2
+            train_bc_loss = train_error.mean()
+
+            policy_loss = train_bc_loss.mean()
+
+            self.policy_optimizer.zero_grad()
+            policy_loss.backward()
+            self.policy_optimizer.step()
+
+            test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
+            test_o = test_batch["observations"]
+            test_u = test_batch["actions"]
+            # test_g = test_batch["resampled_goals"]
+            # test_og = torch.cat((test_o, test_g), dim=1)
+            test_og = test_o
+            test_pred_u, *_ = self.policy(test_og)
+            test_error = (test_pred_u - test_u) ** 2
+            test_bc_loss = test_error.mean()
+
+            train_loss_mean = np.mean(ptu.get_numpy(train_bc_loss))
+            test_loss_mean = np.mean(ptu.get_numpy(test_bc_loss))
+
+            stats = {
+                "pretrain_bc/Train BC Loss": train_loss_mean,
+                "pretrain_bc/Test BC Loss": test_loss_mean,
+                "pretrain_bc/policy_loss": ptu.get_numpy(policy_loss),
+            }
+            logger.record_dict(stats)
+            logger.dump_tabular(with_prefix=True, with_timestamp=False)
+        logger.pop_tabular_prefix()
+
+    def pretrain_q_with_bc_data(self):
+        logger.push_tabular_prefix("pretrain_q/")
+
+        self.update_policy = False
+        # first train only the Q function
+        for i in range(self.q_num_pretrain_steps):
+            self.eval_statistics = dict()
+            self._need_to_update_eval_statistics = True
+
+            train_data = self.replay_buffer.random_batch(self.bc_batch_size)
+            train_data = np_to_pytorch_batch(train_data)
+            obs = train_data['observations']
+            next_obs = train_data['next_observations']
+            # goals = train_data['resampled_goals']
+            train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
+            train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
+            self.train_from_torch(train_data)
+
+            logger.record_dict(self.eval_statistics)
+            logger.dump_tabular(with_prefix=True, with_timestamp=False)
+
+        self.update_policy = True
+        # then train policy and Q function together
+        for i in range(self.q_num_pretrain_steps):
+            self.eval_statistics = dict()
+            self._need_to_update_eval_statistics = True
+
+            train_data = self.replay_buffer.random_batch(self.bc_batch_size)
+            train_data = np_to_pytorch_batch(train_data)
+            obs = train_data['observations']
+            next_obs = train_data['next_observations']
+            # goals = train_data['resampled_goals']
+            train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
+            train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
+            self.train_from_torch(train_data)
+
+            logger.record_dict(self.eval_statistics)
+            logger.dump_tabular(with_prefix=True, with_timestamp=False)
+
+        logger.pop_tabular_prefix()
+
     def train_from_torch(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
@@ -97,7 +193,7 @@ class AWRSACTrainer(TorchTrainer):
         """
         Policy and Alpha Loss
         """
-        new_obs_actions, policy_mean, policy_log_std, log_pi, *_ = self.policy(
+        new_obs_actions, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
             obs, reparameterize=True, return_log_prob=True,
         )
         if self.use_automatic_entropy_tuning:
@@ -131,8 +227,12 @@ class AWRSACTrainer(TorchTrainer):
 
         # Advantage-weighted regression
         v_pi = self.qf1(obs, new_obs_actions)
-        policy_error = (new_obs_actions - actions) ** 2
-        policy_error = policy_error.mean(dim=1)
+        policy_logpp = (new_obs_actions - actions) ** 2
+        policy_logpp = policy_logpp.mean(dim=1)
+        # policy_logpp = self.policy.logprob(actions, policy_mean, policy_std)[:, 0]
+
+        if torch.isnan(policy_logpp).any():
+            import ipdb; ipdb.set_trace()
         advantage = q1_pred - v_pi
         weights = F.softmax((advantage / self.beta)[:, 0])
 
@@ -140,7 +240,7 @@ class AWRSACTrainer(TorchTrainer):
             self.qf1(obs, new_obs_actions),
             self.qf2(obs, new_obs_actions),
         )
-        policy_loss = (alpha*log_pi + policy_error * weights.detach()).mean()
+        policy_loss = (alpha*log_pi + policy_logpp * weights.detach()).mean()
 
         """
         Update networks

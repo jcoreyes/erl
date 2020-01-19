@@ -106,7 +106,7 @@ def collect_one_rollout(env, expert, horizon=200, render=False, pause=0):
         env_infos=[],
     )
 
-    for i in range(10000):
+    for i in range(horizon):
         a, valid, reset, accept = expert.get_action(o)
 
         if valid:
@@ -136,6 +136,41 @@ def collect_one_rollout(env, expert, horizon=200, render=False, pause=0):
         time.sleep(0.01)
 
     return False, []
+
+def collect_one_rollout_mdp(env, expert, horizon=200, render=False, pause=0):
+    o = env.reset()
+
+    traj = dict(
+        observations=[o],
+        actions=[],
+        rewards=[],
+        next_observations=[],
+        terminals=[],
+        agent_infos=[],
+        env_infos=[],
+    )
+
+    for i in range(horizon):
+        a, _ = expert.get_action(o)
+
+        traj["observations"].append(o)
+
+        o, r, done, info = env.step(a)
+
+        traj["actions"].append(a)
+        traj["rewards"].append(r)
+        traj["next_observations"].append(o)
+        traj["terminals"].append(done)
+        traj["agent_infos"].append(info)
+        traj["env_infos"].append(info)
+
+        if render:
+            env.render()
+
+        if pause:
+            time.sleep(pause)
+
+    return True, traj
 
 def draw_grid(img, line_color=(0, 0, 0), thickness=1, type_=None, pxstep=20):
     '''(ndarray, 3-tuple, int, int) -> void
@@ -285,19 +320,19 @@ def collect_demos_fixed(env, expert, path="demos.npy", N=10, **kwargs):
     data = []
 
     i = 0
-    while len(data) < N and i < 1000:
-        i += 1
-        accept, traj = collect_one_rollout(env, expert, **kwargs)
+    while len(data) < N:
+        accept, traj = collect_one_rollout_mdp(env, expert, **kwargs)
         if accept:
             data.append(traj)
             print("accepted trajectory length", len(traj["observations"]))
-            print("last reward", traj["rewards"][-1])
+            # print("last reward", traj["rewards"][-1])
             print("accepted", len(data), "trajectories")
+            print("total rewards", sum(traj["rewards"]))
         else:
             print("discarded trajectory")
 
-    # np.save(path, data)
-    pickle.dump(data, open(path, "wb"), protocol=2)
+    np.save(path, data)
+    # pickle.dump(data, open(path, "wb"), protocol=2)
 
 if __name__ == '__main__':
     # device = SpaceMouse()

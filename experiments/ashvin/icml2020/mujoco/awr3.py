@@ -205,22 +205,22 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
         ),
         num_exps_per_instance=1,
-        region='us-west-1',
+        region='us-west-2',
     )
 
     search_space = {
         'env': [
-            # 'half-cheetah',
+            'half-cheetah',
             'inv-double-pendulum',
-            # 'pendulum',
-            # 'ant',
-            # 'walker',
-            # 'hopper',
+            'pendulum',
+            'ant',
+            'walker',
+            'hopper',
             'humanoid',
             'swimmer',
         ],
         'seedid': range(1),
-        'trainer_kwargs.beta': [0.1, 1, ],
+        'trainer_kwargs.beta': [1, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

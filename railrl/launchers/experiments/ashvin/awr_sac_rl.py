@@ -1,6 +1,3 @@
-"""
-Test twin sac against various environments.
-"""
 from gym.envs.mujoco import (
     HalfCheetahEnv,
     AntEnv,
@@ -21,13 +18,12 @@ from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import FlattenMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.awr_sac import AWRSACTrainer
-import railrl.misc.hyperparameter as hyp
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )
 
-from railrl.launchers.arglauncher import run_variants
+from railrl.demos.source.mdp_path_loader import MDPPathLoader
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
@@ -177,58 +173,28 @@ def experiment(variant):
             min_num_steps_before_training=variant['min_num_steps_before_training'],
         )
     algorithm.to(ptu.device)
+
+    demo_train_buffer = EnvReplayBuffer(
+        variant['replay_buffer_size'],
+        expl_env,
+    )
+    demo_test_buffer = EnvReplayBuffer(
+        variant['replay_buffer_size'],
+        expl_env,
+    )
+    path_loader_class = variant.get('path_loader_class', MDPPathLoader)
+    path_loader = path_loader_class(trainer,
+        replay_buffer=replay_buffer,
+        demo_train_buffer=demo_train_buffer,
+        demo_test_buffer=demo_test_buffer,
+        **variant['path_loader_kwargs']
+    )
+
+    if variant.get('load_demos', False):
+        path_loader.load_demos()
+    if variant.get('pretrain_policy', False):
+        trainer.pretrain_policy_with_bc()
+    if variant.get('pretrain_rl', False):
+        trainer.pretrain_q_with_bc_data()
+
     algorithm.train()
-
-
-if __name__ == "__main__":
-    variant = dict(
-        num_epochs=3000,
-        num_eval_steps_per_epoch=5000,
-        num_trains_per_train_loop=1000,
-        num_expl_steps_per_train_loop=1000,
-        min_num_steps_before_training=1000,
-        max_path_length=1000,
-        batch_size=256,
-        replay_buffer_size=int(1E6),
-        layer_size=256,
-        algorithm="SAC",
-        version="normal",
-        collection_mode='batch',
-        trainer_kwargs=dict(
-            discount=0.99,
-            soft_target_tau=5e-3,
-            target_update_period=1,
-            policy_lr=3E-4,
-            qf_lr=3E-4,
-            reward_scale=1,
-            beta=1,
-            use_automatic_entropy_tuning=True,
-        ),
-        num_exps_per_instance=1,
-        region='us-west-1',
-    )
-
-    search_space = {
-        'env': [
-            # 'half-cheetah',
-            'inv-double-pendulum',
-            # 'pendulum',
-            # 'ant',
-            # 'walker',
-            # 'hopper',
-            'humanoid',
-            'swimmer',
-        ],
-        'seedid': range(1),
-        'trainer_kwargs.beta': [0.1, 1, ],
-    }
-
-    sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
-    )
-
-    variants = []
-    for variant in sweeper.iterate_hyperparameters():
-        variants.append(variant)
-
-    run_variants(experiment, variants, run_id=0)
