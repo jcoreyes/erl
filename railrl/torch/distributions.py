@@ -53,9 +53,12 @@ class TanhNormal(Distribution):
         :return:
         """
         if pre_tanh_value is None:
-            pre_tanh_value = torch.log(
-                (1+value) / (1-value)
-            ) / 2
+            value = torch.clamp(value, -0.999999, 0.999999)
+            # pre_tanh_value = torch.log(
+                # (1+value) / (1-value)
+            # ) / 2
+            pre_tanh_value = torch.log(1+value) / 2 - torch.log(1-value) / 2
+            # ) / 2
         return self.normal.log_prob(pre_tanh_value) - 2. * (
                 ptu.from_numpy(np.log([2.]))
                 - pre_tanh_value

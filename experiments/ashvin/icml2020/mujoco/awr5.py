@@ -18,10 +18,7 @@ if __name__ == "__main__":
         max_path_length=1000,
         batch_size=256,
         replay_buffer_size=int(1E6),
-
         layer_size=256,
-        policy_layers=4,
-
         algorithm="SAC",
         version="normal",
         collection_mode='batch',
@@ -35,45 +32,33 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
 
-            bc_num_pretrain_steps=500,
-            # q_num_pretrain_steps=10000,
-            # policy_weight_decay=1e-4,
+            bc_num_pretrain_steps=10000,
+            q_num_pretrain_steps=10000,
         ),
         num_exps_per_instance=1,
         region='us-west-2',
 
-        path_loader_class=MDPPathLoader,
-        path_loader_kwargs=dict(
-            demo_path=["demos/icml2020/mujoco/half-cheetah.npy"],
-            # demo_off_policy_path=[
-            #     "ashvin/icml2020/hand/door/demo-bc1/run3/video_*.p",
-            #     "ashvin/icml2020/hand/door/demo-bc1/run4/video_*.p",
-            #     "ashvin/icml2020/hand/door/demo-bc1/run5/video_*.p",
-            # ],
-        ),
-
         logger_variant=dict(
             tensorboard=True,
         ),
-
-        load_demos=True,
-        pretrain_policy=True,
-        pretrain_rl=True,
+        load_demos=False,
+        pretrain_policy=False,
+        pretrain_rl=False,
     )
 
     search_space = {
         'env': [
             'half-cheetah',
-            # 'inv-double-pendulum',
-            # 'pendulum',
-            # 'ant',
-            # 'walker',
-            # 'hopper',
-            # 'humanoid',
-            # 'swimmer',
+            'inv-double-pendulum',
+            'pendulum',
+            'ant',
+            'walker',
+            'hopper',
+            'humanoid',
+            'swimmer',
         ],
         'seedid': range(3),
-        'trainer_kwargs.beta': [10, 100],
+        'trainer_kwargs.beta': [1, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

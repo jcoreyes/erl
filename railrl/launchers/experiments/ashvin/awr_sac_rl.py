@@ -103,6 +103,8 @@ def experiment(variant):
     action_dim = eval_env.action_space.low.size
 
     M = variant['layer_size']
+    policy_num_layers = variant.get('policy_layers', 2)
+    policy_hidden_sizes = [M] * policy_num_layers
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
@@ -126,7 +128,7 @@ def experiment(variant):
     policy = TanhGaussianPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
-        hidden_sizes=[M, M],
+        hidden_sizes=policy_hidden_sizes,
     )
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(

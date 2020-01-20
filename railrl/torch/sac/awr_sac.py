@@ -123,13 +123,16 @@ class AWRSACTrainer(TorchTrainer):
             train_pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
                 train_og, reparameterize=True, return_log_prob=True,
             )
-            train_error = (train_pred_u - train_u) ** 2
-            train_bc_loss = train_error.mean()
+            train_mse = (torch.tanh(policy_mean) - train_u) ** 2
+            train_mse_loss = train_mse.mean()
 
-            # import ipdb; ipdb.set_trace()
             train_policy_logpp = self.policy.logprob(train_u, policy_mean, policy_std)[:, 0]
+
+            # T = 0
+            # if i < T:
+            #     policy_loss = train_mse_loss.mean()
+            # else:
             policy_loss = -train_policy_logpp.mean()
-            # policy_loss = train_bc_loss.mean()
 
             self.policy_optimizer.zero_grad()
             policy_loss.backward()
@@ -145,18 +148,28 @@ class AWRSACTrainer(TorchTrainer):
             test_pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
                 test_og, reparameterize=True, return_log_prob=True,
             )
-            test_error = (test_pred_u - test_u) ** 2
-            test_bc_loss = test_error.mean()
+            test_mse = (torch.tanh(policy_mean) - test_u) ** 2
+            test_mse_loss = test_mse.mean()
 
             test_policy_logpp = self.policy.logprob(test_u, policy_mean, policy_std)[:, 0]
-            test_policy_loss = test_policy_logpp.mean()
 
-            train_loss_mean = np.mean(ptu.get_numpy(train_bc_loss))
-            test_loss_mean = np.mean(ptu.get_numpy(test_bc_loss))
+            # if i < T:
+            #     test_policy_loss = test_mse_loss.mean()
+            # else:
+            test_policy_loss = -test_policy_logpp.mean()
+
+            train_mse_mean = np.mean(ptu.get_numpy(train_mse_loss))
+            test_mse_mean = np.mean(ptu.get_numpy(test_mse_loss))
+
+            train_logp = np.mean(ptu.get_numpy(train_policy_logpp))
+            test_logp = np.mean(ptu.get_numpy(test_policy_logpp))
 
             stats = {
-                "pretrain_bc/Train BC Loss": train_loss_mean,
-                "pretrain_bc/Test BC Loss": test_loss_mean,
+                "pretrain_bc/batch": i,
+                "pretrain_bc/Train Logprob": train_logp,
+                "pretrain_bc/Test Logprob": test_logp,
+                "pretrain_bc/Train MSE": train_mse_mean,
+                "pretrain_bc/Test MSE": test_mse_mean,
                 "pretrain_bc/train_policy_loss": ptu.get_numpy(policy_loss),
                 "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
             }
@@ -237,6 +250,7 @@ class AWRSACTrainer(TorchTrainer):
         new_obs_actions, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
             obs, reparameterize=True, return_log_prob=True,
         )
+
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
             self.alpha_optimizer.zero_grad()
@@ -246,7 +260,6 @@ class AWRSACTrainer(TorchTrainer):
         else:
             alpha_loss = 0
             alpha = 1
-
 
         """
         QF Loss
@@ -270,12 +283,10 @@ class AWRSACTrainer(TorchTrainer):
         v_pi = self.qf1(obs, new_obs_actions)
         # policy_logpp = -(new_obs_actions - actions) ** 2
         # policy_logpp = policy_logpp.mean(dim=1)
-        policy_logpp = self.policy.logprob(actions, policy_mean, policy_std)[:, 0]
+        policy_logpp = self.policy.logprob(actions, policy_mean, policy_std)
 
-        if torch.isnan(policy_logpp).any():
-            import ipdb; ipdb.set_trace()
         advantage = q1_pred - v_pi
-        weights = F.softmax((advantage / self.beta)[:, 0])
+        weights = F.softmax(advantage / self.beta, dim=0)
 
         q_new_actions = torch.min(
             self.qf1(obs, new_obs_actions),
