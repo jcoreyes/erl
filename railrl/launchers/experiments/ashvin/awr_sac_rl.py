@@ -196,15 +196,15 @@ def experiment(variant):
         variant['replay_buffer_size'],
         expl_env,
     )
-    path_loader_class = variant.get('path_loader_class', MDPPathLoader)
-    path_loader = path_loader_class(trainer,
-        replay_buffer=replay_buffer,
-        demo_train_buffer=demo_train_buffer,
-        demo_test_buffer=demo_test_buffer,
-        **variant['path_loader_kwargs']
-    )
 
     if variant.get('load_demos', False):
+        path_loader_class = variant.get('path_loader_class', MDPPathLoader)
+        path_loader = path_loader_class(trainer,
+            replay_buffer=replay_buffer,
+            demo_train_buffer=demo_train_buffer,
+            demo_test_buffer=demo_test_buffer,
+            **variant['path_loader_kwargs']
+        )
         path_loader.load_demos()
     if variant.get('pretrain_policy', False):
         trainer.pretrain_policy_with_bc()

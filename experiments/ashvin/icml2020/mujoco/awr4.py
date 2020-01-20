@@ -2,7 +2,7 @@
 AWR + SAC from demo experiment
 """
 
-from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 
 import railrl.misc.hyperparameter as hyp
@@ -34,34 +34,31 @@ if __name__ == "__main__":
 
             bc_num_pretrain_steps=10000,
             q_num_pretrain_steps=10000,
-            policy_weight_decay=1e-4,
         ),
         num_exps_per_instance=1,
         region='us-west-2',
 
-        path_loader_class=DictToMDPPathLoader,
-        path_loader_kwargs=dict(
-            obs_key="state_observation",
-            demo_path=["demos/icml2020/hand/pen.npy"],
-            # demo_off_policy_path=[
-            #     "ashvin/icml2020/hand/door/demo-bc1/run3/video_*.p",
-            #     "ashvin/icml2020/hand/door/demo-bc1/run4/video_*.p",
-            #     "ashvin/icml2020/hand/door/demo-bc1/run5/video_*.p",
-            # ],
-        ),
-
         logger_variant=dict(
             tensorboard=True,
         ),
-        load_demos=True,
-        pretrain_policy=True,
-        pretrain_rl=True,
+        load_demos=False,
+        pretrain_policy=False,
+        pretrain_rl=False,
     )
 
     search_space = {
-        'env': ["pen-v0", ],
+        'env': [
+            'half-cheetah',
+            'inv-double-pendulum',
+            'pendulum',
+            'ant',
+            'walker',
+            'hopper',
+            'humanoid',
+            'swimmer',
+        ],
         'seedid': range(3),
-        'trainer_kwargs.beta': [10, ],
+        'trainer_kwargs.beta': [1, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

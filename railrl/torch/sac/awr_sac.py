@@ -29,6 +29,7 @@ class AWRSACTrainer(TorchTrainer):
 
             policy_lr=1e-3,
             qf_lr=1e-3,
+            policy_weight_decay=0,
             optimizer_class=optim.Adam,
 
             soft_target_tau=1e-2,
@@ -40,6 +41,7 @@ class AWRSACTrainer(TorchTrainer):
             target_entropy=None,
             path_loader=None,
 
+            use_awr_update=True,
             bc_num_pretrain_steps=0,
             q_num_pretrain_steps=0,
             bc_batch_size=128,
@@ -54,6 +56,7 @@ class AWRSACTrainer(TorchTrainer):
         self.soft_target_tau = soft_target_tau
         self.target_update_period = target_update_period
 
+        self.use_awr_update = use_awr_update
         self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
         if self.use_automatic_entropy_tuning:
             if target_entropy:
@@ -74,6 +77,7 @@ class AWRSACTrainer(TorchTrainer):
 
         self.policy_optimizer = optimizer_class(
             self.policy.parameters(),
+            weight_decay=policy_weight_decay,
             lr=policy_lr,
         )
         self.qf1_optimizer = optimizer_class(
@@ -115,11 +119,17 @@ class AWRSACTrainer(TorchTrainer):
             # train_g = train_batch["resampled_goals"]
             # train_og = torch.cat((train_o, train_g), dim=1)
             train_og = train_o
-            train_pred_u, *_ = self.policy(train_og)
+            # train_pred_u, *_ = self.policy(train_og)
+            train_pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
+                train_og, reparameterize=True, return_log_prob=True,
+            )
             train_error = (train_pred_u - train_u) ** 2
             train_bc_loss = train_error.mean()
 
-            policy_loss = train_bc_loss.mean()
+            # import ipdb; ipdb.set_trace()
+            train_policy_logpp = self.policy.logprob(train_u, policy_mean, policy_std)[:, 0]
+            policy_loss = -train_policy_logpp.mean()
+            # policy_loss = train_bc_loss.mean()
 
             self.policy_optimizer.zero_grad()
             policy_loss.backward()
@@ -131,9 +141,15 @@ class AWRSACTrainer(TorchTrainer):
             # test_g = test_batch["resampled_goals"]
             # test_og = torch.cat((test_o, test_g), dim=1)
             test_og = test_o
-            test_pred_u, *_ = self.policy(test_og)
+            # test_pred_u, *_ = self.policy(test_og)
+            test_pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
+                test_og, reparameterize=True, return_log_prob=True,
+            )
             test_error = (test_pred_u - test_u) ** 2
             test_bc_loss = test_error.mean()
+
+            test_policy_logpp = self.policy.logprob(test_u, policy_mean, policy_std)[:, 0]
+            test_policy_loss = test_policy_logpp.mean()
 
             train_loss_mean = np.mean(ptu.get_numpy(train_bc_loss))
             test_loss_mean = np.mean(ptu.get_numpy(test_bc_loss))
@@ -141,7 +157,8 @@ class AWRSACTrainer(TorchTrainer):
             stats = {
                 "pretrain_bc/Train BC Loss": train_loss_mean,
                 "pretrain_bc/Test BC Loss": test_loss_mean,
-                "pretrain_bc/policy_loss": ptu.get_numpy(policy_loss),
+                "pretrain_bc/train_policy_loss": ptu.get_numpy(policy_loss),
+                "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
             }
             logger.record_dict(stats)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
@@ -251,9 +268,9 @@ class AWRSACTrainer(TorchTrainer):
 
         # Advantage-weighted regression
         v_pi = self.qf1(obs, new_obs_actions)
-        policy_logpp = (new_obs_actions - actions) ** 2
-        policy_logpp = policy_logpp.mean(dim=1)
-        # policy_logpp = self.policy.logprob(actions, policy_mean, policy_std)[:, 0]
+        # policy_logpp = -(new_obs_actions - actions) ** 2
+        # policy_logpp = policy_logpp.mean(dim=1)
+        policy_logpp = self.policy.logprob(actions, policy_mean, policy_std)[:, 0]
 
         if torch.isnan(policy_logpp).any():
             import ipdb; ipdb.set_trace()
@@ -264,7 +281,10 @@ class AWRSACTrainer(TorchTrainer):
             self.qf1(obs, new_obs_actions),
             self.qf2(obs, new_obs_actions),
         )
-        policy_loss = (alpha*log_pi + policy_logpp * weights.detach()).mean()
+        if self.use_awr_update:
+            policy_loss = (alpha*log_pi - policy_logpp * weights.detach()).mean()
+        else:
+            policy_loss = (alpha*log_pi - q_new_actions).mean()
 
         """
         Update networks

@@ -33,7 +33,7 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
 
             bc_num_pretrain_steps=10000,
-            q_num_pretrain_steps=10000,
+            q_num_pretrain_steps=0,
             policy_weight_decay=1e-4,
         ),
         num_exps_per_instance=1,

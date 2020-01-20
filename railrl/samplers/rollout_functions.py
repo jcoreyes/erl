@@ -210,10 +210,7 @@ def rollout(
         env.render(**render_kwargs)
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
-        try:
-            next_o, r, d, env_info = env.step(a)
-        except:
-            import ipdb; ipdb.set_trace()
+        next_o, r, d, env_info = env.step(a)
         observations.append(o)
         rewards.append(r)
         terminals.append(d)

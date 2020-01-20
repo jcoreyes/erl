@@ -32,9 +32,9 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
 
-            bc_num_pretrain_steps=10000,
-            q_num_pretrain_steps=10000,
-            policy_weight_decay=1e-4,
+            bc_num_pretrain_steps=0,
+            q_num_pretrain_steps=0,
+            # policy_weight_decay=1e-4,
         ),
         num_exps_per_instance=1,
         region='us-west-2',
@@ -50,9 +50,6 @@ if __name__ == "__main__":
             # ],
         ),
 
-        logger_variant=dict(
-            tensorboard=True,
-        ),
         load_demos=True,
         pretrain_policy=True,
         pretrain_rl=True,
