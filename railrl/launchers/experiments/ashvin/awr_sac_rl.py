@@ -94,8 +94,8 @@ def experiment(variant):
     if 'env_id' in env_params:
         import mj_envs
 
-        expl_env = NormalizedBoxEnv(gym.make(env_params['env_id']))
-        eval_env = NormalizedBoxEnv(gym.make(env_params['env_id']))
+        expl_env = gym.make(env_params['env_id'])
+        eval_env = gym.make(env_params['env_id'])
     else:
         expl_env = NormalizedBoxEnv(variant['env_class']())
         eval_env = NormalizedBoxEnv(variant['env_class']())
@@ -103,8 +103,6 @@ def experiment(variant):
     action_dim = eval_env.action_space.low.size
 
     M = variant['layer_size']
-    policy_num_layers = variant.get('policy_layers', 2)
-    policy_hidden_sizes = [M] * policy_num_layers
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
@@ -128,7 +126,7 @@ def experiment(variant):
     policy = TanhGaussianPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
-        hidden_sizes=policy_hidden_sizes,
+        **variant['policy_kwargs'],
     )
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(

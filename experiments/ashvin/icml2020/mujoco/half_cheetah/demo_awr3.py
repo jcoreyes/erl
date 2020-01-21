@@ -2,7 +2,7 @@
 AWR + SAC from demo experiment
 """
 
-from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 
 import railrl.misc.hyperparameter as hyp
@@ -18,7 +18,10 @@ if __name__ == "__main__":
         max_path_length=1000,
         batch_size=256,
         replay_buffer_size=int(1E6),
+
         layer_size=256,
+        policy_layers=4,
+
         algorithm="SAC",
         version="normal",
         collection_mode='batch',
@@ -32,20 +35,16 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
 
-            layer_size=256,
-            policy_layers=4,
-
             bc_num_pretrain_steps=50000,
-            q_num_pretrain_steps=0,
+            q_num_pretrain_steps=10000,
             policy_weight_decay=1e-4,
         ),
         num_exps_per_instance=1,
         region='us-west-2',
 
-        path_loader_class=DictToMDPPathLoader,
+        path_loader_class=MDPPathLoader,
         path_loader_kwargs=dict(
-            obs_key="state_observation",
-            demo_path=["demos/icml2020/hand/pen.npy"],
+            demo_path=["demos/icml2020/mujoco/half-cheetah.npy"],
             # demo_off_policy_path=[
             #     "ashvin/icml2020/hand/door/demo-bc1/run3/video_*.p",
             #     "ashvin/icml2020/hand/door/demo-bc1/run4/video_*.p",
@@ -56,15 +55,25 @@ if __name__ == "__main__":
         logger_variant=dict(
             tensorboard=True,
         ),
+
         load_demos=True,
         pretrain_policy=True,
         pretrain_rl=True,
     )
 
     search_space = {
-        'env': ["pen-v0", ],
+        'env': [
+            'half-cheetah',
+            # 'inv-double-pendulum',
+            # 'pendulum',
+            # 'ant',
+            # 'walker',
+            # 'hopper',
+            # 'humanoid',
+            # 'swimmer',
+        ],
         'seedid': range(3),
-        'trainer_kwargs.beta': [10, ],
+        'trainer_kwargs.beta': [10, 100],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

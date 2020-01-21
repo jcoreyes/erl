@@ -18,10 +18,15 @@ if __name__ == "__main__":
         max_path_length=1000,
         batch_size=256,
         replay_buffer_size=int(1E6),
-        layer_size=256,
         algorithm="SAC",
         version="normal",
         collection_mode='batch',
+
+        layer_size=256,
+        policy_kwargs=dict(
+            hidden_sizes=[256, 256],
+        ),
+
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
@@ -32,12 +37,10 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
 
-            layer_size=256,
-            policy_layers=4,
-
-            bc_num_pretrain_steps=50000,
-            q_num_pretrain_steps=0,
+            bc_num_pretrain_steps=10000,
+            q_num_pretrain_steps=10000,
             policy_weight_decay=1e-4,
+            bc_loss_type="mle",
         ),
         num_exps_per_instance=1,
         region='us-west-2',
@@ -47,7 +50,7 @@ if __name__ == "__main__":
             obs_key="state_observation",
             demo_path=["demos/icml2020/hand/pen.npy"],
             # demo_off_policy_path=[
-            #     "ashvin/icml2020/hand/door/demo-bc1/run3/video_*.p",
+            #     "ashvin/icml2020/hand/pen/demo-bc1/run5/video_*.p",
             #     "ashvin/icml2020/hand/door/demo-bc1/run4/video_*.p",
             #     "ashvin/icml2020/hand/door/demo-bc1/run5/video_*.p",
             # ],
@@ -64,7 +67,7 @@ if __name__ == "__main__":
     search_space = {
         'env': ["pen-v0", ],
         'seedid': range(3),
-        'trainer_kwargs.beta': [10, ],
+        'trainer_kwargs.beta': [100, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

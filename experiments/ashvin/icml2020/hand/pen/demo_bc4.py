@@ -10,7 +10,7 @@ from railrl.launchers.arglauncher import run_variants
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=3000,
+        num_epochs=10,
         num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
@@ -18,10 +18,15 @@ if __name__ == "__main__":
         max_path_length=1000,
         batch_size=256,
         replay_buffer_size=int(1E6),
-        layer_size=256,
         algorithm="SAC",
         version="normal",
         collection_mode='batch',
+
+        layer_size=256,
+        policy_kwargs=dict(
+            hidden_sizes=[256, 256],
+        ),
+
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
@@ -32,12 +37,10 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
 
-            layer_size=256,
-            policy_layers=4,
-
-            bc_num_pretrain_steps=50000,
+            bc_num_pretrain_steps=10000,
             q_num_pretrain_steps=0,
             policy_weight_decay=1e-4,
+            bc_loss_type="mle",
         ),
         num_exps_per_instance=1,
         region='us-west-2',

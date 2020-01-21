@@ -114,6 +114,7 @@ class DictToMDPPathLoader:
         self.demo_trajectory_rewards.append(rewards)
         path = path_builder.get_all_stacked()
         replay_buffer.add_path(path)
+        print("path sum rewards", sum(rewards), len(rewards))
         # self.env.initialize(zs)
 
     def load_demos(self, ):
@@ -139,8 +140,8 @@ class DictToMDPPathLoader:
     # replay buffer, and not to the demo_test or demo_train buffers
     def load_demo_path(self, demo_path, on_policy=True):
         data = list(load_local_or_remote_file(demo_path))
-        if not on_policy:
-            data = [data]
+        # if not on_policy:
+            # data = [data]
         # random.shuffle(data)
         N = int(len(data) * self.demo_train_split)
         print("using", N, "paths for training")

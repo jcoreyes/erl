@@ -77,7 +77,7 @@ class TD3BCTrainer(TorchTrainer):
             env_info_key=None,
             obs_key=None,
             max_path_length=0,
-            goal_conditioned=True,
+            goal_conditioned=False,
             use_demo_awr=False,
             **kwargs
     ):
@@ -334,9 +334,16 @@ class TD3BCTrainer(TorchTrainer):
                 "Train BC Loss": train_loss_mean,
                 "Test BC Loss": test_loss_mean,
                 "policy_loss": ptu.get_numpy(policy_loss),
+                "batch": i,
             }
             logger.record_dict(stats)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
+
+            if i % 1000 == 0:
+                logger.save_itr_params(i, {
+                    "evaluation/policy": self.policy,
+                    "evaluation/env": self.env.wrapped_env,
+                })
 
         logger.remove_tabular_output(
             'pretrain_policy.csv',

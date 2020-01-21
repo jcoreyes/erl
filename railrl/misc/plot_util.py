@@ -248,7 +248,7 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
 
         if print_final:
             print(label, y[-1])
-        snapshot = 20
+        snapshot = 1
         if len(y) > snapshot:
             if print_max:
                 i = np.argmax(y[::snapshot]) * snapshot

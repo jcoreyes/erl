@@ -45,6 +45,7 @@ class AWRSACTrainer(TorchTrainer):
             bc_num_pretrain_steps=0,
             q_num_pretrain_steps=0,
             bc_batch_size=128,
+            bc_loss_type="mle",
     ):
         super().__init__()
         self.env = env
@@ -99,6 +100,7 @@ class AWRSACTrainer(TorchTrainer):
         self.bc_num_pretrain_steps = bc_num_pretrain_steps
         self.q_num_pretrain_steps = q_num_pretrain_steps
         self.bc_batch_size = bc_batch_size
+        self.bc_loss_type = bc_loss_type
 
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)
@@ -121,18 +123,24 @@ class AWRSACTrainer(TorchTrainer):
             train_og = train_o
             # train_pred_u, *_ = self.policy(train_og)
             train_pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
-                train_og, reparameterize=True, return_log_prob=True,
+                train_og, deterministic=True, reparameterize=True, return_log_prob=True,
             )
-            train_mse = (torch.tanh(policy_mean) - train_u) ** 2
+            train_mse = (train_pred_u - train_u) ** 2
             train_mse_loss = train_mse.mean()
 
             train_policy_logpp = self.policy.logprob(train_u, policy_mean, policy_std)[:, 0]
 
             # T = 0
+            if self.bc_loss_type == "mle":
+                policy_loss = -train_policy_logpp.mean()
+            elif self.bc_loss_type == "mse":
+                policy_loss = train_mse_loss.mean()
+            else:
+                error
             # if i < T:
             #     policy_loss = train_mse_loss.mean()
             # else:
-            policy_loss = -train_policy_logpp.mean()
+            #     policy_loss = -train_policy_logpp.mean()
 
             self.policy_optimizer.zero_grad()
             policy_loss.backward()
@@ -146,9 +154,9 @@ class AWRSACTrainer(TorchTrainer):
             test_og = test_o
             # test_pred_u, *_ = self.policy(test_og)
             test_pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
-                test_og, reparameterize=True, return_log_prob=True,
+                test_og, deterministic=True, reparameterize=True, return_log_prob=True,
             )
-            test_mse = (torch.tanh(policy_mean) - test_u) ** 2
+            test_mse = (test_pred_u - test_u) ** 2
             test_mse_loss = test_mse.mean()
 
             test_policy_logpp = self.policy.logprob(test_u, policy_mean, policy_std)[:, 0]
@@ -156,7 +164,13 @@ class AWRSACTrainer(TorchTrainer):
             # if i < T:
             #     test_policy_loss = test_mse_loss.mean()
             # else:
-            test_policy_loss = -test_policy_logpp.mean()
+            # test_policy_loss = -test_policy_logpp.mean()
+            if self.bc_loss_type == "mle":
+                test_policy_loss = -test_policy_logpp.mean()
+            elif self.bc_loss_type == "mse":
+                test_policy_loss = test_mse_loss.mean()
+            else:
+                error
 
             train_mse_mean = np.mean(ptu.get_numpy(train_mse_loss))
             test_mse_mean = np.mean(ptu.get_numpy(test_mse_loss))
@@ -175,6 +189,12 @@ class AWRSACTrainer(TorchTrainer):
             }
             logger.record_dict(stats)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
+
+            # if i % 1000 == 0:
+            #     logger.save_itr_params(i, {
+            #         "evaluation/policy": self.policy,
+            #         "evaluation/env": self.env,
+            #     })
         logger.remove_tabular_output(
             'pretrain_policy.csv',
             relative_to_snapshot_dir=True,
