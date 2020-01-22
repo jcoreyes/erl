@@ -79,11 +79,7 @@ if __name__ == "__main__":
             ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
-            presampled_goals_path=osp.join(
-                osp.dirname(mwmj.__file__),
-                "goals",
-                "door_goals.npy",
-            ),
+            presampled_goals_path='goals/door_goals.npy',
             presample_goals=True,
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
@@ -129,9 +125,9 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    # n_seeds = 3
-    # mode = 'gcp'
-    # exp_prefix = 'skew-fit-door-reference-post-refactor'
+    n_seeds = 3
+    mode = 'sss'
+    exp_prefix = 'reference-skew-fit-brc-door'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -150,4 +146,4 @@ if __name__ == "__main__":
                     )
                 ),
                 time_in_mins=int(2.5*24*60),
-          )
+              )
