@@ -22,7 +22,7 @@ from railrl.torch.td3.td3 import TD3 as TD3Trainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 from railrl.launchers.launcher_util import run_experiment
-import railrl.util.hyperparameter as hyp
+import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
