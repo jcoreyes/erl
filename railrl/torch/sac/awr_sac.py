@@ -3,6 +3,7 @@ from collections import OrderedDict
 import numpy as np
 import torch
 import torch.optim as optim
+from railrl.torch.sac.policies import MakeDeterministic
 from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
@@ -105,6 +106,7 @@ class AWRSACTrainer(TorchTrainer):
         self.bc_loss_type = bc_loss_type
         self.rl_weight = rl_weight
         self.save_bc_policies = save_bc_policies
+        self.eval_policy = MakeDeterministic(self.policy)
 
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)
@@ -182,17 +184,31 @@ class AWRSACTrainer(TorchTrainer):
             train_logp = np.mean(ptu.get_numpy(train_policy_logpp))
             test_logp = np.mean(ptu.get_numpy(test_policy_logpp))
 
-            stats = {
-                "pretrain_bc/batch": i,
-                "pretrain_bc/Train Logprob": train_logp,
-                "pretrain_bc/Test Logprob": test_logp,
-                "pretrain_bc/Train MSE": train_mse_mean,
-                "pretrain_bc/Test MSE": test_mse_mean,
-                "pretrain_bc/train_policy_loss": ptu.get_numpy(policy_loss),
-                "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
-            }
-            logger.record_dict(stats)
-            logger.dump_tabular(with_prefix=True, with_timestamp=False)
+            #
+            if i % 100 == 0:
+                total_ret = 0
+                for _ in range(5):
+                    o = self.env.reset()
+                    ret = 0
+                    for i in range(1000):
+                        a, _ = self.eval_policy.get_action(o)
+                        o, r, done, info = self.env.step(a)
+                        ret += r
+                        if done:
+                            break
+                total_ret += ret
+                stats = {
+                    "pretrain_bc/avg_return":total_ret/5,
+                    "pretrain_bc/batch": i,
+                    "pretrain_bc/Train Logprob": train_logp,
+                    "pretrain_bc/Test Logprob": test_logp,
+                    "pretrain_bc/Train MSE": train_mse_mean,
+                    "pretrain_bc/Test MSE": test_mse_mean,
+                    "pretrain_bc/train_policy_loss": ptu.get_numpy(policy_loss),
+                    "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
+                }
+                logger.record_dict(stats)
+                logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
             if self.save_bc_policies and i % self.save_bc_policies == 0:
                 logger.save_itr_params(i, {

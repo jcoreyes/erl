@@ -177,8 +177,8 @@ def experiment(variant):
         trainer.pretrain_policy_with_bc()
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
-
-    algorithm.train()
+    if variant.get('train_rl', True):
+        algorithm.train()
 
 if __name__ == "__main__":
     variant = dict(
@@ -207,8 +207,11 @@ if __name__ == "__main__":
             reward_scale=1,
             beta=1,
             use_automatic_entropy_tuning=True,
-            bc_num_pretrain_steps=10000,
+
+            bc_num_pretrain_steps=1000000,
             q_num_pretrain_steps=10000,
+            policy_weight_decay=1e-4,
+            bc_loss_type="mle",
         ),
         path_loader_kwargs=dict(
             demo_path=None
@@ -216,7 +219,16 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'trainer_kwargs.beta':[.0001, .001, .01, .1, 1, 10, 100],
+        # 'trainer_kwargs.beta':[
+            # .0001,
+            # .001,
+            # .01,
+            # .1,
+            # 1,
+            # 10,
+        # ],
+        'train_rl':[False],
+        'pretrain_rl':[False],
         'env': [
             'half-cheetah',
             'ant',
@@ -228,13 +240,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'bc_gym_envs_test_v2'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'gym_awr_sac_exps_v1'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'gym_awr_sac_exps_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['sac_bc_trainer_kwargs']['bc_weight'] == 0 and variant['sac_bc_trainer_kwargs']['demo_beta'] != 1:
@@ -246,7 +258,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=2,
-                skip_wait=False,
+                skip_wait=True,
                 gcp_kwargs=dict(
                     preemptible=False,
                 )
