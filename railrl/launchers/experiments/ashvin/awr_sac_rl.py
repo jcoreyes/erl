@@ -25,6 +25,7 @@ from railrl.torch.torch_rl_algorithm import (
 )
 
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
+from railrl.torch.grill.video_gen import save_paths
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
@@ -82,7 +83,13 @@ ENV_PARAMS = {
         'env_id': 'pen-v0',
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 200,
-        'num_epochs': 2000,
+        # 'num_epochs': 1000,
+    },
+    'door-v0': {
+        'env_id': 'door-v0',
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 200,
+        # 'num_epochs': 1000,
     },
 }
 
@@ -196,6 +203,9 @@ def experiment(variant):
         variant['replay_buffer_size'],
         expl_env,
     )
+
+    if variant.get('save_paths', False):
+        algorithm.post_train_funcs.append(save_paths)
 
     if variant.get('load_demos', False):
         path_loader_class = variant.get('path_loader_class', MDPPathLoader)

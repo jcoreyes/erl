@@ -76,7 +76,7 @@ class DictToMDPPathLoader:
         self.trainer.demo_train_buffer = self.demo_train_buffer
         self.trainer.demo_test_buffer = self.demo_test_buffer
 
-    def load_path(self, path, replay_buffer):
+    def load_path(self, path, replay_buffer, obs_dict=None):
         rewards = []
         path_builder = PathBuilder()
 
@@ -85,10 +85,14 @@ class DictToMDPPathLoader:
         print("actions", np.min(path["actions"]), np.max(path["actions"]))
 
         for i in range(H):
-            ob = path["observations"][i][self.obs_key]
+            if obs_dict:
+                ob = path["observations"][i][self.obs_key]
+                next_ob = path["next_observations"][i][self.obs_key]
+            else:
+                ob = path["observations"][i]
+                next_ob = path["next_observations"][i]
             action = path["actions"][i]
             reward = path["rewards"][i]
-            next_ob = path["next_observations"][i][self.obs_key]
             terminal = path["terminals"][i]
             agent_info = path["agent_infos"][i]
             env_info = path["env_infos"][i]
@@ -130,15 +134,15 @@ class DictToMDPPathLoader:
 
         if type(self.demo_path) is list:
             for demo_path in self.demo_path:
-                self.load_demo_path(demo_path)
+                self.load_demo_path(demo_path, obs_dict=True)
         else:
-            self.load_demo_path(self.demo_path)
+            self.load_demo_path(self.demo_path, obs_dict=True)
 
 
     # Parameterize which demo is being tested (and all jitter variants)
     # If on_policy is False, we only add the demos to the
     # replay buffer, and not to the demo_test or demo_train buffers
-    def load_demo_path(self, demo_path, on_policy=True):
+    def load_demo_path(self, demo_path, on_policy=True, obs_dict=None):
         data = list(load_local_or_remote_file(demo_path))
         # if not on_policy:
             # data = [data]
@@ -148,13 +152,13 @@ class DictToMDPPathLoader:
 
         if self.add_demos_to_replay_buffer:
             for path in data[:N]:
-                self.load_path(path, self.replay_buffer)
+                self.load_path(path, self.replay_buffer, obs_dict=obs_dict)
 
         if on_policy:
             for path in data[:N]:
-                self.load_path(path, self.demo_train_buffer)
+                self.load_path(path, self.demo_train_buffer, obs_dict=obs_dict)
             for path in data[N:]:
-                self.load_path(path, self.demo_test_buffer)
+                self.load_path(path, self.demo_test_buffer, obs_dict=obs_dict)
 
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)

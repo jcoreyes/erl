@@ -26,6 +26,16 @@ from railrl.core import logger
 from railrl.envs.vae_wrappers import temporary_mode
 import pickle
 
+def save_paths(algo, epoch):
+    expl_paths = algo.expl_data_collector.get_epoch_paths()
+    filename = osp.join(logger.get_snapshot_dir(), 'video_{epoch}_vae.p'.format(epoch=epoch))
+    pickle.dump(expl_paths, open(filename, "wb"))
+    print("saved", filename)
+    eval_paths = algo.eval_data_collector.get_epoch_paths()
+    filename = osp.join(logger.get_snapshot_dir(), 'video_{epoch}_env.p'.format(epoch=epoch))
+    pickle.dump(eval_paths, open(filename, "wb"))
+    print("saved", filename)
+
 class VideoSaveFunction:
     def __init__(self, env, variant, expl_path_collector=None, eval_path_collector=None):
         self.env = env

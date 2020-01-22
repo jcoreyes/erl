@@ -46,6 +46,8 @@ class AWRSACTrainer(TorchTrainer):
             q_num_pretrain_steps=0,
             bc_batch_size=128,
             bc_loss_type="mle",
+            save_bc_policies=0,
+            rl_weight=1.0,
     ):
         super().__init__()
         self.env = env
@@ -101,6 +103,8 @@ class AWRSACTrainer(TorchTrainer):
         self.q_num_pretrain_steps = q_num_pretrain_steps
         self.bc_batch_size = bc_batch_size
         self.bc_loss_type = bc_loss_type
+        self.rl_weight = rl_weight
+        self.save_bc_policies = save_bc_policies
 
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)
@@ -190,11 +194,11 @@ class AWRSACTrainer(TorchTrainer):
             logger.record_dict(stats)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
-            # if i % 1000 == 0:
-            #     logger.save_itr_params(i, {
-            #         "evaluation/policy": self.policy,
-            #         "evaluation/env": self.env,
-            #     })
+            if self.save_bc_policies and i % self.save_bc_policies == 0:
+                logger.save_itr_params(i, {
+                    "evaluation/policy": self.policy,
+                    "evaluation/env": self.env,
+                })
         logger.remove_tabular_output(
             'pretrain_policy.csv',
             relative_to_snapshot_dir=True,
@@ -313,9 +317,9 @@ class AWRSACTrainer(TorchTrainer):
             self.qf2(obs, new_obs_actions),
         )
         if self.use_awr_update:
-            policy_loss = (alpha*log_pi - policy_logpp * weights.detach()).mean()
+            policy_loss = self.rl_weight * (alpha*log_pi - policy_logpp * weights.detach()).mean()
         else:
-            policy_loss = (alpha*log_pi - q_new_actions).mean()
+            policy_loss = self.rl_weight * (alpha*log_pi - q_new_actions).mean()
 
         """
         Update networks
