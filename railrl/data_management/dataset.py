@@ -43,7 +43,7 @@ class ImageObservationDataset(BatchLoader):
         if self.normalize:
             obs = normalize_image(obs)
         data_dict = {
-            'observations': obs,
+            'x_t': obs,
         }
         return np_to_pytorch_batch(data_dict)
 

@@ -1,7 +1,7 @@
 import os.path as osp
 import time
 
-import cv2
+#import cv2
 import numpy as np
 
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
@@ -415,7 +415,7 @@ def generate_vae_dataset(variant):
                     # radius = input('waiting...')
             print("done making training data", filename, time.time() - now)
             np.save(filename, dataset)
-            np.save(filename[:-4] + 'labels.npy', np.array(labels))
+            # np.save(filename[:-4] + 'labels.npy', np.array(labels))
 
     info['train_labels'] = []
     info['test_labels'] = []

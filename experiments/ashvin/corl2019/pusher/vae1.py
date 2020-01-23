@@ -158,8 +158,8 @@ if __name__ == "__main__":
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
                 #dataset_path="/tmp/SawyerMultiobjectEnv_N100000_sawyer_init_camera_zoomed_in_imsize48_random_oracle_split_0.npy",#"/home/khazatsky/rail/data/multiobj_two_puck.npy",
-                N=100000,
-                n_random_steps=5000,
+                N=10000,
+                n_random_steps=50,
                 test_p=.9,
                 use_cached=True,
                 show=False,

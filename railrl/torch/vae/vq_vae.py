@@ -242,8 +242,8 @@ class VQ_VAE(nn.Module):
         representation_size,
         input_channels=3,
         num_hiddens=128,
-        num_residual_layers=32,
-        num_residual_hiddens=2,
+        num_residual_layers=3,
+        num_residual_hiddens=64,
         num_embeddings=512,
         commitment_cost=0.25,
         decoder_output_activation=None, #IGNORED FOR NOW
@@ -283,9 +283,8 @@ class VQ_VAE(nn.Module):
         z = self._pre_vq_conv(z)
         vq_loss, quantized, perplexity, _ = self._vq_vae(z)
         x_recon = self._decoder(quantized)
-        recon_loss = F.mse_loss(x_recon, inputs)
-        loss = vq_loss + recon_loss
-        return loss, quantized, x_recon, perplexity, recon_loss
+        recon_error = F.mse_loss(x_recon, inputs)
+        return vq_loss, quantized, x_recon, perplexity, recon_error
 
     # DONT THINK WE NEED THIS
     # def forward(self, x):
@@ -308,14 +307,4 @@ class VQ_VAE(nn.Module):
         return self._decoder(latents)
 
     def sample_prior(self, batch_size):
-        encoding_indices = ptu.randint(self._vq_vae._num_embeddings, (batch_size,)).unsqueeze(1)
-        encodings = ptu.zeros(
-            encoding_indices.shape[0], self._vq_vae._num_embeddings)
-        encodings.scatter_(1, encoding_indices, 1)
-
-        samples = torch.matmul(
-            encodings, self._vq_vae._embedding.weight).view(batch_size, self.imsize*self.imsize*self.input_channels)
-
-        # encoding_indices = np.random.choice(self._vq_vae._num_embeddings, batch_size)
-        # samples = self._vq_vae._embedding.weight[encoding_indices].view(batch_size, -1)
-        return samples
+        return 1/0

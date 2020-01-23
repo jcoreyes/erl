@@ -138,7 +138,7 @@ if __name__ == "__main__":
                 non_presampled_goal_img_is_garbage=False,
                 random_rollout_data=True,
                 random_rollout_data_set_to_goal=True,
-                conditional_vae_dataset=True,
+                conditional_vae_dataset=False,
                 save_trajectories=False,
                 enviorment_dataset=False,
                 tag="ccrig_tuning_orig_network",
@@ -177,9 +177,9 @@ if __name__ == "__main__":
         ),
         region='us-west-1',
 
-        logger_variant=dict(
-            tensorboard=True,
-        ),
+        # logger_variant=dict(
+        #     tensorboard=True,
+        # ),
 
         slurm_variant=dict(
             timeout_min=48 * 60,
@@ -189,8 +189,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(1),
-        'train_vae_variant.representation_size': [8,],
+        'seedid': range(5),
+        'train_vae_variant.representation_size': [64,],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -200,4 +200,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=5)

@@ -139,7 +139,7 @@ class VAETrainer(object):
                 batch_size=batch_size,
                 drop_last=False,
                 num_workers=train_data_workers,
-                pin_memory=True,
+                pin_memory=False,
             )
             self.test_dataloader = DataLoader(
                 self.test_dataset_pt,
@@ -147,7 +147,7 @@ class VAETrainer(object):
                 batch_size=batch_size,
                 drop_last=False,
                 num_workers=0,
-                pin_memory=True,
+                pin_memory=False,
             )
             self.train_dataloader = iter(self.train_dataloader)
             self.test_dataloader = iter(self.test_dataloader)
@@ -667,16 +667,40 @@ class ConditionalConvVAETrainer(ConvVAETrainer):
 
 
 class VQ_VAETrainer(ConvVAETrainer):
+    # def lsos(self, all_obj = globals(),n=10):
+    #     import sys
+
+    #     object_name = list(all_obj)
+    #     object_size = [ round(sys.getsizeof(all_obj[x])/1024.0/1024.0,4) for x in object_name]
+    #     object_id = [id(all_obj[x]) for x in object_name]
+
+    #     d = [(a,b,c) for a,b,c in zip(object_name, object_size, object_id)]
+    #     d.sort(key = lambda x:(x[1],x[2]), reverse=True)
+    #     dprint = d[0:min(len(d), n)]
+
+    #     #print formating
+    #     name_width_max = max([len(x[0]) for x in dprint])
+    #     print(("{:<" + str(name_width_max +2) + "}{:11}{}").format("name","size_Mb","id"))
+    #     fmt = '{{:<{}}}'.format(name_width_max+2) +"  "+ "{: 5.4f}" +"  "+ "{:d}"
+    #     for line in dprint:
+    #         print( fmt.format(*line))
+
     def compute_loss(self, epoch, batch, test=False):
+        # if epoch == 50:
+        #     import abc
+        #     self.lsos()
+        #     import ipdb; ipdb.set_trace()
+        #     abc.lsos(globals())
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         obs = batch["x_t"]
-        loss, quantized, data_recon, perplexity, recon_error = self.model.compute_loss(obs)
+        vq_loss, quantized, data_recon, perplexity, recon_error = self.model.compute_loss(obs)
+        loss = vq_loss + recon_error
 
         self.eval_statistics['epoch'] = epoch
         self.eval_statistics[prefix + "losses"].append(loss.item())
         self.eval_statistics[prefix + "Recon Error"].append(recon_error.item())
-        self.eval_statistics[prefix + "VQ Loss"].append(loss.item() - recon_error.item())
+        self.eval_statistics[prefix + "VQ Loss"].append(vq_loss.item())
         self.eval_statistics[prefix + "Perplexity"].append(perplexity.item())
 
         z_data = ptu.get_numpy(quantized.cpu())
@@ -687,26 +711,26 @@ class VQ_VAETrainer(ConvVAETrainer):
         return loss
 
     def dump_samples(self, epoch):
-        return None
-        self.model.eval()
-        batch, _ = self.eval_data["test/last_batch"]
-        sample = self.model.sample_prior(64)
-        sample = self.model.decode(sample, batch["observations"])[0].cpu()
-        save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
-        save_image(
-            sample.data.view(64, 3, self.imsize, self.imsize).transpose(2, 3),
-            save_dir
-        )
+        return
+        # self.model.eval()
+        # batch, _ = self.eval_data["test/last_batch"]
+        # sample = self.model.sample_prior(64)
+        # sample = self.model.decode(sample, batch["observations"])[0].cpu()
+        # save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
+        # save_image(
+        #     sample.data.view(64, 3, self.imsize, self.imsize).transpose(2, 3),
+        #     save_dir
+        # )
 
-        x0 = batch["x_0"]
-        x0_img = x0[:64].narrow(start=0, length=self.imlength // 2, dim=1).contiguous().view(
-            -1,
-            3,
-            self.imsize,
-            self.imsize
-        ).transpose(2, 3)
-        save_dir = osp.join(self.log_dir, 'x0_%d.png' % epoch)
-        save_image(x0_img.data.cpu(), save_dir)
+        # x0 = batch["x_0"]
+        # x0_img = x0[:64].narrow(start=0, length=self.imlength // 2, dim=1).contiguous().view(
+        #     -1,
+        #     3,
+        #     self.imsize,
+        #     self.imsize
+        # ).transpose(2, 3)
+        # save_dir = osp.join(self.log_dir, 'x0_%d.png' % epoch)
+        # save_image(x0_img.data.cpu(), save_dir)
 
 
 class CVAETrainer(ConditionalConvVAETrainer):
