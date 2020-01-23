@@ -122,22 +122,22 @@ class DictToMDPPathLoader:
     def load_demos(self, ):
         # Off policy
         for demo_path in self.demo_paths:
-            obs_dict = demo_path["obs_dict"]
-            is_demo = demo_path["is_demo"]
-            demo_file = demo_path["path"]
-
-            print("loading off-policy path", demo_file)
-            self.load_demo_path(demo_file, is_demo=is_demo, obs_dict=obs_dict)
+            self.load_demo_path(**demo_path)
 
     # Parameterize which demo is being tested (and all jitter variants)
     # If is_demo is False, we only add the demos to the
     # replay buffer, and not to the demo_test or demo_train buffers
-    def load_demo_path(self, demo_file, is_demo=True, obs_dict=None):
-        data = list(load_local_or_remote_file(demo_file))
+    def load_demo_path(self, path, is_demo, obs_dict, train_split=None):
+        print("loading off-policy path", path)
+        data = list(load_local_or_remote_file(path))
         # if not is_demo:
             # data = [data]
         # random.shuffle(data)
-        N = int(len(data) * self.demo_train_split)
+
+        if train_split is None:
+            train_split = self.demo_train_split
+
+        N = int(len(data) * train_split)
         print("using", N, "paths for training")
 
         if self.add_demos_to_replay_buffer:

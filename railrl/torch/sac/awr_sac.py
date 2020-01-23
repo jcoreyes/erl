@@ -196,7 +196,8 @@ class AWRSACTrainer(TorchTrainer):
         # first train only the Q function
         for i in range(self.q_num_pretrain1_steps):
             self.eval_statistics = dict()
-            self._need_to_update_eval_statistics = True
+            if i % 10 == 0:
+                self._need_to_update_eval_statistics = True
 
             train_data = self.replay_buffer.random_batch(self.bc_batch_size)
             train_data = np_to_pytorch_batch(train_data)
@@ -214,7 +215,8 @@ class AWRSACTrainer(TorchTrainer):
         # then train policy and Q function together
         for i in range(self.q_num_pretrain2_steps):
             self.eval_statistics = dict()
-            self._need_to_update_eval_statistics = True
+            if i % 10 == 0:
+                self._need_to_update_eval_statistics = True
 
             train_data = self.replay_buffer.random_batch(self.bc_batch_size)
             train_data = np_to_pytorch_batch(train_data)
@@ -298,7 +300,7 @@ class AWRSACTrainer(TorchTrainer):
             policy_loss = self.rl_weight * (alpha*log_pi - q_new_actions).mean()
 
         train_policy_loss, train_logp_loss, train_mse_loss = self.run_bc_batch(self.demo_train_buffer)
-        policy_loss += self.bc_weight * train_policy_loss
+        policy_loss += self.bc_weight * train_policy_loss / len(weights)
 
         """
         Update networks
@@ -376,12 +378,12 @@ class AWRSACTrainer(TorchTrainer):
 
             test_policy_loss, test_logp_loss, test_mse_loss = self.run_bc_batch(self.demo_test_buffer)
             self.eval_statistics.update({
-                "pretrain_bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
-                "pretrain_bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
-                "pretrain_bc/Train MSE": ptu.get_numpy(train_mse_loss),
-                "pretrain_bc/Test MSE": ptu.get_numpy(test_mse_loss),
-                "pretrain_bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
-                "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
+                "bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
+                "bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
+                "bc/Train MSE": ptu.get_numpy(train_mse_loss),
+                "bc/Test MSE": ptu.get_numpy(test_mse_loss),
+                "bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
+                "bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
             })
         self._n_train_steps_total += 1
 
