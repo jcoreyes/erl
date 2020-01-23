@@ -33,11 +33,10 @@ class DictToMDPPathLoader:
     def __init__(
             self,
             trainer,
-            demo_path,
             replay_buffer,
             demo_train_buffer,
             demo_test_buffer,
-            demo_off_policy_path=[],
+            demo_paths=[], # list of dicts
             demo_train_split=0.9,
             add_demos_to_replay_buffer=True,
             bc_num_pretrain_steps=0,
@@ -61,8 +60,7 @@ class DictToMDPPathLoader:
         self.demo_train_buffer = demo_train_buffer
         self.demo_test_buffer = demo_test_buffer
 
-        self.demo_path = demo_path
-        self.demo_off_policy_path = demo_off_policy_path
+        self.demo_paths = demo_paths
 
         self.bc_num_pretrain_steps = bc_num_pretrain_steps
         self.q_num_pretrain_steps = q_num_pretrain_steps
@@ -123,28 +121,20 @@ class DictToMDPPathLoader:
 
     def load_demos(self, ):
         # Off policy
-        if type(self.demo_off_policy_path) is list:
-            for demo_pattern in self.demo_off_policy_path:
-                for demo_path in glob.glob(demo_pattern):
-                    print("loading off-policy path", demo_path)
-                    self.load_demo_path(demo_path, False)
-        else:
-            if self.demo_off_policy_path is not None:
-                self.load_demo_path(self.demo_off_policy_path, False)
+        for demo_path in self.demo_paths:
+            obs_dict = demo_path["obs_dict"]
+            is_demo = demo_path["is_demo"]
+            demo_file = demo_path["path"]
 
-        if type(self.demo_path) is list:
-            for demo_path in self.demo_path:
-                self.load_demo_path(demo_path, obs_dict=True)
-        else:
-            self.load_demo_path(self.demo_path, obs_dict=True)
-
+            print("loading off-policy path", demo_file)
+            self.load_demo_path(demo_file, is_demo=is_demo, obs_dict=obs_dict)
 
     # Parameterize which demo is being tested (and all jitter variants)
-    # If on_policy is False, we only add the demos to the
+    # If is_demo is False, we only add the demos to the
     # replay buffer, and not to the demo_test or demo_train buffers
-    def load_demo_path(self, demo_path, on_policy=True, obs_dict=None):
-        data = list(load_local_or_remote_file(demo_path))
-        # if not on_policy:
+    def load_demo_path(self, demo_file, is_demo=True, obs_dict=None):
+        data = list(load_local_or_remote_file(demo_file))
+        # if not is_demo:
             # data = [data]
         # random.shuffle(data)
         N = int(len(data) * self.demo_train_split)
@@ -154,7 +144,7 @@ class DictToMDPPathLoader:
             for path in data[:N]:
                 self.load_path(path, self.replay_buffer, obs_dict=obs_dict)
 
-        if on_policy:
+        if is_demo:
             for path in data[:N]:
                 self.load_path(path, self.demo_train_buffer, obs_dict=obs_dict)
             for path in data[N:]:

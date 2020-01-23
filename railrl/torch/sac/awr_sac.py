@@ -43,11 +43,13 @@ class AWRSACTrainer(TorchTrainer):
 
             use_awr_update=True,
             bc_num_pretrain_steps=0,
-            q_num_pretrain_steps=0,
+            q_num_pretrain1_steps=0,
+            q_num_pretrain2_steps=0,
             bc_batch_size=128,
             bc_loss_type="mle",
             save_bc_policies=0,
             rl_weight=1.0,
+            bc_weight=0.0,
     ):
         super().__init__()
         self.env = env
@@ -100,16 +102,45 @@ class AWRSACTrainer(TorchTrainer):
         self._need_to_update_eval_statistics = True
 
         self.bc_num_pretrain_steps = bc_num_pretrain_steps
-        self.q_num_pretrain_steps = q_num_pretrain_steps
+        self.q_num_pretrain1_steps = q_num_pretrain1_steps
+        self.q_num_pretrain2_steps = q_num_pretrain2_steps
         self.bc_batch_size = bc_batch_size
         self.bc_loss_type = bc_loss_type
         self.rl_weight = rl_weight
+        self.bc_weight = bc_weight
         self.save_bc_policies = save_bc_policies
 
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)
         batch = np_to_pytorch_batch(batch)
         return batch
+
+    def run_bc_batch(self, replay_buffer):
+        batch = self.get_batch_from_buffer(replay_buffer)
+        o = batch["observations"]
+        u = batch["actions"]
+        # g = batch["resampled_goals"]
+        # og = torch.cat((o, g), dim=1)
+        og = o
+        # pred_u, *_ = self.policy(og)
+        pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
+            og, deterministic=True, reparameterize=True, return_log_prob=True,
+        )
+        mse = (pred_u - u) ** 2
+        mse_loss = mse.mean()
+
+        policy_logpp = self.policy.logprob(u, policy_mean, policy_std)[:, 0]
+        logp_loss = -policy_logpp.mean()
+
+        # T = 0
+        if self.bc_loss_type == "mle":
+            policy_loss = logp_loss
+        elif self.bc_loss_type == "mse":
+            policy_loss = mse_loss
+        else:
+            error
+
+        return policy_loss, logp_loss, mse_loss
 
     def pretrain_policy_with_bc(self):
         logger.remove_tabular_output(
@@ -119,76 +150,21 @@ class AWRSACTrainer(TorchTrainer):
             'pretrain_policy.csv', relative_to_snapshot_dir=True
         )
         for i in range(self.bc_num_pretrain_steps):
-            train_batch = self.get_batch_from_buffer(self.demo_train_buffer)
-            train_o = train_batch["observations"]
-            train_u = train_batch["actions"]
-            # train_g = train_batch["resampled_goals"]
-            # train_og = torch.cat((train_o, train_g), dim=1)
-            train_og = train_o
-            # train_pred_u, *_ = self.policy(train_og)
-            train_pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
-                train_og, deterministic=True, reparameterize=True, return_log_prob=True,
-            )
-            train_mse = (train_pred_u - train_u) ** 2
-            train_mse_loss = train_mse.mean()
-
-            train_policy_logpp = self.policy.logprob(train_u, policy_mean, policy_std)[:, 0]
-
-            # T = 0
-            if self.bc_loss_type == "mle":
-                policy_loss = -train_policy_logpp.mean()
-            elif self.bc_loss_type == "mse":
-                policy_loss = train_mse_loss.mean()
-            else:
-                error
-            # if i < T:
-            #     policy_loss = train_mse_loss.mean()
-            # else:
-            #     policy_loss = -train_policy_logpp.mean()
+            train_policy_loss, train_logp_loss, train_mse_loss = self.run_bc_batch(self.demo_train_buffer)
 
             self.policy_optimizer.zero_grad()
-            policy_loss.backward()
+            train_policy_loss.backward()
             self.policy_optimizer.step()
 
-            test_batch = self.get_batch_from_buffer(self.demo_test_buffer)
-            test_o = test_batch["observations"]
-            test_u = test_batch["actions"]
-            # test_g = test_batch["resampled_goals"]
-            # test_og = torch.cat((test_o, test_g), dim=1)
-            test_og = test_o
-            # test_pred_u, *_ = self.policy(test_og)
-            test_pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
-                test_og, deterministic=True, reparameterize=True, return_log_prob=True,
-            )
-            test_mse = (test_pred_u - test_u) ** 2
-            test_mse_loss = test_mse.mean()
-
-            test_policy_logpp = self.policy.logprob(test_u, policy_mean, policy_std)[:, 0]
-
-            # if i < T:
-            #     test_policy_loss = test_mse_loss.mean()
-            # else:
-            # test_policy_loss = -test_policy_logpp.mean()
-            if self.bc_loss_type == "mle":
-                test_policy_loss = -test_policy_logpp.mean()
-            elif self.bc_loss_type == "mse":
-                test_policy_loss = test_mse_loss.mean()
-            else:
-                error
-
-            train_mse_mean = np.mean(ptu.get_numpy(train_mse_loss))
-            test_mse_mean = np.mean(ptu.get_numpy(test_mse_loss))
-
-            train_logp = np.mean(ptu.get_numpy(train_policy_logpp))
-            test_logp = np.mean(ptu.get_numpy(test_policy_logpp))
+            test_policy_loss, test_logp_loss, test_mse_loss = self.run_bc_batch(self.demo_test_buffer)
 
             stats = {
                 "pretrain_bc/batch": i,
-                "pretrain_bc/Train Logprob": train_logp,
-                "pretrain_bc/Test Logprob": test_logp,
-                "pretrain_bc/Train MSE": train_mse_mean,
-                "pretrain_bc/Test MSE": test_mse_mean,
-                "pretrain_bc/train_policy_loss": ptu.get_numpy(policy_loss),
+                "pretrain_bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
+                "pretrain_bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
+                "pretrain_bc/Train MSE": ptu.get_numpy(train_mse_loss),
+                "pretrain_bc/Test MSE": ptu.get_numpy(test_mse_loss),
+                "pretrain_bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
                 "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
             }
             logger.record_dict(stats)
@@ -218,7 +194,7 @@ class AWRSACTrainer(TorchTrainer):
 
         self.update_policy = False
         # first train only the Q function
-        for i in range(self.q_num_pretrain_steps):
+        for i in range(self.q_num_pretrain1_steps):
             self.eval_statistics = dict()
             self._need_to_update_eval_statistics = True
 
@@ -236,7 +212,7 @@ class AWRSACTrainer(TorchTrainer):
 
         self.update_policy = True
         # then train policy and Q function together
-        for i in range(self.q_num_pretrain_steps):
+        for i in range(self.q_num_pretrain2_steps):
             self.eval_statistics = dict()
             self._need_to_update_eval_statistics = True
 
@@ -321,6 +297,9 @@ class AWRSACTrainer(TorchTrainer):
         else:
             policy_loss = self.rl_weight * (alpha*log_pi - q_new_actions).mean()
 
+        train_policy_loss, train_logp_loss, train_mse_loss = self.run_bc_batch(self.demo_train_buffer)
+        policy_loss += self.bc_weight * train_policy_loss
+
         """
         Update networks
         """
@@ -394,6 +373,16 @@ class AWRSACTrainer(TorchTrainer):
             if self.use_automatic_entropy_tuning:
                 self.eval_statistics['Alpha'] = alpha.item()
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
+
+            test_policy_loss, test_logp_loss, test_mse_loss = self.run_bc_batch(self.demo_test_buffer)
+            self.eval_statistics.update({
+                "pretrain_bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
+                "pretrain_bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
+                "pretrain_bc/Train MSE": ptu.get_numpy(train_mse_loss),
+                "pretrain_bc/Test MSE": ptu.get_numpy(test_mse_loss),
+                "pretrain_bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
+                "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
+            })
         self._n_train_steps_total += 1
 
     def get_diagnostics(self):

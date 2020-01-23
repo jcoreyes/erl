@@ -68,7 +68,7 @@ if __name__ == "__main__":
     search_space = {
         'env': ["pen-v0", ],
         'seedid': range(5),
-        'trainer_kwargs.beta': [10, ],
+        'trainer_kwargs.beta': [100, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

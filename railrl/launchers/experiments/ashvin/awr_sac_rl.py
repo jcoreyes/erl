@@ -81,13 +81,13 @@ ENV_PARAMS = {
 
     'pen-v0': {
         'env_id': 'pen-v0',
-        'num_expl_steps_per_train_loop': 1000,
+        # 'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 200,
         # 'num_epochs': 1000,
     },
     'door-v0': {
         'env_id': 'door-v0',
-        'num_expl_steps_per_train_loop': 1000,
+        # 'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 200,
         # 'num_epochs': 1000,
     },
