@@ -68,32 +68,32 @@ def experiment(variant):
         eval_env = NormalizedBoxEnv(variant['env_class']())
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
-
+    N = variant['num_layers']
     M = variant['layer_size']
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
+        hidden_sizes=[M]*N,
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
+        hidden_sizes=[M] * N,
     )
     target_qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
+        hidden_sizes=[M] * N,
     )
     target_qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
+        hidden_sizes=[M] * N,
     )
     policy = TanhGaussianPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
-        hidden_sizes=[M, M],
+        hidden_sizes=[M] * N,
     )
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
@@ -191,6 +191,7 @@ if __name__ == "__main__":
         batch_size=256,
         replay_buffer_size=int(1E6),
         layer_size=256,
+        num_layers=2,
         algorithm="SAC BC",
         version="normal",
         collection_mode='batch',
@@ -207,9 +208,8 @@ if __name__ == "__main__":
             reward_scale=1,
             beta=1,
             use_automatic_entropy_tuning=True,
-
             bc_num_pretrain_steps=1000000,
-            q_num_pretrain_steps=10000,
+            q_num_pretrain_steps=1000000,
             policy_weight_decay=1e-4,
             bc_loss_type="mle",
         ),
@@ -219,16 +219,18 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        # 'trainer_kwargs.beta':[
-            # .0001,
-            # .001,
-            # .01,
-            # .1,
-            # 1,
-            # 10,
-        # ],
-        'train_rl':[False],
-        'pretrain_rl':[False],
+        'trainer_kwargs.beta':[
+            .001,
+            .01,
+            .1,
+            1,
+            10,
+        ],
+        'layer_size':[256,],
+        'num_layers':[4],
+        'train_rl':[True],
+        'pretrain_rl':[True],
+        'pretrain_policy':[True],
         'env': [
             'half-cheetah',
             'ant',
@@ -240,13 +242,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'bc_gym_envs_test_v2'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'gym_awr_sac_exps_v1'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'awr_sac_gym_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['sac_bc_trainer_kwargs']['bc_weight'] == 0 and variant['sac_bc_trainer_kwargs']['demo_beta'] != 1:
@@ -258,7 +260,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=2,
-                skip_wait=True,
+                skip_wait=False,
                 gcp_kwargs=dict(
                     preemptible=False,
                 )
