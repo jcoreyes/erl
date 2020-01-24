@@ -194,11 +194,13 @@ class AWRSACTrainer(TorchTrainer):
 
         self.update_policy = False
         # first train only the Q function
-        for i in range(self.q_num_pretrain1_steps):
+        LOG_EVERY = 10
+
+        for i in range(self.q_num_pretrain1_steps // LOG_EVERY):
             self.eval_statistics = dict()
             self._need_to_update_eval_statistics = True
 
-            for j in range(10):
+            for j in range(LOG_EVERY):
                 train_data = self.replay_buffer.random_batch(self.bc_batch_size)
                 train_data = np_to_pytorch_batch(train_data)
                 obs = train_data['observations']
@@ -213,11 +215,11 @@ class AWRSACTrainer(TorchTrainer):
 
         self.update_policy = True
         # then train policy and Q function together
-        for i in range(self.q_num_pretrain2_steps):
+        for i in range(self.q_num_pretrain2_steps // LOG_EVERY):
             self.eval_statistics = dict()
             self._need_to_update_eval_statistics = True
 
-            for j in range(10):
+            for j in range(LOG_EVERY):
                 train_data = self.replay_buffer.random_batch(self.bc_batch_size)
                 train_data = np_to_pytorch_batch(train_data)
                 obs = train_data['observations']
