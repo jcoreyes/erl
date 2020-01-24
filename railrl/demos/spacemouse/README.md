@@ -24,7 +24,7 @@ On the client, run the setup above. On the server, run:
 
 1. On the server, start the nameserver:
 ```export PYRO_SERIALIZERS_ACCEPTED=serpent,json,marshal,pickle
-python -m Pyro4.naming -n euler1.banatao.berkeley.edu
+python -m Pyro4.naming -n euler1.dyn.berkeley.edu
 ```
 2. On the server, run a script that uses the `SpaceMouseExpert` imported from `railrl/demos/spacemouse/input_server.py` such as ```python experiments/ashvin/iros2019/collect_demos_spacemouse.py```
 2. On the client, run ```python railrl/demos/spacemouse/input_client.py```

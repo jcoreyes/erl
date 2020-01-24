@@ -43,7 +43,8 @@ if __name__ == "__main__":
         encoder_wrapped_env_kwargs=dict(
             small_image_step=6, # 48x48
         ),
-        observation_key="small_image_observation",
+        # observation_key="small_image_observation",
+        observation_key="small_image_observation_with_state",
         # algo_kwargs=dict(
         #     num_epochs=3000,
         #     max_path_length=20,
@@ -140,6 +141,7 @@ if __name__ == "__main__":
             pool_sizes=[1, 1],
             hidden_sizes=[400, 300],
             paddings=[0, 0],
+            added_fc_input_size=8, # Used for state joint observations
             # use_batch_norm=False,
         ),
         exploration_kwargs=dict(
@@ -195,4 +197,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=0)
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=1)
