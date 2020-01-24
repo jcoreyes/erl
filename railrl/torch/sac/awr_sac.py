@@ -196,17 +196,17 @@ class AWRSACTrainer(TorchTrainer):
         # first train only the Q function
         for i in range(self.q_num_pretrain1_steps):
             self.eval_statistics = dict()
-            if i % 10 == 0:
-                self._need_to_update_eval_statistics = True
+            self._need_to_update_eval_statistics = True
 
-            train_data = self.replay_buffer.random_batch(self.bc_batch_size)
-            train_data = np_to_pytorch_batch(train_data)
-            obs = train_data['observations']
-            next_obs = train_data['next_observations']
-            # goals = train_data['resampled_goals']
-            train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
-            train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
-            self.train_from_torch(train_data)
+            for j in range(10):
+                train_data = self.replay_buffer.random_batch(self.bc_batch_size)
+                train_data = np_to_pytorch_batch(train_data)
+                obs = train_data['observations']
+                next_obs = train_data['next_observations']
+                # goals = train_data['resampled_goals']
+                train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
+                train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
+                self.train_from_torch(train_data)
 
             logger.record_dict(self.eval_statistics)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
@@ -215,17 +215,17 @@ class AWRSACTrainer(TorchTrainer):
         # then train policy and Q function together
         for i in range(self.q_num_pretrain2_steps):
             self.eval_statistics = dict()
-            if i % 10 == 0:
-                self._need_to_update_eval_statistics = True
+            self._need_to_update_eval_statistics = True
 
-            train_data = self.replay_buffer.random_batch(self.bc_batch_size)
-            train_data = np_to_pytorch_batch(train_data)
-            obs = train_data['observations']
-            next_obs = train_data['next_observations']
-            # goals = train_data['resampled_goals']
-            train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
-            train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
-            self.train_from_torch(train_data)
+            for j in range(10):
+                train_data = self.replay_buffer.random_batch(self.bc_batch_size)
+                train_data = np_to_pytorch_batch(train_data)
+                obs = train_data['observations']
+                next_obs = train_data['next_observations']
+                # goals = train_data['resampled_goals']
+                train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
+                train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
+                self.train_from_torch(train_data)
 
             logger.record_dict(self.eval_statistics)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
@@ -238,6 +238,8 @@ class AWRSACTrainer(TorchTrainer):
             'progress.csv',
             relative_to_snapshot_dir=True,
         )
+        self.eval_statistics = dict()
+        self._need_to_update_eval_statistics = True
 
     def train_from_torch(self, batch):
         rewards = batch['rewards']
