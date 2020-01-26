@@ -58,7 +58,7 @@ if __name__ == "__main__":
                     is_demo=True,
                 ),
                 dict(
-                    path="demos/icml2020/hand/pen_bc3_vae.npy",
+                    path="demos/icml2020/hand/pen_bc3_env.npy",
                     obs_dict=False,
                     is_demo=False,
                     train_split=0.9,

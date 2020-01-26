@@ -50,6 +50,11 @@ class AWRSACTrainer(TorchTrainer):
             save_bc_policies=0,
             rl_weight=1.0,
             bc_weight=0.0,
+            compute_bc=True,
+            alpha=1.0,
+
+            policy_update_period=1,
+            q_update_period=1,
     ):
         super().__init__()
         self.env = env
@@ -109,6 +114,10 @@ class AWRSACTrainer(TorchTrainer):
         self.rl_weight = rl_weight
         self.bc_weight = bc_weight
         self.save_bc_policies = save_bc_policies
+        self.compute_bc = compute_bc
+        self.alpha = alpha
+        self.q_update_period = q_update_period
+        self.policy_update_period = policy_update_period
 
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)
@@ -194,40 +203,38 @@ class AWRSACTrainer(TorchTrainer):
 
         self.update_policy = False
         # first train only the Q function
-        LOG_EVERY = 10
-
-        for i in range(self.q_num_pretrain1_steps // LOG_EVERY):
+        for i in range(self.q_num_pretrain1_steps):
             self.eval_statistics = dict()
-            self._need_to_update_eval_statistics = True
+            if i % 10 == 0:
+                self._need_to_update_eval_statistics = True
 
-            for j in range(LOG_EVERY):
-                train_data = self.replay_buffer.random_batch(self.bc_batch_size)
-                train_data = np_to_pytorch_batch(train_data)
-                obs = train_data['observations']
-                next_obs = train_data['next_observations']
-                # goals = train_data['resampled_goals']
-                train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
-                train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
-                self.train_from_torch(train_data)
+            train_data = self.replay_buffer.random_batch(self.bc_batch_size)
+            train_data = np_to_pytorch_batch(train_data)
+            obs = train_data['observations']
+            next_obs = train_data['next_observations']
+            # goals = train_data['resampled_goals']
+            train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
+            train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
+            self.train_from_torch(train_data)
 
             logger.record_dict(self.eval_statistics)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
         self.update_policy = True
         # then train policy and Q function together
-        for i in range(self.q_num_pretrain2_steps // LOG_EVERY):
+        for i in range(self.q_num_pretrain2_steps):
             self.eval_statistics = dict()
-            self._need_to_update_eval_statistics = True
+            if i % 10 == 0:
+                self._need_to_update_eval_statistics = True
 
-            for j in range(LOG_EVERY):
-                train_data = self.replay_buffer.random_batch(self.bc_batch_size)
-                train_data = np_to_pytorch_batch(train_data)
-                obs = train_data['observations']
-                next_obs = train_data['next_observations']
-                # goals = train_data['resampled_goals']
-                train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
-                train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
-                self.train_from_torch(train_data)
+            train_data = self.replay_buffer.random_batch(self.bc_batch_size)
+            train_data = np_to_pytorch_batch(train_data)
+            obs = train_data['observations']
+            next_obs = train_data['next_observations']
+            # goals = train_data['resampled_goals']
+            train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
+            train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
+            self.train_from_torch(train_data)
 
             logger.record_dict(self.eval_statistics)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
@@ -240,8 +247,6 @@ class AWRSACTrainer(TorchTrainer):
             'progress.csv',
             relative_to_snapshot_dir=True,
         )
-        self.eval_statistics = dict()
-        self._need_to_update_eval_statistics = True
 
     def train_from_torch(self, batch):
         rewards = batch['rewards']
@@ -265,7 +270,7 @@ class AWRSACTrainer(TorchTrainer):
             alpha = self.log_alpha.exp()
         else:
             alpha_loss = 0
-            alpha = 1
+            alpha = self.alpha
 
         """
         QF Loss
@@ -303,23 +308,26 @@ class AWRSACTrainer(TorchTrainer):
         else:
             policy_loss = self.rl_weight * (alpha*log_pi - q_new_actions).mean()
 
-        train_policy_loss, train_logp_loss, train_mse_loss = self.run_bc_batch(self.demo_train_buffer)
-        policy_loss += self.bc_weight * train_policy_loss / len(weights)
+        if self.compute_bc:
+            train_policy_loss, train_logp_loss, train_mse_loss = self.run_bc_batch(self.demo_train_buffer)
+            policy_loss += self.bc_weight * train_policy_loss / len(weights)
 
         """
         Update networks
         """
-        self.qf1_optimizer.zero_grad()
-        qf1_loss.backward()
-        self.qf1_optimizer.step()
+        if self._n_train_steps_total % self.q_update_period == 0:
+            self.qf1_optimizer.zero_grad()
+            qf1_loss.backward()
+            self.qf1_optimizer.step()
 
-        self.qf2_optimizer.zero_grad()
-        qf2_loss.backward()
-        self.qf2_optimizer.step()
+            self.qf2_optimizer.zero_grad()
+            qf2_loss.backward()
+            self.qf2_optimizer.step()
 
-        self.policy_optimizer.zero_grad()
-        policy_loss.backward()
-        self.policy_optimizer.step()
+        if self._n_train_steps_total % self.policy_update_period == 0:
+            self.policy_optimizer.zero_grad()
+            policy_loss.backward()
+            self.policy_optimizer.step()
 
         """
         Soft Updates
@@ -380,15 +388,16 @@ class AWRSACTrainer(TorchTrainer):
                 self.eval_statistics['Alpha'] = alpha.item()
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
 
-            test_policy_loss, test_logp_loss, test_mse_loss = self.run_bc_batch(self.demo_test_buffer)
-            self.eval_statistics.update({
-                "bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
-                "bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
-                "bc/Train MSE": ptu.get_numpy(train_mse_loss),
-                "bc/Test MSE": ptu.get_numpy(test_mse_loss),
-                "bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
-                "bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
-            })
+            if self.compute_bc:
+                test_policy_loss, test_logp_loss, test_mse_loss = self.run_bc_batch(self.demo_test_buffer)
+                self.eval_statistics.update({
+                    "bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
+                    "bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
+                    "bc/Train MSE": ptu.get_numpy(train_mse_loss),
+                    "bc/Test MSE": ptu.get_numpy(test_mse_loss),
+                    "bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
+                    "bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
+                })
         self._n_train_steps_total += 1
 
     def get_diagnostics(self):

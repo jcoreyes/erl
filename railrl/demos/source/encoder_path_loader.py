@@ -24,7 +24,7 @@ from railrl.core import logger
 
 import glob
 
-class DictToMDPPathLoader:
+class EncoderPathLoader:
     """
     Path loader for that loads obs-dict demonstrations
     into a Trainer with EnvReplayBuffer

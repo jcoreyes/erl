@@ -3,7 +3,6 @@ AWR + SAC from demo experiment
 """
 
 from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
-from railrl.demos.source.mdp_path_loader import MDPPathLoader, MDPPathLoader
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 
 import railrl.misc.hyperparameter as hyp
@@ -11,10 +10,10 @@ from railrl.launchers.arglauncher import run_variants
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=200,
+        num_epochs=1,
         num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
-        num_expl_steps_per_train_loop=1000,
+        num_expl_steps_per_train_loop=5000,
         min_num_steps_before_training=1000,
         max_path_length=1000,
         batch_size=256,
@@ -38,12 +37,11 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
 
-            bc_num_pretrain_steps=0,
-            q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=50000,
+            bc_num_pretrain_steps=50000,
+            # q_num_pretrain_steps=0,
             policy_weight_decay=1e-4,
             bc_loss_type="mle",
-            bc_weight=0.0,
+            rl_weight=0.0,
         ),
         num_exps_per_instance=1,
         region='us-west-2',
@@ -57,28 +55,23 @@ if __name__ == "__main__":
                     obs_dict=True,
                     is_demo=True,
                 ),
-                dict(
-                    path="demos/icml2020/hand/pen_bc3_vae.npy",
-                    obs_dict=False,
-                    is_demo=False,
-                    train_split=0.9,
-                ),
             ],
         ),
 
-        # logger_variant=dict(
-        #     tensorboard=True,
-        # ),
+        logger_variant=dict(
+            tensorboard=True,
+        ),
         load_demos=True,
         pretrain_policy=True,
         pretrain_rl=True,
+
+        save_paths=True,
     )
 
     search_space = {
         'env': ["pen-v0", ],
-        'seedid': range(3),
-        'trainer_kwargs.beta': [10, 100, 1000],
-        'trainer_kwargs.bc_weight': [0.0, 1.0],
+        'seedid': range(10),
+        'trainer_kwargs.beta': [10, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

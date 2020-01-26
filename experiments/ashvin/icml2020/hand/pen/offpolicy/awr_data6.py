@@ -11,8 +11,8 @@ from railrl.launchers.arglauncher import run_variants
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=200,
-        num_eval_steps_per_epoch=5000,
+        num_epochs=100,
+        num_eval_steps_per_epoch=1000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
         min_num_steps_before_training=1000,
@@ -58,7 +58,7 @@ if __name__ == "__main__":
                     is_demo=True,
                 ),
                 dict(
-                    path="demos/icml2020/hand/pen_bc3_vae.npy",
+                    path="demos/icml2020/hand/pen_bc4.npy",
                     obs_dict=False,
                     is_demo=False,
                     train_split=0.9,
@@ -79,6 +79,7 @@ if __name__ == "__main__":
         'seedid': range(3),
         'trainer_kwargs.beta': [10, 100, 1000],
         'trainer_kwargs.bc_weight': [0.0, 1.0],
+        'deterministic_exploration': [True, False],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

@@ -37,7 +37,7 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
 
-            bc_num_pretrain_steps=10000,
+            bc_num_pretrain_steps=50000,
             # q_num_pretrain_steps=0,
             policy_weight_decay=1e-4,
             bc_loss_type="mle",

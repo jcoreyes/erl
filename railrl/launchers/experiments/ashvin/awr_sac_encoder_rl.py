@@ -29,16 +29,6 @@ from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.torch.grill.video_gen import save_paths
 from railrl.envs.env_utils import get_dim
 
-from multiworld.core.flat_goal_env import FlatGoalEnv
-from multiworld.core.image_env import ImageEnv
-
-from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
-from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
-
-import torch
-import numpy as np
-from torchvision.utils import save_image
-
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'env_class': HalfCheetahEnv,
@@ -118,90 +108,18 @@ ENV_PARAMS = {
 }
 
 
-def encoder_wrapped_env(variant):
-    representation_size = 128
-    output_classes = 20
-
-    model_class = variant.get('model_class', TimestepPredictionModel)
-    model = model_class(
-        representation_size,
-        # decoder_output_activation=decoder_activation,
-        output_classes=output_classes,
-        **variant['model_kwargs'],
-    )
-    # model = torch.nn.DataParallel(model)
-
-    model_path = variant.get("model_path")
-    # model = load_local_or_remote_file(model_path)
-    state_dict = torch.load(model_path)
-    model.load_state_dict(state_dict)
-    model.to(ptu.device)
-    model.eval()
-
-    traj = np.load(variant.get("desired_trajectory"), allow_pickle=True)[0]
-
-    goal_image = traj["observations"][-1]["image_observation"]
-    goal_image = goal_image.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
-    # goal_image = goal_image.reshape(1, 300, 500, 3).transpose([0, 3, 1, 2]) / 255.0 # BECAUSE RLBENCH DEMOS ARENT IMAGE_ENV WRAPPED
-    # goal_image = goal_image[:, :, :240, 60:500]
-    goal_image = goal_image[:, :, 60:, 60:500]
-    goal_image_pt = ptu.from_numpy(goal_image)
-    save_image(goal_image_pt.data.cpu(), 'gitignore/goal.png', nrow=1)
-    goal_latent = model.encode(goal_image_pt).detach().cpu().numpy().flatten()
-
-    initial_image = traj["observations"][0]["image_observation"]
-    initial_image = initial_image.reshape(1, 3, 500, 300).transpose([0, 1, 3, 2]) / 255.0
-    # initial_image = initial_image.reshape(1, 300, 500, 3).transpose([0, 3, 1, 2]) / 255.0
-    # initial_image = initial_image[:, :, :240, 60:500]
-    initial_image = initial_image[:, :, 60:, 60:500]
-    initial_image_pt = ptu.from_numpy(initial_image)
-    save_image(initial_image_pt.data.cpu(), 'gitignore/initial.png', nrow=1)
-    initial_latent = model.encode(initial_image_pt).detach().cpu().numpy().flatten()
-
-    # Move these to td3_bc and bc_v3 (or at least type for reward_params)
-    reward_params = dict(
-        goal_latent=goal_latent,
-        initial_latent=initial_latent,
-        type=variant["reward_params_type"],
-    )
-
-    config_params = variant.get("config_params")
-
-    env = variant['env_class'](**variant['env_kwargs'])
-    env = ImageEnv(env,
-        recompute_reward=False,
-        transpose=True,
-        image_length=450000,
-        reward_type="image_distance",
-        # init_camera=sawyer_pusher_camera_upright_v2,
-    )
-    env = EncoderWrappedEnv(
-        env,
-        model,
-        reward_params,
-        config_params,
-        **variant.get("encoder_wrapped_env_kwargs", dict())
-    )
-    env = FlatGoalEnv(env, obs_keys=["state_observation", ])
-
-    return env
-
 def experiment(variant):
-    if 'env' in variant:
-        env_params = ENV_PARAMS[variant['env']]
-        variant.update(env_params)
+    env_params = ENV_PARAMS[variant['env']]
+    variant.update(env_params)
 
-        if 'env_id' in env_params:
-            import mj_envs
+    if 'env_id' in env_params:
+        import mj_envs
 
-            expl_env = gym.make(env_params['env_id'])
-            eval_env = gym.make(env_params['env_id'])
-        else:
-            expl_env = NormalizedBoxEnv(variant['env_class']())
-            eval_env = NormalizedBoxEnv(variant['env_class']())
+        expl_env = gym.make(env_params['env_id'])
+        eval_env = gym.make(env_params['env_id'])
     else:
-        expl_env = encoder_wrapped_env(variant)
-        eval_env = encoder_wrapped_env(variant)
+        expl_env = NormalizedBoxEnv(variant['env_class']())
+        eval_env = NormalizedBoxEnv(variant['env_class']())
 
     path_loader_kwargs = variant.get("path_loader_kwargs", {})
     stack_obs = path_loader_kwargs.get("stack_obs", 1)

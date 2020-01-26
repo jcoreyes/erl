@@ -53,12 +53,12 @@ if __name__ == "__main__":
             obs_key="state_observation",
             demo_paths=[
                 dict(
-                    path="demos/icml2020/hand/pen.npy",
+                    path="demos/icml2020/hand/hammer.npy",
                     obs_dict=True,
                     is_demo=True,
                 ),
                 dict(
-                    path="demos/icml2020/hand/pen_bc3_vae.npy",
+                    path="demos/icml2020/hand/hammer_bc1.npy",
                     obs_dict=False,
                     is_demo=False,
                     train_split=0.9,
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env': ["pen-v0", ],
+        'env': ["hammer-v0", ],
         'seedid': range(3),
         'trainer_kwargs.beta': [10, 100, 1000],
         'trainer_kwargs.bc_weight': [0.0, 1.0],
