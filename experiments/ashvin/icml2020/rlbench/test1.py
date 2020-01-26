@@ -14,12 +14,12 @@ from rlbench.tasks.open_drawer import OpenDrawer
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=2001,
+        num_epochs=101,
         num_eval_steps_per_epoch=1000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
         min_num_steps_before_training=1000,
-        max_path_length=1000,
+        max_path_length=50,
         batch_size=1024,
         replay_buffer_size=int(1E6),
         algorithm="SAC",
@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=50000,
+            q_num_pretrain2_steps=1000,
             policy_weight_decay=1e-4,
             bc_loss_type="mle",
             bc_weight=0.0,
@@ -60,17 +60,16 @@ if __name__ == "__main__":
             obs_key="state_observation",
             demo_paths=[
                 dict(
-                    path="/home/ashvin/code/gitignore/rlbench/demo_door_fixed2/demos5b_10_dict.npy",
+                    path="demos/icml2020/rlbench/rlbench.npy",
                     obs_dict=True,
                     is_demo=True,
                 ),
-                # "/home/ashvin/data/s3doodad/ashvin/rfeatures/rlbench/open-drawer-vision/td3bc-with-state3/run0/id0/video_*_vae.p",
-                # dict(
-                #     path="demos/icml2020/hand/pen_bc4.npy",
-                #     obs_dict=False,
-                #     is_demo=False,
-                #     train_split=0.9,
-                # ),
+                dict(
+                    path="demos/icml2020/rlbench/rlbench_bc1.npy",
+                    obs_dict=True,
+                    is_demo=False,
+                    train_split=0.9,
+                ),
             ],
         ),
 
