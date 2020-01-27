@@ -9,7 +9,7 @@ from railrl.exploration_strategies.gaussian_and_epislon import \
 from railrl.launchers.launcher_util import setup_logger
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy, TorchMaxClamp
+from railrl.torch.networks import FlattenMlp, TanhMlpPolicy, TorchMaxClamp, CNNPolicy
 # from railrl.torch.td3.td3 import TD3
 from railrl.demos.td3_bc import TD3BCTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
@@ -141,16 +141,36 @@ def encoder_wrapped_td3bc_experiment(variant):
         # output_activation=TorchMaxClamp(0.0),
         **variant['qf_kwargs']
     )
-    policy = TanhMlpPolicy(
-        input_size=obs_dim + goal_dim,
-        output_size=action_dim,
-        **variant['policy_kwargs']
-    )
-    target_policy = TanhMlpPolicy(
-        input_size=obs_dim + goal_dim,
-        output_size=action_dim,
-        **variant['policy_kwargs']
-    )
+    
+    # Support for CNNPolicy based policy/target policy
+    # Defaults to TanhMlpPolicy unless cnn_params is supplied in variant
+    if 'cnn_params' in variant.keys():
+        imsize = 48
+        policy = CNNPolicy(input_width=imsize,
+                           input_height=imsize,
+                           output_size=action_dim,
+                           input_channels=3,
+                           **variant['cnn_params'],
+                           output_activation=torch.tanh,
+        )
+        target_policy = CNNPolicy(input_width=imsize,
+                           input_height=imsize,
+                           output_size=action_dim,
+                           input_channels=3,
+                           **variant['cnn_params'],
+                           output_activation=torch.tanh,
+        )
+    else:
+        policy = TanhMlpPolicy(
+            input_size=obs_dim + goal_dim,
+            output_size=action_dim,
+            **variant['policy_kwargs']
+        )
+        target_policy = TanhMlpPolicy(
+            input_size=obs_dim + goal_dim,
+            output_size=action_dim,
+            **variant['policy_kwargs']
+        )
     expl_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,

@@ -40,9 +40,9 @@ if __name__ == '__main__':
 
     # env.reset()
 
-    for i in range(10):
-        collect_demos_fixed(env, expert, "/home/anair/ros_ws/src/railrl-private/demos/demo_v3_brownhatch_%i.pkl" %i, 1, horizon=1000, pause=0.05)
-
+    for i in range(25):
+        collect_demos_fixed(env, expert, "/home/anair/ros_ws/src/railrl-private/demos/demo_v4_grey_%i.pkl" %i, 1, horizon=1000, pause=0.05)
+        print("Collected demo: ", i)
     # for i in range(10):
     # collect_demos_fixed(env, expert, "demos/demo_v3.pkl", 1, horizon=1000, pause=0.05)
 
