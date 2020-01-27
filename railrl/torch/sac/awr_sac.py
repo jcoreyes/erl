@@ -248,6 +248,9 @@ class AWRSACTrainer(TorchTrainer):
             relative_to_snapshot_dir=True,
         )
 
+        self._need_to_update_eval_statistics = True
+        self.eval_statistics = dict()
+
     def train_from_torch(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']

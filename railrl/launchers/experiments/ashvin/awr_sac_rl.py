@@ -205,8 +205,9 @@ def experiment(variant):
 
     path_loader_kwargs = variant.get("path_loader_kwargs", {})
     stack_obs = path_loader_kwargs.get("stack_obs", 1)
-    expl_env = StackObservationEnv(expl_env, stack_obs=stack_obs)
-    eval_env = StackObservationEnv(eval_env, stack_obs=stack_obs)
+    if stack_obs > 1:
+        expl_env = StackObservationEnv(expl_env, stack_obs=stack_obs)
+        eval_env = StackObservationEnv(eval_env, stack_obs=stack_obs)
 
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
