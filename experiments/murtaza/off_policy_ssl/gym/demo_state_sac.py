@@ -29,7 +29,7 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 1000,
         'demo_path':"demos/hc_action_noise_1000.npy",
-        'bc_num_pretrain_steps':[200000],
+        'bc_num_pretrain_steps':200000,
     },
     'hopper': {  # 6 DoF
         'env_class': HopperEnv,
@@ -37,7 +37,7 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 1000,
         'demo_path':"demos/hopper_action_noise_1000.npy",
-        'bc_num_pretrain_steps':[1000000],
+        'bc_num_pretrain_steps':1000000,
     },
     'ant': {  # 6 DoF
         'env_class': AntEnv,
@@ -45,7 +45,7 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 3000,
         'demo_path':"demos/ant_action_noise_1000.npy",
-        'bc_num_pretrain_steps':[1000000],
+        'bc_num_pretrain_steps':1000000,
     },
     'walker': {  # 6 DoF
         'env_class': Walker2dEnv,
@@ -53,7 +53,7 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 3000,
         'demo_path':"demos/walker_action_noise_1000.npy",
-        'bc_num_pretrain_steps':[100000],
+        'bc_num_pretrain_steps':100000,
     },
 }
 
@@ -225,6 +225,7 @@ if __name__ == "__main__":
 
     search_space = {
         'trainer_kwargs.beta':[
+            1,
             10,
         ],
         'layer_size':[256,],
@@ -249,7 +250,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'awr_sac_gym_v2'
+    exp_prefix = 'awr_sac_gym_v3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['sac_bc_trainer_kwargs']['bc_weight'] == 0 and variant['sac_bc_trainer_kwargs']['demo_beta'] != 1:
