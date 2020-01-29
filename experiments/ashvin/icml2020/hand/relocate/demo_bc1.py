@@ -11,9 +11,9 @@ from railrl.launchers.arglauncher import run_variants
 if __name__ == "__main__":
     variant = dict(
         num_epochs=1,
-        num_eval_steps_per_epoch=5000,
+        num_eval_steps_per_epoch=10000,
         num_trains_per_train_loop=1000,
-        num_expl_steps_per_train_loop=5000,
+        num_expl_steps_per_train_loop=10000,
         min_num_steps_before_training=1000,
         max_path_length=1000,
         batch_size=256,
@@ -41,7 +41,6 @@ if __name__ == "__main__":
             # q_num_pretrain_steps=0,
             policy_weight_decay=1e-4,
             bc_loss_type="mle",
-            rl_weight=0.0,
         ),
         num_exps_per_instance=1,
         region='us-west-2',
@@ -51,7 +50,7 @@ if __name__ == "__main__":
             obs_key="state_observation",
             demo_paths=[
                 dict(
-                    path="demos/icml2020/hand/pen.npy",
+                    path="demos/icml2020/hand/relocate.npy",
                     obs_dict=True,
                     is_demo=True,
                 ),
@@ -69,7 +68,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env': ["pen-v0", ],
+        'env': ["relocate-v0", ],
         'seedid': range(10),
         'trainer_kwargs.beta': [10, ],
     }

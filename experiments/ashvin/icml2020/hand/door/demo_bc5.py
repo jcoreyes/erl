@@ -37,8 +37,8 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
 
-            bc_num_pretrain_steps=10000,
-            q_num_pretrain_steps=0,
+            bc_num_pretrain_steps=50000,
+            # q_num_pretrain_steps=0,
             policy_weight_decay=1e-4,
             bc_loss_type="mle",
         ),
@@ -48,12 +48,13 @@ if __name__ == "__main__":
         path_loader_class=DictToMDPPathLoader,
         path_loader_kwargs=dict(
             obs_key="state_observation",
-            demo_path=["demos/icml2020/hand/door.npy"],
-            # demo_off_policy_path=[
-            #     "ashvin/icml2020/hand/door/demo-bc1/run3/video_*.p",
-            #     "ashvin/icml2020/hand/door/demo-bc1/run4/video_*.p",
-            #     "ashvin/icml2020/hand/door/demo-bc1/run5/video_*.p",
-            # ],
+            demo_paths=[
+                dict(
+                    path="demos/icml2020/hand/door.npy",
+                    obs_dict=True,
+                    is_demo=True,
+                ),
+            ],
         ),
 
         logger_variant=dict(
@@ -68,7 +69,7 @@ if __name__ == "__main__":
 
     search_space = {
         'env': ["door-v0", ],
-        'seedid': range(5),
+        'seedid': range(10),
         'trainer_kwargs.beta': [10, ],
     }
 

@@ -24,7 +24,7 @@ from railrl.core import logger
 
 import glob
 
-class DictToMDPPathLoader:
+class DictToMDPStackedPathLoader:
     """
     Path loader for that loads obs-dict demonstrations
     into a Trainer with EnvReplayBuffer
@@ -50,6 +50,7 @@ class DictToMDPPathLoader:
             env_info_key=None,
             obs_key=None,
             load_terminals=True,
+            stack_obs=1,
 
             **kwargs
     ):
@@ -71,6 +72,7 @@ class DictToMDPPathLoader:
         self.obs_key = obs_key
         self.recompute_reward = recompute_reward
         self.load_terminals = load_terminals
+        self.stack_obs = stack_obs
 
         self.trainer.replay_buffer = self.replay_buffer
         self.trainer.demo_train_buffer = self.demo_train_buffer
@@ -91,6 +93,20 @@ class DictToMDPPathLoader:
             else:
                 ob = path["observations"][i]
                 next_ob = path["next_observations"][i]
+
+            if i == 0:
+                current_obs = np.zeros((self.stack_obs + 1, len(ob)))
+                current_obs[-2, :] = ob
+                current_obs[-1, :] = next_ob
+            else:
+                current_obs = np.vstack((
+                    current_obs[1:, :],
+                    next_ob
+                ))
+                assert (current_obs[-2, :] == ob).all(), "mismatch between obs and next_obs"
+            obs1 = current_obs[:self.stack_obs, :].flatten()
+            obs2 = current_obs[1:, :].flatten()
+
             action = path["actions"][i]
             reward = path["rewards"][i]
             terminal = path["terminals"][i]
@@ -109,10 +125,10 @@ class DictToMDPPathLoader:
             rewards.append(reward)
             terminal = np.array([terminal]).reshape((1, ))
             path_builder.add_all(
-                observations=ob,
+                observations=obs1,
                 actions=action,
                 rewards=reward,
-                next_observations=next_ob,
+                next_observations=obs2,
                 terminals=terminal,
                 agent_infos=agent_info,
                 env_infos=env_info,

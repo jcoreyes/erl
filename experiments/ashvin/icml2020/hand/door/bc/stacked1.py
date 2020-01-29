@@ -2,7 +2,7 @@
 AWR + SAC from demo experiment
 """
 
-from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+from railrl.demos.source.dict_to_mdp_stacked_path_loader import DictToMDPStackedPathLoader
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 
 import railrl.misc.hyperparameter as hyp
@@ -37,26 +37,28 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
 
-            bc_num_pretrain_steps=50000,
+            bc_num_pretrain_steps=10000,
             # q_num_pretrain_steps=0,
-            policy_weight_decay=1e-4,
+            policy_weight_decay=1e-3,
             bc_loss_type="mle",
             rl_weight=0.0,
         ),
         num_exps_per_instance=1,
         region='us-west-2',
 
-        path_loader_class=DictToMDPPathLoader,
+        path_loader_class=DictToMDPStackedPathLoader,
         path_loader_kwargs=dict(
             obs_key="state_observation",
             demo_paths=[
                 dict(
-                    path="demos/icml2020/hand/pen.npy",
+                    path="demos/icml2020/hand/door.npy",
                     obs_dict=True,
                     is_demo=True,
                 ),
             ],
+            stack_obs=10,
         ),
+        stack_obs=10,
 
         logger_variant=dict(
             tensorboard=True,
@@ -69,9 +71,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env': ["pen-v0", ],
+        'env': ["door-v0", ],
         'seedid': range(10),
-        'trainer_kwargs.beta': [10, ],
+        'trainer_kwargs.bc_num_pretrain_steps': [2000, 10000, 50000],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

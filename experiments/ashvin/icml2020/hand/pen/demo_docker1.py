@@ -3,6 +3,7 @@ AWR + SAC from demo experiment
 """
 
 from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+from railrl.demos.source.mdp_path_loader import MDPPathLoader, MDPPathLoader
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 
 import railrl.misc.hyperparameter as hyp
@@ -10,7 +11,7 @@ from railrl.launchers.arglauncher import run_variants
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=10,
+        num_epochs=100,
         num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
@@ -24,7 +25,7 @@ if __name__ == "__main__":
 
         layer_size=256,
         policy_kwargs=dict(
-            hidden_sizes=[256, 256],
+            hidden_sizes=[256, 256, 256, 256],
         ),
 
         trainer_kwargs=dict(
@@ -37,8 +38,9 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
 
-            bc_num_pretrain_steps=10000,
-            q_num_pretrain_steps=0,
+            bc_num_pretrain_steps=100,
+            q_num_pretrain1_steps=100,
+            q_num_pretrain2_steps=100,
             policy_weight_decay=1e-4,
             bc_loss_type="mle",
         ),
@@ -48,17 +50,23 @@ if __name__ == "__main__":
         path_loader_class=DictToMDPPathLoader,
         path_loader_kwargs=dict(
             obs_key="state_observation",
-            demo_path=["demos/icml2020/hand/pen.npy"],
-            # demo_off_policy_path=[
-            #     "ashvin/icml2020/hand/door/demo-bc1/run3/video_*.p",
-            #     "ashvin/icml2020/hand/door/demo-bc1/run4/video_*.p",
-            #     "ashvin/icml2020/hand/door/demo-bc1/run5/video_*.p",
-            # ],
+            demo_paths=[
+                dict(
+                    path="demos/icml2020/hand/pen.npy",
+                    obs_dict=True,
+                    is_demo=True,
+                ),
+                # dict(
+                #     path="/home/ashvin/data/s3doodad/ashvin/icml2020/hand/pen/demo-bc1/run5/id0/video_*.p",
+                #     obs_dict=True,
+                #     is_demo=False,
+                # ),
+            ],
         ),
 
-        logger_variant=dict(
-            tensorboard=True,
-        ),
+        # logger_variant=dict(
+        #     tensorboard=True,
+        # ),
         load_demos=True,
         pretrain_policy=True,
         pretrain_rl=True,
@@ -66,8 +74,8 @@ if __name__ == "__main__":
 
     search_space = {
         'env': ["pen-v0", ],
-        'seedid': range(3),
-        'trainer_kwargs.beta': [10, ],
+        'seedid': range(5),
+        'trainer_kwargs.beta': [50, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -78,4 +86,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(experiment, variants, run_id=0)
+    run_variants(experiment, variants, run_id=1)

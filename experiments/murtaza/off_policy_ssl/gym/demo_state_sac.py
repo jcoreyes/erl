@@ -1,5 +1,5 @@
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer, AWREnvReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
@@ -105,9 +105,13 @@ def experiment(variant):
         eval_env,
         eval_policy,
     )
-    replay_buffer = EnvReplayBuffer(
+    replay_buffer = AWREnvReplayBuffer(
         variant['replay_buffer_size'],
         expl_env,
+        use_weights=variant['use_weights'],
+        policy=policy,
+        qf1=qf1,
+        beta=variant['trainer_kwargs']['beta'],
     )
     trainer = AWRSACTrainer(
         env=eval_env,
@@ -214,9 +218,12 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
             bc_num_pretrain_steps=1000000,
-            q_num_pretrain_steps=1000000,
+            q_num_pretrain1_steps=0,
+            q_num_pretrain2_steps=10000,
             policy_weight_decay=1e-4,
             bc_loss_type="mle",
+            compute_bc=False,
+            weight_loss=False,
         ),
         path_loader_kwargs=dict(
             demo_path=None
@@ -224,18 +231,26 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        'use_weights':[True],
+        'trainer_kwargs.use_automatic_entropy_tuning':[False],
+        'trainer_kwargs.alpha':[0],
+        'trainer_kwargs.weight_loss,':[False],
+        'trainer_kwargs.q_num_pretrain2_steps':[10000],
         'trainer_kwargs.beta':[
+            .1,
             1,
             10,
+            100,
         ],
         'layer_size':[256,],
         'num_layers':[4],
         'train_rl':[True],
         'pretrain_rl':[True],
-        'pretrain_policy':[True],
+        'load_demos':[True],
+        'pretrain_policy':[False],
         'env': [
             'half-cheetah',
-            'ant',
+            # 'ant',
             'walker',
             'hopper',
         ],
@@ -244,13 +259,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'awr_sac_gym_v3'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'awr_sac_gym_v3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['sac_bc_trainer_kwargs']['bc_weight'] == 0 and variant['sac_bc_trainer_kwargs']['demo_beta'] != 1:

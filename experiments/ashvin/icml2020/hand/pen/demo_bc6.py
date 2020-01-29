@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
         layer_size=256,
         policy_kwargs=dict(
-            hidden_sizes=[256, 256, 256, 256],
+            hidden_sizes=[256, 256, ],
         ),
 
         trainer_kwargs=dict(
