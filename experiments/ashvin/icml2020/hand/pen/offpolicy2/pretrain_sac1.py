@@ -36,7 +36,8 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             beta=1,
-            use_automatic_entropy_tuning=True,
+            use_automatic_entropy_tuning=False,
+            alpha=0,
 
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
@@ -47,22 +48,36 @@ if __name__ == "__main__":
 
             policy_update_period=2,
             q_update_period=1,
-            use_awr_update=False,
+
+            rl_weight=1.0,
+            use_awr_update=True,
+            use_reparam_update=True,
+            reparam_weight=0.0,
+            awr_weight=1.0,
+
+            post_pretrain_hyperparams=dict(
+                bc_weight=0.0,
+                rl_weight=1.0,
+                use_awr_update=True,
+                use_reparam_update=True,
+                reparam_weight=1.0,
+                awr_weight=0.0,
+            )
         ),
         num_exps_per_instance=1,
-        region='us-west-2',
+        region='us-west-1',
 
         path_loader_class=DictToMDPPathLoader,
         path_loader_kwargs=dict(
             obs_key="state_observation",
             demo_paths=[
                 dict(
-                    path="demos/icml2020/hand/door.npy",
+                    path="demos/icml2020/hand/pen.npy",
                     obs_dict=True,
                     is_demo=True,
                 ),
                 dict(
-                    path="demos/icml2020/hand/door_bc2.npy",
+                    path="demos/icml2020/hand/pen_bc4.npy",
                     obs_dict=False,
                     is_demo=False,
                     train_split=0.9,
@@ -79,10 +94,10 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env': ["door-v0", ],
+        'env': ["pen-v0", ],
         'seedid': range(3),
-        # 'trainer_kwargs.beta': [10, 100, 1000],
-        'trainer_kwargs.bc_weight': [0.0, 1.0],
+        'trainer_kwargs.beta': [10, 100, 1000],
+        'trainer_kwargs.bc_weight': [0.0, ],
         'trainer_kwargs.q_num_pretrain2_steps': [0, 50000],
         # 'deterministic_exploration': [True, False],
     }

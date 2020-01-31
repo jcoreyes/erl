@@ -3,7 +3,6 @@ AWR + SAC from demo experiment
 """
 
 from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
-from railrl.demos.source.mdp_path_loader import MDPPathLoader, MDPPathLoader
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 
 import railrl.misc.hyperparameter as hyp
@@ -11,13 +10,13 @@ from railrl.launchers.arglauncher import run_variants
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=2001,
-        num_eval_steps_per_epoch=1000,
+        num_epochs=1,
+        num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
-        num_expl_steps_per_train_loop=1000,
+        num_expl_steps_per_train_loop=5000,
         min_num_steps_before_training=1000,
         max_path_length=1000,
-        batch_size=1024,
+        batch_size=256,
         replay_buffer_size=int(1E6),
         algorithm="SAC",
         version="normal",
@@ -25,7 +24,7 @@ if __name__ == "__main__":
 
         layer_size=256,
         policy_kwargs=dict(
-            hidden_sizes=[256, 256, 256, 256],
+            hidden_sizes=[256, 256],
         ),
 
         trainer_kwargs=dict(
@@ -38,19 +37,15 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
 
-            bc_num_pretrain_steps=0,
+            bc_num_pretrain_steps=10000,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=50000,
+            q_num_pretrain2_steps=0,
             policy_weight_decay=1e-4,
             bc_loss_type="mle",
-            bc_weight=0.0,
-
-            policy_update_period=2,
-            q_update_period=1,
-            use_awr_update=False,
+            rl_weight=0,
         ),
         num_exps_per_instance=1,
-        region='us-west-2',
+        region='us-west-1',
 
         path_loader_class=DictToMDPPathLoader,
         path_loader_kwargs=dict(
@@ -61,13 +56,19 @@ if __name__ == "__main__":
                     obs_dict=True,
                     is_demo=True,
                 ),
-                dict(
-                    path="demos/icml2020/hand/door_bc2.npy",
-                    obs_dict=False,
-                    is_demo=False,
-                    train_split=0.9,
-                ),
+                # dict(
+                #     path="demos/icml2020/hand/door_bc1.npy",
+                #     obs_dict=True,
+                #     is_demo=False,
+                #     train_split=0.9,
+                # ),
             ],
+        ),
+
+        exploration_kwargs=dict(
+            deterministic_exploration=False,
+            # strategy="ou",
+            # noise=0.1,
         ),
 
         # logger_variant=dict(
@@ -80,11 +81,12 @@ if __name__ == "__main__":
 
     search_space = {
         'env': ["door-v0", ],
-        'seedid': range(3),
-        # 'trainer_kwargs.beta': [10, 100, 1000],
-        'trainer_kwargs.bc_weight': [0.0, 1.0],
-        'trainer_kwargs.q_num_pretrain2_steps': [0, 50000],
-        # 'deterministic_exploration': [True, False],
+        'seedid': range(10),
+        # 'trainer_kwargs.beta': [1, 10, 100, 1000],
+        'trainer_kwargs.bc_num_pretrain_steps': [10000, 50000],
+        'trainer_kwargs.bc_loss_type': ["mle", "mse"],
+        # 'exploration_kwargs.deterministic_exploration': [True, False],
+
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

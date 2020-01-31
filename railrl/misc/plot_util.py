@@ -156,7 +156,7 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
     xlabel=None, default_vary=False, xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True, print_legend=True,
     reduce_op=sum, method_order=None, remap_keys={},
-    label_to_color=None, return_data=False,
+    label_to_color=None, return_data=False, bar_plot=False,
 ):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
@@ -165,7 +165,8 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
     if print_plot:
         plt.figure(figsize=figsize)
         plt.title("Vary " + " ".join(vary))
-        plt.ylabel(key)
+        if not bar_plot:
+            plt.ylabel(key)
         if xlim:
             plt.xlim(xlim)
         if ylim:
@@ -257,6 +258,21 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                 i = np.argmin(y[::snapshot]) * snapshot
                 print(label, i, y[i])
 
+    if bar_plot:
+        values = []
+        stds = []
+        for label in labels:
+            ys = to_array(y_data[label])
+            x = np.nanmean(to_array(x_data[label]), axis=0)
+            y = np.nanmean(ys, axis=0)
+            s = np.nanstd(ys, axis=0) / (len(ys) ** 0.5)
+            values.append(y[0])
+            stds.append(s[0])
+        plt.barh(range(len(values)), values, 0.5, xerr=stds)
+        plt.yticks(range(len(values)), labels, )
+        plt.ylim(-0.5, len(values) - 0.5)
+        plt.xlabel(key)
+
     if print_legend:
         plt.legend(handles=lines, bbox_to_anchor=(1.5, 0.75))
 
@@ -277,7 +293,8 @@ def split(exps,
     xlabel=None,
     default_vary=False,
     xlim=None, ylim=None,
-    print_final=False, print_max=False, print_min=False, print_plot=True):
+    print_final=False, print_max=False, print_min=False, print_plot=True,
+    **kwargs):
     split_values = {}
     for s in split:
         split_values[s] = set()
@@ -302,7 +319,8 @@ def split(exps,
                 print(key, c)
             comparison(exps, key, vary, f=fsplit, smooth=smooth,
                 figsize=figsize, xlabel=xlabel, default_vary=default_vary, xlim=xlim, ylim=ylim,
-                print_final=print_final, print_max=print_max, print_min=print_min, print_plot=print_plot)
+                print_final=print_final, print_max=print_max, print_min=print_min, print_plot=print_plot,
+                **kwargs)
             if print_plot:
                 plt.title(prettify_configuration(c) + " Vary " + " ".join(vary))
 

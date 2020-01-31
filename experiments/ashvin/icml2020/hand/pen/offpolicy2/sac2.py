@@ -36,7 +36,8 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             beta=1,
-            use_automatic_entropy_tuning=True,
+            use_automatic_entropy_tuning=False,
+            alpha=0,
 
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
@@ -57,12 +58,12 @@ if __name__ == "__main__":
             obs_key="state_observation",
             demo_paths=[
                 dict(
-                    path="demos/icml2020/hand/door.npy",
+                    path="demos/icml2020/hand/pen.npy",
                     obs_dict=True,
                     is_demo=True,
                 ),
                 dict(
-                    path="demos/icml2020/hand/door_bc2.npy",
+                    path="demos/icml2020/hand/pen_bc4.npy",
                     obs_dict=False,
                     is_demo=False,
                     train_split=0.9,
@@ -79,7 +80,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env': ["door-v0", ],
+        'env': ["pen-v0", ],
         'seedid': range(3),
         # 'trainer_kwargs.beta': [10, 100, 1000],
         'trainer_kwargs.bc_weight': [0.0, 1.0],

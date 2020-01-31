@@ -36,7 +36,8 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             beta=1,
-            use_automatic_entropy_tuning=True,
+            use_automatic_entropy_tuning=False,
+            alpha=0,
 
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,

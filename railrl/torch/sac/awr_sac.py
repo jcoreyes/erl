@@ -41,20 +41,25 @@ class AWRSACTrainer(TorchTrainer):
             target_entropy=None,
             path_loader=None,
 
-            use_awr_update=True,
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
             q_num_pretrain2_steps=0,
             bc_batch_size=128,
             bc_loss_type="mle",
             save_bc_policies=0,
-            rl_weight=1.0,
-            bc_weight=0.0,
-            compute_bc=True,
             alpha=1.0,
 
             policy_update_period=1,
             q_update_period=1,
+
+            compute_bc=True,
+            bc_weight=0.0,
+            rl_weight=1.0,
+            use_awr_update=True,
+            use_reparam_update=False,
+            reparam_weight=1.0,
+            awr_weight=1.0,
+            post_pretrain_hyperparams=None,
     ):
         super().__init__()
         self.env = env
@@ -118,6 +123,11 @@ class AWRSACTrainer(TorchTrainer):
         self.alpha = alpha
         self.q_update_period = q_update_period
         self.policy_update_period = policy_update_period
+
+        self.use_reparam_update = use_reparam_update
+        self.reparam_weight = reparam_weight
+        self.awr_weight = awr_weight
+        self.post_pretrain_hyperparams = post_pretrain_hyperparams
 
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)
@@ -251,6 +261,27 @@ class AWRSACTrainer(TorchTrainer):
         self._need_to_update_eval_statistics = True
         self.eval_statistics = dict()
 
+        if self.post_pretrain_hyperparams:
+            self.set_algorithm_weights(**self.post_pretrain_hyperparams)
+
+    def set_algorithm_weights(
+        self,
+        # bc_weight,
+        # rl_weight,
+        # use_awr_update,
+        # use_reparam_update,
+        # reparam_weight,
+        # awr_weight,
+        **kwargs
+    ):
+        for key in kwargs:
+            self.__dict__[key] = kwargs[key]
+        # self.bc_weight = bc_weight
+        # self.rl_weight = rl_weight
+        # self.use_awr_update = use_awr_update
+        # self.use_reparam_update = use_reparam_update
+        # self.awr_weight = awr_weight
+
     def train_from_torch(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
@@ -306,11 +337,12 @@ class AWRSACTrainer(TorchTrainer):
             self.qf1(obs, new_obs_actions),
             self.qf2(obs, new_obs_actions),
         )
+        policy_loss = alpha*log_pi.mean()
         if self.use_awr_update:
-            policy_loss = self.rl_weight * (alpha*log_pi - policy_logpp * weights.detach()).mean()
-        else:
-            policy_loss = self.rl_weight * (alpha*log_pi - q_new_actions).mean()
-
+            policy_loss += self.awr_weight * (-policy_logpp * weights.detach()).mean()
+        if self.use_reparam_update:
+            policy_loss += self.reparam_weight * (-q_new_actions).mean()
+        policy_loss *= self.rl_weight
         if self.compute_bc:
             train_policy_loss, train_logp_loss, train_mse_loss = self.run_bc_batch(self.demo_train_buffer)
             policy_loss += self.bc_weight * train_policy_loss / len(weights)
