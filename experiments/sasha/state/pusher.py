@@ -18,30 +18,6 @@ t = 0.05
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        # algo_kwargs=dict(
-        #     base_kwargs=dict(
-        #         num_epochs=2001,
-        #         num_steps_per_epoch=1000,
-        #         num_steps_per_eval=1000,
-        #         max_path_length=100,
-        #         num_updates_per_env_step=4,
-        #         batch_size=128,
-        #         discount=0.99,
-        #         min_num_steps_before_training=4000,
-        #         reward_scale=1.0,
-        #         render=False,
-        #         collection_mode='online',
-        #         tau=1e-2,
-        #         parallel_env_params=dict(
-        #             num_workers=1,
-        #         ),
-        #     ),
-        #     her_kwargs=dict(
-        #         observation_key='state_observation',
-        #         desired_goal_key='state_desired_goal',
-        #     ),
-        #     td3_kwargs=dict(),
-        # ),
         algo_kwargs=dict(
             batch_size=128,
             num_epochs=1000,
@@ -50,18 +26,10 @@ if __name__ == "__main__":
             num_trains_per_train_loop=4000,
             min_num_steps_before_training=1000,
             max_path_length=100,
-            # oracle_data=False,
-            # vae_save_period=25,
-            # parallel_vae_train=False,
-            # dataset_path=None,
-            # rl_offpolicy_num_training_steps=0,
         ),
         trainer_kwargs=dict(),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            # fraction_goals_rollout_goals=0.1,
-            # fraction_goals_env_goals=0.5,
-            # ob_keys_to_save=[],
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -72,7 +40,7 @@ if __name__ == "__main__":
         algorithm='HER-TD3',
         version='normal',
         es_kwargs=dict(
-            max_sigma=.2,
+            max_sigma=.5,
         ),
         exploration_type='ou',
         observation_key='state_observation',
@@ -90,7 +58,7 @@ if __name__ == "__main__":
         env_kwargs=dict(
             fixed_start=True,
             fixed_colors=False,
-            #reward_type="sparse",
+            reward_type="sparse",
             num_objects=1,
             object_meshes=None,
             num_scene_objects=[1],
@@ -115,7 +83,7 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(1),
-        'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.2, ],
+        'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.2,],
         'replay_buffer_kwargs.fraction_goals_env_goals': [0.5, ],
     }
 
@@ -135,4 +103,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(her_td3_experiment, variants, run_id=1)
+    run_variants(her_td3_experiment, variants, run_id=7)

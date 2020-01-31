@@ -503,7 +503,8 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
             dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
-            reward = 0 if dist < self.epsilon else -1
+            success = dist < self.epsilon
+            reward = success - 1
             return reward
 
         elif self.reward_type == 'latent_score':
@@ -530,10 +531,21 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
             achieved_goals = ptu.from_numpy(self._decode(obs['latent_achieved_goal']))
             reward = - 1 * np.log(ptu.get_numpy(1e-5 + -1 * self.vae.logprob(desired_goals, achieved_goals, mean=False)))
             return reward
+
+
+        #WARNING: BELOW ARE HARD CODED FOR SIM PUSHER ENV (IN DIMENSION SIZES)
         elif self.reward_type == 'state_distance':
-            achieved_goals = obs['state_achieved_goal']
-            desired_goals = obs['state_desired_goal']
-            return - np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
+            achieved_goals = obs['state_achieved_goal'].reshape(-1, 4)
+            desired_goals = obs['state_desired_goal'].reshape(-1, 4)
+            return - np.linalg.norm(desired_goals - achieved_goals, axis=1)
+        elif self.reward_type == 'state_sparse':
+            ob_p = obs['state_achieved_goal'].reshape(-1, 2, 2)
+            goal = obs['state_desired_goal'].reshape(-1, 2, 2)
+            distance = np.linalg.norm(ob_p - goal, axis=2)
+            max_dist = np.linalg.norm(distance, axis=1, ord=np.inf)
+            success = max_dist < self.epsilon
+            reward = success - 1
+            return reward
         elif self.reward_type == 'wrapped_env':
             return self.wrapped_env.compute_rewards(actions, obs)
         else:
