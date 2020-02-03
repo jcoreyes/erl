@@ -35,10 +35,10 @@ def print_stats(data):
 # ]
 # output_file = "/home/ashvin/data/s3doodad/demos/icml2020/hand/pen_bc1_vae.npy"
 
-input_patterns = [
-    "/home/ashvin/data/s3doodad/ashvin/icml2020/hand/pen/demo-bc1/run5/id0/video_*env.p",
-]
-output_file = "/home/ashvin/data/s3doodad/demos/icml2020/hand/pen_bc1_env.npy"
+# input_patterns = [
+#     "/home/ashvin/data/s3doodad/ashvin/icml2020/hand/pen/demo-bc1/run5/id0/video_*env.p",
+# ]
+# output_file = "/home/ashvin/data/s3doodad/demos/icml2020/hand/pen_bc1_env.npy"
 
 # input_patterns = [
 #     "/home/ashvin/data/s3doodad/ashvin/icml2020/hand/pen/demo-bc5/run0/id*/video_*.p",
@@ -91,18 +91,28 @@ output_file = "/home/ashvin/data/s3doodad/demos/icml2020/hand/pen_bc1_env.npy"
 # ]
 # output_file = "/home/ashvin/data/s3doodad/demos/icml2020/rlbench/rlbench_bc1.npy"
 
+# input_patterns = [
+#     "/home/ashvin/data/s3doodad/ashvin/icml2020/hand/pen/phases/bc-offpolicy2/run2/id*/video_*.p",
+# ]
+# output_file = "/home/ashvin/data/s3doodad/demos/icml2020/hand/pen_bc5.npy"
+
+input_patterns = [
+    "/home/ashvin/data/s3doodad/ashvin/icml2020/hand/door/phases/bc-offpolicy2/run2/id*/video_*.p",
+]
+output_file = "/home/ashvin/data/s3doodad/demos/icml2020/hand/door_bc5.npy"
+
 data = []
 for pattern in input_patterns:
     for file in glob.glob(pattern):
         d = pickle.load(open(file, "rb"))
         print(file, len(d))
-        for path in d: # for deleting image observations
-            for i in range(len(path["observations"])):
-                ob = path["observations"][i]
-                keys = list(ob.keys())
-                for key in keys:
-                    if key != "state_observation":
-                        del ob[key]
+        # for path in d: # for deleting image observations
+        #     for i in range(len(path["observations"])):
+        #         ob = path["observations"][i]
+        #         keys = list(ob.keys())
+        #         for key in keys:
+        #             if key != "state_observation":
+        #                 del ob[key]
         data.extend(d)
 
 pickle.dump(data, open(output_file, "wb"))

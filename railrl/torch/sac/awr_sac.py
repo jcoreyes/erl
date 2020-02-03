@@ -46,6 +46,7 @@ class AWRSACTrainer(TorchTrainer):
             q_num_pretrain2_steps=0,
             bc_batch_size=128,
             bc_loss_type="mle",
+            awr_loss_type="mle",
             save_bc_policies=0,
             alpha=1.0,
 
@@ -116,6 +117,7 @@ class AWRSACTrainer(TorchTrainer):
         self.q_num_pretrain2_steps = q_num_pretrain2_steps
         self.bc_batch_size = bc_batch_size
         self.bc_loss_type = bc_loss_type
+        self.awr_loss_type = awr_loss_type
         self.rl_weight = rl_weight
         self.bc_weight = bc_weight
         self.save_bc_policies = save_bc_policies
@@ -128,6 +130,7 @@ class AWRSACTrainer(TorchTrainer):
         self.reparam_weight = reparam_weight
         self.awr_weight = awr_weight
         self.post_pretrain_hyperparams = post_pretrain_hyperparams
+        self.update_policy = True
 
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)
@@ -170,12 +173,14 @@ class AWRSACTrainer(TorchTrainer):
         )
         for i in range(self.bc_num_pretrain_steps):
             train_policy_loss, train_logp_loss, train_mse_loss = self.run_bc_batch(self.demo_train_buffer)
+            train_policy_loss = train_policy_loss * self.bc_weight
 
             self.policy_optimizer.zero_grad()
             train_policy_loss.backward()
             self.policy_optimizer.step()
 
             test_policy_loss, test_logp_loss, test_mse_loss = self.run_bc_batch(self.demo_test_buffer)
+            test_policy_loss = test_policy_loss * self.bc_weight
 
             stats = {
                 "pretrain_bc/batch": i,
@@ -328,7 +333,10 @@ class AWRSACTrainer(TorchTrainer):
         v_pi = self.qf1(obs, new_obs_actions)
         # policy_logpp = -(new_obs_actions - actions) ** 2
         # policy_logpp = policy_logpp.mean(dim=1)
-        policy_logpp = self.policy.logprob(actions, policy_mean, policy_std)
+        if self.awr_loss_type == "mse":
+            policy_logpp = -(policy_mean - actions) ** 2
+        else:
+            policy_logpp = self.policy.logprob(actions, policy_mean, policy_std)
 
         advantage = q1_pred - v_pi
         weights = F.softmax(advantage / self.beta, dim=0)
@@ -339,13 +347,13 @@ class AWRSACTrainer(TorchTrainer):
         )
         policy_loss = alpha*log_pi.mean()
         if self.use_awr_update:
-            policy_loss += self.awr_weight * (-policy_logpp * weights.detach()).mean()
+            policy_loss = policy_loss + self.awr_weight * (-policy_logpp * weights.detach()).mean()
         if self.use_reparam_update:
-            policy_loss += self.reparam_weight * (-q_new_actions).mean()
-        policy_loss *= self.rl_weight
+            policy_loss = policy_loss + self.reparam_weight * (-q_new_actions).mean()
+        policy_loss = self.rl_weight * policy_loss
         if self.compute_bc:
             train_policy_loss, train_logp_loss, train_mse_loss = self.run_bc_batch(self.demo_train_buffer)
-            policy_loss += self.bc_weight * train_policy_loss / len(weights)
+            policy_loss = policy_loss + self.bc_weight * train_policy_loss / len(weights)
 
         """
         Update networks
@@ -359,7 +367,7 @@ class AWRSACTrainer(TorchTrainer):
             qf2_loss.backward()
             self.qf2_optimizer.step()
 
-        if self._n_train_steps_total % self.policy_update_period == 0:
+        if self._n_train_steps_total % self.policy_update_period == 0 and self.update_policy:
             self.policy_optimizer.zero_grad()
             policy_loss.backward()
             self.policy_optimizer.step()

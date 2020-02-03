@@ -180,6 +180,7 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
         if v in default_vary:
             return str(default_vary[v])
         print(v)
+        print(l['flat_params'])
         error_key_not_found_in_flat_params
     for l in exps:
         if f(l) and l['progress']:
@@ -259,6 +260,8 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                 print(label, i, y[i])
 
     if bar_plot:
+        plt.figure(figsize=figsize)
+        plt.title("Vary " + " ".join(vary))
         values = []
         stds = []
         for label in labels:

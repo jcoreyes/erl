@@ -7,6 +7,8 @@ from railrl.torch.core import eval_np
 from railrl.torch.distributions import TanhNormal, Normal
 from railrl.torch.networks import Mlp, CNN
 
+import railrl.torch.pytorch_util as ptu
+
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 
@@ -203,8 +205,8 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
             std = torch.exp(log_std)
         else:
-            std = self.std
-            log_std = self.log_std
+            std = torch.from_numpy(np.array([self.std, ])).float().to(ptu.device)
+            log_std = torch.log(std) # self.log_std
 
         log_prob = None
         entropy = None
@@ -253,6 +255,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         )
 
     def logprob(self, action, mean, std):
+        # import ipdb; ipdb.set_trace()
         tanh_normal = TanhNormal(mean, std)
         log_prob = tanh_normal.log_prob(
             action,
@@ -344,7 +347,7 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
             log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
             std = torch.exp(log_std)
         else:
-            std = self.std
+            std = torch.from_numpy(self.std)
             log_std = self.log_std
 
         log_prob = None
@@ -513,7 +516,7 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
         )
 
 
-class MakeDeterministic(Policy):
+class MakeDeterministic(Policy, ):
     def __init__(self, stochastic_policy):
         self.stochastic_policy = stochastic_policy
 

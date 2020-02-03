@@ -44,6 +44,11 @@ from railrl.exploration_strategies.base import \
 from railrl.exploration_strategies.gaussian_and_epislon import GaussianAndEpislonStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 
+import os.path as osp
+import pickle
+from railrl.core import logger
+from railrl.misc.asset_loader import load_local_or_remote_file
+
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'env_class': HalfCheetahEnv,
@@ -191,7 +196,19 @@ def encoder_wrapped_env(variant):
 
     return env
 
+def resume(variant):
+    data = load_local_or_remote_file(variant.get("pretrained_algorithm_path"), map_location="cuda")
+    algo = data['algorithm']
+
+    post_pretrain_hyperparams = variant["trainer_kwargs"].get("post_pretrain_hyperparams", {})
+    algo.trainer.set_algorithm_weights(**post_pretrain_hyperparams)
+
+    algo.train()
+
 def experiment(variant):
+    if variant.get("pretrained_algorithm_path", False):
+        resume(variant)
+
     if 'env' in variant:
         env_params = ENV_PARAMS[variant['env']]
         variant.update(env_params)
@@ -369,5 +386,13 @@ def experiment(variant):
         trainer.pretrain_policy_with_bc()
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
+
+    if variant.get('save_pretrained_algorithm', False):
+        p_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.p')
+        pt_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.pt')
+        data = algorithm._get_snapshot()
+        data['algorithm'] = algorithm
+        torch.save(data, open(pt_path, "wb"))
+        torch.save(data, open(p_path, "wb"))
 
     algorithm.train()
