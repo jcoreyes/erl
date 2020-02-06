@@ -12,6 +12,7 @@ from railrl.torch.torch_rl_algorithm import TorchTrainer
 from railrl.core import logger
 
 import torch.nn.functional as F
+import os.path as osp
 
 class AWRSACTrainer(TorchTrainer):
     def __init__(
@@ -132,6 +133,11 @@ class AWRSACTrainer(TorchTrainer):
         self.post_pretrain_hyperparams = post_pretrain_hyperparams
         self.update_policy = True
 
+        # self.bc_log = dict(
+        #     train=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
+        #     test=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
+        # )
+
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)
         batch = np_to_pytorch_batch(batch)
@@ -148,8 +154,15 @@ class AWRSACTrainer(TorchTrainer):
         pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
             og, deterministic=True, reparameterize=True, return_log_prob=True,
         )
-        mse = (pred_u - u) ** 2
+        mse = (policy_mean - u) ** 2
         mse_loss = mse.mean()
+
+        # name = "train" if replay_buffer == self.demo_train_buffer else "test"
+        # log = self.bc_log[name]
+        # log["mean"].append(ptu.get_numpy(policy_mean))
+        # log["log_std"].append(ptu.get_numpy(policy_log_std))
+        # log["abs_error"].append(ptu.get_numpy(torch.abs(pred_u - u)))
+        # log["expert_action"].append(ptu.get_numpy(u))
 
         policy_logpp = self.policy.logprob(u, policy_mean, policy_std)[:, 0]
         logp_loss = -policy_logpp.mean()
@@ -172,6 +185,11 @@ class AWRSACTrainer(TorchTrainer):
             'pretrain_policy.csv', relative_to_snapshot_dir=True
         )
         for i in range(self.bc_num_pretrain_steps):
+            if i >= 1000:
+                self.bc_loss_type = "mle"
+            else:
+                self.bc_loss_type = "mse"
+
             train_policy_loss, train_logp_loss, train_mse_loss = self.run_bc_batch(self.demo_train_buffer)
             train_policy_loss = train_policy_loss * self.bc_weight
 
@@ -207,6 +225,9 @@ class AWRSACTrainer(TorchTrainer):
             'progress.csv',
             relative_to_snapshot_dir=True,
         )
+
+        # savepath = osp.join(logger.get_snapshot_dir(), 'bc_log.npy')
+        # np.save(savepath, self.bc_log)
 
     def pretrain_q_with_bc_data(self):
         logger.remove_tabular_output(

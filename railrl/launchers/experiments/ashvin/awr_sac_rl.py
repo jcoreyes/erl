@@ -264,7 +264,8 @@ def experiment(variant):
         output_size=1,
         hidden_sizes=[M, M],
     )
-    policy = TanhGaussianPolicy(
+    policy_class = variant.get("policy_class", TanhGaussianPolicy)
+    policy = policy_class(
         obs_dim=obs_dim,
         action_dim=action_dim,
         **variant['policy_kwargs'],

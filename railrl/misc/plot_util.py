@@ -152,6 +152,13 @@ def exclude_by_flat_params(d):
         return True
     return f
 
+def filter_exps(exps, filter_fn):
+    good_exps = []
+    for e in exps:
+        if filter_fn(e):
+            good_exps.append(e)
+    return good_exps
+
 def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3.5),
     xlabel=None, default_vary=False, xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True, print_legend=True,

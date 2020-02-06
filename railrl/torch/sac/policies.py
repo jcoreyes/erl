@@ -289,6 +289,8 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
             action_dim,
             std=None,
             init_w=1e-3,
+            min_log_std=None,
+            max_log_std=None,
             **kwargs
     ):
         super().__init__(
@@ -296,8 +298,11 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
             input_size=obs_dim,
             output_size=action_dim,
             init_w=init_w,
+            output_activation=torch.tanh,
             **kwargs
         )
+        self.min_log_std = min_log_std
+        self.max_log_std = max_log_std
         self.log_std = None
         self.std = std
         if std is None:
@@ -341,10 +346,13 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
         h = obs
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
-        mean = self.last_fc(h)
+        preactivation = self.last_fc(h)
+        mean = self.output_activation(preactivation)
         if self.std is None:
-            log_std = self.last_fc_log_std(h)
-            log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+            # log_std = self.last_fc_log_std(h)
+            # log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+            log_std = torch.sigmoid(self.last_fc_log_std(h))
+            log_std = self.min_log_std + log_std * (self.max_log_std - self.min_log_std)
             std = torch.exp(log_std)
         else:
             std = torch.from_numpy(self.std)
@@ -381,10 +389,20 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
             normal = Normal(mean, std)
             mean_action_log_prob = normal.log_prob(mean)
             mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
+
         return (
             action, mean, log_std, log_prob, entropy, std,
             mean_action_log_prob, pre_tanh_value,
         )
+
+    def logprob(self, action, mean, std):
+        # import ipdb; ipdb.set_trace()
+        normal = Normal(mean, std)
+        log_prob = normal.log_prob(
+            action,
+        )
+        log_prob = log_prob.sum(dim=1, keepdim=True)
+        return log_prob
 
 # noinspection PyMethodOverriding
 class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
