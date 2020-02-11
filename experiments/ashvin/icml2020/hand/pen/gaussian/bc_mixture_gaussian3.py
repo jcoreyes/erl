@@ -46,10 +46,10 @@ if __name__ == "__main__":
             alpha=0,
             compute_bc=True,
 
-            bc_num_pretrain_steps=100,
+            bc_num_pretrain_steps=10000,
             q_num_pretrain1_steps=0,
             q_num_pretrain2_steps=0,
-            policy_weight_decay=1e-4,
+            policy_weight_decay=1e-3,
             bc_loss_type="mse",
 
             rl_weight=1.0,
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             obs_key="state_observation",
             demo_paths=[
                 dict(
-                    path="demos/icml2020/hand/pen.npy",
+                    path="demos/icml2020/hand/pen2.npy",
                     obs_dict=True,
                     is_demo=True,
                 ),
@@ -102,7 +102,7 @@ if __name__ == "__main__":
         'trainer_kwargs.awr_weight': [0.0, ],
         'trainer_kwargs.bc_weight': [1.0],
         # 'path_loader_kwargs.stack_obs': [1, 2, 3, 5, 10],
-        'policy_kwargs.num_gaussians': [3, 10, 30],
+        'policy_kwargs.num_gaussians': [10, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

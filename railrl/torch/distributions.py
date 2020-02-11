@@ -2,7 +2,7 @@
 Add custom distributions in addition to th existing ones
 """
 import torch
-from torch.distributions import Distribution, Normal
+from torch.distributions import Distribution, Normal, Categorical, OneHotCategorical
 import railrl.torch.pytorch_util as ptu
 import numpy as np
 
@@ -14,6 +14,7 @@ class GaussianMixture(Distribution):
         self.normal = Normal(normal_means, normal_stds)
         self.normals = [Normal(normal_means[:, :, i], normal_stds[:, :, i]) for i in range(self.num_gaussians)]
         self.weights = weights
+        self.categorical = OneHotCategorical(self.weights[:, :, 0])
 
     def log_prob(self, value, ):
         lop_p = [self.normals[i].log_prob(value) for i in range(self.num_gaussians)]
@@ -35,7 +36,11 @@ class GaussianMixture(Distribution):
 
     def sample(self, ):
         z = self.normal.sample().detach()
-        s = torch.matmul(z, self.weights.detach())
+        r = self.normals[0].sample()
+        c = self.categorical.sample()[:, :, None]
+        # for i, j in enumerate(c):
+            # r[i, :] = z[i, :, j]
+        s = torch.matmul(z, c)
         return torch.squeeze(s, 2)
 
     def rsample(self, ):
@@ -48,7 +53,12 @@ class GaussianMixture(Distribution):
                 ).sample()
         )
         z.requires_grad_()
-        s = torch.matmul(z, self.weights)
+        r = self.normals[0].sample()
+        c = self.categorical.sample()[:, :, None]
+        # for i, j in enumerate(c):
+        #     r[i, :] = z[i, :, j]
+        # import ipdb; ipdb.set_trace()
+        s = torch.matmul(z, c)
         return torch.squeeze(s, 2)
 
     def mean(self, ):
