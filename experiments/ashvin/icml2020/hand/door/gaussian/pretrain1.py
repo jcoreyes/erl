@@ -106,15 +106,16 @@ if __name__ == "__main__":
         'trainer_kwargs.bc_loss_type': ["mle"],
         'trainer_kwargs.awr_loss_type': ["mle"],
         'seedid': range(3),
-        'trainer_kwargs.beta': [100],
+        'trainer_kwargs.beta': [1, 10],
         'trainer_kwargs.use_automatic_entropy_tuning': [False],
         'policy_kwargs.min_log_std': [-2, ],
         'policy_kwargs.min_log_std': [-6, ],
         # 'trainer_kwargs.reparam_weight': [0.0, 1.0],
         # 'trainer_kwargs.awr_weight': [0.0, 1.0],
         # 'trainer_kwargs.bc_weight': [0.0, 1.0],
-        'trainer_kwargs.post_pretrain_hyperparams.bc_weight': [300000.0, ],
-        'trainer_kwargs.post_pretrain_hyperparams.awr_weight': [300000.0, ],
+        'trainer_kwargs.post_pretrain_hyperparams.bc_weight': [1.0, ],
+        'trainer_kwargs.post_pretrain_hyperparams.awr_weight': [1.0, ],
+        'trainer_kwargs.post_pretrain_hyperparams.reparam_weight': [1e-6, 3e-5, 3e-6, ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

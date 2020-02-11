@@ -27,6 +27,8 @@ def print_stats(args):
 
     for path in data:
         rewards = path["rewards"]
+        actions = path["actions"]
+        print_stat(actions, "actions")
         returns.append(np.sum(rewards))
         path_lengths.append(len(rewards))
         terminals.append(np.sum(path["terminals"]))

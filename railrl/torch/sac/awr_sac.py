@@ -151,9 +151,10 @@ class AWRSACTrainer(TorchTrainer):
         # og = torch.cat((o, g), dim=1)
         og = o
         # pred_u, *_ = self.policy(og)
-        pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
-            og, deterministic=True, reparameterize=True, return_log_prob=True,
+        pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, mean_action_log_prob, pretanh_value, dist = self.policy(
+            og, deterministic=False, reparameterize=True, return_log_prob=True,
         )
+        # import ipdb; ipdb.set_trace()
         mse = (policy_mean - u) ** 2
         mse_loss = mse.mean()
 
@@ -164,7 +165,7 @@ class AWRSACTrainer(TorchTrainer):
         # log["abs_error"].append(ptu.get_numpy(torch.abs(pred_u - u)))
         # log["expert_action"].append(ptu.get_numpy(u))
 
-        policy_logpp = self.policy.logprob(u, policy_mean, policy_std)[:, 0]
+        policy_logpp = dist.log_prob(u, )
         logp_loss = -policy_logpp.mean()
 
         # T = 0
@@ -175,7 +176,7 @@ class AWRSACTrainer(TorchTrainer):
         else:
             error
 
-        return policy_loss, logp_loss, mse_loss
+        return policy_loss, logp_loss, mse_loss, policy_log_std
 
     def pretrain_policy_with_bc(self):
         logger.remove_tabular_output(
@@ -185,19 +186,14 @@ class AWRSACTrainer(TorchTrainer):
             'pretrain_policy.csv', relative_to_snapshot_dir=True
         )
         for i in range(self.bc_num_pretrain_steps):
-            if i >= 1000:
-                self.bc_loss_type = "mle"
-            else:
-                self.bc_loss_type = "mse"
-
-            train_policy_loss, train_logp_loss, train_mse_loss = self.run_bc_batch(self.demo_train_buffer)
+            train_policy_loss, train_logp_loss, train_mse_loss, train_log_std = self.run_bc_batch(self.demo_train_buffer)
             train_policy_loss = train_policy_loss * self.bc_weight
 
             self.policy_optimizer.zero_grad()
             train_policy_loss.backward()
             self.policy_optimizer.step()
 
-            test_policy_loss, test_logp_loss, test_mse_loss = self.run_bc_batch(self.demo_test_buffer)
+            test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer)
             test_policy_loss = test_policy_loss * self.bc_weight
 
             stats = {
@@ -208,6 +204,8 @@ class AWRSACTrainer(TorchTrainer):
                 "pretrain_bc/Test MSE": ptu.get_numpy(test_mse_loss),
                 "pretrain_bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
                 "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
+                "pretrain_bc/train_mean_log_std": np.mean(ptu.get_numpy(train_log_std)),
+                "pretrain_bc/test_mean_log_std": np.mean(ptu.get_numpy(test_log_std)),
             }
             logger.record_dict(stats)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
@@ -318,7 +316,7 @@ class AWRSACTrainer(TorchTrainer):
         """
         Policy and Alpha Loss
         """
-        new_obs_actions, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
+        new_obs_actions, policy_mean, policy_log_std, log_pi, entropy, policy_std, mean_action_log_prob, pretanh_value, dist = self.policy(
             obs, reparameterize=True, return_log_prob=True,
         )
 
@@ -357,7 +355,7 @@ class AWRSACTrainer(TorchTrainer):
         if self.awr_loss_type == "mse":
             policy_logpp = -(policy_mean - actions) ** 2
         else:
-            policy_logpp = self.policy.logprob(actions, policy_mean, policy_std)
+            policy_logpp = dist.log_prob(actions)
 
         advantage = q1_pred - v_pi
         weights = F.softmax(advantage / self.beta, dim=0)
@@ -373,7 +371,7 @@ class AWRSACTrainer(TorchTrainer):
             policy_loss = policy_loss + self.reparam_weight * (-q_new_actions).mean()
         policy_loss = self.rl_weight * policy_loss
         if self.compute_bc:
-            train_policy_loss, train_logp_loss, train_mse_loss = self.run_bc_batch(self.demo_train_buffer)
+            train_policy_loss, train_logp_loss, train_mse_loss, _ = self.run_bc_batch(self.demo_train_buffer)
             policy_loss = policy_loss + self.bc_weight * train_policy_loss / len(weights)
 
         """
@@ -453,7 +451,7 @@ class AWRSACTrainer(TorchTrainer):
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
 
             if self.compute_bc:
-                test_policy_loss, test_logp_loss, test_mse_loss = self.run_bc_batch(self.demo_test_buffer)
+                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.demo_test_buffer)
                 self.eval_statistics.update({
                     "bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
                     "bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),

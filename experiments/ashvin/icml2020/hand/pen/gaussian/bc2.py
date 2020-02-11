@@ -13,8 +13,8 @@ from railrl.torch.sac.policies import GaussianPolicy
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=3000,
-        num_eval_steps_per_epoch=5000,
+        num_epochs=11,
+        num_eval_steps_per_epoch=1000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
         min_num_steps_before_training=1000,
@@ -45,33 +45,33 @@ if __name__ == "__main__":
             alpha=0,
             compute_bc=True,
 
-            bc_num_pretrain_steps=0,
+            bc_num_pretrain_steps=10000,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=10000,
+            q_num_pretrain2_steps=0,
             policy_weight_decay=1e-4,
             bc_loss_type="mse",
 
-            rl_weight=1.0,
+            rl_weight=0.0,
             use_awr_update=True,
             use_reparam_update=True,
             reparam_weight=0.0,
-            awr_weight=1.0,
+            awr_weight=0.0,
             bc_weight=1.0,
         ),
         num_exps_per_instance=1,
-        region='us-west-2',
+        region='us-west-1',
 
         path_loader_class=DictToMDPPathLoader,
         path_loader_kwargs=dict(
             obs_key="state_observation",
             demo_paths=[
                 dict(
-                    path="demos/icml2020/hand/door.npy",
+                    path="demos/icml2020/hand/pen.npy",
                     obs_dict=True,
                     is_demo=True,
                 ),
                 dict(
-                    path="demos/icml2020/hand/door_bc5.npy",
+                    path="demos/icml2020/hand/pen_bc5.npy",
                     obs_dict=False,
                     is_demo=False,
                     train_split=0.9,
@@ -85,21 +85,22 @@ if __name__ == "__main__":
         load_demos=True,
         pretrain_policy=True,
         pretrain_rl=True,
-        save_pretrained_algorithm=True,
+        # save_pretrained_algorithm=True,
         # snapshot_mode="all",
     )
 
     search_space = {
-        'env': ["door-v0", ],
+        'env': ["pen-v0", ],
         'trainer_kwargs.bc_loss_type': ["mle"],
         'trainer_kwargs.awr_loss_type': ["mle"],
         'seedid': range(3),
-        'trainer_kwargs.beta': [100, 1000],
+        'trainer_kwargs.beta': [100],
         'trainer_kwargs.use_automatic_entropy_tuning': [False],
-        'policy_kwargs.min_log_std': [-2, ],
+        'policy_kwargs.max_log_std': [-2, ],
         'policy_kwargs.min_log_std': [-6, ],
-        'trainer_kwargs.awr_weight': [0.0, 1.0],
-        'trainer_kwargs.bc_weight': [0.0, 1.0],
+        # 'trainer_kwargs.reparam_weight': [0.0, 1.0],
+        # 'trainer_kwargs.awr_weight': [0.0, 1.0],
+        # 'trainer_kwargs.bc_weight': [0.0, 1.0],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -109,7 +110,7 @@ if __name__ == "__main__":
     variants = []
     for variant in sweeper.iterate_hyperparameters():
         trainer_kwargs = variant["trainer_kwargs"]
-        if not (trainer_kwargs["awr_weight"] == 0 and trainer_kwargs["bc_weight"] == 0):
+        if not (trainer_kwargs["reparam_weight"] == 0 and trainer_kwargs["awr_weight"] == 0 and trainer_kwargs["bc_weight"] == 0):
             variants.append(variant)
 
     run_variants(experiment, variants, run_id=0)

@@ -2,7 +2,7 @@
 AWR + SAC from demo experiment
 """
 
-from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+from railrl.demos.source.dict_to_mdp_stacked_path_loader import DictToMDPStackedPathLoader
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 
@@ -13,10 +13,10 @@ from railrl.torch.sac.policies import GaussianPolicy
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=3000,
+        num_epochs=10,
         num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
-        num_expl_steps_per_train_loop=1000,
+        num_expl_steps_per_train_loop=5000,
         min_num_steps_before_training=1000,
         max_path_length=1000,
         batch_size=1024,
@@ -45,9 +45,9 @@ if __name__ == "__main__":
             alpha=0,
             compute_bc=True,
 
-            bc_num_pretrain_steps=0,
+            bc_num_pretrain_steps=10000,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=10000,
+            q_num_pretrain2_steps=0,
             policy_weight_decay=1e-4,
             bc_loss_type="mse",
 
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         num_exps_per_instance=1,
         region='us-west-2',
 
-        path_loader_class=DictToMDPPathLoader,
+        path_loader_class=DictToMDPStackedPathLoader,
         path_loader_kwargs=dict(
             obs_key="state_observation",
             demo_paths=[
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         load_demos=True,
         pretrain_policy=True,
         pretrain_rl=True,
-        save_pretrained_algorithm=True,
+        # save_pretrained_algorithm=True,
         # snapshot_mode="all",
     )
 
@@ -94,12 +94,13 @@ if __name__ == "__main__":
         'trainer_kwargs.bc_loss_type': ["mle"],
         'trainer_kwargs.awr_loss_type': ["mle"],
         'seedid': range(3),
-        'trainer_kwargs.beta': [100, 1000],
+        'trainer_kwargs.beta': [100, ],
         'trainer_kwargs.use_automatic_entropy_tuning': [False],
         'policy_kwargs.min_log_std': [-2, ],
         'policy_kwargs.min_log_std': [-6, ],
-        'trainer_kwargs.awr_weight': [0.0, 1.0],
-        'trainer_kwargs.bc_weight': [0.0, 1.0],
+        'trainer_kwargs.awr_weight': [0.0, ],
+        'trainer_kwargs.bc_weight': [1.0],
+        'path_loader_kwargs.stack_obs': [1, 2, 3, 5, 10],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
