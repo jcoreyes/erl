@@ -107,7 +107,7 @@ class AWREnvReplayBuffer(SimpleReplayBuffer):
         )
 
     def refresh_weights(self):
-        if self.counter % self.weight_update_period == 0 and self._use_weights:
+        if self.actual_weights is None or (self.counter % self.weight_update_period == 0 and self._use_weights):
             batch_size = 1024
             next_idx = min(batch_size, self._size)
 
@@ -130,7 +130,10 @@ class AWREnvReplayBuffer(SimpleReplayBuffer):
                 next_idx += batch_size
                 next_idx = min(next_idx, self._size)
 
-            self.actual_weights = ptu.get_numpy(F.softmax(self.weights[:self._size], dim=0).reshape(-1))
+            self.actual_weights = ptu.get_numpy(F.softmax(self.weights[:self._size], dim=0))
+            p_sum = np.sum(self.actual_weights)
+            assert p_sum > 0, "Unnormalized p sum is {}".format(p_sum)
+            self.actual_weights = (self.actual_weights/p_sum).flatten()
         self.counter += 1
 
     def sample_weighted_indices(self, batch_size):
@@ -150,13 +153,17 @@ class AWREnvReplayBuffer(SimpleReplayBuffer):
     def random_batch(self, batch_size):
         self.refresh_weights()
         indices = self.sample_weighted_indices(batch_size)
+        if self._use_weights:
+            weights = self.actual_weights[indices]
+        else:
+            weights = self._rewards[indices]
         batch = dict(
             observations=self._observations[indices],
             actions=self._actions[indices],
             rewards=self._rewards[indices],
             terminals=self._terminals[indices],
             next_observations=self._next_obs[indices],
-            weights=self.actual_weights[indices],
+            weights=weights,
         )
         for key in self._env_info_keys:
             assert key not in batch.keys()

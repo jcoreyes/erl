@@ -111,6 +111,7 @@ def experiment(variant):
         use_weights=variant['use_weights'],
         policy=policy,
         qf1=qf1,
+        weight_update_period=variant['weight_update_period'],
         beta=variant['trainer_kwargs']['beta'],
     )
     trainer = AWRSACTrainer(
@@ -228,29 +229,30 @@ if __name__ == "__main__":
         path_loader_kwargs=dict(
             demo_path=None
         ),
+        weight_update_period=10000,
     )
 
     search_space = {
         'use_weights':[True],
+        'weight_update_period':[1000, 10000],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
-        'trainer_kwargs.weight_loss,':[False],
-        'trainer_kwargs.q_num_pretrain2_steps':[10000],
+        'trainer_kwargs.weight_loss':[False],
+        'trainer_kwargs.q_num_pretrain2_steps':[10],
         'trainer_kwargs.beta':[
-            .1,
-            1,
             10,
             100,
+            1000,
         ],
         'layer_size':[256,],
-        'num_layers':[4],
+        'num_layers':[2, 4],
         'train_rl':[True],
         'pretrain_rl':[True],
         'load_demos':[True],
         'pretrain_policy':[False],
         'env': [
-            'half-cheetah',
-            # 'ant',
+            # 'half-cheetah',
+            'ant',
             'walker',
             'hopper',
         ],
@@ -259,24 +261,22 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'awr_sac_gym_v3'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'awr_sac_gym_resampled_v3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        # if variant['sac_bc_trainer_kwargs']['bc_weight'] == 0 and variant['sac_bc_trainer_kwargs']['demo_beta'] != 1:
-        #     continue
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                num_exps_per_instance=2,
+                num_exps_per_instance=1,
                 skip_wait=False,
                 gcp_kwargs=dict(
                     preemptible=False,
