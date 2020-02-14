@@ -355,7 +355,9 @@ class AWRSACTrainer(TorchTrainer):
         if self.awr_loss_type == "mse":
             policy_logpp = -(policy_mean - actions) ** 2
         else:
+            # import ipdb; ipdb.set_trace()
             policy_logpp = dist.log_prob(actions)
+            policy_logpp = policy_logpp.sum(dim=1, keepdim=True)
 
         advantage = q1_pred - v_pi
         weights = F.softmax(advantage / self.beta, dim=0)
@@ -366,13 +368,14 @@ class AWRSACTrainer(TorchTrainer):
         )
         policy_loss = alpha*log_pi.mean()
         if self.use_awr_update:
-            policy_loss = policy_loss + self.awr_weight * (-policy_logpp * weights.detach()).mean()
+            policy_loss = policy_loss + self.awr_weight * (-policy_logpp * len(weights) * weights.detach()).mean()
         if self.use_reparam_update:
             policy_loss = policy_loss + self.reparam_weight * (-q_new_actions).mean()
         policy_loss = self.rl_weight * policy_loss
+        # import ipdb; ipdb.set_trace()
         if self.compute_bc:
             train_policy_loss, train_logp_loss, train_mse_loss, _ = self.run_bc_batch(self.demo_train_buffer)
-            policy_loss = policy_loss + self.bc_weight * train_policy_loss / len(weights)
+            policy_loss = policy_loss + self.bc_weight * train_policy_loss
 
         """
         Update networks
