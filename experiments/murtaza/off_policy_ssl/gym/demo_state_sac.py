@@ -7,7 +7,7 @@ from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import FlattenMlp
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.sac.awr_sac import AWRSACTrainer
-from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy
+from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy, GaussianPolicy
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
@@ -95,10 +95,12 @@ def experiment(variant):
         output_size=1,
         hidden_sizes=[M] * N,
     )
-    policy = TanhGaussianPolicy(
+    policy = variant.get('policy_class', TanhGaussianPolicy)(
         obs_dim=obs_dim,
         action_dim=action_dim,
         hidden_sizes=[M] * N,
+        min_log_std=-50,
+        max_log_std=50,
     )
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
@@ -234,26 +236,35 @@ if __name__ == "__main__":
         'use_weights':[True],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
-        'trainer_kwargs.weight_loss,':[False],
+        'trainer_kwargs.weight_loss':[True],
         'trainer_kwargs.q_num_pretrain2_steps':[10000],
         'trainer_kwargs.beta':[
-            .1,
-            1,
             10,
-            100,
+            # 100,
         ],
         'layer_size':[256,],
         'num_layers':[4],
-        'train_rl':[True],
-        'pretrain_rl':[True],
+        'train_rl':[False],
+        'pretrain_rl':[False],
         'load_demos':[True],
-        'pretrain_policy':[False],
+        'pretrain_policy':[True],
         'env': [
-            'half-cheetah',
-            # 'ant',
-            'walker',
-            'hopper',
+            # 'half-cheetah',
+            'ant',
+            # 'walker',
+            # 'hopper',
         ],
+        'policy_class':[
+          # TanhGaussianPolicy,
+          GaussianPolicy,
+        ],
+        'trainer_kwargs.bc_loss_type':[
+            'mle'
+        ],
+        'trainer_kwargs.awr_loss_type':[
+            'mle',
+        ]
+
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

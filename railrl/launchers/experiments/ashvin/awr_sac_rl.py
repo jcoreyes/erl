@@ -39,6 +39,16 @@ import torch
 import numpy as np
 from torchvision.utils import save_image
 
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.gaussian_and_epislon import GaussianAndEpislonStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
+
+import os.path as osp
+import pickle
+from railrl.core import logger
+from railrl.misc.asset_loader import load_local_or_remote_file
+
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'env_class': HalfCheetahEnv,
@@ -186,7 +196,19 @@ def encoder_wrapped_env(variant):
 
     return env
 
+def resume(variant):
+    data = load_local_or_remote_file(variant.get("pretrained_algorithm_path"), map_location="cuda")
+    algo = data['algorithm']
+
+    post_pretrain_hyperparams = variant["trainer_kwargs"].get("post_pretrain_hyperparams", {})
+    algo.trainer.set_algorithm_weights(**post_pretrain_hyperparams)
+
+    algo.train()
+
 def experiment(variant):
+    if variant.get("pretrained_algorithm_path", False):
+        resume(variant)
+
     if 'env' in variant:
         env_params = ENV_PARAMS[variant['env']]
         variant.update(env_params)
@@ -221,7 +243,6 @@ def experiment(variant):
         env=expl_env,
     )
 
-
     M = variant['layer_size']
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
@@ -243,16 +264,52 @@ def experiment(variant):
         output_size=1,
         hidden_sizes=[M, M],
     )
-    policy = TanhGaussianPolicy(
+    policy_class = variant.get("policy_class", TanhGaussianPolicy)
+    policy = policy_class(
         obs_dim=obs_dim,
         action_dim=action_dim,
         **variant['policy_kwargs'],
     )
+
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
         eval_env,
         eval_policy,
     )
+
+    expl_policy = policy
+    exploration_kwargs =  variant.get('exploration_kwargs', {})
+    if exploration_kwargs:
+        if exploration_kwargs.get("deterministic_exploration", False):
+            expl_policy = MakeDeterministic(policy)
+
+        exploration_strategy = exploration_kwargs.get("strategy", None)
+        if exploration_strategy is None:
+            pass
+        elif exploration_strategy == 'ou':
+            es = OUStrategy(
+                action_space=expl_env.action_space,
+                max_sigma=exploration_kwargs['noise'],
+                min_sigma=exploration_kwargs['noise'],
+            )
+            expl_policy = PolicyWrappedWithExplorationStrategy(
+                exploration_strategy=es,
+                policy=expl_policy,
+            )
+        elif exploration_strategy == 'gauss_eps':
+            es = GaussianAndEpislonStrategy(
+                action_space=expl_env.action_space,
+                max_sigma=exploration_kwargs['noise'],
+                min_sigma=exploration_kwargs['noise'],  # constant sigma
+                epsilon=0,
+            )
+            expl_policy = PolicyWrappedWithExplorationStrategy(
+                exploration_strategy=es,
+                policy=expl_policy,
+            )
+        else:
+            error
+
     replay_buffer = EnvReplayBuffer(
         **replay_buffer_kwargs,
     )
@@ -286,10 +343,6 @@ def experiment(variant):
             min_num_steps_before_training=variant['min_num_steps_before_training'],
         )
     else:
-        if variant.get("deterministic_exploration", False):
-            expl_policy = eval_policy
-        else:
-            expl_policy = policy
         expl_path_collector = MdpPathCollector(
             expl_env,
             expl_policy,
@@ -334,5 +387,13 @@ def experiment(variant):
         trainer.pretrain_policy_with_bc()
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
+
+    if variant.get('save_pretrained_algorithm', False):
+        p_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.p')
+        pt_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.pt')
+        data = algorithm._get_snapshot()
+        data['algorithm'] = algorithm
+        torch.save(data, open(pt_path, "wb"))
+        torch.save(data, open(p_path, "wb"))
 
     algorithm.train()

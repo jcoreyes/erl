@@ -114,7 +114,6 @@ class MDPPathLoader:
         self.demo_trajectory_rewards.append(rewards)
         path = path_builder.get_all_stacked()
         replay_buffer.add_path(path)
-        # self.env.initialize(zs)
 
     def load_demos(self, ):
         # Off policy
@@ -148,10 +147,10 @@ class MDPPathLoader:
         if self.add_demos_to_replay_buffer:
             for path in data[:N]:
                 self.load_path(path, self.replay_buffer)
-
         if on_policy:
             for path in data[:N]:
                 self.load_path(path, self.demo_train_buffer)
+                i+=1
             for path in data[N:]:
                 self.load_path(path, self.demo_test_buffer)
 

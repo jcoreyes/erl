@@ -15,7 +15,7 @@ for env_name in envs:
 
         for t in range(len(path["observations"])):
             ob = path["observations"][t, :]
-            action = path["actions"][t, :]
+            action = np.clip(path["actions"][t, :], -1, 1)
             reward = path["rewards"][t]
             terminal = 0
             agent_info = {} # todo (need to unwrap each key)
@@ -43,4 +43,4 @@ for env_name in envs:
 
         y.append(traj)
 
-    np.save("/home/ashvin/data/s3doodad/demos/icml2020/hand/%s.npy" % env_name, y)
+    np.save("/home/ashvin/data/s3doodad/demos/icml2020/hand/%s2.npy" % env_name, y)

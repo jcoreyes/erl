@@ -27,19 +27,8 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_rl import encoder_wrapped_td3bc_experiment
 
 if __name__ == "__main__":
-    colors = ["grey", "beige", "green", "brownhatch"]
-    # colors = ["grey"]
-    demo_path = ["/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_%s_latent_distance_jitter2.pkl" % color for color in colors]
-    demo_off_policy_path = ["/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/bc-v3-varied1/run%s/id0/video_0_env.p" % str(i) for i in [0, 1]]
-    demo_off_policy_path = demo_off_policy_path + [
-        "/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/td3bc1/run16/id0/video_0_env.p",
-        "/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/td3bc1/run16/id0/video_1_env.p",
-        "/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/td3bc1/run16/id0/video_0_vae.p",
-        "/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/td3bc1/run16/id0/video_1_vae.p",
-        "/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/td3bc1/run17/id0/video_0_env.p",
-        "/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/td3bc1/run17/id0/video_0_vae.p",
-        "/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/td3bc1/run19/id0/video_0_env.p",
-        "/home/anair/data/s3doodad/ashvin/rfeatures/sawyer/door2/td3bc1/run19/id0/video_0_vae.p"]
+    demo_path = ["/home/anair/ros_ws/src/railrl-private/demos/door_demos_v4/processed_demos_grey_latent_distance_use_initial_use_initial_from_trajectory_use_goal_from_trajectory_jitter2.pkl"]
+    demo_off_policy_path = []
     print(demo_off_policy_path)
     variant = dict(
         env_class=SawyerReachXYZEnv,
@@ -57,6 +46,11 @@ if __name__ == "__main__":
         #     num_trains_per_train_loop=1000,
         #     min_num_steps_before_training=1000,
         # ),
+        exploration_kwargs=dict(
+            max_sigma=.03,
+            min_sigma=.03,  # constant sigma
+            epsilon=.0,
+        ),
         algo_kwargs=dict(
             num_epochs=500,
             max_path_length=100,
@@ -115,12 +109,13 @@ if __name__ == "__main__":
             save_period=1,
             # imsize=(3, 500, 300),
         ),
-        desired_trajectory="/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/demo_v3_grey_0.pkl",
+        desired_trajectory="/home/anair/ros_ws/src/railrl-private/demos/door_demos_v4/demo_v4_grey_0.pkl",
 
         logger_variant=dict(
             tensorboard=True,
         ),
         model_path="/home/anair/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id2/itr_4000.pt",
+        # model_path="/home/anair/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id0/itr_0.pt", # imagenet
     )
 
     search_space = {
@@ -134,4 +129,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=20)
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=21)
