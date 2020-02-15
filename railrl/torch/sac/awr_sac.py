@@ -11,6 +11,7 @@ from railrl.torch.torch_rl_algorithm import TorchTrainer
 from railrl.core import logger
 import torch.nn.functional as F
 
+
 class AWRSACTrainer(TorchTrainer):
     def __init__(
             self,
@@ -52,6 +53,7 @@ class AWRSACTrainer(TorchTrainer):
 
             weight_loss=True,
             compute_bc=False,
+
             bc_weight=0.0,
             rl_weight=1.0,
             use_awr_update=True,
@@ -125,6 +127,17 @@ class AWRSACTrainer(TorchTrainer):
         self.q_update_period = q_update_period
         self.policy_update_period = policy_update_period
         self.weight_loss = weight_loss
+
+        self.use_reparam_update = use_reparam_update
+        self.reparam_weight = reparam_weight
+        self.awr_weight = awr_weight
+        self.post_pretrain_hyperparams = post_pretrain_hyperparams
+        self.update_policy = True
+
+        # self.bc_log = dict(
+        #     train=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
+        #     test=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
+        # )
 
         self.use_reparam_update = use_reparam_update
         self.reparam_weight = reparam_weight
@@ -219,6 +232,7 @@ class AWRSACTrainer(TorchTrainer):
                 }
                 logger.record_dict(stats)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
+
             if self.save_bc_policies and i % self.save_bc_policies == 0:
                 logger.save_itr_params(i, {
                     "evaluation/policy": self.policy,
@@ -232,6 +246,9 @@ class AWRSACTrainer(TorchTrainer):
             'progress.csv',
             relative_to_snapshot_dir=True,
         )
+
+        # savepath = osp.join(logger.get_snapshot_dir(), 'bc_log.npy')
+        # np.save(savepath, self.bc_log)
 
     def pretrain_q_with_bc_data(self):
         logger.remove_tabular_output(
@@ -376,6 +393,7 @@ class AWRSACTrainer(TorchTrainer):
             policy_logpp = -(policy_mean - actions) ** 2
         else:
             policy_logpp = dist.log_prob(actions)
+            policy_logpp = policy_logpp.sum(dim=1, keepdim=True)
 
         advantage = q1_pred - v_pi
 
@@ -390,7 +408,7 @@ class AWRSACTrainer(TorchTrainer):
         policy_loss = alpha * log_pi.mean()
 
         if self.use_awr_update and self.weight_loss:
-            policy_loss = policy_loss + self.awr_weight * (-policy_logpp * weights.detach()).mean()
+            policy_loss = policy_loss + self.awr_weight * (-policy_logpp * len(weights)*weights.detach()).mean()
         elif self.use_awr_update:
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp).mean()
         elif self.reparam_weight:
@@ -401,7 +419,7 @@ class AWRSACTrainer(TorchTrainer):
         policy_loss = self.rl_weight * policy_loss
         if self.compute_bc:
             train_policy_loss, train_logp_loss, train_mse_loss, _ = self.run_bc_batch(self.demo_train_buffer)
-            policy_loss = policy_loss + self.bc_weight * train_policy_loss / len(weights)
+            policy_loss = policy_loss + self.bc_weight * train_policy_loss
 
         """
         Update networks

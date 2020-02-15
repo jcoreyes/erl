@@ -257,6 +257,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         )
 
     def logprob(self, action, mean, std):
+        # import ipdb; ipdb.set_trace()
         tanh_normal = TanhNormal(mean, std)
         log_prob = tanh_normal.log_prob(
             action,

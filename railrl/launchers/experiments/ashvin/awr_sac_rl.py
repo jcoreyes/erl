@@ -200,6 +200,8 @@ def resume(variant):
     data = load_local_or_remote_file(variant.get("pretrained_algorithm_path"), map_location="cuda")
     algo = data['algorithm']
 
+    algo.num_epochs = variant['num_epochs']
+
     post_pretrain_hyperparams = variant["trainer_kwargs"].get("post_pretrain_hyperparams", {})
     algo.trainer.set_algorithm_weights(**post_pretrain_hyperparams)
 
@@ -208,6 +210,7 @@ def resume(variant):
 def experiment(variant):
     if variant.get("pretrained_algorithm_path", False):
         resume(variant)
+        return
 
     if 'env' in variant:
         env_params = ENV_PARAMS[variant['env']]
