@@ -101,6 +101,13 @@ class EncoderWrappedEnv(ProxyEnv):
             dtype=np.float32,
         )
         spaces['small_image_observation'] = small_image_space
+        small_image_observation_with_state_size = small_image_imglength + spaces["state_observation"].low.size
+        small_image_observation_with_state_space = Box(
+            0 * np.ones(small_image_observation_with_state_size),
+            1 * np.ones(small_image_observation_with_state_size),
+            dtype=np.float32,
+        )
+        spaces['small_image_observation_with_state'] = small_image_observation_with_state_space
 
         self.observation_space = Dict(spaces)
 
@@ -172,16 +179,17 @@ class EncoderWrappedEnv(ProxyEnv):
         S = self.small_image_step
         small_image_obs = obs['image_observation'].reshape(3, 500, 300)[:, 106:394:S, 6:294:S] / 255.0
         obs['small_image_observation'] = small_image_obs.flatten()
+        obs['small_image_observation_with_state'] = np.concatenate((obs['small_image_observation'], state_obs))
 
         return obs
 
     def _update_obs_latent(self, obs, z):
         self.vae.eval()
         self.zt = z
-        # if self.config_params["use_initial"]:
-        #     latent_obs = self.zt - self.z0
-        # else:
-        #     latent_obs = self.zt
+        if self.config_params["use_initial"]:
+            latent_obs = self.zt - self.z0
+        else:
+            latent_obs = self.zt
         obs['latent_observation'] = latent_obs
         obs['latent_achieved_goal'] = np.array([])
         obs['latent_desired_goal'] = np.array([])
@@ -242,7 +250,7 @@ class EncoderWrappedEnv(ProxyEnv):
 
     def compute_rewards(self, actions, obs, info=None):
         self.vae.eval()
-
+        print("\n\n\n obs keys \n\n\n", obs.keys())
         dt = obs["latent_observation"]
         dT = self.dT
 

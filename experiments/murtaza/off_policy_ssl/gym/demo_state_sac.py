@@ -7,7 +7,7 @@ from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import FlattenMlp
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.sac.awr_sac import AWRSACTrainer
-from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy
+from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy, GaussianPolicy
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
@@ -95,10 +95,12 @@ def experiment(variant):
         output_size=1,
         hidden_sizes=[M] * N,
     )
-    policy = TanhGaussianPolicy(
+    policy = variant.get('policy_class', TanhGaussianPolicy)(
         obs_dim=obs_dim,
         action_dim=action_dim,
         hidden_sizes=[M] * N,
+        max_log_std=0,
+        min_log_std=-4,
     )
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
@@ -237,37 +239,47 @@ if __name__ == "__main__":
         'weight_update_period':[1000, 10000],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
-        'trainer_kwargs.weight_loss':[False],
-        'trainer_kwargs.q_num_pretrain2_steps':[10],
+        'trainer_kwargs.weight_loss':[True],
+        'trainer_kwargs.q_num_pretrain2_steps':[10000],
         'trainer_kwargs.beta':[
             10,
-            100,
-            1000,
+            # 100,
         ],
         'layer_size':[256,],
-        'num_layers':[2, 4],
-        'train_rl':[True],
-        'pretrain_rl':[True],
+        'num_layers':[2],
+        'train_rl':[False],
+        'pretrain_rl':[False],
         'load_demos':[True],
-        'pretrain_policy':[False],
+        'pretrain_policy':[True],
         'env': [
-            # 'half-cheetah',
             'ant',
+            'half-cheetah',
             'walker',
             'hopper',
         ],
+        'policy_class':[
+          # TanhGaussianPolicy,
+          GaussianPolicy,
+        ],
+        'trainer_kwargs.bc_loss_type':[
+            'mle'
+        ],
+        'trainer_kwargs.awr_loss_type':[
+            'mle',
+        ]
+
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'bc_gaussian_test_v1'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'awr_sac_gym_resampled_v3'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'awr_sac_gym_resampled_v3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -277,8 +289,9 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,
-                skip_wait=False,
+                use_gpu=True,
                 gcp_kwargs=dict(
                     preemptible=False,
-                )
+                ),
+                skip_wait=True,
             )

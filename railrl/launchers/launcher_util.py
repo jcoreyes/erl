@@ -7,7 +7,6 @@ import sys
 import time
 import uuid
 from collections import namedtuple
-import doodad
 import __main__ as main
 import datetime
 import dateutil.tz
@@ -314,7 +313,7 @@ def run_experiment(
     if use_gpu and mode == 'ec2':
         image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
     else:
-        image_id = None
+        image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
     if hasattr(config, "AWS_S3_PATH"):
         aws_s3_path = config.AWS_S3_PATH
     else:
