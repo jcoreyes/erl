@@ -150,7 +150,6 @@ class MDPPathLoader:
         if on_policy:
             for path in data[:N]:
                 self.load_path(path, self.demo_train_buffer)
-                i+=1
             for path in data[N:]:
                 self.load_path(path, self.demo_test_buffer)
 

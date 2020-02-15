@@ -99,8 +99,8 @@ def experiment(variant):
         obs_dim=obs_dim,
         action_dim=action_dim,
         hidden_sizes=[M] * N,
-        min_log_std=-50,
-        max_log_std=50,
+        max_log_std=0,
+        min_log_std=-4,
     )
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
@@ -243,16 +243,16 @@ if __name__ == "__main__":
             # 100,
         ],
         'layer_size':[256,],
-        'num_layers':[4],
+        'num_layers':[2],
         'train_rl':[False],
         'pretrain_rl':[False],
         'load_demos':[True],
         'pretrain_policy':[True],
         'env': [
-            # 'half-cheetah',
             'ant',
-            # 'walker',
-            # 'hopper',
+            'half-cheetah',
+            'walker',
+            'hopper',
         ],
         'policy_class':[
           # TanhGaussianPolicy,
@@ -272,7 +272,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_prefix = 'bc_gaussian_test_v1'
 
     # n_seeds = 2
     # mode = 'ec2'
@@ -289,7 +289,9 @@ if __name__ == "__main__":
                 variant=variant,
                 num_exps_per_instance=2,
                 skip_wait=False,
+                use_gpu=True,
                 gcp_kwargs=dict(
                     preemptible=False,
-                )
+                ),
+                skip_wait=True,
             )

@@ -208,7 +208,7 @@ class AWRSACTrainer(TorchTrainer):
             test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer)
             test_policy_loss = test_policy_loss * self.bc_weight
 
-            if i % 10000 == 0:
+            if i % 1000 == 0:
                 total_ret = 0
                 for _ in range(5):
                     o = self.env.reset()
@@ -273,7 +273,7 @@ class AWRSACTrainer(TorchTrainer):
             train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
-            if i % 10000 == 0:
+            if i % 1000 == 0:
                 logger.record_dict(self.eval_statistics)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
