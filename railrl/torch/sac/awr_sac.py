@@ -62,6 +62,10 @@ class AWRSACTrainer(TorchTrainer):
             reparam_weight=1.0,
             awr_weight=1.0,
             post_pretrain_hyperparams=None,
+
+            awr_use_mle_for_vf=False,
+            awr_sample_actions=False,
+            awr_min_q=False,
     ):
         super().__init__()
         self.env = env
@@ -85,6 +89,10 @@ class AWRSACTrainer(TorchTrainer):
                 [self.log_alpha],
                 lr=policy_lr,
             )
+
+        self.awr_use_mle_for_vf = awr_use_mle_for_vf
+        self.awr_sample_actions = awr_sample_actions
+        self.awr_min_q = awr_min_q
 
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
@@ -348,24 +356,47 @@ class AWRSACTrainer(TorchTrainer):
         qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
         qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
 
+        """
+        Policy Loss
+        """
+        qf1_new_actions = self.qf1(obs, new_obs_actions)
+        qf2_new_actions = self.qf2(obs, new_obs_actions)
+        q_new_actions = torch.min(
+            qf1_new_actions,
+            qf2_new_actions,
+        )
+
         # Advantage-weighted regression
-        v_pi = self.qf1(obs, new_obs_actions)
+        if self.awr_use_mle_for_vf:
+            v_pi = self.qf1(obs, policy_mean)
+        else:
+            v_pi = self.qf1(obs, new_obs_actions)
+
+        if self.awr_sample_actions:
+            u = new_obs_actions
+            if self.awr_min_q:
+                q_adv = q_new_actions
+            else:
+                q_adv = qf1_new_actions
+        else:
+            u = actions
+            if self.awr_min_q:
+                q_adv = torch.min(q1_pred, q2_pred)
+            else:
+                q_adv = q1_pred
+
         # policy_logpp = -(new_obs_actions - actions) ** 2
         # policy_logpp = policy_logpp.mean(dim=1)
         if self.awr_loss_type == "mse":
             policy_logpp = -(policy_mean - actions) ** 2
         else:
             # import ipdb; ipdb.set_trace()
-            policy_logpp = dist.log_prob(actions)
+            policy_logpp = dist.log_prob(u)
             policy_logpp = policy_logpp.sum(dim=1, keepdim=True)
 
-        advantage = q1_pred - v_pi
+        advantage = q_adv - v_pi
         weights = F.softmax(advantage / self.beta, dim=0)
 
-        q_new_actions = torch.min(
-            self.qf1(obs, new_obs_actions),
-            self.qf2(obs, new_obs_actions),
-        )
         policy_loss = alpha*log_pi.mean()
         if self.use_awr_update:
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp * len(weights) * weights.detach()).mean()
