@@ -284,7 +284,7 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
         plt.xlabel(key)
 
     if print_legend:
-        plt.legend(handles=lines, bbox_to_anchor=(1.5, 0.75))
+        plt.legend(handles=lines, bbox_to_anchor=(1.0, 0.75))
 
     if return_data:
         return xs, ys

@@ -11,6 +11,8 @@ from railrl.torch.core import np_to_pytorch_batch
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 from railrl.core import logger
 
+from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
+
 import torch.nn.functional as F
 import os.path as osp
 
@@ -27,6 +29,7 @@ class AWRSACTrainer(TorchTrainer):
             discount=0.99,
             reward_scale=1.0,
             beta=1.0,
+            beta_schedule_kwargs=None,
 
             policy_lr=1e-3,
             qf_lr=1e-3,
@@ -117,6 +120,13 @@ class AWRSACTrainer(TorchTrainer):
         self.discount = discount
         self.reward_scale = reward_scale
         self.beta = beta
+        self.beta_schedule_kwargs = beta_schedule_kwargs
+        if beta_schedule_kwargs is None:
+            self.beta_schedule = ConstantSchedule(beta)
+        else:
+            schedule_class = beta_schedule_kwargs.pop("schedule_class", PiecewiseLinearSchedule)
+            self.beta_schedule = schedule_class(**beta_schedule_kwargs)
+
         self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
@@ -395,7 +405,8 @@ class AWRSACTrainer(TorchTrainer):
             policy_logpp = policy_logpp.sum(dim=1, keepdim=True)
 
         advantage = q_adv - v_pi
-        weights = F.softmax(advantage / self.beta, dim=0)
+        beta = self.beta_schedule.get_value(self._n_train_steps_total)
+        weights = F.softmax(advantage / beta, dim=0)
 
         policy_loss = alpha*log_pi.mean()
         if self.use_awr_update:

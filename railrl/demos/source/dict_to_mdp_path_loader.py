@@ -38,6 +38,7 @@ class DictToMDPPathLoader:
             demo_test_buffer,
             demo_paths=[], # list of dicts
             demo_train_split=0.9,
+            demo_data_split=1,
             add_demos_to_replay_buffer=True,
             bc_num_pretrain_steps=0,
             bc_batch_size=64,
@@ -57,6 +58,7 @@ class DictToMDPPathLoader:
 
         self.add_demos_to_replay_buffer = add_demos_to_replay_buffer
         self.demo_train_split = demo_train_split
+        self.demo_data_split = demo_data_split
         self.replay_buffer = replay_buffer
         self.demo_train_buffer = demo_train_buffer
         self.demo_test_buffer = demo_test_buffer
@@ -131,7 +133,7 @@ class DictToMDPPathLoader:
     # Parameterize which demo is being tested (and all jitter variants)
     # If is_demo is False, we only add the demos to the
     # replay buffer, and not to the demo_test or demo_train buffers
-    def load_demo_path(self, path, is_demo, obs_dict, train_split=None):
+    def load_demo_path(self, path, is_demo, obs_dict, train_split=None, data_split=None):
         print("loading off-policy path", path)
         data = list(load_local_or_remote_file(path))
         # if not is_demo:
@@ -141,17 +143,21 @@ class DictToMDPPathLoader:
         if train_split is None:
             train_split = self.demo_train_split
 
-        N = int(len(data) * train_split)
+        if data_split is None:
+            data_split = self.demo_data_split
+
+        M = int(len(data) * train_split * data_split)
+        N = int(len(data) * data_split)
         print("using", N, "paths for training")
 
         if self.add_demos_to_replay_buffer:
-            for path in data[:N]:
+            for path in data[:M]:
                 self.load_path(path, self.replay_buffer, obs_dict=obs_dict)
 
         if is_demo:
-            for path in data[:N]:
+            for path in data[:M]:
                 self.load_path(path, self.demo_train_buffer, obs_dict=obs_dict)
-            for path in data[N:]:
+            for path in data[M:N]:
                 self.load_path(path, self.demo_test_buffer, obs_dict=obs_dict)
 
     def get_batch_from_buffer(self, replay_buffer):
