@@ -24,6 +24,7 @@ from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
 
+from railrl.launchers.exp_launcher import her_experiment
 
 def experiment(variant):
     from multiworld.envs.mujoco import register_mujoco_envs
@@ -120,28 +121,65 @@ def experiment(variant):
 
 if __name__ == "__main__":
     variant = dict(
-        algo_kwargs=dict(
-            num_epochs=100,
-            max_path_length=50,
-            batch_size=128,
-            num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000,
-            min_num_steps_before_training=10000,
-        ),
-        trainer_kwargs=dict(
-            discount=0.99,
-        ),
-        replay_buffer_kwargs=dict(
-            max_size=100000,
-            fraction_goals_rollout_goals=0.2,
-            fraction_goals_env_goals=0.0,
-        ),
-        qf_kwargs=dict(
-            hidden_sizes=[400, 300],
-        ),
-        policy_kwargs=dict(
-            hidden_sizes=[400, 300],
+        env_id='SawyerReachXYZEnv-v0',
+        rl_variant=dict(
+            do_state_exp=True,
+            algo_kwargs=dict(
+                base_kwargs=dict(
+                    num_epochs=300,
+                    num_steps_per_epoch=3000,
+                    max_path_length=100,
+                    batch_size=128,
+                    num_rollouts_per_eval=1,
+                ),
+                her_kwargs=dict(),
+                td3_kwargs=dict(),
+                twin_sac_kwargs=dict(),
+            ),
+            replay_buffer_kwargs=dict(
+                max_size=int(1E6),
+                fraction_goals_rollout_goals=0.2,
+                fraction_goals_env_goals=0.5,
+            ),
+            exploration_noise=0.1,
+            exploration_type='epsilon',
+            qf_kwargs=dict(
+                hidden_sizes=[400, 300],
+            ),
+            vf_kwargs=dict(
+                hidden_sizes=[400, 300],
+            ),
+            policy_kwargs=dict(
+                hidden_sizes=[400, 300],
+            ),
+            algorithm="TD3",
+
+
+            # do_state_exp=True,
+            # algorithm='td3',
+            # algo_kwargs=dict(
+            #     num_epochs=100,
+            #     max_path_length=50,
+            #     batch_size=128,
+            #     num_eval_steps_per_epoch=1000,
+            #     num_expl_steps_per_train_loop=1000,
+            #     num_trains_per_train_loop=1000,
+            #     min_num_steps_before_training=10000,
+            # ),
+            # trainer_kwargs=dict(
+            #     discount=0.99,
+            # ),
+            # replay_buffer_kwargs=dict(
+            #     max_size=100000,
+            #     fraction_goals_rollout_goals=0.2,
+            #     fraction_goals_env_goals=0.0,
+            # ),
+            # qf_kwargs=dict(
+            #     hidden_sizes=[400, 300],
+            # ),
+            # policy_kwargs=dict(
+            #     hidden_sizes=[400, 300],
+            # ),
         ),
     )
     # setup_logger('her-td3-sawyer-experiment', variant=variant)
@@ -165,7 +203,8 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
-                experiment,
+                #experiment,
+                her_experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
