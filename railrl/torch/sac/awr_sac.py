@@ -167,7 +167,7 @@ class AWRSACTrainer(TorchTrainer):
             og, deterministic=False, reparameterize=True, return_log_prob=True,
         )
         # import ipdb; ipdb.set_trace()
-        mse = (policy_mean - u) ** 2
+        mse = (pred_u - u) ** 2
         mse_loss = mse.mean()
 
         # name = "train" if replay_buffer == self.demo_train_buffer else "test"
@@ -197,6 +197,19 @@ class AWRSACTrainer(TorchTrainer):
         logger.add_tabular_output(
             'pretrain_policy.csv', relative_to_snapshot_dir=True
         )
+        total_ret = 0
+        for _ in range(2):
+            o = self.env.reset()
+            ret = 0
+            for _ in range(1000):
+                a, _ = self.eval_policy.get_action(o)
+                o, r, done, info = self.env.step(a)
+                ret += r
+                if done:
+                    break
+            total_ret += ret
+        print("INITIAL RETURN", total_ret/2)
+
         for i in range(self.bc_num_pretrain_steps):
             train_policy_loss, train_logp_loss, train_mse_loss, train_log_std = self.run_bc_batch(self.demo_train_buffer)
             train_policy_loss = train_policy_loss * self.bc_weight
@@ -208,30 +221,29 @@ class AWRSACTrainer(TorchTrainer):
             test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer)
             test_policy_loss = test_policy_loss * self.bc_weight
 
-            if i % 1000 == 0:
-                total_ret = 0
-                for _ in range(5):
-                    o = self.env.reset()
-                    ret = 0
-                    for i in range(1000):
-                        a, _ = self.eval_policy.get_action(o)
-                        o, r, done, info = self.env.step(a)
-                        ret += r
-                        if done:
-                            break
-                    total_ret += ret
-                stats = {
-                    "pretrain_bc/batch": i,
-                    "pretrain_bc/avg_return": total_ret / 5,
-                    "pretrain_bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
-                    "pretrain_bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
-                    "pretrain_bc/Train MSE": ptu.get_numpy(train_mse_loss),
-                    "pretrain_bc/Test MSE": ptu.get_numpy(test_mse_loss),
-                    "pretrain_bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
-                    "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
-                }
-                logger.record_dict(stats)
-                logger.dump_tabular(with_prefix=True, with_timestamp=False)
+            total_ret = 0
+            for _ in range(2):
+                o = self.env.reset()
+                ret = 0
+                for _ in range(1000):
+                    a, _ = self.eval_policy.get_action(o)
+                    o, r, done, info = self.env.step(a)
+                    ret += r
+                    if done:
+                        break
+                total_ret += ret
+            stats = {
+                "pretrain_bc/batch": i,
+                "pretrain_bc/avg_return": total_ret / 2,
+                "pretrain_bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
+                "pretrain_bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
+                "pretrain_bc/Train MSE": ptu.get_numpy(train_mse_loss),
+                "pretrain_bc/Test MSE": ptu.get_numpy(test_mse_loss),
+                "pretrain_bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
+                "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
+            }
+            logger.record_dict(stats)
+            logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
             if self.save_bc_policies and i % self.save_bc_policies == 0:
                 logger.save_itr_params(i, {

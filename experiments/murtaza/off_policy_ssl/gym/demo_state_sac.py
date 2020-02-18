@@ -1,3 +1,5 @@
+import gym
+
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer, AWREnvReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv
@@ -64,8 +66,6 @@ def experiment(variant):
     variant['trainer_kwargs']['bc_num_pretrain_steps'] = env_params['bc_num_pretrain_steps']
 
     if 'env_id' in env_params:
-        import mj_envs
-
         expl_env = NormalizedBoxEnv(gym.make(env_params['env_id']))
         eval_env = NormalizedBoxEnv(gym.make(env_params['env_id']))
     else:
@@ -100,7 +100,7 @@ def experiment(variant):
         action_dim=action_dim,
         hidden_sizes=[M] * N,
         max_log_std=0,
-        min_log_std=-4,
+        min_log_std=-6,
     )
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
@@ -182,7 +182,6 @@ def experiment(variant):
                                     demo_test_buffer=demo_test_buffer,
                                     **variant['path_loader_kwargs']
                                     )
-
     if variant.get('load_demos', False):
         path_loader.load_demos()
     if variant.get('pretrain_policy', False):
@@ -224,7 +223,7 @@ if __name__ == "__main__":
             q_num_pretrain1_steps=0,
             q_num_pretrain2_steps=10000,
             policy_weight_decay=1e-4,
-            bc_loss_type="mle",
+            bc_loss_type="mse",
             compute_bc=False,
             weight_loss=False,
         ),
@@ -236,11 +235,13 @@ if __name__ == "__main__":
 
     search_space = {
         'use_weights':[True],
-        'weight_update_period':[1000, 10000],
+        # 'weight_update_period':[1000, 10000],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
+        'trainer_kwargs.bc_num_pretrain_steps':[1000],
+        'trainer_kwargs.bc_weight':[1],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
-        'trainer_kwargs.q_num_pretrain2_steps':[10000],
+        # 'trainer_kwargs.q_num_pretrain2_steps':[10000],
         'trainer_kwargs.beta':[
             10,
             # 100,
@@ -252,20 +253,20 @@ if __name__ == "__main__":
         'load_demos':[True],
         'pretrain_policy':[True],
         'env': [
-            'ant',
+            # 'ant',
             'half-cheetah',
-            'walker',
-            'hopper',
+            # 'walker',
+            # 'hopper',
         ],
         'policy_class':[
           # TanhGaussianPolicy,
           GaussianPolicy,
         ],
         'trainer_kwargs.bc_loss_type':[
-            'mle'
+            'mse'
         ],
         'trainer_kwargs.awr_loss_type':[
-            'mle',
+            'mse',
         ]
 
     }
@@ -275,7 +276,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'bc_gaussian_test_v1'
+    exp_prefix = 'test'
 
     # n_seeds = 2
     # mode = 'ec2'
@@ -293,5 +294,5 @@ if __name__ == "__main__":
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
-                skip_wait=True,
+                # skip_wait=True,
             )
