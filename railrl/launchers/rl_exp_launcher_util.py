@@ -1,6 +1,7 @@
 import os.path as osp
 
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
+from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector
 from railrl.torch.grill.video_gen import VideoSaveFunction
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
@@ -8,7 +9,7 @@ from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
 
 
-def her_td3_experiment(variant):
+def td3_experiment(variant):
     import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
@@ -16,7 +17,6 @@ def her_td3_experiment(variant):
     from railrl.exploration_strategies.base import (
         PolicyWrappedWithExplorationStrategy
     )
-    from railrl.torch.her.her_td3 import HerTd3
 
     from railrl.torch.td3.td3 import TD3 as TD3Trainer
     from railrl.torch.torch_rl_algorithm import TorchOnlineRLAlgorithm
@@ -77,56 +77,54 @@ def her_td3_experiment(variant):
         **variant['replay_buffer_kwargs']
     )
 
-    algo_kwargs = variant['algo_kwargs']
-    # algo_kwargs['replay_buffer'] = replay_buffer
-    # base_kwargs = algo_kwargs['base_kwargs']
-    # base_kwargs['training_env'] = env
-    # base_kwargs['render'] = variant.get("render", False)
-    # base_kwargs['render_during_eval'] = variant.get("render_during_eval", False)
-    # her_kwargs = algo_kwargs['her_kwargs']
-    # her_kwargs['observation_key'] = observation_key
-    # her_kwargs['desired_goal_key'] = desired_goal_key
-    # algorithm = HerTd3(
-    #     env,
-    #     qf1=qf1,
-    #     qf2=qf2,
-    #     policy=policy,
-    #     target_qf1=target_qf1,
-    #     target_qf2=target_qf2,
-    #     target_policy=target_policy,
-    #     exploration_policy=exploration_policy,
-    #     **variant['algo_kwargs']
-    # )
+    max_path_length = variant['max_path_length']
 
     trainer = TD3Trainer(
-        # env=env,
         policy=policy,
         qf1=qf1,
         qf2=qf2,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
         target_policy=target_policy,
-        **variant['her_trainer_kwargs']
+        **variant['td3_trainer_kwargs']
     )
     trainer = HERTrainer(trainer)
-    eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
-        env,
-        policy,
-        max_path_length,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-    )
-    expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
-        env,
-        policy,
-        max_path_length,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-    )
+    if variant.get("do_state_exp", False):
+        eval_path_collector = GoalConditionedPathCollector(
+            env,
+            policy,
+            max_path_length,
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+        )
+        expl_path_collector = GoalConditionedPathCollector(
+            env,
+            policy,
+            max_path_length,
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+        )
+    else:
+        eval_path_collector = VAEWrappedEnvPathCollector(
+            variant['evaluation_goal_sampling_mode'],
+            env,
+            policy,
+            max_path_length,
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+        )
+        expl_path_collector = VAEWrappedEnvPathCollector(
+            variant['exploration_goal_sampling_mode'],
+            env,
+            policy,
+            max_path_length,
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+        )
 
-    algorithm = TorchOnlineRLAlgorithm(
+    from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+
+    algorithm = TorchBatchRLAlgorithm(
         trainer=trainer,
         exploration_env=env,
         evaluation_env=env,
@@ -137,20 +135,20 @@ def her_td3_experiment(variant):
         **variant['algo_kwargs']
     )
 
-    if variant.get("save_video", True):
-        rollout_function = rf.create_rollout_function(
-            rf.multitask_rollout,
-            max_path_length=algorithm.max_path_length,
-            observation_key=algorithm.observation_key,
-            desired_goal_key=algorithm.desired_goal_key,
-        )
-        video_func = get_video_save_func(
-            rollout_function,
-            env,
-            algorithm.eval_policy,
-            variant,
-        )
-        algorithm.post_train_funcs.append(video_func)
+    # if variant.get("save_video", True):
+    #     rollout_function = rf.create_rollout_function(
+    #         rf.multitask_rollout,
+    #         max_path_length=max_path_length,
+    #         observation_key=observation_key,
+    #         desired_goal_key=desired_goal_key,
+    #     )
+    #     video_func = get_video_save_func(
+    #         rollout_function,
+    #         env,
+    #         algorithm.eval_policy,
+    #         variant,
+    #     )
+    #     algorithm.post_train_funcs.append(video_func)
 
     algorithm.to(ptu.device)
     if not variant.get("do_state_exp", False):
@@ -159,7 +157,7 @@ def her_td3_experiment(variant):
     algorithm.train()
 
 
-def her_twin_sac_experiment(variant):
+def twin_sac_experiment(variant):
     import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
@@ -292,7 +290,7 @@ def her_twin_sac_experiment(variant):
     algorithm.train()
 
 
-def her_td3_experiment_online_vae(variant):
+def td3_experiment_online_vae(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
@@ -444,7 +442,7 @@ def her_td3_experiment_online_vae(variant):
     algorithm.train()
 
 
-def her_td3_experiment_online_vae_exploring(variant):
+def td3_experiment_online_vae_exploring(variant):
     import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.online_vae_replay_buffer import \
@@ -587,7 +585,7 @@ def her_td3_experiment_online_vae_exploring(variant):
     algorithm.train()
 
 
-def her_td3_experiment_offpolicy_online_vae(variant):
+def td3_experiment_offpolicy_online_vae(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
@@ -744,7 +742,7 @@ def her_td3_experiment_offpolicy_online_vae(variant):
     algorithm.train()
 
 
-def her_twin_sac_experiment_online_vae(variant):
+def twin_sac_experiment_online_vae(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
@@ -1360,7 +1358,7 @@ def active_representation_learning_experiment(variant):
     algorithm.train()
 
 
-def HER_baseline_her_td3_experiment(variant):
+def HER_baseline_td3_experiment(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer

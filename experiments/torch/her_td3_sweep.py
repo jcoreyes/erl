@@ -16,7 +16,6 @@ if __name__ == "__main__":
             num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            max_path_length=100,
             batch_size=128,
             discount=0.99,
             replay_buffer_size=int(1E6),

@@ -362,7 +362,7 @@ def generate_vae_dataset(variant):
 def train_vae_and_update_variant(variant):
     from railrl.core import logger
     rl_variant = variant['rl_variant']
-    train_vae_variant = variant['train_vae_variant']
+    vae_variant = variant['vae_variant']
     if rl_variant.get('vae_path', None) is None:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
@@ -370,7 +370,7 @@ def train_vae_and_update_variant(variant):
         logger.add_tabular_output(
             'vae_progress.csv', relative_to_snapshot_dir=True
         )
-        vae, vae_train_data, vae_test_data = train_vae(train_vae_variant,
+        vae, vae_train_data, vae_test_data = train_vae(vae_variant,
                                                        return_data=True)
         if rl_variant.get('save_vae_data', False):
             rl_variant['vae_train_data'] = vae_train_data
@@ -388,7 +388,7 @@ def train_vae_and_update_variant(variant):
     else:
         if rl_variant.get('save_vae_data', False):
             vae_train_data, vae_test_data, info = generate_vae_dataset(
-                train_vae_variant['generate_vae_dataset_kwargs']
+                vae_variant['generate_vae_dataset_kwargs']
             )
             rl_variant['vae_train_data'] = vae_train_data
             rl_variant['vae_test_data'] = vae_test_data

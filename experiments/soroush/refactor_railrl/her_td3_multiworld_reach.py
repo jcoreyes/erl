@@ -24,7 +24,7 @@ from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
 
-from railrl.launchers.exp_launcher import her_experiment
+from railrl.launchers.exp_launcher import rl_experiment
 
 def experiment(variant):
     from multiworld.envs.mujoco import register_mujoco_envs
@@ -125,17 +125,15 @@ if __name__ == "__main__":
         rl_variant=dict(
             do_state_exp=True,
             algo_kwargs=dict(
-                base_kwargs=dict(
-                    num_epochs=300,
-                    num_steps_per_epoch=3000,
-                    max_path_length=100,
-                    batch_size=128,
-                    num_rollouts_per_eval=1,
-                ),
-                her_kwargs=dict(),
-                td3_kwargs=dict(),
-                twin_sac_kwargs=dict(),
+                num_epochs=300,
+                batch_size=128,
+                num_eval_steps_per_epoch=1000,
+                num_expl_steps_per_train_loop=1000,
+                num_trains_per_train_loop=1000,
             ),
+            max_path_length=100,
+            td3_trainer_kwargs=dict(),
+            twin_sac_trainer_kwargs=dict(),
             replay_buffer_kwargs=dict(
                 max_size=int(1E6),
                 fraction_goals_rollout_goals=0.2,
@@ -204,7 +202,7 @@ if __name__ == "__main__":
         for _ in range(n_seeds):
             run_experiment(
                 #experiment,
-                her_experiment,
+                rl_experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
