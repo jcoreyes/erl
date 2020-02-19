@@ -116,6 +116,11 @@ def run_experiment(
      - 'local_docker'
      - 'ec2'
      - 'here_no_doodad': Run without doodad call
+     - 'ssh'
+     - 'gcp'
+     - 'local_singularity': run locally with singularity
+     - 'slurm_singularity': submit a slurm job using singularity
+     - 'sss': generate a script to run on some slurm job using singularity
     :param exp_prefix: name of experiment
     :param seed: Seed for this specific trial.
     :param variant: Dictionary
@@ -327,6 +332,7 @@ def run_experiment(
         dmode = doodad.mode.LocalSingularity(
             image=singularity_image,
             gpu=use_gpu,
+            pre_cmd=config.SINGULARITY_PRE_CMDS,
         )
     elif mode == 'slurm_singularity' or mode == 'sss':
         assert time_in_mins is not None, "Must approximate/set time in minutes"
