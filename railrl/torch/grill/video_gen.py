@@ -30,7 +30,7 @@ class VideoSaveFunction:
         self.logdir = logger.get_snapshot_dir()
         self.save_period = variant.get('save_video_period', 50)
         self.dump_video_kwargs = variant.get("self.dump_video_kwargs", dict())
-        self.dump_video_kwargs['imsize'] = env.imsize
+        self.dump_video_kwargs['imsize'] = variant['imsize'] #env.imsize
 
     def __call__(self, algo, epoch):
         expl_data_collector = algo.expl_data_collector
@@ -104,17 +104,17 @@ def dump_video(
     N = rows * columns
     for i in range(N):
         start = time.time()
-        # path = rollout_function(
-        #     env,
-        #     policy,
-        #     max_path_length=horizon,
-        #     render=False,
-        # )
         path = rollout_function(
-            horizon,
-            horizon,
-            discard_incomplete_paths=True,
-        )[0]
+            env,
+            policy,
+            max_path_length=horizon,
+            render=False,
+        )
+        # path = rollout_function(
+        #     horizon,
+        #     horizon,
+        #     discard_incomplete_paths=True,
+        # )[0]
         is_vae_env = isinstance(env, VAEWrappedEnv)
         is_conditional_vae_env = isinstance(env, ConditionalVAEWrappedEnv)
 
@@ -129,7 +129,7 @@ def dump_video(
                 recon = d['image_observation']
             l.append(
                 get_image(
-                    d['decoded_goal_image'], # d['image_desired_goal'],
+                    d.get('decoded_goal_image', d['image_desired_goal']),
                     d['image_observation'],
                     recon,
                     pad_length=pad_length,

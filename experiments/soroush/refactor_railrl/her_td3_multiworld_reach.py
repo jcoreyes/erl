@@ -152,6 +152,10 @@ if __name__ == "__main__":
             ),
             algorithm="TD3",
 
+            dump_video_kwargs=dict(
+                rows=1,
+                columns=3,
+            ),
 
             # do_state_exp=True,
             # algorithm='td3',

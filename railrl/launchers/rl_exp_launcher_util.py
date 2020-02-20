@@ -93,14 +93,12 @@ def td3_experiment(variant):
         eval_path_collector = GoalConditionedPathCollector(
             env,
             policy,
-            max_path_length,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
         )
         expl_path_collector = GoalConditionedPathCollector(
             env,
             expl_policy,
-            max_path_length,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
         )
@@ -109,7 +107,6 @@ def td3_experiment(variant):
             variant['evaluation_goal_sampling_mode'],
             env,
             policy,
-            max_path_length,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
         )
@@ -117,7 +114,6 @@ def td3_experiment(variant):
             variant['exploration_goal_sampling_mode'],
             env,
             expl_policy,
-            max_path_length,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
         )
@@ -133,17 +129,29 @@ def td3_experiment(variant):
         **variant['algo_kwargs']
     )
 
+    if variant.get("save_video", True):
+        if variant.get("do_state_exp", False):
+            rollout_function = rf.create_rollout_function(
+                rf.multitask_rollout,
+                max_path_length=max_path_length,
+                observation_key=observation_key,
+                desired_goal_key=desired_goal_key,
+            )
+            video_func = get_video_save_func(
+                rollout_function,
+                env,
+                policy,
+                variant,
+            )
+        else:
+            video_func = VideoSaveFunction(
+                env,
+                variant,
+            )
+        algorithm.post_train_funcs.append(video_func)
     # if variant.get("save_video", True):
-    #     rollout_function = rf.create_rollout_function(
-    #         rf.multitask_rollout,
-    #         max_path_length=max_path_length,
-    #         observation_key=observation_key,
-    #         desired_goal_key=desired_goal_key,
-    #     )
-    #     video_func = get_video_save_func(
-    #         rollout_function,
+    #     video_func = VideoSaveFunction(
     #         env,
-    #         algorithm.eval_policy,
     #         variant,
     #     )
     #     algorithm.post_train_funcs.append(video_func)
