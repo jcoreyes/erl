@@ -40,7 +40,7 @@ if __name__ == "__main__":
             # max_path_length=5,
             algo_kwargs=dict(
                 batch_size=1024,
-                num_epochs=170,
+                num_epochs=400,
                 num_eval_steps_per_epoch=500,
                 num_expl_steps_per_train_loop=500,
                 num_trains_per_train_loop=1000,
@@ -126,8 +126,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 3
-    mode = 'sss'
-    exp_prefix = 'reference-skew-fit-brc-door'
+    mode = 'ec2'
+    exp_prefix = 'reference-skew-fit-door'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
