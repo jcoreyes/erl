@@ -19,7 +19,7 @@ def td3_experiment(variant):
     )
 
     from railrl.torch.td3.td3 import TD3 as TD3Trainer
-    from railrl.torch.torch_rl_algorithm import TorchOnlineRLAlgorithm
+    from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
     preprocess_rl_variant(variant)
@@ -64,7 +64,7 @@ def td3_experiment(variant):
         output_size=action_dim,
         **variant['policy_kwargs']
     )
-    exploration_policy = PolicyWrappedWithExplorationStrategy(
+    expl_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
     )
@@ -99,7 +99,7 @@ def td3_experiment(variant):
         )
         expl_path_collector = GoalConditionedPathCollector(
             env,
-            policy,
+            expl_policy,
             max_path_length,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
@@ -116,13 +116,11 @@ def td3_experiment(variant):
         expl_path_collector = VAEWrappedEnvPathCollector(
             variant['exploration_goal_sampling_mode'],
             env,
-            policy,
+            expl_policy,
             max_path_length,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
         )
-
-    from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
     algorithm = TorchBatchRLAlgorithm(
         trainer=trainer,

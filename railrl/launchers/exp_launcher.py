@@ -6,6 +6,8 @@ from railrl.launchers.vae_exp_launcher_util import (
 from railrl.launchers.rl_exp_launcher_util import (
     td3_experiment,
     twin_sac_experiment,
+)
+from railrl.launchers.rl_exp_launcher_util2 import (
     tdm_td3_experiment,
     tdm_twin_sac_experiment,
 )
