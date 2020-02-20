@@ -22,29 +22,7 @@ def rl_experiment(variant):
     else:
         td3_experiment(rl_variant)
 
-    # add online VAE exps
-    # and add the following line before calling exps:
-    # variant['rl_variant']['save_vae_data'] = True
-    # her_twin_sac_experiment_online_vae, ...
-
-    """
-    her_twin_sac_experiment_online_vae(variant['rl_variant'])
-    her_td3_experiment_offpolicy_online_vae(variant['rl_variant'])
-    active_representation_learning_experiment(variant['rl_variant'])
-    HER_baseline_her_td3_experiment(variant['rl_variant'])
-    """
-
-    ### add option for TDM experiments
-
-# def tdm_experiment(variant):
-#     experiment_variant_preprocess(variant)
-#     rl_variant = variant['rl_variant']
-#     if not variant['rl_variant'].get('do_state_exp', False):
-#         train_vae_and_update_variant(variant)
-#     if 'sac' in rl_variant['algorithm'].lower():
-#         tdm_twin_sac_experiment(rl_variant)
-#     else:
-#         tdm_td3_experiment(rl_variant)
+    # TODO: add online VAE exps, tdm exps, other baseline exps
 
 def vae_experiment(variant):
     experiment_variant_preprocess(variant)

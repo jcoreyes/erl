@@ -4,10 +4,6 @@ from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
 from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector
 from railrl.torch.grill.video_gen import VideoSaveFunction
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
-
 
 def td3_experiment(variant):
     import railrl.samplers.rollout_functions as rf
@@ -149,17 +145,10 @@ def td3_experiment(variant):
                 variant,
             )
         algorithm.post_train_funcs.append(video_func)
-    # if variant.get("save_video", True):
-    #     video_func = VideoSaveFunction(
-    #         env,
-    #         variant,
-    #     )
-    #     algorithm.post_train_funcs.append(video_func)
 
     algorithm.to(ptu.device)
     if not variant.get("do_state_exp", False):
         env.vae.to(ptu.device)
-
     algorithm.train()
 
 
@@ -168,13 +157,14 @@ def twin_sac_experiment(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
-    # from railrl.torch.her.her_twin_sac import HerTwinSAC
     from railrl.torch.networks import FlattenMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
-    from railrl.torch.torch_rl_algorithm import TorchOnlineRLAlgorithm
+    from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+    from railrl.torch.sac.policies import MakeDeterministic
+    from railrl.torch.sac.sac import SACTrainer
+
     preprocess_rl_variant(variant)
     env = get_envs(variant)
-    es = get_exploration_strategy(variant, env)
     max_path_length = variant['max_path_length']
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
@@ -217,25 +207,6 @@ def twin_sac_experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
-    algo_kwargs = variant['algo_kwargs']
-    # algo_kwargs['replay_buffer'] = replay_buffer
-    # base_kwargs = algo_kwargs['base_kwargs']
-    # base_kwargs['training_env'] = env
-    # base_kwargs['render'] = variant["render"]
-    # base_kwargs['render_during_eval'] = variant["render"]
-    # her_kwargs = algo_kwargs['her_kwargs']
-    # her_kwargs['observation_key'] = observation_key
-    # her_kwargs['desired_goal_key'] = desired_goal_key
-    # algorithm = HerTwinSAC(
-    #     env,
-    #     qf1=qf1,
-    #     qf2=qf2,
-    #     vf=vf,
-    #     target_vf=target_vf,
-    #     policy=policy,
-    #     exploration_policy=exploration_policy,
-    #     **variant['algo_kwargs']
-    # )
 
     trainer = SACTrainer(
         env=env,
@@ -247,24 +218,36 @@ def twin_sac_experiment(variant):
         **variant['twin_sac_trainer_kwargs']
     )
     trainer = HERTrainer(trainer)
-    eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
-        env,
-        MakeDeterministic(policy),
-        max_path_length,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-    )
-    expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
-        env,
-        policy,
-        max_path_length,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-    )
+    if variant.get("do_state_exp", False):
+        eval_path_collector = GoalConditionedPathCollector(
+            env,
+            MakeDeterministic(policy),
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+        )
+        expl_path_collector = GoalConditionedPathCollector(
+            env,
+            policy,
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+        )
+    else:
+        eval_path_collector = VAEWrappedEnvPathCollector(
+            variant['evaluation_goal_sampling_mode'],
+            env,
+            MakeDeterministic(policy),
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+        )
+        expl_path_collector = VAEWrappedEnvPathCollector(
+            variant['exploration_goal_sampling_mode'],
+            env,
+            policy,
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
+        )
 
-    algorithm = TorchOnlineRLAlgorithm(
+    algorithm = TorchBatchRLAlgorithm(
         trainer=trainer,
         exploration_env=env,
         evaluation_env=env,
@@ -276,304 +259,29 @@ def twin_sac_experiment(variant):
     )
 
     if variant.get("save_video", True):
-        rollout_function = rf.create_rollout_function(
-            rf.multitask_rollout,
-            max_path_length=algorithm.max_path_length,
-            observation_key=algorithm.observation_key,
-            desired_goal_key=algorithm.desired_goal_key,
-        )
-        video_func = get_video_save_func(
-            rollout_function,
-            env,
-            algorithm.eval_policy,
-            variant,
-        )
+        if variant.get("do_state_exp", False):
+            rollout_function = rf.create_rollout_function(
+                rf.multitask_rollout,
+                max_path_length=max_path_length,
+                observation_key=observation_key,
+                desired_goal_key=desired_goal_key,
+            )
+            video_func = get_video_save_func(
+                rollout_function,
+                env,
+                policy,
+                variant,
+            )
+        else:
+            video_func = VideoSaveFunction(
+                env,
+                variant,
+            )
         algorithm.post_train_funcs.append(video_func)
 
     algorithm.to(ptu.device)
     if not variant.get("do_state_exp", False):
         env.vae.to(ptu.device)
-    algorithm.train()
-
-
-def td3_experiment_online_vae(variant):
-    import railrl.torch.pytorch_util as ptu
-    from railrl.data_management.online_vae_replay_buffer import \
-        OnlineVaeRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-    from railrl.torch.vae.vae_trainer import ConvVAETrainer
-    from railrl.torch.td3.td3 import TD3
-    from railrl.exploration_strategies.base import (
-        PolicyWrappedWithExplorationStrategy
-    )
-    from railrl.exploration_strategies.gaussian_and_epislon import \
-        GaussianAndEpislonStrategy
-
-    preprocess_rl_variant(variant)
-    env = get_envs(variant)
-
-    uniform_dataset_fn = variant.get('generate_uniform_dataset_fn', None)
-    if uniform_dataset_fn:
-        uniform_dataset=uniform_dataset_fn(
-            **variant['generate_uniform_dataset_kwargs']
-        )
-    else:
-        uniform_dataset=None
-
-    observation_key = variant.get('observation_key', 'latent_observation')
-    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
-    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
-    obs_dim = (
-            env.observation_space.spaces[observation_key].low.size
-            + env.observation_space.spaces[desired_goal_key].low.size
-    )
-    action_dim = env.action_space.low.size
-    hidden_sizes = variant.get('hidden_sizes', [400, 300])
-    qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        hidden_sizes=hidden_sizes,
-    )
-    qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        hidden_sizes=hidden_sizes,
-    )
-    target_qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        hidden_sizes=hidden_sizes,
-    )
-    target_qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        hidden_sizes=hidden_sizes,
-    )
-    policy = TanhMlpPolicy(
-        input_size=obs_dim,
-        output_size=action_dim,
-        hidden_sizes=hidden_sizes,
-        # **variant['policy_kwargs']
-    )
-    target_policy = TanhMlpPolicy(
-        input_size=obs_dim,
-        output_size=action_dim,
-        hidden_sizes=hidden_sizes,
-        # **variant['policy_kwargs']
-    )
-
-    es = GaussianAndEpislonStrategy(
-        action_space=env.action_space,
-        max_sigma=.2,
-        min_sigma=.2,  # constant sigma
-        epsilon=.3,
-    )
-    expl_policy = PolicyWrappedWithExplorationStrategy(
-        exploration_strategy=es,
-        policy=policy,
-    )
-
-    vae = env.vae
-
-    replay_buffer_class = variant.get("replay_buffer_class", OnlineVaeRelabelingBuffer)
-    replay_buffer = replay_buffer_class(
-        vae=env.vae,
-        env=env,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        achieved_goal_key=achieved_goal_key,
-        **variant['replay_buffer_kwargs']
-    )
-
-    vae_trainer_class = variant.get("vae_trainer_class", ConvVAETrainer)
-    vae_trainer = vae_trainer_class(
-        env.vae,
-        **variant['online_vae_trainer_kwargs']
-    )
-    assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
-    max_path_length = variant['max_path_length']
-
-    trainer = TD3(
-        policy=policy,
-        qf1=qf1,
-        qf2=qf2,
-        target_qf1=target_qf1,
-        target_qf2=target_qf2,
-        target_policy=target_policy,
-        **variant['td3_trainer_kwargs']
-    )
-    trainer = HERTrainer(trainer)
-    eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
-        env,
-        policy,
-        max_path_length,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-    )
-    expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
-        env,
-        expl_policy,
-        max_path_length,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-    )
-
-    algorithm = OnlineVaeAlgorithm(
-        trainer=trainer,
-        exploration_env=env,
-        evaluation_env=env,
-        exploration_data_collector=expl_path_collector,
-        evaluation_data_collector=eval_path_collector,
-        replay_buffer=replay_buffer,
-        vae=vae,
-        vae_trainer=vae_trainer,
-        uniform_dataset=uniform_dataset,
-        max_path_length=max_path_length,
-        **variant['algo_kwargs']
-    )
-
-    if variant.get("save_video", True):
-        video_func = VideoSaveFunction(
-            env,
-            variant,
-        )
-        algorithm.post_train_funcs.append(video_func)
-    if variant['custom_goal_sampler'] == 'replay_buffer':
-        env.custom_goal_sampler = replay_buffer.sample_buffer_goals
-
-    algorithm.to(ptu.device)
-    vae.to(ptu.device)
-    algorithm.train()
-
-
-def twin_sac_experiment_online_vae(variant):
-    import railrl.torch.pytorch_util as ptu
-    from railrl.data_management.online_vae_replay_buffer import \
-        OnlineVaeRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp
-    from railrl.torch.sac.policies import TanhGaussianPolicy
-    from railrl.torch.vae.vae_trainer import ConvVAETrainer
-
-    preprocess_rl_variant(variant)
-    env = get_envs(variant)
-
-    uniform_dataset_fn = variant.get('generate_uniform_dataset_fn', None)
-    if uniform_dataset_fn:
-        uniform_dataset=uniform_dataset_fn(
-            **variant['generate_uniform_dataset_kwargs']
-        )
-    else:
-        uniform_dataset=None
-
-    observation_key = variant.get('observation_key', 'latent_observation')
-    desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
-    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
-    obs_dim = (
-            env.observation_space.spaces[observation_key].low.size
-            + env.observation_space.spaces[desired_goal_key].low.size
-    )
-    action_dim = env.action_space.low.size
-    hidden_sizes = variant.get('hidden_sizes', [400, 300])
-    qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        hidden_sizes=hidden_sizes,
-    )
-    qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        hidden_sizes=hidden_sizes,
-    )
-    target_qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        hidden_sizes=hidden_sizes,
-    )
-    target_qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        hidden_sizes=hidden_sizes,
-    )
-    policy = TanhGaussianPolicy(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        hidden_sizes=hidden_sizes,
-    )
-
-    vae = env.vae
-
-    replay_buffer_class = variant.get("replay_buffer_class", OnlineVaeRelabelingBuffer)
-    replay_buffer = replay_buffer_class(
-        vae=env.vae,
-        env=env,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-        achieved_goal_key=achieved_goal_key,
-        **variant['replay_buffer_kwargs']
-    )
-
-    vae_trainer_class = variant.get("vae_trainer_class", ConvVAETrainer)
-    vae_trainer = vae_trainer_class(
-        env.vae,
-        **variant['online_vae_trainer_kwargs']
-    )
-    assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
-    max_path_length = variant['max_path_length']
-
-    trainer = SACTrainer(
-        env=env,
-        policy=policy,
-        qf1=qf1,
-        qf2=qf2,
-        target_qf1=target_qf1,
-        target_qf2=target_qf2,
-        **variant['twin_sac_trainer_kwargs']
-    )
-    trainer = HERTrainer(trainer)
-    eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
-        env,
-        MakeDeterministic(policy),
-        max_path_length,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-    )
-    expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
-        env,
-        policy,
-        max_path_length,
-        observation_key=observation_key,
-        desired_goal_key=desired_goal_key,
-    )
-
-    algorithm = OnlineVaeAlgorithm(
-        trainer=trainer,
-        exploration_env=env,
-        evaluation_env=env,
-        exploration_data_collector=expl_path_collector,
-        evaluation_data_collector=eval_path_collector,
-        replay_buffer=replay_buffer,
-        vae=vae,
-        vae_trainer=vae_trainer,
-        uniform_dataset=uniform_dataset,
-        max_path_length=max_path_length,
-        **variant['algo_kwargs']
-    )
-
-    if variant.get("save_video", True):
-        video_func = VideoSaveFunction(
-            env,
-            variant,
-        )
-        algorithm.post_train_funcs.append(video_func)
-    if variant['custom_goal_sampler'] == 'replay_buffer':
-        env.custom_goal_sampler = replay_buffer.sample_buffer_goals
-
-    algorithm.to(ptu.device)
-    vae.to(ptu.device)
     algorithm.train()
 
 
