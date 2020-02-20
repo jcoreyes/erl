@@ -289,5 +289,4 @@ dependencies:
     - torch==1.1.0
     - torchvision==0.3.0
     - tqdm==4.42.1
-prefix: /home/soroush/anaconda3/envs/railrl-env
 
