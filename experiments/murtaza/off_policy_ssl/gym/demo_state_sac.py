@@ -27,11 +27,12 @@ from railrl.launchers.launcher_util import run_experiment
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'env_class': HalfCheetahEnv,
+        'env_id':'HalfCheetah-v2',
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 1000,
         'demo_path':"demos/hc_action_noise_1000.npy",
-        'bc_num_pretrain_steps':200000,
+        'bc_num_pretrain_steps':50000,
     },
     'hopper': {  # 6 DoF
         'env_class': HopperEnv,
@@ -66,11 +67,8 @@ def experiment(variant):
     variant['trainer_kwargs']['bc_num_pretrain_steps'] = env_params['bc_num_pretrain_steps']
 
     if 'env_id' in env_params:
-        expl_env = NormalizedBoxEnv(gym.make(env_params['env_id']))
-        eval_env = NormalizedBoxEnv(gym.make(env_params['env_id']))
-    else:
-        expl_env = NormalizedBoxEnv(variant['env_class']())
-        eval_env = NormalizedBoxEnv(variant['env_class']())
+        expl_env = gym.make(env_params['env_id'])
+        eval_env = gym.make(env_params['env_id'])
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
     N = variant['num_layers']
@@ -95,13 +93,21 @@ def experiment(variant):
         output_size=1,
         hidden_sizes=[M] * N,
     )
-    policy = variant.get('policy_class', TanhGaussianPolicy)(
+    if variant.get('policy_class') == TanhGaussianPolicy:
+        policy = TanhGaussianPolicy(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        hidden_sizes=[M] * N,
+    )
+    else:
+        policy = GaussianPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
         hidden_sizes=[M] * N,
         max_log_std=0,
         min_log_std=-6,
-    )
+        )
+    
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
         eval_env,
@@ -199,7 +205,7 @@ if __name__ == "__main__":
         num_expl_steps_per_train_loop=1000,
         min_num_steps_before_training=1000,
         max_path_length=1000,
-        batch_size=256,
+        batch_size=1024,
         replay_buffer_size=int(1E6),
         layer_size=256,
         num_layers=2,
@@ -214,7 +220,7 @@ if __name__ == "__main__":
             discount=0.99,
             soft_target_tau=5e-3,
             target_update_period=1,
-            policy_lr=3E-4,
+            policy_lr=.01,
             qf_lr=3E-4,
             reward_scale=1,
             beta=1,
@@ -237,7 +243,7 @@ if __name__ == "__main__":
         'use_weights':[True],
         # 'weight_update_period':[1000, 10000],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
-        'trainer_kwargs.bc_num_pretrain_steps':[1000],
+        # 'trainer_kwargs.bc_num_pretrain_steps':[1000],
         'trainer_kwargs.bc_weight':[1],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
@@ -246,8 +252,9 @@ if __name__ == "__main__":
             10,
             # 100,
         ],
+        'trainer_kwargs.policy_lr':[.01, .001, .0001],
         'layer_size':[256,],
-        'num_layers':[2],
+        'num_layers':[1, 2, 4],
         'train_rl':[False],
         'pretrain_rl':[False],
         'load_demos':[True],
@@ -259,11 +266,11 @@ if __name__ == "__main__":
             # 'hopper',
         ],
         'policy_class':[
-          # TanhGaussianPolicy,
+          TanhGaussianPolicy,
           GaussianPolicy,
         ],
         'trainer_kwargs.bc_loss_type':[
-            'mse'
+            'mse',
         ],
         'trainer_kwargs.awr_loss_type':[
             'mse',
@@ -274,13 +281,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'test'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'test'
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'awr_sac_gym_resampled_v3'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'bc_hc_gym_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -290,7 +297,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,
-                use_gpu=True,
+                # use_gpu=True,
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),

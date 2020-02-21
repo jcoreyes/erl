@@ -220,18 +220,21 @@ class AWRSACTrainer(TorchTrainer):
 
             test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer)
             test_policy_loss = test_policy_loss * self.bc_weight
-
-            total_ret = 0
-            for _ in range(2):
-                o = self.env.reset()
-                ret = 0
-                for _ in range(1000):
-                    a, _ = self.eval_policy.get_action(o)
-                    o, r, done, info = self.env.step(a)
-                    ret += r
-                    if done:
-                        break
-                total_ret += ret
+            
+            if i % 1 == 0:
+                total_ret = 0
+                for _ in range(2):
+                    o = self.env.reset()
+                    ret = 0
+                    for _ in range(1000):
+                        a, _ = self.eval_policy.get_action(o)
+                        o, r, done, info = self.env.step(a)
+                        ret += r
+                        if done:
+                            break
+                    total_ret += ret
+                print("Return at step {} : {}".format(i, total_ret/2))
+                # import ipdb; ipdb.set_trace()
             stats = {
                 "pretrain_bc/batch": i,
                 "pretrain_bc/avg_return": total_ret / 2,
