@@ -221,7 +221,7 @@ class AWRSACTrainer(TorchTrainer):
             test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer)
             test_policy_loss = test_policy_loss * self.bc_weight
             
-            if i % 1 == 0:
+            if i % 10000 == 0:
                 total_ret = 0
                 for _ in range(2):
                     o = self.env.reset()
@@ -235,7 +235,8 @@ class AWRSACTrainer(TorchTrainer):
                     total_ret += ret
                 print("Return at step {} : {}".format(i, total_ret/2))
                 # import ipdb; ipdb.set_trace()
-            stats = {
+            if i % 1000 == 0:
+                stats = {
                 "pretrain_bc/batch": i,
                 "pretrain_bc/avg_return": total_ret / 2,
                 "pretrain_bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
@@ -244,9 +245,9 @@ class AWRSACTrainer(TorchTrainer):
                 "pretrain_bc/Test MSE": ptu.get_numpy(test_mse_loss),
                 "pretrain_bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
                 "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
-            }
-            logger.record_dict(stats)
-            logger.dump_tabular(with_prefix=True, with_timestamp=False)
+                }
+                logger.record_dict(stats)
+                logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
             if self.save_bc_policies and i % self.save_bc_policies == 0:
                 logger.save_itr_params(i, {

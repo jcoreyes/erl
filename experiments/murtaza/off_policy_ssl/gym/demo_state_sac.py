@@ -32,7 +32,7 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 1000,
         'demo_path':"demos/hc_action_noise_1000.npy",
-        'bc_num_pretrain_steps':50000,
+        'bc_num_pretrain_steps':500000,
     },
     'hopper': {  # 6 DoF
         'env_class': HopperEnv,
@@ -40,7 +40,10 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 1000,
         'demo_path':"demos/hopper_action_noise_1000.npy",
-        'bc_num_pretrain_steps':1000000,
+        'bc_num_pretrain_steps':500000,
+        'env_id':'Hopper-v2',
+
+        'env_id':'Hopper-v2',
     },
     'ant': {  # 6 DoF
         'env_class': AntEnv,
@@ -48,7 +51,8 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 3000,
         'demo_path':"demos/ant_action_noise_1000.npy",
-        'bc_num_pretrain_steps':1000000,
+        'bc_num_pretrain_steps':500000,
+        'env_id':'Ant-v2',
     },
     'walker': {  # 6 DoF
         'env_class': Walker2dEnv,
@@ -220,7 +224,7 @@ if __name__ == "__main__":
             discount=0.99,
             soft_target_tau=5e-3,
             target_update_period=1,
-            policy_lr=.01,
+            policy_lr=3e-4,
             qf_lr=3E-4,
             reward_scale=1,
             beta=1,
@@ -252,9 +256,9 @@ if __name__ == "__main__":
             10,
             # 100,
         ],
-        'trainer_kwargs.policy_lr':[.01, .001, .0001],
-        'layer_size':[256,],
-        'num_layers':[1, 2, 4],
+        'trainer_kwargs.policy_lr':[.01],
+        'layer_size':[100],
+        'num_layers':[1],
         'train_rl':[False],
         'pretrain_rl':[False],
         'load_demos':[True],
@@ -266,7 +270,7 @@ if __name__ == "__main__":
             # 'hopper',
         ],
         'policy_class':[
-          TanhGaussianPolicy,
+          # TanhGaussianPolicy,
           GaussianPolicy,
         ],
         'trainer_kwargs.bc_loss_type':[
@@ -281,13 +285,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'bc_hc_gym_v1'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'bc_hc_gym_v2'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'bc_hc_gym_v4'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
