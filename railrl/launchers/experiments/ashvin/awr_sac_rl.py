@@ -12,7 +12,7 @@ import gym
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.trajectory_replay_buffer import TrajectoryReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv
+from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWrapperEnv
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
@@ -125,8 +125,79 @@ ENV_PARAMS = {
         'max_path_length': 200,
         # 'num_epochs': 1000,
     },
+
+    'pen-sparse-v0': {
+        'env_id': 'pen-v0',
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/pen2_sparse.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/pen_bc_sparse1.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse2.npy",
+            path="demos/icml2020/hand/pen_bc_sparse3.npy",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'door-sparse-v0': {
+        'env_id': 'door-v0',
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/door2_sparse.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/door_bc_sparse1.npy",
+            # path="demos/icml2020/hand/door_bc_sparse3.npy",
+            path="demos/icml2020/hand/door_bc_sparse4.npy",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'relocate-sparse-v0': {
+        'env_id': 'relocate-v0',
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/relocate2_sparse.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            path="demos/icml2020/hand/relocate_bc_sparse1.npy",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'hammer-sparse-v0': {
+        'env_id': 'hammer-v0',
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/hammer2_sparse.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            path="demos/icml2020/hand/hammer_bc_sparse1.npy",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
 }
 
+def compute_hand_sparse_reward(next_obs, reward, done, info):
+    return info['goal_achieved'] - 1
 
 def encoder_wrapped_env(variant):
     representation_size = 128
@@ -224,9 +295,20 @@ def experiment(variant):
         else:
             expl_env = NormalizedBoxEnv(variant['env_class']())
             eval_env = NormalizedBoxEnv(variant['env_class']())
+
+        if variant.get('sparse_reward', False):
+            expl_env = RewardWrapperEnv(expl_env, compute_hand_sparse_reward)
+            eval_env = RewardWrapperEnv(eval_env, compute_hand_sparse_reward)
+
+        if variant.get('add_env_demos', False):
+            variant["path_loader_kwargs"]["demo_paths"].append(variant["env_demo_path"])
+
+        if variant.get('add_env_offpolicy_data', False):
+            variant["path_loader_kwargs"]["demo_paths"].append(variant["env_offpolicy_data_path"])
     else:
         expl_env = encoder_wrapped_env(variant)
         eval_env = encoder_wrapped_env(variant)
+
 
     path_loader_kwargs = variant.get("path_loader_kwargs", {})
     stack_obs = path_loader_kwargs.get("stack_obs", 1)

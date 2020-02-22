@@ -292,6 +292,7 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
             init_w=1e-3,
             min_log_std=None,
             max_log_std=None,
+            std_architecture="shared",
             **kwargs
     ):
         super().__init__(
@@ -306,13 +307,19 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
         self.max_log_std = max_log_std
         self.log_std = None
         self.std = std
+        self.std_architecture = std_architecture
         if std is None:
-            last_hidden_size = obs_dim
-            if len(hidden_sizes) > 0:
-                last_hidden_size = hidden_sizes[-1]
-            self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim)
-            self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
-            self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
+            if self.std_architecture == "shared":
+                last_hidden_size = obs_dim
+                if len(hidden_sizes) > 0:
+                    last_hidden_size = hidden_sizes[-1]
+                self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim)
+                self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
+                self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
+            elif self.std_architecture == "values":
+                self.log_std_logits = nn.Parameter(ptu.zeros(action_dim, requires_grad=True))
+            else:
+                error
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
@@ -352,12 +359,17 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
         if self.std is None:
             # log_std = self.last_fc_log_std(h)
             # log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
-            log_std = torch.sigmoid(self.last_fc_log_std(h))
+            if self.std_architecture == "shared":
+                log_std = torch.sigmoid(self.last_fc_log_std(h))
+            elif self.std_architecture == "values":
+                log_std = torch.sigmoid(self.log_std_logits)
+            else:
+                error
             log_std = self.min_log_std + log_std * (self.max_log_std - self.min_log_std)
             std = torch.exp(log_std)
         else:
-            std = torch.from_numpy(self.std)
-            log_std = self.log_std
+            std = torch.from_numpy(np.array([self.std, ])).float().to(ptu.device)
+            log_std = torch.log(std) # self.log_std
 
         log_prob = None
         entropy = None
@@ -434,6 +446,7 @@ class GaussianMixturePolicy(Mlp, ExplorationPolicy):
             min_log_std=None,
             max_log_std=None,
             num_gaussians=1,
+            std_architecture="shared",
             **kwargs
     ):
         super().__init__(
@@ -450,13 +463,20 @@ class GaussianMixturePolicy(Mlp, ExplorationPolicy):
         self.max_log_std = max_log_std
         self.log_std = None
         self.std = std
+        self.std_architecture = std_architecture
         if std is None:
             last_hidden_size = obs_dim
             if len(hidden_sizes) > 0:
                 last_hidden_size = hidden_sizes[-1]
-            self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim * num_gaussians)
-            self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
-            self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
+
+            if self.std_architecture == "shared":
+                self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim * num_gaussians)
+                self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
+                self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
+            elif self.std_architecture == "values":
+                self.log_std_logits = nn.Parameter(ptu.zeros(action_dim * num_gaussians, requires_grad=True))
+            else:
+                error
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
@@ -499,14 +519,20 @@ class GaussianMixturePolicy(Mlp, ExplorationPolicy):
         if self.std is None:
             # log_std = self.last_fc_log_std(h)
             # log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
-            log_std = torch.sigmoid(self.last_fc_log_std(h))
+            # log_std = torch.sigmoid(self.last_fc_log_std(h))
+            if self.std_architecture == "shared":
+                log_std = torch.sigmoid(self.last_fc_log_std(h))
+            elif self.std_architecture == "values":
+                log_std = torch.sigmoid(self.log_std_logits)
+            else:
+                error
             log_std = self.min_log_std + log_std * (self.max_log_std - self.min_log_std)
             std = torch.exp(log_std)
         else:
             std = torch.from_numpy(self.std)
             log_std = self.log_std
 
-        weights = F.softmax(self.last_fc_weights(h)).reshape((-1, self.num_gaussians, 1)).reshape((-1, self.num_gaussians, 1))
+        weights = F.softmax(self.last_fc_weights(h)).reshape((-1, self.num_gaussians, 1))
         mixture_means = mean.reshape((-1, self.action_dim, self.num_gaussians, ))
         mixture_stds = std.reshape((-1, self.action_dim, self.num_gaussians, ))
         dist = GaussianMixture(mixture_means, mixture_stds, weights)

@@ -1,8 +1,11 @@
+"""See https://github.com/aravindr93/hand_dapg for setup instructions"""
+
 import os.path as osp
 import pickle
 from railrl.core import logger
 from railrl.misc.asset_loader import load_local_or_remote_file
 from railrl.core import logger
+from railrl.envs.wrappers import RewardWrapperEnv
 
 from mjrl.utils.gym_env import GymEnv
 from mjrl.policies.gaussian_mlp import MLP
@@ -64,7 +67,11 @@ default_job_data = dict(
     rl_num_iter = 100,
     lam_0 = 1e-2,
     lam_1 = 0.95,
+    sparse_reward=False,
 )
+
+def compute_hand_sparse_reward(next_obs, reward, done, info):
+    return info['goal_achieved'] - 1
 
 def experiment(variant):
     """
@@ -92,6 +99,8 @@ def experiment(variant):
     seed = int(job_data['seed'])
 
     e = GymEnv(job_data['env'])
+    if job_data['sparse_reward']:
+        e = RewardWrapperEnv(e, compute_hand_sparse_reward)
     policy = MLP(e.spec, hidden_sizes=job_data['policy_size'], seed=seed)
     baseline = MLPBaseline(e.spec, reg_coef=1e-3, batch_size=job_data['vf_batch_size'],
                            epochs=job_data['vf_epochs'], learn_rate=job_data['vf_learn_rate'])

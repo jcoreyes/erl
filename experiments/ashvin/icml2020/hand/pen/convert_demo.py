@@ -4,7 +4,7 @@ import numpy as np
 envs = ["door", "pen", "hammer", "relocate"]
 
 for env_name in envs:
-    data = pickle.load(open("/home/ashvin/code/hand_dapg/dapg/demonstrations/%s-v0_demos.pickle" % env_name, "rb"))
+    data = pickle.load(open("/home/ashvin/code/hand_dapg/dapg/demonstrations/%s-v0_demos_sparse.pickle" % env_name, "rb"))
     y = []
 
     for path in data:
@@ -43,4 +43,4 @@ for env_name in envs:
 
         y.append(traj)
 
-    np.save("/home/ashvin/data/s3doodad/demos/icml2020/hand/%s2.npy" % env_name, y)
+    np.save("/home/ashvin/data/s3doodad/demos/icml2020/hand/%s2_sparse.npy" % env_name, y)

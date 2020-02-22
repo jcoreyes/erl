@@ -310,7 +310,6 @@ class NormalizedBoxEnv(ProxyEnv):
         return "Normalized: %s" % self._wrapped_env
 
 
-
 class StackObservationEnv(ProxyEnv):
     """
     Normalize action to in [-1, 1].
@@ -347,3 +346,22 @@ class StackObservationEnv(ProxyEnv):
             next_obs
         ))
         return self.current_obs.copy().flatten(), reward, done, info
+
+
+class RewardWrapperEnv(ProxyEnv):
+    """Substitute a different reward function"""
+
+    def __init__(
+            self,
+            env,
+            compute_reward_fn,
+    ):
+        ProxyEnv.__init__(self, env)
+        self.spec = env.spec # hack for hand envs
+        self.compute_reward_fn = compute_reward_fn
+
+    def step(self, action):
+        next_obs, reward, done, info = self._wrapped_env.step(action)
+        info["env_reward"] = reward
+        reward = self.compute_reward_fn(next_obs, reward, done, info)
+        return next_obs, reward, done, info

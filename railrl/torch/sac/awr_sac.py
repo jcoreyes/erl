@@ -65,6 +65,7 @@ class AWRSACTrainer(TorchTrainer):
             reparam_weight=1.0,
             awr_weight=1.0,
             post_pretrain_hyperparams=None,
+            post_bc_pretrain_hyperparams=None,
 
             awr_use_mle_for_vf=False,
             awr_sample_actions=False,
@@ -149,6 +150,7 @@ class AWRSACTrainer(TorchTrainer):
         self.reparam_weight = reparam_weight
         self.awr_weight = awr_weight
         self.post_pretrain_hyperparams = post_pretrain_hyperparams
+        self.post_bc_pretrain_hyperparams = post_bc_pretrain_hyperparams
         self.update_policy = True
 
         # self.bc_log = dict(
@@ -241,6 +243,9 @@ class AWRSACTrainer(TorchTrainer):
             'progress.csv',
             relative_to_snapshot_dir=True,
         )
+
+        if self.post_bc_pretrain_hyperparams:
+            self.set_algorithm_weights(**self.post_bc_pretrain_hyperparams)
 
         # savepath = osp.join(logger.get_snapshot_dir(), 'bc_log.npy')
         # np.save(savepath, self.bc_log)
