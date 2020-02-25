@@ -141,6 +141,7 @@ class MDPPathLoader:
         if not on_policy:
             data = [data]
         # random.shuffle(data)
+
         N = int(len(data) * self.demo_train_split)
         print("using", N, "paths for training")
 

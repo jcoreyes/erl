@@ -97,7 +97,7 @@ def collect_one_rollout(env, expert, horizon=200, threshold=-1, add_action_noise
     o = env.reset()
 
     traj = dict(
-        observations=[o],
+        observations=[],
         actions=[],
         rewards=[],
         next_observations=[],
@@ -148,7 +148,7 @@ def collect_one_rollout_mdp(env, expert, horizon=200, render=False, pause=0,  th
     o = env.reset()
 
     traj = dict(
-        observations=[o],
+        observations=[],
         actions=[],
         rewards=[],
         next_observations=[],

@@ -52,21 +52,38 @@ from railrl.misc.asset_loader import load_local_or_remote_file
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'env_class': HalfCheetahEnv,
+        'env_id':'HalfCheetah-v2',
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 1000,
+        'demo_path':"demos/hc_action_noise_1000.npy",
+        'bc_num_pretrain_steps':500000,
     },
     'hopper': {  # 6 DoF
         'env_class': HopperEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 1000,
+        'demo_path':"demos/hopper_action_noise_1000.npy",
+        'bc_num_pretrain_steps':500000,
+        'env_id':'Hopper-v2',
     },
-    'humanoid': {  # 6 DoF
-        'env_class': HumanoidEnv,
+    'ant': {  # 6 DoF
+        'env_class': AntEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 3000,
+        'demo_path':"demos/ant_action_noise_1000.npy",
+        'bc_num_pretrain_steps':500000,
+        'env_id':'Ant-v2',
+    },
+    'walker': {  # 6 DoF
+        'env_class': Walker2dEnv,
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 1000,
+        'num_epochs': 3000,
+        'demo_path':"demos/walker_action_noise_1000.npy",
+        'bc_num_pretrain_steps':100000,
     },
     'inv-double-pendulum': {  # 2 DoF
         'env_class': InvertedDoublePendulumEnv,
@@ -81,18 +98,6 @@ ENV_PARAMS = {
         'num_epochs': 200,
         'min_num_steps_before_training': 2000,
         'target_update_period': 200,
-    },
-    'ant': {  # 6 DoF
-        'env_class': AntEnv,
-        'num_expl_steps_per_train_loop': 1000,
-        'max_path_length': 1000,
-        'num_epochs': 3000,
-    },
-    'walker': {  # 6 DoF
-        'env_class': Walker2dEnv,
-        'num_expl_steps_per_train_loop': 1000,
-        'max_path_length': 1000,
-        'num_epochs': 3000,
     },
     'swimmer': {  # 6 DoF
         'env_class': SwimmerEnv,
@@ -217,8 +222,6 @@ def experiment(variant):
         variant.update(env_params)
 
         if 'env_id' in env_params:
-            import mj_envs
-
             expl_env = gym.make(env_params['env_id'])
             eval_env = gym.make(env_params['env_id'])
         else:
@@ -227,7 +230,6 @@ def experiment(variant):
     else:
         expl_env = encoder_wrapped_env(variant)
         eval_env = encoder_wrapped_env(variant)
-
     path_loader_kwargs = variant.get("path_loader_kwargs", {})
     stack_obs = path_loader_kwargs.get("stack_obs", 1)
     if stack_obs > 1:
@@ -373,6 +375,7 @@ def experiment(variant):
     demo_test_buffer = EnvReplayBuffer(
         **replay_buffer_kwargs,
     )
+    variant['path_loader_kwargs']['demo_path'] = env_params['demo_path']
 
     if variant.get('save_paths', False):
         algorithm.post_train_funcs.append(save_paths)
@@ -398,5 +401,5 @@ def experiment(variant):
         data['algorithm'] = algorithm
         torch.save(data, open(pt_path, "wb"))
         torch.save(data, open(p_path, "wb"))
-
-    algorithm.train()
+    if variant.get('train_rl', False):
+        algorithm.train()

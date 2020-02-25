@@ -149,6 +149,7 @@ class AWRSACTrainer(TorchTrainer):
         #     train=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
         #     test=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
         # )
+        # self.bc_loss_fn = nn.MSELoss()
 
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)
@@ -167,6 +168,7 @@ class AWRSACTrainer(TorchTrainer):
             og, deterministic=False, reparameterize=True, return_log_prob=True,
         )
         # import ipdb; ipdb.set_trace()
+
         mse = (pred_u - u) ** 2
         mse_loss = mse.mean()
 
@@ -198,17 +200,17 @@ class AWRSACTrainer(TorchTrainer):
             'pretrain_policy.csv', relative_to_snapshot_dir=True
         )
         total_ret = 0
-        for _ in range(2):
+        for _ in range(20):
             o = self.env.reset()
             ret = 0
             for _ in range(1000):
-                a, _ = self.eval_policy.get_action(o)
+                a, _ = self.policy.get_action(o)
                 o, r, done, info = self.env.step(a)
                 ret += r
                 if done:
                     break
             total_ret += ret
-        print("INITIAL RETURN", total_ret/2)
+        print("INITIAL RETURN", total_ret/20)
 
         for i in range(self.bc_num_pretrain_steps):
             train_policy_loss, train_logp_loss, train_mse_loss, train_log_std = self.run_bc_batch(self.demo_train_buffer)
@@ -223,22 +225,22 @@ class AWRSACTrainer(TorchTrainer):
             
             if i % 10000 == 0:
                 total_ret = 0
-                for _ in range(2):
+                for _ in range(20):
                     o = self.env.reset()
                     ret = 0
                     for _ in range(1000):
-                        a, _ = self.eval_policy.get_action(o)
+                        a, _ = self.policy.get_action(o)
                         o, r, done, info = self.env.step(a)
                         ret += r
                         if done:
                             break
                     total_ret += ret
-                print("Return at step {} : {}".format(i, total_ret/2))
+                print("Return at step {} : {}".format(i, total_ret/20))
                 # import ipdb; ipdb.set_trace()
             if i % 1000 == 0:
                 stats = {
                 "pretrain_bc/batch": i,
-                "pretrain_bc/avg_return": total_ret / 2,
+                "pretrain_bc/avg_return": total_ret / 20,
                 "pretrain_bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
                 "pretrain_bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
                 "pretrain_bc/Train MSE": ptu.get_numpy(train_mse_loss),
@@ -297,9 +299,6 @@ class AWRSACTrainer(TorchTrainer):
         # then train policy and Q function together
         for i in range(self.q_num_pretrain2_steps):
             self.eval_statistics = dict()
-            if i % 10 == 0:
-                self._need_to_update_eval_statistics = True
-
             train_data = self.replay_buffer.random_batch(self.bc_batch_size)
             train_data = np_to_pytorch_batch(train_data)
             obs = train_data['observations']
@@ -309,19 +308,23 @@ class AWRSACTrainer(TorchTrainer):
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
 
-            if i % 1000 == 0:
+            if i % 10000 == 0:
                 total_ret = 0
-                for _ in range(5):
+                for _ in range(20):
                     o = self.env.reset()
                     ret = 0
-                    for i in range(1000):
-                        a, _ = self.eval_policy.get_action(o)
+                    for _ in range(1000):
+                        a, _ = self.policy.get_action(o)
                         o, r, done, info = self.env.step(a)
                         ret += r
                         if done:
                             break
                     total_ret += ret
-                self.eval_statistics["avg_return"] =  total_ret / 5
+                print("Return at step {} : {}".format(i, total_ret/20))
+            
+            if i%1000 == 0:
+                self.eval_statistics["avg_return"] =  total_ret / 20
+                self.eval_statistics["batch"] = i
                 logger.record_dict(self.eval_statistics)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
