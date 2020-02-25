@@ -29,33 +29,91 @@ class VideoSaveFunction:
     def __init__(self, env, variant):
         self.logdir = logger.get_snapshot_dir()
         self.save_period = variant.get('save_video_period', 50)
-        self.dump_video_kwargs = variant.get("self.dump_video_kwargs", dict())
+        self.dump_video_kwargs = variant.get("dump_video_kwargs", dict())
         self.dump_video_kwargs['imsize'] = variant['imsize'] #env.imsize
 
+        if "rows" not in self.dump_video_kwargs:
+            self.dump_video_kwargs["rows"] = 2
+        if "columns" not in self.dump_video_kwargs:
+            self.dump_video_kwargs["columns"] = 5
+
+        self.expl_env = None
+        self.eval_env = None
+
+        self.expl_data_collector = None
+        self.eval_data_collector = None
+
+        self.variant = variant
+        self.state_based = variant.get("do_state_exp", False)
+
     def __call__(self, algo, epoch):
-        expl_data_collector = algo.expl_data_collector
-        expl_paths = expl_data_collector.get_epoch_paths()
+        if self.expl_env is None or self.eval_env is None:
+            self.expl_env = algo.expl_env
+            self.eval_env = algo.eval_env
+            if self.state_based:
+                self.expl_env = ImageEnv(
+                    self.expl_env,
+                    self.variant['imsize'],
+                    init_camera=self.variant.get('init_camera', None),
+                    transpose=True,
+                    normalize=True,
+                )
+                self.eval_env = ImageEnv(
+                    self.eval_env,
+                    self.variant['imsize'],
+                    init_camera=self.variant.get('init_camera', None),
+                    transpose=True,
+                    normalize=True,
+                )
+
+        if self.expl_data_collector is None or self.eval_data_collector is None:
+            self.expl_data_collector = algo.expl_data_collector
+            self.eval_data_collector = algo.eval_data_collector
+            if self.state_based:
+                import copy
+                self.expl_data_collector = copy.deepcopy(self.expl_data_collector)
+                self.expl_data_collector._env = self.expl_env
+                self.expl_data_collector.end_epoch(-1)
+
+                self.eval_data_collector = copy.deepcopy(self.eval_data_collector)
+                self.eval_data_collector._env = self.eval_env
+                self.eval_data_collector.end_epoch(-1)
+
+        if self.state_based:
+            max_path_length = self.variant['max_path_length']
+            rows = self.dump_video_kwargs["rows"]
+            columns = self.dump_video_kwargs["columns"]
+
+            expl_paths = self.expl_data_collector.collect_new_paths(
+                max_path_length=max_path_length,
+                num_steps=max_path_length*rows*columns,
+                discard_incomplete_paths=True,
+            )
+            self.expl_data_collector.end_epoch(-1)
+
+            eval_paths = self.eval_data_collector.collect_new_paths(
+                max_path_length=max_path_length,
+                num_steps=max_path_length*rows*columns,
+                discard_incomplete_paths=True,
+            )
+            self.eval_data_collector.end_epoch(-1)
+        else:
+            expl_paths = self.expl_data_collector.get_epoch_paths()
+            eval_paths = self.eval_data_collector.get_epoch_paths()
         if epoch % self.save_period == 0 or epoch == algo.num_epochs:
-            filename = osp.join(self.logdir, 'video_{epoch}_vae.mp4'.format(epoch=epoch))
-            dump_paths(algo.expl_env,
+            filename = osp.join(self.logdir, 'video_{epoch}_expl.mp4'.format(epoch=epoch))
+            dump_paths(self.expl_env,
                 filename,
                 expl_paths,
-                "decoded_goal_image",
-                rows=2,
-                columns=5,
+                "image_desired_goal" if self.state_based else "decoded_goal_image",
                 **self.dump_video_kwargs,
             )
 
-        eval_path_collector = algo.eval_data_collector
-        eval_paths = eval_path_collector.get_epoch_paths()
-        if epoch % self.save_period == 0 or epoch == algo.num_epochs:
-            filename = osp.join(self.logdir, 'video_{epoch}_env.mp4'.format(epoch=epoch))
-            dump_paths(algo.eval_env,
+            filename = osp.join(self.logdir, 'video_{epoch}_eval.mp4'.format(epoch=epoch))
+            dump_paths(self.eval_env,
                 filename,
                 eval_paths,
                 "image_desired_goal",
-                rows=2,
-                columns=5,
                 **self.dump_video_kwargs,
             )
 
@@ -212,7 +270,7 @@ def dump_paths(
                 recon = d['image_observation']
             l.append(
                 get_image(
-                    d[goal_image_key], # d['image_desired_goal'],
+                    d[goal_image_key],
                     d['image_observation'],
                     recon,
                     pad_length=pad_length,

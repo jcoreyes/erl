@@ -11,9 +11,12 @@ import railrl.misc.hyperparameter as hyp
 
 from railrl.launchers.exp_launcher import rl_experiment
 
+from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera_v0
+
 if __name__ == "__main__":
     variant = dict(
-        env_id='SawyerReachXYZEnv-v0',
+        env_id='SawyerReachXYEnv-v1', #'SawyerPushAndReachEnvEasy-v0',
+        init_camera=sawyer_xyz_reacher_camera_v0,
         rl_variant=dict(
             do_state_exp=True,
             algo_kwargs=dict(
@@ -42,12 +45,13 @@ if __name__ == "__main__":
             policy_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
-            algorithm="SAC", #"TD3",
+            algorithm="SAC", #"SAC",
 
             dump_video_kwargs=dict(
                 rows=1,
                 columns=3,
             ),
+            save_video_period=2,
 
             # do_state_exp=True,
             # algorithm='td3',

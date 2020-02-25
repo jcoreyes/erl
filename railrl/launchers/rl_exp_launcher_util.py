@@ -126,24 +126,10 @@ def td3_experiment(variant):
     )
 
     if variant.get("save_video", True):
-        if variant.get("do_state_exp", False):
-            rollout_function = rf.create_rollout_function(
-                rf.multitask_rollout,
-                max_path_length=max_path_length,
-                observation_key=observation_key,
-                desired_goal_key=desired_goal_key,
-            )
-            video_func = get_video_save_func(
-                rollout_function,
-                env,
-                policy,
-                variant,
-            )
-        else:
-            video_func = VideoSaveFunction(
-                env,
-                variant,
-            )
+        video_func = VideoSaveFunction(
+            env,
+            variant,
+        )
         algorithm.post_train_funcs.append(video_func)
 
     algorithm.to(ptu.device)
@@ -259,24 +245,10 @@ def twin_sac_experiment(variant):
     )
 
     if variant.get("save_video", True):
-        if variant.get("do_state_exp", False):
-            rollout_function = rf.create_rollout_function(
-                rf.multitask_rollout,
-                max_path_length=max_path_length,
-                observation_key=observation_key,
-                desired_goal_key=desired_goal_key,
-            )
-            video_func = get_video_save_func(
-                rollout_function,
-                env,
-                policy,
-                variant,
-            )
-        else:
-            video_func = VideoSaveFunction(
-                env,
-                variant,
-            )
+        video_func = VideoSaveFunction(
+            env,
+            variant,
+        )
         algorithm.post_train_funcs.append(video_func)
 
     algorithm.to(ptu.device)
