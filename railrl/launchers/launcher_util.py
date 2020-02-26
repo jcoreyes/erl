@@ -264,19 +264,23 @@ def run_experiment(
             assert instance_type[0] == 'g'
         if spot_price is None:
             spot_price = config.GPU_SPOT_PRICE
+        variant['docker_image'] = docker_image
     else:
         docker_image = config.DOODAD_DOCKER_IMAGE
         if instance_type is None:
             instance_type = config.INSTANCE_TYPE
         if spot_price is None:
             spot_price = config.SPOT_PRICE
+        variant['docker_image'] = docker_image
     if mode == 'sss':
         if use_gpu:
             singularity_image = config.SSS_GPU_IMAGE
         else:
             singularity_image = config.SSS_CPU_IMAGE
+        variant['singularity_image'] = singularity_image
     elif mode in ['local_singularity', 'slurm_singularity']:
         singularity_image = config.SINGULARITY_IMAGE
+        variant['singularity_image'] = singularity_image
     else:
         singularity_image = None
 
@@ -287,6 +291,7 @@ def run_experiment(
     mode_kwargs = {}
     if use_gpu and mode == 'ec2':
         image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
+        variant['aws_image'] = image_id
     else:
         image_id = None
     if hasattr(config, "AWS_S3_PATH"):
@@ -397,6 +402,7 @@ def run_experiment(
             num_exps=num_exps_per_instance,
             **config_kwargs
         )
+        variant['gcp_image'] = image_name
     else:
         raise NotImplementedError("Mode not supported: {}".format(mode))
 
