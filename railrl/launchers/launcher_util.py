@@ -30,10 +30,11 @@ GitInfo = namedtuple(
 
 ec2_okayed = False
 gpu_ec2_okayed = False
-first_sss_launch = True
+slurm_config = None
 
 try:
     import doodad.mount as mount
+    from doodad.slurm.slurm_util import SlurmConfig
     from doodad.utils import REPO_DIR
     CODE_MOUNTS = [
         mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
@@ -115,6 +116,12 @@ def run_experiment(
      - 'local_docker'
      - 'ec2'
      - 'here_no_doodad': Run without doodad call
+     - 'ssh'
+     - 'gcp'
+     - 'local_singularity': run locally with singularity
+     - 'htp': generate a taskfile and script for using BRC's high-throughput script
+     - 'slurm_singularity': submit a slurm job using singularity
+     - 'sss': generate a script to run on some slurm job using singularity
     :param exp_prefix: name of experiment
     :param seed: Seed for this specific trial.
     :param variant: Dictionary
@@ -149,7 +156,7 @@ def run_experiment(
     global ec2_okayed
     global gpu_ec2_okayed
     global target_mount
-    global first_sss_launch
+    global slurm_config
 
     """
     Sanitize inputs as needed
@@ -161,7 +168,7 @@ def run_experiment(
     if mode == 'ssh' and base_log_dir is None:
         base_log_dir = config.SSH_LOG_DIR
     if base_log_dir is None:
-        if mode == 'sss':
+        if mode in {'sss', 'htp'}:
             base_log_dir = config.SSS_LOG_DIR
         else:
             base_log_dir = config.LOCAL_LOG_DIR
@@ -289,19 +296,23 @@ def run_experiment(
             assert instance_type[0] == 'g'
         if spot_price is None:
             spot_price = config.GPU_SPOT_PRICE
+        variant['docker_image'] = docker_image
     else:
         docker_image = config.DOODAD_DOCKER_IMAGE
         if instance_type is None:
             instance_type = config.INSTANCE_TYPE
         if spot_price is None:
             spot_price = config.SPOT_PRICE
-    if mode == 'sss':
+        variant['docker_image'] = docker_image
+    if mode in {'sss', 'htp'}:
         if use_gpu:
             singularity_image = config.SSS_GPU_IMAGE
         else:
             singularity_image = config.SSS_CPU_IMAGE
+        variant['singularity_image'] = singularity_image
     elif mode in ['local_singularity', 'slurm_singularity']:
         singularity_image = config.SINGULARITY_IMAGE
+        variant['singularity_image'] = singularity_image
     else:
         singularity_image = None
 
@@ -312,6 +323,7 @@ def run_experiment(
     mode_kwargs = {}
     if use_gpu and mode == 'ec2':
         image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
+        variant['aws_image'] = image_id
     else:
         image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
     if hasattr(config, "AWS_S3_PATH"):
@@ -359,29 +371,40 @@ def run_experiment(
             gpu=use_gpu,
             pre_cmd=config.SINGULARITY_PRE_CMDS,
         )
-    elif mode == 'slurm_singularity' or mode == 'sss':
+    elif mode in {'slurm_singularity', 'sss', 'htp'}:
         assert time_in_mins is not None, "Must approximate/set time in minutes"
-        if use_gpu:
-            kwargs = config.SLURM_GPU_CONFIG
-        else:
-            kwargs = config.SLURM_CPU_CONFIG
+        if slurm_config is None:
+            if use_gpu:
+                slurm_config = SlurmConfig(
+                    time_in_mins=time_in_mins, **config.SLURM_GPU_CONFIG)
+            else:
+                slurm_config = SlurmConfig(
+                    time_in_mins=time_in_mins, **config.SLURM_CPU_CONFIG)
         if mode == 'slurm_singularity':
             dmode = doodad.mode.SlurmSingularity(
                 image=singularity_image,
                 gpu=use_gpu,
-                time_in_mins=time_in_mins,
                 skip_wait=skip_wait,
                 pre_cmd=config.SINGULARITY_PRE_CMDS,
-                **kwargs
+                extra_args=config.BRC_EXTRA_SINGULARITY_ARGS,
+                slurm_config=slurm_config,
+            )
+        elif mode == 'htp':
+            dmode = doodad.mode.BrcHighThroughputMode(
+                image=singularity_image,
+                gpu=use_gpu,
+                pre_cmd=config.SSS_PRE_CMDS,
+                extra_args=config.BRC_EXTRA_SINGULARITY_ARGS,
+                slurm_config=slurm_config,
+                taskfile_path_on_brc=config.TASKFILE_PATH_ON_BRC,
             )
         else:
             dmode = doodad.mode.ScriptSlurmSingularity(
                 image=singularity_image,
                 gpu=use_gpu,
-                time_in_mins=time_in_mins,
-                skip_wait=skip_wait,
                 pre_cmd=config.SSS_PRE_CMDS,
-                **kwargs
+                extra_args=config.BRC_EXTRA_SINGULARITY_ARGS,
+                slurm_config=slurm_config,
             )
     elif mode == 'ec2':
         # Do this separately in case someone does not have EC2 configured
@@ -422,6 +445,7 @@ def run_experiment(
             num_exps=num_exps_per_instance,
             **config_kwargs
         )
+        variant['gcp_image'] = image_name
     else:
         raise NotImplementedError("Mode not supported: {}".format(mode))
 
@@ -459,14 +483,12 @@ def run_experiment(
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
-    elif mode in ['local_singularity', 'slurm_singularity', 'sss']:
+    elif mode in {'local_singularity', 'slurm_singularity', 'sss', 'htp'}:
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
         launch_locally = True
-        if mode == 'sss':
-            dmode.set_first_time(first_sss_launch)
-            first_sss_launch = False
+        if mode in {'sss', 'htp'}:
             target = config.SSS_RUN_DOODAD_EXPERIMENT_SCRIPT_PATH
     elif mode == 'here_no_doodad':
         base_log_dir_for_script = base_log_dir
@@ -503,7 +525,7 @@ def create_mounts(
         sync_interval=180,
         local_input_dir_to_mount_point_dict=None,
 ):
-    if mode == 'sss':
+    if mode in {'sss', 'htp'}:
         code_mounts = SSS_CODE_MOUNTS
         non_code_mounts = SSS_NON_CODE_MOUNTS
     else:
@@ -549,7 +571,7 @@ def create_mounts(
                            '*.jpeg', '*.patch'),
         )
 
-    elif mode in ['local', 'local_singularity', 'slurm_singularity', 'sss']:
+    elif mode in {'local', 'local_singularity', 'slurm_singularity', 'sss', 'htp'}:
         # To save directly to local files (singularity does this), skip mounting
         output_mount = mount.MountLocal(
             local_dir=base_log_dir,

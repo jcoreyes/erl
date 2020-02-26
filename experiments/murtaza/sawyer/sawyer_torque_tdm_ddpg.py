@@ -99,28 +99,20 @@ if __name__ == "__main__":
     search_space = {
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             5,
-<<<<<<< HEAD
-            4,
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
             1,
-=======
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
->>>>>>> shikhar_vae
             10,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             'replay_buffer',
         ],
         'hidden_sizes': [
-<<<<<<< HEAD
             50,
             100,
             200,
-=======
-            100,
->>>>>>> shikhar_vae
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -128,13 +120,9 @@ if __name__ == "__main__":
     )
 
     for variant in sweeper.iterate_hyperparameters():
-<<<<<<< HEAD
         n_seeds = 3
         exp_prefix = 'sawyer_torque_tdm_ddpg_xyz_reaching_sweep2'
-=======
-        n_seeds = 1
-        exp_prefix = 'sawyer_torque_tdm_ddpg_xyz_reaching_nupo_5'
->>>>>>> shikhar_vae
+
         mode = 'here_no_doodad'
         for i in range(n_seeds):
             run_experiment(
@@ -142,8 +130,5 @@ if __name__ == "__main__":
                 mode=mode,
                 exp_prefix=exp_prefix,
                 variant=variant,
-<<<<<<< HEAD
             )
-=======
-            )
->>>>>>> shikhar_vae
+
