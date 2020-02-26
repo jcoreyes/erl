@@ -357,6 +357,7 @@ def run_experiment(
         dmode = doodad.mode.LocalSingularity(
             image=singularity_image,
             gpu=use_gpu,
+            pre_cmd=config.SINGULARITY_PRE_CMDS,
         )
     elif mode == 'slurm_singularity' or mode == 'sss':
         assert time_in_mins is not None, "Must approximate/set time in minutes"

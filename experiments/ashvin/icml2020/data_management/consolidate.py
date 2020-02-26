@@ -156,10 +156,15 @@ def print_stats(data):
 # ]
 # output_file = "/home/ashvin/data/s3doodad/demos/icml2020/hand/hammer_bc_sparse3.npy"
 
+# input_patterns = [
+#     "/home/ashvin/data/s3doodad/ashvin/icml2020/hand/sparse/bc3-door/run10/id*/video_*.p",
+# ]
+# output_file = "/home/ashvin/data/s3doodad/demos/icml2020/hand/door_bc_sparse4.npy"
+
 input_patterns = [
-    "/home/ashvin/data/s3doodad/ashvin/icml2020/hand/sparse/bc3-door/run10/id*/video_*.p",
+    "/home/ashvin/data/s3doodad/ashvin/icml2020/hand/sparse/bc3-relocate/run10/id*/video_*.p",
 ]
-output_file = "/home/ashvin/data/s3doodad/demos/icml2020/hand/door_bc_sparse4.npy"
+output_file = "/home/ashvin/data/s3doodad/demos/icml2020/hand/relocate_bc_sparse4.npy"
 
 data = []
 for pattern in input_patterns:

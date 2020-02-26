@@ -34,6 +34,7 @@ class AWRSACTrainer(TorchTrainer):
             policy_lr=1e-3,
             qf_lr=1e-3,
             policy_weight_decay=0,
+            q_weight_decay=0,
             optimizer_class=optim.Adam,
 
             soft_target_tau=1e-2,
@@ -111,10 +112,12 @@ class AWRSACTrainer(TorchTrainer):
         )
         self.qf1_optimizer = optimizer_class(
             self.qf1.parameters(),
+            weight_decay=q_weight_decay,
             lr=qf_lr,
         )
         self.qf2_optimizer = optimizer_class(
             self.qf2.parameters(),
+            weight_decay=q_weight_decay,
             lr=qf_lr,
         )
 

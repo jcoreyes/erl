@@ -172,7 +172,8 @@ ENV_PARAMS = {
             is_demo=True,
         ),
         'env_offpolicy_data_path': dict(
-            path="demos/icml2020/hand/relocate_bc_sparse1.npy",
+            # path="demos/icml2020/hand/relocate_bc_sparse1.npy",
+            path="demos/icml2020/hand/relocate_bc_sparse4.npy",
             obs_dict=False,
             is_demo=False,
             train_split=0.9,
