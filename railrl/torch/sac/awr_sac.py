@@ -16,6 +16,8 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 import torch.nn.functional as F
 import os.path as osp
 
+from railrl.torch.networks import LinearTransform
+
 class AWRSACTrainer(TorchTrainer):
     def __init__(
             self,
@@ -71,6 +73,11 @@ class AWRSACTrainer(TorchTrainer):
             awr_use_mle_for_vf=False,
             awr_sample_actions=False,
             awr_min_q=False,
+
+            reward_transform_class=None,
+            reward_transform_kwargs=None,
+            terminal_transform_class=None,
+            terminal_transform_kwargs=None,
     ):
         super().__init__()
         self.env = env
@@ -155,6 +162,13 @@ class AWRSACTrainer(TorchTrainer):
         self.post_pretrain_hyperparams = post_pretrain_hyperparams
         self.post_bc_pretrain_hyperparams = post_bc_pretrain_hyperparams
         self.update_policy = True
+
+        self.reward_transform_class = reward_transform_class or LinearTransform
+        self.reward_transform_kwargs = reward_transform_kwargs or dict(m=1, b=0)
+        self.terminal_transform_class = terminal_transform_class or LinearTransform
+        self.terminal_transform_kwargs = terminal_transform_kwargs or dict(m=1, b=0)
+        self.reward_transform = self.reward_transform_class(**self.reward_transform_kwargs)
+        self.terminal_transform = self.terminal_transform_class(**self.terminal_transform_kwargs)
 
         # self.bc_log = dict(
         #     train=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
@@ -338,6 +352,12 @@ class AWRSACTrainer(TorchTrainer):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
+
+        if self.reward_transform:
+            rewards = self.reward_transform(rewards)
+
+        if self.terminal_transform:
+            terminals = self.terminal_transform(terminals)
 
         """
         Policy and Alpha Loss
