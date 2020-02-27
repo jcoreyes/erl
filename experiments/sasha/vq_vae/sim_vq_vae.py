@@ -34,6 +34,9 @@ if __name__ == "__main__":
             num_objects=1,
             object_meshes=None,
             fixed_start=True,
+            preload_obj_dict=
+            [{'color1': [1, 1, 1],
+            'color2': [1, 1, 1]}],
             num_scene_objects=[1],
             maxlen=0.1,
             action_repeat=1,
@@ -45,7 +48,7 @@ if __name__ == "__main__":
             mocap_high=(x_high - 2*t, y_high, 0.5),
             object_low=(x_low + 0.01, y_low + 0.01, 0.02),
             object_high=(x_high - 0.01, y_high - 0.01, 0.02),
-            use_textures=True,
+            #use_textures=True,
             init_camera=sawyer_init_camera_zoomed_in,
             cylinder_radius=0.075,
         ),
@@ -57,7 +60,7 @@ if __name__ == "__main__":
                 beta=20,
                 lr=0,
             ),
-            save_video_period=50,
+            save_video_period=10,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -70,7 +73,7 @@ if __name__ == "__main__":
             max_path_length=100,
             algo_kwargs=dict(
                 batch_size=128,
-                num_epochs=301,
+                num_epochs=501,
                 num_eval_steps_per_epoch=1000,
                 num_expl_steps_per_train_loop=1000,
                 num_trains_per_train_loop=1000,
@@ -89,10 +92,11 @@ if __name__ == "__main__":
             ),
             replay_buffer_class=OnlineConditionalVaeRelabelingBuffer,
             replay_buffer_kwargs=dict(
+                ob_keys_to_save=['state_achieved_goal', "state_desired_goal"],
                 start_skew_epoch=10,
                 max_size=int(100000),
-                fraction_goals_rollout_goals=0.2,
-                fraction_goals_env_goals=0.5,
+                fraction_goals_rollout_goals=1.0,
+                fraction_goals_env_goals=0.0,
                 exploration_rewards_type='None',
                 vae_priority_type='vae_prob',
                 priority_function_kwargs=dict(
@@ -101,36 +105,39 @@ if __name__ == "__main__":
                     num_latents_to_sample=10,
                 ),
                 power=-1,
-                relabeling_goal_sampling_mode='vae_prior',
+                relabeling_goal_sampling_mode='env',
             ),
-            exploration_goal_sampling_mode='vae_prior',
+            exploration_goal_sampling_mode='reset_of_env',
             evaluation_goal_sampling_mode='reset_of_env',
             normalize=False,
             render=False,
-            exploration_noise=0.2,
+            exploration_noise=1.0,
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
-                epsilon=0.05,
+                #epsilon=9,
+                type="state_hand_distance"
             ),
-            observation_key='latent_observation',
+            observation_key="latent_achieved_goal", #'latent_observation',
             desired_goal_key='latent_desired_goal',
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
+            vae_path="/home/ashvin/data/sasha/vq-vae/sim-vq-vae/run23/id0/itr_100.pkl"
                     ),
         train_vae_variant=dict(
             beta=10,
-            num_epochs=1500,
+            num_epochs=500,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=10000,
+                N=100000,
                 n_random_steps=50,
                 test_p=.9,
+                dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -138,7 +145,7 @@ if __name__ == "__main__":
                 non_presampled_goal_img_is_garbage=False,
                 random_rollout_data=True,
                 random_rollout_data_set_to_goal=True,
-                conditional_vae_dataset=False,
+                conditional_vae_dataset=True,
                 save_trajectories=False,
                 enviorment_dataset=False,
                 tag="ccrig_tuning_orig_network",
@@ -157,13 +164,13 @@ if __name__ == "__main__":
             algo_kwargs=dict(
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
-                batch_size=128,
+                batch_size=256,
                 lr=1e-3, #1E-4
                 skew_config=dict(
                     method='vae_prob',
                     power=0,
                 ),
-                weight_decay=1e-3,
+                weight_decay=0.0,
                 skew_dataset=False,
                 priority_function_kwargs=dict(
                     decoder_distribution='gaussian_identity_variance',
@@ -177,9 +184,9 @@ if __name__ == "__main__":
         ),
         region='us-west-1',
 
-        # logger_variant=dict(
-        #     tensorboard=True,
-        # ),
+        logger_variant=dict(
+            tensorboard=True,
+        ),
 
         slurm_variant=dict(
             timeout_min=48 * 60,
@@ -189,8 +196,8 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(5),
-        'train_vae_variant.representation_size': [64,],
+        'seedid': range(1),
+        'train_vae_variant.representation_size': [2,],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -200,4 +207,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=5)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=23)

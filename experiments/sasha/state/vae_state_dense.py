@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 start_skew_epoch=10,
                 max_size=int(100000),
                 ob_keys_to_save=['state_achieved_goal', "state_desired_goal"],
-                fraction_goals_rollout_goals=0.5,
+                fraction_goals_rollout_goals=1.0,
                 fraction_goals_env_goals=0.0,
                 exploration_rewards_type='None',
                 vae_priority_type='vae_prob',
@@ -112,7 +112,7 @@ if __name__ == "__main__":
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
-                type='wrapped_env'
+                type='state_hand_distance'
             ),
             observation_key='latent_achieved_goal',
             desired_goal_key='latent_desired_goal',
@@ -210,4 +210,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=3)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=4)

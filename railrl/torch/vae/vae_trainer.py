@@ -667,30 +667,51 @@ class ConditionalConvVAETrainer(ConvVAETrainer):
 
 
 class VQ_VAETrainer(ConvVAETrainer):
-    # def lsos(self, all_obj = globals(),n=10):
-    #     import sys
 
-    #     object_name = list(all_obj)
-    #     object_size = [ round(sys.getsizeof(all_obj[x])/1024.0/1024.0,4) for x in object_name]
-    #     object_id = [id(all_obj[x]) for x in object_name]
+    def train_batch(self, epoch, batch):
+        self.model.train()
+        self.optimizer.zero_grad()
 
-    #     d = [(a,b,c) for a,b,c in zip(object_name, object_size, object_id)]
-    #     d.sort(key = lambda x:(x[1],x[2]), reverse=True)
-    #     dprint = d[0:min(len(d), n)]
+        loss = self.compute_loss(epoch, batch, False)
 
-    #     #print formating
-    #     name_width_max = max([len(x[0]) for x in dprint])
-    #     print(("{:<" + str(name_width_max +2) + "}{:11}{}").format("name","size_Mb","id"))
-    #     fmt = '{{:<{}}}'.format(name_width_max+2) +"  "+ "{: 5.4f}" +"  "+ "{:d}"
-    #     for line in dprint:
-    #         print( fmt.format(*line))
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+    def test_batch(
+            self,
+            epoch,
+            batch,
+    ):
+        self.model.eval()
+        loss = self.compute_loss(epoch, batch, True)
+
+    def encode_dataset(self, dataset, epoch):
+        encoding_list = []
+        save_dir = osp.join(self.log_dir, 'dataset_latents_%d.npy' % epoch)
+        for i in range(len(dataset)):
+            obs = dataset.random_batch(self.batch_size)["x_t"]
+            encodings = self.model.encode(obs)
+            encoding_list.append(encodings)
+        encodings = ptu.get_numpy(torch.cat(encoding_list))
+        np.save(save_dir, encodings)
+
+    def train_epoch(self, epoch, dataset, batches=100):
+        if epoch % 100 == 0 and epoch > 0:
+            self.encode_dataset(dataset, epoch)
+
+        start_time = time.time()
+        for b in range(batches):
+            self.train_batch(epoch, dataset.random_batch(self.batch_size))
+        self.eval_statistics["train/epoch_duration"].append(time.time() - start_time)
+
+    def test_epoch(self, epoch, dataset, batches=10):
+        start_time = time.time()
+        for b in range(batches):
+            self.test_batch(epoch, dataset.random_batch(self.batch_size))
+        self.eval_statistics["test/epoch_duration"].append(time.time() - start_time)
 
     def compute_loss(self, epoch, batch, test=False):
-        # if epoch == 50:
-        #     import abc
-        #     self.lsos()
-        #     import ipdb; ipdb.set_trace()
-        #     abc.lsos(globals())
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         obs = batch["x_t"]
@@ -703,9 +724,6 @@ class VQ_VAETrainer(ConvVAETrainer):
         self.eval_statistics[prefix + "VQ Loss"].append(vq_loss.item())
         self.eval_statistics[prefix + "Perplexity"].append(perplexity.item())
 
-        z_data = ptu.get_numpy(quantized.cpu())
-        for i in range(len(z_data)):
-            self.eval_data[prefix + "zs"].append(z_data[i, :])
         self.eval_data[prefix + "last_batch"] = (obs, data_recon)
 
         return loss

@@ -75,105 +75,98 @@ class PolicyWrappedWithExplorationStrategy(ExplorationPolicy):
         self.policy.to(device)
 
 
-class PolicyWrappedWithSearch(ExplorationPolicy):
-    def __init__(
-            self,
-            policy,
-            qf1,
-            qf2,
-            search_buffer,
-            max_dist,
-    ):
-        self.policy = policy
-        self.qf1 = qf1
-        self.qf2 = qf1
-        self.search_buffer = search_buffer
-        self.state_size = search_buffer.shape[1]
-        self.max_dist = max_dist
-        self.t = 0
+# class PolicyWrappedWithSearch(ExplorationPolicy):
+#     def __init__(
+#             self,
+#             policy,
+#             qf1,
+#             qf2,
+#             search_buffer,
+#             max_dist,
+#     ):
+#         self.policy = policy
+#         self.qf1 = qf1
+#         self.qf2 = qf1
+#         self.search_buffer = search_buffer
+#         self.state_size = search_buffer.shape[1]
+#         self.max_dist = max_dist
+#         self.t = 0
 
-    def get_distance(self, observation):
-        action = self.policy.get_actions(observation)
-        distance = torch.min(
-            self.qf1(observation, action),
-            self.qf2(observation, action),
-        )
+#     def get_distance(self, observation):
+#         action = self.policy.get_actions(observation)
+#         distance = torch.min(
+#             self.qf1(observation, action),
+#             self.qf2(observation, action),
+#         )
 
-    def get_buffer_distance(self, i, j):
-
-
-    def get_pairwise_distance(self, start_array, goal_array=None, masked=True):
-        if goal_array == None:
-            goal_array= start_array
-        dist_matrix = []
-
-        for obs_index in range(start_tensor.shape[0]):
-            obs = start_tensor[obs_index]
-            obs_repeat_tensor = np.ones_like(goal_tensor) * np.expand_dims(obs, 0)
-            torch.cat
+#     def get_buffer_distance(self, i, j):
 
 
-      obs_goal_tensor = {'observation': obs_repeat_tensor,
-                         'goal': goal_tensor}
-      pseudo_next_time_steps = time_step.transition(obs_goal_tensor,
-                                                    reward=0.0,  # Ignored
-                                                    discount=1.0)
-      dist = self._get_dist_to_goal(pseudo_next_time_steps, aggregate=aggregate)
-      dist_matrix.append(dist)
+#     def get_pairwise_distance(self, start_array, goal_array=None, masked=True):
+#         if goal_array == None:
+#             goal_array = start_array
+#         dist_matrix = []
 
-    pairwise_dist = tf.stack(dist_matrix)
-    if aggregate is None:
-      pairwise_dist = tf.transpose(pairwise_dist, perm=[1, 0, 2])
+#         for obs_index in range(start_tensor.shape[0]):
+#             obs = start_tensor[obs_index]
+#             obs_repeat_array = np.ones_like(goal_tensor) * np.expand_dims(obs, 0)
+#             obs_goal_array = np.cat([obs_repeat_tensor, goal_array])
+#             dist = self.get_distance(obs_goal_array)
+#             dist_matrix.append(dist)
 
-    if masked:
-      mask = (pairwise_dist > self._max_search_steps)
-      return tf.where(mask, tf.fill(pairwise_dist.shape, np.inf), 
-                        pairwise_dist)
-    else:
-      return pairwise_dist
+#         pairwise_dist = np.stack(dist_matrix)
 
+#     # if aggregate is None:
+#     #   pairwise_dist = tf.transpose(pairwise_dist, perm=[1, 0, 2])
 
-    def initialize_graph(self):
-        self.graph = nx.DiGraph()
-        for i in range(self.state_size):
-            for j in range(self.state_size):
-                obs = np.stack([self.search_buffer[i], self.search_buffer[j]])
-                dist = self.get_distance(obs)
-                if dist < self.max_dist:
-                    self.graph.add_edge(i, j, weight=dist)
-
-    def get_waypoint(self, observation):
-        start = observation[:self.state_size]
-        goal = observation[self.state_size:]
-        return None
+#         mask = (pairwise_dist > self.max_dist)
+#         return np.where(mask, tf.fill(pairwise_dist.shape, np.inf), 
+#                         pairwise_dist)
+#     else:
+#       return pairwise_dist
 
 
-    def set_num_steps_total(self, t):
-        self.t = t
+#     def initialize_graph(self):
+#         self.graph = nx.DiGraph()
+#         for i in range(self.state_size):
+#             for j in range(self.state_size):
+#                 obs = np.stack([self.search_buffer[i], self.search_buffer[j]])
+#                 dist = self.get_distance(obs)
+#                 if dist < self.max_dist:
+#                     self.graph.add_edge(i, j, weight=dist)
 
-    def get_action(self, *args, **kwargs):
+#     def get_waypoint(self, observation):
+#         start = observation[:self.state_size]
+#         goal = observation[self.state_size:]
+#         return None
 
 
-        waypoint = self.get_waypoint(observation)
-        return self.policy.get_action()
+#     def set_num_steps_total(self, t):
+#         self.t = t
 
-    def get_actions(self, *args, **kwargs):
-        return self.es.get_actions(self.t, self.policy, *args, **kwargs)
+#     def get_action(self, *args, **kwargs):
 
-    def reset(self):
-        self.policy.reset()
 
-    def get_param_values(self):
-        return self.policy.get_param_values()
+#         waypoint = self.get_waypoint(observation)
+#         return self.policy.get_action()
 
-    def set_param_values(self, param_values):
-        self.policy.set_param_values(param_values)
+#     def get_actions(self, *args, **kwargs):
+#         return self.es.get_actions(self.t, self.policy, *args, **kwargs)
 
-    def get_param_values_np(self):
-        return self.policy.get_param_values_np()
+#     def reset(self):
+#         self.policy.reset()
 
-    def set_param_values_np(self, param_values):
-        self.policy.set_param_values_np(param_values)
+#     def get_param_values(self):
+#         return self.policy.get_param_values()
 
-    def to(self, device):
-        self.policy.to(device)
+#     def set_param_values(self, param_values):
+#         self.policy.set_param_values(param_values)
+
+#     def get_param_values_np(self):
+#         return self.policy.get_param_values_np()
+
+#     def set_param_values_np(self, param_values):
+#         self.policy.set_param_values_np(param_values)
+
+#     def to(self, device):
+#         self.policy.to(device)

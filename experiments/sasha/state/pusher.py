@@ -40,7 +40,7 @@ if __name__ == "__main__":
         algorithm='HER-TD3',
         version='normal',
         es_kwargs=dict(
-            max_sigma=.5,
+            max_sigma=0.5,
         ),
         exploration_type='ou',
         observation_key='state_observation',
@@ -58,7 +58,8 @@ if __name__ == "__main__":
         env_kwargs=dict(
             fixed_start=True,
             fixed_colors=False,
-            reward_type="sparse",
+            reward_type="dense",
+            #reward_mask="objects",
             num_objects=1,
             object_meshes=None,
             num_scene_objects=[1],
@@ -103,4 +104,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(her_td3_experiment, variants, run_id=7)
+    run_variants(her_td3_experiment, variants, run_id=100)
