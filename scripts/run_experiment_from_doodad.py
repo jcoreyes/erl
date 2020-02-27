@@ -7,7 +7,7 @@ if __name__ == "__main__":
     import matplotlib
     matplotlib.use('agg')
 
-    shutil.copyfile("/home/ashvin/code/mujoco/mjkey.txt", "/root/.mujoco/mjkey.txt")
+    # shutil.copyfile("/home/ashvin/code/mujoco/mjkey.txt", "/root/.mujoco/mjkey.txt")
 
     mp.set_start_method('forkserver')
     args_dict = dd.get_args()

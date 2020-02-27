@@ -2,9 +2,69 @@
 Add custom distributions in addition to th existing ones
 """
 import torch
-from torch.distributions import Distribution, Normal
+from torch.distributions import Distribution, Normal, Categorical, OneHotCategorical
 import railrl.torch.pytorch_util as ptu
 import numpy as np
+
+class GaussianMixture(Distribution):
+    def __init__(self, normal_means, normal_stds, weights):
+        self.num_gaussians = weights.shape[1]
+        self.normal_means = normal_means
+        self.normal_stds = normal_stds
+        self.normal = Normal(normal_means, normal_stds)
+        self.normals = [Normal(normal_means[:, :, i], normal_stds[:, :, i]) for i in range(self.num_gaussians)]
+        self.weights = weights
+        self.categorical = OneHotCategorical(self.weights[:, :, 0])
+
+    def log_prob(self, value, ):
+        lop_p = [self.normals[i].log_prob(value) for i in range(self.num_gaussians)]
+        lop_p = torch.stack(lop_p, -1)
+        log_p_clamped = torch.clamp(lop_p, -50, 50)
+        p = torch.exp(log_p_clamped)
+
+        # min_log_p = torch.min(log_p)
+        # max_log_p = torch.max(log_p)
+        # if not torch.all(p > 0): # numerical instability :(
+        #     print("min", min_p)
+        #     import ipdb; ipdb.set_trace()
+
+        p_mixture = torch.matmul(p, self.weights)
+        p_mixture = torch.squeeze(p_mixture, 2)
+        log_p_mixture = torch.log(p_mixture)
+        log_p_mixture = log_p_mixture.sum(dim=1, keepdim=True)
+        return log_p_mixture
+
+    def sample(self, ):
+        z = self.normal.sample().detach()
+        r = self.normals[0].sample()
+        c = self.categorical.sample()[:, :, None]
+        # for i, j in enumerate(c):
+            # r[i, :] = z[i, :, j]
+        s = torch.matmul(z, c)
+        return torch.squeeze(s, 2)
+
+    def rsample(self, ):
+        z = (
+            self.normal_means +
+            self.normal_stds *
+                Normal(
+                    ptu.zeros(self.normal_means.size()),
+                    ptu.ones(self.normal_stds.size())
+                ).sample()
+        )
+        z.requires_grad_()
+        r = self.normals[0].sample()
+        c = self.categorical.sample()[:, :, None]
+        # for i, j in enumerate(c):
+        #     r[i, :] = z[i, :, j]
+        # import ipdb; ipdb.set_trace()
+        s = torch.matmul(z, c)
+        return torch.squeeze(s, 2)
+
+    def mean(self, ):
+        # import ipdb; ipdb.set_trace()
+        m = torch.matmul(self.normal_means, self.weights.detach()).detach()
+        return torch.squeeze(m, 2)
 
 class TanhNormal(Distribution):
     """
@@ -53,9 +113,12 @@ class TanhNormal(Distribution):
         :return:
         """
         if pre_tanh_value is None:
-            pre_tanh_value = torch.log(
-                (1+value) / (1-value)
-            ) / 2
+            value = torch.clamp(value, -0.999999, 0.999999)
+            # pre_tanh_value = torch.log(
+                # (1+value) / (1-value)
+            # ) / 2
+            pre_tanh_value = torch.log(1+value) / 2 - torch.log(1-value) / 2
+            # ) / 2
         return self.normal.log_prob(pre_tanh_value) - 2. * (
                 ptu.from_numpy(np.log([2.]))
                 - pre_tanh_value

@@ -24,6 +24,14 @@ class TorchMaxClamp:
     def __call__(self, x):
         return torch.clamp(x, max=self.max_value)
 
+class LinearTransform:
+    def __init__(self, m, b):
+        self.m = m
+        self.b = b
+
+    def __call__(self, t):
+        return self.m * t + self.b
+
 class PretrainedCNN(PyTorchModule):
     # Uses a pretrained CNN architecture from torchvision
     def __init__(

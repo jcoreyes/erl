@@ -76,7 +76,7 @@ if __name__ == "__main__":
             discount=0.99,
             demo_path="/home/ashvin/code/railrl-private/gitignore/rlbench/demo_door_fixed1/demos5b_10_dict_joints.npy",
             demo_off_policy_path=[
-                "/home/ashvin/data/s3doodad/ashvin/rfeatures/rlbench/open-drawer-vision/td3bc-with-state3/run0/id0/video_*_vae.p",
+                "/home/anair/data/s3doodad/ashvin/rfeatures/rlbench/open-drawer-vision/td3bc-with-state3/run0/id0/video_*_vae.p",
             ],
             add_demo_latents=True, # already done
             bc_num_pretrain_steps=10000,
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         logger_variant=dict(
             tensorboard=True,
         ),
-        model_path="/home/ashvin/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id2/itr_4000.pt",
+        model_path="/home/anair/data/s3doodad/facebook/models/rfeatures/multitask1/run2/id2/itr_4000.pt",
     )
 
     search_space = {

@@ -1,10 +1,12 @@
-import railrl.misc.hyperparameter as hyp
-from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
+
+import railrl.misc.hyperparameter as hyp
 import railrl.torch.vae.vae_schedules as vae_schedules
+from railrl.launchers.launcher_util import run_experiment
+from railrl.torch.grill.launcher import \
+    grill_her_twin_sac_online_vae_full_experiment
 from railrl.torch.vae.conv_vae import imsize48_default_architecture
+
 
 if __name__ == "__main__":
     variant = dict(
@@ -83,15 +85,6 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            # generate_uniform_dataset_kwargs=dict(
-                # init_camera=sawyer_init_camera_zoomed_in,
-                # env_id='SawyerPushNIPS-v0',
-                # num_imgs=1000,
-                # use_cached_dataset=False,
-                # show=False,
-                # save_file_prefix='pusher',
-            # ),
-            # generate_uniform_dataset_fn=generate_uniform_dataset_reacher,
         ),
         train_vae_variant=dict(
             representation_size=4,
@@ -99,7 +92,6 @@ if __name__ == "__main__":
             num_epochs=0,
             dump_skew_debug_plots=False,
             decoder_activation='gaussian',
-            # decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
                 N=40,
                 test_p=.9,
@@ -129,7 +121,6 @@ if __name__ == "__main__":
                 priority_function_kwargs=dict(
                     decoder_distribution='gaussian_identity_variance',
                     sampling_method='importance_sampling',
-                    # sampling_method='true_prior_sampling',
                     num_latents_to_sample=10,
                 ),
                 use_parallel_dataloading=False,
@@ -150,8 +141,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'railrl-skew-fit-pusher-post-refactor'
+    mode = 'sss'
+    exp_prefix = 'reference-skew-fit-brc-push'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -169,5 +160,6 @@ if __name__ == "__main__":
                         gpu_model='nvidia-tesla-k80',
                         num_gpu=1,
                     )
-                )
+                ),
+                time_in_mins=int(2.5*24*60),
           )

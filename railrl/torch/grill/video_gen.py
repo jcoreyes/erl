@@ -26,8 +26,19 @@ from railrl.core import logger
 from railrl.envs.vae_wrappers import temporary_mode
 import pickle
 
+def save_paths(algo, epoch):
+    expl_paths = algo.expl_data_collector.get_epoch_paths()
+    filename = osp.join(logger.get_snapshot_dir(), 'video_{epoch}_vae.p'.format(epoch=epoch))
+    pickle.dump(expl_paths, open(filename, "wb"))
+    print("saved", filename)
+    eval_paths = algo.eval_data_collector.get_epoch_paths()
+    filename = osp.join(logger.get_snapshot_dir(), 'video_{epoch}_env.p'.format(epoch=epoch))
+    pickle.dump(eval_paths, open(filename, "wb"))
+    print("saved", filename)
+
 class VideoSaveFunction:
-    def __init__(self, env, variant):
+    def __init__(self, env, variant, expl_path_collector=None, eval_path_collector=None):
+        self.env = env
         self.logdir = logger.get_snapshot_dir()
         self.dump_video_kwargs = variant.get("dump_video_kwargs", dict())
         if 'imsize' not in self.dump_video_kwargs:
@@ -38,24 +49,40 @@ class VideoSaveFunction:
         self.save_period = self.dump_video_kwargs.pop('save_video_period', 50)
         self.exploration_goal_image_key = self.dump_video_kwargs.pop("exploration_goal_image_key", "decoded_goal_image")
         self.evaluation_goal_image_key = self.dump_video_kwargs.pop("evaluation_goal_image_key", "image_desired_goal")
+        self.expl_path_collector = expl_path_collector
+        self.eval_path_collector = eval_path_collector
+        self.variant = variant
+
 
     def __call__(self, algo, epoch):
-        expl_data_collector = algo.expl_data_collector
-        expl_paths = expl_data_collector.get_epoch_paths()
+        if self.expl_path_collector:
+            expl_paths = self.expl_path_collector.collect_new_paths(
+                max_path_length=self.variant['algo_kwargs']['max_path_length'],
+                num_steps = self.variant['algo_kwargs']['max_path_length']*5,
+                discard_incomplete_paths=False
+            )
+        else:
+            expl_paths = algo.expl_data_collector.get_epoch_paths()
         if epoch % self.save_period == 0 or epoch == algo.num_epochs:
             filename = osp.join(self.logdir, 'video_{epoch}_vae.mp4'.format(epoch=epoch))
-            dump_paths(algo.expl_env,
+            dump_paths(self.env,
                 filename,
                 expl_paths,
                 self.exploration_goal_image_key,
                 **self.dump_video_kwargs,
             )
 
-        eval_path_collector = algo.eval_data_collector
-        eval_paths = eval_path_collector.get_epoch_paths()
+        if self.eval_path_collector:
+            eval_paths = self.eval_path_collector.collect_new_paths(
+                max_path_length=self.variant['algo_kwargs']['max_path_length'],
+                num_steps = self.variant['algo_kwargs']['max_path_length']*5,
+                discard_incomplete_paths=False
+            )
+        else:
+            eval_paths = algo.eval_data_collector.get_epoch_paths()
         if epoch % self.save_period == 0 or epoch == algo.num_epochs:
             filename = osp.join(self.logdir, 'video_{epoch}_env.mp4'.format(epoch=epoch))
-            dump_paths(algo.eval_env,
+            dump_paths(self.env,
                 filename,
                 eval_paths,
                 self.evaluation_goal_image_key,
@@ -262,9 +289,12 @@ def dump_paths(
     path_length = frames.size // (
             N * (H + num_gaps*pad_length) * (W + num_gaps*pad_length) * num_channels
     )
-    frames = np.array(frames, dtype=np.uint8).reshape(
-        (N, path_length, H + num_gaps * pad_length, W + num_gaps * pad_length, num_channels)
-    )
+    try:
+        frames = np.array(frames, dtype=np.uint8).reshape(
+            (N, path_length, H + num_gaps * pad_length, W + num_gaps * pad_length, num_channels)
+        )
+    except:
+        import ipdb; ipdb.set_trace()
     f1 = []
     for k1 in range(columns):
         f2 = []
@@ -278,6 +308,7 @@ def dump_paths(
     skvideo.io.vwrite(filename, outputdata)
     print("Saved video to ", filename)
 
+    print("Pickle?", dump_pickle)
     if dump_pickle:
         pickle_filename = filename[:-4] + ".p"
         pickle.dump(paths, open(pickle_filename, "wb"))

@@ -14,6 +14,13 @@ Some implemented algorithms:
 To get started, checkout the example scripts, linked above.
 
 ## Installation
+
+### Some dependancies
+
+- `sudo apt-get install swig`
+
+### Create Conda Env
+
 Install and use the included ananconda environment
 ```
 $ conda env create -f docker/railrl/railrl-env.yml
@@ -21,6 +28,9 @@ $ source activate railrl-env
 (railrl-env) $ # Ready to run examples/ddpg_cheetah_no_doodad.py
 ```
 Or if you want you can use the docker image included.
+
+### Download Simulation Env Code
+- [multiworld](https://github.com/vitchyr/multiworld) (contains environments):```git clone https://github.com/vitchyr/multiworld```
 
 ### (Optional) Install doodad
 I recommend installing [doodad](https://github.com/justinjfu/doodad) to
@@ -30,9 +40,6 @@ launch jobs. Some of its nice features include:
  - Easily add your dependencies that can't be installed via pip (e.g. you
  borrowed someone's code)
 
-If you do install `doodad`, I wrote a wrapper for it. Check out
-`examples/torch_ddpg_cheetah.py`.
-
 If you install doodad, also modify `CODE_DIRS_TO_MOUNT` in `config.py` to
 include:
 - Path to rllab directory
@@ -41,6 +48,12 @@ include:
 
 You'll probably also need to update the other variables besides the docker
 images/instance stuff.
+
+### Setup Config File
+
+You must setup the config file for launching experiments, providing paths to your code and data directories. Inside `railrl/config/launcher_config.py`, fill in the appropriate paths. You can use `railrl/config/launcher_config_template.py` as an example reference.
+
+```cp railrl/launchers/config-template.py railrl/launchers/config.py```
 
 
 ## Visualizing a policy and seeing results
@@ -65,6 +78,14 @@ tl;dr run
 
 ```bash
 python rllab/viskit/frontend.py LOCAL_LOG_DIR/<exp_prefix>/
+```
+
+### Add paths
+```
+export PYTHONPATH=$PYTHONPATH:/path/to/multiworld/repo
+export PYTHONPATH=$PYTHONPATH:/path/to/doodad/repo
+export PYTHONPATH=$PYTHONPATH:/path/to/viskit/repo
+export PYTHONPATH=$PYTHONPATH:/path/to/railrl-private/repo
 ```
 
 ## Credit

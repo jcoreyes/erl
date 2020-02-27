@@ -9,14 +9,14 @@ from railrl.torch.networks import FlattenMlp
 from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
+
 
 def experiment(variant):
-    expl_env = variant['env_class'](**variant['env_kwargs'])
-    eval_env = variant['env_class'](**variant['env_kwargs'])
+    eval_env = gym.make('FetchReach-v1')
+    expl_env = gym.make('FetchReach-v1')
 
-    observation_key = 'state_observation'
-    desired_goal_key = 'state_desired_goal'
+    observation_key = 'observation'
+    desired_goal_key = 'desired_goal'
 
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     replay_buffer = ObsDictRelabelingBuffer(
@@ -86,47 +86,23 @@ def experiment(variant):
         replay_buffer=replay_buffer,
         **variant['algo_kwargs']
     )
-    # algorithm.cuda()
     algorithm.to(ptu.device)
     algorithm.train()
 
 
 
 if __name__ == "__main__":
-    x_var=0.2
-    x_low = -x_var
-    x_high = x_var
-    y_low = 0.5
-    y_high = 0.7
-    t = 0.05
     variant = dict(
-        use_gpu=True,
         algorithm='HER-SAC',
         version='normal',
-        env_class=SawyerMultiobjectEnv,
-        env_kwargs=dict(
-            num_objects=1,
-            object_meshes=None,
-            num_scene_objects=[1],
-            maxlen=0.1,
-            action_repeat=5,
-            puck_goal_low=(x_low, y_low),
-            puck_goal_high=(x_high, y_high),
-            hand_goal_low=(x_low, y_low),
-            hand_goal_high=(x_high, y_high),
-            mocap_low=(x_low, y_low, 0.0),
-            mocap_high=(x_high, y_high, 0.5),
-            object_low=(x_low + t + t, y_low + t, 0.02),
-            object_high=(x_high - t - t, y_high - t, 0.02),
-        ),
         algo_kwargs=dict(
-            num_epochs=2000,
-            max_path_length=20,
             batch_size=128,
-            num_eval_steps_per_epoch=1000,
+            num_epochs=100,
+            num_eval_steps_per_epoch=5000,
             num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=100,
+            num_trains_per_train_loop=1000,
             min_num_steps_before_training=1000,
+            max_path_length=50,
         ),
         sac_trainer_kwargs=dict(
             discount=0.99,
@@ -149,5 +125,5 @@ if __name__ == "__main__":
             hidden_sizes=[400, 300],
         ),
     )
-    setup_logger('her-sac-pusher', variant=variant)
+    setup_logger('her-sac-fetch-experiment', variant=variant)
     experiment(variant)

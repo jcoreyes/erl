@@ -8,6 +8,7 @@ import os
 import collections
 
 import glob
+import numpy as np
 
 # Import the event accumulator from Tensorboard. Location varies between Tensorflow versions. Try each known location until one works.
 eventAccumulatorImported = False;
@@ -36,7 +37,7 @@ if (not eventAccumulatorImported):
 if (not eventAccumulatorImported):
     raise ImportError('Could not locate and import Tensorflow event accumulator.')
 
-summariesDefault = ['scalars','histograms','images','audio','compressedHistograms'];
+summariesDefault = ['scalars'] # ,'histograms','images','audio','compressedHistograms'];
 
 class Timer(object):
     # Source: https://stackoverflow.com/a/5849861
@@ -152,20 +153,50 @@ def convert(inputLogFile, outputFolder, summaries):
                 logWriter = csv.writer(csvfile, delimiter=',');
 
                 # Write headers to columns
-                headers = ['wall_time','step'];
+                # headers = ['wall_time','step'];
+                # for s in scalarTags:
+                headers = scalarTags[:]
+                # headers.append(s);
+                logWriter.writerow(headers)
+
+                max_step = 0
                 for s in scalarTags:
-                    headers.append(s);
-                logWriter.writerow(headers);
-        
-                vals = ea.Scalars(scalarTags[0]);
-                for i in range(len(vals)):
-                    v = vals[i];
-                    data = [v.wall_time, v.step];
-                    for s in scalarTags:
-                        scalarTag = ea.Scalars(s);
-                        S = scalarTag[i];
-                        data.append(S.value);
-                    logWriter.writerow(data);
+                    vals = ea.Scalars(s)
+                    for i in range(len(vals)):
+                        S = vals[i].step
+                        max_step = max(S, max_step)
+
+                num_tags = len(scalarTags)
+                num_steps = max_step + 1 # assume 0 is a step
+                D = np.empty((num_steps, num_tags), dtype=np.float16)
+                D[:] = np.nan
+
+                for j, s in enumerate(scalarTags):
+                    vals = ea.Scalars(s)
+                    for i in range(len(vals)):
+                        S = vals[i].step
+                        V = vals[i].value
+                        W = vals[i].wall_time
+                        D[S, j] = V
+
+                npyFileName =  os.path.join(outputFolder,'tensorboard_log.npy')
+                keysFileName =  os.path.join(outputFolder,'tensorboard_keys.npy')
+                np.save(npyFileName, D)
+                np.save(keysFileName, scalarTags)
+
+                # for i in range(len(D)):
+                #     data = D[i, :]
+                #     row = [None if np.isnan(v) else v for v in data]
+                #     logWriter.writerow(row)
+
+                # for i in range(len(vals)):
+                #     v = vals[i];
+                #     data = [v.wall_time, v.step];
+                #     for s in scalarTags:
+                #         scalarTag = ea.Scalars(s);
+                #         S = scalarTag[i];
+                #         data.append(S.value);
+                #     logWriter.writerow(data);
 
     print(' ');
     print('Bye bye...');

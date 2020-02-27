@@ -308,3 +308,60 @@ class NormalizedBoxEnv(ProxyEnv):
 
     def __str__(self):
         return "Normalized: %s" % self._wrapped_env
+
+
+class StackObservationEnv(ProxyEnv):
+    """
+    Normalize action to in [-1, 1].
+
+    Optionally normalize observations and scale reward.
+    """
+
+    def __init__(
+            self,
+            env,
+            stack_obs=1,
+    ):
+        ProxyEnv.__init__(self, env)
+        self.stack_obs = stack_obs
+        low = env.observation_space.low
+        high = env.observation_space.high
+        self.obs_dim = low.size
+        self.current_obs = np.zeros((self.stack_obs, self.obs_dim))
+        self.observation_space = Box(
+            low=np.repeat(low, stack_obs),
+            high=np.repeat(high, stack_obs),
+        )
+
+    def reset(self):
+        self.current_obs = np.zeros((self.stack_obs, self.obs_dim))
+        next_obs = self._wrapped_env.reset()
+        self.current_obs[-1, :] = next_obs
+        return self.current_obs.copy().flatten()
+
+    def step(self, action):
+        next_obs, reward, done, info = self._wrapped_env.step(action)
+        self.current_obs = np.vstack((
+            self.current_obs[1:, :],
+            next_obs
+        ))
+        return self.current_obs.copy().flatten(), reward, done, info
+
+
+class RewardWrapperEnv(ProxyEnv):
+    """Substitute a different reward function"""
+
+    def __init__(
+            self,
+            env,
+            compute_reward_fn,
+    ):
+        ProxyEnv.__init__(self, env)
+        self.spec = env.spec # hack for hand envs
+        self.compute_reward_fn = compute_reward_fn
+
+    def step(self, action):
+        next_obs, reward, done, info = self._wrapped_env.step(action)
+        info["env_reward"] = reward
+        reward = self.compute_reward_fn(next_obs, reward, done, info)
+        return next_obs, reward, done, info

@@ -10,6 +10,7 @@ from railrl.core import logger
 
 filename = str(uuid.uuid4())
 
+from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 
 def simulate_policy(args):
     data = pickle.load(open(args.file, "rb"))
@@ -42,6 +43,9 @@ def simulate_policy(args):
         policy.to(ptu.device)
     if hasattr(env, "vae"):
         env.vae.to(ptu.device)
+
+    if args.deterministic:
+        policy = MakeDeterministic(policy)
 
     if args.pause:
         import ipdb; ipdb.set_trace()
@@ -76,6 +80,7 @@ if __name__ == "__main__":
     parser.add_argument('--env_type', type=str, default='evaluation')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--pause', action='store_true')
+    parser.add_argument('--deterministic', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--enable_render', action='store_true')
     parser.add_argument('--log_diagnostics', action='store_true')

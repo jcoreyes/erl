@@ -154,8 +154,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'railrl-skew-fit-pickup-reference-post-refactor'
+    mode = 'sss'
+    exp_prefix = 'reference-skew-fit-brc-pickup'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -174,5 +174,5 @@ if __name__ == "__main__":
                     # preemptible=False,
                     # instance_type="n1-standard-4"
                 ),
-
+                time_in_mins=int(2.5*24*60),
             )
