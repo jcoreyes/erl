@@ -274,8 +274,7 @@ class Logger(object):
 
             # Only saves keys in first iteration to CSV!
             # (But every key is printed out in text)
-            if self._tabular_keys is None:
-                self._tabular_keys = list(sorted(tabular_dict.keys()))
+            self._tabular_keys = list(sorted(tabular_dict.keys()))
 
             # Write to the csv files
             for tabular_fd in list(self._tabular_fds.values()):
