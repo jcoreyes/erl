@@ -1,4 +1,5 @@
 import doodad as dd
+import shutil
 from railrl.launchers.launcher_util import run_experiment_here
 import torch.multiprocessing as mp
 import shutil
