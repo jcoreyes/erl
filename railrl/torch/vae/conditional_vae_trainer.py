@@ -1,27 +1,3 @@
-
-from collections import OrderedDict
-import os
-from os import path as osp
-import numpy as np
-import torch
-from torch import optim
-from torch.distributions import Normal
-from torch.utils.data import DataLoader
-from torch.nn import functional as F
-from torchvision.utils import save_image
-from railrl.data_management.images import normalize_image
-from railrl.core import logger
-import railrl.core.util as util
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch import pytorch_util as ptu
-from railrl.torch.data import (
-    ImageDataset, InfiniteWeightedRandomSampler,
-    InfiniteRandomSampler,
-)
-from railrl.torch.core import np_to_pytorch_batch
-import collections
-
 from collections import OrderedDict
 import os
 from os import path as osp
@@ -449,14 +425,14 @@ class CDVAETrainer(CVAETrainer):
 
     def state_linearity_loss(self, x_t, x_next, env, actions):
         latent_obs = self.model.encode(x_t, env, distrib=False)
-        latent_next_obs = self.model.encode(x_next, env, distrib=False).detach()
+        latent_next_obs = self.model.encode(x_next, env, distrib=False)
         predicted_latent = self.model.process_dynamics(latent_obs, actions)
         return torch.norm(predicted_latent - latent_next_obs) ** 2 / self.batch_size
 
-    # def state_distance_loss(self, x_t, x_next, env):
-    #     latent_obs = self.model.encode(x_t, env, distrib=False)
-    #     latent_next_obs = self.model.encode(x_next, env, distrib=False)
-    #     return torch.norm(latent_obs - latent_next_obs) ** 2 / self.batch_size
+    def state_distance_loss(self, x_t, x_next, env):
+        latent_obs = self.model.encode(x_t, env, distrib=False)
+        latent_next_obs = self.model.encode(x_next, env, distrib=False)
+        return torch.norm(latent_obs - latent_next_obs) ** 2 / self.batch_size
 
     def compute_loss(self, epoch, batch, test=False):
         prefix = "test/" if test else "train/"

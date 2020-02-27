@@ -2,7 +2,9 @@
 I started with a fresh python2 env (bairdataset) and installed
 tensorflow 0.11.2 off a random stack overflow post, adjusted TF calls to
 match that API
+
 https://stackoverflow.com/questions/41626830/pip-only-install-cpu-tensorflow-of-tensorflow-0-11
+
 ~/envs/bairdataset/bin/python railrl/data_management/external/bair_dataset.py
 """
 

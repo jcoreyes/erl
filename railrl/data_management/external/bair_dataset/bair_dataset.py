@@ -2,11 +2,13 @@
 pip install gdown
 gdown https://drive.google.com/uc?id=16xlZWvR9Ml0TM0VEgrBGnFbcpzA4uLOY
 tar -xvf bair_dataset_numpy.tar.gz
+
 In each numpy file there are the following keys:
 data = np.load("train00.npz")
 images = data["images"] # T x K x H x 64 x 64 x 3, dtype=np.uint8
 actions = data["actions"] # T x H x 4
 endeff = data["endeff"] # T x H x 3
+
 where:
 T = # of trajectories,
 K = camera ID (0 is top, 1 is front),

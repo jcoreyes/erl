@@ -95,6 +95,8 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         self._initial_obs = None
         self._custom_goal_sampler = None
         self._goal_sampling_mode = goal_sampling_mode
+        # self.prior_var = np.concatenate([np.exp(self.vae.prior_logvar), \
+            # np.ones(self.representation_size - self.vae.prior_logvar.shape[0])])
 
 
     def reset(self):
@@ -667,6 +669,7 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
         if self.reward_type == 'latent_distance':
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
+            #distance = np.multiply(1 / self.prior_var, desired_goals - achieved_goals)
             dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
             return -dist
         elif self.reward_type == 'vectorized_latent_distance':
@@ -682,6 +685,30 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
             return reward
 
         #WARNING: BELOW ARE HARD CODED FOR SIM PUSHER ENV (IN DIMENSION SIZES)
+        elif self.reward_type == 'latent_score':
+            dist = np.abs(obs['latent_achieved_goal'][:, :self.vae.latent_sizes[0]] - obs['latent_desired_goal'][:, :self.vae.latent_sizes[0]])
+            score = np.sum(np.where(dist < self.epsilon, 1, 0), axis=1)
+            return np.square(score)
+
+            return reward
+        elif self.reward_type == 'latent_bound':
+            dist = np.abs(obs['latent_achieved_goal'] - obs['latent_desired_goal'])
+            reward = - 1 * np.amax(dist, axis=1)
+            return reward
+        elif self.reward_type == 'success_prob':
+            desired_goals = ptu.from_numpy(self._decode(obs['latent_desired_goal']))
+            achieved_goals = ptu.from_numpy(self._decode(obs['latent_achieved_goal']))
+            reward = ptu.get_numpy(self.vae.logprob(desired_goals, achieved_goals, mean=False).exp())
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
+            dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
+            return reward
+        elif self.reward_type == 'log_success_prob':
+            desired_goals = ptu.from_numpy(self._decode(obs['latent_desired_goal']))
+            achieved_goals = ptu.from_numpy(self._decode(obs['latent_achieved_goal']))
+            reward = - 1 * np.log(ptu.get_numpy(1e-5 + -1 * self.vae.logprob(desired_goals, achieved_goals, mean=False)))
+            return reward
+
         elif self.reward_type == 'state_distance':
             achieved_goals = obs['state_achieved_goal'].reshape(-1, 4)
             desired_goals = obs['state_desired_goal'].reshape(-1, 4)
@@ -743,7 +770,7 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
         if x0_latent is None:
             x0 = ptu.from_numpy(self._initial_obs["image_observation"][None])
             if not self.sample_from_true_prior:
-                return 1/0 #NOT IMPLEMENTED
+                return ptu.get_numpy(self.vae.sample_prior(batch_size, x0, true_prior=True))
             return ptu.get_numpy(self.vae.sample_prior(batch_size, x0))
         else:
             mu, sigma = 0, 1  # sample from prior
