@@ -96,7 +96,7 @@ def nested_dict_to_dot_map_dict(d, parent_key=''):
 
 
 def merge_recursive_dicts(a, b, path=None,
-                          ignore_duplicate_keys_in_second_dict=False):
+                          ignore_duplicate_keys_in_second_dict=False, print_info=True):
     """
     Merge two dicts that may have nested dicts.
     """
@@ -105,13 +105,16 @@ def merge_recursive_dicts(a, b, path=None,
         if key in a:
             if isinstance(a[key], dict) and isinstance(b[key], dict):
                 merge_recursive_dicts(a[key], b[key], path + [str(key)],
-                                      ignore_duplicate_keys_in_second_dict=ignore_duplicate_keys_in_second_dict)
+                                      ignore_duplicate_keys_in_second_dict=ignore_duplicate_keys_in_second_dict,
+                                      print_info=print_info)
             elif a[key] == b[key]:
-                print("Same value for key: {}".format(key))
+                if print_info:
+                    print("Same value for key: {}".format(key))
             else:
                 duplicate_key = '.'.join(path + [str(key)])
                 if ignore_duplicate_keys_in_second_dict:
-                    print("duplicate key ignored: {}".format(duplicate_key))
+                    if print_info:
+                        print("duplicate key ignored: {}".format(duplicate_key))
                 else:
                     raise Exception(
                         'Duplicate keys at {}'.format(duplicate_key)
