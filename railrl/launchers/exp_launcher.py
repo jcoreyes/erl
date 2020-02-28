@@ -7,7 +7,7 @@ from railrl.launchers.rl_exp_launcher_util import (
     td3_experiment,
     twin_sac_experiment,
 )
-from railrl.launchers.rl_exp_launcher_util2 import (
+from railrl.launchers.rl_exp_launcher_util_old import (
     tdm_td3_experiment,
     tdm_twin_sac_experiment,
 )
