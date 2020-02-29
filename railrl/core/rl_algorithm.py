@@ -97,23 +97,23 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         append_log(algo_log, self.trainer.get_diagnostics(), prefix='trainer/')
         # Exploration
         append_log(algo_log, self.expl_data_collector.get_diagnostics(),
-                   prefix='exploration/')
+                   prefix='expl/')
         expl_paths = self.expl_data_collector.get_epoch_paths()
         if hasattr(self.expl_env, 'get_diagnostics'):
             append_log(algo_log, self.expl_env.get_diagnostics(expl_paths),
-                       prefix='exploration/')
+                       prefix='expl/')
         append_log(algo_log, eval_util.get_generic_path_information(expl_paths),
-                   prefix="exploration/")
+                   prefix="expl/")
         # Eval
         append_log(algo_log, self.eval_data_collector.get_diagnostics(),
-                   prefix='evaluation/')
+                   prefix='eval/')
         eval_paths = self.eval_data_collector.get_epoch_paths()
         if hasattr(self.eval_env, 'get_diagnostics'):
             append_log(algo_log, self.eval_env.get_diagnostics(eval_paths),
-                       prefix='evaluation/')
+                       prefix='eval/')
         append_log(algo_log,
                    eval_util.get_generic_path_information(eval_paths),
-                   prefix="evaluation/")
+                   prefix="eval/")
 
         timer.stamp('logging')
         append_log(algo_log, _get_epoch_timings())
