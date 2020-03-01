@@ -72,10 +72,10 @@ if __name__ == "__main__":
         'load_demos':[True],
         'pretrain_policy':[False],
         'env': [
-            'ant',
             'half-cheetah',
-            'walker',
-            'hopper',
+            # 'ant',
+            # 'walker',
+            # 'hopper',
         ],
         'policy_class':[
           # TanhGaussianPolicy,
