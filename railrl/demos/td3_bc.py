@@ -140,6 +140,8 @@ class TD3BCTrainer(TorchTrainer):
         self.bc_num_pretrain_steps = bc_num_pretrain_steps
         self.q_num_pretrain_steps = q_num_pretrain_steps
         self.demo_trajectory_rewards = []
+        self.update_policy = True
+        self.awr_policy_update = awr_policy_update
 
         self.demo_beta = demo_beta
         self.use_demo_awr = use_demo_awr

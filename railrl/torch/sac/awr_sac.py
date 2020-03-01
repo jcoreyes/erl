@@ -9,8 +9,11 @@ from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.core import np_to_pytorch_batch
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 from railrl.core import logger
+from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 import torch.nn.functional as F
 
+
+from railrl.torch.networks import LinearTransform
 
 class AWRSACTrainer(TorchTrainer):
     def __init__(
@@ -25,10 +28,12 @@ class AWRSACTrainer(TorchTrainer):
             discount=0.99,
             reward_scale=1.0,
             beta=1.0,
+            beta_schedule_kwargs=None,
 
             policy_lr=1e-3,
             qf_lr=1e-3,
             policy_weight_decay=0,
+            q_weight_decay=0,
             optimizer_class=optim.Adam,
 
             soft_target_tau=1e-2,
@@ -61,6 +66,16 @@ class AWRSACTrainer(TorchTrainer):
             reparam_weight=1.0,
             awr_weight=1.0,
             post_pretrain_hyperparams=None,
+            post_bc_pretrain_hyperparams=None,
+
+            awr_use_mle_for_vf=False,
+            awr_sample_actions=False,
+            awr_min_q=False,
+
+            reward_transform_class=None,
+            reward_transform_kwargs=None,
+            terminal_transform_class=None,
+            terminal_transform_kwargs=None,
     ):
         super().__init__()
         self.env = env
@@ -85,6 +100,10 @@ class AWRSACTrainer(TorchTrainer):
                 lr=policy_lr,
             )
 
+        self.awr_use_mle_for_vf = awr_use_mle_for_vf
+        self.awr_sample_actions = awr_sample_actions
+        self.awr_min_q = awr_min_q
+
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
 
@@ -98,16 +117,25 @@ class AWRSACTrainer(TorchTrainer):
         )
         self.qf1_optimizer = optimizer_class(
             self.qf1.parameters(),
+            weight_decay=q_weight_decay,
             lr=qf_lr,
         )
         self.qf2_optimizer = optimizer_class(
             self.qf2.parameters(),
+            weight_decay=q_weight_decay,
             lr=qf_lr,
         )
 
         self.discount = discount
         self.reward_scale = reward_scale
         self.beta = beta
+        self.beta_schedule_kwargs = beta_schedule_kwargs
+        if beta_schedule_kwargs is None:
+            self.beta_schedule = ConstantSchedule(beta)
+        else:
+            schedule_class = beta_schedule_kwargs.pop("schedule_class", PiecewiseLinearSchedule)
+            self.beta_schedule = schedule_class(**beta_schedule_kwargs)
+
         self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
@@ -132,7 +160,15 @@ class AWRSACTrainer(TorchTrainer):
         self.reparam_weight = reparam_weight
         self.awr_weight = awr_weight
         self.post_pretrain_hyperparams = post_pretrain_hyperparams
+        self.post_bc_pretrain_hyperparams = post_bc_pretrain_hyperparams
         self.update_policy = True
+
+        self.reward_transform_class = reward_transform_class or LinearTransform
+        self.reward_transform_kwargs = reward_transform_kwargs or dict(m=1, b=0)
+        self.terminal_transform_class = terminal_transform_class or LinearTransform
+        self.terminal_transform_kwargs = terminal_transform_kwargs or dict(m=1, b=0)
+        self.reward_transform = self.reward_transform_class(**self.reward_transform_kwargs)
+        self.terminal_transform = self.terminal_transform_class(**self.terminal_transform_kwargs)
 
         # self.bc_log = dict(
         #     train=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
@@ -265,6 +301,9 @@ class AWRSACTrainer(TorchTrainer):
             relative_to_snapshot_dir=True,
         )
 
+        if self.post_bc_pretrain_hyperparams:
+            self.set_algorithm_weights(**self.post_bc_pretrain_hyperparams)
+
         # savepath = osp.join(logger.get_snapshot_dir(), 'bc_log.npy')
         # np.save(savepath, self.bc_log)
 
@@ -369,6 +408,12 @@ class AWRSACTrainer(TorchTrainer):
         next_obs = batch['next_observations']
         weights = batch['next_observations']
 
+        if self.reward_transform:
+            rewards = self.reward_transform(rewards)
+
+        if self.terminal_transform:
+            terminals = self.terminal_transform(terminals)
+
         """
         Policy and Alpha Loss
         """
@@ -404,25 +449,46 @@ class AWRSACTrainer(TorchTrainer):
         qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
         qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
 
+        """
+        Policy Loss
+        """
+        qf1_new_actions = self.qf1(obs, new_obs_actions)
+        qf2_new_actions = self.qf2(obs, new_obs_actions)
+        q_new_actions = torch.min(
+            qf1_new_actions,
+            qf2_new_actions,
+        )
+
         # Advantage-weighted regression
-        v_pi = self.qf1(obs, new_obs_actions)
-        # policy_logpp = -(new_obs_actions - actions) ** 2
-        # policy_logpp = policy_logpp.mean(dim=1)
-        if self.awr_loss_type == "mse":
-            policy_logpp = -(policy_mean - actions) ** 2
+        if self.awr_use_mle_for_vf:
+            v_pi = self.qf1(obs, policy_mean)
         else:
-            policy_logpp = dist.log_prob(actions)
+            v_pi = self.qf1(obs, new_obs_actions)
+
+        if self.awr_sample_actions:
+            u = new_obs_actions
+            if self.awr_min_q:
+                q_adv = q_new_actions
+            else:
+                q_adv = qf1_new_actions
+        else:
+            u = actions
+            if self.awr_min_q:
+                q_adv = torch.min(q1_pred, q2_pred)
+            else:
+                q_adv = q1_pred
+
+        if self.awr_loss_type == "mse":
+            policy_logpp = -(policy_mean - u) ** 2
+        else:
+            policy_logpp = dist.log_prob(u)
             policy_logpp = policy_logpp.sum(dim=1, keepdim=True)
 
-        advantage = q1_pred - v_pi
+        advantage = q_adv - v_pi
 
         if self.weight_loss:
-            weights = F.softmax(advantage / self.beta, dim=0)
-
-        q_new_actions = torch.min(
-            self.qf1(obs, new_obs_actions),
-            self.qf2(obs, new_obs_actions),
-        )
+            beta = self.beta_schedule.get_value(self._n_train_steps_total)
+            weights = F.softmax(advantage / beta, dim=0)
 
         policy_loss = alpha * log_pi.mean()
 

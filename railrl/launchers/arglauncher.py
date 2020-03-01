@@ -111,12 +111,21 @@ def process_variant_cmd(variant):
         variant["mode"] = "local_docker"
     if "--sss" in sys.argv:
         variant["mode"] = "sss"
+    if "--singularity" in sys.argv:
+        variant["mode"] = "local_singularity"
     if "--slurm" in sys.argv:
         variant["mode"] = "slurm"
+    if "--ss" in sys.argv:
+        variant["mode"] = "slurm_singularity"
+    if "--sss" in sys.argv:
+        variant["mode"] = "sss"
     if "--ssh" in sys.argv:
         variant["mode"] = "ssh"
         i = sys.argv.index("--ssh")
         variant["ssh_host"] = sys.argv[i+1]
+
+    if "--verbose" in sys.argv:
+        variant["verbose"] = True
 
     if "--parallel" in sys.argv:
         i = sys.argv.index("--parallel")

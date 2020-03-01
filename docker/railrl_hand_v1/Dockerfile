@@ -130,3 +130,4 @@ RUN pip install gym[all]==0.12.5
 
 RUN pip install Pillow==6.2.1
 RUN pip install torch==1.0.1.post2
+RUN pip install tabulate

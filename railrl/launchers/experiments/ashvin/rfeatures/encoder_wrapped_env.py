@@ -186,10 +186,10 @@ class EncoderWrappedEnv(ProxyEnv):
     def _update_obs_latent(self, obs, z):
         self.vae.eval()
         self.zt = z
-        if self.config_params["use_initial"]:
-            latent_obs = self.zt - self.z0
-        else:
-            latent_obs = self.zt
+        # if self.config_params["use_initial"]:
+        #     latent_obs = self.zt - self.z0
+        # else:
+        #     latent_obs = self.zt
         obs['latent_observation'] = latent_obs
         obs['latent_achieved_goal'] = np.array([])
         obs['latent_desired_goal'] = np.array([])

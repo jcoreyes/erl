@@ -276,15 +276,15 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
             x = np.nanmean(to_array(x_data[label]), axis=0)
             y = np.nanmean(ys, axis=0)
             s = np.nanstd(ys, axis=0) / (len(ys) ** 0.5)
-            values.append(y[0])
-            stds.append(s[0])
+            values.append(y[-1])
+            stds.append(s[-1])
         plt.barh(range(len(values)), values, 0.5, xerr=stds)
         plt.yticks(range(len(values)), labels, )
         plt.ylim(-0.5, len(values) - 0.5)
         plt.xlabel(key)
 
     if print_legend:
-        plt.legend(handles=lines, bbox_to_anchor=(1.5, 0.75))
+        plt.legend(handles=lines, bbox_to_anchor=(1.0, 0.75))
 
     if return_data:
         return xs, ys

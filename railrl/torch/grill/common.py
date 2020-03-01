@@ -354,7 +354,7 @@ def generate_vae_dataset(variant):
                     # radius = input('waiting...')
             print("done making training data", filename, time.time() - now)
             np.save(filename, dataset)
-            np.save(filename[:-4] + 'labels.npy', np.array(labels))
+            #np.save(filename[:-4] + 'labels.npy', np.array(labels))
 
     info['train_labels'] = []
     info['test_labels'] = []
@@ -467,9 +467,10 @@ def generate_vae_dataset(variant):
 
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv
-    from railrl.envs.vae_wrappers import VAEWrappedEnv, ConditionalVAEWrappedEnv
+    from railrl.envs.vae_wrappers import VAEWrappedEnv, ConditionalVAEWrappedEnv, VQVAEWrappedEnv
     from railrl.misc.asset_loader import load_local_or_remote_file
     from railrl.torch.vae.conditional_conv_vae import CVAE, ConditionalConvVAE
+    from railrl.torch.vae.vq_vae import VQ_VAE
 
     render = variant.get('render', False)
     vae_path = variant.get("vae_path", None)
@@ -558,6 +559,17 @@ def get_envs(variant):
                     render_rollouts=render,
                     reward_params=reward_params,
                     **variant.get('vae_wrapped_env_kwargs', {})
+                )
+            elif isinstance(vae, VQ_VAE):
+                vae_env = VQVAEWrappedEnv(
+                image_env,
+                vae,
+                imsize=image_env.imsize,
+                decode_goals=render,
+                render_goals=render,
+                render_rollouts=render,
+                reward_params=reward_params,
+                **variant.get('vae_wrapped_env_kwargs', {})
                 )
             else:
                 vae_env = VAEWrappedEnv(

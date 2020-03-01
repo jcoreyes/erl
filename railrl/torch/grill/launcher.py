@@ -5,12 +5,12 @@ import time
 import numpy as np
 
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
+from railrl.torch.grill.video_gen import VideoSaveFunction
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
 
-from railrl.torch.grill.video_gen import VideoSaveFunction
 
 def grill_tdm_td3_full_experiment(variant):
     full_experiment_variant_preprocess(variant)
@@ -159,30 +159,20 @@ def train_vae_and_update_variant(variant):
 
 def train_vae(variant, return_data=False):
     from railrl.misc.ml_util import PiecewiseLinearSchedule
-    from railrl.torch.vae.conv_vae import (
-        ConvVAE,
-        ConvDynamicsVAE,
-        SpatialAutoEncoder,
-        AutoEncoder,
-    )
-    import railrl.torch.vae.conv_vae as conv_vae
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.core import logger
-    import railrl.torch.pytorch_util as ptu
-    from railrl.pythonplusplus import identity
-    import torch
-    import gym
     beta = variant["beta"]
-    representation_size = variant["representation_size"]
     use_linear_dynamics = variant.get('use_linear_dynamics', False)
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
                                             generate_vae_dataset)
     variant['generate_vae_dataset_kwargs']['use_linear_dynamics'] = use_linear_dynamics
     train_dataset, test_dataset, info = generate_vae_dataset_fctn(
         variant['generate_vae_dataset_kwargs'])
-
     if use_linear_dynamics:
         action_dim = train_dataset.data['actions'].shape[2]
+    else:
+        action_dim = 0
+    model = get_vae(variant, action_dim)
 
     logger.save_extra_data(info)
     logger.get_snapshot_dir()
@@ -191,29 +181,6 @@ def train_vae(variant, return_data=False):
             **variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
-    if variant.get('decoder_activation', None) == 'sigmoid':
-        decoder_activation = torch.nn.Sigmoid()
-    else:
-        decoder_activation = identity
-    architecture = variant['vae_kwargs'].get('architecture', None)
-    if not architecture and variant.get('imsize') == 84:
-        architecture = conv_vae.imsize84_default_architecture
-    elif not architecture and variant.get('imsize') == 48:
-        architecture = conv_vae.imsize48_default_architecture
-    variant['vae_kwargs']['architecture'] = architecture
-    variant['vae_kwargs']['imsize'] = variant.get('imsize')
-
-    if variant['algo_kwargs'].get('is_auto_encoder', False):
-        model = AutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
-    elif variant.get('use_spatial_auto_encoder', False):
-        model = SpatialAutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
-    else:
-        vae_class = variant.get('vae_class', ConvVAE)
-        if use_linear_dynamics:
-            model = vae_class(representation_size, decoder_output_activation=decoder_activation, action_dim=action_dim,**variant['vae_kwargs'])
-        else:
-            model = vae_class(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
-    model.to(ptu.device)
 
     vae_trainer_class = variant.get('vae_trainer_class', ConvVAETrainer)
     trainer = vae_trainer_class(model, beta=beta,
@@ -247,6 +214,43 @@ def train_vae(variant, return_data=False):
         return model, train_dataset, test_dataset
     return model
 
+
+def get_vae(variant, action_dim):
+    from railrl.torch.vae.conv_vae import (
+        ConvVAE,
+        SpatialAutoEncoder,
+        AutoEncoder,
+    )
+    import railrl.torch.vae.conv_vae as conv_vae
+    import railrl.torch.pytorch_util as ptu
+    from railrl.pythonplusplus import identity
+    import torch
+    representation_size = variant["representation_size"]
+    use_linear_dynamics = variant.get('use_linear_dynamics', False)
+    if variant.get('decoder_activation', None) == 'sigmoid':
+        decoder_activation = torch.nn.Sigmoid()
+    else:
+        decoder_activation = identity
+    architecture = variant['vae_kwargs'].get('architecture', None)
+    if not architecture and variant.get('imsize') == 84:
+        architecture = conv_vae.imsize84_default_architecture
+    elif not architecture and variant.get('imsize') == 48:
+        architecture = conv_vae.imsize48_default_architecture
+    variant['vae_kwargs']['architecture'] = architecture
+    variant['vae_kwargs']['imsize'] = variant.get('imsize')
+
+    if variant['algo_kwargs'].get('is_auto_encoder', False):
+        model = AutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+    elif variant.get('use_spatial_auto_encoder', False):
+        model = SpatialAutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+    else:
+        vae_class = variant.get('vae_class', ConvVAE)
+        if use_linear_dynamics:
+            model = vae_class(representation_size, decoder_output_activation=decoder_activation, action_dim=action_dim,**variant['vae_kwargs'])
+        else:
+            model = vae_class(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+    model.to(ptu.device)
+    return model
 
 
 def generate_vae_dataset(variant):
@@ -415,7 +419,7 @@ def generate_vae_dataset(variant):
                     # radius = input('waiting...')
             print("done making training data", filename, time.time() - now)
             np.save(filename, dataset)
-            np.save(filename[:-4] + 'labels.npy', np.array(labels))
+            # np.save(filename[:-4] + 'labels.npy', np.array(labels))
 
     info['train_labels'] = []
     info['test_labels'] = []
@@ -509,6 +513,26 @@ def generate_vae_dataset(variant):
         test_dataset = ImageObservationDataset(dataset[n:, :])
     return train_dataset, test_dataset, info
 
+
+def get_presampled_goals_path(path=''):
+    """
+    :param path: if relative, this will rpe
+    :param config: One of a few options:
+        - string: the path to the
+        - tuple of two strings: the first string specifies the 'mode' and the
+            second string specifies extra parameters to that mode
+        - None: return None
+    :return:  Path to the presampled goals, or None.
+    """
+    if not path:
+        return path
+    if path[0] == '/':
+        return path
+    else:
+        import multiworld.envs.mujoco as mwmj
+        return osp.join(osp.dirname(mwmj.__file__), path)
+
+
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv
     from railrl.envs.vae_wrappers import VAEWrappedEnv, ConditionalVAEWrappedEnv
@@ -522,7 +546,8 @@ def get_envs(variant):
     do_state_exp = variant.get("do_state_exp", False)
     presample_goals = variant.get('presample_goals', False)
     presample_image_goals_only = variant.get('presample_image_goals_only', False)
-    presampled_goals_path = variant.get('presampled_goals_path', None)
+    presampled_goals_path = get_presampled_goals_path(
+        variant.get('presampled_goals_path', None))
     vae = load_local_or_remote_file(vae_path) if type(vae_path) is str else vae_path
     if 'env_id' in variant:
         import gym
@@ -786,9 +811,6 @@ def grill_her_twin_sac_experiment(variant):
     # from railrl.torch.her.her_twin_sac import HerTwinSAC
     from railrl.torch.networks import FlattenMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
-    from railrl.exploration_strategies.base import (
-        PolicyWrappedWithExplorationStrategy
-    )
     from railrl.torch.torch_rl_algorithm import TorchOnlineRLAlgorithm
     grill_preprocess_variant(variant)
     env = get_envs(variant)
@@ -1162,9 +1184,7 @@ def grill_her_td3_experiment_online_vae_exploring(variant):
 
 
 def grill_her_twin_sac_experiment_online_vae(variant):
-    import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
-    import railrl.samplers.rollout_functions as rf
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
     from railrl.torch.networks import FlattenMlp
@@ -1293,13 +1313,10 @@ def grill_her_twin_sac_experiment_online_vae(variant):
 
 
 def grill_her_td3_experiment_online_vae(variant):
-    import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
-    import railrl.samplers.rollout_functions as rf
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-    from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.td3.td3 import TD3
     from railrl.exploration_strategies.base import (
@@ -1448,13 +1465,10 @@ def grill_her_td3_experiment_online_vae(variant):
 
 
 def grill_her_td3_experiment_offpolicy_online_vae(variant):
-    import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
-    import railrl.samplers.rollout_functions as rf
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-    from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.td3.td3 import TD3
     from railrl.exploration_strategies.base import (
@@ -1612,12 +1626,10 @@ def active_representation_learning_experiment(variant):
     from railrl.data_management.obs_dict_replay_buffer import ObsDictReplayBuffer
     from railrl.torch.networks import FlattenMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
-    from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.arl.active_representation_learning_algorithm import \
         ActiveRepresentationLearningAlgorithm
     from railrl.torch.arl.representation_wrappers import RepresentationWrappedEnv
     from multiworld.core.image_env import ImageEnv
-    from multiworld.core.flat_env import FlatEnv
     from railrl.samplers.data_collector import MdpPathCollector
 
     grill_preprocess_variant(variant)
@@ -2278,7 +2290,8 @@ def HER_baseline_her_td3_experiment(variant):
 
     init_camera = variant.get("init_camera", None)
     presample_goals = variant.get('presample_goals', False)
-    presampled_goals_path = variant.get('presampled_goals_path', None)
+    presampled_goals_path = get_presampled_goals_path(
+        variant.get('presampled_goals_path', None))
 
     if 'env_id' in variant:
         import gym
@@ -2424,7 +2437,8 @@ def HER_baseline_twin_sac_experiment(variant):
 
     init_camera = variant.get("init_camera", None)
     presample_goals = variant.get('presample_goals', False)
-    presampled_goals_path = variant.get('presampled_goals_path', None)
+    presampled_goals_path = get_presampled_goals_path(
+        variant.get('presampled_goals_path', None))
 
     if 'env_id' in variant:
         import gym
