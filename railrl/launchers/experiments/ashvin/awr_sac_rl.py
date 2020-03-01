@@ -10,7 +10,7 @@ from gym.envs.mujoco import (
 from gym.envs.classic_control import PendulumEnv
 import gym
 
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer, AWREnvReplayBuffer
 from railrl.data_management.trajectory_replay_buffer import TrajectoryReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWrapperEnv
 from railrl.launchers.launcher_util import run_experiment
@@ -55,9 +55,7 @@ ENV_PARAMS = {
         'env_id':'HalfCheetah-v2',
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 1000,
         'demo_path':"demos/hc_action_noise_1000.npy",
-        'bc_num_pretrain_steps':500000,
     },
     'hopper': {  # 6 DoF
         'env_class': HopperEnv,
@@ -65,7 +63,6 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 1000,
         'demo_path':"demos/hopper_action_noise_1000.npy",
-        'bc_num_pretrain_steps':500000,
         'env_id':'Hopper-v2',
     },
     'ant': {  # 6 DoF
@@ -74,7 +71,6 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 3000,
         'demo_path':"demos/ant_action_noise_1000.npy",
-        'bc_num_pretrain_steps':500000,
         'env_id':'Ant-v2',
     },
     'walker': {  # 6 DoF
@@ -83,7 +79,6 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 3000,
         'demo_path':"demos/walker_action_noise_1000.npy",
-        'bc_num_pretrain_steps':100000,
         'env-id':'Walker-v2',
     },
     'inv-double-pendulum': {  # 2 DoF
@@ -399,7 +394,7 @@ def experiment(variant):
         else:
             error
 
-    replay_buffer = EnvReplayBuffer(
+    replay_buffer = AWREnvReplayBuffer(
         **replay_buffer_kwargs,
     )
     trainer = AWRSACTrainer(
@@ -485,5 +480,6 @@ def experiment(variant):
         data['algorithm'] = algorithm
         torch.save(data, open(pt_path, "wb"))
         torch.save(data, open(p_path, "wb"))
-    if variant.get('train_rl', False):
+
+    if variant.get('train_rl', True):
         algorithm.train()

@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.sac.policies import TanhGaussianPolicy, GaussianPolicy
+from railrl.torch.sac.policies import GaussianPolicy
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 
 from railrl.launchers.launcher_util import run_experiment
@@ -58,11 +58,11 @@ if __name__ == "__main__":
         'trainer_kwargs.weight_loss':[True],
         'path_loader_kwargs.frac_trajs':[1],
         'trainer_kwargs.beta':[
-            .0001,
+            # .0001,
             # .001,
             # .01,
             # 1,
-            # 10,
+            10,
             # 100,
             # 1000,
             # 1e4,
@@ -70,24 +70,16 @@ if __name__ == "__main__":
             # 1e6,
         ],
         'train_rl':[False],
-        'pretrain_rl':[False],
+        'pretrain_rl':[True],
         'load_demos':[True],
         'pretrain_policy':[False],
         'env': [
             'half-cheetah',
-            # 'ant',
-            # 'walker',
-            # 'hopper',
         ],
         'policy_class':[
-          # TanhGaussianPolicy,
           GaussianPolicy,
         ],
-        'trainer_kwargs.bc_loss_type':[
-            'mse',
-        ],
         'trainer_kwargs.awr_loss_type':[
-            # 'mse',
             'mle'
         ]
 
@@ -98,7 +90,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'awr_sac_offline_online_v1'
+    exp_prefix = 'awr_sac_offline_hc_v1'
     
 
     # n_seeds = 2
@@ -117,5 +109,4 @@ if __name__ == "__main__":
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
-                # skip_wait=True,
             )
