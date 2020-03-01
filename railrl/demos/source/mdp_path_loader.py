@@ -50,7 +50,7 @@ class MDPPathLoader:
             recompute_reward=False,
             env_info_key=None,
             obs_key=None,
-
+            frac_trajs=1,
             **kwargs
     ):
         self.trainer = trainer
@@ -75,6 +75,7 @@ class MDPPathLoader:
         self.trainer.replay_buffer = self.replay_buffer
         self.trainer.demo_train_buffer = self.demo_train_buffer
         self.trainer.demo_test_buffer = self.demo_test_buffer
+        self.frac_trajs = frac_trajs
 
     def load_path(self, path, replay_buffer):
         rewards = []
@@ -141,7 +142,7 @@ class MDPPathLoader:
         if not on_policy:
             data = [data]
         # random.shuffle(data)
-
+        data = data[:int(len(data)*self.frac_trajs)]
         N = int(len(data) * self.demo_train_split)
         print("using", N, "paths for training")
 

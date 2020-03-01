@@ -84,6 +84,7 @@ ENV_PARAMS = {
         'num_epochs': 3000,
         'demo_path':"demos/walker_action_noise_1000.npy",
         'bc_num_pretrain_steps':100000,
+        'env-id':'Walker-v2',
     },
     'inv-double-pendulum': {  # 2 DoF
         'env_class': InvertedDoublePendulumEnv,
