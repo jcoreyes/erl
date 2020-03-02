@@ -126,10 +126,24 @@ def td3_experiment(variant):
     )
 
     if variant.get("save_video", True):
-        video_func = VideoSaveFunction(
-            env,
-            variant,
-        )
+        if variant.get("do_state_exp", False):
+            rollout_function = rf.create_rollout_function(
+                rf.multitask_rollout,
+                max_path_length=max_path_length,
+                observation_key=observation_key,
+                desired_goal_key=desired_goal_key,
+            )
+            video_func = get_video_save_func(
+                rollout_function,
+                env,
+                policy,
+                variant,
+            )
+        else:
+            video_func = VideoSaveFunction(
+                env,
+                variant,
+            )
         algorithm.post_train_funcs.append(video_func)
 
     algorithm.to(ptu.device)
@@ -461,6 +475,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)
     dump_video_kwargs = variant.get("dump_video_kwargs", dict())
+
     if do_state_exp:
         imsize = variant.get('imsize')
         dump_video_kwargs['imsize'] = imsize

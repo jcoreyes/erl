@@ -235,6 +235,71 @@ def dump_video(
         subdirname="rollouts",
         imsize=84,
 ):
-    ### DEPRECATED FUNCTION, DO NOT USE ###
-    pass
+    # num_channels = env.vae.input_channels
+    num_channels = 1 if env.grayscale else 3
+    frames = []
+    # rows = min(rows, int(len(paths) / columns))
+    N = rows * columns
+    is_vae_env = isinstance(env, VAEWrappedEnv)
+    is_conditional_vae_env = isinstance(env, ConditionalVAEWrappedEnv)
+    for i in range(N):
+        start = time.time()
+        path = rollout_function(
+            env,
+            policy,
+            max_path_length=horizon,
+            render=False,
+        )
+        l = []
+        x_0 = path['full_observations'][0]['image_observation']
+        for d in path['full_observations']:
+            if is_conditional_vae_env:
+                recon = np.clip(env._reconstruct_img(d['image_observation'], x_0), 0, 1)
+            elif is_vae_env:
+                recon = np.clip(env._reconstruct_img(d['image_observation']), 0, 1)
+            else:
+                recon = None
+            l.append(
+                get_image(
+                    d['image_desired_goal'],
+                    d['image_observation'],
+                    recon,
+                    pad_length=pad_length,
+                    pad_color=pad_color,
+                    imsize=imsize,
+                )
+            )
+        path_length = len(l)
+        frames += l
+
+        if dirname_to_save_images:
+            rollout_dir = osp.join(dirname_to_save_images, subdirname, str(i))
+            os.makedirs(rollout_dir, exist_ok=True)
+            rollout_frames = frames[-101:]
+            goal_img = np.flip(rollout_frames[0][:imsize, :imsize, :], 0)
+            scipy.misc.imsave(rollout_dir+"/goal.png", goal_img)
+            goal_img = np.flip(rollout_frames[1][:imsize, :imsize, :], 0)
+            scipy.misc.imsave(rollout_dir+"/z_goal.png", goal_img)
+            for j in range(0, 101, 1):
+                img = np.flip(rollout_frames[j][imsize:, :imsize, :], 0)
+                scipy.misc.imsave(rollout_dir+"/"+str(j)+".png", img)
+        if do_timer:
+            print(i, time.time() - start)
+
+    frames = np.array(frames, dtype=np.uint8)
+    frames = np.array(frames, dtype=np.uint8).reshape(
+        (N, path_length, -1, imsize + 2 * pad_length, num_channels)
+    )
+    f1 = []
+    for k1 in range(columns):
+        f2 = []
+        for k2 in range(rows):
+            k = k1 * rows + k2
+            f2.append(frames[k:k+1, :, :, :, :].reshape(
+                (path_length, -1, imsize + 2 * pad_length, num_channels)
+            ))
+        f1.append(np.concatenate(f2, axis=1))
+    outputdata = np.concatenate(f1, axis=2)
+    skvideo.io.vwrite(filename, outputdata)
+    print("Saved video to ", filename)
 
