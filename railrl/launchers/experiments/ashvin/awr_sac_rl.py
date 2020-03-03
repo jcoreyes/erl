@@ -394,7 +394,7 @@ def experiment(variant):
         else:
             error
 
-    replay_buffer = AWREnvReplayBuffer(
+    replay_buffer = EnvReplayBuffer(
         **replay_buffer_kwargs,
     )
     trainer = AWRSACTrainer(

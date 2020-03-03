@@ -56,14 +56,14 @@ if __name__ == "__main__":
         'trainer_kwargs.bc_weight':[0],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
-        'path_loader_kwargs.frac_trajs':[1],
+        'path_loader_kwargs.frac_trajs':[.005, .025],
         'trainer_kwargs.beta':[
             # .0001,
             # .001,
             # .01,
             # 1,
-            10,
-            # 100,
+            # 10,
+            100,
             # 1000,
             # 1e4,
             # 1e5,
@@ -109,4 +109,5 @@ if __name__ == "__main__":
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
+                skip_wait=True,
             )
