@@ -40,17 +40,18 @@ if __name__ == "__main__":
             num_scene_objects=[1],
             maxlen=0.1,
             action_repeat=1,
+
             puck_goal_low=(x_low + 0.01, y_low + 0.01),
             puck_goal_high=(x_high - 0.01, y_high - 0.01),
-            hand_goal_low=(x_low + 3*t, y_low + t),
-            hand_goal_high=(x_high - 3*t, y_high -t),
-            mocap_low=(x_low + 2*t, y_low , 0.0),
-            mocap_high=(x_high - 2*t, y_high, 0.5),
+            hand_goal_low=(x_low + 0.01, y_low + 0.01),
+            hand_goal_high=(x_high - 0.01, y_high - 0.01),
+            mocap_low=(x_low, y_low, 0.0),
+            mocap_high=(x_high, y_high, 0.5),
             object_low=(x_low + 0.01, y_low + 0.01, 0.02),
             object_high=(x_high - 0.01, y_high - 0.01, 0.02),
             #use_textures=True,
             init_camera=sawyer_init_camera_zoomed_in,
-            cylinder_radius=0.075,
+            cylinder_radius=0.05,
         ),
 
         grill_variant=dict(
@@ -73,7 +74,7 @@ if __name__ == "__main__":
             max_path_length=100,
             algo_kwargs=dict(
                 batch_size=128,
-                num_epochs=1001,
+                num_epochs=1501,
                 num_eval_steps_per_epoch=1000,
                 num_expl_steps_per_train_loop=1000,
                 num_trains_per_train_loop=1000,
@@ -95,7 +96,7 @@ if __name__ == "__main__":
                 ob_keys_to_save=['state_achieved_goal', "state_desired_goal"],
                 start_skew_epoch=10,
                 max_size=int(100000),
-                fraction_goals_rollout_goals=1.0,
+                fraction_goals_rollout_goals=0.8,
                 fraction_goals_env_goals=0.0,
                 exploration_rewards_type='None',
                 vae_priority_type='vae_prob',
@@ -125,11 +126,11 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            vae_path="/home/ashvin/data/sasha/vq-vae/sim-vq-vae/run23/id0/itr_100.pkl"
+            vae_path="/home/ashvin/data/sasha/vq-vae/sim-pusher/latent-obs-state-rew/run1/id0/itr_200.pkl"
                     ),
         train_vae_variant=dict(
             beta=10,
-            num_epochs=500,
+            num_epochs=501,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
@@ -207,4 +208,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=23)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=3)

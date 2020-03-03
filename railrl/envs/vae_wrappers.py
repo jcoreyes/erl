@@ -416,6 +416,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
 
     def _decode(self, latents):
         self.vae.eval()
+        #import ipdb; ipdb.set_trace()
         reconstructions, _ = self.vae.decode(ptu.from_numpy(latents))
         decoded = ptu.get_numpy(reconstructions)
         return decoded
@@ -509,7 +510,7 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         if type(pixel_cnn) is str:
             self.pixel_cnn = load_local_or_remote_file(pixel_cnn)
         self.num_keys = self.vae.num_embeddings
-        self.representation_size = 288
+        self.representation_size = 144 * self.vae.representation_size
         print("*******UNFIX REPRESENTATION SIZE*********")
         print("Location: VQVAE WRAPPER")
 
@@ -538,7 +539,7 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         self.vae.eval()
         latent_obs = self._encode_one(obs[self.vae_input_observation_key])[None]
         latent_goal = self.desired_goal['latent_desired_goal'][None]
-        dist = 0#self.get_latent_distance(latent_goal, latent_obs)
+        dist = np.linalg.norm(latent_obs - latent_goal)
         info["vae_success"] = 1 if dist < self.epsilon else 0
         info["vae_dist"] = dist
         info["vae_mdist"] = 0
