@@ -149,20 +149,11 @@ def run_experiment(
         import doodad.mode
         import doodad.ssh
     except ImportError:
-<<<<<<< HEAD
-        print("Doodad not set up! Running experiment mode:", mode)
-        # mode = 'here_no_doodad'
-    global ec2_okayed
-    global gpu_ec2_okayed
-    global target_mount
-    global slurm_config
-=======
         print("Doodad not set up! Running experiment here.")
         mode = 'here_no_doodad'
     global _global_target_mount
     global _global_is_first_launch
     global _global_n_tasks_total
->>>>>>> origin/fix-sss-mode-and-make-global-explicit
 
     """
     Sanitize inputs as needed
