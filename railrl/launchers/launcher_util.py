@@ -29,10 +29,6 @@ GitInfo = namedtuple(
 )
 
 
-ec2_okayed = False
-gpu_ec2_okayed = False
-slurm_config = None
-
 try:
     import doodad.mount as mount
     from doodad.slurm.slurm_util import SlurmConfig
@@ -60,7 +56,10 @@ try:
 except ImportError:
     print("doodad not detected")
 
-target_mount = None
+
+_global_target_mount = None
+_global_is_first_launch = True
+_global_n_tasks_total = 0
 
 
 def run_experiment(
@@ -154,10 +153,9 @@ def run_experiment(
     except ImportError:
         print("Doodad not set up! Running experiment here.")
         mode = 'here_no_doodad'
-    global ec2_okayed
-    global gpu_ec2_okayed
-    global target_mount
-    global slurm_config
+    global _global_target_mount
+    global _global_is_first_launch
+    global _global_n_tasks_total
 
     """
     Sanitize inputs as needed
@@ -243,17 +241,15 @@ def run_experiment(
     """
 
     if mode == 'ec2' or mode == 'gcp':
-        if not ec2_okayed and not query_yes_no(
+        if global_is_first_launch and not query_yes_no(
                 "{} costs money. Are you sure you want to run?".format(mode)
         ):
             sys.exit(1)
-        if not gpu_ec2_okayed and use_gpu:
+        if global_is_first_launch and use_gpu:
             if not query_yes_no(
                     "{} is more expensive with GPUs. Confirm?".format(mode)
             ):
                 sys.exit(1)
-            gpu_ec2_okayed = True
-        ec2_okayed = True
 
     """
     GPU vs normal configs
@@ -312,6 +308,7 @@ def run_experiment(
     """
     Create mode
     """
+    _global_n_tasks_total += 1
     if mode == 'local':
         dmode = doodad.mode.Local(skip_wait=skip_wait)
     elif mode == 'local_docker':
@@ -343,13 +340,12 @@ def run_experiment(
         )
     elif mode in {'slurm_singularity', 'sss', 'htp'}:
         assert time_in_mins is not None, "Must approximate/set time in minutes"
-        if slurm_config is None:
-            if use_gpu:
-                slurm_config = SlurmConfig(
-                    time_in_mins=time_in_mins, **config.SLURM_GPU_CONFIG)
-            else:
-                slurm_config = SlurmConfig(
-                    time_in_mins=time_in_mins, **config.SLURM_CPU_CONFIG)
+        if use_gpu:
+            slurm_config = SlurmConfig(
+                time_in_mins=time_in_mins, **config.SLURM_GPU_CONFIG)
+        else:
+            slurm_config = SlurmConfig(
+                time_in_mins=time_in_mins, **config.SLURM_CPU_CONFIG)
         if mode == 'slurm_singularity':
             dmode = doodad.mode.SlurmSingularity(
                 image=singularity_image,
@@ -367,6 +363,8 @@ def run_experiment(
                 extra_args=config.BRC_EXTRA_SINGULARITY_ARGS,
                 slurm_config=slurm_config,
                 taskfile_path_on_brc=config.TASKFILE_PATH_ON_BRC,
+                overwrite_task_script=_global_is_first_launch,
+                n_tasks_total=_global_n_tasks_total,
             )
         else:
             dmode = doodad.mode.ScriptSlurmSingularity(
@@ -375,6 +373,7 @@ def run_experiment(
                 pre_cmd=config.SSS_PRE_CMDS,
                 extra_args=config.BRC_EXTRA_SINGULARITY_ARGS,
                 slurm_config=slurm_config,
+                overwrite_script=_global_is_first_launch,
             )
     elif mode == 'ec2':
         # Do this separately in case someone does not have EC2 configured
@@ -418,6 +417,7 @@ def run_experiment(
         variant['gcp_image'] = image_name
     else:
         raise NotImplementedError("Mode not supported: {}".format(mode))
+    _global_is_first_launch = False
 
     """
     Get the mounts
@@ -472,7 +472,7 @@ def run_experiment(
     else:
         raise NotImplementedError("Mode not supported: {}".format(mode))
     run_experiment_kwargs['base_log_dir'] = base_log_dir_for_script
-    target_mount = doodad.launch_python(
+    _global_target_mount = doodad.launch_python(
         target=target,
         mode=dmode,
         mount_points=mounts,
@@ -483,7 +483,7 @@ def run_experiment(
             'mode': mode,
         },
         use_cloudpickle=True,
-        target_mount=target_mount,
+        target_mount=_global_target_mount,
         verbose=verbose,
         launch_locally=launch_locally,
     )
