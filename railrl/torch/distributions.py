@@ -22,24 +22,9 @@ class GaussianMixture(Distribution):
         log_p = log_p.sum(dim=1)
         log_weights = torch.log(self.weights[:, :, 0])
         lp = log_weights + log_p
-        m = lp.max(dim=1, keepdim=True)[0]
+        m = lp.max(dim=1, keepdim=True)[0] # log-sum-exp numerical stability trick
         log_p_mixture = m + torch.exp(lp - m).sum(dim=1, keepdim=True)
-
-        # import ipdb; ipdb.set_trace()
-        # log_p_clamped = torch.clamp(log_p, -50, 50)
-        # p = torch.exp(log_p_clamped)
-
-        # min_log_p = torch.min(log_p)
-        # max_log_p = torch.max(log_p)
-        # if not torch.all(p > 0): # numerical instability :(
-        #     print("min", min_p)
-        #     import ipdb; ipdb.set_trace()
-
-        # p_mixture = torch.matmul(p, self.weights)
-        # p_mixture = torch.squeeze(p_mixture, 2)
-        # log_p_mixture = torch.log(p_mixture)
-        # log_p_mixture = log_p_mixture.sum(dim=1, keepdim=True)
-        return log_p_mixture # [128, 1]
+        return log_p_mixture
 
     def sample(self, ):
         z = self.normal.sample().detach()
