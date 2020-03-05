@@ -46,6 +46,9 @@ variant = dict(
             rows=1,
             columns=8,
         ),
+        vis_kwargs=dict(
+            vis_list=dict(),
+        ),
         save_video_period=50,
     ),
 )
@@ -59,6 +62,9 @@ env_params = {
             'SawyerPushDebugLEAPPuckRew-v2',
         ],
         'init_camera':[sawyer_xyz_reacher_camera_v0],
+        # 'rl_variant.vis_kwargs.vis_list': [[
+        #     'plt',
+        # ]],
     },
     'pnr-ccrig': {
         'env_id': [

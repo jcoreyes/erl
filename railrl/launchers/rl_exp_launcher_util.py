@@ -144,6 +144,8 @@ def td3_experiment(variant):
         **variant['algo_kwargs']
     )
 
+    vis_variant = variant.get('vis_kwargs', {})
+    vis_list = vis_variant.get('vis_list', [])
     if variant.get("save_video", True):
         if variant.get("do_state_exp", False):
             rollout_function = rf.create_rollout_function(
@@ -151,6 +153,7 @@ def td3_experiment(variant):
                 max_path_length=max_path_length,
                 observation_key=observation_key,
                 desired_goal_key=desired_goal_key,
+                vis_list=vis_list,
             )
             video_func = get_video_save_func(
                 rollout_function,

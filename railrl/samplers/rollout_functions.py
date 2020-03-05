@@ -42,6 +42,7 @@ def multitask_rollout(
         desired_goal_key=None,
         get_action_kwargs=None,
         return_dict_obs=False,
+        vis_list=list(),
 ):
     if render_kwargs is None:
         render_kwargs = {}
@@ -71,6 +72,9 @@ def multitask_rollout(
         next_o, r, d, env_info = env.step(a)
         if render:
             env.render(**render_kwargs)
+
+        update_next_obs(next_o, env, vis_list)
+
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -246,3 +250,9 @@ def rollout(
         agent_infos=agent_infos,
         env_infos=env_infos,
     )
+
+def update_next_obs(next_o, env, vis_list):
+    if 'plt' in vis_list:
+        next_o['image_plt'] = env.transform_image(
+            env.get_image_plt(vals=False, imsize=env.imsize, draw_state=True, draw_goal=True, draw_subgoals=True)
+        )
