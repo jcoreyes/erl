@@ -162,7 +162,6 @@ def list_of_dicts__to__dict_of_lists(lst):
     keys = lst[0].keys()
     output_dict = collections.defaultdict(list)
     for d in lst:
-        # assert set(d.keys()) == set(keys)
         if set(d.keys()) != set(keys):
             print("dropping some keys", d.keys())
         for k in keys:

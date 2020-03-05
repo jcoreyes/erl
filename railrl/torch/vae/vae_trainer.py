@@ -71,6 +71,7 @@ class VAETrainer(object):
             priority_function_kwargs=None,
             start_skew_epoch=0,
             weight_decay=0,
+            key_to_reconstruct="observations",
     ):
         #TODO:steven fix pickling
         assert not use_parallel_dataloading, "Have to fix pickling the dataloaders first"
@@ -106,6 +107,7 @@ class VAETrainer(object):
             weight_decay=weight_decay,
         )
 
+        self.key_to_reconstruct = key_to_reconstruct
         self.batch_size = batch_size
         self.use_parallel_dataloading = use_parallel_dataloading
         self.train_data_workers = train_data_workers
@@ -254,10 +256,7 @@ class VAETrainer(object):
         prefix = "test/" if test else "train/"
 
         beta = float(self.beta_schedule.get_value(epoch))
-        if "x_t" in batch:
-            obs = batch["x_t"]
-        else:
-            obs = batch["observations"]
+        obs = batch[self.key_to_reconstruct]
         reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
         log_prob = self.model.logprob(obs, obs_distribution_params)
         kle = self.model.kl_divergence(latent_distribution_params)
@@ -540,7 +539,7 @@ class ConvVAEGradientPenaltyTrainer(ConvVAETrainer):
     def compute_loss(self, epoch, batch, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
-        obs = batch["observations"]
+        obs = batch[self.key_to_reconstruct]
         reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
         log_prob = self.model.logprob(obs, obs_distribution_params)
         kle = self.model.kl_divergence(latent_distribution_params)
@@ -594,7 +593,7 @@ class ConditionalConvVAETrainer(ConvVAETrainer):
         prefix = "test/" if test else "train/"
 
         beta = float(self.beta_schedule.get_value(epoch))
-        obs = batch["observations"]
+        obs = batch[self.key_to_reconstruct]
         reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
         log_prob = self.model.logprob(batch["x_t"], obs_distribution_params)
         kle = self.model.kl_divergence(latent_distribution_params)
@@ -651,7 +650,7 @@ class ConditionalConvVAETrainer(ConvVAETrainer):
         self.model.eval()
         batch, _ = self.eval_data["test/last_batch"]
         sample = ptu.randn(64, self.representation_size)
-        sample = self.model.decode(sample, batch["observations"])[0].cpu()
+        sample = self.model.decode(sample, batch[self.key_to_reconstruct])[0].cpu()
         save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
         save_image(
             sample.data.view(64, 3, self.imsize, self.imsize).transpose(2, 3),
@@ -736,7 +735,7 @@ class VQ_VAETrainer(ConvVAETrainer):
         # self.model.eval()
         # batch, _ = self.eval_data["test/last_batch"]
         # sample = self.model.sample_prior(64)
-        # sample = self.model.decode(sample, batch["observations"])[0].cpu()
+        # sample = self.model.decode(sample, batch[self.key_to_reconstruct])[0].cpu()
         # save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
         # save_image(
         #     sample.data.view(64, 3, self.imsize, self.imsize).transpose(2, 3),
