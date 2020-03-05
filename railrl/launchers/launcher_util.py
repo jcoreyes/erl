@@ -27,6 +27,7 @@ GitInfo = namedtuple(
     ],
 )
 
+
 try:
     import doodad.mount as mount
     from doodad.slurm.slurm_util import SlurmConfig
