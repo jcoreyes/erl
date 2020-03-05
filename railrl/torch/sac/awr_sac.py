@@ -259,7 +259,7 @@ class AWRSACTrainer(TorchTrainer):
             test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer)
             test_policy_loss = test_policy_loss * self.bc_weight
             
-            if i % 10000 == 0:
+            if i % 100000 == 0:
                 total_ret = 0
                 for _ in range(20):
                     o = self.env.reset()

@@ -5,7 +5,7 @@ import railrl.misc.hyperparameter as hyp
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=3000,
+        num_epochs=1,
         num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
@@ -52,14 +52,13 @@ if __name__ == "__main__":
 
     search_space = {
         'use_weights':[True],
-        # 'policy_kwargs.std_architecture': ["values", "shared"],
         'policy_kwargs.hidden_sizes':[[256, 256, 256, 256]],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
-        'trainer_kwargs.bc_num_pretrain_steps':[200000],
+        'trainer_kwargs.bc_num_pretrain_steps':[400000],
         'trainer_kwargs.bc_weight':[1],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
-        'train_rl':[False],
+        'train_rl':[True],
         'pretrain_rl':[False],
         'load_demos':[True],
         'pretrain_policy':[True],
@@ -83,7 +82,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'bc_hc_v1'
+    exp_prefix = 'bc_hc_v2'
 
     # n_seeds = 2
     # mode = 'ec2'
@@ -97,7 +96,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,
-                use_gpu=True,
+                use_gpu=False,
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
