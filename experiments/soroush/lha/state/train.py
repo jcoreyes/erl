@@ -54,16 +54,20 @@ env_params = {
     'pnr-leap': {
         'env_id': [
             # 'SawyerPushDebugLEAP-v0',
-            'SawyerPushDebugLEAP-v1',
+            # 'SawyerPushDebugLEAP-v1',
             # 'SawyerPushDebugLEAP-v2',
+            'SawyerPushDebugLEAPPuckRew-v2',
         ],
         'init_camera':[sawyer_xyz_reacher_camera_v0],
     },
     'pnr-ccrig': {
         'env_id': [
             # 'SawyerPushDebugCCRIG-v0',
-            'SawyerPushDebugCCRIG-v1',
+            # 'SawyerPushDebugCCRIG-v1',
             # 'SawyerPushDebugCCRIG-v2',
+            # 'SawyerPushDebugCCRIGSlowPhysics-v2',
+            # 'SawyerPushDebugCCRIG-v3',
+            'SawyerPushDebugCCRIGSlowPhysics-v3',
         ],
         'init_camera':[sawyer_xyz_reacher_camera_v0],
     },

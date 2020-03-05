@@ -22,6 +22,8 @@ def td3_experiment(variant):
     env = get_envs(variant)
     es = get_exploration_strategy(variant, env)
 
+    max_path_length = variant['max_path_length']
+
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = desired_goal_key.replace("desired", "achieved")
@@ -60,6 +62,25 @@ def td3_experiment(variant):
         output_size=action_dim,
         **variant['policy_kwargs']
     )
+
+
+    """
+    """
+    from railrl.policies.timed_policy import SubgoalPolicyWrapper
+    policy = SubgoalPolicyWrapper(
+        wrapped_policy=policy,
+        env=env,
+        episode_length=max_path_length,
+        num_subgoals_per_episode=2,
+    )
+    target_policy = SubgoalPolicyWrapper(
+        wrapped_policy=target_policy,
+        env=env,
+        episode_length=max_path_length,
+        num_subgoals_per_episode=2,
+    )
+
+
     expl_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
@@ -72,8 +93,6 @@ def td3_experiment(variant):
         achieved_goal_key=achieved_goal_key,
         **variant['replay_buffer_kwargs']
     )
-
-    max_path_length = variant['max_path_length']
 
     trainer = TD3Trainer(
         policy=policy,
