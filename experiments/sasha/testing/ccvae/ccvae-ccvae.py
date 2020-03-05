@@ -11,11 +11,10 @@ from railrl.torch.grill.cvae_experiments import (
 from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
-from railrl.torch.vae.conv_vae import ConvVAE
-from railrl.torch.vae.vae_trainer import ConvVAETrainer
-from railrl.data_management.online_vae_replay_buffer import \
-        OnlineVaeRelabelingBuffer
-
+from railrl.torch.vae.conditional_conv_vae import DeltaCVAE
+from railrl.torch.vae.conditional_vae_trainer import DeltaCVAETrainer
+from railrl.data_management.online_conditional_vae_replay_buffer import \
+        OnlineConditionalVaeRelabelingBuffer
 
 x_var = 0.2
 x_low = -x_var
@@ -31,10 +30,12 @@ if __name__ == "__main__":
         imsize=48,
         init_camera=sawyer_init_camera_zoomed_in,
         env_class=SawyerMultiobjectEnv,
+
         env_kwargs=dict(
+            fixed_start=True,
+            fixed_colors=False,
             num_objects=1,
             object_meshes=None,
-            fixed_start=True,
             preload_obj_dict=
             [{'color1': [1, 1, 1],
             'color2': [1, 1, 1]}],
@@ -43,16 +44,16 @@ if __name__ == "__main__":
             action_repeat=1,
             puck_goal_low=(x_low + 0.01, y_low + 0.01),
             puck_goal_high=(x_high - 0.01, y_high - 0.01),
-            hand_goal_low=(x_low + 3*t, y_low + t),
-            hand_goal_high=(x_high - 3*t, y_high -t),
-            mocap_low=(x_low + 2*t, y_low , 0.0),
-            mocap_high=(x_high - 2*t, y_high, 0.5),
+            hand_goal_low=(x_low + 0.01, y_low + 0.01),
+            hand_goal_high=(x_high - 0.01, y_high - 0.01),
+            mocap_low=(x_low, y_low, 0.0),
+            mocap_high=(x_high, y_high, 0.5),
             object_low=(x_low + 0.01, y_low + 0.01, 0.02),
             object_high=(x_high - 0.01, y_high - 0.01, 0.02),
             use_textures=False,
             init_camera=sawyer_init_camera_zoomed_in,
+            cylinder_radius=0.05,
         ),
-
 
         grill_variant=dict(
             save_video=True,
@@ -91,7 +92,7 @@ if __name__ == "__main__":
                 reward_scale=1.0,
                 tau=1e-2,
             ),
-            replay_buffer_class=OnlineVaeRelabelingBuffer,
+            replay_buffer_class=OnlineConditionalVaeRelabelingBuffer,
             replay_buffer_kwargs=dict(
                 start_skew_epoch=10,
                 max_size=int(100000),
@@ -151,8 +152,8 @@ if __name__ == "__main__":
                 save_trajectories=False,
                 enviorment_dataset=False,
             ),
-            vae_trainer_class=ConvVAETrainer,
-            vae_class=ConvVAE,
+            vae_trainer_class=DeltaCVAETrainer,
+            vae_class=DeltaCVAE,
             vae_kwargs=dict(
                 input_channels=3,
                 architecture=imsize48_default_architecture_with_more_hidden_layers,
@@ -179,7 +180,7 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        region='us-east-2',
+        region='us-west-1',
 
         logger_variant=dict(
             tensorboard=True,
@@ -194,9 +195,11 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(3),
-        'train_vae_variant.representation_size': [8],
+        'train_vae_variant.latent_sizes': [(8, 1)],
         'train_vae_variant.algo_kwargs.batch_size': [128],
-        'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000,4000],
+        'train_vae_variant.context_schedule':[
+        dict(x_values=(0, 1500), y_values=(1, 1)),],
+        'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000, 4000],
         'grill_variant.algo_kwargs.batch_size': [128,],
         'grill_variant.exploration_noise': [0.8],
 
@@ -209,4 +212,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=2)

@@ -97,7 +97,6 @@ if __name__ == "__main__":
             replay_buffer_kwargs=dict(
                 start_skew_epoch=10,
                 max_size=int(100000),
-                #ob_keys_to_save=['state_achieved_goal', "state_desired_goal"],
                 fraction_goals_rollout_goals=0.2,
                 fraction_goals_env_goals=0.5,
                 exploration_rewards_type='None',
@@ -127,7 +126,6 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            #vae_path="/home/ashvin/data/sasha/testing/vae/large-workspace/vae-state/run1/id0/vae.pkl",
         ),
         train_vae_variant=dict(
             latent_sizes=4,
@@ -142,7 +140,6 @@ if __name__ == "__main__":
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
                 N=100000,
-                #dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 n_random_steps=50,
                 test_p=.9,
                 use_cached=False,
@@ -184,7 +181,7 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        region='us-east-2',
+        region='us-west-1',
 
         logger_variant=dict(
             tensorboard=True,
@@ -198,12 +195,10 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(1),
-        'train_vae_variant.representation_size': [8], #Tune Latent sizes
-        # 'train_vae_variant.context_schedule':[
-        # dict(x_values=(0, 1500), y_values=(1, 1)),],
+        'seedid': range(3),
+        'train_vae_variant.representation_size': [8],
         'train_vae_variant.algo_kwargs.batch_size': [128],
-        'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000,], #4000, ],
+        'grill_variant.algo_kwargs.num_trains_per_train_loop':[1000,4000],
         'grill_variant.algo_kwargs.batch_size': [128,],
         'grill_variant.exploration_noise': [0.8],
 

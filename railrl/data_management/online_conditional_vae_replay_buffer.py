@@ -166,13 +166,13 @@ class OnlineConditionalVaeRelabelingBuffer(OnlineVaeRelabelingBuffer):
         new_next_obs_dict = self._batch_next_obs_dict(indices)
 
         if num_env_goals > 0:
-            # if isinstance(self.env.vae, DeltaCVAE):
-            #     r1, r2 = self.env.vae.latent_sizes
-            # else:
-            #     r1 = self.env.representation_size
+            if isinstance(self.env.vae, DeltaCVAE):
+                r1, r2 = self.env.vae.latent_sizes
+            else:
+                r1 = self.env.representation_size
 
-            #env_goals = np.random.randn(num_env_goals, r1) # self._sample_goals_from_env(num_env_goals)
-            env_goal = self._sample_goals_from_env(num_env_goals)
+            env_goals = np.random.randn(num_env_goals, r1) # self._sample_goals_from_env(num_env_goals)
+            #env_goal = self._sample_goals_from_env(num_env_goals)
             last_env_goal_idx = num_rollout_goals + num_env_goals
 
             resampled_goals[num_rollout_goals:last_env_goal_idx, :r1] = (
