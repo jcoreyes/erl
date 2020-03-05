@@ -228,7 +228,12 @@ for epoch in range(1, args.epochs):
         LAST_SAVED = epoch
 
         print("Saving model!")
-        torch.save(model.state_dict(), 'results/{}_pixelcnn.pt'.format(args.dataset))
+        try:
+            torch.save(model.state_dict(), '/home/ashvin/Desktop/sim-pusher-pixelcnn/pixelcnn.pt')
+            torch.save(vqvae.state_dict(), '/home/ashvin/Desktop/sim-pusher-pixelcnn/vqvae.pt')
+            #torch.save(model.state_dict(), 'results/{}_pixelcnn.pt'.format(args.dataset))
+        except:
+            torch.save(model.state_dict(), 'results/{}_pixelcnn.pt'.format(args.dataset))
     else:
         print("Not saving model! Last saved: {}".format(LAST_SAVED))
     if args.gen_samples:
