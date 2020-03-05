@@ -8,7 +8,7 @@ class SubgoalPolicyWrapper(Policy):
             wrapped_policy,
             env,
             episode_length,
-            num_subgoals_per_episode,
+            num_subgoals_per_episode=2,
     ):
         self._wrapped_policy = wrapped_policy
         self._env = env
@@ -26,9 +26,11 @@ class SubgoalPolicyWrapper(Policy):
             self.episode_subgoals = self._env.generate_expert_subgoals(ob, goal, self.num_subgoals_per_episode)
             self._env.update_subgoals(self.episode_subgoals)
 
-        subgoal = self.episode_subgoals[self.episode_timer // self.subepisode_length]
+        curr_subgoal_idx = self.episode_timer // self.subepisode_length
+        self._env.update_subgoals(self.episode_subgoals[curr_subgoal_idx:])
 
         self.episode_timer += 1
+        subgoal = self.episode_subgoals[curr_subgoal_idx]
         return self._wrapped_policy.get_action(np.hstack((ob, subgoal)))
 
     def reset(self):

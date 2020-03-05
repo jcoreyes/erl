@@ -35,6 +35,10 @@ variant = dict(
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
+        use_subgoal_policy=False,
+        subgoal_policy_kwargs=dict(
+            num_subgoals_per_episode=2,
+        ),
         exploration_type='gaussian_and_epsilon',
         es_kwargs=dict(
             max_sigma=.2,
@@ -59,12 +63,22 @@ env_params = {
             # 'SawyerPushDebugLEAP-v0',
             # 'SawyerPushDebugLEAP-v1',
             # 'SawyerPushDebugLEAP-v2',
-            'SawyerPushDebugLEAPPuckRew-v2',
+            # 'SawyerPushDebugLEAPPuckRew-v2',
+            'SawyerPushDebugLEAP-v4',
+            # 'SawyerPushDebugLEAPPuckRew-v4',
         ],
+        'rl_variant.max_path_length': [200],
         'init_camera':[sawyer_xyz_reacher_camera_v0],
-        # 'rl_variant.vis_kwargs.vis_list': [[
-        #     'plt',
-        # ]],
+        'rl_variant.vis_kwargs.vis_list': [[
+            'plt',
+        ]],
+        'rl_variant.use_subgoal_policy': [
+            True,
+        ],
+        'rl_variant.subgoal_policy_kwargs.num_subgoals_per_episode': [
+            2,
+            # 4,
+        ],
     },
     'pnr-ccrig': {
         'env_id': [

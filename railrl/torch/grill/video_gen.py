@@ -103,7 +103,7 @@ class VideoSaveFunction:
         if epoch % self.save_period == 0 or epoch == algo.num_epochs:
             filename = osp.join(self.logdir, 'video_{epoch}_expl.mp4'.format(epoch=epoch))
             dump_video(self.expl_env,
-                filename,
+                filename=filename,
                 paths=expl_paths,
                 goal_image_key=("image_desired_goal" if self.state_based else "decoded_goal_image"),
                 **self.dump_video_kwargs,
@@ -111,7 +111,7 @@ class VideoSaveFunction:
 
             filename = osp.join(self.logdir, 'video_{epoch}_eval.mp4'.format(epoch=epoch))
             dump_video(self.eval_env,
-                filename,
+                filename=filename,
                 paths=eval_paths,
                 goal_image_key="image_desired_goal",
                 **self.dump_video_kwargs,
@@ -127,27 +127,40 @@ def add_border(img, pad_length, pad_color, imsize=84):
     return img2
 
 
-def get_image(goal, obs, recon_obs, imsize=84, pad_length=1, pad_color=255):
-    if len(goal.shape) == 1:
-        goal = goal.reshape(-1, imsize, imsize).transpose(1,2,0)
-        obs = obs.reshape(-1, imsize, imsize).transpose(1,2,0)
-        if recon_obs is not None:
-            recon_obs = recon_obs.reshape(-1, imsize, imsize).transpose(1,2,0)
-    if recon_obs is not None:
-        img = np.concatenate((goal, obs, recon_obs))
-    else:
-        img = np.concatenate((goal, obs))
+# def get_image(goal, obs, recon_obs, imsize=84, pad_length=1, pad_color=255):
+#     if len(goal.shape) == 1:
+#         goal = goal.reshape(-1, imsize, imsize).transpose(1,2,0)
+#         obs = obs.reshape(-1, imsize, imsize).transpose(1,2,0)
+#         if recon_obs is not None:
+#             recon_obs = recon_obs.reshape(-1, imsize, imsize).transpose(1,2,0)
+#     if recon_obs is not None:
+#         img = np.concatenate((goal, obs, recon_obs))
+#     else:
+#         img = np.concatenate((goal, obs))
+#     img = np.uint8(255 * img)
+#     if pad_length > 0:
+#         img = add_border(img, pad_length, pad_color)
+#     return img
+
+def get_image(*sweeps, imsize=84, pad_length=1, pad_color=255):
+    img = None
+    for sweep in sweeps:
+        if sweep is not None:
+            if img is None:
+                img = sweep.reshape(-1, imsize, imsize).transpose((1, 2, 0))
+            else:
+                img = np.concatenate((img, sweep.reshape(-1, imsize, imsize).transpose((1, 2, 0))))
     img = np.uint8(255 * img)
     if pad_length > 0:
-        img = add_border(img, pad_length, pad_color)
+        img = add_border(img, imsize, pad_length, pad_color)
     return img
 
 def dump_video(
         env,
-        filename,
-        paths=None,
-        rollout_function=None,
         policy=None,
+        filename=None,
+        rollout_function=None,
+        paths=None,
         goal_image_key="image_desired_goal",
         rows=3,
         columns=6,
@@ -158,7 +171,35 @@ def dump_video(
         dirname_to_save_images=None,
         subdirname="rollouts",
         imsize=84,
+        vis_list=None,
 ):
+    assert (paths is not None) != (rollout_function is not None)
+    assert filename is not None
+
+    if vis_list is None:
+        vis_list = [
+            'image_desired_goal',
+            'image_observation',
+            'reconstr_image_observation',
+            'reconstr_image_reproj_observation',
+            'image_desired_subgoal',
+            'image_desired_subgoal_reproj',
+            'image_plt',
+            'image_latent_histogram_2d_noisy',
+            'image_latent_histogram_2d',
+            'image_v_latent',
+            'image_v',
+            'image_v_noisy_state_and_goal',
+            'image_v_noisy_state',
+            'image_v_noisy_goal',
+            'image_rew',
+            'image_rew_euclidean',
+            'image_rew_mahalanobis',
+            'image_rew_logp',
+            'image_rew_kl',
+            'image_rew_kl_rev',
+        ]
+
     # num_channels = env.vae.input_channels
     num_channels = 1 if env.grayscale else 3
     frames = []
@@ -168,34 +209,46 @@ def dump_video(
     is_conditional_vae_env = isinstance(env, ConditionalVAEWrappedEnv)
     for i in range(N):
         start = time.time()
-        if rollout_function is not None:
+        if paths is not None:
+            path = paths[i]
+        else:
             path = rollout_function(
                 env,
                 policy,
                 max_path_length=horizon,
                 render=False,
             )
-        else:
-            path = paths[i]
         l = []
         x_0 = path['full_observations'][0]['image_observation']
-        for d in path['full_observations']:
-            if is_conditional_vae_env:
-                recon = np.clip(env._reconstruct_img(d['image_observation'], x_0), 0, 1)
-            elif is_vae_env:
-                recon = np.clip(env._reconstruct_img(d['image_observation']), 0, 1)
-            else:
-                recon = None
-            l.append(
-                get_image(
-                    d[goal_image_key],
-                    d['image_observation'],
-                    recon,
-                    pad_length=pad_length,
-                    pad_color=pad_color,
-                    imsize=imsize,
-                )
+        for d in path['full_observations'][1:]:
+            get_image_kwargs = dict(
+                pad_length=pad_length,
+                pad_color=pad_color,
+                imsize=imsize,
             )
+            get_image_sweeps = [d.get(key, None) for key in vis_list]
+            img = get_image(
+                *get_image_sweeps,
+                **get_image_kwargs,
+            )
+            l.append(img)
+
+            # if is_conditional_vae_env:
+            #     recon = np.clip(env._reconstruct_img(d['image_observation'], x_0), 0, 1)
+            # elif is_vae_env:
+            #     recon = np.clip(env._reconstruct_img(d['image_observation']), 0, 1)
+            # else:
+            #     recon = None
+            # l.append(
+            #     get_image(
+            #         d[goal_image_key],
+            #         d['image_observation'],
+            #         recon,
+            #         pad_length=pad_length,
+            #         pad_color=pad_color,
+            #         imsize=imsize,
+            #     )
+            # )
         path_length = len(l)
         frames += l
 

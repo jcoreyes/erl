@@ -64,21 +64,23 @@ def td3_experiment(variant):
     )
 
 
-    """
-    """
-    from railrl.policies.timed_policy import SubgoalPolicyWrapper
-    policy = SubgoalPolicyWrapper(
-        wrapped_policy=policy,
-        env=env,
-        episode_length=max_path_length,
-        num_subgoals_per_episode=2,
-    )
-    target_policy = SubgoalPolicyWrapper(
-        wrapped_policy=target_policy,
-        env=env,
-        episode_length=max_path_length,
-        num_subgoals_per_episode=2,
-    )
+    if variant.get("use_subgoal_policy", False):
+        from railrl.policies.timed_policy import SubgoalPolicyWrapper
+
+        subgoal_policy_kwargs = variant.get('subgoal_policy_kwargs', {})
+
+        policy = SubgoalPolicyWrapper(
+            wrapped_policy=policy,
+            env=env,
+            episode_length=max_path_length,
+            **subgoal_policy_kwargs
+        )
+        target_policy = SubgoalPolicyWrapper(
+            wrapped_policy=target_policy,
+            env=env,
+            episode_length=max_path_length,
+            **subgoal_policy_kwargs
+        )
 
 
     expl_policy = PolicyWrappedWithExplorationStrategy(
@@ -497,6 +499,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)
     dump_video_kwargs = variant.get("dump_video_kwargs", dict())
+    dump_video_kwargs['horizon'] = variant['max_path_length']
 
     if do_state_exp:
         imsize = variant.get('imsize')
