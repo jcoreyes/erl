@@ -270,11 +270,11 @@ def run_experiment(
     """
 
     if mode == 'ec2' or mode == 'gcp':
-        if global_is_first_launch and not query_yes_no(
+        if _global_is_first_launch and not query_yes_no(
                 "{} costs money. Are you sure you want to run?".format(mode)
         ):
             sys.exit(1)
-        if global_is_first_launch and use_gpu:
+        if _global_is_first_launch and use_gpu:
             if not query_yes_no(
                     "{} is more expensive with GPUs. Confirm?".format(mode)
             ):
