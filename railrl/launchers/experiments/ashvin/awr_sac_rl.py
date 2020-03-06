@@ -55,7 +55,7 @@ ENV_PARAMS = {
         'env_id':'HalfCheetah-v2',
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'demo_path':"demos/hc_action_noise_1000.npy",
+        # 'demo_path':"demos/hc_action_noise_1000.npy",
     },
     'hopper': {  # 6 DoF
         'env_class': HopperEnv,
@@ -454,11 +454,11 @@ def experiment(variant):
     demo_test_buffer = EnvReplayBuffer(
         **replay_buffer_kwargs,
     )
-    variant['path_loader_kwargs']['demo_path'] = env_params['demo_path']
+    if 'demo_path' not in variant['path_loader_kwargs']:
+        variant['path_loader_kwargs']['demo_path'] = env_params['demo_path']
 
     if variant.get('save_paths', False):
         algorithm.post_train_funcs.append(save_paths)
-
     if variant.get('load_demos', False):
         path_loader_class = variant.get('path_loader_class', MDPPathLoader)
         path_loader = path_loader_class(trainer,
@@ -468,11 +468,12 @@ def experiment(variant):
             **path_loader_kwargs
         )
         path_loader.load_demos()
+    pickle.dump(expl_policy, open(logger.get_snapshot_dir()+'/bc.pkl', "wb"))
     if variant.get('pretrain_policy', False):
         trainer.pretrain_policy_with_bc()
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
-
+    pickle.dump(expl_policy, open(logger.get_snapshot_dir()+'/bc.pkl', "wb"))
     if variant.get('save_pretrained_algorithm', False):
         p_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.p')
         pt_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.pt')
@@ -480,6 +481,5 @@ def experiment(variant):
         data['algorithm'] = algorithm
         torch.save(data, open(pt_path, "wb"))
         torch.save(data, open(p_path, "wb"))
-
     if variant.get('train_rl', True):
         algorithm.train()

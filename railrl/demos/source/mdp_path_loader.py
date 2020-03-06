@@ -139,8 +139,8 @@ class MDPPathLoader:
     # replay buffer, and not to the demo_test or demo_train buffers
     def load_demo_path(self, demo_path, on_policy=True):
         data = list(load_local_or_remote_file(demo_path))
-        if not on_policy:
-            data = [data]
+        # if not on_policy:
+            # data = [data]
         # random.shuffle(data)
         data = data[:int(len(data)*self.frac_trajs)]
         N = int(len(data) * self.demo_train_split)

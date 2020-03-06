@@ -5,7 +5,7 @@ import railrl.misc.hyperparameter as hyp
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=1,
+        num_epochs=0,
         num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
@@ -45,23 +45,24 @@ if __name__ == "__main__":
             min_log_std=-6,
         ),
         path_loader_kwargs=dict(
-            demo_path=None
+            demo_path='demos/hc_action_noise_1000.npy',
         ),
         weight_update_period=10000,
     )
 
     search_space = {
         'use_weights':[True],
-        'policy_kwargs.hidden_sizes':[[256, 256, 256, 256]],
+        'policy_kwargs.hidden_sizes':[[256, 256]],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.bc_num_pretrain_steps':[400000],
         'trainer_kwargs.bc_weight':[1],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
-        'train_rl':[True],
+        'train_rl':[False],
         'pretrain_rl':[False],
         'load_demos':[True],
         'pretrain_policy':[True],
+        'path_loader_kwargs.frac_trajs':[.005, .01, .015, .025, .05, 1],
         'env': [
             'half-cheetah',
         ],
@@ -80,13 +81,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'bc_hc_v2'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'bc_hc_v3'
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'bc_hc_gym_v4'
+    n_seeds = 1
+    mode = 'ec2'
+    exp_prefix = 'bc_hc_gym_v5'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -96,7 +97,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,
-                use_gpu=False,
+                # use_gpu=True,
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),

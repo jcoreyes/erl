@@ -6,8 +6,8 @@ from railrl.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=3000,
-        num_eval_steps_per_epoch=5000,
+        num_epochs=200,
+        num_eval_steps_per_epoch=3000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
         min_num_steps_before_training=1000,
@@ -32,7 +32,7 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=5000000,
+            q_num_pretrain2_steps=100000,
             policy_weight_decay=1e-4,
             weight_loss=True,
             bc_num_pretrain_steps=100000,
@@ -44,32 +44,28 @@ if __name__ == "__main__":
             min_log_std=-6,
         ),
         path_loader_kwargs=dict(
-            demo_path=None,
-            frac_trajs=1,
+            demo_path='demos/hc_action_noise_5.npy',
+            demo_off_policy_path='demos/hc_off_policy_100.npy'
         ),
         weight_update_period=10000,
     )
 
     search_space = {
         'use_weights':[True],
+        'policy_kwargs.hidden_sizes':[[256]*2, [256]*4],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.bc_weight':[0],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
-        'path_loader_kwargs.frac_trajs':[.005, .025],
         'trainer_kwargs.beta':[
-            # .0001,
-            # .001,
-            # .01,
-            # 1,
-            # 10,
-            100,
-            # 1000,
-            # 1e4,
-            # 1e5,
-            # 1e6,
+           1, 
+           3, 
+           5,
+           10, 
+           30, 
+           50, 
         ],
-        'train_rl':[False],
+        'train_rl':[True],
         'pretrain_rl':[True],
         'load_demos':[True],
         'pretrain_policy':[False],
@@ -81,21 +77,30 @@ if __name__ == "__main__":
         ],
         'trainer_kwargs.awr_loss_type':[
             'mle'
-        ]
-
+        ],
+        'trainer_kwargs.reparam_weight': [0.0],
+        'trainer_kwargs.awr_weight': [1.0],
+        'trainer_kwargs.bc_weight': [1.0, ],
+        'policy_kwargs.std_architecture': ["values"],
+        'trainer_kwargs.compute_bc': [True, ],
+        'trainer_kwargs.awr_use_mle_for_vf': [True, ],
+        'trainer_kwargs.awr_sample_actions': [False, ],
+        'trainer_kwargs.awr_min_q': [True, ],
+        'trainer_kwargs.q_weight_decay': [0],
+        'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0)],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'awr_sac_offline_hc_v1'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'awr_sac_offline_hc_v2'
     
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_prefix = 'awr_sac_offline_train_longer_v1'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_prefix = 'awr_sac_offline_online_upgraded_params_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -105,9 +110,9 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,
-                use_gpu=True,
+                # use_gpu=True,
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
-                skip_wait=True,
+                # skip_wait=True,
             )
