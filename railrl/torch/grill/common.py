@@ -1,20 +1,12 @@
 import os.path as osp
 import time
+
 #import sys
 #sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 #import cv2
 import numpy as np
 
 from torch.utils import data
-
-# from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
-# from railrl.torch.her.her import HERTrainer
-# from railrl.torch.sac.policies import MakeDeterministic
-# from railrl.torch.sac.sac import SACTrainer
-# from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
-
-# from railrl.torch.grill.video_gen import VideoSaveFunction
-
 
 def full_experiment_variant_preprocess(variant):
     train_vae_variant = variant['train_vae_variant']

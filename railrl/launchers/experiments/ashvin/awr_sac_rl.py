@@ -11,7 +11,6 @@ from gym.envs.classic_control import PendulumEnv
 import gym
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.trajectory_replay_buffer import TrajectoryReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWrapperEnv
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu

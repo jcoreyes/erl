@@ -27,7 +27,6 @@ GitInfo = namedtuple(
     ],
 )
 
-
 try:
     import doodad.mount as mount
     from doodad.slurm.slurm_util import SlurmConfig
@@ -234,37 +233,6 @@ def run_experiment(
             method_call,
             **run_experiment_kwargs
         )
-
-    if mode == 'slurm':
-        import submitit
-
-        slurm_variant = variant.get("slurm_variant", {})
-        slurm_kwargs = dict(
-            timeout_min=240,
-            partition="learnfair", # partition="dev",
-            gpus_per_node=1,
-            cpus_per_task=10,
-        )
-        slurm_kwargs.update(slurm_variant)
-
-        executor = submitit.AutoExecutor(folder=base_log_dir + "/slurm/%j")
-        executor.update_parameters(
-            **slurm_kwargs
-        )
-
-        def run():
-            run_experiment_kwargs['base_log_dir'] = base_log_dir
-            return run_experiment_here(
-                method_call,
-                **run_experiment_kwargs
-            )
-
-        job = executor.submit(run)  # will compute add(5, 7)
-        print("Launched job", job.job_id)  # ID of your job
-
-        # output = job.result()
-
-        return job.job_id
 
     """
     Safety Checks
