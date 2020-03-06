@@ -117,7 +117,7 @@ class VAETrainer(object):
                 batch_size=batch_size,
                 drop_last=False,
                 num_workers=train_data_workers,
-                pin_memory=False,
+                pin_memory=True,
             )
             self.test_dataloader = DataLoader(
                 self.test_dataset_pt,
@@ -125,7 +125,7 @@ class VAETrainer(object):
                 batch_size=batch_size,
                 drop_last=False,
                 num_workers=0,
-                pin_memory=False,
+                pin_memory=True,
             )
             self.train_dataloader = iter(self.train_dataloader)
             self.test_dataloader = iter(self.test_dataloader)
