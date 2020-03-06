@@ -126,7 +126,7 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            #vae_path="/home/ashvin/data/sasha/vq-vae/sim-pusher/latent-obs-state-rew/run1/id0/itr_200.pkl"
+            #vae_path="/home/ashvin/data/sasha/testing/vqvae/vqvae-state.pkl"
                     ),
         train_vae_variant=dict(
             beta=10,
@@ -208,4 +208,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=4)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)

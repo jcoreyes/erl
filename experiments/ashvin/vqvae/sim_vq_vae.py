@@ -13,8 +13,8 @@ from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 from railrl.torch.vae.vq_vae import VQ_VAE
 from railrl.torch.vae.vq_vae_trainer import VQ_VAETrainer
-from railrl.data_management.online_vae_replay_buffer import \
-        OnlineVaeRelabelingBuffer
+from railrl.data_management.online_conditional_vae_replay_buffer import \
+        OnlineConditionalVaeRelabelingBuffer
 
 x_var = 0.2
 x_low = -x_var
@@ -31,10 +31,9 @@ if __name__ == "__main__":
         init_camera=sawyer_init_camera_zoomed_in,
         env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
-            fixed_start=True,
-            fixed_colors=False,
             num_objects=1,
             object_meshes=None,
+            fixed_start=True,
             preload_obj_dict=
             [{'color1': [1, 1, 1],
             'color2': [1, 1, 1]}],
@@ -43,15 +42,15 @@ if __name__ == "__main__":
             action_repeat=1,
             puck_goal_low=(x_low + 0.01, y_low + 0.01),
             puck_goal_high=(x_high - 0.01, y_high - 0.01),
-            hand_goal_low=(x_low + 0.01, y_low + 0.01),
-            hand_goal_high=(x_high - 0.01, y_high - 0.01),
-            mocap_low=(x_low, y_low, 0.0),
-            mocap_high=(x_high, y_high, 0.5),
+            hand_goal_low=(x_low + 3*t, y_low + t),
+            hand_goal_high=(x_high - 3*t, y_high -t),
+            mocap_low=(x_low + 2*t, y_low , 0.0),
+            mocap_high=(x_high - 2*t, y_high, 0.5),
             object_low=(x_low + 0.01, y_low + 0.01, 0.02),
             object_high=(x_high - 0.01, y_high - 0.01, 0.02),
-            use_textures=False,
+            #use_textures=True,
             init_camera=sawyer_init_camera_zoomed_in,
-            cylinder_radius=0.05,
+            cylinder_radius=0.075,
         ),
 
         grill_variant=dict(
@@ -74,7 +73,7 @@ if __name__ == "__main__":
             max_path_length=100,
             algo_kwargs=dict(
                 batch_size=128,
-                num_epochs=1501,
+                num_epochs=501,
                 num_eval_steps_per_epoch=1000,
                 num_expl_steps_per_train_loop=1000,
                 num_trains_per_train_loop=1000,
@@ -91,13 +90,13 @@ if __name__ == "__main__":
                 reward_scale=1.0,
                 tau=1e-2,
             ),
-            replay_buffer_class=OnlineVaeRelabelingBuffer,
+            replay_buffer_class=OnlineConditionalVaeRelabelingBuffer,
             replay_buffer_kwargs=dict(
                 ob_keys_to_save=['state_achieved_goal', "state_desired_goal"],
                 start_skew_epoch=10,
                 max_size=int(100000),
-                fraction_goals_rollout_goals=0.2,
-                fraction_goals_env_goals=0.5,
+                fraction_goals_rollout_goals=1.0,
+                fraction_goals_env_goals=0.0,
                 exploration_rewards_type='None',
                 vae_priority_type='vae_prob',
                 priority_function_kwargs=dict(
@@ -118,7 +117,7 @@ if __name__ == "__main__":
             testing_mode='test',
             reward_params=dict(
                 #epsilon=9,
-                type="state_distance"
+                type="state_hand_distance"
             ),
             observation_key="latent_achieved_goal", #'latent_observation',
             desired_goal_key='latent_desired_goal',
@@ -126,11 +125,11 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            #vae_path="/home/ashvin/data/sasha/vq-vae/sim-pusher/latent-obs-state-rew/run1/id0/itr_200.pkl"
+            # vae_path="/home/ashvin/data/sasha/vq-vae/sim-vq-vae/run23/id0/itr_100.pkl"
                     ),
         train_vae_variant=dict(
             beta=10,
-            num_epochs=501,
+            num_epochs=500,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
@@ -138,7 +137,7 @@ if __name__ == "__main__":
                 N=100000,
                 n_random_steps=50,
                 test_p=.9,
-                #dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
+                # dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -208,4 +207,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=4)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=23)
