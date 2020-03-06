@@ -249,7 +249,7 @@ def generate_vae_dataset(variant):
             tag,
         )
         if use_cached and osp.isfile(filename):
-            dataset = np.load(filename)
+            dataset = load_local_or_remote_file(filename)
             if conditional_vae_dataset:
                 dataset = dataset.item()
             print("loaded data from saved file", filename)
