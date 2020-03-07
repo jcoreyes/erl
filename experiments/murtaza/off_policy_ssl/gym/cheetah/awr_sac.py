@@ -42,10 +42,11 @@ if __name__ == "__main__":
             hidden_sizes=[256]*2,
             max_log_std=0,
             min_log_std=-6,
+            std_architecture="shared",
         ),
         path_loader_kwargs=dict(
-            demo_path='demos/hc_action_noise_5.npy',
-            demo_off_policy_path='demos/hc_off_policy_100.npy'
+            # demo_path='demos/hc_action_noise_5.npy',
+            # demo_off_policy_path='demos/hc_off_policy_100.npy'
         ),
         weight_update_period=10000,
     )
@@ -54,16 +55,31 @@ if __name__ == "__main__":
         'use_weights':[True],
         'policy_kwargs.hidden_sizes':[[256]*2, [256]*4],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
-        'trainer_kwargs.bc_weight':[0],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
+        'path_loader_kwargs.demo_off_policy_path':[
+            'hc_off_policy_10_demos_100.npy',
+            # 'hc_off_policy_15_demos_100.npy',
+            # 'hc_off_policy_25_demos_100.npy',
+        ],
+        'path_loader_kwargs.demo_path': [
+            'hc_action_noise_10.npy',
+            # 'hc_action_noise_15.npy',
+            # 'hc_action_noise_25.npy',
+        ],
         'trainer_kwargs.beta':[
-           1, 
-           3, 
-           5,
+           .001,
+           .01,
+           .1,
+           1,
+           # 3,
+           # 5,
            10, 
-           30, 
-           50, 
+           # 30,
+           # 50,
+           100,
+           1000,
+
         ],
         'train_rl':[True],
         'pretrain_rl':[True],
@@ -81,13 +97,13 @@ if __name__ == "__main__":
         'trainer_kwargs.reparam_weight': [0.0],
         'trainer_kwargs.awr_weight': [1.0],
         'trainer_kwargs.bc_weight': [1.0, ],
-        'policy_kwargs.std_architecture': ["values"],
+        # 'policy_kwargs.std_architecture': ["values", "shared"],
         'trainer_kwargs.compute_bc': [True, ],
         'trainer_kwargs.awr_use_mle_for_vf': [True, ],
         'trainer_kwargs.awr_sample_actions': [False, ],
         'trainer_kwargs.awr_min_q': [True, ],
         'trainer_kwargs.q_weight_decay': [0],
-        'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0)],
+        # 'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0), None],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -100,7 +116,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'awr_sac_offline_online_upgraded_params_v1'
+    exp_prefix = 'awr_sac_offline_fixed_data_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
