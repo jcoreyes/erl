@@ -144,7 +144,7 @@ def dict_of_list__to__list_of_dicts(dict, n_items):
     return new_dicts
 
 
-def list_of_dicts__to__dict_of_lists(lst):
+def list_of_dicts__to__dict_of_lists(lst, enforce_consistent_keys=True):
     """
     ```
     x = [
@@ -164,6 +164,8 @@ def list_of_dicts__to__dict_of_lists(lst):
     for d in lst:
         if set(d.keys()) != set(keys):
             print("dropping some keys", d.keys())
+        if enforce_consistent_keys:
+            assert set(d.keys()) == set(keys)
         for k in keys:
             output_dict[k].append(d[k])
     return output_dict
