@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     search_space = {
         'use_weights':[True],
-        'policy_kwargs.hidden_sizes':[[256, 256]],
+        'policy_kwargs.hidden_sizes':[[256, 256, 256, 256]],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.bc_num_pretrain_steps':[400000],
         'trainer_kwargs.bc_weight':[1],
