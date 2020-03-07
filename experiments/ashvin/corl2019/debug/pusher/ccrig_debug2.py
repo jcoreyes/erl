@@ -190,7 +190,10 @@ if __name__ == "__main__":
 
             save_period=25,
         ),
-        region='us-west-2'
+        region='us-west-2',
+        logger_variant=dict(
+            tensorboard=True,
+        ),
     )
 
     search_space = {
@@ -207,4 +210,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=2)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=4)

@@ -1,0 +1,19 @@
+Pro tips:
+- When CUDA stops working, just restart the computer :(
+
+
+Processing Demos:
+- saw
+- source activate railr-env
+- cd src/railrl-private
+- python scripts/update_demo_with_latents.py
+- Make sure to edit variables in this file to use imagenet/not imagenet, and to save the correct path for the processed pkl file
+
+Running Behavioral Cloning:
+- saw
+- source activate railr-env
+- cd src/railrl-private
+- python experiments/ashvin/rfeatures/sawyer/door2/bc1.py --local --gpu --1
+- Make sure to edit vars in this file to use the correct model/processed demo files
+
+
