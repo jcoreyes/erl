@@ -123,19 +123,19 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'dev-{}'.format(
-    #     __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    # )
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'dev-{}'.format(
+    __file__.replace('/', '-').replace('_', '-').split('.')[0]
+    )
 
     # n_seeds = 3
     # mode = 'gcp'
     # exp_prefix = 'skew-fit-door-reference-post-refactor'
 
-    n_seeds = 5
-    mode = 'ec2'
-    exp_prefix = 'skewfit-door5'
+    #n_seeds = 5
+    #mode = 'ec2'
+    #exp_prefix = 'skewfit-door5'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
