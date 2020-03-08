@@ -172,6 +172,7 @@ class OnlineConditionalVaeRelabelingBuffer(OnlineVaeRelabelingBuffer):
                 r1 = self.env.representation_size
 
             env_goals = np.random.randn(num_env_goals, r1) # self._sample_goals_from_env(num_env_goals)
+            #env_goal = self._sample_goals_from_env(num_env_goals)
             last_env_goal_idx = num_rollout_goals + num_env_goals
 
             resampled_goals[num_rollout_goals:last_env_goal_idx, :r1] = (

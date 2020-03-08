@@ -56,7 +56,7 @@ if __name__ == "__main__":
         num_seconds=10,
         launch_time=str(date.strftime(date_format)),
     )
-    for _ in range(1):
+    for _ in range(5):
         run_experiment(
             example,
             exp_prefix="ssh-slurm-test",

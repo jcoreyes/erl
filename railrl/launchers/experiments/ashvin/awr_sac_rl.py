@@ -11,7 +11,6 @@ from gym.envs.classic_control import PendulumEnv
 import gym
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.trajectory_replay_buffer import TrajectoryReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWrapperEnv
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
@@ -139,7 +138,8 @@ ENV_PARAMS = {
         'env_offpolicy_data_path': dict(
             # path="demos/icml2020/hand/pen_bc_sparse1.npy",
             # path="demos/icml2020/hand/pen_bc_sparse2.npy",
-            path="demos/icml2020/hand/pen_bc_sparse3.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse3.npy",
+            path="demos/icml2020/hand/pen_bc_sparse4.npy",
             obs_dict=False,
             is_demo=False,
             train_split=0.9,

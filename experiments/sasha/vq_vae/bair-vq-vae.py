@@ -14,7 +14,7 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 from railrl.torch.vae.vq_vae import VQ_VAE
-from railrl.torch.vae.vae_trainer import VQ_VAETrainer
+from railrl.torch.vae.vq_vae_trainer import VQ_VAETrainer
 from railrl.data_management.online_conditional_vae_replay_buffer import \
         OnlineConditionalVaeRelabelingBuffer
 
@@ -94,4 +94,8 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
+<<<<<<< HEAD
     run_variants(train_vae, variants, run_id=13)
+=======
+    run_variants(train_vae, variants, run_id=13)
+>>>>>>> parent of 595cfb8... Unstage experiments
