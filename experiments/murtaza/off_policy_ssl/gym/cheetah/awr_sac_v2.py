@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     search_space = {
         'use_weights':[True],
-        'policy_kwargs.hidden_sizes':[[256]*4],
+        'policy_kwargs.hidden_sizes':[[256]*2, [256]*4],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
@@ -84,13 +84,13 @@ if __name__ == "__main__":
         'trainer_kwargs.reparam_weight': [0.0],
         'trainer_kwargs.awr_weight': [1.0],
         'trainer_kwargs.bc_weight': [1.0, ],
-        # 'policy_kwargs.std_architecture': ["values", "shared"],
+        'policy_kwargs.std_architecture': ["values", "shared"],
         'trainer_kwargs.compute_bc': [True, ],
         'trainer_kwargs.awr_use_mle_for_vf': [True, ],
         'trainer_kwargs.awr_sample_actions': [False, ],
         'trainer_kwargs.awr_min_q': [True, ],
         'trainer_kwargs.q_weight_decay': [0],
-        # 'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0), None],
+        'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0), None],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
     n_seeds = 4
     mode = 'ec2'
-    exp_prefix = 'awr_sac_offline_online_final_v1'
+    exp_prefix = 'awr_sac_offline_online_sweep_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
