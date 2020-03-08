@@ -32,14 +32,14 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=100000,
+            q_num_pretrain2_steps=500000,
             policy_weight_decay=1e-4,
             weight_loss=True,
             bc_num_pretrain_steps=100000,
             terminal_transform_kwargs=dict(m=0, b=0),
         ),
         policy_kwargs=dict(
-            hidden_sizes=[256]*2,
+            hidden_sizes=[256]*4,
             max_log_std=0,
             min_log_std=-6,
             std_architecture="shared",
@@ -53,32 +53,32 @@ if __name__ == "__main__":
 
     search_space = {
         'use_weights':[True],
-        'policy_kwargs.hidden_sizes':[[256]*2, [256]*4],
+        'policy_kwargs.hidden_sizes':[[256]*4],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
         'path_loader_kwargs.demo_off_policy_path':[
-            'hc_off_policy_10_demos_100.npy',
-            # 'hc_off_policy_15_demos_100.npy',
-            # 'hc_off_policy_25_demos_100.npy',
+            # 'demos/hc_off_policy_10_demos_100.npy',
+            # 'demos/hc_off_policy_15_demos_100.npy',
+            'demos/hc_off_policy_25_demos_100.npy',
         ],
         'path_loader_kwargs.demo_path': [
-            'hc_action_noise_10.npy',
-            # 'hc_action_noise_15.npy',
-            # 'hc_action_noise_25.npy',
+            # 'demos/hc_action_noise_10.npy',
+            # 'demos/hc_action_noise_15.npy',
+            'demos/hc_action_noise_25.npy',
         ],
         'trainer_kwargs.beta':[
-           .001,
-           .01,
-           .1,
+           # .001,
+           # .01,
+           # .1,
            1,
            # 3,
            # 5,
-           10, 
+           # 10, 
            # 30,
            # 50,
-           100,
-           1000,
+           # 100,
+           # 1000,
 
         ],
         'train_rl':[True],
@@ -111,12 +111,12 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_prefix = 'awr_sac_offline_hc_v2'
+    # exp_prefix = 'awr_sac_offline_hc_v3'
     
 
-    n_seeds = 2
+    n_seeds = 4
     mode = 'ec2'
-    exp_prefix = 'awr_sac_offline_fixed_data_v1'
+    exp_prefix = 'awr_sac_offline_fixed_data_v3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
