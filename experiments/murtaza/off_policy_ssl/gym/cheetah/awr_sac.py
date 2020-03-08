@@ -6,7 +6,7 @@ from railrl.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=200,
+        num_epochs=500,
         num_eval_steps_per_epoch=3000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
@@ -37,6 +37,7 @@ if __name__ == "__main__":
             weight_loss=True,
             bc_num_pretrain_steps=100000,
             terminal_transform_kwargs=dict(m=0, b=0),
+            pretraining_env_logging_period=100000,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
@@ -59,19 +60,25 @@ if __name__ == "__main__":
         'trainer_kwargs.weight_loss':[True],
         'path_loader_kwargs.demo_off_policy_path':[
             # 'demos/hc_off_policy_10_demos_100.npy',
-            # 'demos/hc_off_policy_15_demos_100.npy',
-            'demos/hc_off_policy_25_demos_100.npy',
+            'demos/hc_off_policy_15_demos_100.npy',
+            # 'demos/hc_off_policy_25_demos_100.npy',
         ],
         'path_loader_kwargs.demo_path': [
             # 'demos/hc_action_noise_10.npy',
-            # 'demos/hc_action_noise_15.npy',
-            'demos/hc_action_noise_25.npy',
+            'demos/hc_action_noise_15.npy',
+            # 'demos/hc_action_noise_25.npy',
         ],
         'trainer_kwargs.beta':[
            # .001,
            # .01,
            # .1,
-           1,
+            # .1, 
+            .3, 
+            .9,
+           # 1,
+            1.1,
+            1.3,
+            # 1.5,
            # 3,
            # 5,
            # 10, 
@@ -116,7 +123,7 @@ if __name__ == "__main__":
 
     n_seeds = 4
     mode = 'ec2'
-    exp_prefix = 'awr_sac_offline_fixed_data_v3'
+    exp_prefix = 'awr_sac_offline_fixed_data_v6'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
