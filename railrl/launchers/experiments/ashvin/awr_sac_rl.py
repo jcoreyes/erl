@@ -290,6 +290,9 @@ def experiment(variant):
         variant.update(env_params)
 
         if 'env_id' in env_params:
+            if env_params['env_id'] in ['pen-v0', 'pen-sparse-v0', 'door-v0', 'relocate-v0', 'hammer-v0',
+                                        'pen-sparse-v0', 'door-sparse-v0', 'relocate-sparse-v0', 'hammer-sparse-v0']:
+                import mj_envs
             expl_env = gym.make(env_params['env_id'])
             eval_env = gym.make(env_params['env_id'])
         else:

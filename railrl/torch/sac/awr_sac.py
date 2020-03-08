@@ -60,7 +60,6 @@ class AWRSACTrainer(TorchTrainer):
             bc_weight=0.0,
             rl_weight=1.0,
             use_awr_update=True,
-            use_reparam_update=False,
             reparam_weight=1.0,
             awr_weight=1.0,
             post_pretrain_hyperparams=None,
@@ -156,12 +155,12 @@ class AWRSACTrainer(TorchTrainer):
         self.policy_update_period = policy_update_period
         self.weight_loss = weight_loss
 
-        self.use_reparam_update = use_reparam_update
         self.reparam_weight = reparam_weight
         self.awr_weight = awr_weight
         self.post_pretrain_hyperparams = post_pretrain_hyperparams
         self.post_bc_pretrain_hyperparams = post_bc_pretrain_hyperparams
         self.update_policy = True
+        self.pretraining_env_logging_period = pretraining_env_logging_period
 
         self.reward_transform_class = reward_transform_class or LinearTransform
         self.reward_transform_kwargs = reward_transform_kwargs or dict(m=1, b=0)
@@ -169,13 +168,6 @@ class AWRSACTrainer(TorchTrainer):
         self.terminal_transform_kwargs = terminal_transform_kwargs or dict(m=1, b=0)
         self.reward_transform = self.reward_transform_class(**self.reward_transform_kwargs)
         self.terminal_transform = self.terminal_transform_class(**self.terminal_transform_kwargs)
-
-        self.use_reparam_update = use_reparam_update
-        self.reparam_weight = reparam_weight
-        self.awr_weight = awr_weight
-        self.post_pretrain_hyperparams = post_pretrain_hyperparams
-        self.update_policy = True
-        self.pretraining_env_logging_period = pretraining_env_logging_period
 
 
     def get_batch_from_buffer(self, replay_buffer):
@@ -298,7 +290,7 @@ class AWRSACTrainer(TorchTrainer):
         # first train only the Q function
         for i in range(self.q_num_pretrain1_steps):
             self.eval_statistics = dict()
-            if i % 10 == 0:
+            if i % self.pretraining_env_logging_period == 0:
                 self._need_to_update_eval_statistics = True
 
             train_data = self.replay_buffer.random_batch(self.bc_batch_size)
@@ -340,7 +332,7 @@ class AWRSACTrainer(TorchTrainer):
                     total_ret += ret
                 print("Return at step {} : {}".format(i, total_ret/20))
             
-            if i%1000 == 0:
+            if self._need_to_update_eval_statistics:
                 self.eval_statistics["avg_return"] =  total_ret / 20
                 self.eval_statistics["batch"] = i
                 logger.record_dict(self.eval_statistics)
@@ -475,7 +467,8 @@ class AWRSACTrainer(TorchTrainer):
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp * len(weights)*weights.detach()).mean()
         elif self.use_awr_update:
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp).mean()
-        elif self.reparam_weight:
+
+        if self.reparam_weight:
             policy_loss = policy_loss + self.reparam_weight * (-q_new_actions).mean()
         else:
             policy_loss = policy_loss - q_new_actions.mean()
