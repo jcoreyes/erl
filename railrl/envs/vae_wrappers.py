@@ -418,7 +418,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
 
     def _decode(self, latents):
         self.vae.eval()
-        #import ipdb; ipdb.set_trace()
         reconstructions, _ = self.vae.decode(ptu.from_numpy(latents))
         decoded = ptu.get_numpy(reconstructions)
         return decoded
