@@ -265,24 +265,6 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         return log_prob
 
 class GaussianPolicy(Mlp, ExplorationPolicy):
-    """
-    Usage:
-
-    ```
-    policy = TanhGaussianPolicy(...)
-    action, mean, log_std, _ = policy(obs)
-    action, mean, log_std, _ = policy(obs, deterministic=True)
-    action, mean, log_std, log_prob = policy(obs, return_log_prob=True)
-    ```
-
-    Here, mean and log_std are the mean and log_std of the Gaussian that is
-    sampled from.
-
-    If deterministic is True, action = tanh(mean).
-    If return_log_prob is False (default), log_prob = None
-        This is done because computing the log_prob can be a bit expensive.
-    """
-
     def __init__(
             self,
             hidden_sizes,
@@ -408,34 +390,7 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
             mean_action_log_prob, pre_tanh_value, normal,
         )
 
-    # def logprob(self, action, mean, std):
-    #     # import ipdb; ipdb.set_trace()
-    #     normal = Normal(mean, std)
-    #     log_prob = normal.log_prob(
-    #         action,
-    #     )
-    #     log_prob = log_prob.sum(dim=1, keepdim=True)
-    #     return log_prob
-
 class GaussianMixturePolicy(Mlp, ExplorationPolicy):
-    """
-    Usage:
-
-    ```
-    policy = TanhGaussianPolicy(...)
-    action, mean, log_std, _ = policy(obs)
-    action, mean, log_std, _ = policy(obs, deterministic=True)
-    action, mean, log_std, log_prob = policy(obs, return_log_prob=True)
-    ```
-
-    Here, mean and log_std are the mean and log_std of the Gaussian that is
-    sampled from.
-
-    If deterministic is True, action = tanh(mean).
-    If return_log_prob is False (default), log_prob = None
-        This is done because computing the log_prob can be a bit expensive.
-    """
-
     def __init__(
             self,
             hidden_sizes,

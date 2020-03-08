@@ -459,7 +459,8 @@ def generate_vae_dataset(variant):
 
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv
-    from railrl.envs.vae_wrappers import VAEWrappedEnv, ConditionalVAEWrappedEnv, VQVAEWrappedEnv
+    from railrl.envs.vae_wrappers import VAEWrappedEnv, ConditionalVAEWrappedEnv
+    from railrl.envs.encoder_wrappers import VQVAEWrappedEnv
     from railrl.misc.asset_loader import load_local_or_remote_file
     from railrl.torch.vae.conditional_conv_vae import CVAE, ConditionalConvVAE
     from railrl.torch.vae.vq_vae import VQ_VAE
