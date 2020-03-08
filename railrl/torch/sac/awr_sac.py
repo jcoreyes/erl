@@ -11,8 +11,6 @@ from railrl.torch.torch_rl_algorithm import TorchTrainer
 from railrl.core import logger
 from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 import torch.nn.functional as F
-
-
 from railrl.torch.networks import LinearTransform
 
 class AWRSACTrainer(TorchTrainer):
@@ -57,7 +55,7 @@ class AWRSACTrainer(TorchTrainer):
             q_update_period=1,
 
             weight_loss=True,
-            compute_bc=False,
+            compute_bc=True,
 
             bc_weight=0.0,
             rl_weight=1.0,
@@ -76,6 +74,8 @@ class AWRSACTrainer(TorchTrainer):
             reward_transform_kwargs=None,
             terminal_transform_class=None,
             terminal_transform_kwargs=None,
+
+            pretraining_env_logging_period=100000,
     ):
         super().__init__()
         self.env = env
@@ -170,22 +170,13 @@ class AWRSACTrainer(TorchTrainer):
         self.reward_transform = self.reward_transform_class(**self.reward_transform_kwargs)
         self.terminal_transform = self.terminal_transform_class(**self.terminal_transform_kwargs)
 
-        # self.bc_log = dict(
-        #     train=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
-        #     test=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
-        # )
-
         self.use_reparam_update = use_reparam_update
         self.reparam_weight = reparam_weight
         self.awr_weight = awr_weight
         self.post_pretrain_hyperparams = post_pretrain_hyperparams
         self.update_policy = True
+        self.pretraining_env_logging_period = pretraining_env_logging_period
 
-        # self.bc_log = dict(
-        #     train=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
-        #     test=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
-        # )
-        # self.bc_loss_fn = nn.MSELoss()
 
     def get_batch_from_buffer(self, replay_buffer):
         batch = replay_buffer.random_batch(self.bc_batch_size)
@@ -203,17 +194,9 @@ class AWRSACTrainer(TorchTrainer):
         pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, mean_action_log_prob, pretanh_value, dist = self.policy(
             og, deterministic=False, reparameterize=True, return_log_prob=True,
         )
-        # import ipdb; ipdb.set_trace()
 
         mse = (pred_u - u) ** 2
         mse_loss = mse.mean()
-
-        # name = "train" if replay_buffer == self.demo_train_buffer else "test"
-        # log = self.bc_log[name]
-        # log["mean"].append(ptu.get_numpy(policy_mean))
-        # log["log_std"].append(ptu.get_numpy(policy_log_std))
-        # log["abs_error"].append(ptu.get_numpy(torch.abs(pred_u - u)))
-        # log["expert_action"].append(ptu.get_numpy(u))
 
         policy_logpp = dist.log_prob(u, )
         logp_loss = -policy_logpp.mean()
@@ -259,7 +242,7 @@ class AWRSACTrainer(TorchTrainer):
             test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer)
             test_policy_loss = test_policy_loss * self.bc_weight
             
-            if i % 100000 == 0:
+            if i % self.pretraining_env_logging_period == 0:
                 total_ret = 0
                 for _ in range(20):
                     o = self.env.reset()
@@ -272,7 +255,6 @@ class AWRSACTrainer(TorchTrainer):
                             break
                     total_ret += ret
                 print("Return at step {} : {}".format(i, total_ret/20))
-                # import ipdb; ipdb.set_trace()
             if i % 1000 == 0:
                 stats = {
                 "pretrain_bc/batch": i,
@@ -303,9 +285,6 @@ class AWRSACTrainer(TorchTrainer):
 
         if self.post_bc_pretrain_hyperparams:
             self.set_algorithm_weights(**self.post_bc_pretrain_hyperparams)
-
-        # savepath = osp.join(logger.get_snapshot_dir(), 'bc_log.npy')
-        # np.save(savepath, self.bc_log)
 
     def pretrain_q_with_bc_data(self):
         logger.remove_tabular_output(
@@ -347,7 +326,7 @@ class AWRSACTrainer(TorchTrainer):
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
 
-            if i % 10000 == 0:
+            if i % self.pretraining_env_logging_period == 0:
                 total_ret = 0
                 for _ in range(20):
                     o = self.env.reset()
@@ -406,7 +385,7 @@ class AWRSACTrainer(TorchTrainer):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        weights = batch['next_observations']
+        weights = batch.get('weights', None)
 
         if self.reward_transform:
             rewards = self.reward_transform(rewards)
@@ -486,7 +465,7 @@ class AWRSACTrainer(TorchTrainer):
 
         advantage = q_adv - v_pi
 
-        if self.weight_loss:
+        if self.weight_loss and weights is None:
             beta = self.beta_schedule.get_value(self._n_train_steps_total)
             weights = F.softmax(advantage / beta, dim=0)
 

@@ -10,7 +10,7 @@ from gym.envs.mujoco import (
 from gym.envs.classic_control import PendulumEnv
 import gym
 
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer, AWREnvReplayBuffer
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.trajectory_replay_buffer import TrajectoryReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWrapperEnv
 from railrl.launchers.launcher_util import run_experiment
@@ -471,9 +471,9 @@ def experiment(variant):
     pickle.dump(expl_policy, open(logger.get_snapshot_dir()+'/bc.pkl', "wb"))
     if variant.get('pretrain_policy', False):
         trainer.pretrain_policy_with_bc()
+    pickle.dump(expl_policy, open(logger.get_snapshot_dir()+'/bc.pkl', "wb"))
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
-    pickle.dump(expl_policy, open(logger.get_snapshot_dir()+'/bc.pkl', "wb"))
     if variant.get('save_pretrained_algorithm', False):
         p_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.p')
         pt_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.pt')
