@@ -43,7 +43,7 @@ def multitask_rollout(
         get_action_kwargs=None,
         return_dict_obs=False,
         use_masks=False,
-        fixed_mask=False,
+        full_mask=False,
         vis_list=list(),
 ):
     if render_kwargs is None:
@@ -68,7 +68,7 @@ def multitask_rollout(
     while path_length < max_path_length:
         dict_obs.append(o)
         if use_masks:
-            if fixed_mask:
+            if full_mask:
                 mask = np.ones(goal.shape)
             else:
                 mask = o['mask']

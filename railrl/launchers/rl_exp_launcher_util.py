@@ -122,7 +122,7 @@ def td3_experiment(variant):
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
             use_masks=variant.get("use_masks", False),
-            fixed_mask=True,
+            full_mask=True,
         )
         expl_path_collector = GoalConditionedPathCollector(
             env,
@@ -168,7 +168,7 @@ def td3_experiment(variant):
                 observation_key=observation_key,
                 desired_goal_key=desired_goal_key,
                 use_masks=variant.get("use_masks", False),
-                fixed_mask=True,
+                full_mask=True,
                 vis_list=vis_list,
             )
             video_func = get_video_save_func(
