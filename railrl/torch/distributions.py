@@ -28,10 +28,7 @@ class GaussianMixture(Distribution):
 
     def sample(self, ):
         z = self.normal.sample().detach()
-        r = self.normals[0].sample()
         c = self.categorical.sample()[:, :, None]
-        # for i, j in enumerate(c):
-            # r[i, :] = z[i, :, j]
         s = torch.matmul(z, c)
         return torch.squeeze(s, 2)
 
@@ -45,11 +42,7 @@ class GaussianMixture(Distribution):
                 ).sample()
         )
         z.requires_grad_()
-        r = self.normals[0].sample()
         c = self.categorical.sample()[:, :, None]
-        # for i, j in enumerate(c):
-        #     r[i, :] = z[i, :, j]
-        # import ipdb; ipdb.set_trace()
         s = torch.matmul(z, c)
         return torch.squeeze(s, 2)
 
