@@ -346,7 +346,6 @@ class CVAE(GaussianLatentVAE):
             reconstruction_channels=3,
             base_depth=32,
             weight_init_gain=1.0,
-            z_coeff=1,
     ):
         """
         :param representation_size:
@@ -440,12 +439,11 @@ class CVAE(GaussianLatentVAE):
             hidden_init=hidden_init,
             **deconv_kwargs)
 
-        self.z_coeff = z_coeff
         self.c = nn.Linear(self.encoder.output_size, latent_sizes[1])
-        self.z = nn.Linear(self.encoder.output_size, z_coeff * self.representation_size)
-        self.z_mu = nn.Linear(z_coeff * self.representation_size + latent_sizes[1], latent_sizes[0])
-        self.z_var = nn.Linear(z_coeff * self.representation_size + latent_sizes[1], latent_sizes[0])
-        self.bn_z = nn.BatchNorm1d(z_coeff * self.representation_size)
+        self.z = nn.Linear(self.encoder.output_size, self.representation_size)
+        self.z_mu = nn.Linear(self.representation_size + latent_sizes[1], latent_sizes[0])
+        self.z_var = nn.Linear(self.representation_size + latent_sizes[1], latent_sizes[0])
+        self.bn_z = nn.BatchNorm1d(self.representation_size)
         self.bn_c = nn.BatchNorm1d(latent_sizes[1])
 
         nn.init.xavier_uniform_(self.z.weight, gain=self.gain)
@@ -477,11 +475,8 @@ class CVAE(GaussianLatentVAE):
             batch_size = len(x_t)
             x_0 = x_0.repeat(batch_size, 1)
 
-        if self.z_coeff == 1:
-            latents = self.bn_z(self.z(self.dropout(self.encoder(x_t))))
-        else:
-            latents = self.dropout(self.relu(self.bn_z(self.z(self.dropout(self.encoder(x_t))))))
-        
+        latents = self.dropout(self.relu(self.bn_z(self.z(self.dropout(self.encoder(x_t))))))
+
         conditioning = self.bn_c(self.c(self.dropout(self.cond_encoder(x_0))))
         cond_latents = torch.cat([latents, conditioning], dim=1)
         mu = self.z_mu(cond_latents)
@@ -509,9 +504,9 @@ class CVAE(GaussianLatentVAE):
     def sample_prior(self, batch_size, x_0, true_prior=False):
         if x_0.shape[0] == 1:
             x_0 = x_0.repeat(batch_size, 1)
-        
+
         z_sample = ptu.randn(batch_size, self.latent_sizes[0])
-        
+
         if true_prior:
             stds = np.exp(0.5 * self.prior_logvar)
             z_sample = z_sample * stds + self.prior_mu
@@ -578,7 +573,6 @@ class DeltaCVAE(CVAE):
             reconstruction_channels=3,
             base_depth=32,
             weight_init_gain=1.0,
-            z_coeff=1,
     ):
         super().__init__(
             latent_sizes,
@@ -596,8 +590,7 @@ class DeltaCVAE(CVAE):
             hidden_init,
             reconstruction_channels,
             base_depth,
-            weight_init_gain,
-            z_coeff)
+            weight_init_gain, )
 
         conv_args, conv_kwargs, deconv_args, deconv_kwargs = \
             architecture['conv_args'], architecture['conv_kwargs'], \
