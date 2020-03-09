@@ -97,7 +97,8 @@ class GoalConditionedPathCollector(PathCollector):
             render_kwargs=None,
             observation_key='observation',
             desired_goal_key='desired_goal',
-            use_masks=True,
+            use_masks=False,
+            fixed_mask=False,
     ):
         if render_kwargs is None:
             render_kwargs = {}
@@ -110,6 +111,7 @@ class GoalConditionedPathCollector(PathCollector):
         self._observation_key = observation_key
         self._desired_goal_key = desired_goal_key
         self._use_masks = use_masks
+        self._fixed_mask = fixed_mask
 
         self._num_steps_total = 0
         self._num_paths_total = 0
@@ -137,6 +139,7 @@ class GoalConditionedPathCollector(PathCollector):
                 desired_goal_key=self._desired_goal_key,
                 return_dict_obs=True,
                 use_masks=self._use_masks,
+                fixed_mask=self._fixed_mask,
             )
             path_len = len(path['actions'])
             if (

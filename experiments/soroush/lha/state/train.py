@@ -12,10 +12,10 @@ variant = dict(
         do_state_exp=True,
         algo_kwargs=dict(
             num_epochs=1000,
-            batch_size=128,
+            batch_size=2048, #128,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=4000,
+            num_trains_per_train_loop=1000, #4000,
             min_num_steps_before_training=1000,
         ),
         max_path_length=100,
@@ -39,6 +39,7 @@ variant = dict(
         subgoal_policy_kwargs=dict(
             num_subgoals_per_episode=2,
         ),
+        use_masks=False,
         exploration_type='gaussian_and_epsilon',
         es_kwargs=dict(
             max_sigma=.2,
@@ -65,17 +66,13 @@ env_params = {
             # 'SawyerPushDebugLEAP-v2',
             # 'SawyerPushDebugLEAPPuckRew-v2',
             # 'SawyerPushDebugLEAP-v4',
-            'SawyerPushDebugLEAPPuckRew-v4',
+            # 'SawyerPushDebugLEAPPuckRew-v4',
+
+            'SawyerPushDebugLEAP-v3',
+            # 'SawyerPushDebugLEAPPuckRew-v3',
         ],
 
-        'rl_variant.algo_kwargs.batch_size': [
-            # 128,
-            2048,
-        ],
-        'rl_variant.algo_kwargs.num_trains_per_train_loop': [1000],
-
-        'rl_variant.use_masks': [True],
-
+        # 'rl_variant.use_masks': [True],
 
         'rl_variant.max_path_length': [200],
         'init_camera':[sawyer_xyz_reacher_camera_v0],
