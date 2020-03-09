@@ -239,6 +239,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             achieved_goal_key='achieved_goal',
             vectorized=False,
             ob_keys_to_save=None,
+            use_masks=False,
             **kwargs
     ):
         """
@@ -279,6 +280,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
         self.desired_goal_key = desired_goal_key
         self.achieved_goal_key = achieved_goal_key
         self.vectorized = vectorized
+        self.use_masks = use_masks
 
     def random_batch(self, batch_size):
         indices = self._sample_indices(batch_size)
@@ -325,6 +327,11 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
         new_next_obs_dict[self.desired_goal_key] = resampled_goals
         resampled_goals = new_next_obs_dict[self.desired_goal_key]
 
+        if self.use_masks:
+            resampled_masks = self.env.sample_masks(batch_size=batch_size)
+            new_obs_dict['mask'] = resampled_masks
+            new_next_obs_dict['mask'] = resampled_masks
+
         new_actions = self._actions[indices]
 
         if isinstance(self.env, MultitaskEnv):
@@ -354,6 +361,8 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             'resampled_goals': resampled_goals,
             'indices': np.array(indices).reshape(-1, 1),
         }
+        if self.use_masks:
+            batch['resampled_masks'] = resampled_masks
         return batch
 
 def flatten_n(xs):

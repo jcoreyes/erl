@@ -31,6 +31,10 @@ def td3_experiment(variant):
             env.observation_space.spaces[observation_key].low.size
             + env.observation_space.spaces[desired_goal_key].low.size
     )
+    if variant.get("use_masks", False):
+        assert env.observation_space.spaces[observation_key].low.size \
+               == env.observation_space.spaces[desired_goal_key].low.size
+        obs_dim += env.observation_space.spaces[observation_key].low.size
     action_dim = env.action_space.low.size
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
@@ -93,6 +97,7 @@ def td3_experiment(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
+        use_masks=variant.get("use_masks", False),
         **variant['replay_buffer_kwargs']
     )
 
@@ -105,19 +110,25 @@ def td3_experiment(variant):
         target_policy=target_policy,
         **variant['td3_trainer_kwargs']
     )
-    trainer = HERTrainer(trainer)
+    if variant.get("use_masks", False):
+        from railrl.torch.her.her import MaskedHERTrainer
+        trainer = MaskedHERTrainer(trainer)
+    else:
+        trainer = HERTrainer(trainer)
     if variant.get("do_state_exp", False):
         eval_path_collector = GoalConditionedPathCollector(
             env,
             policy,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
+            use_masks=variant.get("use_masks", False),
         )
         expl_path_collector = GoalConditionedPathCollector(
             env,
             expl_policy,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
+            use_masks=variant.get("use_masks", False),
         )
     else:
         eval_path_collector = VAEWrappedEnvPathCollector(
@@ -155,6 +166,7 @@ def td3_experiment(variant):
                 max_path_length=max_path_length,
                 observation_key=observation_key,
                 desired_goal_key=desired_goal_key,
+                use_masks=variant.get("use_masks", False),
                 vis_list=vis_list,
             )
             video_func = get_video_save_func(

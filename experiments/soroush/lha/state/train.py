@@ -64,21 +64,31 @@ env_params = {
             # 'SawyerPushDebugLEAP-v1',
             # 'SawyerPushDebugLEAP-v2',
             # 'SawyerPushDebugLEAPPuckRew-v2',
-            'SawyerPushDebugLEAP-v4',
-            # 'SawyerPushDebugLEAPPuckRew-v4',
+            # 'SawyerPushDebugLEAP-v4',
+            'SawyerPushDebugLEAPPuckRew-v4',
         ],
+
+        'rl_variant.algo_kwargs.batch_size': [
+            # 128,
+            2048,
+        ],
+        'rl_variant.algo_kwargs.num_trains_per_train_loop': [1000],
+
+        'rl_variant.use_masks': [True],
+
+
         'rl_variant.max_path_length': [200],
         'init_camera':[sawyer_xyz_reacher_camera_v0],
         'rl_variant.vis_kwargs.vis_list': [[
             'plt',
         ]],
-        'rl_variant.use_subgoal_policy': [
-            True,
-        ],
-        'rl_variant.subgoal_policy_kwargs.num_subgoals_per_episode': [
-            2,
-            # 4,
-        ],
+        # 'rl_variant.use_subgoal_policy': [
+        #     True,
+        # ],
+        # 'rl_variant.subgoal_policy_kwargs.num_subgoals_per_episode': [
+        #     # 2,
+        #     4,
+        # ],
     },
     'pnr-ccrig': {
         'env_id': [
@@ -107,8 +117,12 @@ def process_variant(variant):
         rl_variant['algo_kwargs']['num_eval_steps_per_epoch'] = 200
         rl_variant['algo_kwargs']['num_expl_steps_per_train_loop'] = 200
         rl_variant['algo_kwargs']['num_trains_per_train_loop'] = 200
+        rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
         rl_variant['dump_video_kwargs']['columns'] = 2
         rl_variant['save_video_period'] = 2
+
+    if args.no_video:
+        rl_variant['save_video'] = False
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
