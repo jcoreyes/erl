@@ -1,4 +1,5 @@
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -7,8 +8,13 @@ from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.torch.core import np_to_pytorch_batch
 from railrl.torch.torch_rl_algorithm import TorchTrainer
+
+
+SACLosses = namedtuple(
+    'SACLosses',
+    'policy_loss qf1_loss qf2_loss alpha_loss',
+)
 
 
 class SACTrainer(TorchTrainer):
@@ -84,6 +90,49 @@ class SACTrainer(TorchTrainer):
         self._need_to_update_eval_statistics = True
 
     def train_from_torch(self, batch):
+        losses = self.compute_loss(
+            batch,
+            update_eval_statistics=self._need_to_update_eval_statistics,
+        )
+
+        """
+        Update networks
+        """
+        self.alpha_optimizer.zero_grad()
+        losses.alpha_loss.backward()
+        self.alpha_optimizer.step()
+
+        self.qf1_optimizer.zero_grad()
+        losses.qf1_loss.backward()
+        self.qf1_optimizer.step()
+
+        self.qf2_optimizer.zero_grad()
+        losses.qf2_loss.backward()
+        self.qf2_optimizer.step()
+
+        self.policy_optimizer.zero_grad()
+        losses.policy_loss.backward()
+        self.policy_optimizer.step()
+
+        if self._n_train_steps_total % self.target_update_period == 0:
+            self.update_target_networks()
+        self._n_train_steps_total += 1
+
+        if self._need_to_update_eval_statistics:
+            # Compute statistics using only one batch per epoch
+            self._need_to_update_eval_statistics = False
+
+    def update_target_networks(self):
+        ptu.soft_update_from_to(
+            self.qf1, self.target_qf1, self.soft_target_tau
+        )
+        ptu.soft_update_from_to(
+            self.qf2, self.target_qf2, self.soft_target_tau
+        )
+
+    def compute_loss(
+            self, batch, update_eval_statistics=False,
+    ) -> SACLosses:
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -98,9 +147,6 @@ class SACTrainer(TorchTrainer):
         )
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
-            self.alpha_optimizer.zero_grad()
-            alpha_loss.backward()
-            self.alpha_optimizer.step()
             alpha = self.log_alpha.exp()
         else:
             alpha_loss = 0
@@ -117,7 +163,6 @@ class SACTrainer(TorchTrainer):
         """
         q1_pred = self.qf1(obs, actions)
         q2_pred = self.qf2(obs, actions)
-        # Make sure policy accounts for squashing functions like tanh correctly!
         new_next_actions, _, _, new_log_pi, *_ = self.policy(
             next_obs, reparameterize=True, return_log_prob=True,
         )
@@ -131,40 +176,9 @@ class SACTrainer(TorchTrainer):
         qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
 
         """
-        Update networks
-        """
-        self.qf1_optimizer.zero_grad()
-        qf1_loss.backward()
-        self.qf1_optimizer.step()
-
-        self.qf2_optimizer.zero_grad()
-        qf2_loss.backward()
-        self.qf2_optimizer.step()
-
-        self.policy_optimizer.zero_grad()
-        policy_loss.backward()
-        self.policy_optimizer.step()
-
-        """
-        Soft Updates
-        """
-        if self._n_train_steps_total % self.target_update_period == 0:
-            ptu.soft_update_from_to(
-                self.qf1, self.target_qf1, self.soft_target_tau
-            )
-            ptu.soft_update_from_to(
-                self.qf2, self.target_qf2, self.soft_target_tau
-            )
-
-        """
         Save some statistics for eval
         """
-        if self._need_to_update_eval_statistics:
-            self._need_to_update_eval_statistics = False
-            """
-            Eval should set this to None.
-            This way, these statistics are only computed for one batch.
-            """
+        if update_eval_statistics:
             policy_loss = (log_pi - q_new_actions).mean()
 
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
@@ -199,7 +213,13 @@ class SACTrainer(TorchTrainer):
             if self.use_automatic_entropy_tuning:
                 self.eval_statistics['Alpha'] = alpha.item()
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
-        self._n_train_steps_total += 1
+
+        return SACLosses(
+            policy_loss=policy_loss,
+            qf1_loss=qf1_loss,
+            qf2_loss=qf2_loss,
+            alpha_loss=alpha_loss,
+        )
 
     def get_diagnostics(self):
         stats = super().get_diagnostics()
