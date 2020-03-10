@@ -443,8 +443,6 @@ def experiment(variant):
     demo_test_buffer = EnvReplayBuffer(
         **replay_buffer_kwargs,
     )
-    if 'demo_path' not in variant['path_loader_kwargs']:
-        variant['path_loader_kwargs']['demo_path'] = env_params['demo_path']
 
     if variant.get('save_paths', False):
         algorithm.post_train_funcs.append(save_paths)
