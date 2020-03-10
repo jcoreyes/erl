@@ -303,7 +303,7 @@ class AWRSACTrainer(TorchTrainer):
             train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
-            if i % self.pretraining_env_logging_period == 0:
+            if i % 1000 == 0:
                 logger.record_dict(self.eval_statistics)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
@@ -339,8 +339,8 @@ class AWRSACTrainer(TorchTrainer):
                     total_ret += ret
                 print("Return at step {} : {}".format(i, total_ret/20))
            
-            if i%self.pretraining_env_logging_period==0:
-                self.eval_statistics["avg_return"] =  total_ret / 20
+            if i%1000==0:
+                self.eval_statistics["avg_return"] = total_ret / 20
                 self.eval_statistics["batch"] = i
                 logger.record_dict(self.eval_statistics)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
