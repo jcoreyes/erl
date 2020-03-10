@@ -3,6 +3,7 @@ import os
 from os import path as osp
 import numpy as np
 import torch
+from railrl.core.loss import LossFunction
 from torch import optim
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
@@ -22,7 +23,8 @@ from railrl.torch.core import np_to_pytorch_batch
 import collections
 import time
 
-class VAETrainer(object):
+
+class VAETrainer(LossFunction):
     def __init__(
             self,
             model,
@@ -228,7 +230,7 @@ class VAETrainer(object):
             self.test_batch(epoch, dataset.random_batch(self.batch_size))
         self.eval_statistics["test/epoch_duration"].append(time.time() - start_time)
 
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
 
         beta = float(self.beta_schedule.get_value(epoch))
@@ -256,7 +258,7 @@ class VAETrainer(object):
         self.model.train()
         self.optimizer.zero_grad()
 
-        loss = self.compute_loss(epoch, batch, False)
+        loss = self.compute_loss(batch, epoch, False)
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -268,7 +270,7 @@ class VAETrainer(object):
             batch,
     ):
         self.model.eval()
-        loss = self.compute_loss(epoch, batch, True)
+        loss = self.compute_loss(batch, epoch, True)
 
     def end_epoch(self, epoch):
         self.eval_statistics = collections.defaultdict(list)
@@ -512,7 +514,7 @@ class ConvVAETrainer(VAETrainer):
         return sorted(idx_and_weights, key=lambda x: x[1])
 
 class ConvVAEGradientPenaltyTrainer(ConvVAETrainer):
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         obs = batch[self.key_to_reconstruct]
@@ -549,7 +551,7 @@ class ConvVAEGradientPenaltyTrainer(ConvVAETrainer):
         self.model.train()
         self.optimizer.zero_grad()
 
-        loss = self.compute_loss(epoch, batch, False)
+        loss = self.compute_loss(batch, epoch, False)
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -561,11 +563,11 @@ class ConvVAEGradientPenaltyTrainer(ConvVAETrainer):
             batch,
     ):
         self.model.eval()
-        loss = self.compute_loss(epoch, batch, True)
+        loss = self.compute_loss(batch, epoch, True)
 
 
 class ConditionalConvVAETrainer(ConvVAETrainer):
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
 
         beta = float(self.beta_schedule.get_value(epoch))
@@ -699,7 +701,7 @@ class CVAETrainer(ConditionalConvVAETrainer):
             weight_decay=weight_decay,
         )
 
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         reconstructions, obs_distribution_params, latent_distribution_params = self.model(batch["x_t"], batch["env"])
@@ -866,7 +868,7 @@ class DeltaCVAETrainer(ConditionalConvVAETrainer):
             weight_decay=weight_decay,
         )
 
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         x_t, env = self.model(batch["x_t"], batch["env"])
@@ -972,7 +974,7 @@ class CDVAETrainer(CVAETrainer):
         latent_next_obs = self.model.encode(x_next, env, distrib=False)
         return torch.norm(latent_obs - latent_next_obs) ** 2 / self.batch_size
 
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         reconstructions, obs_distribution_params, latent_distribution_params = self.model(batch["x_t"], batch["env"])
@@ -1059,7 +1061,7 @@ class CDVAETrainer(CVAETrainer):
 
 class DeltaDynamicsCVAETrainer(CDVAETrainer):
 
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         x_t, env = self.model(batch["x_t"], batch["env"])

@@ -69,7 +69,7 @@ class End2EndSACTrainer(TorchTrainer):
             batch,
             update_eval_statistics=self._need_to_update_eval_statistics,
         )
-        vae_loss = self._vae_trainer.compute_loss(0, batch, test=False)
+        vae_loss = self._vae_trainer.compute_loss(batch, test=False)
 
         """
         Update networks
