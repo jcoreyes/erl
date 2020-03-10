@@ -2,19 +2,7 @@
 Test twin sac against various environments.
 """
 import gym
-from gym.envs.mujoco import (
-    HalfCheetahEnv,
-    AntEnv,
-    Walker2dEnv,
-    InvertedDoublePendulumEnv,
-    HopperEnv,
-    HumanoidEnv,
-    SwimmerEnv,
-)
-from gym.envs.classic_control import PendulumEnv
-
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
@@ -30,35 +18,30 @@ from railrl.torch.torch_rl_algorithm import (
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
-        # 'env_class': HalfCheetahEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 10000,
         'env_id':'HalfCheetah-v2'
     },
     'hopper': {  # 6 DoF
-        'env_class': HopperEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 10000,
         'env_id':'Hopper-v2'
     },
     'humanoid': {  # 6 DoF
-        # 'env_class': HumanoidEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 10000,
         'env_id':'Humanoid-v2'
     },
     'inv-double-pendulum': {  # 2 DoF
-        # 'env_class': InvertedDoublePendulumEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 100,
         'env_id':'InvertedDoublePendulum-v2'
     },
     'pendulum': {  # 2 DoF
-        # 'env_class': PendulumEnv,
         'num_expl_steps_per_train_loop': 200,
         'max_path_length': 200,
         'num_epochs': 200,
@@ -67,21 +50,18 @@ ENV_PARAMS = {
         'env_id':'InvertedPendulum-v2'
     },
     'ant': {  # 6 DoF
-        # 'env_class': AntEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 10000,
         'env_id':'Ant-v2'
     },
     'walker': {  # 6 DoF
-        # 'env_class': Walker2dEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 10000,
         'env_id':'Walker2d-v2'
     },
     'swimmer': {  # 6 DoF
-        # 'env_class': SwimmerEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 2000,
@@ -224,13 +204,13 @@ if __name__ == "__main__":
 
     search_space = {
         'env': [
-            'half-cheetah',
+            # 'half-cheetah',
             # 'inv-double-pendulum',
             # 'pendulum',
-            'ant',
+            # 'ant',
             'walker',
-            'hopper',
-            'humanoid',
+            # 'hopper',
+            # 'humanoid',
             # 'swimmer',
         ],
     }

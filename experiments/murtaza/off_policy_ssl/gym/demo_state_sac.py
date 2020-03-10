@@ -60,6 +60,7 @@ ENV_PARAMS = {
         'num_epochs': 3000,
         'demo_path':"demos/walker_action_noise_1000.npy",
         'bc_num_pretrain_steps':100000,
+        'env_id':'Walker2d-v2',
     },
 }
 
@@ -211,7 +212,7 @@ if __name__ == "__main__":
         batch_size=512,
         replay_buffer_size=int(1E6),
         layer_size=256,
-        num_layers=2,
+        num_layers=4,
         algorithm="SAC BC",
         version="normal",
         collection_mode='batch',
@@ -232,12 +233,15 @@ if __name__ == "__main__":
             q_num_pretrain1_steps=0,
             q_num_pretrain2_steps=10000,
             policy_weight_decay=1e-4,
-            bc_loss_type="mse",
-            compute_bc=False,
+            compute_bc=True,
             weight_loss=False,
+            bc_weight=1.0,
+            rl_weight=0.0,
+            bc_loss_type='mse',
+            pretraining_env_logging_period=100000,
         ),
         policy_kwargs=dict(
-            hidden_sizes=[256]*2,
+            hidden_sizes=[256]*4,
             max_log_std=0,
             min_log_std=-6,
         ),
@@ -301,9 +305,8 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,
-                use_gpu=True,
+                use_gpu=False,
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
-                # skip_wait=True,
             )

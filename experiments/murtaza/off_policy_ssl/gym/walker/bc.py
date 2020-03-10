@@ -82,9 +82,9 @@ if __name__ == "__main__":
     # mode = 'local'
     # exp_prefix = 'bc_hc_v3'
 
-    n_seeds = 1
+    n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'bc_walker_gym_v1'
+    exp_prefix = 'bc_walker_gym_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
