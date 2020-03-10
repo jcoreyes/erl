@@ -155,7 +155,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = 'ec2'
-    exp_prefix = 'skewfit-pickup4'
+    exp_prefix = 'skewfit-pickup5'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

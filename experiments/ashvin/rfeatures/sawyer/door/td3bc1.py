@@ -1,0 +1,106 @@
+import gym
+
+import railrl.torch.pytorch_util as ptu
+from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.gaussian_and_epislon import \
+    GaussianAndEpislonStrategy
+from railrl.launchers.launcher_util import setup_logger
+from railrl.samplers.data_collector import GoalConditionedPathCollector
+from railrl.torch.her.her import HERTrainer
+from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+# from railrl.torch.td3.td3 import TD3
+from railrl.demos.td3_bc import TD3BCTrainer
+from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
+
+from multiworld.core.image_env import ImageEnv
+from multiworld.envs.real_world.sawyer.sawyer_reaching import SawyerReachXYZEnv
+# from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
+
+from railrl.launchers.arglauncher import run_variants
+import railrl.misc.hyperparameter as hyp
+
+# from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
+from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_rl import encoder_wrapped_td3bc_experiment
+
+if __name__ == "__main__":
+    x_var=0.2
+    x_low = -x_var
+    x_high = x_var
+    y_low = 0.5
+    y_high = 0.7
+    t = 0.05
+    variant = dict(
+        env_class=SawyerReachXYZEnv,
+        env_kwargs=dict(
+            action_mode="position", 
+            max_speed = 0.05, 
+            camera="sawyer_head"
+        ),
+        # algo_kwargs=dict(
+        #     num_epochs=3000,
+        #     max_path_length=20,
+        #     batch_size=128,
+        #     num_eval_steps_per_epoch=1000,
+        #     num_expl_steps_per_train_loop=1000,
+        #     num_trains_per_train_loop=1000,
+        #     min_num_steps_before_training=1000,
+        # ),
+        algo_kwargs=dict(
+            num_epochs=3000,
+            max_path_length=10,
+            batch_size=5,
+            num_eval_steps_per_epoch=10,
+            num_expl_steps_per_train_loop=10,
+            num_trains_per_train_loop=10,
+            min_num_steps_before_training=10,
+        ),
+        model_kwargs=dict(
+            decoder_distribution='gaussian_identity_variance',
+            input_channels=3,
+            imsize=224,
+            architecture=dict(
+                hidden_sizes=[200, 200],
+            ),
+            delta_features=True,
+            pretrained_features=False,
+        ),
+        trainer_kwargs=dict(
+            discount=0.99,
+            demo_path="/home/lerrel/ros_ws/src/railrl-private/demo_v2_2.npy",
+            add_demo_latents=True,
+        ),
+        replay_buffer_kwargs=dict(
+            max_size=100000,
+            fraction_goals_rollout_goals=1.0,
+            fraction_goals_env_goals=0.0,
+        ),
+        qf_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
+        policy_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
+
+        save_video=True,
+        dump_video_kwargs=dict(
+            save_period=1,
+            # imsize=(3, 500, 300),
+        )
+    )
+
+    search_space = {
+        'seedid': range(1),
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+
+    variants = []
+    for variant in sweeper.iterate_hyperparameters():
+        variants.append(variant)
+
+    run_variants(encoder_wrapped_td3bc_experiment, variants, run_id=0)
