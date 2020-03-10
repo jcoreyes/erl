@@ -12,6 +12,7 @@ from railrl.core import logger
 from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 import torch.nn.functional as F
 from railrl.torch.networks import LinearTransform
+import time
 
 class AWRSACTrainer(TorchTrainer):
     def __init__(
@@ -223,6 +224,7 @@ class AWRSACTrainer(TorchTrainer):
             total_ret += ret
         print("INITIAL RETURN", total_ret/20)
 
+        prev_time = time.time()
         for i in range(self.bc_num_pretrain_steps):
             train_policy_loss, train_logp_loss, train_mse_loss, train_log_std = self.run_bc_batch(self.demo_train_buffer)
             train_policy_loss = train_policy_loss * self.bc_weight
@@ -233,7 +235,7 @@ class AWRSACTrainer(TorchTrainer):
 
             test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer)
             test_policy_loss = test_policy_loss * self.bc_weight
-            
+             
             if i % self.pretraining_env_logging_period == 0:
                 total_ret = 0
                 for _ in range(20):
@@ -247,7 +249,9 @@ class AWRSACTrainer(TorchTrainer):
                             break
                     total_ret += ret
                 print("Return at step {} : {}".format(i, total_ret/20))
-            if i % 1000 == 0:
+            
+            if i % 1000==0:
+                epoch_time = time.time()-prev_time
                 stats = {
                 "pretrain_bc/batch": i,
                 "pretrain_bc/avg_return": total_ret / 20,
@@ -257,15 +261,13 @@ class AWRSACTrainer(TorchTrainer):
                 "pretrain_bc/Test MSE": ptu.get_numpy(test_mse_loss),
                 "pretrain_bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
                 "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
+                "pretrain_bc/epoch_time":epoch_time,
                 }
+
                 logger.record_dict(stats)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
+                prev_time = time.time()
 
-            if self.save_bc_policies and i % self.save_bc_policies == 0:
-                logger.save_itr_params(i, {
-                    "evaluation/policy": self.policy,
-                    "evaluation/env": self.env,
-                })
         logger.remove_tabular_output(
             'pretrain_policy.csv',
             relative_to_snapshot_dir=True,
