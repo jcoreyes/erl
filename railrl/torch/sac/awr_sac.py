@@ -191,7 +191,7 @@ class AWRSACTrainer(TorchTrainer):
             og, deterministic=False, reparameterize=True, return_log_prob=True,
         )
 
-        mse = (pred_u - u) ** 2
+        mse = (policy_mean - u) ** 2
         mse_loss = mse.mean()
 
         policy_logpp = dist.log_prob(u, )
@@ -474,8 +474,7 @@ class AWRSACTrainer(TorchTrainer):
 
         if self.use_awr_update and self.weight_loss:
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp * len(weights)*weights.detach()).mean()
-
-        if self.use_awr_update:
+        elif self.use_awr_update:
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp).mean()
 
         if self.use_reparam_update:
