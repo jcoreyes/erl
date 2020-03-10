@@ -1,7 +1,6 @@
 import os.path as osp
 import time
 
-#import cv2
 import numpy as np
 
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
@@ -412,6 +411,7 @@ def generate_vae_dataset(variant):
                     dataset[i, :] = unormalize_image(img)
 
                 if show:
+                    import cv2
                     img = img.reshape(3, imsize, imsize).transpose()
                     img = img[::-1, :, ::-1]
                     cv2.imshow('img', img)
