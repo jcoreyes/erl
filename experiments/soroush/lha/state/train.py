@@ -72,7 +72,7 @@ env_params = {
             # 'SawyerPushDebugLEAPPuckRew-v3',
         ],
 
-        # 'rl_variant.use_masks': [True],
+        'rl_variant.use_masks': [True],
 
         'rl_variant.max_path_length': [200],
         'init_camera':[sawyer_xyz_reacher_camera_v0],
