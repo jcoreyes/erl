@@ -459,7 +459,7 @@ class AWRSACTrainer(TorchTrainer):
                 q_adv = q1_pred
 
         if self.awr_loss_type == "mse":
-            policy_logpp = -(policy_mean - u) ** 2
+            policy_logpp = -(policy_mean - actions) ** 2
         else:
             policy_logpp = dist.log_prob(u)
             policy_logpp = policy_logpp.sum(dim=1, keepdim=True)
@@ -474,13 +474,12 @@ class AWRSACTrainer(TorchTrainer):
 
         if self.use_awr_update and self.weight_loss:
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp * len(weights)*weights.detach()).mean()
-        elif self.use_awr_update:
+
+        if self.use_awr_update:
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp).mean()
 
         if self.use_reparam_update:
             policy_loss = policy_loss + self.reparam_weight * (-q_new_actions).mean()
-        else:
-            policy_loss = policy_loss - q_new_actions.mean()
 
         policy_loss = self.rl_weight * policy_loss
         if self.compute_bc:
