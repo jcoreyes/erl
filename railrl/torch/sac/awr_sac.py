@@ -62,6 +62,7 @@ class AWRSACTrainer(TorchTrainer):
             bc_weight=0.0,
             rl_weight=1.0,
             use_awr_update=True,
+            use_reparam_update=False,
             reparam_weight=1.0,
             awr_weight=1.0,
             post_pretrain_hyperparams=None,
@@ -170,6 +171,7 @@ class AWRSACTrainer(TorchTrainer):
         self.terminal_transform_kwargs = terminal_transform_kwargs or dict(m=1, b=0)
         self.reward_transform = self.reward_transform_class(**self.reward_transform_kwargs)
         self.terminal_transform = self.terminal_transform_class(**self.terminal_transform_kwargs)
+        self.use_reparam_update = use_reparam_update
 
 
     def get_batch_from_buffer(self, replay_buffer):
@@ -475,7 +477,7 @@ class AWRSACTrainer(TorchTrainer):
         elif self.use_awr_update:
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp).mean()
 
-        if self.reparam_weight:
+        if self.use_reparam_update:
             policy_loss = policy_loss + self.reparam_weight * (-q_new_actions).mean()
         else:
             policy_loss = policy_loss - q_new_actions.mean()
