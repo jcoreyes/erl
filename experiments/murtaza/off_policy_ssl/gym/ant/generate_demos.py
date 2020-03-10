@@ -43,7 +43,7 @@ if __name__ == '__main__':
         '/home/murtaza/research/railrl/data/local/03-09-bc-ant-frac-trajs-sweep/03-09-bc_ant_frac_trajs_sweep_2020_03_09_17_58_02_id000--s47768/bc.pkl')
     env = gym.make('Ant-v2')
     policy = data.cpu()
-    collect_demos_fixed(env, policy, "data/local/demos/ant_off_policy_10_demos_100.npy", N=100, horizon=1000,
+    collect_demos_fixed(env, policy, "data/local/demos/ant_off_policy_15_demos_100.npy", N=100, horizon=1000,
                         threshold=-1,
                         render=False)
 

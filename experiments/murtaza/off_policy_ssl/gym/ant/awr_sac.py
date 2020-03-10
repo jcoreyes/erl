@@ -2,6 +2,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.torch.sac.policies import GaussianPolicy
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 from railrl.launchers.launcher_util import run_experiment
+from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
 
 if __name__ == "__main__":
     variant = dict(
@@ -35,8 +36,8 @@ if __name__ == "__main__":
             policy_weight_decay=1e-4,
             weight_loss=True,
             bc_num_pretrain_steps=100000,
-            terminal_transform_kwargs=dict(m=0, b=0),
-            pretraining_env_logging_period=100000,
+            terminal_transform_kwargs=None,
+            pretraining_env_logging_period=10000,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
@@ -45,7 +46,21 @@ if __name__ == "__main__":
             std_architecture="shared",
         ),
         path_loader_kwargs=dict(
+            demo_paths=[
+                dict(
+                    path='demos/ant_action_noise_15.npy',
+                    obs_dict=False,
+                    is_demo=True,
+                    train_split=.9,
+                ),
+                dict(
+                    path='demos/ant_off_policy_15_demos_100.npy',
+                    obs_dict=False,
+                    is_demo=False,
+                ),
+            ],
         ),
+        path_loader_class=DictToMDPPathLoader,
         weight_update_period=10000,
     )
 
@@ -55,22 +70,13 @@ if __name__ == "__main__":
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
-        'path_loader_kwargs.demo_off_policy_path':[
-            # 'demos/ant_off_policy_10_demos_100.npy',
-            'demos/ant_off_policy_15_demos_100.npy',
-            # 'demos/ant_off_policy_25_demos_100.npy',
-        ],
-        'path_loader_kwargs.demo_path': [
-            # 'demos/ant_action_noise_10.npy',
-            'demos/ant_action_noise_15.npy',
-            # 'demos/ant_action_noise_25.npy',
-        ],
         'trainer_kwargs.beta':[
-            .01,
-            .1,
+            # .01,
+            # .1,
             1,
-            10,
-            100,
+            # 10,
+            # 100,
+            # 100000,
         ],
         'train_rl':[True],
         'pretrain_rl':[True],
@@ -94,20 +100,20 @@ if __name__ == "__main__":
         'trainer_kwargs.awr_sample_actions': [False, ],
         'trainer_kwargs.awr_min_q': [True, ],
         'trainer_kwargs.q_weight_decay': [0],
-        # 'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0), None],
+        'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0)],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'awr_sac_offline_ant_v3'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'awr_sac_offline_ant_v1'
     
 
-    n_seeds = 4
-    mode = 'ec2'
-    exp_prefix = 'awr_sac_ant_offline_online_v1'
+    # n_seeds = 4
+    # mode = 'ec2'
+    # exp_prefix = 'awr_sac_ant_offline_online_terminals_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -117,7 +123,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,
-                # use_gpu=True,
+                use_gpu=True,
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),

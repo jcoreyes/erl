@@ -113,7 +113,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,
-                # use_gpu=True,
+                use_gpu=True,
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
