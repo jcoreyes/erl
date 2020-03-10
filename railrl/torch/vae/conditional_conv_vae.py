@@ -501,13 +501,13 @@ class CVAE(GaussianLatentVAE):
         self.prior_mu = mu
         self.prior_logvar = logvar
 
-    def sample_prior(self, batch_size, x_0, true_prior=False):
+    def sample_prior(self, batch_size, x_0, true_prior=True):
         if x_0.shape[0] == 1:
             x_0 = x_0.repeat(batch_size, 1)
 
         z_sample = ptu.randn(batch_size, self.latent_sizes[0])
 
-        if true_prior:
+        if not true_prior:
             stds = np.exp(0.5 * self.prior_logvar)
             z_sample = z_sample * stds + self.prior_mu
 

@@ -598,7 +598,7 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
         if x0_latent is None:
             x0 = ptu.from_numpy(self._initial_obs["image_observation"][None])
             if not self.sample_from_true_prior:
-                return ptu.get_numpy(self.vae.sample_prior(batch_size, x0, true_prior=True))
+                return ptu.get_numpy(self.vae.sample_prior(batch_size, x0, true_prior=False))
             return ptu.get_numpy(self.vae.sample_prior(batch_size, x0))
         else:
             mu, sigma = 0, 1  # sample from prior
