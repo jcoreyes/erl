@@ -7,7 +7,6 @@ import sys
 import time
 import uuid
 from collections import namedtuple
-
 import __main__ as main
 import datetime
 import dateutil.tz
@@ -27,7 +26,6 @@ GitInfo = namedtuple(
         'branch_name',
     ],
 )
-
 
 try:
     import doodad.mount as mount
@@ -214,7 +212,7 @@ def run_experiment(
                 ))
             except git.exc.InvalidGitRepositoryError:
                 pass
-    except ImportError:
+    except (ImportError, UnboundLocalError, NameError):
         git_infos = None
     run_experiment_kwargs = dict(
         exp_prefix=exp_prefix,
@@ -241,11 +239,11 @@ def run_experiment(
     """
 
     if mode == 'ec2' or mode == 'gcp':
-        if global_is_first_launch and not query_yes_no(
+        if _global_is_first_launch and not query_yes_no(
                 "{} costs money. Are you sure you want to run?".format(mode)
         ):
             sys.exit(1)
-        if global_is_first_launch and use_gpu:
+        if _global_is_first_launch and use_gpu:
             if not query_yes_no(
                     "{} is more expensive with GPUs. Confirm?".format(mode)
             ):
@@ -291,7 +289,7 @@ def run_experiment(
         image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
         variant['aws_image'] = image_id
     else:
-        image_id = None
+        image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
     if hasattr(config, "AWS_S3_PATH"):
         aws_s3_path = config.AWS_S3_PATH
     else:
@@ -825,6 +823,11 @@ def setup_logger(
             variant=variant,
             **create_log_dir_kwargs
         )
+
+    logger_variant = variant.get("logger_variant", dict())
+    if logger_variant.get("tensorboard", False):
+        tensorboard_log_path = osp.join(log_dir, "tensorboard")
+        logger.add_tensorboard_output(tensorboard_log_path)
 
     if variant is not None:
         if 'unique_id' not in variant:

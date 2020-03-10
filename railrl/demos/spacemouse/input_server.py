@@ -4,7 +4,7 @@ import Pyro4
 from threading import Thread
 import time
 import numpy as np
-from railrl.demos.spacemouse.config import HOSTNAME
+from railrl.launchers import config
 # HOSTNAME = "192.168.0.102"
 
 Pyro4.config.SERIALIZERS_ACCEPTED = set(['pickle','json', 'marshal', 'serpent'])
@@ -33,12 +33,14 @@ class SpaceMouseExpert:
         self.xyz_remap = np.array(xyz_remap)
         self.xyz_scale = np.array(xyz_scale)
         self.thread = Thread(target = start_server)
+        self.thread.daemon = True
         self.thread.start()
         self.device_state = DeviceState()
 
     def get_action(self, obs):
         """Must return (action, valid, reset, accept)"""
         state = self.device_state.get_state()
+        print(state)
         if state is None:
             return None, False, False, False
 
@@ -59,7 +61,7 @@ class SpaceMouseExpert:
 
 
 def start_server():
-    daemon = Pyro4.Daemon(HOSTNAME)                # make a Pyro daemon
+    daemon = Pyro4.Daemon(config.SPACEMOUSE_HOSTNAME)                # make a Pyro daemon
     ns = Pyro4.locateNS()                  # find the name server
     uri = daemon.register(DeviceState)   # register the greeting maker as a Pyro object
     ns.register("example.greeting", uri)   # register the object with a name in the name server

@@ -103,6 +103,9 @@ class Logger(object):
         self._header_printed = False
         self.table_printer = TerminalTablePrinter()
 
+        self._use_tensorboard = False
+        self.epoch = 0
+
     def reset(self):
         self.__init__()
 
@@ -117,6 +120,7 @@ class Logger(object):
             fds[file_name].close()
             del fds[file_name]
             arr.remove(file_name)
+        self._tabular_keys=None
 
     def push_prefix(self, prefix):
         self._prefixes.append(prefix)
@@ -125,6 +129,11 @@ class Logger(object):
     def add_text_output(self, file_name):
         self._add_output(file_name, self._text_outputs, self._text_fds,
                          mode='a')
+
+    def add_tensorboard_output(self, file_name):
+        import tensorboard_logger
+        self._use_tensorboard = True
+        self.tensorboard_logger = tensorboard_logger.Logger(file_name)
 
     def remove_text_output(self, file_name):
         self._remove_output(file_name, self._text_outputs, self._text_fds)
@@ -184,6 +193,8 @@ class Logger(object):
 
     def record_tabular(self, key, val):
         self._tabular.append((self._tabular_prefix_str + str(key), str(val)))
+        if self._use_tensorboard:
+            self.tensorboard_logger.log_value(self._tabular_prefix_str + str(key), val, self.epoch)
 
     def record_dict(self, d, prefix=None):
         if prefix is not None:
@@ -263,6 +274,7 @@ class Logger(object):
             self.record_tabular(prefix + "Max" + suffix, np.nan)
 
     def dump_tabular(self, *args, **kwargs):
+        self.epoch += 1
         wh = kwargs.pop("write_header", None)
         if len(self._tabular) > 0:
             if self._log_tabular_only:
@@ -274,7 +286,8 @@ class Logger(object):
 
             # Only saves keys in first iteration to CSV!
             # (But every key is printed out in text)
-            self._tabular_keys = list(sorted(tabular_dict.keys()))
+            if self._tabular_keys is None:
+                self._tabular_keys = list(sorted(tabular_dict.keys()))
 
             # Write to the csv files
             for tabular_fd in list(self._tabular_fds.values()):

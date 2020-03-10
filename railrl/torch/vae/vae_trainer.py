@@ -1,27 +1,3 @@
-
-from collections import OrderedDict
-import os
-from os import path as osp
-import numpy as np
-import torch
-from torch import optim
-from torch.distributions import Normal
-from torch.utils.data import DataLoader
-from torch.nn import functional as F
-from torchvision.utils import save_image
-from railrl.data_management.images import normalize_image
-from railrl.core import logger
-import railrl.core.util as util
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch import pytorch_util as ptu
-from railrl.torch.data import (
-    ImageDataset, InfiniteWeightedRandomSampler,
-    InfiniteRandomSampler,
-)
-from railrl.torch.core import np_to_pytorch_batch
-import collections
-
 from collections import OrderedDict
 import os
 from os import path as osp
@@ -71,6 +47,7 @@ class VAETrainer(object):
             priority_function_kwargs=None,
             start_skew_epoch=0,
             weight_decay=0,
+            key_to_reconstruct="observations",
     ):
         #TODO:steven fix pickling
         assert not use_parallel_dataloading, "Have to fix pickling the dataloaders first"
@@ -106,6 +83,7 @@ class VAETrainer(object):
             weight_decay=weight_decay,
         )
 
+        self.key_to_reconstruct = key_to_reconstruct
         self.batch_size = batch_size
         self.use_parallel_dataloading = use_parallel_dataloading
         self.train_data_workers = train_data_workers
@@ -254,7 +232,7 @@ class VAETrainer(object):
         prefix = "test/" if test else "train/"
 
         beta = float(self.beta_schedule.get_value(epoch))
-        obs = batch["observations"]
+        obs = batch[self.key_to_reconstruct]
         reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
         log_prob = self.model.logprob(obs, obs_distribution_params)
         kle = self.model.kl_divergence(latent_distribution_params)
@@ -537,7 +515,7 @@ class ConvVAEGradientPenaltyTrainer(ConvVAETrainer):
     def compute_loss(self, epoch, batch, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
-        obs = batch["observations"]
+        obs = batch[self.key_to_reconstruct]
         reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
         log_prob = self.model.logprob(obs, obs_distribution_params)
         kle = self.model.kl_divergence(latent_distribution_params)
@@ -591,7 +569,7 @@ class ConditionalConvVAETrainer(ConvVAETrainer):
         prefix = "test/" if test else "train/"
 
         beta = float(self.beta_schedule.get_value(epoch))
-        obs = batch["observations"]
+        obs = batch[self.key_to_reconstruct]
         reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
         log_prob = self.model.logprob(batch["x_t"], obs_distribution_params)
         kle = self.model.kl_divergence(latent_distribution_params)
@@ -648,7 +626,7 @@ class ConditionalConvVAETrainer(ConvVAETrainer):
         self.model.eval()
         batch, _ = self.eval_data["test/last_batch"]
         sample = ptu.randn(64, self.representation_size)
-        sample = self.model.decode(sample, batch["observations"])[0].cpu()
+        sample = self.model.decode(sample, batch[self.key_to_reconstruct])[0].cpu()
         save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
         save_image(
             sample.data.view(64, 3, self.imsize, self.imsize).transpose(2, 3),
@@ -664,7 +642,6 @@ class ConditionalConvVAETrainer(ConvVAETrainer):
         ).transpose(2, 3)
         save_dir = osp.join(self.log_dir, 'x0_%d.png' % epoch)
         save_image(x0_img.data.cpu(), save_dir)
-
 
 class CVAETrainer(ConditionalConvVAETrainer):
 

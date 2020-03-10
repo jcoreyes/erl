@@ -2,9 +2,74 @@
 Add custom distributions in addition to th existing ones
 """
 import torch
-from torch.distributions import Distribution, Normal
+from torch.distributions import Distribution, Normal, Categorical, OneHotCategorical
 import railrl.torch.pytorch_util as ptu
 import numpy as np
+
+class GaussianMixture(Distribution):
+    def __init__(self, normal_means, normal_stds, weights):
+        self.num_gaussians = weights.shape[1]
+        self.normal_means = normal_means
+        self.normal_stds = normal_stds
+        self.normal = Normal(normal_means, normal_stds)
+        self.normals = [Normal(normal_means[:, :, i], normal_stds[:, :, i]) for i in range(self.num_gaussians)]
+        self.weights = weights
+        self.categorical = OneHotCategorical(self.weights[:, :, 0])
+
+    def log_prob(self, value, ):
+        log_p = [self.normals[i].log_prob(value) for i in range(self.num_gaussians)]
+        log_p = torch.stack(log_p, -1)
+        log_p = log_p.sum(dim=1)
+        log_weights = torch.log(self.weights[:, :, 0])
+        lp = log_weights + log_p
+        m = lp.max(dim=1, keepdim=True)[0] # log-sum-exp numerical stability trick
+        log_p_mixture = m + torch.log(torch.exp(lp - m).sum(dim=1, keepdim=True))
+        return log_p_mixture
+
+    def sample(self, ):
+        z = self.normal.sample().detach()
+        c = self.categorical.sample()[:, :, None]
+        s = torch.matmul(z, c)
+        return torch.squeeze(s, 2)
+
+    def rsample(self, ):
+        z = (
+            self.normal_means +
+            self.normal_stds *
+                Normal(
+                    ptu.zeros(self.normal_means.size()),
+                    ptu.ones(self.normal_stds.size())
+                ).sample()
+        )
+        z.requires_grad_()
+        c = self.categorical.sample()[:, :, None]
+        s = torch.matmul(z, c)
+        return torch.squeeze(s, 2)
+
+    def mean(self, ):
+        """Misleading function name; this actually now samples the mean of the
+        most likely component.
+        c ~ argmax(C), returns mu_c
+
+        This often computes the mode of the distribution, but not always.
+        """
+        c = ptu.zeros(self.weights.shape[:2])
+        ind = torch.argmax(self.weights, dim=1) # [:, 0]
+        c.scatter_(1, ind, 1)
+        s = torch.matmul(self.normal_means, c[:, :, None])
+        return torch.squeeze(s, 2)
+
+        # same computation but iterative; seems much slower
+        # r = ptu.zeros(self.normal_means.shape[:2])
+        # ind = torch.argmax(self.weights, dim=1)[:, 0]
+        # torch.scatter_
+        # for i in range(len(r)):
+        #     r[i, :] = self.normal_means[i, :, ind[i].item()]
+        # return r
+
+        # this computes the mean; not too meaningful for GMM
+        # m = torch.matmul(self.normal_means, self.weights.detach()).detach()
+        # return torch.squeeze(m, 2)
 
 class TanhNormal(Distribution):
     """
@@ -53,9 +118,12 @@ class TanhNormal(Distribution):
         :return:
         """
         if pre_tanh_value is None:
-            pre_tanh_value = torch.log(
-                (1+value) / (1-value)
-            ) / 2
+            value = torch.clamp(value, -0.999999, 0.999999)
+            # pre_tanh_value = torch.log(
+                # (1+value) / (1-value)
+            # ) / 2
+            pre_tanh_value = torch.log(1+value) / 2 - torch.log(1-value) / 2
+            # ) / 2
         return self.normal.log_prob(pre_tanh_value) - 2. * (
                 ptu.from_numpy(np.log([2.]))
                 - pre_tanh_value

@@ -60,6 +60,7 @@ def run_variant(experiment, variant):
         exp_id=variant["exp_id"],
         instance_type=variant["instance_type"],
         use_gpu=variant["use_gpu"],
+        gpu_id=variant.get("gpu_id", 0),
         snapshot_mode=variant["snapshot_mode"],
         snapshot_gap=variant["snapshot_gap"],
         base_log_dir=variant["base_log_dir"],
@@ -105,15 +106,26 @@ def process_variant_cmd(variant):
     if "--ec2" in sys.argv:
         variant["mode"] = "ec2"
     if "--local" in sys.argv:
-        variant["mode"] = "local"
+        variant["mode"] = "here_no_doodad"
     if "--localdocker" in sys.argv:
         variant["mode"] = "local_docker"
+    if "--sss" in sys.argv:
+        variant["mode"] = "sss"
+    if "--singularity" in sys.argv:
+        variant["mode"] = "local_singularity"
+    if "--slurm" in sys.argv:
+        variant["mode"] = "slurm"
+    if "--ss" in sys.argv:
+        variant["mode"] = "slurm_singularity"
     if "--sss" in sys.argv:
         variant["mode"] = "sss"
     if "--ssh" in sys.argv:
         variant["mode"] = "ssh"
         i = sys.argv.index("--ssh")
         variant["ssh_host"] = sys.argv[i+1]
+
+    if "--verbose" in sys.argv:
+        variant["verbose"] = True
 
     if "--parallel" in sys.argv:
         i = sys.argv.index("--parallel")

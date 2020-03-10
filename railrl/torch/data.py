@@ -94,6 +94,9 @@ class InfiniteBatchLoader(BatchLoader):
         self.dataset_loader = data_loader
         self.iterator = iter(self.dataset_loader)
 
+    def __len__(self):
+        return len(self.dataset_loader)
+
     def random_batch(self, batch_size):
         assert batch_size == self.dataset_loader.batch_size
         try:

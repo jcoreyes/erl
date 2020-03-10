@@ -228,6 +228,11 @@ def from_numpy(*args, **kwargs):
 def get_numpy(tensor):
     return tensor.to('cpu').detach().numpy()
 
+def randint(*sizes, torch_device=None, **kwargs):
+    if torch_device is None:
+        torch_device = device
+    return torch.randint(*sizes, **kwargs, device=torch_device)
+
 def zeros(*sizes, torch_device=None, **kwargs):
     if torch_device is None:
         torch_device = device

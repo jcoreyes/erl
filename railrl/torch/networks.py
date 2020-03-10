@@ -17,6 +17,20 @@ from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 
 import numpy as np
 
+class Clamp:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def __call__(self, x):
+        return torch.clamp(x, **self.kwargs)
+
+class LinearTransform:
+    def __init__(self, m, b):
+        self.m = m
+        self.b = b
+
+    def __call__(self, t):
+        return self.m * t + self.b
 
 class PretrainedCNN(PyTorchModule):
     # Uses a pretrained CNN architecture from torchvision
