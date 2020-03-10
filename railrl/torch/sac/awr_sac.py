@@ -1,3 +1,4 @@
+import pickle
 from collections import OrderedDict
 import numpy as np
 import torch
@@ -266,6 +267,7 @@ class AWRSACTrainer(TorchTrainer):
 
                 logger.record_dict(stats)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
+                pickle.dump(self.policy, open(logger.get_snapshot_dir() + '/bc.pkl', "wb"))
                 prev_time = time.time()
 
         logger.remove_tabular_output(

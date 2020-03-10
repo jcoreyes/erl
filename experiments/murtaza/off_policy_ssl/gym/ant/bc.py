@@ -5,11 +5,11 @@ import railrl.misc.hyperparameter as hyp
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=1000,
+        num_epochs=0,
         num_eval_steps_per_epoch=5000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=0,
-        min_num_steps_before_training=1000,
+        min_num_steps_before_training=0,
         max_path_length=1000,
         batch_size=512,
         replay_buffer_size=int(1E6),
@@ -32,13 +32,13 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
             bc_num_pretrain_steps=1000000,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=10000,
+            q_num_pretrain2_steps=0,
             policy_weight_decay=1e-4,
             compute_bc=True,
             bc_weight=1.0,
             rl_weight=0.0,
             bc_loss_type='mse',
-            pretraining_env_logging_period=100000,
+            pretraining_env_logging_period=10000,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         'pretrain_policy':[True],
         'pretrain_rl':[False],
         'load_demos':[True],
-        'path_loader_kwargs.frac_trajs':[.005, .01, .015, .025, .05, 1],
+        'path_loader_kwargs.frac_trajs':[.01, .015, .025],
         'env': [
             'ant',
         ],
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'bc_hc_v3'
+    exp_prefix = 'bc_ant_frac_trajs_sweep'
 
     # n_seeds = 2
     # mode = 'ec2'
@@ -86,8 +86,9 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,
-                use_gpu=False,
+                use_gpu=True,
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
+                skip_wait=True,
             )

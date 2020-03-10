@@ -457,10 +457,8 @@ def experiment(variant):
             **path_loader_kwargs
         )
         path_loader.load_demos()
-    pickle.dump(expl_policy, open(logger.get_snapshot_dir()+'/bc.pkl', "wb"))
     if variant.get('pretrain_policy', False):
         trainer.pretrain_policy_with_bc()
-    pickle.dump(expl_policy, open(logger.get_snapshot_dir()+'/bc.pkl', "wb"))
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
     if variant.get('save_pretrained_algorithm', False):
