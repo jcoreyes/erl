@@ -112,7 +112,7 @@ if __name__ == "__main__":
             # ],
         ],
         'trainer_kwargs.beta':[
-            1,
+            1.3,
         ],
         'train_rl':[True],
         'pretrain_rl':[True],

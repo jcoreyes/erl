@@ -39,31 +39,26 @@ ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 10000,
         'env_id':'HalfCheetah-v2'
     },
     'hopper': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 10000,
         'env_id':'Hopper-v2'
     },
     'humanoid': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 10000,
         'env_id':'Humanoid-v2'
     },
     'inv-double-pendulum': {  # 2 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 100,
         'env_id':'InvertedDoublePendulum-v2'
     },
     'pendulum': {  # 2 DoF
         'num_expl_steps_per_train_loop': 200,
         'max_path_length': 200,
-        'num_epochs': 200,
         'min_num_steps_before_training': 2000,
         'target_update_period': 200,
         'env_id':'Pendulum-v2'
@@ -71,19 +66,16 @@ ENV_PARAMS = {
     'ant': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 10000,
         'env_id':'Ant-v2'
     },
     'walker': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 10000,
         'env_id':'Walker2d-v2'
     },
     'swimmer': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 2000,
         'env_id':'Swimmer-v2'
     },
 
