@@ -49,7 +49,7 @@ if __name__ == "__main__":
         path_loader_kwargs=dict(
             demo_paths=[
                 dict(
-                    path='demos/ant_action_noise_1000.npy',
+                    path='demos/walker_action_noise_1000.npy',
                     obs_dict=False,
                     is_demo=True,
                     train_split=.9,
