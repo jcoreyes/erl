@@ -1,4 +1,5 @@
 import railrl.misc.hyperparameter as hyp
+from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
 from railrl.torch.sac.policies import GaussianPolicy
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 from railrl.launchers.launcher_util import run_experiment
@@ -45,7 +46,21 @@ if __name__ == "__main__":
             std_architecture="shared",
         ),
         path_loader_kwargs=dict(
+            demo_paths=[
+                dict(
+                    path='demos/hc_action_noise_15.npy',
+                    obs_dict=False,
+                    is_demo=True,
+                    train_split=.9,
+                ),
+                dict(
+                    path='demos/hc_off_policy_15_demos_100.npy',
+                    obs_dict=False,
+                    is_demo=False,
+                ),
+            ],
         ),
+        path_loader_class=DictToMDPPathLoader,
         weight_update_period=10000,
     )
 
@@ -55,15 +70,46 @@ if __name__ == "__main__":
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
-        'path_loader_kwargs.demo_off_policy_path':[
-            # 'demos/hc_off_policy_10_demos_100.npy',
-            'demos/hc_off_policy_15_demos_100.npy',
-            # 'demos/hc_off_policy_25_demos_100.npy',
-        ],
-        'path_loader_kwargs.demo_path': [
-            # 'demos/hc_action_noise_10.npy',
-            'demos/hc_action_noise_15.npy',
-            # 'demos/hc_action_noise_25.npy',
+        'path_loader_kwargs.demo_paths': [
+            # [
+            #     dict(
+            #         path='demos/hc_action_noise_10.npy',
+            #         obs_dict=False,
+            #         is_demo=True,
+            #         train_split=.9,
+            #     ),
+            #     dict(
+            #         path='demos/hc_off_policy_10_demos_100.npy',
+            #         obs_dict=False,
+            #         is_demo=False,
+            #     ),
+            # ],
+            [
+                dict(
+                    path='demos/hc_action_noise_15.npy',
+                    obs_dict=False,
+                    is_demo=True,
+                    train_split=.9,
+                ),
+                dict(
+                    path='demos/hc_off_policy_15_demos_100.npy',
+                    obs_dict=False,
+                    is_demo=False,
+                ),
+            ],
+            # [
+            #     dict(
+            #         path='demos/hc_action_noise_25.npy',
+            #         obs_dict=False,
+            #         is_demo=True,
+            #         train_split=.9,
+            #     ),
+            #     dict(
+            #         path='demos/hc_off_policy_25_demos_100.npy',
+            #         obs_dict=False,
+            #         is_demo=False,
+            #     ),
+            # ],
         ],
         'trainer_kwargs.beta':[
             1,

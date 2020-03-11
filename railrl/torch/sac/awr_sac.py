@@ -78,6 +78,8 @@ class AWRSACTrainer(TorchTrainer):
             terminal_transform_kwargs=None,
 
             pretraining_env_logging_period=100000,
+            pretraining_logging_period=1000,
+            do_pretrain_rollouts=False,
     ):
         super().__init__()
         self.env = env
@@ -164,6 +166,8 @@ class AWRSACTrainer(TorchTrainer):
         self.post_bc_pretrain_hyperparams = post_bc_pretrain_hyperparams
         self.update_policy = True
         self.pretraining_env_logging_period = pretraining_env_logging_period
+        self.pretraining_logging_period = pretraining_logging_period
+        self.do_pretrain_rollouts = do_pretrain_rollouts
 
         self.reward_transform_class = reward_transform_class or LinearTransform
         self.reward_transform_kwargs = reward_transform_kwargs or dict(m=1, b=0)
@@ -239,7 +243,7 @@ class AWRSACTrainer(TorchTrainer):
             test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer)
             test_policy_loss = test_policy_loss * self.bc_weight
              
-            if i % self.pretraining_env_logging_period == 0:
+            if self.do_pretrain_rollouts and i % self.pretraining_env_logging_period == 0:
                 total_ret = 0
                 for _ in range(20):
                     o = self.env.reset()
@@ -253,7 +257,7 @@ class AWRSACTrainer(TorchTrainer):
                     total_ret += ret
                 print("Return at step {} : {}".format(i, total_ret/20))
             
-            if i % 1000==0:
+            if i % self.pretraining_logging_period==0:
                 stats = {
                 "pretrain_bc/batch": i,
                 "pretrain_bc/avg_return": total_ret / 20,
@@ -313,7 +317,7 @@ class AWRSACTrainer(TorchTrainer):
         prev_time = time.time()
         for i in range(self.q_num_pretrain2_steps):
             self.eval_statistics = dict()
-            if i % 1000 == 0:
+            if i % self.pretraining_logging_period == 0:
                 self._need_to_update_eval_statistics=True 
             train_data = self.replay_buffer.random_batch(self.bc_batch_size)
             train_data = np_to_pytorch_batch(train_data)
@@ -323,7 +327,7 @@ class AWRSACTrainer(TorchTrainer):
             train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
-            if i % self.pretraining_env_logging_period == 0:
+            if self.do_pretrain_rollouts and i % self.pretraining_env_logging_period == 0:
                 total_ret = 0
                 for _ in range(20):
                     o = self.env.reset()
@@ -336,7 +340,8 @@ class AWRSACTrainer(TorchTrainer):
                             break
                     total_ret += ret
                 print("Return at step {} : {}".format(i, total_ret/20))
-            if i%1000==0:
+
+            if i%self.pretraining_logging_period==0:
                 self.eval_statistics["avg_return"] = total_ret / 20
                 self.eval_statistics["batch"] = i
                 self.eval_statistics["epoch_time"] = time.time()-prev_time

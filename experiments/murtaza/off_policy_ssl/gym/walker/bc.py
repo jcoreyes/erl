@@ -1,3 +1,4 @@
+from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
 from railrl.torch.sac.policies import GaussianPolicy
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 from railrl.launchers.launcher_util import run_experiment
@@ -46,8 +47,17 @@ if __name__ == "__main__":
             min_log_std=-6,
         ),
         path_loader_kwargs=dict(
-            demo_path='demos/walker_action_noise_1000.npy',
+            demo_paths=[
+                dict(
+                    path='demos/ant_action_noise_1000.npy',
+                    obs_dict=False,
+                    is_demo=True,
+                    train_split=.9,
+                    data_split=.01,
+                ),
+            ],
         ),
+        path_loader_class=DictToMDPPathLoader,
         weight_update_period=10000,
     )
 
@@ -60,11 +70,34 @@ if __name__ == "__main__":
         'pretrain_rl':[False],
         'load_demos':[True],
         'pretrain_policy':[True],
-        'path_loader_kwargs.demo_path':[
-            # 'demos/walker_action_noise_1000.npy',
-            'demos/walker_action_noise_10.npy',
-            'demos/walker_action_noise_15.npy',
-            'demos/walker_action_noise_25.npy',
+        'path_loader_kwargs.demo_paths':[
+            [
+                dict(
+                    path='demos/walker_action_noise_10.npy',
+                    obs_dict=False,
+                    is_demo=True,
+                    train_split=.9,
+                    data_split=1,
+                ),
+            ],
+            [
+                dict(
+                    path='demos/walker_action_noise_15.npy',
+                    obs_dict=False,
+                    is_demo=True,
+                    train_split=.9,
+                    data_split=1,
+                ),
+            ],
+            [
+                dict(
+                    path='demos/walker_action_noise_25.npy',
+                    obs_dict=False,
+                    is_demo=True,
+                    train_split=.9,
+                    data_split=1,
+                ),
+            ],
         ],
         'env': [
             'walker',
