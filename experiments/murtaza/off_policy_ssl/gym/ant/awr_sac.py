@@ -37,7 +37,7 @@ if __name__ == "__main__":
             weight_loss=True,
             bc_num_pretrain_steps=100000,
             terminal_transform_kwargs=None,
-            pretraining_env_logging_period=10000,
+            pretraining_env_logging_period=100000,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
@@ -71,12 +71,11 @@ if __name__ == "__main__":
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
         'trainer_kwargs.beta':[
-            # .01,
-            # .1,
+            .9,
             1,
-            # 10,
-            # 100,
-            # 100000,
+            1.3,
+            1.5,
+            10,
         ],
         'train_rl':[True],
         'pretrain_rl':[True],
@@ -94,26 +93,26 @@ if __name__ == "__main__":
         'trainer_kwargs.reparam_weight': [0.0],
         'trainer_kwargs.awr_weight': [1.0],
         'trainer_kwargs.bc_weight': [1.0, ],
-        # 'policy_kwargs.std_architecture': ["values", "shared"],
+        'policy_kwargs.std_architecture': ["values", "shared"],
         'trainer_kwargs.compute_bc': [True, ],
         'trainer_kwargs.awr_use_mle_for_vf': [True, ],
         'trainer_kwargs.awr_sample_actions': [False, ],
         'trainer_kwargs.awr_min_q': [True, ],
         'trainer_kwargs.q_weight_decay': [0],
-        'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0)],
+        'trainer_kwargs.terminal_transform_kwargs': [dict(m=1, b=0), dict(m=0, b=0)],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_prefix = 'awr_sac_offline_ant_v1'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_prefix = 'awr_sac_offline_ant_v1'
     
 
-    # n_seeds = 4
-    # mode = 'ec2'
-    # exp_prefix = 'awr_sac_ant_offline_online_terminals_v2'
+    n_seeds = 4
+    mode = 'ec2'
+    exp_prefix = 'awr_sac_ant_offline_online_sweep_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

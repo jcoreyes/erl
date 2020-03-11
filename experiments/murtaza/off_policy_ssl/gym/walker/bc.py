@@ -38,6 +38,7 @@ if __name__ == "__main__":
             bc_loss_type="mse",
             compute_bc=False,
             weight_loss=False,
+            pretraining_env_logging_period=10000,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*2,
@@ -59,7 +60,12 @@ if __name__ == "__main__":
         'pretrain_rl':[False],
         'load_demos':[True],
         'pretrain_policy':[True],
-        'path_loader_kwargs.frac_trajs':[.005, .01, .015, .025, .05, 1],
+        'path_loader_kwargs.demo_path':[
+            # 'demos/walker_action_noise_1000.npy',
+            'demos/walker_action_noise_10.npy',
+            'demos/walker_action_noise_15.npy',
+            'demos/walker_action_noise_25.npy',
+        ],
         'env': [
             'walker',
         ],
@@ -78,13 +84,13 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'bc_hc_v3'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'bc_walker_v1'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'bc_walker_gym_v2'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'bc_walker_gym_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -94,8 +100,9 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,
-                # use_gpu=True,
+                use_gpu=True,
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
+                skip_wait=True,
             )
