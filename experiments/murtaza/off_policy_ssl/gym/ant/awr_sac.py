@@ -35,7 +35,6 @@ if __name__ == "__main__":
             q_num_pretrain2_steps=100000,
             policy_weight_decay=1e-4,
             weight_loss=True,
-            terminal_transform_kwargs=None,
             pretraining_env_logging_period=100000,
             terminal_transform_kwargs=dict(m=1, b=0),
         ),
@@ -95,7 +94,6 @@ if __name__ == "__main__":
         'trainer_kwargs.awr_sample_actions': [False, ],
         'trainer_kwargs.awr_min_q': [True, ],
         'trainer_kwargs.q_weight_decay': [0],
-        'trainer_kwargs.terminal_transform_kwargs': [dict(m=1, b=0)],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
