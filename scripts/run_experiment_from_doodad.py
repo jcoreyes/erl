@@ -1,16 +1,14 @@
-import doodad as dd
-import shutil
 from railrl.launchers.launcher_util import run_experiment_here
-import torch.multiprocessing as mp
-import shutil
+
+import doodad as dd
 
 if __name__ == "__main__":
     import matplotlib
     matplotlib.use('agg')
 
-    # shutil.copyfile("/home/ashvin/code/mujoco/mjkey.txt", "/root/.mujoco/mjkey.txt")
-
-    mp.set_start_method('forkserver')
+    # (reference) to do multiprocessing + pytorch, set this here
+    # import torch.multiprocessing as mp
+    # mp.set_start_method('forkserver')
     args_dict = dd.get_args()
     method_call = args_dict['method_call']
     run_experiment_kwargs = args_dict['run_experiment_kwargs']
