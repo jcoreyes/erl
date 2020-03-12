@@ -39,7 +39,7 @@ if __name__ == "__main__":
             bc_loss_type="mse",
             compute_bc=False,
             weight_loss=False,
-            pretraining_env_logging_period=10000,
+            pretraining_env_logging_period=100000,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*2,

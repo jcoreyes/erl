@@ -79,7 +79,7 @@ class AWRSACTrainer(TorchTrainer):
 
             pretraining_env_logging_period=100000,
             pretraining_logging_period=1000,
-            do_pretrain_rollouts=False,
+            do_pretrain_rollouts=True,
     ):
         super().__init__()
         self.env = env
