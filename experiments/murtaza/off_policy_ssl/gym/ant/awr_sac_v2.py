@@ -1,8 +1,8 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
 from railrl.torch.sac.policies import GaussianPolicy
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 from railrl.launchers.launcher_util import run_experiment
+from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
 
 if __name__ == "__main__":
     variant = dict(
@@ -32,12 +32,11 @@ if __name__ == "__main__":
             beta=1,
             use_automatic_entropy_tuning=True,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=500000,
+            q_num_pretrain2_steps=100000,
             policy_weight_decay=1e-4,
             weight_loss=True,
-            bc_num_pretrain_steps=100000,
-            terminal_transform_kwargs=dict(m=0, b=0),
             pretraining_env_logging_period=100000,
+            terminal_transform_kwargs=dict(m=1, b=0),
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
@@ -48,13 +47,13 @@ if __name__ == "__main__":
         path_loader_kwargs=dict(
             demo_paths=[
                 dict(
-                    path='demos/hc_action_noise_15.npy',
+                    path='demos/ant_action_noise_15.npy',
                     obs_dict=False,
                     is_demo=True,
                     train_split=.9,
                 ),
                 dict(
-                    path='demos/hc_off_policy_15_demos_100.npy',
+                    path='demos/ant_off_policy_15_demos_100.npy',
                     obs_dict=False,
                     is_demo=False,
                 ),
@@ -68,18 +67,18 @@ if __name__ == "__main__":
         'use_weights':[True],
         'policy_kwargs.hidden_sizes':[[256]*4],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
-        'trainer_kwargs.q_num_pretrain2_steps':[25000, 50000, 75000, 100000, 250000, 500000],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
+        'trainer_kwargs.q_num_pretrain2_steps':[25000, 50000, 75000, 100000],
         'trainer_kwargs.beta':[
-            1.3,
+            1,
         ],
         'train_rl':[True],
         'pretrain_rl':[True],
         'load_demos':[True],
         'pretrain_policy':[False],
         'env': [
-            'half-cheetah',
+            'ant',
         ],
         'policy_class':[
           GaussianPolicy,
@@ -102,12 +101,12 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_prefix = 'awr_sac_offline_hc_v3'
+    # exp_prefix = 'awr_sac_offline_ant_v1'
     
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'awr_sac_hc_offline_online_short_pretraining_len_v1'
+    exp_prefix = 'awr_sac_ant_offline_online_short_pretraining_len_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -121,5 +120,4 @@ if __name__ == "__main__":
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
-                # skip_wait=True,
             )
