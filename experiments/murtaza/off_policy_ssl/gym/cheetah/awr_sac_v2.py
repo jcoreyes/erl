@@ -68,10 +68,11 @@ if __name__ == "__main__":
         'use_weights':[True],
         'policy_kwargs.hidden_sizes':[[256]*4],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
-        'trainer_kwargs.q_num_pretrain2_steps':[25000, 50000, 75000, 100000, 250000, 500000],
+        'trainer_kwargs.q_num_pretrain2_steps':[0, 25000, 100000],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
         'trainer_kwargs.beta':[
+            1,
             1.3,
         ],
         'train_rl':[True],
@@ -90,7 +91,7 @@ if __name__ == "__main__":
         'trainer_kwargs.reparam_weight': [0.0],
         'trainer_kwargs.awr_weight': [1.0],
         'trainer_kwargs.bc_weight': [1.0, ],
-        'trainer_kwargs.compute_bc': [True, False],
+        'trainer_kwargs.compute_bc': [False],
         'trainer_kwargs.awr_use_mle_for_vf': [True, ],
         'trainer_kwargs.awr_sample_actions': [False, ],
         'trainer_kwargs.awr_min_q': [True, ],
@@ -107,7 +108,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'awr_sac_hc_offline_online_short_pretraining_len_v1'
+    exp_prefix = 'awr_sac_hc_offline_online_sweep_more_params_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

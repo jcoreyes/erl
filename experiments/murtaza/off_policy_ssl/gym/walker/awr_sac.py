@@ -104,7 +104,7 @@ if __name__ == "__main__":
         'trainer_kwargs.reparam_weight': [0.0],
         'trainer_kwargs.awr_weight': [1.0],
         'trainer_kwargs.bc_weight': [1.0, ],
-        'trainer_kwargs.compute_bc': [True],
+        'trainer_kwargs.compute_bc': [False],
         'trainer_kwargs.awr_use_mle_for_vf': [True, ],
         'trainer_kwargs.awr_sample_actions': [False, ],
         'trainer_kwargs.awr_min_q': [True, ],

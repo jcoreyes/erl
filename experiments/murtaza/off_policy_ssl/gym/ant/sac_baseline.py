@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sac_ant_offline_online_v1'
+    exp_prefix = 'sac_ant_offline_online_final_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['policy_class'] == TanhGaussianPolicy:
