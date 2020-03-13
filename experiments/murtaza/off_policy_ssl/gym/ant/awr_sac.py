@@ -69,7 +69,7 @@ if __name__ == "__main__":
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
-        'trainer_kwargs.q_num_pretrain2_steps':[100000],
+        'trainer_kwargs.q_num_pretrain2_steps':[25000],
         'trainer_kwargs.beta':[
             1,
         ],

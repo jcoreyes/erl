@@ -70,9 +70,9 @@ if __name__ == "__main__":
 
     search_space = {
         'trainer_kwargs.alpha':[1],
-        'trainer_kwargs.q_num_pretrain2_steps':[0, 25000, 50000, 75000, 100000, 250000, 500000],
+        'trainer_kwargs.q_num_pretrain2_steps':[0],
         'train_rl':[True],
-        'pretrain_rl':[True],
+        'pretrain_rl':[False],
         'load_demos':[True],
         'pretrain_policy':[False],
         'env': [
@@ -80,10 +80,9 @@ if __name__ == "__main__":
         ],
         'policy_class':[
           GaussianPolicy,
-          TanhGaussianPolicy,
         ],
         'trainer_kwargs.q_weight_decay': [0],
-        'trainer_kwargs.policy_weight_decay': [0, 1e-4],
+        'trainer_kwargs.policy_weight_decay': [1e-4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

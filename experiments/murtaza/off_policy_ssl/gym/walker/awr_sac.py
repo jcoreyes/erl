@@ -71,19 +71,6 @@ if __name__ == "__main__":
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
         'path_loader_kwargs.demo_paths':[
-            # [
-                # dict(
-                    # path='demos/walker_action_noise_10.npy',
-                    # obs_dict=False,
-                    # is_demo=True,
-                    # train_split=.9,
-                # ),
-                # dict(
-                    # path='demos/walker_off_policy_10_demos_100.npy',
-                    # obs_dict=False,
-                    # is_demo=False,
-                # ),
-            # ],
             [
                 dict(
                     path='demos/walker_action_noise_15.npy',
@@ -97,26 +84,9 @@ if __name__ == "__main__":
                     is_demo=False,
                 ),
             ],
-            # [
-                # dict(
-                    # path='demos/walker_action_noise_25.npy',
-                    # obs_dict=False,
-                    # is_demo=True,
-                    # train_split=.9,
-                # ),
-                # dict(
-                    # path='demos/walker_off_policy_25_demos_100.npy',
-                    # obs_dict=False,
-                    # is_demo=False,
-                # ),
-            # ],
         ],
         'trainer_kwargs.beta':[
-            # .01,
-            # .1,
             1,
-            # 10,
-            # 100,
         ],
         'train_rl':[True],
         'pretrain_rl':[True],
