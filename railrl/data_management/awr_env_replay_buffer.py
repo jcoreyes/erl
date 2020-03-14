@@ -16,8 +16,12 @@ class AWREnvReplayBuffer(SimpleReplayBuffer):
             use_weights=False,
             policy=None,
             qf1=None,
+            qf2=None,
             beta=0,
             weight_update_period=10000,
+            awr_use_mle_for_vf=True,
+            awr_sample_actions=False,
+            awr_min_q=True,
     ):
         """
         :param max_replay_buffer_size:
@@ -35,6 +39,7 @@ class AWREnvReplayBuffer(SimpleReplayBuffer):
         self._use_weights = use_weights
         self.policy = policy
         self.qf1 = qf1
+        self.qf2 = qf2
         self.beta = beta
         self.weight_update_period = weight_update_period
         super().__init__(
@@ -46,6 +51,9 @@ class AWREnvReplayBuffer(SimpleReplayBuffer):
         self.weights = torch.zeros((self._max_replay_buffer_size, 1), dtype=torch.float32)
         self.actual_weights = None
         self.counter = 0
+        self.awr_use_mle_for_vf = awr_use_mle_for_vf
+        self.awr_sample_actions = awr_sample_actions
+        self.awr_min_q = awr_min_q
 
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, **kwargs):
@@ -74,13 +82,40 @@ class AWREnvReplayBuffer(SimpleReplayBuffer):
                 obs = ptu.from_numpy(self._observations[idxs])
                 actions = ptu.from_numpy(self._actions[idxs])
 
-                new_obs_actions, policy_mean, policy_log_std, log_pi, entropy, policy_std, *_ = self.policy(
+                q1_pred = self.qf1(obs, actions)
+                q2_pred = self.qf2(obs, actions)
+
+                new_obs_actions, policy_mean, policy_log_std, log_pi, entropy, policy_std, mean_action_log_prob, pretanh_value, dist = self.policy(
                     obs, reparameterize=True, return_log_prob=True,
                 )
-                q1_pred = self.qf1(obs, actions)
-                v_pi = self.qf1(obs, new_obs_actions)
 
-                advantage = q1_pred - v_pi
+                qf1_new_actions = self.qf1(obs, new_obs_actions)
+                qf2_new_actions = self.qf2(obs, new_obs_actions)
+                q_new_actions = torch.min(
+                    qf1_new_actions,
+                    qf2_new_actions,
+                )
+
+                if self.awr_use_mle_for_vf:
+                    v_pi = self.qf1(obs, policy_mean)
+                else:
+                    v_pi = self.qf1(obs, new_obs_actions)
+
+                if self.awr_sample_actions:
+                    u = new_obs_actions
+                    if self.awr_min_q:
+                        q_adv = q_new_actions
+                    else:
+                        q_adv = qf1_new_actions
+                else:
+                    u = actions
+                    if self.awr_min_q:
+                        q_adv = torch.min(q1_pred, q2_pred)
+                    else:
+                        q_adv = q1_pred
+
+                advantage = q_adv - v_pi
+
                 self.weights[idxs] = (advantage/self.beta).detach()
 
                 cur_idx = next_idx

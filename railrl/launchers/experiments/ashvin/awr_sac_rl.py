@@ -1,4 +1,5 @@
 import gym
+from railrl.data_management.awr_env_replay_buffer import AWREnvReplayBuffer
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWrapperEnv
 import railrl.torch.pytorch_util as ptu
@@ -303,11 +304,6 @@ def experiment(variant):
     else:
         env_info_sizes = dict()
 
-    replay_buffer_kwargs=dict(
-        max_replay_buffer_size=variant['replay_buffer_size'],
-        env=expl_env,
-    )
-
     M = variant['layer_size']
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
@@ -375,8 +371,24 @@ def experiment(variant):
         else:
             error
 
-    replay_buffer = EnvReplayBuffer(
-        **replay_buffer_kwargs,
+    if variant.get('replay_buffer_class', EnvReplayBuffer) == AWREnvReplayBuffer:
+        main_replay_buffer_kwargs = variant['replay_buffer_kwargs']
+        main_replay_buffer_kwargs['env'] = expl_env
+        main_replay_buffer_kwargs['qf1'] = qf1
+        main_replay_buffer_kwargs['qf2'] = qf2
+        main_replay_buffer_kwargs['policy'] = policy
+    else:
+        main_replay_buffer_kwargs=dict(
+            max_replay_buffer_size=variant['replay_buffer_size'],
+            env=expl_env,
+        )
+    replay_buffer_kwargs = dict(
+        max_replay_buffer_size=variant['replay_buffer_size'],
+        env=expl_env,
+    )
+
+    replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
+        **main_replay_buffer_kwargs,
     )
     trainer = AWRSACTrainer(
         env=eval_env,
