@@ -47,13 +47,13 @@ if __name__ == "__main__":
         path_loader_kwargs=dict(
             demo_paths=[
                 dict(
-                    path='demos/ant_action_noise_15.npy',
+                    path='demos/hc_action_noise_15.npy',
                     obs_dict=False,
                     is_demo=True,
                     train_split=.9,
                 ),
                 dict(
-                    path='demos/ant_off_policy_15_demos_100.npy',
+                    path='demos/hc_off_policy_15_demos_100.npy',
                     obs_dict=False,
                     is_demo=False,
                 ),
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         'load_demos':[True],
         'pretrain_policy':[False],
         'env': [
-            'ant',
+            'half-cheetah',
         ],
         'policy_class':[
           GaussianPolicy,
@@ -108,12 +108,12 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_prefix = 'awr_sac_offline_ant_v1'
+    # exp_prefix = 'awr_sac_offline_hc_v1'
     
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'awr_sac_ant_offline_online_sir_v1'
+    exp_prefix = 'awr_sac_hc_offline_online_sir_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
