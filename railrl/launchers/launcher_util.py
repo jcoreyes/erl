@@ -86,6 +86,7 @@ def run_experiment(
         num_exps_per_instance=1,
         # sss settings
         time_in_mins=None,
+        slurm_config_name=None,
         # ssh settings
         ssh_host=None,
         # gcp
@@ -337,13 +338,17 @@ def run_experiment(
             pre_cmd=config.SINGULARITY_PRE_CMDS,
         )
     elif mode in {'slurm_singularity', 'sss', 'htp'}:
-        assert time_in_mins is not None, "Must approximate/set time in minutes"
+        if slurm_config_name is None:
+            slurm_config_name = "gpu" if use_gpu else "cpu"
+        slurm_config_kwargs = config.SLURM_CONFIGS[slurm_config_name]
         if use_gpu:
-            slurm_config = SlurmConfig(
-                time_in_mins=time_in_mins, **config.SLURM_GPU_CONFIG)
+            assert slurm_config_kwargs["n_gpus"] > 0, slurm_config_name
         else:
-            slurm_config = SlurmConfig(
-                time_in_mins=time_in_mins, **config.SLURM_CPU_CONFIG)
+            assert slurm_config_kwargs["n_gpus"] == 0, slurm_config_name
+        if time_in_mins is not None:
+            slurm_config_kwargs["time_in_mins"] = time_in_mins
+        assert slurm_config_kwargs["time_in_mins"] is not None, "Must approximate/set time in minutes"
+        slurm_config = SlurmConfig(**slurm_config_kwargs)
         if mode == 'slurm_singularity':
             dmode = doodad.mode.SlurmSingularity(
                 image=singularity_image,

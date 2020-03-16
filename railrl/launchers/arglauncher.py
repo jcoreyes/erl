@@ -68,8 +68,9 @@ def run_variant(experiment, variant):
         prepend_date_to_exp_prefix=False,
         # spot_price=variant["spot_price"],
         region=variant.get("region", "us-east-1"),
-        time_in_mins=variant.get("time_in_mins", 0),
+        time_in_mins=variant.get("time_in_mins", None),
         ssh_host=variant.get("ssh_host", None),
+        slurm_config_name=variant.get("slurm_config_name", None),
     )
 
 def parallel_run(experiment, variants, n_p):
@@ -123,6 +124,12 @@ def process_variant_cmd(variant):
         variant["mode"] = "ssh"
         i = sys.argv.index("--ssh")
         variant["ssh_host"] = sys.argv[i+1]
+
+    if "--slurmconfig" in sys.argv:
+        i = sys.argv.index("--slurmconfig")
+        variant["slurm_config_name"] = sys.argv[i+1]
+    if "--lowprio" in sys.argv:
+        variant["slurm_config_name"] = "gpu_lowprio"
 
     if "--verbose" in sys.argv:
         variant["verbose"] = True
