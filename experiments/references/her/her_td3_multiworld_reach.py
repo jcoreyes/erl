@@ -158,9 +158,9 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    n_seeds = 5
-    mode = 'sss'
-    exp_prefix = 'railrl-her-sac-multiworld-sawyer-reach-min-num-steps'
+    # n_seeds = 5
+    # mode = 'sss'
+    # exp_prefix = 'railrl-her-sac-multiworld-sawyer-reach-min-num-steps'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
