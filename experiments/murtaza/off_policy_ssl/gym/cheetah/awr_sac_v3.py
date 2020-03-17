@@ -74,7 +74,7 @@ if __name__ == "__main__":
         'policy_kwargs.hidden_sizes':[[256]*4],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.q_num_pretrain2_steps': [0, 25000, 100000],
-        'replay_buffer_kwargs.weight_update_period':[1, 1000, 10000, 100000],
+        'replay_buffer_kwargs.weight_update_period':[1000, 10000, 100000],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[False],
         'trainer_kwargs.beta':[

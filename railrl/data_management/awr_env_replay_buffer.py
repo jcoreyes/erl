@@ -116,7 +116,7 @@ class AWREnvReplayBuffer(SimpleReplayBuffer):
 
                 advantage = q_adv - v_pi
 
-                self.weights[idxs] = (advantage/self.beta).detach()
+                self.weights[idxs] = (advantage/self.beta).cpu().detach()
 
                 cur_idx = next_idx
                 next_idx += batch_size
