@@ -1,5 +1,5 @@
 """
-Example of a script to generate a script that can be run on slurm + singularity.
+Example of running an experiment locally.
 """
 import time
 from datetime import datetime
@@ -11,7 +11,7 @@ from pytz import timezone
 import railrl.torch.pytorch_util as ptu
 from railrl.core import logger
 from railrl.launchers.doodad_util import auto_setup
-from railrl.launchers.launcher_util import run_experiment
+from doodad.easy_launch.python_function import run_experiment
 
 
 def example(num_seconds, launch_time):
@@ -45,18 +45,19 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     date_format = '%m/%d/%Y %H:%M:%S %Z'
     date = datetime.now(tz=pytz.utc)
-    for seed in range(5):
-        variant = dict(
-            num_seconds=10,
-            launch_time=str(date.strftime(date_format)),
-            logger_config=dict(
-            ),
-            seed=seed,
-        )
-        run_experiment(
-            auto_setup(example),
-            exp_name='htp-doodad-easy-launch-example',
-            mode='htp',
-            variant=variant,
-            use_gpu=False,
-        )
+    logger.log("start")
+    variant = dict(
+        num_seconds=10,
+        launch_time=str(date.strftime(date_format)),
+        logger_config=dict(
+        ),
+        seed=4,
+    )
+    run_experiment(
+        auto_setup(example),
+        exp_name='local-doodad-easy-launch-example',
+        mode='local',
+        variant=variant,
+        use_gpu=False,
+        num_exps_per_instance=2,
+    )

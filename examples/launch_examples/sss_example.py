@@ -55,8 +55,8 @@ if __name__ == "__main__":
         )
         run_experiment(
             auto_setup(example),
-            exp_name='htp-doodad-easy-launch-example',
-            mode='htp',
+            exp_name='sss-doodad-easy-launch-example',
+            mode='sss',
             variant=variant,
             use_gpu=False,
         )
