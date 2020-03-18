@@ -126,15 +126,15 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_name = 'reference-skew-fit-door'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_name = 'reference-skew-fit-door'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
-                auto_setup(grill_her_twin_sac_online_vae_full_experiment,
-                           unpack_variant=False),
+                grill_her_twin_sac_online_vae_full_experiment,
+                unpack_variant=False,
                 exp_name=exp_name,
                 mode=mode,
                 variant=variant,

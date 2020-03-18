@@ -10,8 +10,7 @@ from pytz import timezone
 
 import railrl.torch.pytorch_util as ptu
 from railrl.core import logger
-from railrl.launchers.doodad_util import auto_setup
-from doodad.easy_launch.python_function import run_experiment
+from railrl.launchers.launcher_util import run_experiment
 
 
 def example(num_seconds, launch_time):
@@ -54,7 +53,7 @@ if __name__ == "__main__":
         seed=4,
     )
     run_experiment(
-        auto_setup(example),
+        example,
         exp_name='local-doodad-easy-launch-example',
         mode='local',
         variant=variant,
