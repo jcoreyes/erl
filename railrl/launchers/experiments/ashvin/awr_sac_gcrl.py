@@ -69,6 +69,9 @@ def resume(variant):
     algo.train()
 
 def experiment(variant):
+    render = variant.get("render", False)
+    debug = variant.get("debug", False)
+
     if variant.get("pretrained_algorithm_path", False):
         resume(variant)
         return
@@ -227,12 +230,14 @@ def experiment(variant):
             MakeDeterministic(policy),
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
+            render=render,
         )
         expl_path_collector = GoalConditionedPathCollector(
             expl_env,
             policy,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
+            render=render,
         )
         algorithm = TorchBatchRLAlgorithm(
             trainer=trainer,
