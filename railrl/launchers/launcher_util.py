@@ -31,15 +31,18 @@ def run_experiment(
         gpu_id=0,
         wrap_fn_with_auto_setup=True,
         unpack_variant=True,
+        base_log_dir=None,
         **kwargs
 ):
+    if base_log_dir is None:
+        base_log_dir=config.LOCAL_LOG_DIR
     if wrap_fn_with_auto_setup:
         method_call = auto_setup(method_call, unpack_variant=unpack_variant)
     if mode == 'here_no_doodad':
         setup_experiment(
             variant=variant,
             exp_name=exp_name,
-            base_log_dir=config.LOCAL_LOG_DIR,
+            base_log_dir=base_log_dir,
             git_infos=generate_git_infos(),
             script_name=main.__file__,
             use_gpu=use_gpu,
