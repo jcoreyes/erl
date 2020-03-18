@@ -10,7 +10,6 @@ from pytz import timezone
 
 import railrl.torch.pytorch_util as ptu
 from railrl.core import logger
-from railrl.launchers.doodad_util import auto_setup
 from railrl.launchers.launcher_util import run_experiment
 
 
@@ -54,9 +53,10 @@ if __name__ == "__main__":
             seed=seed,
         )
         run_experiment(
-            auto_setup(example),
+            example,
             exp_name='sss-doodad-easy-launch-example',
             mode='sss',
             variant=variant,
             use_gpu=False,
+            time_in_mins=10,
         )
