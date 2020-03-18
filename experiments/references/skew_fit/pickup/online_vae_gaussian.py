@@ -2,6 +2,7 @@ import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1
 from multiworld.envs.mujoco.cameras import sawyer_pick_and_place_camera
 from railrl.launchers.launcher_util import run_experiment
+from railrl.launchers.doodad_util import auto_setup
 from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place \
@@ -140,6 +141,10 @@ if __name__ == "__main__":
             save_period=10,
         ),
         init_camera=sawyer_pick_and_place_camera,
+        logger_config=dict(
+            snapshot_gap=200,
+            snapshot_mode='gap_and_last',
+        ),
     )
 
     search_space = {}
@@ -149,25 +154,24 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev-{}'.format(
+    exp_name = 'dev-{}'.format(
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
     n_seeds = 3
     mode = 'sss'
-    exp_prefix = 'reference-skew-fit-brc-pickup'
+    exp_name = 'reference-skew-fit-brc-pickup'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
-                grill_her_twin_sac_online_vae_full_experiment,
-                exp_prefix=exp_prefix,
+                auto_setup(grill_her_twin_sac_online_vae_full_experiment,
+                           unpack_variant=False),
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
                 # trial_dir_suffix='n1000-{}--zoomed-{}'.format(n1000, zoomed),
-                snapshot_gap=200,
-                snapshot_mode='gap_and_last',
                 num_exps_per_instance=2,
                 gcp_kwargs=dict(
                     zone='us-west1-b',
