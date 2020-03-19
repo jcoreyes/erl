@@ -22,6 +22,16 @@ GitInfo = NamedTuple(
 )
 
 class AutoSetup:
+    """
+    Automatically set up:
+    1. the logger
+    2. the GPU mode
+    3. the seed
+    :param exp_function: some function that should not depend on `logger_config`
+    nor `seed`.
+    :param unpack_variant: do you call exp_function with `**variant`?
+    :return: function output
+    """
     def __init__(self, exp_function, unpack_variant=True):
         self.exp_function = exp_function
         self.unpack_variant = unpack_variant
