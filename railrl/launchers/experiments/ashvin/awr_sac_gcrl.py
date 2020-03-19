@@ -194,7 +194,7 @@ def experiment(variant):
         else:
             error
 
-    trainer = AWRSACTrainer(
+    awrsac_trainer = AWRSACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
@@ -203,7 +203,7 @@ def experiment(variant):
         target_qf2=target_qf2,
         **variant['trainer_kwargs']
     )
-    trainer = HERTrainer(trainer)
+    trainer = HERTrainer(awrsac_trainer)
     if variant['collection_mode'] == 'online':
         expl_path_collector = MdpStepCollector(
             expl_env,
@@ -264,7 +264,7 @@ def experiment(variant):
 
     if variant.get('load_demos', False):
         path_loader_class = variant.get('path_loader_class', MDPPathLoader)
-        path_loader = path_loader_class(trainer,
+        path_loader = path_loader_class(awrsac_trainer,
             replay_buffer=replay_buffer,
             demo_train_buffer=demo_train_buffer,
             demo_test_buffer=demo_test_buffer,
