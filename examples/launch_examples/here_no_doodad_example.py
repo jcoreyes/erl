@@ -1,5 +1,5 @@
 """
-Example of running stuff on EC2
+Example of running an experiment locally.
 """
 import time
 from datetime import datetime
@@ -54,8 +54,8 @@ if __name__ == "__main__":
     )
     run_experiment(
         example,
-        exp_name='ec2-doodad-easy-launch-example',
-        mode='ec2',
+        exp_name='here-no-doodad-example',
+        mode='here_no_doodad',
         variant=variant,
         use_gpu=False,
         num_exps_per_instance=2,
