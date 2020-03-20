@@ -50,7 +50,7 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             beta=1,
-            use_automatic_entropy_tuning=False,
+            use_automatic_entropy_tuning=True,
             alpha=0,
 
             bc_num_pretrain_steps=0,
@@ -122,9 +122,9 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(3),
-        'num_trains_per_train_loop': [4000, ],
+        'num_trains_per_train_loop': [1000, ],
         'env_kwargs.reward_type': ['puck_distance', 'hand_and_puck_distance', ],
-        'policy_kwargs.min_log_std': [-5, -4],
+        'policy_kwargs.min_log_std': [-6, -5, -4],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

@@ -14,7 +14,7 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_leap import SawyerPushAndReac
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=1001,
+        num_epochs=101,
         num_eval_steps_per_epoch=1000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
@@ -52,7 +52,7 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=False,
             alpha=0,
 
-            bc_num_pretrain_steps=10000,
+            bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
             q_num_pretrain2_steps=0,
             policy_weight_decay=1e-4,
@@ -61,7 +61,7 @@ if __name__ == "__main__":
             rl_weight=1.0,
             use_awr_update=False,
             use_reparam_update=False,
-            compute_bc=False,
+            compute_bc=True,
             reparam_weight=0.0,
             awr_weight=0.0,
             bc_weight=1.0,
@@ -119,9 +119,10 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(3),
-        'num_trains_per_train_loop': [1000, 4000],
-        'env_kwargs.reward_type': ['puck_distance', 'hand_and_puck_distance', ],
+        'seedid': range(5),
+        # 'num_trains_per_train_loop': [1000, 4000],
+        # 'env_kwargs.reward_type': ['puck_distance', 'hand_and_puck_distance', ],
+        'policy_kwargs.min_log_std': [-6, -5, -4],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

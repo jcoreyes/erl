@@ -50,7 +50,7 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             beta=1,
-            use_automatic_entropy_tuning=False,
+            use_automatic_entropy_tuning=True,
             alpha=0,
 
             bc_num_pretrain_steps=0,
@@ -116,15 +116,41 @@ if __name__ == "__main__":
         ),
 
         observation_key="state_observation",
-        desired_goal_key="state_desired_goal",
-        achieved_goal_key="state_achieved_goal",
+        desired_goal_key="mask_desired_goal",
+        achieved_goal_key="mask_achieved_goal",
+        use_masks=True,
+
+        expl_mask_distribution_kwargs=dict(
+            items=(
+                (1, 1, 0, 0), # hand
+                (0, 0, 1, 1), # puck
+                (1, 1, 1, 1), # hand and puck
+            ),
+            weights=(1,1,1)
+        ),
+
+        eval_mask_distribution_kwargs=dict(
+            items=(
+                (1, 1, 0, 0), # hand
+                (0, 0, 1, 1), # puck
+                (1, 1, 1, 1), # hand and puck
+            ),
+            weights=(1,1,1)
+        ),
     )
 
     search_space = {
         'seedid': range(3),
         'num_trains_per_train_loop': [4000, ],
         'env_kwargs.reward_type': ['puck_distance', 'hand_and_puck_distance', ],
-        'policy_kwargs.min_log_std': [-5, -4],
+        'policy_kwargs.min_log_std': [-6, -5, -4],
+        'expl_mask_distribution_kwargs.weights': [
+            (1,1,1),
+        ],
+        'eval_mask_distribution_kwargs.weights': [
+            (0,0,1),
+            (0,1,0),
+        ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
