@@ -68,6 +68,16 @@ def resume(variant):
 
     algo.train()
 
+def process_args(variant):
+    if variant.get("debug", False):
+        variant['max_path_length'] = 50
+        variant['batch_size'] = 5
+        variant['num_epochs'] = 5
+        variant['num_eval_steps_per_epoch'] = 100
+        variant['num_expl_steps_per_train_loop'] = 100
+        variant['num_trains_per_train_loop'] = 10
+        variant['min_num_steps_before_training'] = 100
+
 def experiment(variant):
     render = variant.get("render", False)
     debug = variant.get("debug", False)

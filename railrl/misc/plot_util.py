@@ -306,19 +306,12 @@ def split(exps,
     print_final=False, print_max=False, print_min=False, print_plot=True,
     **kwargs):
 
-    def lookup(v):
-        if v in l['flat_params']:
-            return str(l['flat_params'][v])
-        if v in default_vary:
-            return str(default_vary[v])
-        print(v)
-        print(l['flat_params'])
-        error_key_not_found_in_flat_params
-
     split_values = {}
     for s in split:
         split_values[s] = set()
     for l in exps:
+        for k in l['flat_params']:
+            l['flat_params'][k] = str(l['flat_params'][k])
         if f(l):
             for s in split:
                 if s in l['flat_params']:

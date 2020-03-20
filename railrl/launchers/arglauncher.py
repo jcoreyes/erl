@@ -11,7 +11,7 @@ from multiprocessing import Process, Pool
 import pdb
 import random
 
-def run_variants(experiment, vs, run_id=0):
+def run_variants(experiment, vs, process_args_fn=None, run_id=0, ):
     # preprocess
     variants = []
     for i, v in enumerate(vs):
@@ -20,6 +20,8 @@ def run_variants(experiment, vs, run_id=0):
         process_run_args(v)
         process_logger_args(v)
         process_launcher_args(v)
+        if process_args_fn:
+            process_args_fn(v)
         variants.append(v)
 
     if "--variants" in sys.argv: # takes either 3-7 or 3,6,7,8,10 as next arg
@@ -127,7 +129,7 @@ def process_launcher_args(variant):
     launcher_config.setdefault("region", "us-west-2")
     launcher_config.setdefault("time_in_mins", None)
     launcher_config.setdefault("ssh_host", None)
-    launcher_config.setdefault("slurm_config_name", None),
+    launcher_config.setdefault("slurm_config_name", None)
     launcher_config.setdefault("unpack_variant", False)
 
     if "--ec2" in sys.argv:
@@ -186,10 +188,10 @@ def process_launcher_args(variant):
     if "--run" in sys.argv:
         i = sys.argv.index("--run")
         variant["run_id"] = int(sys.argv[i+1])
-    if "exp_prefix" not in variant:
+
+    if "exp_name" not in launcher_config:
         s = "experiments/"
         n = len(s)
         assert sys.argv[0][:n] == s
-        variant["exp_prefix"] = sys.argv[0][n:-3]
-    launcher_config["exp_name"] = "%s/run%d/id%d" % (variant["exp_prefix"], variant["run_id"], variant["exp_id"])
+        launcher_config["exp_name"] = sys.argv[0][n:-3]
 
