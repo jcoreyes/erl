@@ -33,8 +33,8 @@ class HERTrainer(TorchTrainer):
         self._base_trainer.get_batch_from_buffer = self.get_batch_from_buffer
         return self._base_trainer.pretrain_policy_with_bc()
 
-    def get_batch_from_buffer(self, replay_buffer, bc_batch_size):
-        batch = replay_buffer.random_batch(bc_batch_size)
+    def get_batch_from_buffer(self, replay_buffer, batch_size):
+        batch = replay_buffer.random_batch(batch_size)
         batch = np_to_pytorch_batch(batch)
         obs = batch['observations']
         next_obs = batch['next_observations']
