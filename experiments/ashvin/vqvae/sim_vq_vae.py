@@ -12,7 +12,7 @@ from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 from railrl.torch.vae.vq_vae import VQ_VAE
-from railrl.torch.vae.vae_trainer import VQ_VAETrainer
+from railrl.torch.vae.vq_vae_trainer import VQ_VAETrainer
 from railrl.data_management.online_conditional_vae_replay_buffer import \
         OnlineConditionalVaeRelabelingBuffer
 

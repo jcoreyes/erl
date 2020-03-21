@@ -1,3 +1,5 @@
+"""Deprecated in favor of railrl/torch/sac/awr_sac.py"""
+
 from collections import OrderedDict
 
 import numpy as np

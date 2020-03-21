@@ -175,13 +175,13 @@ class AWRSACTrainer(TorchTrainer):
         #     test=dict(mean=[], log_std=[], abs_error=[], expert_action=[], ),
         # )
 
-    def get_batch_from_buffer(self, replay_buffer):
-        batch = replay_buffer.random_batch(self.bc_batch_size)
+    def get_batch_from_buffer(self, replay_buffer, batch_size):
+        batch = replay_buffer.random_batch(batch_size)
         batch = np_to_pytorch_batch(batch)
         return batch
 
     def run_bc_batch(self, replay_buffer):
-        batch = self.get_batch_from_buffer(replay_buffer)
+        batch = self.get_batch_from_buffer(replay_buffer, self.bc_batch_size)
         o = batch["observations"]
         u = batch["actions"]
         # g = batch["resampled_goals"]

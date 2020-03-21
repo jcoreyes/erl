@@ -2,6 +2,7 @@ from collections import OrderedDict
 from os import path as osp
 import numpy as np
 import torch
+from railrl.core.loss import LossFunction
 from torch import optim
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
@@ -35,20 +36,20 @@ def get_data(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.dataset  import \
         TrajectoryDataset, ImageObservationDataset, InitialObservationDataset, EpicTimePredictionDataset
-    
+
     dataset_name = variant.get("dataset_name")
     full_dataset_path = "/private/home/anair17/ashvindev/railrl/notebooks/outputs/%s_trajectories.p" % dataset_name
     data = pickle.load(open(full_dataset_path, "rb"))
     l = len(data)
-    
+
     N = l
     test_p = variant.get('test_p', 0.9)
-    
+
     n = int(N * test_p)
 
     train_dataset = EpicTimePredictionDataset(data[:n])
     test_dataset = EpicTimePredictionDataset(data[n:N])
-    
+
     return train_dataset, test_dataset, {}
 
 MAX_BATCH_SIZE = 20
@@ -70,7 +71,8 @@ def accuracy(output, target, topk=(1,)):
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 
-class TimePredictionTrainer(object):
+
+class TimePredictionTrainer(LossFunction):
     def __init__(
             self,
             model,
@@ -232,7 +234,7 @@ class TimePredictionTrainer(object):
     #         start_loop = time.time()
     #         self.eval_statistics["test/batch_duration"].append(start_loop - data_time)
 
-    def compute_loss(self, epoch, batch, test=False, slc=None):
+    def compute_loss(self, batch, epoch=-1, test=False, slc=None):
         prefix = "test/" if test else "train/"
 
         if slc:
@@ -242,13 +244,13 @@ class TimePredictionTrainer(object):
             x0, xt, xT = batch["x0"], batch["xt"], batch["xT"]
             real_yt = batch["yt"].flatten().long().to("cpu")
         pred_yt = self.model(x0, xt, xT).to("cpu")
-        
+
         loss = self.loss_fn(pred_yt, real_yt)
 
         acc1, acc5 = accuracy(pred_yt, real_yt, topk=(1, 5))
-        
+
         # e = pred_yt - real_yt
-        
+
         # loss = torch.mean(torch.pow(e, 2))
 
         self.eval_statistics['epoch'] = epoch
@@ -274,7 +276,7 @@ class TimePredictionTrainer(object):
 
         self.optimizer.zero_grad()
         for i in range(0, bz, MAX_BATCH_SIZE):
-            loss = self.compute_loss(epoch, batch, False, slc=slice(i, i + MAX_BATCH_SIZE))
+            loss = self.compute_loss(batch, epoch, False, slc=slice(i, i + MAX_BATCH_SIZE))
             loss.backward()
         self.optimizer.step()
 
@@ -293,7 +295,7 @@ class TimePredictionTrainer(object):
         start = time.time()
 
         for i in range(0, bz, MAX_BATCH_SIZE):
-            loss = self.compute_loss(epoch, batch, True, slc=slice(i, i + MAX_BATCH_SIZE))
+            loss = self.compute_loss(batch, epoch, True, slc=slice(i, i + MAX_BATCH_SIZE))
 
         end = time.time()
         self.eval_statistics["test/batch_duration"].append(end - start)
@@ -385,7 +387,7 @@ class TimePredictionTrainer(object):
 
     def dump_trajectory_rewards(self, epoch, datasets, visualize=False):
         self.model.eval()
-        
+
         for prefix in ["train", "test"]:
             dataset = datasets[prefix]
 
@@ -472,7 +474,7 @@ class TimePredictionTrainer(object):
 
     def get_feature_distances(self, z):
         z = ptu.get_numpy(z.cpu())
-    
+
         z_goal = z[-1, :]
         distances = []
         for t in range(len(z)):
@@ -488,7 +490,7 @@ class TimePredictionTrainer(object):
 
 
 class LatentPathPredictorTrainer(TimePredictionTrainer):
-    def compute_loss(self, epoch, batch, test=False, slc=None):
+    def compute_loss(self, batch, epoch=-1, test=False, slc=None):
         prefix = "test/" if test else "train/"
 
         if slc:
@@ -515,11 +517,11 @@ class LatentPathPredictorTrainer(TimePredictionTrainer):
         bce_loss = self.loss_fn(pred_yt, real_yt)
 
         loss = bce_loss + mse_loss
-        
+
         acc1, acc5 = accuracy(pred_yt, real_yt, topk=(1, 5))
 
         # e = pred_yt - real_yt
-        
+
         # loss = torch.mean(torch.pow(e, 2))
 
         self.eval_statistics['epoch'] = epoch
@@ -543,7 +545,7 @@ class LatentPathPredictorTrainer(TimePredictionTrainer):
 eps = 1e-5
 
 class GeometricTimePredictorTrainer(TimePredictionTrainer):
-    def compute_loss(self, epoch, batch, test=False, slc=None):
+    def compute_loss(self, batch, epoch=-1, test=False, slc=None):
         prefix = "test/" if test else "train/"
 
         if slc:
@@ -560,13 +562,13 @@ class GeometricTimePredictorTrainer(TimePredictionTrainer):
         dt = zt - z0
         dT = zT - z0
 
-        regression_pred_yt = (dt * dT).sum(dim=1) / ((dT ** 2).sum(dim=1) + eps)        
+        regression_pred_yt = (dt * dT).sum(dim=1) / ((dT ** 2).sum(dim=1) + eps)
 
         e = regression_pred_yt - target_yt / self.model.output_classes
 
         regression_t_difference = torch.mean(torch.abs(e))
         regression_t_mean = torch.mean(regression_pred_yt)
-        
+
         mse_loss = torch.mean(torch.pow(e, 2))
 
         # import ipdb; ipdb.set_trace()
@@ -588,7 +590,7 @@ class GeometricTimePredictorTrainer(TimePredictionTrainer):
         P = torch.nn.functional.softmax(pred_yt, dim=1)
         ET = torch.sum(P * self.bin_midpoints, dim=1)
 
-        classification_t_difference = torch.mean(torch.abs(ET - target_yt / self.model.output_classes)) 
+        classification_t_difference = torch.mean(torch.abs(ET - target_yt / self.model.output_classes))
         classification_t_mean = torch.mean(ET)
 
         # batch_size = len(real_yt)
@@ -599,7 +601,7 @@ class GeometricTimePredictorTrainer(TimePredictionTrainer):
         bce_loss = self.loss_fn(pred_yt, real_yt)
 
         loss = bce_loss + self.loss_weights["mse"] * mse_loss
-        
+
         acc1, acc5 = accuracy(pred_yt, real_yt, topk=(1, 5))
 
         self.eval_statistics['epoch'] = epoch
