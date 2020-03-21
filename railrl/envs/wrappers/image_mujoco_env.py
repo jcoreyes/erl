@@ -7,7 +7,7 @@ from PIL import Image
 from gym import Env
 from gym.spaces import Box
 
-from railrl.envs.wrappers import ProxyEnv
+from railrl.envs.proxy_env import ProxyEnv
 
 
 class ImageMujocoEnv(ProxyEnv, Env):

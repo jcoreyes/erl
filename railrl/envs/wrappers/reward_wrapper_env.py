@@ -1,4 +1,4 @@
-from railrl.envs.wrappers import ProxyEnv
+from railrl.envs.proxy_env import ProxyEnv
 
 
 class RewardWrapperEnv(ProxyEnv):
