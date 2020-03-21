@@ -142,11 +142,12 @@ def experiment(variant):
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
     )
-    replay_buffer_kwargs.update(variant['replay_buffer_kwargs'])
+    replay_buffer_kwargs.update(variant.get('replay_buffer_kwargs', dict()))
     replay_buffer = ConcatToObsWrapper(
         ObsDictRelabelingBuffer(**replay_buffer_kwargs),
         ["resampled_goals", ],
     )
+    replay_buffer_kwargs.update(variant.get('demo_replay_buffer_kwargs', dict()))
     demo_train_buffer = ConcatToObsWrapper(
         ObsDictRelabelingBuffer(**replay_buffer_kwargs),
         ["resampled_goals", ],
