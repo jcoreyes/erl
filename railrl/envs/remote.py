@@ -8,7 +8,7 @@ from torch.multiprocessing import Process, Pipe
 import railrl.envs.env_utils as env_utils
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.base import RolloutEnv
-from railrl.envs.wrappers import ProxyEnv
+from railrl.envs.proxy_env import ProxyEnv
 
 
 class RemoteRolloutEnv(ProxyEnv, RolloutEnv):

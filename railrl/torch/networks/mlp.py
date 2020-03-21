@@ -1,10 +1,12 @@
 import torch
-from torch import nn as nn
+from torch import nn
 from torch.nn import functional as F
 
+from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.core import PyTorchModule
+from railrl.torch.core import PyTorchModule, eval_np
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import LayerNorm
 
 
@@ -78,3 +80,68 @@ class FlattenMlp(Mlp):
         return super().forward(flat_inputs, **kwargs)
 
 
+class MlpPolicy(Mlp, Policy):
+    """
+    A simpler interface for creating policies.
+    """
+
+    def __init__(
+            self,
+            *args,
+            obs_normalizer: TorchFixedNormalizer = None,
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.obs_normalizer = obs_normalizer
+
+    def forward(self, obs, **kwargs):
+        if self.obs_normalizer:
+            obs = self.obs_normalizer.normalize(obs)
+        return super().forward(obs, **kwargs)
+
+    def get_action(self, obs_np):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs):
+        return eval_np(self, obs)
+
+
+class TanhMlpPolicy(MlpPolicy):
+    """
+    A helper class since most policies have a tanh output activation.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, output_activation=torch.tanh, **kwargs)
+
+
+class MlpQf(FlattenMlp):
+    def __init__(
+            self,
+            *args,
+            obs_normalizer: TorchFixedNormalizer = None,
+            action_normalizer: TorchFixedNormalizer = None,
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.obs_normalizer = obs_normalizer
+        self.action_normalizer = action_normalizer
+
+    def forward(self, obs, actions, **kwargs):
+        if self.obs_normalizer:
+            obs = self.obs_normalizer.normalize(obs)
+        if self.action_normalizer:
+            actions = self.action_normalizer.normalize(actions)
+        return super().forward(obs, actions, **kwargs)
+
+
+class MlpQfWithObsProcessor(Mlp):
+    def __init__(self, obs_processor, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.obs_processor = obs_processor
+
+    def forward(self, obs, actions, **kwargs):
+        h = self.obs_processor(obs)
+        flat_inputs = torch.cat((h, actions), dim=1)
+        return super().forward(flat_inputs, **kwargs)
