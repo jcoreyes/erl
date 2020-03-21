@@ -51,6 +51,8 @@ from railrl.misc.asset_loader import load_local_or_remote_file
 
 from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
+from railrl.data_management.wrappers.concat_to_obs_wrapper import \
+        ConcatToObsWrapper
 from railrl.torch.her.her import HERTrainer
 from railrl.envs.reward_mask_wrapper import DiscreteDistribution, RewardMaskWrapper
 
@@ -141,7 +143,18 @@ def experiment(variant):
         achieved_goal_key=achieved_goal_key,
     )
     replay_buffer_kwargs.update(variant['replay_buffer_kwargs'])
-    replay_buffer = ObsDictRelabelingBuffer(**replay_buffer_kwargs)
+    replay_buffer = ConcatToObsWrapper(
+        ObsDictRelabelingBuffer(**replay_buffer_kwargs),
+        ["resampled_goals", ],
+    )
+    demo_train_buffer = ConcatToObsWrapper(
+        ObsDictRelabelingBuffer(**replay_buffer_kwargs),
+        ["resampled_goals", ],
+    )
+    demo_test_buffer = ConcatToObsWrapper(
+        ObsDictRelabelingBuffer(**replay_buffer_kwargs),
+        ["resampled_goals", ],
+    )
 
     M = variant['layer_size']
     qf1 = FlattenMlp(
@@ -204,7 +217,7 @@ def experiment(variant):
         else:
             error
 
-    awrsac_trainer = AWRSACTrainer(
+    trainer = AWRSACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
@@ -213,7 +226,6 @@ def experiment(variant):
         target_qf2=target_qf2,
         **variant['trainer_kwargs']
     )
-    trainer = HERTrainer(awrsac_trainer)
     if variant['collection_mode'] == 'online':
         expl_path_collector = MdpStepCollector(
             expl_env,
@@ -266,15 +278,12 @@ def experiment(variant):
         )
     algorithm.to(ptu.device)
 
-    demo_train_buffer = ObsDictRelabelingBuffer(**replay_buffer_kwargs)
-    demo_test_buffer = ObsDictRelabelingBuffer(**replay_buffer_kwargs)
-
     if variant.get('save_paths', False):
         algorithm.post_train_funcs.append(save_paths)
 
     if variant.get('load_demos', False):
         path_loader_class = variant.get('path_loader_class', MDPPathLoader)
-        path_loader = path_loader_class(awrsac_trainer,
+        path_loader = path_loader_class(trainer,
             replay_buffer=replay_buffer,
             demo_train_buffer=demo_train_buffer,
             demo_test_buffer=demo_test_buffer,
