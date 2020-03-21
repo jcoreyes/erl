@@ -32,9 +32,9 @@ import sys
 import pickle
 
 ### workaround to solve cv2 version conflicts (ROS adds Python2 version of cv2)
-sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
+# sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 import cv2
-sys.path.insert(0,'/opt/ros/kinetic/lib/python2.7/dist-packages')
+# sys.path.insert(0,'/opt/ros/kinetic/lib/python2.7/dist-packages')
 
 # import cv2
 
@@ -229,7 +229,7 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
     # draw_grid(img)
     # env.set_goal(goal)
     traj = dict(
-        observations=[o],
+        observations=[],
         actions=[],
         rewards=[],
         next_observations=[],
@@ -246,26 +246,26 @@ def collect_one_rollout_goal_conditioned(env, expert, horizon=200, threshold=-1,
         else:
             exec_a = a
         o, r, done, info = env.step(exec_a)
-        img = o['image_observation']
-        img_goal = o['image_desired_goal']
-        del o['image_observation']
-        del o['image_desired_goal']
-        del o['image_achieved_goal']
-        del o['observation']
-        del o['desired_goal']
-        del o['achieved_goal']
-        if 'proprio_observation' in o:
-            del o['proprio_observation']
-        if 'proprio_desired_goal' in o:
-            del o['proprio_desired_goal']
-        if 'proprio_achieved_goal' in o:
-            del o['proprio_achieved_goal']
-        if 'image_proprio_observation' in o:
-            del o['image_proprio_observation']
-        if 'image_proprio_desired_goal' in o:
-            del o['image_proprio_desired_goal']
-        if 'image_proprio_achieved_goal' in o:
-            del o['image_proprio_achieved_goal']
+        # img = o['image_observation']
+        # img_goal = o['image_desired_goal']
+        # del o['image_observation']
+        # del o['image_desired_goal']
+        # del o['image_achieved_goal']
+        # del o['observation']
+        # del o['desired_goal']
+        # del o['achieved_goal']
+        # if 'proprio_observation' in o:
+        #     del o['proprio_observation']
+        # if 'proprio_desired_goal' in o:
+        #     del o['proprio_desired_goal']
+        # if 'proprio_achieved_goal' in o:
+        #     del o['proprio_achieved_goal']
+        # if 'image_proprio_observation' in o:
+        #     del o['image_proprio_observation']
+        # if 'image_proprio_desired_goal' in o:
+        #     del o['image_proprio_desired_goal']
+        # if 'image_proprio_achieved_goal' in o:
+        #     del o['image_proprio_achieved_goal']
 
         traj["actions"].append(a)
         traj["rewards"].append(r)
@@ -320,7 +320,7 @@ def collect_demos(env, expert, path="demos.npy", N=10, horizon=200, threshold=-1
             data.append(traj)
             print("accepted trajectory length", len(traj["observations"]))
             print("last reward", traj["rewards"][-1])
-            print("last " + key, traj["env_infos"][-1][key])
+            # print("last " + key, traj["env_infos"][-1][key])
             print("accepted", len(data), "trajectories")
             accepted+=1
         else:

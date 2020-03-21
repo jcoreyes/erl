@@ -21,6 +21,8 @@ def td3_experiment(variant):
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
     # preprocess_rl_variant(variant)
     env = get_envs(variant)
+    expl_env = env
+    eval_env = env
     es = get_exploration_strategy(variant, env)
 
     if variant.get("use_masks", False):
@@ -179,8 +181,8 @@ def td3_experiment(variant):
                 observation_key=observation_key,
                 desired_goal_key=desired_goal_key,
                 # use_masks=variant.get("use_masks", False),
-                full_mask=True,
-                vis_list=vis_list,
+                # full_mask=True,
+                # vis_list=vis_list,
             )
             video_func = get_video_save_func(
                 rollout_function,
