@@ -1,5 +1,5 @@
 import torch
-from torch import nn as nn, __init__
+from torch import nn
 from torch.nn import functional as F
 
 from railrl.policies.base import Policy
