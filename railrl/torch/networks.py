@@ -17,12 +17,12 @@ from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 
 import numpy as np
 
-class TorchMaxClamp:
-    def __init__(self, max_value):
-        self.max_value = max_value
+class Clamp:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
 
     def __call__(self, x):
-        return torch.clamp(x, max=self.max_value)
+        return torch.clamp(x, **self.kwargs)
 
 class LinearTransform:
     def __init__(self, m, b):
