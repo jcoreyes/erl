@@ -3,6 +3,7 @@ import os
 from os import path as osp
 import numpy as np
 import torch
+from railrl.core.loss import LossFunction
 from torch import optim
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
@@ -22,13 +23,14 @@ from railrl.torch.core import np_to_pytorch_batch
 import collections
 import time
 
-class VQ_VAETrainer(ConvVAETrainer):
+
+class VQ_VAETrainer(ConvVAETrainer, LossFunction):
 
     def train_batch(self, epoch, batch):
         self.model.train()
         self.optimizer.zero_grad()
 
-        loss = self.compute_loss(epoch, batch, False)
+        loss = self.compute_loss(batch, epoch, False)
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -40,7 +42,7 @@ class VQ_VAETrainer(ConvVAETrainer):
             batch,
     ):
         self.model.eval()
-        loss = self.compute_loss(epoch, batch, True)
+        loss = self.compute_loss(batch, epoch, True)
 
     def encode_dataset(self, dataset, epoch):
         encoding_list = []
@@ -67,7 +69,7 @@ class VQ_VAETrainer(ConvVAETrainer):
             self.test_batch(epoch, dataset.random_batch(self.batch_size))
         self.eval_statistics["test/epoch_duration"].append(time.time() - start_time)
 
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         obs = batch["x_t"]
