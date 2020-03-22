@@ -211,13 +211,7 @@ class AWRSACTrainer(TorchTrainer):
 
         return policy_loss, logp_loss, mse_loss, policy_log_std
 
-    def pretrain_policy_with_bc(self):
-        logger.remove_tabular_output(
-            'progress.csv', relative_to_snapshot_dir=True
-        )
-        logger.add_tabular_output(
-            'pretrain_policy.csv', relative_to_snapshot_dir=True
-        )
+    def do_rollouts(self):
         total_ret = 0
         for _ in range(20):
             o = self.env.reset()
@@ -229,7 +223,18 @@ class AWRSACTrainer(TorchTrainer):
                 if done:
                     break
             total_ret += ret
-        print("INITIAL RETURN", total_ret/20)
+        return total_ret
+
+    def pretrain_policy_with_bc(self):
+        logger.remove_tabular_output(
+            'progress.csv', relative_to_snapshot_dir=True
+        )
+        logger.add_tabular_output(
+            'pretrain_policy.csv', relative_to_snapshot_dir=True
+        )
+        if self.do_pretrain_rollouts
+            total_ret = self.do_rollouts()
+            print("INITIAL RETURN", total_ret/20)
 
         prev_time = time.time()
         for i in range(self.bc_num_pretrain_steps):
@@ -242,21 +247,11 @@ class AWRSACTrainer(TorchTrainer):
 
             test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer)
             test_policy_loss = test_policy_loss * self.bc_weight
-             
+
             if self.do_pretrain_rollouts and i % self.pretraining_env_logging_period == 0:
-                total_ret = 0
-                for _ in range(20):
-                    o = self.env.reset()
-                    ret = 0
-                    for _ in range(1000):
-                        a, _ = self.policy.get_action(o)
-                        o, r, done, info = self.env.step(a)
-                        ret += r
-                        if done:
-                            break
-                    total_ret += ret
+                total_ret = self.do_rollouts()
                 print("Return at step {} : {}".format(i, total_ret/20))
-            
+
             if i % self.pretraining_logging_period==0:
                 stats = {
                 "pretrain_bc/batch": i,
@@ -320,7 +315,7 @@ class AWRSACTrainer(TorchTrainer):
         for i in range(self.q_num_pretrain2_steps):
             self.eval_statistics = dict()
             if i % self.pretraining_logging_period == 0:
-                self._need_to_update_eval_statistics=True 
+                self._need_to_update_eval_statistics=True
             train_data = self.replay_buffer.random_batch(self.bc_batch_size)
             train_data = np_to_pytorch_batch(train_data)
             obs = train_data['observations']
@@ -330,17 +325,7 @@ class AWRSACTrainer(TorchTrainer):
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
             if self.do_pretrain_rollouts and i % self.pretraining_env_logging_period == 0:
-                total_ret = 0
-                for _ in range(20):
-                    o = self.env.reset()
-                    ret = 0
-                    for _ in range(1000):
-                        a, _ = self.policy.get_action(o)
-                        o, r, done, info = self.env.step(a)
-                        ret += r
-                        if done:
-                            break
-                    total_ret += ret
+                total_ret = self.do_rollouts()
                 print("Return at step {} : {}".format(i, total_ret/20))
 
             if i%self.pretraining_logging_period==0:
