@@ -222,6 +222,11 @@ class AWRSACTrainer(TorchTrainer):
         logger.add_tabular_output(
             'pretrain_policy.csv', relative_to_snapshot_dir=True
         )
+        if self.do_pretrain_rollouts:
+            total_ret = self.do_rollouts()
+            print("INITIAL RETURN", total_ret/20)
+
+        prev_time = time.time()
         for i in range(self.bc_num_pretrain_steps):
             train_policy_loss, train_logp_loss, train_mse_loss, train_log_std = self.run_bc_batch(self.demo_train_buffer)
             train_policy_loss = train_policy_loss * self.bc_weight
