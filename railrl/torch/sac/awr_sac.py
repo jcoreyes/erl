@@ -24,6 +24,7 @@ class AWRSACTrainer(TorchTrainer):
             qf2,
             target_qf1,
             target_qf2,
+            buffer_policy,
 
             discount=0.99,
             reward_scale=1.0,
@@ -80,6 +81,8 @@ class AWRSACTrainer(TorchTrainer):
             pretraining_env_logging_period=100000,
             pretraining_logging_period=1000,
             do_pretrain_rollouts=False,
+
+            train_bc_on_rl_buffer=False,
     ):
         super().__init__()
         self.env = env
@@ -88,6 +91,7 @@ class AWRSACTrainer(TorchTrainer):
         self.qf2 = qf2
         self.target_qf1 = target_qf1
         self.target_qf2 = target_qf2
+        self.buffer_policy = buffer_policy
         self.soft_target_tau = soft_target_tau
         self.target_update_period = target_update_period
 
@@ -128,6 +132,12 @@ class AWRSACTrainer(TorchTrainer):
             self.qf2.parameters(),
             weight_decay=q_weight_decay,
             lr=qf_lr,
+        )
+
+        self.buffer_policy_optimizer =  optimizer_class(
+            self.buffer_policy.parameters(),
+            weight_decay=policy_weight_decay,
+            lr=policy_lr,
         )
 
         self.discount = discount
@@ -177,13 +187,15 @@ class AWRSACTrainer(TorchTrainer):
         self.terminal_transform = self.terminal_transform_class(**self.terminal_transform_kwargs)
         self.use_reparam_update = use_reparam_update
 
+        self.train_bc_on_rl_buffer = train_bc_on_rl_buffer
+
 
     def get_batch_from_buffer(self, replay_buffer, batch_size):
         batch = replay_buffer.random_batch(batch_size)
         batch = np_to_pytorch_batch(batch)
         return batch
 
-    def run_bc_batch(self, replay_buffer):
+    def run_bc_batch(self, replay_buffer, policy):
         batch = self.get_batch_from_buffer(replay_buffer, self.bc_batch_size)
         o = batch["observations"]
         u = batch["actions"]
@@ -191,7 +203,7 @@ class AWRSACTrainer(TorchTrainer):
         # og = torch.cat((o, g), dim=1)
         og = o
         # pred_u, *_ = self.policy(og)
-        pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, mean_action_log_prob, pretanh_value, dist = self.policy(
+        pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, mean_action_log_prob, pretanh_value, dist = policy(
             og, deterministic=False, reparameterize=True, return_log_prob=True,
         )
 
@@ -232,20 +244,20 @@ class AWRSACTrainer(TorchTrainer):
         logger.add_tabular_output(
             'pretrain_policy.csv', relative_to_snapshot_dir=True
         )
-        if self.do_pretrain_rollouts
+        if self.do_pretrain_rollouts:
             total_ret = self.do_rollouts()
             print("INITIAL RETURN", total_ret/20)
 
         prev_time = time.time()
         for i in range(self.bc_num_pretrain_steps):
-            train_policy_loss, train_logp_loss, train_mse_loss, train_log_std = self.run_bc_batch(self.demo_train_buffer)
+            train_policy_loss, train_logp_loss, train_mse_loss, train_log_std = self.run_bc_batch(self.demo_train_buffer, self.policy)
             train_policy_loss = train_policy_loss * self.bc_weight
 
             self.policy_optimizer.zero_grad()
             train_policy_loss.backward()
             self.policy_optimizer.step()
 
-            test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer)
+            test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer, self.policy)
             test_policy_loss = test_policy_loss * self.bc_weight
 
             if self.do_pretrain_rollouts and i % self.pretraining_env_logging_period == 0:
@@ -471,9 +483,11 @@ class AWRSACTrainer(TorchTrainer):
 
         policy_loss = self.rl_weight * policy_loss
         if self.compute_bc:
-            train_policy_loss, train_logp_loss, train_mse_loss, _ = self.run_bc_batch(self.demo_train_buffer)
+            train_policy_loss, train_logp_loss, train_mse_loss, _ = self.run_bc_batch(self.demo_train_buffer, self.policy)
             policy_loss = policy_loss + self.bc_weight * train_policy_loss
 
+        if self.train_bc_on_rl_buffer:
+            buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(self.replay_buffer, self.buffer_policy)
         """
         Update networks
         """
@@ -490,6 +504,11 @@ class AWRSACTrainer(TorchTrainer):
             self.policy_optimizer.zero_grad()
             policy_loss.backward()
             self.policy_optimizer.step()
+
+        if self.train_bc_on_rl_buffer and self._n_train_steps_total % self.policy_update_period == 0 :
+            self.buffer_policy_optimizer.zero_grad()
+            buffer_policy_loss.backward()
+            self.buffer_policy_optimizer.step()
 
         """
         Soft Updates
@@ -551,7 +570,7 @@ class AWRSACTrainer(TorchTrainer):
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
 
             if self.compute_bc:
-                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.demo_test_buffer)
+                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.demo_test_buffer, self.policy)
                 self.eval_statistics.update({
                     "bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
                     "bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
@@ -560,6 +579,18 @@ class AWRSACTrainer(TorchTrainer):
                     "bc/train_policy_loss": ptu.get_numpy(train_policy_loss),
                     "bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
                 })
+            if self.train_bc_on_rl_buffer:
+                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.replay_buffer,
+                                                                                       self.buffer_policy)
+                self.eval_statistics.update({
+                    "buffer_policy/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
+                    "buffer_policy/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
+                    "buffer_policy/Train MSE": ptu.get_numpy(train_mse_loss),
+                    "buffer_policy/Test MSE": ptu.get_numpy(test_mse_loss),
+                    "buffer_policy/train_policy_loss": ptu.get_numpy(train_policy_loss),
+                    "buffer_policy/test_policy_loss": ptu.get_numpy(test_policy_loss),
+                })
+
         self._n_train_steps_total += 1
 
     def get_diagnostics(self):
