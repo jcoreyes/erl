@@ -39,6 +39,7 @@ if __name__ == "__main__":
             rl_weight=0.0,
             bc_loss_type='mse',
             pretraining_env_logging_period=10000,
+            do_pretrain_rollouts=True,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256] * 4,

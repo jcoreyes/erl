@@ -79,7 +79,7 @@ class AWRSACTrainer(TorchTrainer):
 
             pretraining_env_logging_period=100000,
             pretraining_logging_period=1000,
-            do_pretrain_rollouts=True,
+            do_pretrain_rollouts=False,
     ):
         super().__init__()
         self.env = env
@@ -260,7 +260,6 @@ class AWRSACTrainer(TorchTrainer):
             if i % self.pretraining_logging_period==0:
                 stats = {
                 "pretrain_bc/batch": i,
-                "pretrain_bc/avg_return": total_ret / 20,
                 "pretrain_bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
                 "pretrain_bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
                 "pretrain_bc/Train MSE": ptu.get_numpy(train_mse_loss),
@@ -269,6 +268,9 @@ class AWRSACTrainer(TorchTrainer):
                 "pretrain_bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
                 "pretrain_bc/epoch_time":time.time()-prev_time,
                 }
+
+                if self.do_pretrain_rollouts:
+                    stats["pretrain_bc/avg_return"] = total_ret / 20
 
                 logger.record_dict(stats)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
@@ -308,7 +310,7 @@ class AWRSACTrainer(TorchTrainer):
             train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
-            if i % 1000 == 0:
+            if i%self.pretraining_logging_period == 0:
                 logger.record_dict(self.eval_statistics)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
@@ -342,7 +344,8 @@ class AWRSACTrainer(TorchTrainer):
                 print("Return at step {} : {}".format(i, total_ret/20))
 
             if i%self.pretraining_logging_period==0:
-                self.eval_statistics["avg_return"] = total_ret / 20
+                if self.do_pretrain_rollouts:
+                    self.eval_statistics["pretrain_bc/avg_return"] = total_ret / 20
                 self.eval_statistics["batch"] = i
                 self.eval_statistics["epoch_time"] = time.time()-prev_time
                 logger.record_dict(self.eval_statistics)

@@ -42,6 +42,7 @@ if __name__ == "__main__":
             rl_weight=1,
             bc_weight=0,
             use_automatic_entropy_tuning=True,
+            do_pretrain_rollouts=True,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*4,

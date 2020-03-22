@@ -40,6 +40,7 @@ if __name__ == "__main__":
             compute_bc=False,
             weight_loss=False,
             pretraining_env_logging_period=100000,
+            do_pretrain_rollouts=True,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*2,

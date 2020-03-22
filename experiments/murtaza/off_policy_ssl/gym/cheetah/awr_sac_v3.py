@@ -37,6 +37,7 @@ if __name__ == "__main__":
             pretraining_env_logging_period=100000,
             terminal_transform_kwargs=dict(m=1, b=0),
             weight_loss=False,
+            do_pretrain_rollouts=True,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*4,

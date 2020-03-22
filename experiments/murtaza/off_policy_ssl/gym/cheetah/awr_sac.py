@@ -38,6 +38,7 @@ if __name__ == "__main__":
             bc_num_pretrain_steps=100000,
             terminal_transform_kwargs=dict(m=0, b=0),
             pretraining_env_logging_period=100000,
+            do_pretrain_rollouts=True,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
