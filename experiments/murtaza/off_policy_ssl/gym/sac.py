@@ -1,19 +1,8 @@
 """
 Test twin sac against various environments.
 """
-from gym.envs.mujoco import (
-    HalfCheetahEnv,
-    AntEnv,
-    Walker2dEnv,
-    InvertedDoublePendulumEnv,
-    HopperEnv,
-    HumanoidEnv,
-    SwimmerEnv,
-)
-from gym.envs.classic_control import PendulumEnv
-
+import gym
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
@@ -29,54 +18,54 @@ from railrl.torch.torch_rl_algorithm import (
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
-        'env_class': HalfCheetahEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 1000,
+        'num_epochs': 10000,
+        'env_id':'HalfCheetah-v2'
     },
     'hopper': {  # 6 DoF
-        'env_class': HopperEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 1000,
+        'num_epochs': 10000,
+        'env_id':'Hopper-v2'
     },
     'humanoid': {  # 6 DoF
-        'env_class': HumanoidEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 3000,
+        'num_epochs': 10000,
+        'env_id':'Humanoid-v2'
     },
     'inv-double-pendulum': {  # 2 DoF
-        'env_class': InvertedDoublePendulumEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 100,
+        'env_id':'InvertedDoublePendulum-v2'
     },
     'pendulum': {  # 2 DoF
-        'env_class': PendulumEnv,
         'num_expl_steps_per_train_loop': 200,
         'max_path_length': 200,
         'num_epochs': 200,
         'min_num_steps_before_training': 2000,
         'target_update_period': 200,
+        'env_id':'InvertedPendulum-v2'
     },
     'ant': {  # 6 DoF
-        'env_class': AntEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 3000,
+        'num_epochs': 10000,
+        'env_id':'Ant-v2'
     },
     'walker': {  # 6 DoF
-        'env_class': Walker2dEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 3000,
+        'num_epochs': 10000,
+        'env_id':'Walker2d-v2'
     },
     'swimmer': {  # 6 DoF
-        'env_class': SwimmerEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 2000,
+        'env_id':'Swimmer-v2'
     },
 }
 
@@ -85,8 +74,10 @@ def experiment(variant):
     env_params = ENV_PARAMS[variant['env']]
     variant.update(env_params)
 
-    expl_env = NormalizedBoxEnv(variant['env_class']())
-    eval_env = NormalizedBoxEnv(variant['env_class']())
+    if 'env_id' in env_params:
+        expl_env = gym.make(env_params['env_id'])
+        eval_env = gym.make(env_params['env_id'])
+
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
 
@@ -204,23 +195,23 @@ if __name__ == "__main__":
     )
 
     # n_seeds = 1
-    # mode = 'local_docker'
+    # mode = 'local'
     # exp_prefix = 'dev'
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sac_mujoco_envs'
+    exp_prefix = 'sac_mujoco_envs_unnormalized_run_longer'
 
     search_space = {
         'env': [
-            'half-cheetah',
-            'inv-double-pendulum',
-            'pendulum',
-            'ant',
+            # 'half-cheetah',
+            # 'inv-double-pendulum',
+            # 'pendulum',
+            # 'ant',
             'walker',
-            'hopper',
-            'humanoid',
-            'swimmer',
+            # 'hopper',
+            # 'humanoid',
+            # 'swimmer',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

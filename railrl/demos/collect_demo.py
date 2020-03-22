@@ -33,7 +33,7 @@ import pickle
 
 ### workaround to solve cv2 version conflicts (ROS adds Python2 version of cv2)
 # sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
-import cv2
+# import cv2
 # sys.path.insert(0,'/opt/ros/kinetic/lib/python2.7/dist-packages')
 
 # import cv2
@@ -97,7 +97,7 @@ def collect_one_rollout(env, expert, horizon=200, threshold=-1, add_action_noise
     o = env.reset()
 
     traj = dict(
-        observations=[o],
+        observations=[],
         actions=[],
         rewards=[],
         next_observations=[],
@@ -148,7 +148,7 @@ def collect_one_rollout_mdp(env, expert, horizon=200, render=False, pause=0,  th
     o = env.reset()
 
     traj = dict(
-        observations=[o],
+        observations=[],
         actions=[],
         rewards=[],
         next_observations=[],
