@@ -1,6 +1,6 @@
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc import eval_util
-from railrl.samplers.rollout_functions import rollout
+from railrl.samplers.rollout_functions import deprecated_rollout
 from railrl.torch.core import PyTorchModule
 import railrl.torch.pytorch_util as ptu
 import argparse
@@ -29,7 +29,7 @@ def simulate_policy(args):
             data.keys()
         ))
 
-    #robosuite env specific things 
+    #robosuite env specific things
     env._wrapped_env.has_renderer = True
     env.reset()
     env.viewer.set_camera(camera_id=0)
@@ -54,7 +54,7 @@ def simulate_policy(args):
         policy.train(False)
     paths = []
     while True:
-        paths.append(rollout(
+        paths.append(deprecated_rollout(
             env,
             policy,
             max_path_length=args.H,
