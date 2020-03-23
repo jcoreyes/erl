@@ -1,4 +1,6 @@
-experiments in reference.png:
+experiments in reference.png (fixed restart at (0, 0)):
 /home/vitchyr/res/200323-dev-experiments-vitchyr-references-goal-conditioned-from-state-pointmass/200323-dev-experiments-vitchyr-references-goal-conditioned-from-state-pointmass_2020_03_23_16_27_25_id000--s0/
 /home/vitchyr/res/200323-dev-experiments-vitchyr-references-goal-conditioned-from-state-pointmass/200323-dev-experiments-vitchyr-references-goal-conditioned-from-state-pointmass_2020_03_23_16_30_54_id000--s0/
 
+experiments in random_init_reference.png (random init anywhere in env)
+/home/vitchyr/res/200323-dev-experiments-vitchyr-references-goal-conditioned-from-state-pointmass-pointmass/200323-dev-experiments-vitchyr-references-goal-conditioned-from-state-pointmass-pointmass_2020_03_23_16_51_50_id000--s0/.
