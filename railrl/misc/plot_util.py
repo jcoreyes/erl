@@ -163,7 +163,7 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
     xlabel=None, default_vary=False, xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True, print_legend=True,
     reduce_op=sum, method_order=None, remap_keys={},
-    label_to_color=None, return_data=False, bar_plot=False,
+    label_to_color=None, return_data=False, bar_plot=False, label_include_key=True,
 ):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
@@ -191,7 +191,10 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
         error_key_not_found_in_flat_params
     for l in exps:
         if f(l) and l['progress']:
-            label = " ".join([v + ":" + lookup(v) for v in vary])
+            if label_include_key:
+                label = " ".join([v + ":" + lookup(v) for v in vary])
+            else:
+                label = " ".join([lookup(v) for v in vary])
             ys = y_data.setdefault(label, [])
             xs = x_data.setdefault(label, [])
 
@@ -467,3 +470,24 @@ def scatterplot_matrix(data1, data2, **kwargs):
     #     axes[i,j].yaxis.set_visible(True)
 
     return fig
+
+def plot_horizontal(x, values, label):
+    mean, std = np.mean(values), np.std(values)
+    plt.fill_between(x, mean- std, mean + std, alpha=0.1)
+    return plt.plot(x, [mean, mean], label=label)
+
+def plot_with_errors(x, values, label):
+    mean, std = np.mean(values, axis=0), np.std(values, axis=0)
+    plt.fill_between(x, mean- std, mean + std, alpha=0.1)
+    return plt.plot(x, mean, label=label)
+
+def configure_matplotlib(matplotlib):
+    matplotlib.rcParams['mathtext.fontset'] = 'stix'
+    matplotlib.rcParams['font.family'] = 'STIXGeneral'
+    matplotlib.rcParams.update({'font.size': 18})
+
+def format_func(value, tick_number):
+    return(str(int(value // 1000)) + 'K')
+
+def format_func_epoch(value, tick_number):
+    return(str(int(value)) + 'K')
