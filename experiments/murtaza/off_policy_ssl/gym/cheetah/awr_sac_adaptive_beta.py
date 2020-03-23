@@ -39,6 +39,7 @@ if __name__ == "__main__":
             pretraining_env_logging_period=100000,
             do_pretrain_rollouts=True,
             train_bc_on_rl_buffer=True,
+            use_automatic_beta_tuning=True,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
@@ -70,9 +71,10 @@ if __name__ == "__main__":
         'policy_kwargs.hidden_sizes':[[256]*4],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
+        'trainer_kwargs.beta_epsilon':[0.001, .01, .1, 1],
         'trainer_kwargs.weight_loss':[True],
         'trainer_kwargs.beta':[
-            1.3,
+            1,
         ],
         'train_rl':[True],
         'pretrain_rl':[True],
@@ -107,7 +109,7 @@ if __name__ == "__main__":
 
     # n_seeds = 2
     # mode = 'ec2'
-    # exp_name = 'awr_sac_hc_offline_online_final_v1'
+    # exp_name = 'awr_sac_hc_adaptive_beta_offline_online_final_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

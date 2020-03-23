@@ -83,6 +83,8 @@ class AWRSACTrainer(TorchTrainer):
             do_pretrain_rollouts=False,
 
             train_bc_on_rl_buffer=False,
+            use_automatic_beta_tuning=False,
+            beta_epsilon=1e-10,
     ):
         super().__init__()
         self.env = env
@@ -140,16 +142,25 @@ class AWRSACTrainer(TorchTrainer):
             lr=policy_lr,
         )
 
+        self.use_automatic_beta_tuning = use_automatic_beta_tuning
+        self.beta_epsilon=beta_epsilon
+        if self.use_automatic_beta_tuning:
+            self.log_beta = ptu.zeros(1, requires_grad=True)
+            self.beta_optimizer = optimizer_class(
+                [self.log_beta],
+                lr=policy_lr,
+            )
+        else:
+            self.beta = beta
+            self.beta_schedule_kwargs = beta_schedule_kwargs
+            if beta_schedule_kwargs is None:
+                self.beta_schedule = ConstantSchedule(beta)
+            else:
+                schedule_class = beta_schedule_kwargs.pop("schedule_class", PiecewiseLinearSchedule)
+                self.beta_schedule = schedule_class(**beta_schedule_kwargs)
+
         self.discount = discount
         self.reward_scale = reward_scale
-        self.beta = beta
-        self.beta_schedule_kwargs = beta_schedule_kwargs
-        if beta_schedule_kwargs is None:
-            self.beta_schedule = ConstantSchedule(beta)
-        else:
-            schedule_class = beta_schedule_kwargs.pop("schedule_class", PiecewiseLinearSchedule)
-            self.beta_schedule = schedule_class(**beta_schedule_kwargs)
-
         self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
@@ -468,7 +479,18 @@ class AWRSACTrainer(TorchTrainer):
         advantage = q_adv - v_pi
 
         if self.weight_loss and weights is None:
-            beta = self.beta_schedule.get_value(self._n_train_steps_total)
+            if self.use_automatic_beta_tuning:
+                _, _, _, _, _, _, _, _, buffer_dist = self.buffer_policy(
+                    obs, deterministic=False, reparameterize=True, return_log_prob=True,
+                )
+                beta = self.log_beta.exp()
+                beta_loss = beta*(torch.distributions.kl.kl_divergence(dist, buffer_dist).detach().mean()-self.beta_epsilon)
+
+                self.beta_optimizer.zero_grad()
+                beta_loss.backward()
+                self.beta_optimizer.step()
+            else:
+                beta = self.beta_schedule.get_value(self._n_train_steps_total)
             weights = F.softmax(advantage / beta, dim=0)
 
         policy_loss = alpha * log_pi.mean()
@@ -509,6 +531,8 @@ class AWRSACTrainer(TorchTrainer):
             self.buffer_policy_optimizer.zero_grad()
             buffer_policy_loss.backward()
             self.buffer_policy_optimizer.step()
+
+
 
         """
         Soft Updates
@@ -589,6 +613,11 @@ class AWRSACTrainer(TorchTrainer):
                     "buffer_policy/Test MSE": ptu.get_numpy(test_mse_loss),
                     "buffer_policy/train_policy_loss": ptu.get_numpy(train_policy_loss),
                     "buffer_policy/test_policy_loss": ptu.get_numpy(test_policy_loss),
+                })
+            if self.use_automatic_beta_tuning:
+                self.eval_statistics.update({
+                    "adaptive_beta/beta":ptu.get_numpy(beta.mean()),
+                    "adaptive_beta/beta loss": ptu.get_numpy(beta_loss.mean()),
                 })
 
         self._n_train_steps_total += 1
