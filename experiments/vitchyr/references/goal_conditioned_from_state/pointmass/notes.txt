@@ -1,0 +1,4 @@
+experiments in reference.png:
+/home/vitchyr/res/200323-dev-experiments-vitchyr-references-goal-conditioned-from-state-pointmass/200323-dev-experiments-vitchyr-references-goal-conditioned-from-state-pointmass_2020_03_23_16_27_25_id000--s0/
+/home/vitchyr/res/200323-dev-experiments-vitchyr-references-goal-conditioned-from-state-pointmass/200323-dev-experiments-vitchyr-references-goal-conditioned-from-state-pointmass_2020_03_23_16_30_54_id000--s0/
+

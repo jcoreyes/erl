@@ -1,18 +1,7 @@
-from gym.envs.mujoco import (
-    HalfCheetahEnv,
-    AntEnv,
-    Walker2dEnv,
-    InvertedDoublePendulumEnv,
-    HopperEnv,
-    HumanoidEnv,
-    SwimmerEnv,
-)
-from gym.envs.classic_control import PendulumEnv
 import gym
-
+from railrl.data_management.awr_env_replay_buffer import AWREnvReplayBuffer
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWrapperEnv
-from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
@@ -26,7 +15,6 @@ from railrl.torch.torch_rl_algorithm import (
 
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.torch.grill.video_gen import save_paths
-from railrl.envs.env_utils import get_dim
 
 from multiworld.core.flat_goal_env import FlatGoalEnv
 from multiworld.core.image_env import ImageEnv
@@ -50,54 +38,46 @@ from railrl.misc.asset_loader import load_local_or_remote_file
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
-        'env_class': HalfCheetahEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 1000,
+        'env_id':'HalfCheetah-v2'
     },
     'hopper': {  # 6 DoF
-        'env_class': HopperEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 1000,
+        'env_id':'Hopper-v2'
     },
     'humanoid': {  # 6 DoF
-        'env_class': HumanoidEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 3000,
+        'env_id':'Humanoid-v2'
     },
     'inv-double-pendulum': {  # 2 DoF
-        'env_class': InvertedDoublePendulumEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 100,
+        'env_id':'InvertedDoublePendulum-v2'
     },
     'pendulum': {  # 2 DoF
-        'env_class': PendulumEnv,
         'num_expl_steps_per_train_loop': 200,
         'max_path_length': 200,
-        'num_epochs': 200,
         'min_num_steps_before_training': 2000,
         'target_update_period': 200,
+        'env_id':'Pendulum-v2'
     },
     'ant': {  # 6 DoF
-        'env_class': AntEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 3000,
+        'env_id':'Ant-v2'
     },
     'walker': {  # 6 DoF
-        'env_class': Walker2dEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 3000,
+        'env_id':'Walker2d-v2'
     },
     'swimmer': {  # 6 DoF
-        'env_class': SwimmerEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'num_epochs': 2000,
+        'env_id':'Swimmer-v2'
     },
 
     'pen-v0': {
@@ -289,8 +269,9 @@ def experiment(variant):
         variant.update(env_params)
 
         if 'env_id' in env_params:
-            import mj_envs
-
+            if env_params['env_id'] in ['pen-v0', 'pen-sparse-v0', 'door-v0', 'relocate-v0', 'hammer-v0',
+                                        'pen-sparse-v0', 'door-sparse-v0', 'relocate-sparse-v0', 'hammer-sparse-v0']:
+                import mj_envs
             expl_env = gym.make(env_params['env_id'])
             eval_env = gym.make(env_params['env_id'])
         else:
@@ -310,7 +291,6 @@ def experiment(variant):
         expl_env = encoder_wrapped_env(variant)
         eval_env = encoder_wrapped_env(variant)
 
-
     path_loader_kwargs = variant.get("path_loader_kwargs", {})
     stack_obs = path_loader_kwargs.get("stack_obs", 1)
     if stack_obs > 1:
@@ -323,11 +303,6 @@ def experiment(variant):
         env_info_sizes = expl_env.info_sizes
     else:
         env_info_sizes = dict()
-
-    replay_buffer_kwargs=dict(
-        max_replay_buffer_size=variant['replay_buffer_size'],
-        env=expl_env,
-    )
 
     M = variant['layer_size']
     qf1 = FlattenMlp(
@@ -396,8 +371,24 @@ def experiment(variant):
         else:
             error
 
-    replay_buffer = EnvReplayBuffer(
-        **replay_buffer_kwargs,
+    if variant.get('replay_buffer_class', EnvReplayBuffer) == AWREnvReplayBuffer:
+        main_replay_buffer_kwargs = variant['replay_buffer_kwargs']
+        main_replay_buffer_kwargs['env'] = expl_env
+        main_replay_buffer_kwargs['qf1'] = qf1
+        main_replay_buffer_kwargs['qf2'] = qf2
+        main_replay_buffer_kwargs['policy'] = policy
+    else:
+        main_replay_buffer_kwargs=dict(
+            max_replay_buffer_size=variant['replay_buffer_size'],
+            env=expl_env,
+        )
+    replay_buffer_kwargs = dict(
+        max_replay_buffer_size=variant['replay_buffer_size'],
+        env=expl_env,
+    )
+
+    replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
+        **main_replay_buffer_kwargs,
     )
     trainer = AWRSACTrainer(
         env=eval_env,
@@ -459,7 +450,6 @@ def experiment(variant):
 
     if variant.get('save_paths', False):
         algorithm.post_train_funcs.append(save_paths)
-
     if variant.get('load_demos', False):
         path_loader_class = variant.get('path_loader_class', MDPPathLoader)
         path_loader = path_loader_class(trainer,
@@ -473,7 +463,6 @@ def experiment(variant):
         trainer.pretrain_policy_with_bc()
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
-
     if variant.get('save_pretrained_algorithm', False):
         p_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.p')
         pt_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.pt')
@@ -481,5 +470,5 @@ def experiment(variant):
         data['algorithm'] = algorithm
         torch.save(data, open(pt_path, "wb"))
         torch.save(data, open(p_path, "wb"))
-
-    algorithm.train()
+    if variant.get('train_rl', True):
+        algorithm.train()

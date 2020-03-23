@@ -1,5 +1,7 @@
+import gym
+
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer, AWREnvReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
@@ -7,11 +9,12 @@ from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import FlattenMlp
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.sac.awr_sac import AWRSACTrainer
-from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy
+from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy, GaussianPolicy
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )
+from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 
 from gym.envs.mujoco import (
     HalfCheetahEnv,
@@ -25,10 +28,12 @@ from railrl.launchers.launcher_util import run_experiment
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'env_class': HalfCheetahEnv,
+        'env_id':'HalfCheetah-v2',
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 1000,
         'demo_path':"demos/hc_action_noise_1000.npy",
+        'bc_num_pretrain_steps':50000,
     },
     'hopper': {  # 6 DoF
         'env_class': HopperEnv,
@@ -36,6 +41,8 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 1000,
         'demo_path':"demos/hopper_action_noise_1000.npy",
+        'bc_num_pretrain_steps':500000,
+        'env_id':'Hopper-v2',
     },
     'ant': {  # 6 DoF
         'env_class': AntEnv,
@@ -43,6 +50,8 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 3000,
         'demo_path':"demos/ant_action_noise_1000.npy",
+        'bc_num_pretrain_steps':500000,
+        'env_id':'Ant-v2',
     },
     'walker': {  # 6 DoF
         'env_class': Walker2dEnv,
@@ -50,6 +59,8 @@ ENV_PARAMS = {
         'max_path_length': 1000,
         'num_epochs': 3000,
         'demo_path':"demos/walker_action_noise_1000.npy",
+        'bc_num_pretrain_steps':100000,
+        'env_id':'Walker2d-v2',
     },
 }
 
@@ -57,52 +68,63 @@ def experiment(variant):
     env_params = ENV_PARAMS[variant['env']]
     variant.update(env_params)
     variant['path_loader_kwargs']['demo_path'] = env_params['demo_path']
+    variant['trainer_kwargs']['bc_num_pretrain_steps'] = env_params['bc_num_pretrain_steps']
 
     if 'env_id' in env_params:
-        import mj_envs
-
-        expl_env = NormalizedBoxEnv(gym.make(env_params['env_id']))
-        eval_env = NormalizedBoxEnv(gym.make(env_params['env_id']))
-    else:
-        expl_env = NormalizedBoxEnv(variant['env_class']())
-        eval_env = NormalizedBoxEnv(variant['env_class']())
+        expl_env = gym.make(env_params['env_id'])
+        eval_env = gym.make(env_params['env_id'])
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
-
+    N = variant['num_layers']
     M = variant['layer_size']
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
+        hidden_sizes=[M]*N,
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
+        hidden_sizes=[M] * N,
     )
     target_qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
+        hidden_sizes=[M] * N,
     )
     target_qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
+        hidden_sizes=[M] * N,
     )
-    policy = TanhGaussianPolicy(
+    if variant.get('policy_class') == TanhGaussianPolicy:
+        policy = TanhGaussianPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
-        hidden_sizes=[M, M],
+        hidden_sizes=[M] * N,
     )
+    else:
+        policy = GaussianPolicy(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        hidden_sizes=[M] * N,
+        max_log_std=0,
+        min_log_std=-6,
+        )
+
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
         eval_env,
         eval_policy,
     )
-    replay_buffer = EnvReplayBuffer(
+    replay_buffer = AWREnvReplayBuffer(
         variant['replay_buffer_size'],
         expl_env,
+        use_weights=variant['use_weights'],
+        policy=policy,
+        qf1=qf1,
+        weight_update_period=variant['weight_update_period'],
+        beta=variant['trainer_kwargs']['beta'],
     )
     trainer = AWRSACTrainer(
         env=eval_env,
@@ -170,15 +192,14 @@ def experiment(variant):
                                     demo_test_buffer=demo_test_buffer,
                                     **variant['path_loader_kwargs']
                                     )
-
     if variant.get('load_demos', False):
         path_loader.load_demos()
     if variant.get('pretrain_policy', False):
         trainer.pretrain_policy_with_bc()
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
-
-    algorithm.train()
+    if variant.get('train_rl', True):
+        algorithm.train()
 
 if __name__ == "__main__":
     variant = dict(
@@ -188,9 +209,10 @@ if __name__ == "__main__":
         num_expl_steps_per_train_loop=1000,
         min_num_steps_before_training=1000,
         max_path_length=1000,
-        batch_size=256,
+        batch_size=512,
         replay_buffer_size=int(1E6),
         layer_size=256,
+        num_layers=4,
         algorithm="SAC BC",
         version="normal",
         collection_mode='batch',
@@ -207,47 +229,84 @@ if __name__ == "__main__":
             reward_scale=1,
             beta=1,
             use_automatic_entropy_tuning=True,
-            bc_num_pretrain_steps=10000,
-            q_num_pretrain_steps=10000,
+            bc_num_pretrain_steps=1000000,
+            q_num_pretrain1_steps=0,
+            q_num_pretrain2_steps=10000,
+            policy_weight_decay=1e-4,
+            compute_bc=True,
+            weight_loss=False,
+            bc_weight=1.0,
+            rl_weight=0.0,
+            bc_loss_type='mse',
+            pretraining_env_logging_period=100000,
+        ),
+        policy_kwargs=dict(
+            hidden_sizes=[256]*4,
+            max_log_std=0,
+            min_log_std=-6,
         ),
         path_loader_kwargs=dict(
             demo_path=None
         ),
+        weight_update_period=10000,
     )
 
     search_space = {
-        'trainer_kwargs.beta':[.0001, .001, .01, .1, 1, 10, 100],
-        'env': [
-            'half-cheetah',
-            'ant',
-            'walker',
-            'hopper',
+        'use_weights':[True],
+        # 'weight_update_period':[1000, 10000],
+        'trainer_kwargs.use_automatic_entropy_tuning':[False],
+        # 'trainer_kwargs.bc_num_pretrain_steps':[1000],
+        'trainer_kwargs.bc_weight':[1],
+        'trainer_kwargs.alpha':[0],
+        'trainer_kwargs.weight_loss':[True],
+        'trainer_kwargs.beta':[
+            10,
+            # 100,
         ],
+        'train_rl':[False],
+        'pretrain_rl':[False],
+        'load_demos':[True],
+        'pretrain_policy':[True],
+        'env': [
+            # 'ant',
+            'half-cheetah',
+            # 'walker',
+            # 'hopper',
+        ],
+        'policy_class':[
+          # TanhGaussianPolicy,
+          GaussianPolicy,
+        ],
+        'trainer_kwargs.bc_loss_type':[
+            'mse',
+        ],
+        'trainer_kwargs.awr_loss_type':[
+            'mse',
+        ]
+
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_prefix = 'test'
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_prefix = 'gym_awr_sac_exps_v1'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_prefix = 'bc_hc_gym_v4'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        # if variant['sac_bc_trainer_kwargs']['bc_weight'] == 0 and variant['sac_bc_trainer_kwargs']['demo_beta'] != 1:
-        #     continue
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
                 exp_prefix=exp_prefix,
                 mode=mode,
                 variant=variant,
-                num_exps_per_instance=2,
-                skip_wait=False,
+                num_exps_per_instance=1,
+                use_gpu=False,
                 gcp_kwargs=dict(
                     preemptible=False,
-                )
+                ),
             )
