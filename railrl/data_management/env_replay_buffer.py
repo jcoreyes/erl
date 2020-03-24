@@ -1,9 +1,8 @@
 from gym.spaces import Discrete
-
 from railrl.data_management.simple_replay_buffer import SimpleReplayBuffer
 from railrl.envs.env_utils import get_dim
 import numpy as np
-from PIL import Image
+
 
 class EnvReplayBuffer(SimpleReplayBuffer):
     def __init__(
@@ -48,7 +47,6 @@ class EnvReplayBuffer(SimpleReplayBuffer):
             terminal=terminal,
             **kwargs
         )
-
 
 class VPGEnvReplayBuffer(EnvReplayBuffer):
     def __init__(
