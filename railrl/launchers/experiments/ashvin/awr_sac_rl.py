@@ -332,12 +332,6 @@ def experiment(variant):
         **variant['policy_kwargs'],
     )
 
-    buffer_policy = policy_class(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        **variant['policy_kwargs'],
-    )
-
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
         eval_env,
@@ -403,7 +397,6 @@ def experiment(variant):
         qf2=qf2,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
-        buffer_policy=buffer_policy,
         **variant['trainer_kwargs']
     )
     if variant['collection_mode'] == 'online':

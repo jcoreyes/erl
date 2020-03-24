@@ -24,7 +24,6 @@ class AWRSACTrainer(TorchTrainer):
             qf2,
             target_qf1,
             target_qf2,
-            buffer_policy,
 
             discount=0.99,
             reward_scale=1.0,
@@ -93,7 +92,7 @@ class AWRSACTrainer(TorchTrainer):
         self.qf2 = qf2
         self.target_qf1 = target_qf1
         self.target_qf2 = target_qf2
-        self.buffer_policy = buffer_policy
+        self.buffer_policy = pickle.loads(pickle.dumps(self.policy))
         self.soft_target_tau = soft_target_tau
         self.target_update_period = target_update_period
 
@@ -481,7 +480,7 @@ class AWRSACTrainer(TorchTrainer):
         if self.weight_loss and weights is None:
             if self.use_automatic_beta_tuning:
                 _, _, _, _, _, _, _, _, buffer_dist = self.buffer_policy(
-                    obs, deterministic=False, reparameterize=True, return_log_prob=True,
+                    obs, reparameterize=True, return_log_prob=True,
                 )
                 beta = self.log_beta.exp()
                 kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
