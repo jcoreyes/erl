@@ -1,5 +1,5 @@
 import numpy as np
-from railrl.samplers.rollout_functions import rollout as normal_rollout
+from railrl.samplers.rollout_functions import deprecated_rollout as normal_rollout
 
 def rollout(*args, **kwargs):
     # TODO Steven: remove pointer
