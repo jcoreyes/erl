@@ -484,7 +484,8 @@ class AWRSACTrainer(TorchTrainer):
                     obs, deterministic=False, reparameterize=True, return_log_prob=True,
                 )
                 beta = self.log_beta.exp()
-                beta_loss = beta*(torch.distributions.kl.kl_divergence(dist, buffer_dist).detach().mean()-self.beta_epsilon)
+                kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist).detach().mean()
+                beta_loss = beta*(kldiv-self.beta_epsilon)
 
                 self.beta_optimizer.zero_grad()
                 beta_loss.backward()
@@ -618,6 +619,7 @@ class AWRSACTrainer(TorchTrainer):
                 self.eval_statistics.update({
                     "adaptive_beta/beta":ptu.get_numpy(beta.mean()),
                     "adaptive_beta/beta loss": ptu.get_numpy(beta_loss.mean()),
+                    "adaptive_beta/kl_div":ptu.get_numpy(kldiv.mean()),
                 })
 
         self._n_train_steps_total += 1
