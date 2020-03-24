@@ -608,6 +608,12 @@ class AWRSACTrainer(TorchTrainer):
             if self.train_bc_on_rl_buffer:
                 test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.replay_buffer,
                                                                                        self.buffer_policy)
+                _, _, _, _, _, _, _, _, buffer_dist = self.buffer_policy(
+                    obs, reparameterize=True, return_log_prob=True,
+                )
+
+                kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
+
                 self.eval_statistics.update({
                     "buffer_policy/Train Logprob Loss": ptu.get_numpy(buffer_train_logp_loss),
                     "buffer_policy/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
@@ -615,12 +621,12 @@ class AWRSACTrainer(TorchTrainer):
                     "buffer_policy/Test MSE": ptu.get_numpy(test_mse_loss),
                     "buffer_policy/train_policy_loss": ptu.get_numpy(buffer_policy_loss),
                     "buffer_policy/test_policy_loss": ptu.get_numpy(test_policy_loss),
+                    "buffer_policy/kl_div":ptu.get_numpy(kldiv.mean()),
                 })
             if self.use_automatic_beta_tuning:
                 self.eval_statistics.update({
                     "adaptive_beta/beta":ptu.get_numpy(beta.mean()),
                     "adaptive_beta/beta loss": ptu.get_numpy(beta_loss.mean()),
-                    "adaptive_beta/kl_div":ptu.get_numpy(kldiv.mean()),
                 })
 
         self._n_train_steps_total += 1
