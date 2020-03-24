@@ -502,4 +502,5 @@ def create_trial_name(exp_name, exp_id=0, seed=0):
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
     return "%s_%s_id%03d--s%d" % (exp_name, timestamp, exp_id, seed)
 
+
 logger = Logger()
