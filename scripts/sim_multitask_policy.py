@@ -48,8 +48,8 @@ def simulate_policy(args):
             policy,
             max_path_length=args.H,
             render=not args.hide,
-            observation_key='observation',
-            desired_goal_key='desired_goal',
+            observation_key=data.get('evaluation/observation_key', 'observation'),
+            desired_goal_key=data.get('evaluation/desired_goal_key', 'desired_goal'),
         ))
         if hasattr(env, "log_diagnostics"):
             env.log_diagnostics(paths)
