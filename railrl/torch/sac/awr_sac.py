@@ -24,6 +24,7 @@ class AWRSACTrainer(TorchTrainer):
             qf2,
             target_qf1,
             target_qf2,
+            buffer_policy=None,
 
             discount=0.99,
             reward_scale=1.0,
@@ -92,7 +93,7 @@ class AWRSACTrainer(TorchTrainer):
         self.qf2 = qf2
         self.target_qf1 = target_qf1
         self.target_qf2 = target_qf2
-        self.buffer_policy = pickle.loads(pickle.dumps(self.policy))
+        self.buffer_policy = buffer_policy
         self.soft_target_tau = soft_target_tau
         self.target_update_period = target_update_period
 
@@ -135,13 +136,14 @@ class AWRSACTrainer(TorchTrainer):
             lr=qf_lr,
         )
 
-        self.buffer_policy_optimizer =  optimizer_class(
-            self.buffer_policy.parameters(),
-            weight_decay=policy_weight_decay,
-            lr=policy_lr,
-        )
+        if buffer_policy and train_bc_on_rl_buffer:
+            self.buffer_policy_optimizer =  optimizer_class(
+                self.buffer_policy.parameters(),
+                weight_decay=policy_weight_decay,
+                lr=policy_lr,
+            )
 
-        self.use_automatic_beta_tuning = use_automatic_beta_tuning
+        self.use_automatic_beta_tuning = use_automatic_beta_tuning and buffer_policy and train_bc_on_rl_buffer
         self.beta_epsilon=beta_epsilon
         if self.use_automatic_beta_tuning:
             self.log_beta = ptu.zeros(1, requires_grad=True)
@@ -197,7 +199,7 @@ class AWRSACTrainer(TorchTrainer):
         self.terminal_transform = self.terminal_transform_class(**self.terminal_transform_kwargs)
         self.use_reparam_update = use_reparam_update
 
-        self.train_bc_on_rl_buffer = train_bc_on_rl_buffer
+        self.train_bc_on_rl_buffer = train_bc_on_rl_buffer and buffer_policy
 
 
     def get_batch_from_buffer(self, replay_buffer, batch_size):
