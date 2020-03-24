@@ -102,14 +102,14 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_name = 'awr_sac_train_buffer_policy_v1'
+    # n_seeds = 1
+    # mode = 'local'
+    # exp_name = 'awr_sac_train_buffer_policy_v1'
     
 
-    # n_seeds = 2
-    # mode = 'ec2'
-    # exp_name = 'awr_sac_hc_adaptive_beta_offline_online_final_v1'
+    n_seeds = 2
+    mode = 'ec2'
+    exp_name = 'awr_sac_hc_adaptive_beta_offline_online_final_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -119,7 +119,7 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=2,
-                # use_gpu=True,
+                use_gpu=True,
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),

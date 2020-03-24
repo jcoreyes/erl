@@ -638,6 +638,7 @@ class AWRSACTrainer(TorchTrainer):
             self.qf2,
             self.target_qf1,
             self.target_qf2,
+            self.buffer_policy,
         ]
 
     def get_snapshot(self):
@@ -647,4 +648,5 @@ class AWRSACTrainer(TorchTrainer):
             qf2=self.qf2,
             target_qf1=self.qf1,
             target_qf2=self.qf2,
+            buffer_policy=self.buffer_policy,
         )
