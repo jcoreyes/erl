@@ -392,6 +392,7 @@ def setup_logger(
     variant_to_save = variant.copy()
     variant_to_save['unique_id'] = unique_id
     variant_to_save['exp_name'] = exp_name
+    variant_to_save['trial_name'] = log_dir.split('/')[-1]
     logger.log(
         json.dumps(ppp.dict_to_safe_json(variant_to_save, sort=True), indent=2)
     )
