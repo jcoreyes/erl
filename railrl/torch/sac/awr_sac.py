@@ -484,8 +484,8 @@ class AWRSACTrainer(TorchTrainer):
                     obs, deterministic=False, reparameterize=True, return_log_prob=True,
                 )
                 beta = self.log_beta.exp()
-                kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist).detach().mean()
-                beta_loss = beta*(kldiv-self.beta_epsilon)
+                kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
+                beta_loss = (beta*(kldiv-self.beta_epsilon).detach()).mean()
 
                 self.beta_optimizer.zero_grad()
                 beta_loss.backward()
@@ -608,11 +608,11 @@ class AWRSACTrainer(TorchTrainer):
                 test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.replay_buffer,
                                                                                        self.buffer_policy)
                 self.eval_statistics.update({
-                    "buffer_policy/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
+                    "buffer_policy/Train Logprob Loss": ptu.get_numpy(buffer_train_logp_loss),
                     "buffer_policy/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
-                    "buffer_policy/Train MSE": ptu.get_numpy(train_mse_loss),
+                    "buffer_policy/Train MSE": ptu.get_numpy(buffer_train_mse_loss),
                     "buffer_policy/Test MSE": ptu.get_numpy(test_mse_loss),
-                    "buffer_policy/train_policy_loss": ptu.get_numpy(train_policy_loss),
+                    "buffer_policy/train_policy_loss": ptu.get_numpy(buffer_policy_loss),
                     "buffer_policy/test_policy_loss": ptu.get_numpy(test_policy_loss),
                 })
             if self.use_automatic_beta_tuning:

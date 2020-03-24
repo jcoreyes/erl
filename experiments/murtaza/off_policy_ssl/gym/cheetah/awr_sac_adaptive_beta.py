@@ -37,6 +37,7 @@ if __name__ == "__main__":
             bc_num_pretrain_steps=100000,
             terminal_transform_kwargs=dict(m=0, b=0),
             pretraining_env_logging_period=100000,
+            pretraining_logging_period=1000,
             do_pretrain_rollouts=True,
             train_bc_on_rl_buffer=True,
             use_automatic_beta_tuning=True,
@@ -71,7 +72,7 @@ if __name__ == "__main__":
         'policy_kwargs.hidden_sizes':[[256]*4],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
-        'trainer_kwargs.q_num_pretrain2_steps':[0, 25000, 100000],
+        'trainer_kwargs.q_num_pretrain2_steps':[25000, 100000],
         'trainer_kwargs.beta_epsilon':[1],
         'trainer_kwargs.weight_loss':[True],
         'trainer_kwargs.beta':[
@@ -93,7 +94,7 @@ if __name__ == "__main__":
         'trainer_kwargs.reparam_weight': [0.0],
         'trainer_kwargs.awr_weight': [1.0],
         'trainer_kwargs.bc_weight': [1.0, ],
-        'trainer_kwargs.compute_bc': [True],
+        'trainer_kwargs.compute_bc': [False],
         'trainer_kwargs.awr_use_mle_for_vf': [True, ],
         'trainer_kwargs.awr_sample_actions': [False, ],
         'trainer_kwargs.awr_min_q': [True, ],
@@ -103,14 +104,14 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_name = 'awr_sac_train_buffer_policy_v1'
+    n_seeds = 1
+    mode = 'local'
+    exp_name = 'awr_sac_train_buffer_policy_v1'
     
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_name = 'awr_sac_hc_adaptive_beta_offline_online_pretrain_len_v1'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_name = 'awr_sac_hc_adaptive_beta_offline_online_pretrain_len_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
