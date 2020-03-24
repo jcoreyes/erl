@@ -71,7 +71,8 @@ if __name__ == "__main__":
         'policy_kwargs.hidden_sizes':[[256]*4],
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
-        'trainer_kwargs.beta_epsilon':[0.001, .01, .1, 1],
+        'trainer_kwargs.q_num_pretrain2_steps':[0, 25000, 100000],
+        'trainer_kwargs.beta_epsilon':[1],
         'trainer_kwargs.weight_loss':[True],
         'trainer_kwargs.beta':[
             1,
@@ -109,7 +110,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_name = 'awr_sac_hc_adaptive_beta_offline_online_final_v1'
+    exp_name = 'awr_sac_hc_adaptive_beta_offline_online_pretrain_len_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
