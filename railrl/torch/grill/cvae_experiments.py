@@ -1,16 +1,9 @@
-import os.path as osp
-import time
-
 #import cv2
-import numpy as np
 
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
 
-from railrl.torch.grill.video_gen import VideoSaveFunction
+from railrl.visualization.video import VideoSaveFunction
 
 from railrl.torch.grill.common import *
 
@@ -26,13 +19,10 @@ def grill_her_td3_offpolicy_online_vae_full_experiment(variant):
     grill_her_td3_experiment_offpolicy_online_vae(variant['grill_variant'])
 
 def grill_her_td3_experiment_offpolicy_online_vae(variant):
-    import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
-    import railrl.samplers.rollout_functions as rf
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-    from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.td3.td3 import TD3
     from railrl.exploration_strategies.base import (
@@ -41,7 +31,7 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
     from railrl.exploration_strategies.gaussian_and_epislon import \
         GaussianAndEpislonStrategy
     from railrl.torch.vae.online_vae_offpolicy_algorithm import OnlineVaeOffpolicyAlgorithm
-    
+
     import gc
     gc.collect() # Ashvin: this line for a GPU memory error
 

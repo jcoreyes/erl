@@ -4,12 +4,10 @@ from visualization.grill.config import (
     ashvin_base_dir,
     vitchyr_base_dir,
     format_func,
-    our_method_name,
     configure_matplotlib,
 )
 import matplotlib.pyplot as plt
-from railrl.misc import plot_util as plot
-from railrl.misc import data_processing as dp
+from railrl.visualization import plot_util as plot
 
 configure_matplotlib(matplotlib)
 

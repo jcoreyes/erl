@@ -1,8 +1,6 @@
-import rllab.viskit.core as core
-import glob
 import matplotlib.pyplot as plt
 import numpy as np
-from railrl.misc import plot_util as plot
+
 plt.style.use("ggplot")
 import pickle
 import railrl.torch.pytorch_util as ptu

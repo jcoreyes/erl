@@ -6,7 +6,6 @@ a bit noisy from one epoch to the next (occasionally dips dow to ~2000).
 
 Note that one epoch = 5k steps, so 200 epochs = 1 million steps.
 """
-import gym
 
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
@@ -14,7 +13,6 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.gaussian_and_epislon import \
     GaussianAndEpislonStrategy
-from railrl.launchers.launcher_util import setup_logger
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
@@ -27,17 +25,15 @@ from multiworld.core.image_env import ImageEnv
 from multiworld.envs.real_world.sawyer.sawyer_reaching import SawyerReachXYZEnv
 # from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
 
-from railrl.launchers.launcher_util import run_experiment
 # import railrl.util.hyperparameter as hyp
 from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
-from railrl.misc.asset_loader import load_local_or_remote_file
 
 import torch
 
 from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
 import numpy as np
 
-from railrl.torch.grill.video_gen import VideoSaveFunction
+from railrl.visualization.video import VideoSaveFunction
 
 from railrl.launchers.arglauncher import run_variants
 import railrl.misc.hyperparameter as hyp
@@ -191,8 +187,8 @@ if __name__ == "__main__":
     variant = dict(
         env_class=SawyerReachXYZEnv,
         env_kwargs=dict(
-            action_mode="position", 
-            max_speed = 0.05, 
+            action_mode="position",
+            max_speed = 0.05,
             camera="sawyer_head"
         ),
         # algo_kwargs=dict(

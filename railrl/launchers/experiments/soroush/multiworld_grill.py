@@ -11,9 +11,7 @@ from multiworld.core.image_env import ImageEnv
 from railrl.core import logger
 from railrl.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
-from railrl.envs.multitask.multitask_env import MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.vae_wrappers import VAEWrappedEnv
-from railrl.envs.wrappers import ImageMujocoEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
@@ -26,7 +24,7 @@ from railrl.images.camera import (
 )
 from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.grill.video_gen import dump_video
+from railrl.visualization.video import dump_video
 from railrl.torch.her.her_td3 import HerTd3
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.vae.conv_vae import ConvVAE

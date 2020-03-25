@@ -2,7 +2,7 @@ import math
 import numpy as np
 from matplotlib import pyplot as plt
 
-from railrl.misc import visualization_util as vu
+from railrl.visualization import visualization_util as vu
 
 
 class Dynamics(object):
