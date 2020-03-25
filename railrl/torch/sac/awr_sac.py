@@ -486,7 +486,7 @@ class AWRSACTrainer(TorchTrainer):
                 )
                 beta = self.log_beta.exp()
                 kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
-                beta_loss = (beta*(kldiv-self.beta_epsilon).detach()).mean()
+                beta_loss = -1*(beta*(kldiv-self.beta_epsilon).detach()).mean()
 
                 self.beta_optimizer.zero_grad()
                 beta_loss.backward()
