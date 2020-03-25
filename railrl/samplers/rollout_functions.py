@@ -33,6 +33,31 @@ def multitask_rollout(
     return paths
 
 
+def contextual_rollout(
+        env,
+        agent,
+        max_path_length=np.inf,
+        render=False,
+        render_kwargs=None,
+        observation_key=None,
+        context_key='context',
+        get_action_kwargs=None,
+        return_dict_obs=False,
+):
+    def obs_processor(o):
+        return np.hstack((o[observation_key], o[context_key]))
+    paths = rollout(
+        env,
+        agent,
+        max_path_length=max_path_length,
+        render=render,
+        render_kwargs=render_kwargs,
+        get_action_kwargs=get_action_kwargs,
+        preprocess_obs_for_policy_fn=obs_processor,
+    )
+    return paths
+
+
 def rollout(
         env,
         agent,
