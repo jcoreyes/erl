@@ -13,14 +13,13 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.demos.td3_bc import TD3BCTrainer
 from railrl.torch.td3.td3 import TD3
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-from railrl.torch.grill.video_gen import VideoSaveFunction
+from railrl.visualization.video import VideoSaveFunction
 
 
 def state_td3bc_experiment(variant):
     if variant.get('env_id', None):
         import gym
         import multiworld
-        import mj_envs
         multiworld.register_all_envs()
         eval_env = gym.make(variant['env_id'])
         expl_env = gym.make(variant['env_id'])

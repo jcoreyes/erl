@@ -1,30 +1,27 @@
 from multiworld.core.image_env import ImageEnv
 
 import railrl.torch.pytorch_util as ptu
-from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer, ObsDictReplayBuffer
+from railrl.data_management.obs_dict_replay_buffer import ObsDictReplayBuffer
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.gaussian_and_epislon import GaussianAndEpislonStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.misc.asset_loader import load_local_or_remote_file
-from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector, ObsDictPathCollector
-from railrl.torch.her.her import HERTrainer
+from railrl.samplers.data_collector.path_collector import ObsDictPathCollector
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.demos.td3_bc import TD3BCTrainer
 from railrl.torch.td3.td3 import TD3
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-from railrl.torch.grill.video_gen import VideoSaveFunction
+from railrl.visualization.video import VideoSaveFunction
 
 from multiworld.core.gym_to_multi_env import MujocoGymToMultiEnv
 
-from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
 
 def state_td3bc_experiment(variant):
     if variant.get('env_id', None):
         import gym
         import multiworld
 
-        import mj_envs
         multiworld.register_all_envs()
 
         eval_env = gym.make(variant['env_id'])

@@ -11,7 +11,7 @@ from railrl.pythonplusplus import find_key_recursive
 from railrl.samplers.rollout_functions import tdm_rollout, \
     create_rollout_function
 from railrl.torch.core import PyTorchModule
-from railrl.torch.grill.video_gen import dump_video
+from railrl.visualization.video import dump_video
 from railrl.torch.pytorch_util import set_gpu_mode
 
 

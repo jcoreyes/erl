@@ -2,14 +2,11 @@ import matplotlib
 from visualization.grill.config import (
     output_dir,
     ashvin_base_dir,
-    vitchyr_base_dir,
     format_func,
-    our_method_name,
     configure_matplotlib,
 )
 import matplotlib.pyplot as plt
-from railrl.misc import plot_util as plot
-from railrl.misc import data_processing as dp
+from railrl.visualization import plot_util as plot
 
 configure_matplotlib(matplotlib)
 
@@ -31,7 +28,7 @@ plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_func))
 plt.xlabel("Timesteps")
 plt.ylabel("Final Distance to Goal")
 plt.title("Visual Reacher")
-plt.legend([]) 
+plt.legend([])
 plt.tight_layout()
 plt.savefig(output_dir + "reacher_reward_type_ablation.pdf")
 print("File saved to", output_dir + "reacher_reward_type_ablation.pdf")
