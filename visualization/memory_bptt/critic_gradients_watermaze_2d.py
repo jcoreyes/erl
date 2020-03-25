@@ -11,14 +11,13 @@ from pathlib import Path
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import torch
 from torch.autograd import Variable
 
 from railrl.envs.pygame.water_maze import WaterMaze
-import railrl.misc.visualization_util as vu
+import railrl.visualization.visualization_util as vu
 from visualization.memory_bptt.analyze_critic_watermaze_1d import (
-    create_qf_eval_fnct, create_optimal_qf
+    create_optimal_qf
 )
 
 USE_TIME = False

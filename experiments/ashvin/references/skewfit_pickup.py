@@ -16,6 +16,8 @@ from multiworld.envs.mujoco.cameras import (
 
 from railrl.torch.vae.conv_vae import imsize48_default_architecture
 
+from railrl.launchers.arglauncher import run_variants
+
 if __name__ == "__main__":
     num_images = 1
     variant = dict(
@@ -142,38 +144,15 @@ if __name__ == "__main__":
         init_camera=sawyer_pick_and_place_camera,
     )
 
-    search_space = {}
+    search_space = {
+        'seedid': range(5),
+    }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_prefix = 'dev-{}'.format(
-    #     __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    # )
+    variants = []
+    for variant in sweeper.iterate_hyperparameters():
+        variants.append(variant)
 
-    n_seeds = 5
-    mode = 'ec2'
-    exp_prefix = 'skewfit-pickup5'
-
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
-            run_experiment(
-                grill_her_twin_sac_online_vae_full_experiment,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                variant=variant,
-                use_gpu=True,
-                # trial_dir_suffix='n1000-{}--zoomed-{}'.format(n1000, zoomed),
-                snapshot_gap=200,
-                snapshot_mode='gap_and_last',
-                num_exps_per_instance=2,
-                region='us-west-2'
-                # gcp_kwargs=dict(
-                #     zone='us-west1-b',
-                    # preemptible=False,
-                    # instance_type="n1-standard-4"
-                # ),
-
-            )
+    run_variants(grill_her_twin_sac_online_vae_full_experiment, variants)

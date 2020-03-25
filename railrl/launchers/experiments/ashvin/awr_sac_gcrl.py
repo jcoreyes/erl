@@ -1,20 +1,5 @@
-from gym.envs.mujoco import (
-    HalfCheetahEnv,
-    AntEnv,
-    Walker2dEnv,
-    InvertedDoublePendulumEnv,
-    HopperEnv,
-    HumanoidEnv,
-    SwimmerEnv,
-)
-from gym.envs.classic_control import PendulumEnv
-import gym
-
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWrapperEnv
-from railrl.launchers.launcher_util import run_experiment
+from railrl.envs.wrappers import StackObservationEnv, RewardWrapperEnv
 import railrl.torch.pytorch_util as ptu
-from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector
 from railrl.torch.networks import FlattenMlp
@@ -26,18 +11,9 @@ from railrl.torch.torch_rl_algorithm import (
 )
 
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
-from railrl.torch.grill.video_gen import save_paths
-from railrl.envs.env_utils import get_dim
-
-from multiworld.core.flat_goal_env import FlatGoalEnv
-from multiworld.core.image_env import ImageEnv
-
-from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
-from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
+from railrl.visualization.video import save_paths
 
 import torch
-import numpy as np
-from torchvision.utils import save_image
 
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -45,7 +21,6 @@ from railrl.exploration_strategies.gaussian_and_epislon import GaussianAndEpislo
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 import os.path as osp
-import pickle
 from railrl.core import logger
 from railrl.misc.asset_loader import load_local_or_remote_file
 
@@ -53,7 +28,6 @@ from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
 from railrl.data_management.wrappers.concat_to_obs_wrapper import \
         ConcatToObsWrapper
-from railrl.torch.her.her import HERTrainer
 from railrl.envs.reward_mask_wrapper import DiscreteDistribution, RewardMaskWrapper
 
 def compute_hand_sparse_reward(next_obs, reward, done, info):

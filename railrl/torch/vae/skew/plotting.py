@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from railrl.misc import visualization_util as vu
+from railrl.visualization import visualization_util as vu
 from railrl.torch.vae.skew.common import prob_to_weight
 
 

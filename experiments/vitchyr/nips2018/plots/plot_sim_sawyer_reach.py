@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 from railrl.misc.data_processing import get_trials
-from railrl.misc.plot_util import plot_trials, padded_ma_filter
+from railrl.visualization.plot_util import plot_trials, padded_ma_filter
 
 plt.style.use("ggplot")
 

@@ -1,7 +1,6 @@
-import matplotlib
 import matplotlib.pyplot as plt
-from railrl.misc import plot_util as plot
-from railrl.misc import data_processing as dp
+from railrl.visualization import plot_util as plot
+
 ########## PUSHER PLOT
 
 dirs = [

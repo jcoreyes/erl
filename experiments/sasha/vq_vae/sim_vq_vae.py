@@ -207,8 +207,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-<<<<<<< HEAD
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=23)
-=======
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=23)
->>>>>>> parent of 595cfb8... Unstage experiments
+run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=23)

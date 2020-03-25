@@ -11,9 +11,7 @@ from gym.envs.classic_control import PendulumEnv
 import gym
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.trajectory_replay_buffer import TrajectoryReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv
-from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
@@ -26,8 +24,7 @@ from railrl.torch.torch_rl_algorithm import (
 )
 
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
-from railrl.torch.grill.video_gen import save_paths
-from railrl.envs.env_utils import get_dim
+from railrl.visualization.video import save_paths
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
@@ -113,7 +110,6 @@ def experiment(variant):
     variant.update(env_params)
 
     if 'env_id' in env_params:
-        import mj_envs
 
         expl_env = gym.make(env_params['env_id'])
         eval_env = gym.make(env_params['env_id'])

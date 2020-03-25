@@ -10,7 +10,6 @@ from pytz import timezone
 
 import railrl.torch.pytorch_util as ptu
 from railrl.core import logger
-from railrl.launchers.doodad_util import auto_setup
 from railrl.launchers.launcher_util import run_experiment
 
 
@@ -54,7 +53,7 @@ if __name__ == "__main__":
             seed=seed,
         )
         run_experiment(
-            auto_setup(example),
+            example,
             exp_name='gcp-doodad-easy-launch-example',
             mode='gcp',
             variant=variant,

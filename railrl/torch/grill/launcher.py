@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
-from railrl.torch.grill.video_gen import VideoSaveFunction
+from railrl.visualization.video import VideoSaveFunction
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
@@ -2561,7 +2561,7 @@ def get_state_experiment_video_save_function(rollout_function, env, policy, vari
     from multiworld.core.image_env import ImageEnv
     from railrl.core import logger
     from railrl.envs.vae_wrappers import temporary_mode
-    from railrl.torch.grill.video_gen import dump_video
+    from railrl.visualization.video import dump_video
     logdir = logger.get_snapshot_dir()
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)

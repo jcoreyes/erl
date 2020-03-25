@@ -51,6 +51,7 @@ class AutoSetup:
             )
         variant.pop('logger_config', None)
         variant.pop('seed', None)
+        variant.pop('exp_id', None)
         if self.unpack_variant:
             self.exp_function(**variant)
         else:
@@ -107,7 +108,8 @@ def setup_experiment(
         gpu_id,
 ):
     logger_config = variant.get('logger_config', {})
-    seed = variant.get('seed', random.randint(0, 99999))
+    seed = variant.get('seed', random.randint(0, 999999))
+    exp_id = variant.get('exp_id', random.randint(0, 999999))
     set_seed(seed)
     ptu.set_gpu_mode(use_gpu, gpu_id)
     os.environ['gpu_id'] = str(gpu_id)
@@ -118,6 +120,8 @@ def setup_experiment(
         variant=variant,
         git_infos=git_infos,
         script_name=script_name,
+        seed=seed,
+        exp_id=exp_id,
         **logger_config)
 
 
