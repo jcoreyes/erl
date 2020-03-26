@@ -125,12 +125,11 @@ def dump_video(
         dirname_to_save_images=None,
         subdirname="rollouts",
         imsize=84,
+        get_extra_imgs=None,
         grayscale=False,
 ):
-    # num_channels = env.vae.input_channels
     num_channels = 1 if grayscale else 3
     frames = []
-    H = 3 * imsize
     W = imsize
     N = rows * columns
     for i in range(N):
@@ -141,11 +140,6 @@ def dump_video(
             max_path_length=horizon,
             render=False,
         )
-        # path = rollout_function(
-        #     horizon,
-        #     horizon,
-        # discard_incomplete_paths=True,
-        # )[0]
         is_vae_env = isinstance(env, VAEWrappedEnv)
         is_conditional_vae_env = isinstance(env, ConditionalVAEWrappedEnv)
 
@@ -160,12 +154,18 @@ def dump_video(
                                 1)
             else:
                 recon = d['image_observation']
+
+            imgs_to_stack = [
+                d['image_desired_goal'],
+                d['image_observation'],
+                recon,
+            ]
+            if get_extra_imgs:
+                imgs_to_stack += get_extra_imgs(d)
+            H = len(imgs_to_stack) * imsize
             l.append(
-                get_image([
-                    d['image_desired_goal'],
-                    # d['decoded_goal_image'], # d['image_desired_goal'],
-                    d['image_observation'],
-                    recon, ],
+                get_image(
+                    imgs_to_stack,
                     imwidth=imsize,
                     imheight=imsize,
                     pad_length=pad_length,
