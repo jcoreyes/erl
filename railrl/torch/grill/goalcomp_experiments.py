@@ -1,20 +1,13 @@
-import os.path as osp
-import time
-
-import cv2
-import numpy as np
-
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
 
-from railrl.torch.grill.video_gen import VideoSaveFunction
+from railrl.visualization.video import VideoSaveFunction
 
 from railrl.torch.grill.common import *
 
-import sys
 
 def grill_her_twin_sac_online_vae_full_experiment(variant):
     variant['grill_variant']['save_vae_data'] = True
@@ -24,9 +17,7 @@ def grill_her_twin_sac_online_vae_full_experiment(variant):
 
 
 def grill_her_twin_sac_experiment_online_vae(variant):
-    import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
-    import railrl.samplers.rollout_functions as rf
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
     from railrl.torch.networks import FlattenMlp
@@ -110,20 +101,20 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     )
     trainer = HERTrainer(trainer)
     eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
         env,
         MakeDeterministic(policy),
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['evaluation_goal_sampling_mode'],
     )
     expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
         env,
         policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['exploration_goal_sampling_mode'],
     )
 
     algorithm = OnlineVaeAlgorithm(

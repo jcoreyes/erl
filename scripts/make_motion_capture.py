@@ -8,7 +8,7 @@ from railrl.core import logger
 from railrl.samplers.rollout_functions import multitask_rollout, \
     create_rollout_function
 from railrl.torch.core import PyTorchModule
-from railrl.torch.grill.video_gen import dump_video
+from railrl.visualization.video import dump_video
 from railrl.torch.pytorch_util import set_gpu_mode
 
 

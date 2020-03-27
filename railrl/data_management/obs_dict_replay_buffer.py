@@ -299,6 +299,10 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
         self.vectorized = vectorized
         self.use_multitask_rewards = use_multitask_rewards
 
+        if self.vectorized:
+            self._rewards = np.zeros(
+                (max_size, self.ob_spaces[achieved_goal_key].low.size))
+
     def random_batch(self, batch_size):
         indices = self._sample_indices(batch_size)
         num_env_goals = int(batch_size * self.fraction_goals_env_goals)

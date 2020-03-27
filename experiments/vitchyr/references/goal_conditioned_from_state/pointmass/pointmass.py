@@ -4,7 +4,8 @@ from railrl.launchers.rl_exp_launcher_util import twin_sac_experiment
 
 if __name__ == "__main__":
     variant = dict(
-        env_id='Point2DEnv-Train-Everything-Eval-Everything-v1',
+        env_id='Point2DLargeEnv-offscreen-v0',
+        # env_id='Point2DEnv-Train-Everything-Eval-Everything-v1',
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
         ),

@@ -2,7 +2,6 @@ from functools import partial
 
 import numpy as np
 
-
 create_rollout_function = partial
 
 
@@ -16,9 +15,42 @@ def multitask_rollout(
         desired_goal_key=None,
         get_action_kwargs=None,
         return_dict_obs=False,
+        full_o_postprocess_func=None,
 ):
+    def wrapped_fun(env, agent, o):
+        full_o_postprocess_func(env, agent, observation_key, o)
+
     def obs_processor(o):
         return np.hstack((o[observation_key], o[desired_goal_key]))
+
+    paths = rollout(
+        env,
+        agent,
+        max_path_length=max_path_length,
+        render=render,
+        render_kwargs=render_kwargs,
+        get_action_kwargs=get_action_kwargs,
+        preprocess_obs_for_policy_fn=obs_processor,
+        full_o_postprocess_func=wrapped_fun,
+    )
+    if not return_dict_obs:
+        paths['observations'] = paths['observations'][observation_key]
+    return paths
+
+
+def contextual_rollout(
+        env,
+        agent,
+        max_path_length=np.inf,
+        render=False,
+        render_kwargs=None,
+        observation_key=None,
+        context_key='context',
+        get_action_kwargs=None,
+        return_dict_obs=False,
+):
+    def obs_processor(o):
+        return np.hstack((o[observation_key], o[context_key]))
     paths = rollout(
         env,
         agent,
@@ -28,8 +60,6 @@ def multitask_rollout(
         get_action_kwargs=get_action_kwargs,
         preprocess_obs_for_policy_fn=obs_processor,
     )
-    if not return_dict_obs:
-        paths['observations'] = paths['observations'][observation_key]
     return paths
 
 
@@ -42,6 +72,7 @@ def rollout(
         preprocess_obs_for_policy_fn=None,
         get_action_kwargs=None,
         return_dict_obs=False,
+        full_o_postprocess_func=None,
 ):
     if render_kwargs is None:
         render_kwargs = {}
@@ -67,6 +98,10 @@ def rollout(
         raw_obs.append(o)
         a, agent_info = agent.get_action(
             preprocess_obs_for_policy_fn(o), **get_action_kwargs)
+
+        if full_o_postprocess_func:
+            full_o_postprocess_func(env, agent, o)
+
         next_o, r, d, env_info = env.step(a)
         if render:
             env.render(**render_kwargs)

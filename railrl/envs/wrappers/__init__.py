@@ -14,6 +14,7 @@ __all__ = [
     'ImageMujocoEnv',
     'ImageMujocoWithObsEnv',
     'NormalizedBoxEnv',
+    'ProxyEnv',
     'RewardWrapperEnv',
     'StackObservationEnv',
 ]

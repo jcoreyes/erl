@@ -1,15 +1,12 @@
-import gym
-
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.gaussian_and_epislon import \
     GaussianAndEpislonStrategy
-from railrl.launchers.launcher_util import setup_logger
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy, TorchMaxClamp, CNNPolicy
+from railrl.torch.networks import FlattenMlp, TanhMlpPolicy, CNNPolicy
 # from railrl.torch.td3.td3 import TD3
 from railrl.demos.td3_bc import TD3BCTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
@@ -18,20 +15,15 @@ from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 from multiworld.core.image_env import ImageEnv
 
-from railrl.launchers.launcher_util import run_experiment
 # import railrl.util.hyperparameter as hyp
 from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
-from railrl.misc.asset_loader import load_local_or_remote_file
 
 import torch
 
 from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
 import numpy as np
 
-from railrl.torch.grill.video_gen import VideoSaveFunction
-
-from railrl.launchers.arglauncher import run_variants
-import railrl.misc.hyperparameter as hyp
+from railrl.visualization.video import VideoSaveFunction
 
 # from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
 
@@ -141,7 +133,7 @@ def encoder_wrapped_td3bc_experiment(variant):
         # output_activation=TorchMaxClamp(0.0),
         **variant['qf_kwargs']
     )
-    
+
     # Support for CNNPolicy based policy/target policy
     # Defaults to TanhMlpPolicy unless cnn_params is supplied in variant
     if 'cnn_params' in variant.keys():

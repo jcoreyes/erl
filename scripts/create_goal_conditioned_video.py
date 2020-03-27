@@ -3,7 +3,7 @@ import pickle
 import uuid
 
 import railrl.samplers.rollout_functions as rf
-from railrl.torch.grill.video_gen import dump_video
+from railrl.visualization.video import dump_video
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.vae_wrappers import VAEWrappedEnv

@@ -100,6 +100,7 @@ class GoalConditionedPathCollector(MdpPathCollector):
             *args,
             observation_key='observation',
             desired_goal_key='desired_goal',
+            goal_sampling_mode=None,
             **kwargs
     ):
         def obs_processor(o):
@@ -109,6 +110,11 @@ class GoalConditionedPathCollector(MdpPathCollector):
                          **kwargs)
         self._observation_key = observation_key
         self._desired_goal_key = desired_goal_key
+        self._goal_sampling_mode = goal_sampling_mode
+
+    def collect_new_paths(self, *args, **kwargs):
+        self._env.goal_sampling_mode = self._goal_sampling_mode
+        return super().collect_new_paths(*args, **kwargs)
 
     def get_snapshot(self):
         snapshot = super().get_snapshot()
@@ -144,17 +150,14 @@ class ObsDictPathCollector(MdpPathCollector):
 class VAEWrappedEnvPathCollector(GoalConditionedPathCollector):
     def __init__(
             self,
-            goal_sampling_mode,
             env: VAEWrappedEnv,
             policy,
             decode_goals=False,
             **kwargs
     ):
         super().__init__(env, policy, **kwargs)
-        self._goal_sampling_mode = goal_sampling_mode
         self._decode_goals = decode_goals
 
     def collect_new_paths(self, *args, **kwargs):
-        self._env.goal_sampling_mode = self._goal_sampling_mode
         self._env.decode_goals = self._decode_goals
         return super().collect_new_paths(*args, **kwargs)
