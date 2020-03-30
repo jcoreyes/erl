@@ -641,14 +641,16 @@ class AWRSACTrainer(TorchTrainer):
 
     @property
     def networks(self):
-        return [
+        nets = [
             self.policy,
             self.qf1,
             self.qf2,
             self.target_qf1,
             self.target_qf2,
-            self.buffer_policy,
         ]
+        if self.buffer_policy:
+            nets.append(self.buffer_policy)
+        return nets
 
     def get_snapshot(self):
         return dict(
