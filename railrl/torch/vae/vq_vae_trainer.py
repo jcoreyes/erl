@@ -4,6 +4,7 @@ from os import path as osp
 import numpy as np
 import torch
 from railrl.core.loss import LossFunction
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from torch import optim
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
