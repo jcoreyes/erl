@@ -13,10 +13,10 @@ from railrl.torch.sac.sac import SACTrainer
 
 
 def her_twin_sac_experiment_v2(variant):
-    _her_twin_sac_experiment_v2(**variant)
+    her_sac_experiment(**variant)
 
 
-def _her_twin_sac_experiment_v2(
+def her_sac_experiment(
         max_path_length,
         qf_kwargs,
         twin_sac_trainer_kwargs,
@@ -144,6 +144,7 @@ def _her_twin_sac_experiment_v2(
             max_path_length=max_path_length,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
+            return_dict_obs=True,
         )
         eval_video_func = get_save_video_function(
             rollout_function,
