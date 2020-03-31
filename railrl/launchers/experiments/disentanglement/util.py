@@ -6,7 +6,7 @@ from railrl.core import logger
 from railrl.data_management.images import normalize_image
 from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.grill.video_gen import dump_video
+from railrl.visualization.video import dump_video
 
 
 def get_extra_imgs(full_observation_dict, img_keys):
