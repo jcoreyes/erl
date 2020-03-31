@@ -50,7 +50,6 @@ def contextual_rollout(
         observation_key=None,
         context_key='context',
         get_action_kwargs=None,
-        return_dict_obs=False,
 ):
     def obs_processor(o):
         return np.hstack((o[observation_key], o[context_key]))
