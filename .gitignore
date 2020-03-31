@@ -30,3 +30,4 @@ railrl/demos/spacemouse/config.py
 *.img
 MANIFEST
 *.egg-info
+Pyro_NS_URI
