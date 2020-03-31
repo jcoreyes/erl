@@ -17,8 +17,11 @@ def multitask_rollout(
         return_dict_obs=False,
         full_o_postprocess_func=None,
 ):
-    def wrapped_fun(env, agent, o):
-        full_o_postprocess_func(env, agent, observation_key, o)
+    if full_o_postprocess_func:
+        def wrapped_fun(env, agent, o):
+            full_o_postprocess_func(env, agent, observation_key, o)
+    else:
+        wrapped_fun = None
 
     def obs_processor(o):
         return np.hstack((o[observation_key], o[desired_goal_key]))
