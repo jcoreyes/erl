@@ -192,7 +192,7 @@ def train_dcgan(variant):
            shuffle=True, num_workers=variant["num_workers"])
     model = variant["dcgan_class"]
     trainer_class = variant["dcgan_trainer_class"]
-    trainer = vae_trainer_class(model, ngpu, lr, beta1) 
+    trainer = vae_trainer_class(model, ngpu, lr, beta1)
 
     for epoch in range(variant['num_epochs']):
         trainer.train_epoch(dataloader, epoch)
@@ -215,9 +215,9 @@ def train_dcgan(variant):
 
     for k, v in D_losses.items():
         logger.record_tabular(k, v)
-        logger.dump_tabular() 
-        
-    
+        logger.dump_tabular()
+
+
 
 def generate_vae_dataset(variant):
     print(variant)
