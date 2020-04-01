@@ -146,18 +146,18 @@ def td3_experiment(variant):
         )
     else:
         eval_path_collector = VAEWrappedEnvPathCollector(
-            variant['evaluation_goal_sampling_mode'],
             env,
             policy,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
+            goal_sampling_mode=['evaluation_goal_sampling_mode'],
         )
         expl_path_collector = VAEWrappedEnvPathCollector(
-            variant['exploration_goal_sampling_mode'],
             env,
             expl_policy,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
+            goal_sampling_mode=['exploration_goal_sampling_mode'],
         )
 
     algorithm = TorchBatchRLAlgorithm(

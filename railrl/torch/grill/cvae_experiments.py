@@ -132,20 +132,20 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
     )
     trainer = HERTrainer(trainer)
     eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
         env,
         policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['evaluation_goal_sampling_mode'],
     )
     expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
         env,
         expl_policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['exploration_goal_sampling_mode'],
     )
 
     algorithm = OnlineVaeOffpolicyAlgorithm(

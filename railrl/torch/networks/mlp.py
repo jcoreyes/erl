@@ -145,3 +145,22 @@ class MlpQfWithObsProcessor(Mlp):
         h = self.obs_processor(obs)
         flat_inputs = torch.cat((h, actions), dim=1)
         return super().forward(flat_inputs, **kwargs)
+
+
+class MlpGoalQfWithObsProcessor(Mlp):
+    def __init__(self, obs_processor, obs_dim,
+                 backprop_into_obs_preprocessor=True,
+                 *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.obs_processor = obs_processor
+        self.backprop_into_obs_preprocessor = backprop_into_obs_preprocessor
+        self.obs_dim = obs_dim
+
+    def forward(self, obs, actions, **kwargs):
+        h_s = self.obs_processor(obs[:, :self.obs_dim])
+        h_g = self.obs_processor(obs[:, self.obs_dim:])
+        if not self.backprop_into_obs_preprocessor:
+            h_s = h_s.detach()
+            h_g = h_g.detach()
+        flat_inputs = torch.cat((h_s, h_g, actions), dim=1)
+        return super().forward(flat_inputs, **kwargs)

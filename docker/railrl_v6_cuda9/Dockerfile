@@ -38,11 +38,11 @@ RUN curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sc
 ENV LANG C.UTF-8
 
 RUN mkdir -p /root/.mujoco \
-    && wget https://www.roboti.us/download/mjpro150_linux.zip -O mujoco.zip \
+    && wget https://www.roboti.us/download/mujoco200_linux.zip -O mujoco.zip \
     && unzip mujoco.zip -d /root/.mujoco \
     && rm mujoco.zip
 COPY ./mjkey.txt /root/.mujoco/
-ENV LD_LIBRARY_PATH /root/.mujoco/mjpro150/bin:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH /root/.mujoco/mujoco200/bin:${LD_LIBRARY_PATH}
 ENV LD_LIBRARY_PATH /usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
 
 COPY vendor/Xdummy /usr/local/bin/Xdummy
@@ -60,8 +60,10 @@ RUN pip install -r requirements.txt
 RUN pip install -r requirements.dev.txt
 RUN pip install cloudpickle==0.5.2
 RUN pip install cached-property==1.3.1
+RUN pip install lockfile
 # For atari-py
-RUN apt-get install -y zlib1g-dev swig cmake
+RUN apt-get update && apt-get install -y zlib1g-dev swig cmake
+RUN mv /root/.mujoco/mujoco200_linux /root/.mujoco/mujoco200
 RUN pip install gym[all]==0.10.5
 RUN pip install gitpython==2.1.7
 RUN pip install gtimer==1.0.0b5
@@ -89,6 +91,7 @@ RUN apt-get update && apt-get install -y libav-tools
 RUN mkdir /root/code
 WORKDIR /root/code
 
+
 # trigger the mujoco_py cythonization
 RUN python -c 'import mujoco_py'
 
@@ -100,3 +103,6 @@ RUN pip install numpy-stl==2.7.0
 RUN pip install pyquaternion==0.9.2
 RUN pip install moviepy==0.2.3.5
 RUN pip install scikit-image
+
+
+RUN apt-get update && apt-get install -y imagemagick 

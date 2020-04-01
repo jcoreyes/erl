@@ -533,6 +533,26 @@ class GaussianMixturePolicy(Mlp, ExplorationPolicy):
             mean_action_log_prob, None, dist,
         )
 
+class TanhGaussianObsProcessorPolicy(TanhGaussianPolicy):
+    def __init__(self, obs_processor, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.pre_obs_dim = obs_processor.input_size
+        self.pre_goal_dim = obs_processor.input_size
+        self.obs_processor = obs_processor
+
+    def forward(self, obs, *args, **kwargs):
+        obs_and_goal = obs
+        assert obs_and_goal.shape[1] == self.pre_obs_dim + self.pre_goal_dim
+        obs = obs_and_goal[:, :self.pre_obs_dim]
+        goal = obs_and_goal[:, self.pre_obs_dim:]
+
+        h_obs = self.obs_processor(obs)
+        h_goal = self.obs_processor(goal)
+
+        flat_inputs = torch.cat((h_obs, h_goal), dim=1)
+        return super().forward(flat_inputs, *args, **kwargs)
+
+
 # noinspection PyMethodOverriding
 class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
     """

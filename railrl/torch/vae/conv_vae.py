@@ -42,6 +42,41 @@ imsize48_default_architecture=dict(
         )
     )
 
+
+imsize48_default_architecture_spatial=dict(
+        conv_args = dict(
+            kernel_sizes=[3, 3, 3],
+            n_channels=[16, 8, 4],
+            strides=[3, 1, 1],
+        ),
+        conv_kwargs=dict(
+            hidden_sizes=[],
+            conv_normalization_type="batch",
+            fc_normalization_type="batch",
+            output_conv_channels=True,
+        ),
+        deconv_args=dict(
+            hidden_sizes=[],
+
+            deconv_input_width=3,
+            deconv_input_height=3,
+            deconv_input_channels=64,
+
+            deconv_output_kernel_size=6,
+            deconv_output_strides=3,
+            deconv_output_channels=3,
+
+            kernel_sizes=[3,3],
+            n_channels=[32, 16],
+            strides=[2,2],
+        ),
+        deconv_kwargs=dict(
+            deconv_normalization_type="batch",
+            fc_normalization_type="batch",
+        )
+    )
+
+
 imsize48_default_architecture_with_more_hidden_layers = dict(
         conv_args=dict(
             kernel_sizes=[5, 3, 3],
@@ -397,20 +432,18 @@ class SpatialAutoEncoder(ConvVAE):
             self,
             representation_size,
             *args,
-            conv_output_dimension=7,
             temperature=1.0,
+            use_softmax=True,
+            encode_feature_points=False,
             **kwargs
     ):
-        super().__init__(representation_size, *args, **kwargs)
         num_feat_points = representation_size // 2
+        # Override the number of channels in the architecture to match the
+        # number of feature points
+        kwargs['architecture']["conv_args"]["n_channels"][-1] = num_feat_points
+
+        super().__init__(representation_size, *args, **kwargs)
         assert self.architecture["conv_args"]["n_channels"][-1] == num_feat_points
-
-        self.conv_output_dimension = conv_output_dimension
-
-        self.weights = ptu.from_numpy(
-            (np.arange(self.conv_output_dimension) + 0.5)
-            / self.conv_output_dimension
-        )
 
         self.fc1 = nn.Linear(representation_size, representation_size)
         self.fc2 = nn.Linear(representation_size, representation_size)
@@ -422,19 +455,28 @@ class SpatialAutoEncoder(ConvVAE):
         self.fc2.bias.data.uniform_(-self.init_w, self.init_w)
 
         self.temperature = temperature
+        self.use_softmax = use_softmax
+        self.encode_feature_points = encode_feature_points
 
     def encode(self, input):
         h = self.encoder(input)
 
+        if self.use_softmax:
+            h = torch.exp(h / self.temperature)
+            # sum over x, then sum over y
+            total = h.sum(2).sum(2).view(h.shape[0], h.shape[1], 1, 1)
+            h = h / total
+
         maps_x = torch.sum(h, 2)
         maps_y = torch.sum(h, 3)
-
-        fp_x = torch.sum(maps_x * self.weights, 2)
-        fp_y = torch.sum(maps_y * self.weights, 2)
+        weights = ptu.from_numpy(np.arange(maps_x.shape[-1]) / maps_x.shape[-1])
+        fp_x = torch.sum(maps_x * weights, 2)
+        fp_y = torch.sum(maps_y * weights, 2)
 
         h = torch.cat([fp_x, fp_y], 1)
 
-        mu = self.fc1(h)
+        mu = self.fc1(h) if self.encode_feature_points else h
+
         if self.log_min_variance is None:
             logvar = self.fc2(h)
         else:
