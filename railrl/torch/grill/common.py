@@ -171,6 +171,53 @@ def train_vae(variant, return_data=False):
     return model
 
 
+def train_dcgan(variant):
+    import torch.utils.data
+    import torchvision.datasets as dset
+    from railrl.torch.gan.dcgan import Generator, Discriminator
+    from railrl.torch.gan.dcgan_trainer import DCGANTrainer
+    from railrl.core import logger
+    import railrl.torch.pytorch_util as ptu
+    from railrl.pythonplusplus import identity
+    import torch
+
+    dataset = dset.ImageFolder(root=variant["dataroot"],
+                           transform=transforms.Compose([
+                               transforms.Resize(variant["image_size"]),
+                               transforms.CenterCrop(variant["image_size"]),
+                               transforms.ToTensor(),
+                               transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                           ]))
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=variant["batch_size"],
+           shuffle=True, num_workers=variant["num_workers"])
+    model = variant["dcgan_class"]
+    trainer_class = variant["dcgan_trainer_class"]
+    trainer = vae_trainer_class(model, ngpu, lr, beta1) 
+
+    for epoch in range(variant['num_epochs']):
+        trainer.train_epoch(dataloader, epoch)
+
+        if epoch % 50 == 0:
+            Generator = trainer.get_Generator()
+            Discriminator = trainer.get_Discriminator()
+
+            logger.save_itr_params(epoch, Generator)
+            logger.save_itr_params(epoch, Discriminator)
+
+            logger.save_extra_data(Generator, 'generator.pkl', mode='pickle')
+            logger.save_extra_data(Discriminator, 'discriminator.pkl', mode='pickle')
+
+    G_losses = trainer.get_G_losses
+    D_losses = trainer.get_D_losses
+    for k, v in G_losses.items():
+        logger.record_tabular(k, v)
+        logger.dump_tabular()
+
+    for k, v in D_losses.items():
+        logger.record_tabular(k, v)
+        logger.dump_tabular() 
+        
+    
 
 def generate_vae_dataset(variant):
     print(variant)
