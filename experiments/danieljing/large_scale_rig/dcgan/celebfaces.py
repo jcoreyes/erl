@@ -13,7 +13,6 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import Sawyer
 if __name__ == "__main__":
 
     variant = dict(
-<<<<<<< HEAD
         num_epochs=1000, 
         dataroot = "data/celeba",
         workers = 2, 
@@ -22,16 +21,6 @@ if __name__ == "__main__":
         dcgan_trainer_class=DCGANTrainer,
         dcgan_class=(Generator, Discriminator),
         ngpu = 1, 
-=======
-        num_epochs=1000,
-        dataroot = "data/celeba",
-        workers = 2,
-        batch_size = 128,
-        image_size = 64,
-        dcgan_trainer_class=DCGANTrainer,
-        dcgan_class=(Generator, Discriminator),
-        ngpu = 1,
->>>>>>> 57bf59942ea680233eb4dfd6874d3e4041d94bc6
         beta1 = 0.5,
         lr = 0.0002,
         nc = 3,
