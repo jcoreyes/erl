@@ -2,7 +2,7 @@ import os.path as osp
 
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
 from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector
-from railrl.torch.grill.video_gen import VideoSaveFunction
+from railrl.visualization.video import VideoSaveFunction
 from railrl.torch.her.her import HERTrainer
 from railrl.envs.reward_mask_wrapper import DiscreteDistribution, RewardMaskWrapper
 
@@ -204,7 +204,6 @@ def td3_experiment(variant):
 
 
 def twin_sac_experiment(variant):
-    import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
@@ -521,7 +520,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
     from multiworld.core.image_env import ImageEnv
     from railrl.core import logger
     from railrl.envs.vae_wrappers import temporary_mode
-    from railrl.torch.grill.video_gen import dump_video
+    from railrl.visualization.video import dump_video
     logdir = logger.get_snapshot_dir()
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)

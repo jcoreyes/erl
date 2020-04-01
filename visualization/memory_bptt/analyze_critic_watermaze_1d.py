@@ -12,12 +12,11 @@ from pathlib import Path
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import torch
 from torch.autograd import Variable
 
 from railrl.envs.pygame.water_maze import WaterMaze
-import railrl.misc.visualization_util as vu
+import railrl.visualization.visualization_util as vu
 
 USE_TIME = True
 

@@ -13,14 +13,14 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import Sawyer
 if __name__ == "__main__":
 
     variant = dict(
-        num_epochs=1000, 
+        num_epochs=1000,
         dataroot = "data/celeba",
-        workers = 2, 
-        batch_size = 128, 
+        workers = 2,
+        batch_size = 128,
         image_size = 64,
         dcgan_trainer_class=DCGANTrainer,
         dcgan_class=(Generator, Discriminator),
-        ngpu = 1, 
+        ngpu = 1,
         beta1 = 0.5,
         lr = 0.0002,
         nc = 3,

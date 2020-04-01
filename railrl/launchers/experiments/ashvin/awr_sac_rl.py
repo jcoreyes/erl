@@ -14,7 +14,7 @@ from railrl.torch.torch_rl_algorithm import (
 )
 
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
-from railrl.torch.grill.video_gen import save_paths
+from railrl.visualization.video import save_paths
 
 from multiworld.core.flat_goal_env import FlatGoalEnv
 from multiworld.core.image_env import ImageEnv
@@ -32,7 +32,6 @@ from railrl.exploration_strategies.gaussian_and_epislon import GaussianAndEpislo
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 import os.path as osp
-import pickle
 from railrl.core import logger
 from railrl.misc.asset_loader import load_local_or_remote_file
 
@@ -332,6 +331,12 @@ def experiment(variant):
         **variant['policy_kwargs'],
     )
 
+    buffer_policy = policy_class(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        **variant['policy_kwargs'],
+    )
+
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
         eval_env,
@@ -397,6 +402,7 @@ def experiment(variant):
         qf2=qf2,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
+        buffer_policy=buffer_policy,
         **variant['trainer_kwargs']
     )
     if variant['collection_mode'] == 'online':

@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
-import railrl.misc.visualization_util as vu
+import railrl.visualization.visualization_util as vu
 import numpy as np
-import torch
 from railrl.torch.core import np_ify, torch_ify
 
 fig_v_mean = None

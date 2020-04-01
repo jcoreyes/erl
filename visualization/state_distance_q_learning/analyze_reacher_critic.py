@@ -20,9 +20,8 @@ from pathlib import Path
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 
-import railrl.misc.visualization_util as vu
+import railrl.visualization.visualization_util as vu
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.reacher_env import position_from_angles
 from railrl.misc.html_report import HTMLReport

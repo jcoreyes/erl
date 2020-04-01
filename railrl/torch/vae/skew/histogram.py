@@ -7,9 +7,9 @@ from skvideo.io import vwrite
 
 import railrl.pythonplusplus as ppp
 from railrl.core import logger
-from railrl.misc import visualization_util as vu
+from railrl.visualization import visualization_util as vu
 from railrl.misc.html_report import HTMLReport
-from railrl.misc.visualization_util import gif
+from railrl.visualization.visualization_util import gif
 from railrl.torch.vae.skew.common import Dynamics, plot_curves
 from railrl.torch.vae.skew.datasets import project_samples_square_np
 
