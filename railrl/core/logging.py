@@ -392,6 +392,7 @@ def setup_logger(
     variant_to_save = variant.copy()
     variant_to_save['unique_id'] = unique_id
     variant_to_save['exp_name'] = exp_name
+    variant_to_save['trial_name'] = log_dir.split('/')[-1]
     logger.log(
         json.dumps(ppp.dict_to_safe_json(variant_to_save, sort=True), indent=2)
     )
@@ -501,5 +502,6 @@ def create_trial_name(exp_name, exp_id=0, seed=0):
     now = datetime.datetime.now(dateutil.tz.tzlocal())
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
     return "%s_%s_id%03d--s%d" % (exp_name, timestamp, exp_id, seed)
+
 
 logger = Logger()
