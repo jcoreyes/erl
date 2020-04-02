@@ -63,10 +63,11 @@ def goal_conditioned_sac_experiment(
             desired_goal_key=desired_goal_key,
             achieved_goal_key=achieved_goal_key,
         )
-        ContextualEnv(
+        env = ContextualEnv(
             env,
             context_distribution=goal_distribution,
             reward_fn=reward_fn,
+            observation_key=observation_key,
             **contextual_env_kwargs,
         )
         return env, goal_distribution, reward_fn
