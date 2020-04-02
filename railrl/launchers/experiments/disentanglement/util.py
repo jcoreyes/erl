@@ -9,7 +9,9 @@ from railrl.torch import pytorch_util as ptu
 from railrl.visualization.video import dump_video
 
 
-def get_extra_imgs(full_observation_dict, img_keys):
+def get_extra_imgs(path, index_in_path, env, img_keys):
+    del env
+    full_observation_dict = path[index_in_path]
     return [
         full_observation_dict[img_key]
         for img_key in img_keys
