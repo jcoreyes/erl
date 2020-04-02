@@ -11,7 +11,7 @@ from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
 from multiworld.core.multitask_env import MultitaskEnv
 from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
-from railrl.envs.proxy_env import ProxyEnv
+from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
 import time
 
@@ -103,12 +103,12 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         if self.reward_type == 'latent_distance':
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
-            dist = self.get_latent_distance(achieved_goals, desired_goals)
+            dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
             return -dist
         elif self.reward_type == 'latent_sparse':
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
-            dist = self.get_latent_distance(achieved_goals, desired_goals)
+            dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
             success = dist < self.epsilon
             reward = success - 1
             return reward
@@ -184,6 +184,6 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
 
     def _sample_vae_prior(self, batch_size):
         self.vae.eval()
-        samples = self.pixel_cnn.generate(shape=(12,12), batch_size=batch_size).reshape(batch_size, -1)
-        #samples = self.vae.sample_prior(batch_size)#.cpu())
+        samples = self.vae.sample_prior(batch_size)#.cpu())
+        samples = ptu.get_numpy(self.vae.discrete_to_cont(samples)).reshape(batch_size, -1)
         return samples

@@ -97,7 +97,7 @@ if __name__ == "__main__":
                 start_skew_epoch=10,
                 max_size=int(100000),
                 fraction_goals_rollout_goals=0.8,
-                #fraction_goals_env_goals=0.5,
+                fraction_goals_env_goals=0.0,
                 exploration_rewards_type='None',
                 vae_priority_type='vae_prob',
                 priority_function_kwargs=dict(
@@ -106,9 +106,9 @@ if __name__ == "__main__":
                     num_latents_to_sample=10,
                 ),
                 power=-1,
-                relabeling_goal_sampling_mode='env',
+                relabeling_goal_sampling_mode='vae_prior',
             ),
-            exploration_goal_sampling_mode='reset_of_env',
+            exploration_goal_sampling_mode='vae_prior',
             evaluation_goal_sampling_mode='reset_of_env',
             normalize=False,
             render=False,
@@ -126,7 +126,7 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            #vae_path="/home/ashvin/data/sasha/testing/vqvae/vqvae-state.pkl"
+            vae_path="/home/ashvin/data/sasha/pixelcnn/vqvae.pkl"
                     ),
         train_vae_variant=dict(
             beta=10,
@@ -135,10 +135,10 @@ if __name__ == "__main__":
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=100000,
+                N=10000,
                 n_random_steps=50,
                 test_p=.9,
-                #dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
+                dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -208,4 +208,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=100)

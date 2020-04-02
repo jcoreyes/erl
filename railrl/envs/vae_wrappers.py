@@ -11,7 +11,7 @@ from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
 from multiworld.core.multitask_env import MultitaskEnv
 from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
-from railrl.envs.proxy_env import ProxyEnv
+from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
 import time
 
@@ -95,8 +95,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         self._initial_obs = None
         self._custom_goal_sampler = None
         self._goal_sampling_mode = goal_sampling_mode
-        # self.prior_var = np.concatenate([np.exp(self.vae.prior_logvar), \
-            # np.ones(self.representation_size - self.vae.prior_logvar.shape[0])])
 
 
     def reset(self):
