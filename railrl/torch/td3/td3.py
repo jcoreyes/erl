@@ -10,6 +10,8 @@ from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.core import np_to_pytorch_batch
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 
+from torch.nn import functional as F
+
 
 class TD3(TorchTrainer):
     """
@@ -36,6 +38,8 @@ class TD3(TorchTrainer):
             tau=0.005,
             qf_criterion=None,
             optimizer_class=optim.Adam,
+
+            use_policy_saturation_cost=False,
     ):
         super().__init__()
         if qf_criterion is None:
@@ -68,6 +72,8 @@ class TD3(TorchTrainer):
             self.policy.parameters(),
             lr=policy_learning_rate,
         )
+
+        self.use_policy_saturation_cost = use_policy_saturation_cost
 
         self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
@@ -120,9 +126,13 @@ class TD3(TorchTrainer):
 
         policy_actions = policy_loss = None
         if self._n_train_steps_total % self.policy_and_target_update_period == 0:
-            policy_actions = self.policy(obs)
+            policy_actions, pre_tanh_values = self.policy(obs, return_preactivations=True)
+            policy_saturation_cost = F.relu(torch.abs(pre_tanh_values) - 20.0)
             q_output = self.qf1(obs, policy_actions)
             policy_loss = - q_output.mean()
+
+            if self.use_policy_saturation_cost:
+                policy_loss = policy_loss + policy_saturation_cost.mean()
 
             self.policy_optimizer.zero_grad()
             policy_loss.backward()
@@ -135,9 +145,13 @@ class TD3(TorchTrainer):
         if self._need_to_update_eval_statistics:
             self._need_to_update_eval_statistics = False
             if policy_loss is None:
-                policy_actions = self.policy(obs)
+                policy_actions, pre_tanh_values = self.policy(obs, return_preactivations=True)
+                policy_saturation_cost = F.relu(torch.abs(pre_tanh_values) - 20.0)
                 q_output = self.qf1(obs, policy_actions)
                 policy_loss = - q_output.mean()
+
+                if self.use_policy_saturation_cost:
+                    policy_loss = policy_loss + policy_saturation_cost.mean()
 
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
@@ -167,6 +181,14 @@ class TD3(TorchTrainer):
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Policy Action',
                 ptu.get_numpy(policy_actions),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Policy Saturation Cost',
+                ptu.get_numpy(policy_saturation_cost),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Policy Action Pre-tanh Abs',
+                np.abs(ptu.get_numpy(pre_tanh_values)),
             ))
         self._n_train_steps_total += 1
 
