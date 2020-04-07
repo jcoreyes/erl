@@ -35,11 +35,12 @@ class BAIRDataset(data.Dataset):
     train_data = {}
     test_data = {}
 
-    def __init__(self, is_train, camera=1, n_train_files=10, info=None):
+    def __init__(self, is_train, camera=1, n_train_files=10, info=None, transform = None):
         self.is_train = is_train
         self.N = 1024 if is_train else 256
         self.traj_length = 15
         self.camera = camera
+        self.transform = transform
 
         if is_train:
             self.n_files = n_train_files
@@ -99,9 +100,9 @@ class BAIRDataset(data.Dataset):
         return data_dict
 
 
-def generate_dataset(variant):
-    train_dataset = BAIRDataset(is_train=True)
-    test_dataset = BAIRDataset(is_train=False)
+def generate_dataset(variant, transform = None):
+    train_dataset = BAIRDataset(is_train=True, transform = transform)
+    test_dataset = BAIRDataset(is_train=False, transform = transform)
 
     train_batch_loader_kwargs = variant.get(
         'train_batch_loader_kwargs',

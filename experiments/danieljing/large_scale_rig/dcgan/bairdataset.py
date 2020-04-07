@@ -10,12 +10,23 @@ from railrl.torch.gan.dcgan_trainer import DCGANTrainer
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 from railrl.launchers.config import CELEBA_DATASET
+from railrl.data_management.external.bair_dataset.config import BAIR_DATASET_LOCATION
 
 if __name__ == "__main__":
 
     variant = dict(
         num_epochs=5, 
-        dataroot = CELEBA_DATASET,
+        dataroot = BAIR_DATASET_LOCATION,
+        # generate_dataset_kwargs=dict(
+        #     train_batch_loader_kwargs=dict(
+        #         batch_size=128,
+        #         num_workers=2,
+        #     ),
+        #     test_batch_loader_kwargs=dict(
+        #         batch_size=128,
+        #         num_workers=0,
+        #     ),
+        # ),
         num_workers = 2, 
         batch_size = 128, 
         image_size = 64,

@@ -1,4 +1,3 @@
-m __future__ import print_function
 import argparse
 import os
 import random
@@ -6,18 +5,20 @@ import torch
 import torch.nn as nn
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
-import torchvision.transforms as transforms
 import torchvision.utils as vutils
 import numpy as np
 
 class Generator(nn.Module):
-    def __init__(self, ngpu):
+    def __init__(self, ngpu, nz, nc, ngf):
         super(Generator, self).__init__()
         self.ngpu = ngpu
+        self.nz = nz
+        self.nc = nc
+        self.ngf = ngf
 
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d( nz, ngf * 8, 4, 1, 0, bias=False),
+            nn.ConvTranspose2d(nz, ngf * 8, 4, 1, 0, bias=False),
             nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 4 x 4
@@ -43,9 +44,12 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, ngpu):
+    def __init__(self, ngpu, nc, ndf):
         super(Discriminator, self).__init__()
         self.ngpu = ngpu
+        self.nc = nc
+        self.ndf = ndf
+
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
             nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
