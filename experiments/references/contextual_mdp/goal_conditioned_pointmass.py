@@ -6,8 +6,7 @@ from railrl.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     variant = dict(
-        # env_id='Point2DEnv-Train-Everything-Eval-Everything-v1',
-        env_id='Point2DLargeEnv-offscreen-v0',
+        env_id='Point2DLargeEnv-v1',
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
@@ -41,6 +40,7 @@ if __name__ == "__main__":
         save_video=True,
         save_video_kwargs=dict(
             save_video_period=10,
+            pad_color=0,
         ),
     )
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_name = 'upstream/master-vitchyr'
+    # exp_name = 'dev'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

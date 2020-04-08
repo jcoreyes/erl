@@ -111,12 +111,16 @@ def get_image(
         subpad_length=1, subpad_color=255,
         pad_length=1, pad_color=255,
         unnormalize=True,
+        image_format='HWC',
 ):
     if len(imgs[0].shape) == 1:
         for i in range(len(imgs)):
             imgs[i] = imgs[i].reshape(-1, imwidth, imheight).transpose(2, 1, 0)
     new_imgs = []
+
     for img in imgs:
+        if image_format == 'CWH':
+            img = img.transpose(2, 1, 0)
         if unnormalize:
             img = np.uint8(255 * img)
         if subpad_length > 0:
@@ -135,10 +139,11 @@ def dump_video(
         rollout_function,
         rows=3,
         columns=6,
-        pad_length=0,
+        pad_length=1,
         pad_color=255,
-        subpad_length=0,
+        subpad_length=1,
         subpad_color=127,
+        image_format='HWC',
         do_timer=True,
         horizon=100,
         dirname_to_save_images=None,
@@ -205,6 +210,7 @@ def dump_video(
                     pad_color=pad_color,
                     subpad_length=subpad_length,
                     subpad_color=subpad_color,
+                    image_format=image_format,
                 )
             )
         frames += l

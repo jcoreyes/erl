@@ -243,7 +243,7 @@ Itertools++
 """
 
 
-def treemap(f, *args, **kwargs):
+def treemap(f, *args, atomic_type=None, **kwargs):
     """
     Recursively apply a function to a data structure.
 
@@ -283,15 +283,20 @@ def treemap(f, *args, **kwargs):
     """
     if len(args) == 0:
         return f(**kwargs)
+    if atomic_type and isinstance(args[0], atomic_type):
+        return f(*args, **kwargs)
     if isinstance(args[0], collections.Mapping):
         return type(args[0])({
-            k: treemap(f, *tuple(d[k] for d in args), **kwargs)
+            k: treemap(f, *tuple(d[k] for d in args),
+                       atomic_type=atomic_type, **kwargs)
             for k in args[0]
         })
     elif isinstance(args[0], collections.Iterable):
-        return type(args[0])(treemap(f, *a, **kwargs) for a in zip(*args))
+        return type(args[0])(treemap(f, *a, atomic_type=atomic_type, **kwargs)
+                             for a in zip(*args))
     else:
         return f(*args, **kwargs)
+
 
 def filter_recursive(x_or_iterable):
     """
