@@ -409,7 +409,7 @@ def get_save_video_function(
         assert image_env.imsize == imsize, "Imsize must match env imsize"
 
     def save_video(algo, epoch):
-        if epoch % save_video_period == 0 or epoch == algo.num_epochs:
+        if epoch % save_video_period == 0 or epoch >= algo.num_epochs - 1:
             filename = osp.join(
                 logdir,
                 'video_{}_{epoch}_env.mp4'.format(tag, epoch=epoch),

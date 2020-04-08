@@ -16,6 +16,7 @@ from railrl.envs.contextual.goal_conditioned import (
     AddImageDistribution,
 )
 from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.launchers.rl_exp_launcher_util import create_exploration_policy
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
@@ -46,6 +47,7 @@ def goal_conditioned_sac_experiment(
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
         achieved_goal_key='state_achieved_goal',
+        exploration_policy_kwargs=None,
         evaluation_goal_sampling_mode=None,
         exploration_goal_sampling_mode=None,
         # Video parameters
@@ -53,6 +55,8 @@ def goal_conditioned_sac_experiment(
         save_video_kwargs=None,
         renderer_kwargs=None,
 ):
+    if exploration_policy_kwargs is None:
+        exploration_policy_kwargs = {}
     if not save_video_kwargs:
         save_video_kwargs = {}
     if not renderer_kwargs:
@@ -147,9 +151,11 @@ def goal_conditioned_sac_experiment(
         observation_key=observation_key,
         context_key=context_key,
     )
+    exploration_policy = create_exploration_policy(
+        policy, **exploration_policy_kwargs)
     expl_path_collector = ContextualPathCollector(
         expl_env,
-        policy,
+        exploration_policy,
         observation_key=observation_key,
         context_key=context_key,
     )
@@ -202,10 +208,10 @@ def goal_conditioned_sac_experiment(
             image_format='CWH',
             **save_video_kwargs
         )
-        train_video_func = get_save_video_function(
+        expl_video_func = get_save_video_function(
             rollout_function,
             img_expl_env,
-            policy,
+            exploration_policy,
             tag="train",
             imsize=renderer.image_shape[0],
             image_format='CWH',
@@ -213,7 +219,7 @@ def goal_conditioned_sac_experiment(
         )
 
         algorithm.post_train_funcs.append(eval_video_func)
-        algorithm.post_train_funcs.append(train_video_func)
+        algorithm.post_train_funcs.append(expl_video_func)
 
     algorithm.train()
 
