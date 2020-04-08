@@ -46,6 +46,7 @@ class VideoSaveFunction:
             "exploration_goal_image_key", "decoded_goal_image")
         self.evaluation_goal_image_key = self.dump_video_kwargs.pop(
             "evaluation_goal_image_key", "image_desired_goal")
+        self.path_length = variant.get('algo_kwargs', {}).get('max_path_length', 200)
         self.expl_path_collector = expl_path_collector
         self.eval_path_collector = eval_path_collector
         self.variant = variant
@@ -53,8 +54,8 @@ class VideoSaveFunction:
     def __call__(self, algo, epoch):
         if self.expl_path_collector:
             expl_paths = self.expl_path_collector.collect_new_paths(
-                max_path_length=self.variant['algo_kwargs']['max_path_length'],
-                num_steps=self.variant['algo_kwargs']['max_path_length'] * 5,
+                max_path_length=self.path_length,
+                num_steps=self.path_length * 5,
                 discard_incomplete_paths=False
             )
         else:
@@ -71,8 +72,8 @@ class VideoSaveFunction:
 
         if self.eval_path_collector:
             eval_paths = self.eval_path_collector.collect_new_paths(
-                max_path_length=self.variant['algo_kwargs']['max_path_length'],
-                num_steps=self.variant['algo_kwargs']['max_path_length'] * 5,
+                max_path_length=self.path_length,
+                num_steps=self.path_length * 5,
                 discard_incomplete_paths=False
             )
         else:

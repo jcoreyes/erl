@@ -2,13 +2,13 @@ import torch
 from torch import nn
 
 
-class Clamp:
+class Clamp(object):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
+        self.__name__ = "Clamp"
 
     def __call__(self, x):
         return torch.clamp(x, **self.kwargs)
-
 
 class Split(nn.Module):
     """

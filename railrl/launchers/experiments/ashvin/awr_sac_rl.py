@@ -3,7 +3,7 @@ from railrl.data_management.awr_env_replay_buffer import AWREnvReplayBuffer
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWrapperEnv
 import railrl.torch.pytorch_util as ptu
-from railrl.samplers.data_collector import MdpPathCollector
+from railrl.samplers.data_collector import MdpPathCollector, ObsDictPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import FlattenMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
@@ -14,10 +14,11 @@ from railrl.torch.torch_rl_algorithm import (
 )
 
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
-from railrl.visualization.video import save_paths
+from railrl.visualization.video import save_paths, VideoSaveFunction
 
 from multiworld.core.flat_goal_env import FlatGoalEnv
 from multiworld.core.image_env import ImageEnv
+from multiworld.core.gym_to_multi_env import GymToMultiEnv
 
 from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
 from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
@@ -258,6 +259,20 @@ def resume(variant):
 
     algo.train()
 
+def process_args(variant):
+    if variant.get("debug", False):
+        variant['max_path_length'] = 50
+        variant['batch_size'] = 5
+        variant['num_epochs'] = 5
+        variant['num_eval_steps_per_epoch'] = 100
+        variant['num_expl_steps_per_train_loop'] = 100
+        variant['num_trains_per_train_loop'] = 10
+        variant['min_num_steps_before_training'] = 100
+        variant['min_num_steps_before_training'] = 100
+        variant['trainer_kwargs']['bc_num_pretrain_steps'] = 10
+        variant['trainer_kwargs']['q_num_pretrain1_steps'] = 10
+        variant['trainer_kwargs']['q_num_pretrain2_steps'] = 10
+
 def experiment(variant):
     if variant.get("pretrained_algorithm_path", False):
         resume(variant)
@@ -304,37 +319,44 @@ def experiment(variant):
         env_info_sizes = dict()
 
     M = variant['layer_size']
+    qf_kwargs = variant.get("qf_kwargs", {})
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        **qf_kwargs
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        **qf_kwargs
     )
     target_qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        **qf_kwargs
     )
     target_qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        **qf_kwargs
     )
     policy_class = variant.get("policy_class", TanhGaussianPolicy)
+    policy_kwargs = variant['policy_kwargs']
     policy = policy_class(
         obs_dim=obs_dim,
         action_dim=action_dim,
-        **variant['policy_kwargs'],
+        **policy_kwargs,
     )
 
-    buffer_policy = policy_class(
+    buffer_policy_class = variant.get("buffer_policy_class", policy_class)
+    buffer_policy = buffer_policy_class(
         obs_dim=obs_dim,
         action_dim=action_dim,
-        **variant['policy_kwargs'],
+        **variant.get("buffer_policy_kwargs", policy_kwargs),
     )
 
     eval_policy = MakeDeterministic(policy)
@@ -454,6 +476,28 @@ def experiment(variant):
         **replay_buffer_kwargs,
     )
 
+    if variant.get("save_video", False):
+        if variant.get("presampled_goals", None):
+            variant['image_env_kwargs']['presampled_goals'] = load_local_or_remote_file(variant['presampled_goals']).item()
+        image_eval_env = ImageEnv(GymToMultiEnv(eval_env), **variant["image_env_kwargs"])
+        image_eval_path_collector = ObsDictPathCollector(
+            image_eval_env,
+            eval_policy,
+            observation_key="state_observation",
+        )
+        image_expl_env = ImageEnv(GymToMultiEnv(expl_env), **variant["image_env_kwargs"])
+        image_expl_path_collector = ObsDictPathCollector(
+            image_expl_env,
+            expl_policy,
+            observation_key="state_observation",
+        )
+        video_func = VideoSaveFunction(
+            image_eval_env,
+            variant,
+            image_expl_path_collector,
+            image_eval_path_collector,
+        )
+        algorithm.post_train_funcs.append(video_func)
     if variant.get('save_paths', False):
         algorithm.post_train_funcs.append(save_paths)
     if variant.get('load_demos', False):

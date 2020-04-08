@@ -5,6 +5,7 @@ from railrl.samplers.data_collector.base import (
 )
 from railrl.samplers.data_collector.path_collector import (
     MdpPathCollector,
+    ObsDictPathCollector,
     GoalConditionedPathCollector,
     VAEWrappedEnvPathCollector,
 )

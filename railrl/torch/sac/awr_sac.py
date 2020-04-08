@@ -64,8 +64,11 @@ class AWRSACTrainer(TorchTrainer):
             rl_weight=1.0,
             use_awr_update=True,
             use_reparam_update=False,
+            use_klac_update=False,
             reparam_weight=1.0,
             awr_weight=1.0,
+            klac_weight=1.0,
+            klac_K=10,
             post_pretrain_hyperparams=None,
             post_bc_pretrain_hyperparams=None,
 
@@ -184,6 +187,8 @@ class AWRSACTrainer(TorchTrainer):
 
         self.reparam_weight = reparam_weight
         self.awr_weight = awr_weight
+        self.klac_weight = klac_weight
+        self.klac_K = klac_K
         self.post_pretrain_hyperparams = post_pretrain_hyperparams
         self.post_bc_pretrain_hyperparams = post_bc_pretrain_hyperparams
         self.update_policy = True
@@ -198,6 +203,7 @@ class AWRSACTrainer(TorchTrainer):
         self.reward_transform = self.reward_transform_class(**self.reward_transform_kwargs)
         self.terminal_transform = self.terminal_transform_class(**self.terminal_transform_kwargs)
         self.use_reparam_update = use_reparam_update
+        self.use_klac_update = use_klac_update
 
         self.train_bc_on_rl_buffer = train_bc_on_rl_buffer and buffer_policy
 
@@ -497,6 +503,38 @@ class AWRSACTrainer(TorchTrainer):
 
         policy_loss = alpha * log_pi.mean()
 
+
+        if self.use_klac_update:
+            *_, buffer_dist = self.buffer_policy(
+                obs, reparameterize=True, return_log_prob=True,
+            )
+            K = self.klac_K
+            buffer_obs = []
+            buffer_actions = []
+            log_bs = []
+            log_pis = []
+            for i in range(K):
+                u = buffer_dist.sample()
+                log_b = buffer_dist.log_prob(u)
+                log_pi = dist.log_prob(u)
+                buffer_obs.append(obs)
+                buffer_actions.append(u)
+                log_bs.append(log_b)
+                log_pis.append(log_pi)
+            buffer_obs = torch.cat(buffer_obs, 0)
+            buffer_actions = torch.cat(buffer_actions, 0)
+            p_buffer = torch.exp(torch.cat(log_bs, 0).sum(dim=1, ))
+            log_pi = torch.cat(log_pis, 0)
+            log_pi = log_pi.sum(dim=1, )
+            q1_b = self.qf1(buffer_obs, buffer_actions)
+            q2_b = self.qf2(buffer_obs, buffer_actions)
+            q_b = torch.min(q1_b, q2_b)
+            q_b = torch.reshape(q_b, (-1, K))
+            q_weights_b = F.softmax(torch.reshape(q_b, (-1, K)) / beta, dim=1).flatten() * K
+            # klac_loss = (-log_pi * q_weights_b.detach() / p_buffer.detach()).mean()
+            klac_loss = (-log_pi * q_weights_b.detach()).mean()
+            policy_loss = policy_loss + self.klac_weight * klac_loss
+
         if self.use_awr_update and self.weight_loss:
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp * len(weights)*weights.detach()).mean()
         elif self.use_awr_update:
@@ -612,7 +650,7 @@ class AWRSACTrainer(TorchTrainer):
                     obs, reparameterize=True, return_log_prob=True,
                 )
 
-                kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
+                # kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
 
                 self.eval_statistics.update({
                     "buffer_policy/Train Logprob Loss": ptu.get_numpy(buffer_train_logp_loss),
@@ -621,13 +659,25 @@ class AWRSACTrainer(TorchTrainer):
                     "buffer_policy/Test MSE": ptu.get_numpy(test_mse_loss),
                     "buffer_policy/train_policy_loss": ptu.get_numpy(buffer_policy_loss),
                     "buffer_policy/test_policy_loss": ptu.get_numpy(test_policy_loss),
-                    "buffer_policy/kl_div":ptu.get_numpy(kldiv.mean()),
+                    # "buffer_policy/kl_div":ptu.get_numpy(kldiv.mean()),
                 })
             if self.use_automatic_beta_tuning:
                 self.eval_statistics.update({
                     "adaptive_beta/beta":ptu.get_numpy(beta.mean()),
                     "adaptive_beta/beta loss": ptu.get_numpy(beta_loss.mean()),
                 })
+            if self.use_klac_update:
+                self.eval_statistics.update({
+                    "klac/loss": ptu.get_numpy(klac_loss.mean()),
+                })
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'klac/weights',
+                    ptu.get_numpy(q_weights_b),
+                ))
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'klac/p_buffer',
+                    ptu.get_numpy(p_buffer),
+                ))
 
         self._n_train_steps_total += 1
 
@@ -641,14 +691,16 @@ class AWRSACTrainer(TorchTrainer):
 
     @property
     def networks(self):
-        return [
+        nets = [
             self.policy,
             self.qf1,
             self.qf2,
             self.target_qf1,
             self.target_qf2,
-            self.buffer_policy,
         ]
+        if self.buffer_policy:
+            nets.append(self.buffer_policy)
+        return nets
 
     def get_snapshot(self):
         return dict(
