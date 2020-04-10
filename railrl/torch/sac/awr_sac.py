@@ -73,6 +73,7 @@ class AWRSACTrainer(TorchTrainer):
             post_bc_pretrain_hyperparams=None,
 
             awr_use_mle_for_vf=False,
+            vf_K=1,
             awr_sample_actions=False,
             awr_min_q=False,
 
@@ -114,6 +115,7 @@ class AWRSACTrainer(TorchTrainer):
             )
 
         self.awr_use_mle_for_vf = awr_use_mle_for_vf
+        self.vf_K = vf_K
         self.awr_sample_actions = awr_sample_actions
         self.awr_min_q = awr_min_q
 
@@ -460,9 +462,22 @@ class AWRSACTrainer(TorchTrainer):
 
         # Advantage-weighted regression
         if self.awr_use_mle_for_vf:
-            v_pi = self.qf1(obs, policy_mean)
+            v1_pi = self.qf1(obs, policy_mean)
+            v2_pi = self.qf2(obs, policy_mean)
+            v_pi = torch.min(v1_pi, v2_pi)
         else:
-            v_pi = self.qf1(obs, new_obs_actions)
+            if self.vf_K > 1:
+                vs = []
+                for i in range(self.vf_K):
+                    u = dist.sample()
+                    q1 = self.qf1(obs, u)
+                    # q2 = self.qf2(obs, u)
+                    # v = torch.min(q1, q2)
+                    v = q1
+                    vs.append(v)
+                v_pi = torch.cat(vs, 1).mean(dim=1)
+            else:
+                v_pi = self.qf1(obs, new_obs_actions)
 
         if self.awr_sample_actions:
             u = new_obs_actions
