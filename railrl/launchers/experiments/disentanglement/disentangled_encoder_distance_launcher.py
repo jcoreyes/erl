@@ -15,7 +15,7 @@ from railrl.samplers.data_collector import (
 )
 from railrl.torch.disentanglement.networks import DisentangledMlpQf
 from railrl.torch.disentanglement.encoder_wrapped_env import (
-    EncoderWrappedEnv, EncoderFromMlp,
+    EncoderWrappedEnv, EncoderFromNetwork,
 )
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.networks import FlattenMlp
@@ -91,7 +91,7 @@ def _use_disentangled_encoder_distance(
     encoder.input_size = raw_obs_dim
     encoder.output_size = raw_obs_dim
 
-    np_encoder = EncoderFromMlp(encoder)
+    np_encoder = EncoderFromNetwork(encoder)
     train_env = EncoderWrappedEnv(
         raw_train_env, np_encoder, encoder_input_prefix,
         key_prefix=encoder_key_prefix,

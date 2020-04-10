@@ -1,13 +1,14 @@
 import abc
+from typing import Dict
 from gym import Space
 
 
-class Distribution(object, metaclass=abc.ABCMeta):
+class DictDistribution(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def sample(self, batch_size: int):
         pass
 
     @property
     @abc.abstractmethod
-    def space(self) -> Space:
+    def spaces(self) -> Dict[str, Space]:
         pass

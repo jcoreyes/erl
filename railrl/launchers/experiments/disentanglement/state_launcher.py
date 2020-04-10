@@ -1,4 +1,6 @@
 from functools import partial
+
+from railrl.launchers.rl_exp_launcher_util import create_exploration_policy
 from railrl.launchers.experiments.disentanglement.util import (
     get_extra_imgs,
     get_save_video_function,
@@ -34,8 +36,11 @@ def her_sac_experiment(
         achieved_goal_key='state_achieved_goal',
         # Video parameters
         save_video_kwargs=None,
+        exploration_policy_kwargs=None,
         **kwargs
 ):
+    if exploration_policy_kwargs is None:
+        exploration_policy_kwargs = {}
     import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
@@ -117,9 +122,11 @@ def her_sac_experiment(
         desired_goal_key=desired_goal_key,
         goal_sampling_mode=evaluation_goal_sampling_mode,
     )
+    exploration_policy = create_exploration_policy(
+        policy, **exploration_policy_kwargs)
     expl_path_collector = GoalConditionedPathCollector(
         train_env,
-        policy,
+        exploration_policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
@@ -156,8 +163,8 @@ def her_sac_experiment(
         train_video_func = get_save_video_function(
             rollout_function,
             train_env,
-            policy,
-            tag="train",
+            exploration_policy,
+            tag="expl",
             **save_video_kwargs
         )
 

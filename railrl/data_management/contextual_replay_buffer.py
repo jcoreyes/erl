@@ -1,27 +1,31 @@
 import abc
-from typing import Any
+from typing import Any, Dict
 
 import numpy as np
 
-from railrl.core.distribution import Distribution
+from railrl.core.distribution import DictDistribution
 from railrl.data_management.obs_dict_replay_buffer import ObsDictReplayBuffer
 from railrl.envs.contextual import ContextualRewardFn
+from railrl import pythonplusplus as ppp
 
 
 class SampleContextFromObsDictFn(object, metaclass=abc.ABCMeta):
     """Interface definer, but you can also just pass in a function."""
 
     @abc.abstractmethod
-    def __call__(self, obs_dict) -> Any:
+    def __call__(self, obs: dict) -> Any:
         pass
 
 
-class SelectKeyFn(SampleContextFromObsDictFn):
-    def __init__(self, key):
-        self._key = key
+class RemapKeyFn(SampleContextFromObsDictFn):
+    def __init__(self, context_to_input_key: Dict[str, str]):
+        self._context_to_input_key = context_to_input_key
 
-    def __call__(self, obs_dict) -> Any:
-        return obs_dict[self._key]
+    def __call__(self, obs: dict) -> Any:
+        return {
+            k: obs[v]
+            for k, v in self._context_to_input_key.items()
+        }
 
 
 class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
@@ -41,22 +45,27 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             self,
             max_size,
             env,
-            context_key,
+            context_keys,
+            observation_keys,
             sample_context_from_obs_dict_fn: SampleContextFromObsDictFn,
             reward_fn: ContextualRewardFn,
-            context_distribution: Distribution,
+            context_distribution: DictDistribution,
             fraction_future_context,
             fraction_distribution_context,
-            ob_keys_to_save=None,
-            observation_key_for_reward_fn=None,
             post_process_batch_fn=None,
-            **kwargs
+            observation_key='observation',
+            save_data_in_snapshot=False,
+            internal_keys=None,
     ):
-        ob_keys_to_save = ob_keys_to_save or []
-        if context_key not in ob_keys_to_save:
-            ob_keys_to_save.append(context_key)
+        ob_keys_to_save = observation_keys + context_keys
         super().__init__(
-            max_size, env, ob_keys_to_save=ob_keys_to_save, **kwargs)
+            max_size,
+            env,
+            ob_keys_to_save=ob_keys_to_save,
+            internal_keys=internal_keys,
+            observation_key=observation_key,
+            save_data_in_snapshot=save_data_in_snapshot,
+        )
         if (
             fraction_distribution_context < 0
             or fraction_future_context < 0
@@ -67,17 +76,16 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
                 fraction_future_context,
                 fraction_distribution_context,
             ))
-        if observation_key_for_reward_fn is None:
-            observation_key_for_reward_fn = self.observation_key
-        self._context_key = context_key
+        self._context_keys = context_keys
         self._context_distribution = context_distribution
+        if set(self._context_distribution.spaces.keys()) != set(context_keys):
+            raise TypeError("Distributions must match.")
         self._sample_context_from_obs_dict_fn = sample_context_from_obs_dict_fn
         self._reward_fn = reward_fn
         self._fraction_future_context = fraction_future_context
         self._fraction_distribution_context = (
             fraction_distribution_context
         )
-        self._observation_key_for_reward_fn = observation_key_for_reward_fn
         self._post_process_batch_fn = post_process_batch_fn
 
     def random_batch(self, batch_size):
@@ -90,9 +98,10 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         indices = self._sample_indices(batch_size)
         obs_dict = self._batch_obs_dict(indices)
         next_obs_dict = self._batch_next_obs_dict(indices)
-        contexts = [
-            next_obs_dict[self._context_key][:num_rollout_contexts]
-        ]
+        contexts = [{
+            k: next_obs_dict[k][:num_rollout_contexts]
+            for k in self._context_keys
+        }]
 
         if num_distrib_contexts > 0:
             sampled_contexts = self._context_distribution.sample(
@@ -105,11 +114,26 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             contexts.append(future_contexts)
 
         actions = self._actions[indices]
-        new_contexts = np.concatenate(contexts)
+
+        keys = set(contexts[0].keys())
+        for c in contexts[1:]:
+            if set(c.keys()) != keys:
+                raise RuntimeError(
+                    "Context distributions don't match. Replay buffer context "
+                    "distribution keys={}, other distribution keys={}".format(
+                        keys,
+                        set(c.keys())
+                    )
+                )
+
+        def concat(*x):
+            return np.concatenate(x, axis=0)
+        new_contexts = ppp.treemap(concat, *tuple(contexts),
+                                   atomic_type=np.ndarray)
         new_rewards = self._reward_fn(
-            obs_dict[self._observation_key_for_reward_fn],
+            obs_dict,
             actions,
-            next_obs_dict[self._observation_key_for_reward_fn],
+            next_obs_dict,
             new_contexts,
         )
         if len(new_rewards.shape) == 1:
@@ -121,7 +145,8 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             'terminals': self._terminals[indices],
             'next_observations': next_obs_dict[self.observation_key],
             'indices': np.array(indices).reshape(-1, 1),
-            'contexts': new_contexts,
+            **new_contexts
+            # 'contexts': new_contexts,
         }
         if self._post_process_batch_fn:
             batch = self._post_process_batch_fn(batch)
