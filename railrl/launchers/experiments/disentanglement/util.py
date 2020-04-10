@@ -6,10 +6,12 @@ from railrl.core import logger
 from railrl.data_management.images import normalize_image
 from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.grill.video_gen import dump_video
+from railrl.visualization.video import dump_video
 
 
-def get_extra_imgs(full_observation_dict, img_keys):
+def get_extra_imgs(path, index_in_path, env, img_keys):
+    del env
+    full_observation_dict = path[index_in_path]
     return [
         full_observation_dict[img_key]
         for img_key in img_keys

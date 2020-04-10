@@ -20,33 +20,25 @@ class Encoder(object):
         raise NotImplementedError()
 
     @property
-    def max_embedding(self):
-        raise NotImplementedError()
-
-    @property
-    def min_embedding(self):
+    def space(self):
         raise NotImplementedError()
 
 
-class EncoderFromMlp(Encoder, PyTorchModule):
-    def __init__(self, mlp):
+class EncoderFromNetwork(Encoder, PyTorchModule):
+    def __init__(self, network):
         super(PyTorchModule, self).__init__()
-        self._mlp = mlp
-        self._output_size = mlp.output_size
+        self._network = network
+        self._output_size = network.output_size
+        self._space = Box(-9999, 9999, (self._output_size,), dtype=np.float32)
 
     def encode(self, x):
         x_torch = ptu.from_numpy(x)
-        embedding_torch = self._mlp(x_torch)
+        embedding_torch = self._network(x_torch)
         return ptu.get_numpy(embedding_torch)
 
     @property
-    def max_embedding(self):
-        # TODO: fix hack
-        return 9999 * np.ones(self._output_size)
-
-    @property
-    def min_embedding(self):
-        return -9999 * np.ones(self._output_size)
+    def space(self):
+        return self._space
 
 
 class EncoderWrappedEnv(ProxyEnv, MultitaskEnv):
@@ -96,12 +88,8 @@ class EncoderWrappedEnv(ProxyEnv, MultitaskEnv):
         )
         self._reward_mode = reward_mode
         spaces = self.wrapped_env.observation_space.spaces
-        latent_space = Box(
-            encoder.min_embedding,
-            encoder.max_embedding,
-            dtype=np.float32,
-        )
-        self._embedding_size = encoder.min_embedding.size
+        latent_space = self._encoder.space
+        self._embedding_size = latent_space.low.size
         self._obs_key = '{}_observation'.format(key_prefix)
         self._desired_goal_key = '{}_desired_goal'.format(key_prefix)
         self._achieved_goal_key = '{}_achieved_goal'.format(key_prefix)

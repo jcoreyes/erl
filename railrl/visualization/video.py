@@ -89,27 +89,48 @@ class VideoSaveFunction:
                        )
 
 
-def add_border(img, pad_length, pad_color, imsize=84):
-    H = 3 * imsize
-    W = imsize
-    img = img.reshape((3 * imsize, imsize, -1))
-    img2 = np.ones((H + 2 * pad_length, W + 2 * pad_length, img.shape[2]),
-                   dtype=np.uint8) * pad_color
-    img2[pad_length:-pad_length, pad_length:-pad_length, :] = img
-    return img2
+def add_border(img, border_thickness, border_color):
+    imheight, imwidth = img.shape[:2]
+    framed_img = np.ones(
+        (
+            imheight + 2 * border_thickness,
+            imwidth + 2 * border_thickness,
+            img.shape[2]
+        ),
+        dtype=np.uint8
+    ) * border_color
+    framed_img[
+        border_thickness:-border_thickness,
+        border_thickness:-border_thickness,
+        :
+    ] = img
+    return framed_img
 
 
-def get_image(imgs, imwidth, imheight, pad_length=1, pad_color=255,
-              unnormalize=True):
+def get_image(
+        imgs, imwidth, imheight,
+        subpad_length=1, subpad_color=255,
+        pad_length=1, pad_color=255,
+        unnormalize=True,
+        image_format='HWC',
+):
     if len(imgs[0].shape) == 1:
         for i in range(len(imgs)):
             imgs[i] = imgs[i].reshape(-1, imwidth, imheight).transpose(2, 1, 0)
-    img = np.concatenate(imgs)
-    if unnormalize:
-        img = np.uint8(255 * img)
+    new_imgs = []
+
+    for img in imgs:
+        if image_format == 'CWH':
+            img = img.transpose(2, 1, 0)
+        if unnormalize:
+            img = np.uint8(255 * img)
+        if subpad_length > 0:
+            img = add_border(img, subpad_length, subpad_color)
+        new_imgs.append(img)
+    final_image = np.concatenate(new_imgs, axis=0)
     if pad_length > 0:
-        img = add_border(img, pad_length, pad_color)
-    return img
+        final_image = add_border(final_image, pad_length, pad_color)
+    return final_image
 
 
 def dump_video(
@@ -119,8 +140,11 @@ def dump_video(
         rollout_function,
         rows=3,
         columns=6,
-        pad_length=0,
+        pad_length=1,
         pad_color=255,
+        subpad_length=1,
+        subpad_color=127,
+        image_format='HWC',
         do_timer=True,
         horizon=100,
         dirname_to_save_images=None,
@@ -129,6 +153,35 @@ def dump_video(
         get_extra_imgs=None,
         grayscale=False,
 ):
+    """
+
+    :param env:
+    :param policy:
+    :param filename:
+    :param rollout_function:
+    :param rows:
+    :param columns:
+    :param pad_length:
+    :param pad_color:
+    :param subpad_length:
+    :param subpad_color:
+    :param do_timer:
+    :param horizon:
+    :param dirname_to_save_images:
+    :param subdirname:
+    :param imsize:
+    :param get_extra_imgs: A function with type
+
+        def get_extra_imgs(
+            path: List[dict],
+            index_in_path: int,
+            env,
+        ) -> List[np.ndarray]:
+    :param grayscale:
+    :return:
+    """
+    if get_extra_imgs is None:
+        get_extra_imgs = get_generic_env_imgs
     num_channels = 1 if grayscale else 3
     frames = []
     W = imsize
@@ -141,29 +194,14 @@ def dump_video(
             max_path_length=horizon,
             render=False,
         )
-        is_vae_env = isinstance(env, VAEWrappedEnv)
-        is_conditional_vae_env = isinstance(env, ConditionalVAEWrappedEnv)
 
         l = []
-        x_0 = path['full_observations'][0]['image_observation']
-        for d in path['full_observations']:
-            if is_conditional_vae_env:
-                recon = np.clip(
-                    env._reconstruct_img(d['image_observation'], x_0), 0, 1)
-            elif is_vae_env:
-                recon = np.clip(env._reconstruct_img(d['image_observation']), 0,
-                                1)
-            else:
-                recon = d['image_observation']
-
+        for i_in_path, d in enumerate(path['full_observations']):
             imgs_to_stack = [
                 d['image_desired_goal'],
                 d['image_observation'],
-                recon,
             ]
-            if get_extra_imgs:
-                imgs_to_stack += get_extra_imgs(d)
-            H = len(imgs_to_stack) * imsize
+            imgs_to_stack += get_extra_imgs(path, i_in_path, env)
             l.append(
                 get_image(
                     imgs_to_stack,
@@ -171,6 +209,9 @@ def dump_video(
                     imheight=imsize,
                     pad_length=pad_length,
                     pad_color=pad_color,
+                    subpad_length=subpad_length,
+                    subpad_color=subpad_color,
+                    image_format=image_format,
                 )
             )
         frames += l
@@ -189,12 +230,20 @@ def dump_video(
         if do_timer:
             print(i, time.time() - start)
 
+    outputdata = reshape_for_video(frames, N, rows, columns, num_channels)
+    skvideo.io.vwrite(filename, outputdata)
+    print("Saved video to ", filename)
+
+
+def reshape_for_video(frames, N, rows, columns, num_channels):
+    img_height, img_width = frames[0].shape[:2]
     frames = np.array(frames, dtype=np.uint8)
+    # TODO: can't we just do path_length = len(frames) / N ?
     path_length = frames.size // (
-            N * (H + 2 * pad_length) * (W + 2 * pad_length) * num_channels
+            N * img_height * img_width * num_channels
     )
     frames = np.array(frames, dtype=np.uint8).reshape(
-        (N, path_length, H + 2 * pad_length, W + 2 * pad_length, num_channels)
+        (N, path_length, img_height, img_width, num_channels)
     )
     f1 = []
     for k1 in range(columns):
@@ -202,13 +251,28 @@ def dump_video(
         for k2 in range(rows):
             k = k1 * rows + k2
             f2.append(frames[k:k + 1, :, :, :, :].reshape(
-                (path_length, H + 2 * pad_length, W + 2 * pad_length,
-                 num_channels)
+                (path_length, img_height, img_width, num_channels)
             ))
         f1.append(np.concatenate(f2, axis=1))
     outputdata = np.concatenate(f1, axis=2)
-    skvideo.io.vwrite(filename, outputdata)
-    print("Saved video to ", filename)
+    return outputdata
+
+
+def get_generic_env_imgs(path, i_in_path, env):
+    x_0 = path['full_observations'][0]['image_observation']
+    d = path['full_observations'][i_in_path]
+    is_vae_env = isinstance(env, VAEWrappedEnv)
+    is_conditional_vae_env = isinstance(env, ConditionalVAEWrappedEnv)
+    imgs = []
+    if is_conditional_vae_env:
+        imgs.append(
+            np.clip(env._reconstruct_img(d['image_observation'], x_0), 0, 1)
+        )
+    elif is_vae_env:
+        imgs.append(
+            np.clip(env._reconstruct_img(d['image_observation']), 0, 1)
+        )
+    return imgs
 
 
 def dump_paths(
@@ -220,6 +284,8 @@ def dump_paths(
         columns=6,
         pad_length=0,
         pad_color=255,
+        subpad_length=0,
+        subpad_color=127,
         do_timer=True,
         horizon=100,
         dirname_to_save_images=None,
@@ -231,7 +297,10 @@ def dump_paths(
         dump_pickle=False,
         unnormalize=True,
         grayscale=False,
+        get_extra_imgs=None,
 ):
+    if get_extra_imgs is None:
+        get_extra_imgs = get_generic_env_imgs
     # num_channels = env.vae.input_channels
     num_channels = 1 if grayscale else 3
     frames = []
@@ -243,31 +312,19 @@ def dump_paths(
     H = num_imgs * imheight  # imsize
     W = imwidth  # imsize
 
-    # H = 3 * imsize
-    # W = imsize
     rows = min(rows, int(len(paths) / columns))
     N = rows * columns
-    is_vae_env = isinstance(env, VAEWrappedEnv)
-    is_conditional_vae_env = isinstance(env, ConditionalVAEWrappedEnv)
     for i in range(N):
         start = time.time()
         path = paths[i]
         l = []
-        x_0 = path['full_observations'][0]['image_observation']
-        for d in path['full_observations']:
-            if is_conditional_vae_env:
-                recon = np.clip(
-                    env._reconstruct_img(d['image_observation'], x_0), 0, 1)
-            elif is_vae_env:
-                recon = np.clip(env._reconstruct_img(d['image_observation']), 0,
-                                1)
-            else:
-                recon = d['image_observation']
+        for i_in_path, d in enumerate(path['full_observations']):
             imgs = [
-                       d[goal_image_key],  # d['image_desired_goal'],
-                       d['image_observation'],
-                       recon,
-                   ][:num_imgs]
+                d[goal_image_key],
+                d['image_observation'],
+            ]
+            imgs = imgs + get_extra_imgs(path, i_in_path, env)
+            imgs = imgs[:num_imgs]
             l.append(
                 get_image(
                     imgs,
@@ -275,6 +332,8 @@ def dump_paths(
                     imheight,
                     pad_length=pad_length,
                     pad_color=pad_color,
+                    subpad_length=subpad_length,
+                    subpad_color=subpad_color,
                     unnormalize=unnormalize,
                 )
             )
@@ -294,6 +353,8 @@ def dump_paths(
         if do_timer:
             print(i, time.time() - start)
 
+    # #TODO: can probably replace all of this with
+    # outputdata = reshape_for_video(frames, N, rows, columns, num_channels)
     frames = np.array(frames, dtype=np.uint8)
     path_length = frames.size // (
             N * (H + num_gaps * pad_length) * (
@@ -349,7 +410,7 @@ def get_save_video_function(
         assert image_env.imsize == imsize, "Imsize must match env imsize"
 
     def save_video(algo, epoch):
-        if epoch % save_video_period == 0 or epoch == algo.num_epochs:
+        if epoch % save_video_period == 0 or epoch >= algo.num_epochs - 1:
             filename = osp.join(
                 logdir,
                 'video_{}_{epoch}_env.mp4'.format(tag, epoch=epoch),

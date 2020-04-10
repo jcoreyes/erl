@@ -1,4 +1,6 @@
 from functools import partial
+
+from railrl.launchers.rl_exp_launcher_util import create_exploration_policy
 from railrl.launchers.experiments.disentanglement.util import (
     get_extra_imgs,
     get_save_video_function,
@@ -13,10 +15,10 @@ from railrl.torch.sac.sac import SACTrainer
 
 
 def her_twin_sac_experiment_v2(variant):
-    _her_twin_sac_experiment_v2(**variant)
+    her_sac_experiment(**variant)
 
 
-def _her_twin_sac_experiment_v2(
+def her_sac_experiment(
         max_path_length,
         qf_kwargs,
         twin_sac_trainer_kwargs,
@@ -34,8 +36,11 @@ def _her_twin_sac_experiment_v2(
         achieved_goal_key='state_achieved_goal',
         # Video parameters
         save_video_kwargs=None,
+        exploration_policy_kwargs=None,
         **kwargs
 ):
+    if exploration_policy_kwargs is None:
+        exploration_policy_kwargs = {}
     import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
@@ -117,9 +122,11 @@ def _her_twin_sac_experiment_v2(
         desired_goal_key=desired_goal_key,
         goal_sampling_mode=evaluation_goal_sampling_mode,
     )
+    exploration_policy = create_exploration_policy(
+        policy, **exploration_policy_kwargs)
     expl_path_collector = GoalConditionedPathCollector(
         train_env,
-        policy,
+        exploration_policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
@@ -144,6 +151,7 @@ def _her_twin_sac_experiment_v2(
             max_path_length=max_path_length,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
+            return_dict_obs=True,
         )
         eval_video_func = get_save_video_function(
             rollout_function,
@@ -155,8 +163,8 @@ def _her_twin_sac_experiment_v2(
         train_video_func = get_save_video_function(
             rollout_function,
             train_env,
-            policy,
-            tag="train",
+            exploration_policy,
+            tag="expl",
             **save_video_kwargs
         )
 
