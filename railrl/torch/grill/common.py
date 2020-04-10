@@ -172,9 +172,13 @@ def train_vae(variant, return_data=False):
 
     return model
 
-def train_dcgan(variant):
+def train_gan(variant):
     from railrl.torch.gan.dcgan import Generator, Discriminator
     from railrl.torch.gan.dcgan_trainer import DCGANTrainer
+
+    from railrl.torch.gan.bigan import Generator, Encoder, Discriminator
+    from railrl.torch.gan.bigan_trainer import BiGANTrainer
+
     from railrl.core import logger
     import railrl.torch.pytorch_util as ptu
     from railrl.pythonplusplus import identity
@@ -186,12 +190,9 @@ def train_dcgan(variant):
     from railrl.data_management.external.bair_dataset.config import BAIR_DATASET_LOCATION
 
     if variant["dataroot"] == "bair dataset":
-        dataloader = bair_dataset.generate_dataset(variant['generate_dataset_kwargs'], transform=transforms.Compose([
-                               transforms.Resize(image_size),
-                               transforms.CenterCrop(image_size),
-                               transforms.ToTensor(),
-                               transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                               ]))[0].dataset_loader
+        #train_dataset, test_dataset, info
+        dataloader = bair_dataset.generate_dataset(variant['generate_dataset_kwargs'])[0].dataset_loader
+        get_data = lambda d: d 
     else:
         batch_size=variant["batch_size"]
         num_workers=variant["num_workers"]
@@ -204,19 +205,25 @@ def train_dcgan(variant):
                                ]))
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
            shuffle=True, num_workers=num_workers)
+        get_data = lambda d: d[0]
 
-    model = variant["dcgan_class"]
-    trainer_class = variant["dcgan_trainer_class"]
-    trainer = trainer_class(model, variant["ngpu"], variant["lr"], variant["beta"], variant["nc"], variant["nz"], variant["ngf"], variant["ndf"]) 
+    model = variant["gan_class"]
+    trainer_class = variant["gan_trainer_class"]
+    if trainer_class is DCGANTrainer:
+        trainer = trainer_class(model, variant["ngpu"], variant["lr"], variant["beta"], variant["nc"], variant["nz"], variant["ngf"], variant["ndf"]) 
+    if trainer_class is BiGANTrainer:
+        trainer = trainer_class(model, variant["ngpu"], variant["lr"], variant["beta"], variant["latent_size"], variant["dropout"], variant["output_size"]) 
 
     for epoch in range(variant['num_epochs']):
-        trainer.train_epoch(dataloader, epoch, variant['num_epochs'])
+        trainer.train_epoch(dataloader, epoch, variant['num_epochs'], get_data)
+        #trainer.test_epoch(epoch, test_dataset)
         #dump samples is called in trainer
 
         stats = trainer.get_stats(epoch)
         for k, v in stats.items():
             logger.record_tabular(k, v)
         logger.dump_tabular()
+        #trainer.end_epoch(epoch)
 
         if epoch % 50 == 0:
             Generator = trainer.get_Generator()

@@ -72,14 +72,15 @@ class DCGANTrainer():
             nn.init.normal_(m.weight.data, 1.0,0.02)
             nn.init.constant_(m.bias.data, 0)
 
-    def train_epoch(self, dataloader, epoch, num_epochs):
+    def train_epoch(self, dataloader, epoch, num_epochs, get_data = lambda d: d):
         for i, data in enumerate(dataloader, 0):
+            #import ipdb; ipdb.set_trace()
             ############################
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             ###########################
             ## Train with all-real batch
             self.netD.zero_grad()
-            real_cpu = data['x_t'][0].to(self.device)
+            real_cpu = get_data(data).to(self.device).float()
             b_size = real_cpu.size(0)
             label = torch.full((b_size,), self.real_label, device=self.device)
             output = self.netD(real_cpu).view(-1)

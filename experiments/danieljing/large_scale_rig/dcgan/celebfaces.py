@@ -4,7 +4,7 @@ from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset im
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
-from railrl.torch.grill.common import train_dcgan
+from railrl.torch.grill.common import train_gan
 from railrl.torch.gan.dcgan import Generator, Discriminator
 from railrl.torch.gan.dcgan_trainer import DCGANTrainer
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
@@ -19,8 +19,8 @@ if __name__ == "__main__":
         num_workers = 2, 
         batch_size = 128, 
         image_size = 64,
-        dcgan_trainer_class=DCGANTrainer,
-        dcgan_class=(Generator, Discriminator),
+        gan_trainer_class=DCGANTrainer,
+        gan_class=(Generator, Discriminator),
         ngpu = 1, 
         beta = 0.5,
         lr = 0.0002,
@@ -28,25 +28,6 @@ if __name__ == "__main__":
         nz = 100,
         ngf = 64,
         ndf = 64,
-        # algo_kwargs=dict(
-        #     start_skew_epoch=5000,
-        #     is_auto_encoder=False,
-        #     batch_size=256,
-        #     lr=1e-3,
-        #     skew_config=dict(
-        #         method='vae_prob',
-        #         power=0,
-        #     ),
-        #     skew_dataset=False,
-        #     weight_decay=0.0,
-        #     priority_function_kwargs=dict(
-        #         decoder_distribution='gaussian_identity_variance',
-        #         sampling_method='importance_sampling',
-        #         # sampling_method='true_prior_sampling',
-        #         num_latents_to_sample=10,
-        #     ),
-        #     use_parallel_dataloading=False,
-        # ),
 
         save_period=25,
         logger_variant=dict(
@@ -71,4 +52,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(train_dcgan, variants, run_id=0)
+    run_variants(train_gan, variants, run_id=0)

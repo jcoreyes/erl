@@ -35,12 +35,11 @@ class BAIRDataset(data.Dataset):
     train_data = {}
     test_data = {}
 
-    def __init__(self, is_train, camera=1, n_train_files=10, info=None, transform = None):
+    def __init__(self, is_train, camera=1, n_train_files=10, info=None):
         self.is_train = is_train
         self.N = 1024 if is_train else 256
         self.traj_length = 15
         self.camera = camera
-        self.transform = transform
 
         if is_train:
             self.n_files = n_train_files
@@ -93,16 +92,12 @@ class BAIRDataset(data.Dataset):
         # x_t = normalize_image(np.array(x).flatten()).squeeze()
         # env = normalize_image(np.array(c).flatten()).squeeze()
 
-        data_dict = {
-            'x_t': images[traj_i, self.camera, trans_i, 8:56, 8:56, :].transpose().flatten() / 255.0,
-            'env': images[traj_i, self.camera, 0, 8:56, 8:56, :].transpose().flatten() / 255.0,
-        }
-        return data_dict
+        return images[traj_i, self.camera, trans_i, 0:64, 0:64, :].transpose() / 255.0 + 0.5
 
 
-def generate_dataset(variant, transform = None):
-    train_dataset = BAIRDataset(is_train=True, transform = transform)
-    test_dataset = BAIRDataset(is_train=False, transform = transform)
+def generate_dataset(variant):
+    train_dataset = BAIRDataset(is_train=True)
+    test_dataset = BAIRDataset(is_train=False)
 
     train_batch_loader_kwargs = variant.get(
         'train_batch_loader_kwargs',
