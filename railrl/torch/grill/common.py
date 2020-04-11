@@ -166,73 +166,11 @@ def train_vae(variant, return_data=False):
         if epoch % 50 == 0:
             logger.save_itr_params(epoch, model)
     logger.save_extra_data(model, 'vae.pkl', mode='pickle')
-
     if return_data:
         return model, train_dataset, test_dataset
-
     return model
 
-def train_gan(variant):
-    from railrl.torch.gan.dcgan import Generator, Discriminator
-    from railrl.torch.gan.dcgan_trainer import DCGANTrainer
 
-    from railrl.torch.gan.bigan import Generator, Encoder, Discriminator
-    from railrl.torch.gan.bigan_trainer import BiGANTrainer
-
-    from railrl.core import logger
-    import railrl.torch.pytorch_util as ptu
-    from railrl.pythonplusplus import identity
-    import torch
-    import torch.utils.data
-    import torchvision.datasets as dset
-    from railrl.data_management.external.bair_dataset import bair_dataset
-    import torchvision.transforms as transforms
-    from railrl.data_management.external.bair_dataset.config import BAIR_DATASET_LOCATION
-
-    if variant["dataroot"] == "bair dataset":
-        #train_dataset, test_dataset, info
-        dataloader = bair_dataset.generate_dataset(variant['generate_dataset_kwargs'])[0].dataset_loader
-        get_data = lambda d: d 
-    else:
-        batch_size=variant["batch_size"]
-        num_workers=variant["num_workers"]
-        dataset = dset.ImageFolder(root=variant["dataroot"],
-                               transform=transforms.Compose([
-                                   transforms.Resize(variant["image_size"]),
-                                   transforms.CenterCrop(variant["image_size"]),
-                                   transforms.ToTensor(),
-                                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                               ]))
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
-           shuffle=True, num_workers=num_workers)
-        get_data = lambda d: d[0]
-
-    model = variant["gan_class"]
-    trainer_class = variant["gan_trainer_class"]
-    if trainer_class is DCGANTrainer:
-        trainer = trainer_class(model, variant["ngpu"], variant["lr"], variant["beta"], variant["nc"], variant["nz"], variant["ngf"], variant["ndf"]) 
-    if trainer_class is BiGANTrainer:
-        trainer = trainer_class(model, variant["ngpu"], variant["lr"], variant["beta"], variant["latent_size"], variant["dropout"], variant["output_size"]) 
-
-    for epoch in range(variant['num_epochs']):
-        trainer.train_epoch(dataloader, epoch, variant['num_epochs'], get_data)
-        #trainer.test_epoch(epoch, test_dataset)
-        #dump samples is called in trainer
-
-        stats = trainer.get_stats(epoch)
-        for k, v in stats.items():
-            logger.record_tabular(k, v)
-        logger.dump_tabular()
-        #trainer.end_epoch(epoch)
-
-        if epoch % 50 == 0:
-            Generator = trainer.get_Generator()
-            Discriminator = trainer.get_Discriminator()
-
-            logger.save_itr_params(epoch, (Generator, Discriminator))
-
-    logger.save_extra_data(Generator, 'generator.pkl', mode='pickle')
-    logger.save_extra_data(Discriminator, 'discriminator.pkl', mode='pickle')
 
 def generate_vae_dataset(variant):
     print(variant)
