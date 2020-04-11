@@ -92,11 +92,7 @@ class BAIRDataset(data.Dataset):
         # x_t = normalize_image(np.array(x).flatten()).squeeze()
         # env = normalize_image(np.array(c).flatten()).squeeze()
 
-        data_dict = {
-            'x_t': images[traj_i, self.camera, trans_i, 8:56, 8:56, :].transpose().flatten() / 255.0,
-            'env': images[traj_i, self.camera, 0, 8:56, 8:56, :].transpose().flatten() / 255.0,
-        }
-        return data_dict
+        return images[traj_i, self.camera, trans_i, 0:64, 0:64, :].transpose() / 255.0 + 0.5
 
 
 def generate_dataset(variant):
