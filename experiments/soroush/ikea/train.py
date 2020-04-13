@@ -68,29 +68,39 @@ env_params = {
             'furniture_id': 0,
             'unity': False,
 
-            # 'reward_type': 'robot1_obj1_and_robot2_obj2', #'robot1_obj1',
-            'fixed_reset': False,
-            'tight_action_space': True,
+            # 'reset_type': 'var_2dpos+var_1drot',
+            'reset_type': 'var_2dpos',
+            'tight_action_space': False,
 
-            'control_degrees': '2d+select',  # '2d',
+            # 'control_degrees': '2d+select',  # '2d',
+            'control_degrees': '3dpos+3drot+select',  # '2d',
 
             # 'task_type': 'reach_obj',
             # 'task_type': 'reach_obj+latch',
             # 'task_type': 'latch',
-            # 'task_type': 'move_obj',
-            'task_type': 'latch+move_obj',
+            'task_type': 'move_obj',
+            # 'task_type': 'latch+move_obj',
+            # 'task_type': 'reach+latch+move_obj',
 
-            'fixed_goal': False,
+            'goal_type': 'reset',
 
             # 'reward_type': 'state_distance',
             # 'reward_type': 'object_distance',
             'reward_type': 'object_xyz_distance',
             # 'reward_type': 'object1_xyz_distance',
+
+            'preempt_collisions': [True],
         }],
 
+        'rl_variant.td3_trainer_kwargs.use_policy_saturation_cost': [True],
+        'rl_variant.td3_trainer_kwargs.policy_saturation_cost_threshold': [5.0],
+
+        'rl_variant.replay_buffer_kwargs.fraction_goals_rollout_goals': [0.5], # HER Relabeling
+        # 'rl_variant.algo_kwargs.num_trains_per_train_loop': [4000], # increase NUPO to 4
+
         'imsize': [250],
-        # 'init_camera':[sawyer_xyz_reacher_camera_v0],
         'rl_variant.save_video_period': [25], #50
+        'rl_variant.algo_kwargs.num_epochs': [500],
 
         'rl_variant.max_path_length': [100], #100
     },

@@ -40,7 +40,10 @@ try:
         mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
     ]
     for code_dir in config.CODE_DIRS_TO_MOUNT:
-        CODE_MOUNTS.append(mount.MountLocal(local_dir=code_dir, pythonpath=True))
+        if isinstance(code_dir, str):
+            CODE_MOUNTS.append(mount.MountLocal(local_dir=code_dir, pythonpath=True))
+        else:
+            CODE_MOUNTS.append(mount.MountLocal(**code_dir, pythonpath=True))
 
     NON_CODE_MOUNTS = []
     for non_code_mapping in config.DIR_AND_MOUNT_POINT_MAPPINGS:
@@ -198,6 +201,9 @@ def run_experiment(
 
         git_infos = []
         for directory in dirs:
+            if not isinstance(directory, str):
+                directory = directory['local_dir']
+
             # Idk how to query these things, so I'm just doing try-catch
             try:
                 repo = git.Repo(directory)

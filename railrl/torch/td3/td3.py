@@ -40,6 +40,7 @@ class TD3(TorchTrainer):
             optimizer_class=optim.Adam,
 
             use_policy_saturation_cost=False,
+            policy_saturation_cost_threshold=20.0,
     ):
         super().__init__()
         if qf_criterion is None:
@@ -74,6 +75,7 @@ class TD3(TorchTrainer):
         )
 
         self.use_policy_saturation_cost = use_policy_saturation_cost
+        self.policy_saturation_cost_threshold = policy_saturation_cost_threshold
 
         self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
@@ -127,7 +129,7 @@ class TD3(TorchTrainer):
         policy_actions = policy_loss = None
         if self._n_train_steps_total % self.policy_and_target_update_period == 0:
             policy_actions, pre_tanh_values = self.policy(obs, return_preactivations=True)
-            policy_saturation_cost = F.relu(torch.abs(pre_tanh_values) - 20.0)
+            policy_saturation_cost = F.relu(torch.abs(pre_tanh_values) - self.policy_saturation_cost_threshold)
             q_output = self.qf1(obs, policy_actions)
             policy_loss = - q_output.mean()
 
@@ -146,7 +148,7 @@ class TD3(TorchTrainer):
             self._need_to_update_eval_statistics = False
             if policy_loss is None:
                 policy_actions, pre_tanh_values = self.policy(obs, return_preactivations=True)
-                policy_saturation_cost = F.relu(torch.abs(pre_tanh_values) - 20.0)
+                policy_saturation_cost = F.relu(torch.abs(pre_tanh_values) - self.policy_saturation_cost_threshold)
                 q_output = self.qf1(obs, policy_actions)
                 policy_loss = - q_output.mean()
 
