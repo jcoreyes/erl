@@ -77,6 +77,7 @@ def train_vae(variant, return_data=False):
     from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
     from railrl.torch.vae.conv_vae import (
         ConvVAE,
+        ConvDynamicsVAE,
         SpatialAutoEncoder,
         AutoEncoder,
     )
@@ -86,6 +87,7 @@ def train_vae(variant, return_data=False):
     import railrl.torch.pytorch_util as ptu
     from railrl.pythonplusplus import identity
     import torch
+    import gym
     beta = variant["beta"]
     representation_size = variant.get("representation_size", variant.get("latent_sizes", None))
     use_linear_dynamics = variant.get('use_linear_dynamics', False)
@@ -212,7 +214,8 @@ def generate_vae_dataset(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.misc.asset_loader import load_local_or_remote_file
     from railrl.data_management.dataset  import (
-        TrajectoryDataset, ImageObservationDataset, EnvironmentDataset, ConditionalDynamicsDataset, InitialObservationNumpyDataset,
+        TrajectoryDataset, ImageObservationDataset, InitialObservationDataset,
+        EnvironmentDataset, ConditionalDynamicsDataset, InitialObservationNumpyDataset,
         InfiniteBatchLoader,
     )
 
@@ -632,7 +635,7 @@ def get_state_experiment_video_save_function(rollout_function, env, policy, vari
     from multiworld.core.image_env import ImageEnv
     from railrl.core import logger
     from railrl.envs.vae_wrappers import temporary_mode
-    from railrl.visualization.video import dump_video
+    from railrl.torch.grill.video_gen import dump_video
     logdir = logger.get_snapshot_dir()
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)

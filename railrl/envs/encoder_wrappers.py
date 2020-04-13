@@ -84,7 +84,8 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
     def get_latent_distance(self, latent1, latent2):
         latent1 = ptu.from_numpy(latent1 * self.num_keys).long()
         latent2 = ptu.from_numpy(latent2 * self.num_keys).long()
-        return self.vae.get_distance(latent1, latent2)
+        return self.vae.get_distance(latent1, latent2)        
+
 
     def _update_info(self, info, obs):
         self.vae.eval()

@@ -56,8 +56,8 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
         np.save(save_dir, encodings)
 
     def train_epoch(self, epoch, dataset, batches=100):
-        if epoch % 100 == 0 and epoch > 0:
-            self.encode_dataset(dataset, epoch)
+        # if epoch % 100 == 0 and epoch > 0:
+        #     self.encode_dataset(dataset, epoch)
 
         start_time = time.time()
         for b in range(batches):

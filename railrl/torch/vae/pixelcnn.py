@@ -136,7 +136,6 @@ class GatedPixelCNN(nn.Module):
             (batch_size, *shape),
             dtype=torch.int64, device=param.device
         )
-
         for i in range(shape[0]):
             for j in range(shape[1]):
                 logits = self.forward(x) #might need to convert 0 to long

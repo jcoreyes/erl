@@ -11,10 +11,11 @@ from railrl.torch.grill.cvae_experiments import (
 from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
-from railrl.torch.vae.vq_vae import VQ_VAE
-from railrl.torch.vae.vq_vae_trainer import VQ_VAETrainer
+from railrl.torch.vae.conv_vae import ConvVAE
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
 from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
+
 
 x_var = 0.2
 x_low = -x_var
@@ -30,6 +31,7 @@ if __name__ == "__main__":
         imsize=48,
         init_camera=sawyer_init_camera_zoomed_in,
         env_class=SawyerMultiobjectEnv,
+
         env_kwargs=dict(
             fixed_start=True,
             fixed_colors=False,
@@ -61,7 +63,7 @@ if __name__ == "__main__":
                 beta=20,
                 lr=0,
             ),
-            save_video_period=50,
+            save_video_period=100,
             qf_kwargs=dict(
                 hidden_sizes=[400, 300],
             ),
@@ -74,7 +76,7 @@ if __name__ == "__main__":
             max_path_length=100,
             algo_kwargs=dict(
                 batch_size=128,
-                num_epochs=500,
+                num_epochs=1001,
                 num_eval_steps_per_epoch=1000,
                 num_expl_steps_per_train_loop=1000,
                 num_trains_per_train_loop=1000,
@@ -93,7 +95,7 @@ if __name__ == "__main__":
             ),
             replay_buffer_class=OnlineVaeRelabelingBuffer,
             replay_buffer_kwargs=dict(
-                ob_keys_to_save=['state_achieved_goal', "state_desired_goal"],
+                #ob_keys_to_save=['state_achieved_goal', "state_desired_goal"],
                 start_skew_epoch=10,
                 max_size=int(100000),
                 fraction_goals_rollout_goals=0.2,
@@ -117,27 +119,30 @@ if __name__ == "__main__":
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
-                #epsilon=9,
-                type="state_distance"
+                type='latent_sparse'
             ),
-            observation_key="latent_achieved_goal", #'latent_observation',
+            observation_key='latent_achieved_goal',
             desired_goal_key='latent_desired_goal',
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
-                num_latents_to_sample=10000,
+                num_goals_to_presample=1000,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            vae_path="/home/ashvin/data/rail-khazatsky/sasha/testing/vqvae/vqvae-state/sasha/testing/vqvae/vqvae-state/run51/id0/vae.pkl",
-            #"/home/ashvin/data/sasha/testing/vqvae/vqvae-vqvae/run100/id0/vae.pkl"
-                    ),
+            vae_path="/home/ashvin/data/sasha/state/vae-sparse/run2/id0/vae.pkl"
+        ),
         train_vae_variant=dict(
+            latent_sizes=4,
             beta=10,
-            num_epochs=501,
+            beta_schedule_kwargs=dict(
+                x_values=(0, 500),
+                y_values=(1, 50),
+            ),
+            num_epochs=500, #500
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=100000,
+                N=100000, #10000
                 n_random_steps=50,
                 test_p=.9,
                 dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
@@ -151,24 +156,24 @@ if __name__ == "__main__":
                 conditional_vae_dataset=True,
                 save_trajectories=False,
                 enviorment_dataset=False,
-                tag="ccrig_tuning_orig_network",
             ),
-            vae_trainer_class=VQ_VAETrainer,
-            vae_class=VQ_VAE,
+            vae_trainer_class=ConvVAETrainer,
+            vae_class=ConvVAE,
             vae_kwargs=dict(
                 input_channels=3,
+                architecture=imsize48_default_architecture_with_more_hidden_layers,
+                decoder_distribution='gaussian_identity_variance',
             ),
 
             algo_kwargs=dict(
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
-                batch_size=256,
+                batch_size=128,
                 lr=1e-3,
                 skew_config=dict(
                     method='vae_prob',
                     power=0,
                 ),
-                weight_decay=0.0,
                 skew_dataset=False,
                 priority_function_kwargs=dict(
                     decoder_distribution='gaussian_identity_variance',
@@ -178,10 +183,10 @@ if __name__ == "__main__":
                 use_parallel_dataloading=False,
             ),
 
-            save_period=25,
+            save_period=100,
         ),
         launcher_config=dict(
-            region='us-east-2'
+            region='us-west-1'
         ),
 
         logger_variant=dict(
@@ -196,8 +201,14 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(1),
-        'train_vae_variant.representation_size': [2,],
+        'seedid': range(2),
+        'train_vae_variant.representation_size': [8],
+        'train_vae_variant.algo_kwargs.batch_size': [128],
+        'grill_variant.algo_kwargs.num_trains_per_train_loop':[4000],
+        'grill_variant.reward_params.epsilon': [0.1, 0.2, 0.3, 0.4, 0.5],
+        'grill_variant.algo_kwargs.batch_size': [128,],
+        'grill_variant.exploration_noise': [0.8],
+
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -207,4 +218,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1002)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)
