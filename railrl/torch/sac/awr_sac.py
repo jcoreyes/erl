@@ -10,6 +10,7 @@ from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.core import np_to_pytorch_batch
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 from railrl.core import logger
+from railrl.core.logging import add_prefix
 from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 import torch.nn.functional as F
 from railrl.torch.networks import LinearTransform
@@ -89,6 +90,7 @@ class AWRSACTrainer(TorchTrainer):
             train_bc_on_rl_buffer=False,
             use_automatic_beta_tuning=False,
             beta_epsilon=1e-10,
+            normalize_over_batch=True,
     ):
         super().__init__()
         self.env = env
@@ -197,6 +199,7 @@ class AWRSACTrainer(TorchTrainer):
         self.pretraining_env_logging_period = pretraining_env_logging_period
         self.pretraining_logging_period = pretraining_logging_period
         self.do_pretrain_rollouts = do_pretrain_rollouts
+        self.normalize_over_batch = normalize_over_batch
 
         self.reward_transform_class = reward_transform_class or LinearTransform
         self.reward_transform_kwargs = reward_transform_kwargs or dict(m=1, b=0)
@@ -338,7 +341,8 @@ class AWRSACTrainer(TorchTrainer):
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
             if i%self.pretraining_logging_period == 0:
-                logger.record_dict(self.eval_statistics)
+                stats_with_prefix = add_prefix(self.eval_statistics, prefix="trainer/")
+                logger.record_dict(stats_with_prefix)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
         self.update_policy = True
@@ -365,7 +369,8 @@ class AWRSACTrainer(TorchTrainer):
                     self.eval_statistics["pretrain_bc/avg_return"] = total_ret / 20
                 self.eval_statistics["batch"] = i
                 self.eval_statistics["epoch_time"] = time.time()-prev_time
-                logger.record_dict(self.eval_statistics)
+                stats_with_prefix = add_prefix(self.eval_statistics, prefix="trainer/")
+                logger.record_dict(stats_with_prefix)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
                 prev_time = time.time()
 
@@ -514,7 +519,10 @@ class AWRSACTrainer(TorchTrainer):
                 self.beta_optimizer.step()
             else:
                 beta = self.beta_schedule.get_value(self._n_train_steps_total)
-            weights = F.softmax(advantage / beta, dim=0)
+            if self.normalize_over_batch:
+                weights = F.softmax(advantage / beta, dim=0)
+            else:
+                weights = torch.exp(advantage / beta)
 
         policy_loss = alpha * log_pi.mean()
 
@@ -545,7 +553,9 @@ class AWRSACTrainer(TorchTrainer):
             q2_b = self.qf2(buffer_obs, buffer_actions)
             q_b = torch.min(q1_b, q2_b)
             q_b = torch.reshape(q_b, (-1, K))
-            q_weights_b = F.softmax(torch.reshape(q_b, (-1, K)) / beta, dim=1).flatten() * K
+            q_max = q_b.max(dim=1)[0][:, None]
+            q_normalized = q_b - q_max
+            q_weights_b = F.softmax(q_normalized / beta, dim=1).flatten() * K
             # klac_loss = (-log_pi * q_weights_b.detach() / p_buffer.detach()).mean()
             klac_loss = (-log_pi * q_weights_b.detach()).mean()
             policy_loss = policy_loss + self.klac_weight * klac_loss
@@ -564,7 +574,7 @@ class AWRSACTrainer(TorchTrainer):
             policy_loss = policy_loss + self.bc_weight * train_policy_loss
 
         if self.train_bc_on_rl_buffer:
-            buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(self.replay_buffer, self.buffer_policy)
+            buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(self.replay_buffer.train_replay_buffer, self.buffer_policy)
         """
         Update networks
         """
@@ -659,7 +669,7 @@ class AWRSACTrainer(TorchTrainer):
                     "bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
                 })
             if self.train_bc_on_rl_buffer:
-                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.replay_buffer,
+                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.replay_buffer.validation_replay_buffer,
                                                                                        self.buffer_policy)
                 _, _, _, _, _, _, _, _, buffer_dist = self.buffer_policy(
                     obs, reparameterize=True, return_log_prob=True,

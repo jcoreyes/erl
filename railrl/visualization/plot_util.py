@@ -164,14 +164,19 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
     print_final=False, print_max=False, print_min=False, print_plot=True, print_legend=True,
     reduce_op=sum, method_order=None, remap_keys={},
     label_to_color=None, return_data=False, bar_plot=False, label_include_key=True,
+    plot_error_bars=True, plot_seeds=False, overlay=False,
 ):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
     vary is (what we might think is) the causal variable
     f is a filter function on the exp parameters"""
     if print_plot:
-        plt.figure(figsize=figsize)
-        plt.title("Vary " + " ".join(vary))
+        if overlay:
+            label_suffix = key
+        else:
+            label_suffix = ""
+            plt.figure(figsize=figsize)
+            plt.title("Vary " + " ".join(vary))
         if not bar_plot:
             plt.ylabel(key)
         if xlim:
@@ -219,6 +224,7 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                 else:
                     print("not found", key)
                     print(d.keys())
+                    continue
 
             is_not_nan = np.logical_not(np.isnan(y))
             if xlabel:
@@ -248,15 +254,20 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
 
         s = np.nanstd(ys, axis=0) / (len(ys) ** 0.5)
         if print_plot:
-            if label_to_color is None:
-                plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2)
-                line, = plt.plot(x, y, label=str(label))
-            else:
+            plot_kwargs = dict()
+            if not label_to_color is None:
                 label_without_vary_prefix = label.split(":")[-1]
                 color = label_to_color[label_without_vary_prefix]
-                plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2, color=color)
-                line, = plt.plot(x, y, label=str(label), color=color)
+                plot_kwargs["color"] = color
+            if plot_error_bars:
+                plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.1, **plot_kwargs)
+            line, = plt.plot(x, y, label=str(label) + label_suffix, **plot_kwargs)
             lines.append(line)
+
+            if plot_seeds:
+                color = line.get_color()
+                for i in range(len(ys)):
+                    plt.plot(x, ys[i, :], color=color, alpha=0.25)
 
         if print_final:
             print(label, y[-1])
@@ -307,6 +318,7 @@ def split(exps,
     default_vary=False,
     xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True,
+    split_fig=False,
     **kwargs):
 
     split_values = {}
@@ -333,18 +345,23 @@ def split(exps,
             c.append((s, v))
         configurations.append(c)
     for c in itertools.product(*configurations):
+        if split_fig:
+            plt.figure(figsize=figsize)
         fsplit = lambda exp: all([exp['flat_params'][k] == v for k, v in c]) and f(exp)
         # for exp in exps:
         #     print(fsplit(exp), exp['flat_params'])
+        lines = []
         for key in keys:
             if print_final or print_max or print_min:
                 print(key, c)
-            comparison(exps, key, vary, f=fsplit, smooth=smooth,
+            lines += comparison(exps, key, vary, f=fsplit, smooth=smooth,
                 figsize=figsize, xlabel=xlabel, default_vary=default_vary, xlim=xlim, ylim=ylim,
                 print_final=print_final, print_max=print_max, print_min=print_min, print_plot=print_plot,
                 **kwargs)
             if print_plot:
                 plt.title(prettify_configuration(c) + " Vary " + " ".join(vary))
+        if split_fig:
+            plt.legend(handles=lines, bbox_to_anchor=(1.0, 0.75))
 
 
 def min_length(trials, key):

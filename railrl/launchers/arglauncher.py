@@ -112,7 +112,7 @@ def process_logger_args(variant):
     logger_config = variant.setdefault("logger_config", dict())
 
     logger_config["snapshot_mode"] = logger_config.get("snapshot_mode", "gap")
-    logger_config["snapshot_gap"] = logger_config.get("snapshot_gap", 20)
+    logger_config["snapshot_gap"] = logger_config.get("snapshot_gap", 100)
     if "--snapshot" in sys.argv:
         logger_config["snapshot_mode"] = 'gap_and_last'
         logger_config["snapshot_gap"] = 20
@@ -131,7 +131,6 @@ def process_launcher_args(variant):
     launcher_config.setdefault("ssh_host", None)
     launcher_config.setdefault("slurm_config_name", None)
     launcher_config.setdefault("unpack_variant", False)
-    launcher_config.setdefault("s3_log_prefix", "")
 
     if "--ec2" in sys.argv:
         launcher_config["mode"] = "ec2"
@@ -195,3 +194,4 @@ def process_launcher_args(variant):
         n = len(s)
         assert sys.argv[0][:n] == s
         launcher_config["exp_name"] = sys.argv[0][n:-3]
+

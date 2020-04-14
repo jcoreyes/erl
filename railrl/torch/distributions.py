@@ -71,6 +71,73 @@ class GaussianMixture(Distribution):
         # m = torch.matmul(self.normal_means, self.weights.detach()).detach()
         # return torch.squeeze(m, 2)
 
+    def __repr__(self):
+        s = "GaussianMixture(normal_means=%s, normal_stds=%s, weights=%s)"
+        return s % (self.normal_means, self.normal_stds, self.weights)
+
+
+class GaussianMixtureFull(Distribution):
+    def __init__(self, normal_means, normal_stds, weights):
+        self.num_gaussians = weights.shape[-1]
+        self.normal_means = normal_means
+        self.normal_stds = normal_stds
+        self.normal = Normal(normal_means, normal_stds)
+        self.normals = [Normal(normal_means[:, :, i], normal_stds[:, :, i]) for i in range(self.num_gaussians)]
+        self.weights = weights
+        self.categorical = Categorical(self.weights)
+
+    def log_prob(self, value, ):
+        log_p = [self.normals[i].log_prob(value) for i in range(self.num_gaussians)]
+        # log_p = self.normal.log_prob(value)
+        log_p = torch.stack(log_p, -1)
+        # log_p = log_p.sum(dim=1)
+        log_weights = torch.log(self.weights)
+        lp = log_weights + log_p
+        m = lp.max(dim=2, keepdim=True)[0] # log-sum-exp numerical stability trick
+        log_p_mixture = m + torch.log(torch.exp(lp - m).sum(dim=2, keepdim=True))
+        return torch.squeeze(log_p_mixture, 2)
+
+    def sample(self, ):
+        z = self.normal.sample().detach()
+        c = self.categorical.sample()[:, :, None]
+        # ind = torch.argmax(c, dim=2)[:, :, None]
+        s = torch.gather(z, dim=2, index=c)
+        # return torch.squeeze(s, 2)
+        return s[:, :, 0]
+
+    def rsample(self, ):
+        z = (
+            self.normal_means +
+            self.normal_stds *
+                Normal(
+                    ptu.zeros(self.normal_means.size()),
+                    ptu.ones(self.normal_stds.size())
+                ).sample()
+        )
+        z.requires_grad_()
+        c = self.categorical.sample()[:, :, None]
+        # ind = torch.argmax(c, dim=2)[:, :, None]
+        s = torch.gather(z, dim=2, index=c)
+        # import ipdb; ipdb.set_trace()
+        # return torch.squeeze(s, 2)
+        return s[:, :, 0]
+
+    def mean(self, ):
+        """Misleading function name; this actually now samples the mean of the
+        most likely component.
+        c ~ argmax(C), returns mu_c
+
+        This often computes the mode of the distribution, but not always.
+        """
+        c = ptu.zeros(self.weights.shape)
+        ind = torch.argmax(self.weights, dim=2)[:, :, None]
+        means = torch.gather(self.normal_means, dim=2, index=ind)
+        return torch.squeeze(means, 2)
+
+    def __repr__(self):
+        s = "GaussianMixture(normal_means=%s, normal_stds=%s, weights=%s)"
+        return s % (self.normal_means, self.normal_stds, self.weights)
+
 class TanhNormal(Distribution):
     """
     Represent distribution of X where

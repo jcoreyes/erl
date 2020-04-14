@@ -1,6 +1,7 @@
 import gym
 from railrl.data_management.awr_env_replay_buffer import AWREnvReplayBuffer
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWrapperEnv
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector, ObsDictPathCollector
@@ -35,6 +36,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 import os.path as osp
 from railrl.core import logger
 from railrl.misc.asset_loader import load_local_or_remote_file
+import pickle
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
@@ -414,9 +416,14 @@ def experiment(variant):
         env=expl_env,
     )
 
-    replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
+    train_replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
         **main_replay_buffer_kwargs,
     )
+    validation_replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
+        **main_replay_buffer_kwargs,
+    )
+    replay_buffer = SplitReplayBuffer(train_replay_buffer, validation_replay_buffer, 0.9)
+
     trainer = AWRSACTrainer(
         env=eval_env,
         policy=policy,
@@ -509,6 +516,14 @@ def experiment(variant):
             **path_loader_kwargs
         )
         path_loader.load_demos()
+    if variant.get('save_initial_buffers', False):
+        buffers = dict(
+            replay_buffer=replay_buffer,
+            demo_train_buffer=demo_train_buffer,
+            demo_test_buffer=demo_test_buffer,
+        )
+        buffer_path = osp.join(logger.get_snapshot_dir(), 'buffers.p')
+        pickle.dump(buffers, open(buffer_path, "wb"))
     if variant.get('pretrain_policy', False):
         trainer.pretrain_policy_with_bc()
     if variant.get('pretrain_rl', False):
