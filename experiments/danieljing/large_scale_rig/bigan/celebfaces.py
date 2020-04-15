@@ -5,7 +5,7 @@ from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 from railrl.torch.grill.common import train_gan
-from railrl.torch.gan.bigan import Generator, Encoder, Discriminator
+from railrl.torch.gan.bigan import BiGAN
 from railrl.torch.gan.bigan_trainer import BiGANTrainer
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
@@ -14,13 +14,14 @@ from railrl.launchers.config import CELEBA_DATASET
 if __name__ == "__main__":
 
     variant = dict(
-        num_epochs=10, 
+        num_epochs=500,
+        dataset = 'celebfaces', 
         dataroot = CELEBA_DATASET,
         num_workers = 2, 
         batch_size = 100, 
         image_size = 32,
         gan_trainer_class=BiGANTrainer,
-        gan_class=(Encoder, Generator, Discriminator),
+        gan_class=BiGAN,
         ngpu = 1, 
         beta = 0.5,
         lr = 1e-4,

@@ -8,17 +8,44 @@ import torch.backends.cudnn as cudnn
 import torchvision.utils as vutils
 import numpy as np
 
+class DCGAN:
+    def __init__(self, ngpu, nc, latent_size, ngf, ndf):
+        self.device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
+
+        self.netG = Generator(ngpu, nc, latent_size, ngf).to(self.device)
+        self.netD = Discriminator(ngpu, nc, ndf).to(self.device)
+
+        if (self.device.type == 'cuda') and (ngpu > 1):
+            self.netG = nn.DataParallel(self.netG, list(range(self.ngpu)))
+
+        self.netG.apply(self.weights_init)
+        
+        if (self.device.type == 'cuda') and (ngpu > 1):
+            self.netD = nn.DataParallel(self.netD, list(range(ngpu)))
+
+        self.netD.apply(self.weights_init)
+
+    def weights_init(self, m):
+        classname = m.__class__.__name__
+        if classname.find('Conv') != -1:
+            nn.init.normal_(m.weight.data, 0.0, 0.02)
+        elif classname.find('BatchNorm') != -1:
+            nn.init.normal_(m.weight.data, 1.0,0.02)
+            nn.init.constant_(m.bias.data, 0)
+
+
+
 class Generator(nn.Module):
-    def __init__(self, ngpu, nz, nc, ngf):
+    def __init__(self, ngpu, nc, latent_size, ngf):
         super(Generator, self).__init__()
         self.ngpu = ngpu
-        self.nz = nz
         self.nc = nc
+        self.latent_size = latent_size
         self.ngf = ngf
 
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d(nz, ngf * 8, 4, 1, 0, bias=False),
+            nn.ConvTranspose2d(latent_size, ngf * 8, 4, 1, 0, bias=False),
             nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 4 x 4

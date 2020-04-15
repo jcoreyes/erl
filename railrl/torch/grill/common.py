@@ -189,13 +189,21 @@ def train_gan(variant):
     import torchvision.transforms as transforms
     from railrl.data_management.external.bair_dataset.config import BAIR_DATASET_LOCATION
 
-    if variant["dataroot"] == "bair dataset":
+    if variant["dataset"] == "bair":
         #train_dataset, test_dataset, info
         dataloader = bair_dataset.generate_dataset(variant['generate_dataset_kwargs'])[0].dataset_loader
-        get_data = lambda d: d 
-    else:
-        batch_size=variant["batch_size"]
-        num_workers=variant["num_workers"]
+        get_data = lambda d: d
+
+    if variant["dataset"] == "cifar10":
+        dataset = dset.CIFAR10(
+            root=variant["dataroot"], train=True, download=False, transform=transforms.Compose([
+                          transforms.ToTensor()
+                      ]))
+        dataloader = torch.utils.data.DataLoader(
+            dataset, batch_size=variant["batch_size"], shuffle=True, num_workers=variant["num_workers"])
+        get_data = lambda d: d[0]
+
+    if variant["dataset"] == "celebfaces":
         dataset = dset.ImageFolder(root=variant["dataroot"],
                                transform=transforms.Compose([
                                    transforms.Resize(variant["image_size"]),
@@ -203,16 +211,18 @@ def train_gan(variant):
                                    transforms.ToTensor(),
                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                                ]))
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
-           shuffle=True, num_workers=num_workers)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=variant["batch_size"],
+           shuffle=True, num_workers=variant["num_workers"])
         get_data = lambda d: d[0]
 
-    model = variant["gan_class"]
+    model_class = variant["gan_class"]
     trainer_class = variant["gan_trainer_class"]
     if trainer_class is DCGANTrainer:
-        trainer = trainer_class(model, variant["ngpu"], variant["lr"], variant["beta"], variant["nc"], variant["nz"], variant["ngf"], variant["ndf"]) 
+        model = model_class(variant["ngpu"], variant["nc"], variant["latent_size"], variant["ngf"], variant["ndf"])
+        trainer = trainer_class(model, variant["lr"], variant["beta"], variant["latent_size"])
     if trainer_class is BiGANTrainer:
-        trainer = trainer_class(model, variant["ngpu"], variant["lr"], variant["beta"], variant["latent_size"], variant["dropout"], variant["output_size"]) 
+        model = model_class(variant["ngpu"], variant["latent_size"], variant["dropout"], variant["output_size"])
+        trainer = trainer_class(model, variant["ngpu"], variant["lr"], variant["beta"], variant["latent_size"])
 
     for epoch in range(variant['num_epochs']):
         trainer.train_epoch(dataloader, epoch, variant['num_epochs'], get_data)

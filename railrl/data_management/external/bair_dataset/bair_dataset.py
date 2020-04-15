@@ -35,11 +35,12 @@ class BAIRDataset(data.Dataset):
     train_data = {}
     test_data = {}
 
-    def __init__(self, is_train, camera=1, n_train_files=10, info=None):
+    def __init__(self, is_train, camera=1, n_train_files=10, info=None, image_size = 64):
         self.is_train = is_train
         self.N = 1024 if is_train else 256
         self.traj_length = 15
         self.camera = camera
+        self.image_size = image_size
 
         if is_train:
             self.n_files = n_train_files
@@ -91,13 +92,12 @@ class BAIRDataset(data.Dataset):
         # c = jitter(F.resized_crop(c, crop[0], crop[1], crop[2], crop[3], (48, 48), Image.BICUBIC))
         # x_t = normalize_image(np.array(x).flatten()).squeeze()
         # env = normalize_image(np.array(c).flatten()).squeeze()
-
-        return images[traj_i, self.camera, trans_i, 0:64, 0:64, :].transpose() / 255.0 + 0.5
+        return images[traj_i, self.camera, trans_i, 0:self.image_size, 0:self.image_size, :].transpose([2, 0, 1]) / 255.0 - 0.5
 
 
 def generate_dataset(variant):
-    train_dataset = BAIRDataset(is_train=True)
-    test_dataset = BAIRDataset(is_train=False)
+    train_dataset = BAIRDataset(is_train=True, image_size = variant["image_size"])
+    test_dataset = BAIRDataset(is_train=False, image_size = variant["image_size"])
 
     train_batch_loader_kwargs = variant.get(
         'train_batch_loader_kwargs',

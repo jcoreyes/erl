@@ -23,10 +23,13 @@ from torchvision.utils import save_image
 
 class BiGANTrainer():
 
-    def __init__(self, model, ngpu, lr, beta, latent_size, dropout, output_size):
-        self.Encoder = model[0]
-        self.Generator = model[1]
-        self.Discriminator = model[2]
+    def __init__(self, model, ngpu, lr, beta, latent_size):
+        self.model = model
+        self.netE = self.model.netE
+        self.netG = self.model.netG
+        self.netD = self. model.netD
+        self.device = self.model.device
+
         self.img_list = []
         self.G_losses = {}
         self.D_losses = {}
@@ -37,27 +40,6 @@ class BiGANTrainer():
         self.lr = lr
         self.beta = beta
         self.latent_size = latent_size
-        self.dropout = dropout
-        self.output = output_size
-
-        self.device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
-
-        self.netE = self.Encoder(ngpu, latent_size, True).to(self.device)
-        self.netG = self.Generator(ngpu, latent_size).to(self.device)
-        self.netD = self.Discriminator(ngpu, latent_size, dropout, output_size).to(self.device)
-
-        if (self.device.type == 'cuda') and (ngpu > 1):
-            self.netE = nn.DataParallel(self.netE, list(range(self.ngpu)))
-
-        if (self.device.type == 'cuda') and (ngpu > 1):
-            self.netG = nn.DataParallel(self.netG, list(range(self.ngpu)))
-        
-        if (self.device.type == 'cuda') and (ngpu > 1):
-            self.netD = nn.DataParallel(self.netD, list(range(self.ngpu)))
-        
-        self.netE.apply(self.weights_init)
-        self.netG.apply(self.weights_init)
-        self.netD.apply(self.weights_init)
 
         self.optimizerG = optim.Adam([{'params' : self.netE.parameters()},
                          {'params' : self.netG.parameters()}], lr=lr, betas=(beta,0.999))
@@ -67,19 +49,6 @@ class BiGANTrainer():
     @property
     def log_dir(self):
         return logger.get_snapshot_dir()
-
-    def weights_init(self, m):
-        classname = m.__class__.__name__
-        if classname.find('Conv') != -1:
-            m.weight.data.normal_(0.0, 0.02)
-            if m.bias is not None:
-                m.bias.data.fill_(0)
-        elif classname.find('BatchNorm') != -1:
-            m.weight.data.normal_(1.0, 0.02)
-            m.bias.data.fill_(0)
-        elif classname.find('Linear') != -1:
-            m.bias.data.fill_(0)
-
 
     def log_sum_exp(self, input):
         m, _ = torch.max(input, dim=1, keepdim=True)
@@ -109,8 +78,6 @@ class BiGANTrainer():
             noise1 = self.noise(data.size(), num_epochs, epoch)
             noise2 = self.noise(data.size(), num_epochs, epoch)
 
-    
-
             fake_z = self.fixed_noise(b_size)
             fake_d = self.netG(fake_z)
             # Encoder
@@ -128,7 +95,7 @@ class BiGANTrainer():
             errG = self.criterion(output_fake, real_label) + self.criterion(output_real, fake_label)
 
 
-            if errG.item() < 2:
+            if errG.item() < 1:
                 self.optimizerD.zero_grad()
                 errD.backward(retain_graph=True)
                 self.optimizerD.step()
@@ -151,11 +118,13 @@ class BiGANTrainer():
 
             # Check how the generator is doing by saving G's output on fixed_noise
             if (self.iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
+                #import ipdb; ipdb.set_trace()
                 with torch.no_grad():
-                    fake = self.netG(self.fixed_noise(64)).detach().cpu().data[:16, ]
+                    fake = self.netG(self.fixed_noise(64)).detach().cpu()
                 sample = vutils.make_grid(fake, padding=2, normalize=True)
                 self.img_list.append(sample)
-                self.dump_samples(epoch, self.iters, sample)
+                self.dump_samples("sample: " + str(epoch), self.iters, sample)
+                self.dump_samples("real: " + str(epoch), self.iters, vutils.make_grid(real_d.cpu(), padding=2, normalize=True))
 
             self.iters += 1
 
@@ -179,11 +148,14 @@ class BiGANTrainer():
     def get_D_losses(self):
         return self.D_losses    
 
+    def get_Encoder(self):
+        return self.netE
+
     def get_Generator(self):
-        return self.Generator
+        return self.netG
 
     def get_Discriminator(self):
-        return self.Discriminator
+        return self.netD
 
     def get_img_list(self):
         return self.img_list

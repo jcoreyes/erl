@@ -20,9 +20,12 @@ from torchvision.utils import save_image
 
 class DCGANTrainer():
 
-    def __init__(self, model, ngpu, lr, beta, nc, nz, ngf, ndf):
-        self.Generator = model[0]
-        self.Discriminator = model[1]
+    def __init__(self, model, lr, beta, latent_size):
+        self.model = model
+        self.netG = self.model.netG
+        self.netD = self. model.netD
+        self.device = self.model.device
+
         self.img_list = []
         self.G_losses = {}
         self.D_losses = {}
@@ -31,31 +34,11 @@ class DCGANTrainer():
         self.fake_label = 0
         self.criterion = nn.BCELoss()
 
-        
-        self.ngpu = ngpu
         self.lr = lr
         self.beta = beta
-        self.nc = nc
-        self.nz = nz
-        self.ngf = ngf
-        self.ndf = ndf
+        self.latent_size = latent_size
 
-        self.device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
-
-        self.netG = self.Generator(ngpu, nz, nc, ngf).to(self.device)
-        self.netD = self.Discriminator(ngpu, nc, ndf).to(self.device)
-
-        if (self.device.type == 'cuda') and (ngpu > 1):
-            self.netG = nn.DataParallel(self.netG, list(range(self.ngpu)))
-
-        self.netG.apply(self.weights_init)
-        
-        if (self.device.type == 'cuda') and (ngpu > 1):
-            self.netD = nn.DataParallel(self.netD, list(range(ngpu)))
-
-        self.netD.apply(self.weights_init)
-
-        self.fixed_noise = torch.randn(64, nz, 1, 1, device=self.device)
+        self.fixed_noise = torch.randn(64, self.latent_size, 1, 1, device=self.device)
 
         self.optimizerD = optim.Adam(self.netD.parameters(), lr=lr, betas=(beta, 0.999))
         self.optimizerG = optim.Adam(self.netG.parameters(), lr=lr, betas=(beta, 0.999))
@@ -64,23 +47,17 @@ class DCGANTrainer():
     def log_dir(self):
         return logger.get_snapshot_dir()
 
-    def weights_init(self, m):
-        classname = m.__class__.__name__
-        if classname.find('Conv') != -1:
-            nn.init.normal_(m.weight.data, 0.0, 0.02)
-        elif classname.find('BatchNorm') != -1:
-            nn.init.normal_(m.weight.data, 1.0,0.02)
-            nn.init.constant_(m.bias.data, 0)
 
     def train_epoch(self, dataloader, epoch, num_epochs, get_data = lambda d: d):
         for i, data in enumerate(dataloader, 0):
+            data = get_data(data)
             #import ipdb; ipdb.set_trace()
             ############################
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             ###########################
             ## Train with all-real batch
             self.netD.zero_grad()
-            real_cpu = get_data(data).to(self.device).float()
+            real_cpu = data.to(self.device).float()
             b_size = real_cpu.size(0)
             label = torch.full((b_size,), self.real_label, device=self.device)
             output = self.netD(real_cpu).view(-1)
@@ -89,7 +66,7 @@ class DCGANTrainer():
             D_x = output.mean().item()
 
             ## Train with all-fake batch
-            noise = torch.randn(b_size, self.nz, 1, 1, device=self.device)
+            noise = torch.randn(b_size, self.latent_size, 1, 1, device=self.device)
             fake = self.netG(noise)
             label.fill_(self.fake_label)
             output = self.netD(fake.detach()).view(-1)
@@ -126,8 +103,8 @@ class DCGANTrainer():
                     fake = self.netG(self.fixed_noise).detach().cpu()
                 sample = vutils.make_grid(fake, padding=2, normalize=True)
                 self.img_list.append(sample)
-                self.dump_samples(epoch, self.iters, sample)
-
+                self.dump_samples("sample: " + str(epoch), self.iters, sample)
+                self.dump_samples("real: " + str(epoch), self.iters, vutils.make_grid(real_cpu.cpu().data[:64, ], padding=2, normalize=True))
             self.iters += 1
 
     def dump_samples(self, epoch, iters, sample):
@@ -151,10 +128,10 @@ class DCGANTrainer():
         return self.D_losses    
 
     def get_Generator(self):
-        return self.Generator
+        return self.netG
 
     def get_Discriminator(self):
-        return self.Discriminator
+        return self.netD
 
     def get_img_list(self):
         return self.img_list

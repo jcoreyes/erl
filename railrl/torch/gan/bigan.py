@@ -7,6 +7,39 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torchvision.utils as vutils
 
+class BiGAN:
+    def __init__(self, ngpu, latent_size, dropout, output_size):
+        self.device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
+
+        self.netE = Encoder(ngpu, latent_size, True).to(self.device)
+        self.netG = Generator(ngpu, latent_size).to(self.device)
+        self.netD = Discriminator(ngpu, latent_size, dropout, output_size).to(self.device)
+
+        if (self.device.type == 'cuda') and (ngpu > 1):
+            self.netE = nn.DataParallel(self.netE, list(range(self.ngpu)))
+
+        if (self.device.type == 'cuda') and (ngpu > 1):
+            self.netG = nn.DataParallel(self.netG, list(range(self.ngpu)))
+        
+        if (self.device.type == 'cuda') and (ngpu > 1):
+            self.netD = nn.DataParallel(self.netD, list(range(self.ngpu)))
+        
+        self.netE.apply(self.weights_init)
+        self.netG.apply(self.weights_init)
+        self.netD.apply(self.weights_init)
+
+
+    def weights_init(self, m):
+        classname = m.__class__.__name__
+        if classname.find('Conv') != -1:
+            m.weight.data.normal_(0.0, 0.02)
+            if m.bias is not None:
+                m.bias.data.fill_(0)
+        elif classname.find('BatchNorm') != -1:
+            m.weight.data.normal_(1.0, 0.02)
+            m.bias.data.fill_(0)
+        elif classname.find('Linear') != -1:
+            m.bias.data.fill_(0)
 
 class Generator(nn.Module):
 
