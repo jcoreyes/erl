@@ -37,6 +37,7 @@ import os.path as osp
 from railrl.core import logger
 from railrl.misc.asset_loader import load_local_or_remote_file
 import pickle
+from railrl.torch.sac.quinoa import QuinoaTrainer
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
@@ -321,30 +322,18 @@ def experiment(variant):
         env_info_sizes = dict()
 
     M = variant['layer_size']
-    qf_kwargs = variant.get("qf_kwargs", {})
-    qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
+    vf_kwargs = variant.get("vf_kwargs", {})
+    vf1 = FlattenMlp(
+        input_size=obs_dim,
         output_size=1,
         hidden_sizes=[M, M],
-        **qf_kwargs
+        **vf_kwargs
     )
-    qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
+    target_vf1 = FlattenMlp(
+        input_size=obs_dim,
         output_size=1,
         hidden_sizes=[M, M],
-        **qf_kwargs
-    )
-    target_qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        hidden_sizes=[M, M],
-        **qf_kwargs
-    )
-    target_qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        hidden_sizes=[M, M],
-        **qf_kwargs
+        **vf_kwargs
     )
     policy_class = variant.get("policy_class", TanhGaussianPolicy)
     policy_kwargs = variant['policy_kwargs']
@@ -426,14 +415,12 @@ def experiment(variant):
         )
         replay_buffer = SplitReplayBuffer(train_replay_buffer, validation_replay_buffer, 0.9)
 
-    trainer_class = variant.get("trainer_class", AWRSACTrainer)
+    trainer_class = variant.get("trainer_class", QuinoaTrainer)
     trainer = trainer_class(
         env=eval_env,
         policy=policy,
-        qf1=qf1,
-        qf2=qf2,
-        target_qf1=target_qf1,
-        target_qf2=target_qf2,
+        vf1=vf1,
+        target_vf1=target_vf1,
         buffer_policy=buffer_policy,
         **variant['trainer_kwargs']
     )

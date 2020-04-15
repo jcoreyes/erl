@@ -75,6 +75,7 @@ class GaussianMixture(Distribution):
         s = "GaussianMixture(normal_means=%s, normal_stds=%s, weights=%s)"
         return s % (self.normal_means, self.normal_stds, self.weights)
 
+epsilon = 0.001
 
 class GaussianMixtureFull(Distribution):
     def __init__(self, normal_means, normal_stds, weights):
@@ -83,10 +84,15 @@ class GaussianMixtureFull(Distribution):
         self.normal_stds = normal_stds
         self.normal = Normal(normal_means, normal_stds)
         self.normals = [Normal(normal_means[:, :, i], normal_stds[:, :, i]) for i in range(self.num_gaussians)]
-        self.weights = weights
+        self.weights = (weights + epsilon) / (1 + epsilon * self.num_gaussians)
+        assert (self.weights > 0).all()
         self.categorical = Categorical(self.weights)
 
     def log_prob(self, value, ):
+        weights = ptu.get_numpy(self.weights)
+        normal_means = ptu.get_numpy(self.normal_means)
+        normal_stds = ptu.get_numpy(self.normal_stds)
+        v = ptu.get_numpy(value)
         log_p = [self.normals[i].log_prob(value) for i in range(self.num_gaussians)]
         # log_p = self.normal.log_prob(value)
         log_p = torch.stack(log_p, -1)
