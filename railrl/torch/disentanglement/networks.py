@@ -23,8 +23,21 @@ class DisentangledMlpQf(PyTorchModule):
             action_dim,
             encode_state=False,
             vectorized=False,
-            give_each_qf_single_goal_dim=False,
+            architecture='splice',
     ):
+        """
+
+        :param goal_processor:
+        :param qf_kwargs:
+        :param preprocess_obs_dim:
+        :param action_dim:
+        :param encode_state:
+        :param vectorized:
+        :param architecture:
+         - 'splice': give each Q function a single index into the latent goal
+         - 'many_heads': give each Q function the entire latent goal
+         - 'single_head': have one Q function that takes in entire latent goal
+        """
         super().__init__()
         self.goal_processor = goal_processor
         self.preprocess_obs_dim = preprocess_obs_dim
@@ -32,11 +45,11 @@ class DisentangledMlpQf(PyTorchModule):
         self.postprocess_goal_dim = goal_processor.output_size
         self.encode_state = encode_state
         self.vectorized = vectorized
-        self._give_each_qf_single_goal_dim = give_each_qf_single_goal_dim
+        self._architecture = architecture
 
         # We have a qf for each goal dim, described by qf_kwargs.
         self.feature_qfs = nn.ModuleList()
-        if give_each_qf_single_goal_dim:
+        if architecture == 'splice':
             qf_goal_input_size = 1
         else:
             qf_goal_input_size = self.postprocess_goal_dim
@@ -46,12 +59,19 @@ class DisentangledMlpQf(PyTorchModule):
             )
         else:
             qf_input_size = preprocess_obs_dim + action_dim + qf_goal_input_size
-        for _ in range(self.postprocess_goal_dim):
+        if architecture == 'single_head':
             self.feature_qfs.append(FlattenMlp(
                 input_size=qf_input_size,
                 output_size=1,
                 **qf_kwargs
             ))
+        else:
+            for _ in range(self.postprocess_goal_dim):
+                self.feature_qfs.append(FlattenMlp(
+                    input_size=qf_input_size,
+                    output_size=1,
+                    **qf_kwargs
+                ))
 
     def forward(self, obs, actions, return_individual_q_vals=False, **kwargs):
         obs_and_goal = obs
@@ -66,7 +86,7 @@ class DisentangledMlpQf(PyTorchModule):
         total_q_value = 0
         individual_q_vals = []
         for goal_dim_idx, feature_qf in enumerate(self.feature_qfs):
-            if self._give_each_qf_single_goal_dim:
+            if self._architecture == 'splice':
                 flat_inputs = torch.cat((
                     h_obs,
                     h_goal[:, goal_dim_idx].reshape(-1, 1),

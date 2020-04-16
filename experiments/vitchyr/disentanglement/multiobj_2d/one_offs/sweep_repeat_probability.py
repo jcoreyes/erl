@@ -6,7 +6,6 @@ from railrl.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     variant = dict(
-        env_id='Point2DLargeEnv-v1',
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
@@ -23,11 +22,11 @@ if __name__ == "__main__":
         max_path_length=100,
         algo_kwargs=dict(
             batch_size=128,
-            num_epochs=100,
-            num_eval_steps_per_epoch=100,
-            num_expl_steps_per_train_loop=100,
-            num_trains_per_train_loop=100,
-            min_num_steps_before_training=100,
+            num_epochs=500,
+            num_eval_steps_per_epoch=1000,
+            num_expl_steps_per_train_loop=1000,
+            num_trains_per_train_loop=1000,
+            min_num_steps_before_training=1000,
         ),
         replay_buffer_kwargs=dict(
             fraction_future_context=0.3,
@@ -40,11 +39,37 @@ if __name__ == "__main__":
         save_video=True,
         save_video_kwargs=dict(
             save_video_period=10,
+            rows=2,
+            columns=5,
+            subpad_length=1,
+            subpad_color=127,
+            pad_length=1,
             pad_color=0,
+        ),
+        evaluation_goal_sampling_mode='random',
+        exploration_goal_sampling_mode='random',
+        exploration_policy_kwargs=dict(
+            exploration_version='occasionally_repeat',
         ),
     )
 
     search_space = {
+        'env_id': [
+            'TwoObjectPickAndPlace2DEnv-v0',
+        ],
+        'save_video': [
+            True,
+            False,
+        ],
+        'exploration_policy_kwargs.exploration_version': [
+            # 'identity',
+            'occasionally_repeat',
+        ],
+        'exploration_policy_kwargs.repeat_prob': [
+            0.1,
+            0.5,
+            0.9,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -56,9 +81,9 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_name = 'dev'
+    n_seeds = 3
+    mode = 'htp'
+    exp_name = 'pnp-fixed-init-repeat-prob-sweep--from-basic-contextual-take2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -67,7 +92,7 @@ if __name__ == "__main__":
                 exp_name=exp_name,
                 mode=mode,
                 variant=variant,
-                use_gpu=True,
+                use_gpu=False,
                 num_exps_per_instance=3,
                 gcp_kwargs=dict(
                     zone='us-east1-c',
