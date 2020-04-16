@@ -342,6 +342,11 @@ def experiment(variant):
         action_dim=action_dim,
         **policy_kwargs,
     )
+    target_policy = policy_class(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        **policy_kwargs,
+    )
 
     buffer_policy_class = variant.get("buffer_policy_class", policy_class)
     buffer_policy = buffer_policy_class(
@@ -420,6 +425,7 @@ def experiment(variant):
         env=eval_env,
         policy=policy,
         vf1=vf1,
+        target_policy=target_policy,
         target_vf1=target_vf1,
         buffer_policy=buffer_policy,
         **variant['trainer_kwargs']

@@ -22,6 +22,7 @@ class QuinoaTrainer(TorchTrainer):
             env,
             policy,
             vf1,
+            target_policy,
             target_vf1,
             buffer_policy=None,
 
@@ -94,6 +95,7 @@ class QuinoaTrainer(TorchTrainer):
         self.env = env
         self.policy = policy
         self.vf1 = vf1
+        self.target_policy = target_policy
         self.target_vf1 = target_vf1
         self.buffer_policy = buffer_policy
         self.soft_target_tau = soft_target_tau
@@ -437,7 +439,7 @@ class QuinoaTrainer(TorchTrainer):
         # Q = log v(s_t) + log q(a_t | s_t)
 
         # Make sure policy accounts for squashing functions like tanh correctly!
-        new_next_actions, _, _, new_log_pi, *_ = self.policy(
+        new_next_actions, _, _, new_log_pi, *_ = self.target_policy(
             next_obs, reparameterize=True, return_log_prob=True,
         )
         target_q_values = self.target_vf1(next_obs) + new_log_pi
@@ -610,6 +612,9 @@ class QuinoaTrainer(TorchTrainer):
             ptu.soft_update_from_to(
                 self.vf1, self.target_vf1, self.soft_target_tau
             )
+            ptu.soft_update_from_to(
+                self.policy, self.target_policy, self.soft_target_tau
+            )
 
         """
         Save some statistics for eval
@@ -724,6 +729,7 @@ class QuinoaTrainer(TorchTrainer):
         nets = [
             self.policy,
             self.vf1,
+            self.target_policy,
             self.target_vf1,
         ]
         if self.buffer_policy:
@@ -734,6 +740,7 @@ class QuinoaTrainer(TorchTrainer):
         return dict(
             policy=self.policy,
             qf1=self.vf1,
-            target_qf1=self.vf1,
+            target_policy=self.target_policy,
+            target_vf1=self.target_vf1,
             buffer_policy=self.buffer_policy,
         )
