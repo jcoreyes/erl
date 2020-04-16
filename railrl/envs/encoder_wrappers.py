@@ -32,6 +32,7 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         render_rollouts=False,
         reward_params=None,
         goal_sampling_mode="vae_prior",
+        num_goals_to_presample=0,
         imsize=84,
         obs_size=None,
         norm_order=2,
@@ -51,6 +52,7 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
             render_rollouts,
             reward_params,
             goal_sampling_mode,
+            num_goals_to_presample,
             imsize,
             obs_size,
             norm_order,
@@ -62,8 +64,6 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
             self.pixel_cnn = load_local_or_remote_file(pixel_cnn)
         self.num_keys = self.vae.num_embeddings
         self.representation_size = 144 * self.vae.representation_size
-        print("*******UNFIX REPRESENTATION SIZE*********")
-        print("Location: VQVAE WRAPPER")
 
         latent_space = Box(
             -10 * np.ones(obs_size or self.representation_size),
@@ -112,6 +112,13 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
             dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
             success = dist < self.epsilon
             reward = success - 1
+            return reward
+
+        elif self.reward_type == 'latent_clamp':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
+            dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
+            reward = - np.minimum(dist, self.epsilon)
             return reward
         #WARNING: BELOW ARE HARD CODED FOR SIM PUSHER ENV (IN DIMENSION SIZES)
         elif self.reward_type == 'state_distance':

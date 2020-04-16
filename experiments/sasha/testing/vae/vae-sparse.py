@@ -125,10 +125,10 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
-                num_goals_to_presample=1000,
+                num_goals_to_presample=10000,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            vae_path="/home/ashvin/data/sasha/state/vae-sparse/run2/id0/vae.pkl"
+            #vae_path="/home/ashvin/data/sasha/state/vae-sparse/run2/id0/vae.pkl"
         ),
         train_vae_variant=dict(
             latent_sizes=4,
@@ -145,7 +145,7 @@ if __name__ == "__main__":
                 N=100000, #10000
                 n_random_steps=50,
                 test_p=.9,
-                dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
+                #dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -205,7 +205,7 @@ if __name__ == "__main__":
         'train_vae_variant.representation_size': [8],
         'train_vae_variant.algo_kwargs.batch_size': [128],
         'grill_variant.algo_kwargs.num_trains_per_train_loop':[4000],
-        'grill_variant.reward_params.epsilon': [0.1, 0.2, 0.3, 0.4, 0.5],
+        'grill_variant.reward_params.epsilon': [0.01, 0.025, 0.05, 0.075, 0.1],
         'grill_variant.algo_kwargs.batch_size': [128,],
         'grill_variant.exploration_noise': [0.8],
 
@@ -218,4 +218,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=2)

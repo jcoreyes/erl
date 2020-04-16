@@ -1,217 +1,164 @@
 import sys
-# sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
-import tkinter as tk
 from railrl.misc.asset_loader import sync_down
 from railrl.misc.asset_loader import load_local_or_remote_file
 import torch
 import pickle
 import numpy as np
-import io
-import skvideo.io
-from PIL import Image, ImageTk
+from multiworld.core.image_env import ImageEnv
 from railrl.torch import pytorch_util as ptu
+import matplotlib
+matplotlib.use('Agg')
+from torchvision.utils import save_image
+import matplotlib.pyplot as plt
 from railrl.data_management.dataset  import \
         TrajectoryDataset, ImageObservationDataset, InitialObservationDataset
 from railrl.data_management.images import normalize_image, unnormalize_image
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
+from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2
+x_var = 0.2
+x_low = -x_var
+x_high = x_var
+y_low = 0.5
+y_high = 0.7
+t = 0.05
+
+def load_env():
+	env = SawyerMultiobjectEnv(
+		fixed_start=True,
+		fixed_colors=False,
+		num_objects=1,
+		object_meshes=None,
+		preload_obj_dict=
+		[{'color1': [1, 1, 1],
+		'color2': [1, 1, 1]}],
+		num_scene_objects=[1],
+		maxlen=0.1,
+		action_repeat=1,
+		puck_goal_low=(x_low + 0.01, y_low + 0.01),
+		puck_goal_high=(x_high - 0.01, y_high - 0.01),
+		hand_goal_low=(x_low + 0.01, y_low + 0.01),
+		hand_goal_high=(x_high - 0.01, y_high - 0.01),
+		mocap_low=(x_low, y_low, 0.0),
+		mocap_high=(x_high, y_high, 0.5),
+		object_low=(x_low + 0.01, y_low + 0.01, 0.02),
+		object_high=(x_high - 0.01, y_high - 0.01, 0.02),
+		use_textures=False,
+		init_camera=sawyer_init_camera_zoomed_in,
+		cylinder_radius=0.05,
+		)
+	wrapped_env = ImageEnv(
+				env,
+				48,
+				init_camera=sawyer_init_camera_zoomed_in,
+				transpose=True,
+				normalize=True,
+				non_presampled_goal_img_is_garbage=False,
+			)
+	return wrapped_env
+
 
 def load_model(model_file):
-    if model_file[0] == "/":
-        local_path = model_file
-    else:
-        local_path = sync_down(model_file)
-    # vae = pickle.load(open(local_path, "rb"))
-    model = torch.load(local_path, map_location='cpu')
-    print("loaded", local_path)
-    model.to("cpu")
-    return model
+	if model_file[0] == "/":
+		local_path = model_file
+	else:
+		local_path = sync_down(model_file)
+	model = pickle.load(open(local_path, "rb"))
+	#model = torch.load(local_path, map_location='cpu')
+	print("loaded", local_path)
+	model.to("cpu")
+	return model
 
 
+class LatentVisualizer:
+	def __init__(self, path):
+		self.vae = load_model(path)
+		self.env = load_env()
+		self.plot_heatmap()
+
+	def get_latents(self, val_min, val_max,num=3):
+		hand_x = np.unique(np.linspace(val_min[0], val_max[0], num=num))
+		hand_y = np.unique(np.linspace(val_min[1], val_max[1], num=num))
+		puck_x = np.unique(np.linspace(val_min[2], val_max[2], num=num))
+		puck_y = np.unique(np.linspace(val_min[3], val_max[3], num=num))
+
+		center_state = (val_min + val_max) / 2
+		all_imgs = []
+
+		dist_matrix = np.zeros((hand_x.shape[0], hand_y.shape[0], puck_x.shape[0], puck_y.shape[0]))
+		self.env.reset()
+
+		center, _ = self.get_latent(center_state)
+
+		for a in range(hand_x.shape[0]):
+			for b in range(hand_y.shape[0]):
+				for c in range(puck_x.shape[0]):
+					for d in range(puck_y.shape[0]):
+						state = np.array([hand_x[a], hand_y[b], puck_x[c], puck_y[d]])
+						latent_state, img = self.get_latent(state)
+						dist = np.linalg.norm(latent_state - center)
+						dist_matrix[a,b,c,d] = dist
+						all_imgs.append(img)
+
+		self.save_env_images(all_imgs, num)
+		vals = [hand_x, hand_y, puck_x, puck_y]
+		return vals, dist_matrix.squeeze()
 
 
+	def save_env_images(self, all_imgs, num_row):
+		all_imgs = torch.stack(all_imgs)
+		save_image(
+	        all_imgs.data,
+	        "/home/ashvin/data/sasha/heatmaps/images.pdf",
+	        nrow=num_row,
+	    )
 
 
+	def get_latent(self, state):
+		goal = dict(state_desired_goal=state)
+		self.env.set_to_goal(goal)
+
+		obs = self.env._get_obs()
+		img = ptu.from_numpy(obs['image_observation']).view(1, -1)
+		latent_state = ptu.get_numpy(self.vae.encode(img, cont=True)[0]).flatten()
+		return latent_state, ptu.from_numpy(obs['image_observation']).reshape(3, 48, 48).transpose(1, 2)
 
 
+	def get_keys(self, val_min, val_max):
+		all_names = ["Hand: X Coordinate", "Hand: Y Coordinate", "Puck: X Coordinate", "Puck: Y Coordinate"]
+		keys = []
+		axis_names = []
+		for i in range(val_min.shape[0]):
+			if val_min[i] != val_max[i]:
+				keys.append(i)
+				axis_names.append(all_names[i])
+
+		assert len(keys) == 2
+		return keys, axis_names
 
 
+	def plot_heatmap(self):
+		# val_min = np.array([-0.2, -0.2, -0.2, 0.5])
+		# val_max = np.array([-0.2, -0.2, 0.2, 0.7])
 
-class LatentVisualizer(object):
-    def __init__(self, path, env):
-        self.vae = load_vae(path)
-        self.env = env
+		val_min = np.array([0.0, 0.6, -0.2, 0.5])
+		val_max = np.array([0.0, 0.6, 0.2, 0.7])
 
+		keys, axis_names = self.get_keys(val_min, val_max)
+		vals, dist = self.get_latents(val_min, val_max, num=20)
 
-
-
-    def get_states(self):
-    	return np.array([-0.2, -0.2, 0.15, 0.15], [-0.2, -0.2, 0.13, 0.15], [-0.2, -0.2,0.15, 0.13])
-
-    def get_eps_ball(self, state, eps, num=5):
-
-
-    def get_images(self, states):
-    	self.env.reset()
-
-    	for i in range(states.shape[0]):
-    		gaol = dict(state_desired_goal=states[i])
-    		self.env.set_to_goal(goal)
-    		obs self.env._get_obs()
-
-
-    def sample_latents(self):
-    	self.env._sample_position()
-
-    def load_dataset(filename, test_p=0.9):
-        dataset = np.load(filename)
-        N = len(dataset)
-        n = int(N * test_p)
-        train_dataset = dataset[:n, :]
-        test_dataset = dataset[n:, :]
-        return train_dataset, test_dataset
-
-    def update(self):
-        for i in range(self.vae.representation_size):
-            self.mean[i] = self.sliders[i].get()
-        self.check_change()
-
-        self.master.update()
-        self.master.after(10, self.update)
-
-    def get_photo(self, flat_img):
-        img = flat_img.reshape((3, 48, 48)).transpose()
-        img = (255 * img).astype(np.uint8)
-        im = Image.fromarray(img)
-        photo = ImageTk.PhotoImage(image=im)
-
-    def new_test_image(self):
-        self.new_image(True)
-
-    def new_train_image(self):
-        self.new_image(False)
-
-    def new_image(self, test=True):
-        if test:
-            self.batch = self.test_dataset.random_batch(1)
-        else:
-            self.batch = self.train_dataset.random_batch(1)
-        self.sample = self.batch["x_t"]
-        #self.sample = self.train_dataset[ind, :] / 255
-        img = unnormalize_image(ptu.get_numpy(self.sample).reshape((3, 48, 48)).transpose())
-        #img = self.sample.reshape((3, 48, 48)).transpose()
-        #img = (255 * img).astype(np.uint8)
-        # img = img.astype(np.uint8)
-        self.im = Image.fromarray(img)
-        #self.leftphoto = ImageTk.PhotoImage(image=self.im)
-        #self.leftpanel.create_image(0,0,image=self.leftphoto,anchor=tk.NW)
-
-        self.mu, self.logvar = self.vae.encode(self.sample)
-        self.z = self.mu
-        self.mean = ptu.get_numpy(self.z).flatten()
-        self.home_mean = self.mean.copy()
-        self.recon_batch = self.vae.decode(self.z)[0]
-        self.update_sliders()
-        self.check_change()
-
-    def reparametrize(self):
-        self.z = self.vae.reparameterize((self.mu, self.logvar))
-        self.mean = ptu.get_numpy(self.z).flatten()
-        self.recon_batch = self.vae.decode(self.z)[0]
-        self.update_sliders()
-        self.check_change()
-
-    def check_change(self):
-        if not np.allclose(self.mean, self.last_mean):
-            z = ptu.from_numpy(self.mean[:, None].transpose())
-            self.recon_batch = self.vae.decode(z)[0]
-            self.update_reconstruction()
-            self.last_mean = self.mean.copy()
-
-    def update_sliders(self):
-        for i in range(self.vae.representation_size):
-            self.sliders[i].set(self.mean[i])
-
-    def update_reconstruction(self):
-        recon_numpy = ptu.get_numpy(self.recon_batch)
-        img = recon_numpy.reshape((3, 48, 48)).transpose()
-        img = (255 * img).astype(np.uint8)
-        # img = img.astype(np.uint8)
-        self.rightim = Image.fromarray(img)
-        self.rightphoto = ImageTk.PhotoImage(image=self.rightim)
-        self.rightpanel.create_image(0,0,image=self.rightphoto,anchor=tk.NW)
-
-    def get_batch(self, train=True):
-        dataset = self.train_dataset if train else self.test_dataset
-        ind = np.random.randint(0, len(dataset), self.batch_size)
-        samples = dataset[ind, :]
-        return ptu.from_numpy(samples)
-
-
-    def sweep_element(self):
-        data = [np.copy(self.mean)]
-        # self.rightim.save('/home/ashvin/ros_ws/src/railrl-private/visualizer/vae/img_0.jpg')
-        for i in range(40):
-            for k in self.sweep_i:
-                if np.random.uniform() < 0.5:
-                    sign = 1
-                else:
-                    sign = -1
-                if self.mean[k] >= 3:
-                    sign = -1
-                if self.mean[k] < -3:
-                    sign = 1
-                self.mean[k] += sign * 0.25
-                self.sliders[k].set(self.mean[k])
-            self.check_change()
-            self.rightim.save('/home/ashvin/ros_ws/src/railrl-private/visualizer/vae/img_{}.jpg'.format(i + 1))
-            data.append(np.copy(self.mean))
-            self.master.after(100, self.sweep_element)
-        # np.save('/home/ashvin/ros_ws/src/railrl-private/visualizer/vae/latents.npy', np.array(data))
-        self.mean = self.original_mean
-
-
-    def sweep(self):
-        self.original_mean = self.mean.copy()
-        self.sweep_i = [i for i in range(self.vae.representation_size)] #temp
-        self.sweep_k = 0
-        self.master.after(100, self.sweep_element)
-
-
-    def set_home(self):
-        self.home_mean = self.mean.copy()
-
-    def sweep_home(self):
-        # decode as we interplote from self.home_mean -> self.mean
-        frames = []
-        for i, t in enumerate(np.linspace(0, 1, 25)):
-            z = t * self.home_mean + (1 - t) * self.mean
-            print(t, z)
-            z = ptu.from_numpy(z[:, None].transpose())
-            recon_batch = self.vae.decode(z)[0]
-            recon_numpy = ptu.get_numpy(recon_batch)
-            img = recon_numpy.reshape((3, 48, 48)).transpose()
-            img = (255 * img).astype(np.uint8)
-            frames.append(img)
-            
-        frames += frames[::-1]
-        skvideo.io.vwrite("tmp/vae/dog/%d.mp4" % self.saved_videos, frames)
-        self.saved_videos += 1
-
-
-
-
+		plot = plt.figure()
+		plt.contourf(vals[keys[0]], vals[keys[1]], dist, 10)
+		plt.colorbar()
+		plt.title("Latent Distance Visualizer", fontweight="bold")
+		plt.xlabel(axis_names[0])
+		plt.ylabel(axis_names[1])
+		plt.savefig("/home/ashvin/data/sasha/heatmaps/pusher.pdf")
 
 
 
 
 if __name__ == "__main__":
-    # from railrl.torch.vae.sawyer2d_push_new_easy_data_wider import generate_vae_dataset
-    # train_data, test_data, info = generate_vae_dataset(
-    #     N=10000
-    # )
-    data_path = "/home/ashvin/Desktop/sim_puck_data.npy"
-    train_data, test_data = load_dataset(data_path)
-    #model_path = "/home/ashvin/data/rail-khazatsky/sasha/cond-rig/hyp-tuning/tuning/run550/id1/vae.pkl"
-    model_path = "/home/ashvin/data/sasha/cond-rig/hyp-tuning/dropout/run1/id0/itr_100.pkl"
-    ConditionalVAEVisualizer(model_path, train_data, test_data)
-
-    tk.mainloop()
+	#model_path = "/home/ashvin/data/sasha/testing/vqvae/vqvae-vqvae/run100/id0/vae.pkl"
+	#model_path = "/home/ashvin/data/rail-khazatsky/sasha/testing/vae/vae-sparse/sasha/testing/vae/vae-sparse/run1/id1/vae.pkl"
+	model_path = "/home/ashvin/data/rail-khazatsky/sasha/testing/vqvae/vqvae-vqvae/sasha/testing/vqvae/vqvae-vqvae/run57/id4/vae.pkl"
+	LatentVisualizer(model_path)

@@ -83,7 +83,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         self._presampled_goals = presampled_goals
 
         if num_goals_to_presample > 0:
-            goal_sampling_mode = "presampled"
             self._presampled_goals = self.wrapped_env.sample_goals(num_goals_to_presample)
 
         if self._presampled_goals is None:

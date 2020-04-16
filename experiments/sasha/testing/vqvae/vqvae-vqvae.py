@@ -124,7 +124,7 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
-                num_latents_to_sample=10000,
+                num_goals_to_presample=10000,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
             #vae_path="/home/ashvin/data/sasha/testing/vqvae/vqvae-vqvae/run100/id0/vae.pkl"
@@ -207,4 +207,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=56)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=57)
