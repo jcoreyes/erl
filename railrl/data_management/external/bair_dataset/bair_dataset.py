@@ -98,7 +98,6 @@ class BAIRDataset(data.Dataset):
         # x_t = normalize_image(np.array(x).flatten()).squeeze()
         # env = normalize_image(np.array(c).flatten()).squeeze()
         step = 64 // self.image_size
-
         x_timages = images[traj_i, self.camera, trans_i, 0:64:step, 0:64:step, :]
         if self.transpose != None:
             x_timages = x_timages.transpose(self.transpose)

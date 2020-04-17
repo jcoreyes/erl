@@ -94,4 +94,8 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-run_variants(train_vae, variants, run_id=13)
+<<<<<<< HEAD
+    run_variants(train_vae, variants, run_id=13)
+=======
+    run_variants(train_vae, variants, run_id=13)
+>>>>>>> parent of 595cfb8... Unstage experiments
