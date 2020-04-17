@@ -189,14 +189,17 @@ def train_gan(variant):
     import torchvision.transforms as transforms
     from railrl.data_management.external.bair_dataset.config import BAIR_DATASET_LOCATION
 
+    from railrl.misc.asset_loader import sync_down_folder
+
     if variant["dataset"] == "bair":
         #train_dataset, test_dataset, info
         dataloader = bair_dataset.generate_dataset(variant['generate_dataset_kwargs'])[0].dataset_loader
-        get_data = lambda d: d
+        get_data = lambda d: d['x_t']
 
     if variant["dataset"] == "cifar10":
+        local_path = sync_down_folder(variant["dataroot"])
         dataset = dset.CIFAR10(
-            root=variant["dataroot"], train=True, download=False, transform=transforms.Compose([
+            root=local_path, train=True, download=False, transform=transforms.Compose([
                           transforms.ToTensor()
                       ]))
         dataloader = torch.utils.data.DataLoader(
@@ -204,7 +207,8 @@ def train_gan(variant):
         get_data = lambda d: d[0]
 
     if variant["dataset"] == "celebfaces":
-        dataset = dset.ImageFolder(root=variant["dataroot"],
+        local_path = sync_down_folder(variant["dataroot"])
+        dataset = dset.ImageFolder(root=local_path,
                                transform=transforms.Compose([
                                    transforms.Resize(variant["image_size"]),
                                    transforms.CenterCrop(variant["image_size"]),
