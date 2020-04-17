@@ -84,12 +84,8 @@ if __name__ == "__main__":
         ],
         'encoder_reward_scale': [
             1.,
-            # 10.,
+            10.,
             100.,
-        ],
-        'replay_buffer_kwargs.fraction_future_context': [
-            0.3,
-            0.5,
         ],
         'disentangled_qf_kwargs.architecture': [
             'single_head',
