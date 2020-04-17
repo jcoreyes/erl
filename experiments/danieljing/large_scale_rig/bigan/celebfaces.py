@@ -26,7 +26,7 @@ if __name__ == "__main__":
         beta = 0.5,
         lr = 1e-4,
         latent_size = 256,
-        dropout = 0.2,
+        dropout = 0,
         output_size = 1,
         #nc = 3,
         #ngf = 

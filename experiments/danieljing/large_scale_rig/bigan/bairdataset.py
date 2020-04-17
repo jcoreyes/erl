@@ -18,6 +18,9 @@ if __name__ == "__main__":
         dataset = "bair",
         generate_dataset_kwargs=dict(
             image_size = 32,
+            flatten = False,
+            transpose = [2, 0, 1],
+            shift = 0.5, 
             train_batch_loader_kwargs=dict(
                 batch_size=100,
                 num_workers=2,
@@ -33,7 +36,7 @@ if __name__ == "__main__":
         beta = 0.5,
         lr = 1e-4,
         latent_size = 100,
-        dropout = 0.2,
+        dropout = 0,
         output_size = 1,
         #nc = 3,
         #ngf = 
