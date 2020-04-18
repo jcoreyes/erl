@@ -320,46 +320,49 @@ def experiment(variant):
     else:
         env_info_sizes = dict()
 
-    M = variant['layer_size']
     qf_kwargs = variant.get("qf_kwargs", {})
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
         **qf_kwargs
     )
     qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
         **qf_kwargs
     )
     target_qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
         **qf_kwargs
     )
     target_qf2 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
         **qf_kwargs
     )
+
     policy_class = variant.get("policy_class", TanhGaussianPolicy)
     policy_kwargs = variant['policy_kwargs']
-    policy = policy_class(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        **policy_kwargs,
-    )
-
-    buffer_policy_class = variant.get("buffer_policy_class", policy_class)
-    buffer_policy = buffer_policy_class(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        **variant.get("buffer_policy_kwargs", policy_kwargs),
-    )
+    policy_path = variant.get("policy_path", False)
+    if policy_path:
+        policy = load_local_or_remote_file(policy_path)
+    else:
+        policy = policy_class(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            **policy_kwargs,
+        )
+    buffer_policy_path = variant.get("buffer_policy_path", False)
+    if buffer_policy_path:
+        buffer_policy = load_local_or_remote_file(buffer_policy_path)
+    else:
+        buffer_policy_class = variant.get("buffer_policy_class", policy_class)
+        buffer_policy = buffer_policy_class(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            **variant.get("buffer_policy_kwargs", policy_kwargs),
+        )
 
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
@@ -527,8 +530,21 @@ def experiment(variant):
         )
         buffer_path = osp.join(logger.get_snapshot_dir(), 'buffers.p')
         pickle.dump(buffers, open(buffer_path, "wb"))
+    if variant.get('pretrain_buffer_policy', False):
+        trainer.pretrain_policy_with_bc(
+            buffer_policy,
+            replay_buffer.train_replay_buffer,
+            replay_buffer.validation_replay_buffer,
+            10000,
+            label="buffer",
+        )
     if variant.get('pretrain_policy', False):
-        trainer.pretrain_policy_with_bc()
+        trainer.pretrain_policy_with_bc(
+            policy,
+            demo_train_buffer,
+            demo_test_buffer,
+            trainer.bc_num_pretrain_steps,
+        )
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
     if variant.get('save_pretrained_algorithm', False):

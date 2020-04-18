@@ -24,13 +24,13 @@ if __name__ == "__main__":
         replay_buffer_size=int(1E6),
 
         layer_size=256,
-        policy_class=GaussianPolicy,
+        policy_class=BinnedGMMPolicy,
         policy_kwargs=dict(
             hidden_sizes=[256, 256, 256, 256],
             max_log_std=0,
             min_log_std=-6,
             std_architecture="values",
-            # num_gaussians=1,
+            num_gaussians=11,
         ),
 
         algorithm="SAC",
@@ -47,12 +47,12 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=False,
             alpha=0,
 
-            bc_num_pretrain_steps=0,
+            bc_num_pretrain_steps=100001,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=0,
+            q_num_pretrain2_steps=25001,
             # policy_weight_decay=1e-4,
             # q_weight_decay=0,
-            bc_loss_type="mse",
+            bc_loss_type="mle",
 
             compute_bc=False,
             use_awr_update=False,
@@ -64,6 +64,10 @@ if __name__ == "__main__":
 
             reward_transform_kwargs=None, # r' = r + 1
             terminal_transform_kwargs=None, # t = 0
+
+            pretraining_logging_period=100,
+            buffer_for_bc_training="demos",
+            # load_policy_path="ashvin/icml2020/quinoa/pen-gaussian3/run5/id0/bc.pkl",
         ),
         launcher_config=dict(
             num_exps_per_instance=1,
@@ -87,36 +91,35 @@ if __name__ == "__main__":
                 # ),
             ],
         ),
-        # add_env_demos=True,
-        # add_env_offpolicy_data=True,
+        add_env_demos=True,
+        add_env_offpolicy_data=True,
 
         # logger_variant=dict(
         #     tensorboard=True,
         # ),
-        # load_demos=True,
-        # pretrain_policy=True,
-        # pretrain_rl=True,
+        load_demos=True,
+        pretrain_policy=True,
+        pretrain_rl=True,
         # save_pretrained_algorithm=True,
         # snapshot_mode="all",
+        use_validation_buffer=True,
     )
 
     search_space = {
-        'env': [
-            'half-cheetah',
-            'inv-double-pendulum',
-            'ant',
-            'walker',
-        ],
+        'env': ["pen-sparse-v0", ],
         # 'trainer_kwargs.bc_loss_type': ["mle"],
         # 'trainer_kwargs.awr_loss_type': ["mle"],
         'seedid': range(3),
         # 'trainer_kwargs.beta': [0.3, 0.5],
         # 'trainer_kwargs.reparam_weight': [0.0, ],
         # 'trainer_kwargs.awr_weight': [1.0],
-        # 'trainer_kwargs.bc_weight': [1.0, ],
-        'policy_kwargs.std_architecture': ["values", "shared", ],
+        'trainer_kwargs.bc_weight': [1.0, ],
+        'policy_kwargs.std_architecture': ["values", ],
 
-        # 'trainer_kwargs.compute_bc': [True, ],
+        'trainer_kwargs.compute_bc': [True, ],
+        'trainer_kwargs.reward_scale': [1.0, ],
+        'trainer_kwargs.buffer_for_bc_training': ["replay_buffer", ],
+
         # 'trainer_kwargs.awr_use_mle_for_vf': [True, ],
         # 'trainer_kwargs.awr_sample_actions': [False, ],
         # 'trainer_kwargs.awr_min_q': [True, ],
@@ -125,9 +128,9 @@ if __name__ == "__main__":
 
         # 'trainer_kwargs.reward_transform_kwargs': [None, ],
         # 'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0), ],
-        # 'qf_kwargs.output_activation': [Clamp(max=0)],
+        'vf_kwargs.output_activation': [Clamp(max=0)],
         # 'trainer_kwargs.train_bc_on_rl_buffer':[True],
-        # 'policy_kwargs.num_gaussians': [11, ],
+        # 'policy_kwargs.num_gaussians': [11, 21],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

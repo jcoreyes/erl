@@ -102,14 +102,11 @@ if __name__ == "__main__":
 
     search_space = {
         'env': [
-            'half-cheetah',
             'inv-double-pendulum',
-            'ant',
-            'walker',
         ],
         # 'trainer_kwargs.bc_loss_type': ["mle"],
         # 'trainer_kwargs.awr_loss_type': ["mle"],
-        'seedid': range(3),
+        'seedid': range(5),
         # 'trainer_kwargs.beta': [0.3, 0.5],
         # 'trainer_kwargs.reparam_weight': [0.0, ],
         # 'trainer_kwargs.awr_weight': [1.0],

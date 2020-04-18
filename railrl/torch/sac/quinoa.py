@@ -16,6 +16,8 @@ import torch.nn.functional as F
 from railrl.torch.networks import LinearTransform
 import time
 
+from railrl.misc.asset_loader import load_local_or_remote_file
+
 class QuinoaTrainer(TorchTrainer):
     def __init__(
             self,
@@ -90,6 +92,8 @@ class QuinoaTrainer(TorchTrainer):
             use_automatic_beta_tuning=False,
             beta_epsilon=1e-10,
             normalize_over_batch=True,
+            buffer_for_bc_training=None,
+            load_policy_path=None,
     ):
         super().__init__()
         self.env = env
@@ -203,7 +207,8 @@ class QuinoaTrainer(TorchTrainer):
         self.use_klac_update = use_klac_update
 
         self.train_bc_on_rl_buffer = train_bc_on_rl_buffer and buffer_policy
-
+        self.buffer_for_bc_training = buffer_for_bc_training
+        self.load_policy_path = load_policy_path
 
     def get_batch_from_buffer(self, replay_buffer, batch_size):
         batch = replay_buffer.random_batch(batch_size)
@@ -222,7 +227,7 @@ class QuinoaTrainer(TorchTrainer):
             og, deterministic=False, reparameterize=True, return_log_prob=True,
         )
 
-        mse = (policy_mean - u) ** 2
+        mse = (pred_u - u) ** 2
         mse_loss = mse.mean()
 
         policy_logpp = dist.log_prob(u, )
@@ -253,6 +258,21 @@ class QuinoaTrainer(TorchTrainer):
         return total_ret
 
     def pretrain_policy_with_bc(self):
+        if self.buffer_for_bc_training == "demos":
+            self.bc_training_buffer = self.demo_train_buffer
+            self.bc_test_buffer = self.demo_test_buffer
+        elif self.buffer_for_bc_training == "replay_buffer":
+            self.bc_training_buffer = self.replay_buffer.train_replay_buffer
+            self.bc_test_buffer = self.replay_buffer.validation_replay_buffer
+        else:
+            self.bc_training_buffer = None
+            self.bc_test_buffer = None
+
+        if self.load_policy_path:
+            self.policy = load_local_or_remote_file(self.load_policy_path)
+            ptu.copy_model_params_from_to(self.policy, self.target_policy)
+            return
+
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
         )
@@ -307,6 +327,8 @@ class QuinoaTrainer(TorchTrainer):
             'progress.csv',
             relative_to_snapshot_dir=True,
         )
+
+        ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
         if self.post_bc_pretrain_hyperparams:
             self.set_algorithm_weights(**self.post_bc_pretrain_hyperparams)
@@ -574,7 +596,7 @@ class QuinoaTrainer(TorchTrainer):
 
         policy_loss = qf_loss
         if self.compute_bc:
-            train_policy_loss, train_logp_loss, train_mse_loss, _ = self.run_bc_batch(self.demo_train_buffer, self.policy)
+            train_policy_loss, train_logp_loss, train_mse_loss, _ = self.run_bc_batch(self.bc_training_buffer, self.policy)
             policy_loss = policy_loss + self.bc_weight * train_policy_loss
 
         if self.train_bc_on_rl_buffer:
@@ -669,7 +691,7 @@ class QuinoaTrainer(TorchTrainer):
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
 
             if self.compute_bc:
-                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.demo_test_buffer, self.policy)
+                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.bc_test_buffer, self.policy)
                 self.eval_statistics.update({
                     "bc/Train Logprob Loss": ptu.get_numpy(train_logp_loss),
                     "bc/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
