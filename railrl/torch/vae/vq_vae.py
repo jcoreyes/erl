@@ -242,7 +242,7 @@ class VectorQuantizerEMA(nn.Module):
 class VQ_VAE(nn.Module):
     def __init__(
         self,
-        representation_size,
+        embedding_dim,
         input_channels=3,
         num_hiddens=128,
         num_residual_layers=3,
@@ -255,7 +255,7 @@ class VQ_VAE(nn.Module):
         decay=0):
         super(VQ_VAE, self).__init__()
         self.imsize = imsize
-        self.representation_size = representation_size
+        self.embedding_dim = embedding_dim
         self.pixel_cnn = None
         self.input_channels = input_channels
         self.imlength = imsize * imsize * input_channels
@@ -264,19 +264,20 @@ class VQ_VAE(nn.Module):
                                 num_residual_layers,
                                 num_residual_hiddens)
         self._pre_vq_conv = nn.Conv2d(in_channels=num_hiddens,
-                                      out_channels=representation_size,
+                                      out_channels=self.embedding_dim,
                                       kernel_size=1,
                                       stride=1)
         if decay > 0.0:
-            self._vq_vae = VectorQuantizerEMA(num_embeddings, representation_size,
+            self._vq_vae = VectorQuantizerEMA(num_embeddings, self.embedding_dim,
                                               commitment_cost, decay)
         else:
-            self._vq_vae = VectorQuantizer(num_embeddings, representation_size,
+            self._vq_vae = VectorQuantizer(num_embeddings, self.embedding_dim,
                                            commitment_cost)
-        self._decoder = Decoder(representation_size,
+        self._decoder = Decoder(self.embedding_dim,
                                 num_hiddens,
                                 num_residual_layers,
                                 num_residual_hiddens)
+        self.representation_size = 0
 
     def compute_loss(self, inputs):
         inputs = inputs.view(-1,
@@ -286,10 +287,14 @@ class VQ_VAE(nn.Module):
         z = self._encoder(inputs)
         z = self._pre_vq_conv(z)
         vq_loss, quantized, perplexity, _ = self._vq_vae(z)
+
+        if self.representation_size == 0:
+            self.representation_size = quantized[0].flatten().shape[0]
         
         x_recon = self._decoder(quantized)
         recon_error = F.mse_loss(x_recon, inputs)
         return vq_loss, quantized, x_recon, perplexity, recon_error
+
 
     def latent_to_square(self, latents):
         squared_len = int(latents.shape[1] ** 0.5)
@@ -311,7 +316,7 @@ class VQ_VAE(nn.Module):
 
     def discrete_to_cont(self, e_indices):
         e_indices = self.latent_to_square(e_indices)
-        input_shape = e_indices.shape + (self.representation_size,)
+        input_shape = e_indices.shape + (self.embedding_dim,)
         e_indices = e_indices.reshape(-1).unsqueeze(1)
         
         min_encodings = torch.zeros(e_indices.shape[0], self.num_embeddings, device=e_indices.device)
@@ -341,8 +346,8 @@ class VQ_VAE(nn.Module):
     def decode(self, latents, cont=False):
         z_q = None
         if cont:
-            squared_len = int((latents.shape[1] / self.representation_size) ** 0.5)
-            z_q = latents.reshape(-1, self.representation_size, squared_len, squared_len)
+            squared_len = int((latents.shape[1] / self.embedding_dim) ** 0.5)
+            z_q = latents.reshape(-1, self.embedding_dim, squared_len, squared_len)
         else:
             z_q = self.discrete_to_cont(latents)
 

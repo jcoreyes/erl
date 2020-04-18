@@ -139,7 +139,7 @@ if __name__ == "__main__":
                 N=100000,
                 n_random_steps=50,
                 test_p=.9,
-                #dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
+                # dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -196,7 +196,7 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(2),
-        'train_vae_variant.representation_size': [2,],
+        'train_vae_variant.embedding_dim': [2,],
         'grill_variant.reward_params.epsilon': [0.5, 1, 1.5, 2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

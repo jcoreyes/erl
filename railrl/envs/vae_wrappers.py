@@ -252,7 +252,8 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
             dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
-            reward = - np.minimum(dist, self.epsilon)
+            clamped_dist = np.minimum(dist, self.epsilon) / self.epsilon #Scale Distance
+            reward = - clamped_dist
             return reward
         elif self.reward_type == 'success_prob':
             desired_goals = self._decode(obs['latent_desired_goal'])

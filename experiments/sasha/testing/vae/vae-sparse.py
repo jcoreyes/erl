@@ -145,7 +145,7 @@ if __name__ == "__main__":
                 N=100000, #10000
                 n_random_steps=50,
                 test_p=.9,
-                #dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
+                dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -166,6 +166,7 @@ if __name__ == "__main__":
             ),
 
             algo_kwargs=dict(
+                key_to_reconstruct='x_t',
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
                 batch_size=128,

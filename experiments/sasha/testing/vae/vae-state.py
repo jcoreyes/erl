@@ -163,6 +163,7 @@ if __name__ == "__main__":
             ),
 
             algo_kwargs=dict(
+                key_to_reconstruct='x_t',
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
                 batch_size=128,

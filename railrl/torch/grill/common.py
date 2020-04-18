@@ -89,7 +89,8 @@ def train_vae(variant, return_data=False):
     import torch
     import gym
     beta = variant["beta"]
-    representation_size = variant.get("representation_size", variant.get("latent_sizes", None))
+    representation_size = variant.get("representation_size",
+        variant.get("latent_sizes", variant.get("embedding_dim", None)))
     use_linear_dynamics = variant.get('use_linear_dynamics', False)
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
                                             generate_vae_dataset)

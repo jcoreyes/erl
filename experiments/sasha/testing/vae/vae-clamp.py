@@ -166,6 +166,7 @@ if __name__ == "__main__":
             ),
 
             algo_kwargs=dict(
+                key_to_reconstruct='x_t',
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
                 batch_size=128,
@@ -186,7 +187,7 @@ if __name__ == "__main__":
             save_period=100,
         ),
         launcher_config=dict(
-            region='us-west-2'
+            region='us-west-1'
         ),
 
         logger_variant=dict(
@@ -205,7 +206,7 @@ if __name__ == "__main__":
         'train_vae_variant.representation_size': [8],
         'train_vae_variant.algo_kwargs.batch_size': [128],
         'grill_variant.algo_kwargs.num_trains_per_train_loop':[4000],
-        'grill_variant.reward_params.epsilon': [0.25, 0.5, 1, 1.5],
+        'grill_variant.reward_params.epsilon': [0.25, 0.5, 1, 1.5, 2],
         'grill_variant.algo_kwargs.batch_size': [128,],
         'grill_variant.exploration_noise': [0.8],
 
@@ -218,4 +219,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=2)

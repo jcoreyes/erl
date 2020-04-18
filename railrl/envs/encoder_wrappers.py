@@ -60,10 +60,8 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
             presampled_goals,
             )
 
-        if type(pixel_cnn) is str:
-            self.pixel_cnn = load_local_or_remote_file(pixel_cnn)
         self.num_keys = self.vae.num_embeddings
-        self.representation_size = 144 * self.vae.representation_size
+        self.representation_size = self.vae.representation_size
 
         latent_space = Box(
             -10 * np.ones(obs_size or self.representation_size),
@@ -172,13 +170,6 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         latents = self.vae.encode(ptu.from_numpy(imgs), cont=True)
         latents = np.array(ptu.get_numpy(latents))
         return latents
-
-    # def _encode(self, imgs):
-    #     #MAKE FLOAT
-    #     self.vae.eval()
-    #     latents = self.vae.encode(ptu.from_numpy(imgs))
-    #     latents = np.array(ptu.get_numpy(latents)) / self.num_keys
-    #     return latents
 
     def _reconstruct_img(self, flat_img):
         self.vae.eval()
