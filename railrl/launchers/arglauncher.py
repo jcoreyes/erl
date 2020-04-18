@@ -131,6 +131,7 @@ def process_launcher_args(variant):
     launcher_config.setdefault("ssh_host", None)
     launcher_config.setdefault("slurm_config_name", None)
     launcher_config.setdefault("unpack_variant", False)
+    launcher_config.setdefault("s3_log_prefix", "")
 
     if "--ec2" in sys.argv:
         launcher_config["mode"] = "ec2"
