@@ -248,6 +248,12 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             success = dist < self.epsilon
             reward = success - 1
             return reward
+        elif self.reward_type == 'latent_clamp':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
+            dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
+            reward = - np.minimum(dist, self.epsilon)
+            return reward
         elif self.reward_type == 'success_prob':
             desired_goals = self._decode(obs['latent_desired_goal'])
             achieved_goals = self.vae.decode(ptu.from_numpy(obs['latent_achieved_goal']))
@@ -614,8 +620,6 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
             mu, sigma = 0, 1  # sample from prior
             n = np.random.randn(batch_size, self.vae.latent_sizes)
             z = sigma * n + mu
-            # z0 = np.tile(x0_latent, (batch_size, 1))
-            # np.concatenate((z, z0), axis=1)
             return np.concatenate((z, x0_latent), axis=1)
 
 def temporary_mode(env, mode, func, args=None, kwargs=None):

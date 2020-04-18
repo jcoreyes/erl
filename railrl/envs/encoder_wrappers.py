@@ -190,8 +190,7 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         )
         return imgs[0]
 
-    def _sample_vae_prior(self, batch_size):
+    def _sample_vae_prior(self, batch_size, cont=True):
         self.vae.eval()
-        samples = self.vae.sample_prior(batch_size)#.cpu())
-        samples = ptu.get_numpy(self.vae.discrete_to_cont(samples)).reshape(batch_size, -1)
+        samples = self.vae.sample_prior(batch_size, cont)
         return samples

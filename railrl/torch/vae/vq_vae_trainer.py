@@ -47,7 +47,7 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
 
     def encode_dataset(self, dataset, epoch):
         encoding_list = []
-        save_dir = osp.join(self.log_dir, 'dataset_latents_%d.npy' % epoch)
+        save_dir = osp.join(self.log_dir, 'dataset_latents.npy' % epoch)
         for i in range(len(dataset)):
             obs = dataset.random_batch(self.batch_size)["x_t"]
             encodings = self.model.encode(obs)
@@ -56,8 +56,8 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
         np.save(save_dir, encodings)
 
     def train_epoch(self, epoch, dataset, batches=100):
-        # if epoch % 100 == 0 and epoch > 0:
-        #     self.encode_dataset(dataset, epoch)
+        if epoch % 100 == 0 and epoch > 0:
+            self.encode_dataset(dataset, epoch)
 
         start_time = time.time()
         for b in range(batches):

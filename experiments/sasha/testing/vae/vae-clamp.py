@@ -119,7 +119,7 @@ if __name__ == "__main__":
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
-                type='latent_sparse'
+                type='latent_clamp'
             ),
             observation_key='latent_achieved_goal',
             desired_goal_key='latent_desired_goal',
@@ -128,7 +128,7 @@ if __name__ == "__main__":
                 num_goals_to_presample=10000,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            #vae_path="/home/ashvin/data/sasha/state/vae-sparse/run2/id0/vae.pkl"
+            #vae_path="/home/ashvin/data/rail-khazatsky/sasha/testing/vae/vae-sparse/sasha/testing/vae/vae-sparse/run1/id1/vae.pkl"
         ),
         train_vae_variant=dict(
             latent_sizes=4,
@@ -186,7 +186,7 @@ if __name__ == "__main__":
             save_period=100,
         ),
         launcher_config=dict(
-            region='us-west-1'
+            region='us-west-2'
         ),
 
         logger_variant=dict(
@@ -205,7 +205,7 @@ if __name__ == "__main__":
         'train_vae_variant.representation_size': [8],
         'train_vae_variant.algo_kwargs.batch_size': [128],
         'grill_variant.algo_kwargs.num_trains_per_train_loop':[4000],
-        'grill_variant.reward_params.epsilon': [0, 0.001, 0.0025, 0.005, 0.075],
+        'grill_variant.reward_params.epsilon': [0.25, 0.5, 1, 1.5],
         'grill_variant.algo_kwargs.batch_size': [128,],
         'grill_variant.exploration_noise': [0.8],
 
@@ -218,4 +218,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=3)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)
