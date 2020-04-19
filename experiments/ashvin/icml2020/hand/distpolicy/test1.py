@@ -32,7 +32,7 @@ if __name__ == "__main__":
             # num_gaussians=1,
         ),
         qf_kwargs=dict(
-            hidden_sizes=[5, 5],
+            hidden_sizes=[256, 256, 256, 256],
         ),
 
         algorithm="SAC",
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=1001,
+            q_num_pretrain2_steps=25000,
             policy_weight_decay=1e-4,
             q_weight_decay=0,
             bc_loss_type="mse",
@@ -111,13 +111,14 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env': ["pen-sparse-v0", ],
+        'env': ["pen-sparse-v0", "door-sparse-v0", "relocate-sparse-v0", ],
         # 'env': ["relocate-sparse-v0", ],
         'trainer_kwargs.bc_loss_type': ["mle"],
         'trainer_kwargs.awr_loss_type': ["mle"],
-        'seedid': range(1),
+        'seedid': range(3),
         'trainer_kwargs.beta': [
             0.3,
+            # 0.6,
         ],
 
         'trainer_kwargs.clip_score': [1, ],
@@ -134,9 +135,9 @@ if __name__ == "__main__":
         'trainer_kwargs.awr_sample_actions': [False, ],
         'trainer_kwargs.awr_min_q': [True, ],
 
-        'trainer_kwargs.q_weight_decay': [0, ],
+        'trainer_kwargs.q_weight_decay': [1e-5, ],
         'qf_kwargs.hidden_sizes': [
-            [5, 5],
+            [256, 256, 256, 256],
             # [64, 64, 64, 64],
         ],
 

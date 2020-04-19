@@ -237,11 +237,11 @@ class AWRSACTrainer(TorchTrainer):
         # og = torch.cat((o, g), dim=1)
         og = o
         # pred_u, *_ = self.policy(og)
-        pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, mean_action_log_prob, pretanh_value, dist = policy(
-            og, deterministic=False, reparameterize=True, return_log_prob=True,
-        )
+        dist = policy(og)
+        pred_u, log_pi = dist.rsample_and_logprob()
+        stats = dist.get_diagnostics()
 
-        mse = (policy_mean - u) ** 2
+        mse = (pred_u - u) ** 2
         mse_loss = mse.mean()
 
         policy_logpp = dist.log_prob(u, )
@@ -255,7 +255,7 @@ class AWRSACTrainer(TorchTrainer):
         else:
             error
 
-        return policy_loss, logp_loss, mse_loss, policy_log_std
+        return policy_loss, logp_loss, mse_loss, stats
 
     def do_rollouts(self):
         total_ret = 0
@@ -285,14 +285,14 @@ class AWRSACTrainer(TorchTrainer):
         optimizer = self.optimizers[policy]
         prev_time = time.time()
         for i in range(steps):
-            train_policy_loss, train_logp_loss, train_mse_loss, train_log_std = self.run_bc_batch(train_buffer, policy)
+            train_policy_loss, train_logp_loss, train_mse_loss, train_stats = self.run_bc_batch(train_buffer, policy)
             train_policy_loss = train_policy_loss * self.bc_weight
 
             optimizer.zero_grad()
             train_policy_loss.backward()
             optimizer.step()
 
-            test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(test_buffer, policy)
+            test_policy_loss, test_logp_loss, test_mse_loss, test_stats = self.run_bc_batch(test_buffer, policy)
             test_policy_loss = test_policy_loss * self.bc_weight
 
             if self.do_pretrain_rollouts and i % self.pretraining_env_logging_period == 0:
