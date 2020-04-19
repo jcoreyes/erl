@@ -2,9 +2,70 @@
 Add custom distributions in addition to th existing ones
 """
 import torch
-from torch.distributions import Distribution, Normal, Categorical, OneHotCategorical
+from torch.distributions import Categorical, OneHotCategorical
+from torch.distributions import Normal as TorchNormal
+from torch.distributions import Distribution as TorchDistribution
+from railrl.misc.eval_util import create_stats_ordered_dict
 import railrl.torch.pytorch_util as ptu
 import numpy as np
+from collections import OrderedDict
+
+
+class Distribution(TorchDistribution):
+    def sample_and_logprob(self, ):
+        s = self.sample()
+        log_p = self.log_prob(s)
+        return s, log_p
+
+    def rsample_and_logprob(self, ):
+        s = self.rsample()
+        log_p = self.log_prob(s)
+        return s, log_p
+
+    def sample_deterministic(self, ):
+        return None
+
+    def rsample_deterministic(self, ):
+        return None
+
+    def log_std(self, ):
+        return None
+
+    def get_diagnostics(self, ):
+        return {}
+
+
+class Normal(TorchNormal, Distribution):
+    def sample_deterministic(self, ):
+        return self.loc.detach()
+
+    def rsample_deterministic(self, ):
+        return self.loc
+
+    def get_diagnostics(self, ):
+        stats = OrderedDict()
+        stats.update(create_stats_ordered_dict(
+            'mu',
+            ptu.get_numpy(self.loc),
+        ))
+        stats.update(create_stats_ordered_dict(
+            'std',
+            ptu.get_numpy(self.scale),
+        ))
+        stats.update(create_stats_ordered_dict(
+            'log_std',
+            ptu.get_numpy(torch.log(self.scale)),
+        ))
+        stats.update(create_stats_ordered_dict(
+            'entropy',
+            ptu.get_numpy(self.get_entropy()),
+        ))
+        return stats
+
+    def get_entropy(self, ):
+        log_std = torch.log(self.scale)
+        entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
+        return entropy.sum(dim=1, keepdim=True)
 
 class GaussianMixture(Distribution):
     def __init__(self, normal_means, normal_stds, weights):
@@ -75,6 +136,7 @@ class GaussianMixture(Distribution):
         s = "GaussianMixture(normal_means=%s, normal_stds=%s, weights=%s)"
         return s % (self.normal_means, self.normal_stds, self.weights)
 
+
 epsilon = 0.001
 
 class GaussianMixtureFull(Distribution):
@@ -144,6 +206,7 @@ class GaussianMixtureFull(Distribution):
         s = "GaussianMixture(normal_means=%s, normal_stds=%s, weights=%s)"
         return s % (self.normal_means, self.normal_stds, self.weights)
 
+
 class TanhNormal(Distribution):
     """
     Represent distribution of X where
@@ -162,6 +225,7 @@ class TanhNormal(Distribution):
         self.normal_std = normal_std
         self.normal = Normal(normal_mean, normal_std)
         self.epsilon = epsilon
+        self.pre_tanh_value = None
 
     def sample_n(self, n, return_pre_tanh_value=False):
         z = self.normal.sample_n(n)
@@ -170,7 +234,7 @@ class TanhNormal(Distribution):
         else:
             return torch.tanh(z)
 
-    def log_prob(self, value, pre_tanh_value=None):
+    def log_prob_from_pre_tanh(self, pre_tanh_value):
         """
         Adapted from
         https://github.com/tensorflow/probability/blob/master/tensorflow_probability/python/bijectors/tanh.py#L73
@@ -190,36 +254,22 @@ class TanhNormal(Distribution):
         :param pre_tanh_value: arctanh(x)
         :return:
         """
-        if pre_tanh_value is None:
-            value = torch.clamp(value, -0.999999, 0.999999)
-            # pre_tanh_value = torch.log(
-                # (1+value) / (1-value)
-            # ) / 2
-            pre_tanh_value = torch.log(1+value) / 2 - torch.log(1-value) / 2
-            # ) / 2
         return self.normal.log_prob(pre_tanh_value) - 2. * (
-                ptu.from_numpy(np.log([2.]))
-                - pre_tanh_value
-                - torch.nn.functional.softplus(-2. * pre_tanh_value)
+            ptu.from_numpy(np.log([2.]))
+            - pre_tanh_value
+            - torch.nn.functional.softplus(-2. * pre_tanh_value)
         )
 
-    def sample(self, return_pretanh_value=False):
-        """
-        Gradients will and should *not* pass through this operation.
-
-        See https://github.com/pytorch/pytorch/issues/4620 for discussion.
-        """
-        z = self.normal.sample().detach()
-
-        if return_pretanh_value:
-            return torch.tanh(z), z
+    def log_prob(self, value, pre_tanh_value=None):
+        if pre_tanh_value is None:
+            value = torch.clamp(value, -0.999999, 0.999999) # errors or instability at values near 1
+            pre_tanh_value = torch.log(1+value) / 2 - torch.log(1-value) / 2
         else:
-            return torch.tanh(z)
+            # assert torch.tanh(value) == self.pre_tanh_value
+            pre_tanh_value = self.pre_tanh_value
+        return self.log_prob_from_pre_tanh(pre_tanh_value)
 
-    def rsample(self, return_pretanh_value=False):
-        """
-        Sampling in the reparameterization case.
-        """
+    def rsample_with_pretanh(self, ):
         z = (
             self.normal_mean +
             self.normal_std *
@@ -228,9 +278,31 @@ class TanhNormal(Distribution):
                     ptu.ones(self.normal_std.size())
                 ).sample()
         )
-        z.requires_grad_()
+        return torch.tanh(z), z
 
-        if return_pretanh_value:
-            return torch.tanh(z), z
-        else:
-            return torch.tanh(z)
+    def sample(self, ):
+        """
+        Gradients will and should *not* pass through this operation.
+
+        See https://github.com/pytorch/pytorch/issues/4620 for discussion.
+        """
+        value, pre_tanh_value = self.rsample_with_pretanh()
+        return value.detach()
+
+    def rsample(self, ):
+        """
+        Sampling in the reparameterization case.
+        """
+        value, pre_tanh_value = self.rsample_with_pretanh()
+        return value
+
+    def sample_and_logprob(self, ):
+        value, pre_tanh_value = self.rsample_with_pretanh()
+        value, pre_tanh_value = value.detach(), pre_tanh_value.detach()
+        log_p = self.log_prob(value, pre_tanh_value)
+        return value, log_p
+
+    def rsample_and_logprob(self, ):
+        value, pre_tanh_value = self.rsample_with_pretanh()
+        log_p = self.log_prob(value, pre_tanh_value)
+        return value, log_p
