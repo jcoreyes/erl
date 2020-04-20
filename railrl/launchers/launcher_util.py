@@ -68,6 +68,7 @@ target_mount = None
 def run_experiment(
         method_call,
         mode='local',
+        exp_folder=None,
         exp_prefix='default',
         seed=None,
         variant=None,
@@ -174,6 +175,8 @@ def run_experiment(
             base_log_dir = config.SSS_LOG_DIR
         else:
             base_log_dir = config.LOCAL_LOG_DIR
+    if exp_folder is not None:
+        base_log_dir = os.path.join(base_log_dir, exp_folder)
 
     for key, value in ppp.recursive_items(variant):
         # This check isn't really necessary, but it's to prevent myself from
@@ -299,6 +302,8 @@ def run_experiment(
         aws_s3_path = config.AWS_S3_PATH
     else:
         aws_s3_path = None
+    if exp_folder is not None:
+        aws_s3_path = os.path.join(aws_s3_path, exp_folder)
 
     if "run_id" in variant and variant["run_id"] is not None:
         run_id, exp_id = variant["run_id"], variant["exp_id"]
@@ -414,6 +419,7 @@ def run_experiment(
         mode=mode,
         sync_interval=sync_interval,
         local_input_dir_to_mount_point_dict=local_input_dir_to_mount_point_dict,
+        exp_folder=exp_folder,
     )
 
     """
@@ -438,6 +444,8 @@ def run_experiment(
         snapshot_dir_for_script = None
     elif mode == 'ssh':
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
+        if exp_prefix is not None:
+            base_log_dir_for_script = osp.join(base_log_dir_for_script, exp_folder)
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
     elif mode in ['local_singularity', 'slurm_singularity', 'sss']:
@@ -483,6 +491,7 @@ def create_mounts(
         base_log_dir,
         sync_interval=180,
         local_input_dir_to_mount_point_dict=None,
+        exp_folder=None,
 ):
     if mode == 'sss':
         code_mounts = SSS_CODE_MOUNTS
@@ -544,9 +553,13 @@ def create_mounts(
             output=True,
         )
     elif mode == 'ssh':
+        mount_point = config.OUTPUT_DIR_FOR_DOODAD_TARGET
+        if exp_folder is not None:
+            mount_point = os.path.join(mount_point, exp_folder)
+
         output_mount = mount.MountLocal(
             local_dir=base_log_dir,
-            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            mount_point=mount_point,
             output=True,
         )
     else:
