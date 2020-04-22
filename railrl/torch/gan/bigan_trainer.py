@@ -74,7 +74,7 @@ class BiGANTrainer():
             b_size = real_d.size(0)
 
             real_label = torch.ones(b_size, device = self.device)
-            fake_label = torch.zeros(b_size, device = self.device)
+            fake_label = torch.zeros(b_size, device = self.device) 
 
             noise1 = self.noise(data.size(), num_epochs, epoch)
             noise2 = self.noise(data.size(), num_epochs, epoch)
@@ -82,8 +82,8 @@ class BiGANTrainer():
             fake_z = self.fixed_noise(b_size)
             fake_d = self.netG(fake_z)
             # Encoder
-            real_z, _, _, _ = self.netE(real_d)
-            #real_z = torch.zeros([b_size, self.latent_size*2], device = self.device)
+            #real_z, _, _, _ = self.netE(real_d)
+            real_z = torch.zeros([b_size, self.latent_size*2], device = self.device)
             real_z = real_z.view(b_size, -1)
 
             mu, log_sigma = real_z[:, :self.latent_size], real_z[:, self.latent_size:]
@@ -94,13 +94,16 @@ class BiGANTrainer():
             output_real, _ = self.netD(real_d + noise1, output_z.view(b_size, self.latent_size, 1, 1))
             output_fake, _ = self.netD(fake_d + noise2, fake_z)
 
-            errD = self.criterion(output_real, real_label) + self.criterion(output_fake, fake_label)
+            errD_real = self.criterion(output_real, real_label)
+            errD_fake = self.criterion(output_fake, fake_label)
+            errD = errD_real + errD_fake
             errG = self.criterion(output_fake, real_label) + self.criterion(output_real, fake_label)
 
 
             if errG.item() < self.generator_threshold:
                 self.optimizerD.zero_grad()
-                errD.backward(retain_graph=True)
+                errD_real.backward(retain_graph=True)
+                errD_fake.backward(retain_graph=True)
                 self.optimizerD.step()
 
             ############################
@@ -120,14 +123,14 @@ class BiGANTrainer():
             self.D_losses.setdefault(epoch, []).append(errD.item())
 
             # Check how the generator is doing by saving G's output on fixed_noise
-            if (self.iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
+            if (self.iters % 200 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
                 #import ipdb; ipdb.set_trace()
                 with torch.no_grad():
                     fake = self.netG(self.fixed_noise(64)).detach().cpu()
                 sample = vutils.make_grid(fake, padding=2, normalize=True)
                 self.img_list.append(sample)
-                self.dump_samples("sample" + str(epoch), self.iters, sample)
-                self.dump_samples("real" + str(epoch), self.iters, vutils.make_grid(real_d.cpu(), padding=2, normalize=True))
+                self.dump_samples("sample " + str(epoch), self.iters, sample)
+                self.dump_samples("real " + str(epoch), self.iters, vutils.make_grid(real_d.cpu(), padding=2, normalize=True))
 
             self.iters += 1
 

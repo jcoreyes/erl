@@ -30,8 +30,6 @@ class DCGANTrainer():
         self.G_losses = {}
         self.D_losses = {}
         self.iters = 0
-        self.real_label = 1
-        self.fake_label = 0
         self.criterion = nn.BCELoss()
 
         self.lr = lr
@@ -56,36 +54,42 @@ class DCGANTrainer():
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             ###########################
             ## Train with all-real batch
-            self.netD.zero_grad()
             real_cpu = data.to(self.device).float()
             b_size = real_cpu.size(0)
-            label = torch.full((b_size,), self.real_label, device=self.device)
-            output = self.netD(real_cpu).view(-1)
-            errD_real = self.criterion(output, label)
-            errD_real.backward()
-            D_x = output.mean().item()
+
+            real_label = torch.full((b_size,), 1, device=self.device)
+            fake_label = torch.full((b_size,), 0, device=self.device)
+
+            real_output = self.netD(real_cpu).view(-1)
+            errD_real = self.criterion(real_output, real_label)
+            D_x = real_output.mean().item()
 
             ## Train with all-fake batch
             noise = torch.randn(b_size, self.latent_size, 1, 1, device=self.device)
             fake = self.netG(noise)
-            label.fill_(self.fake_label)
-            output = self.netD(fake.detach()).view(-1)
-            errD_fake = self.criterion(output, label)
-            errD_fake.backward()
-            D_G_z1 = output.mean().item()
+            fake_output = self.netD(fake.detach()).view(-1)
+            errD_fake = self.criterion(fake_output, fake_label)
+            D_G_z1 = fake_output.mean().item()
             errD = errD_real + errD_fake
-            self.optimizerD.step()
 
             ############################
             # (2) Update G network: maximize log(D(G(z)))
             ###########################
             self.netG.zero_grad()
-            label.fill_(self.real_label)  
             output = self.netD(fake).view(-1)
-            errG = self.criterion(output, label)
+            errG = self.criterion(output, real_label)
             errG.backward()
             D_G_z2 = output.mean().item()
             self.optimizerG.step()
+
+            if errG.item() < 4:
+                self.netD.zero_grad()
+                errD_real.backward()
+                errD_fake.backward()
+                self.optimizerD.step()
+
+
+            self.netD.zero_grad()
 
             # Output training stats
             if i % 50 == 0:
@@ -98,13 +102,13 @@ class DCGANTrainer():
             self.D_losses.setdefault(epoch, []).append(errD.item())
 
             # Check how the generator is doing by saving G's output on fixed_noise
-            if (self.iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
+            if (self.iters % 200 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
                 with torch.no_grad():
                     fake = self.netG(self.fixed_noise).detach().cpu()
                 sample = vutils.make_grid(fake, padding=2, normalize=True)
                 self.img_list.append(sample)
-                self.dump_samples("sample" + str(epoch), self.iters, sample)
-                self.dump_samples("real" + str(epoch), self.iters, vutils.make_grid(real_cpu.cpu().data[:64, ], padding=2, normalize=True))
+                self.dump_samples("sample " + str(epoch), self.iters, sample)
+                self.dump_samples("real " + str(epoch), self.iters, vutils.make_grid(real_cpu.cpu().data[:64, ], padding=2, normalize=True))
             self.iters += 1
 
     def dump_samples(self, epoch, iters, sample):

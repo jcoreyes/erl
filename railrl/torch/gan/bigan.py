@@ -41,6 +41,9 @@ class BiGAN:
         elif classname.find('Linear') != -1:
             m.bias.data.fill_(0)
 
+
+
+
 class Generator(nn.Module):
 
     def __init__(self, ngpu, latent_size):

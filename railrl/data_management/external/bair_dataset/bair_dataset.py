@@ -104,7 +104,7 @@ class BAIRDataset(data.Dataset):
         if self.flatten:
             x_timages = x_timages.flatten()
 
-        x_timages = x_timages / 255 - self.shift
+        x_timages = x_timages / 255.0 - self.shift
 
         data_dict = {
             'x_t': x_timages,

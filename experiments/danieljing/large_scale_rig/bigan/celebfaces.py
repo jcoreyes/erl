@@ -26,6 +26,8 @@ if __name__ == "__main__":
         lr = 1e-4,
         latent_size = 256,
         output_size = 1,
+        dropout = 0,
+        generator_threshold = 100,
         #nc = 3,
         #ngf = 
         #ndf = 
@@ -43,8 +45,8 @@ if __name__ == "__main__":
     )
     search_space = {
         'seedid': range(1),
-        'dropout': [0, 0.05, 0.1, 0.15, 0.2],
-        'generator_threshold': [1, 2, 3, 4]
+        #'dropout': [0, 0.05, 0.1, 0.15, 0.2],
+        #'generator_threshold': [1, 2, 3, 4]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
