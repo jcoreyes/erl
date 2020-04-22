@@ -1,6 +1,5 @@
 from __future__ import print_function
 import railrl.misc.hyperparameter as hyp
-from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
@@ -14,7 +13,7 @@ from railrl.launchers.config import CELEBA_DATASET
 if __name__ == "__main__":
 
     variant = dict(
-        num_epochs=500,
+        num_epochs=12,
         dataset = 'celebfaces', 
         dataroot = CELEBA_DATASET,
         num_workers = 2, 
@@ -26,7 +25,6 @@ if __name__ == "__main__":
         beta = 0.5,
         lr = 1e-4,
         latent_size = 256,
-        dropout = 0,
         output_size = 1,
         #nc = 3,
         #ngf = 
@@ -45,7 +43,8 @@ if __name__ == "__main__":
     )
     search_space = {
         'seedid': range(1),
-        'representation_size': [64]
+        'dropout': [0, 0.05, 0.1, 0.15, 0.2],
+        'generator_threshold': [1, 2, 3, 4]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

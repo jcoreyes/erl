@@ -228,7 +228,7 @@ def train_gan(variant):
         trainer = trainer_class(model, variant["lr"], variant["beta"], variant["latent_size"])
     if trainer_class is BiGANTrainer:
         model = model_class(variant["ngpu"], variant["latent_size"], variant["dropout"], variant["output_size"])
-        trainer = trainer_class(model, variant["ngpu"], variant["lr"], variant["beta"], variant["latent_size"])
+        trainer = trainer_class(model, variant["ngpu"], variant["lr"], variant["beta"], variant["latent_size"], variant["generator_threshold"])
 
     for epoch in range(variant['num_epochs']):
         trainer.train_epoch(dataloader, epoch, variant['num_epochs'], get_data)

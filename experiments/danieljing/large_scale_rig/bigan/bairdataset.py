@@ -14,7 +14,7 @@ from railrl.launchers.config import CELEBA_DATASET
 if __name__ == "__main__":
 
     variant = dict(
-        num_epochs=500, 
+        num_epochs=12, 
         dataset = "bair",
         generate_dataset_kwargs=dict(
             image_size = 32,
@@ -35,8 +35,7 @@ if __name__ == "__main__":
         ngpu = 1, 
         beta = 0.5,
         lr = 1e-4,
-        latent_size = 100,
-        dropout = 0,
+        latent_size = 256,
         output_size = 1,
         #nc = 3,
         #ngf = 
@@ -55,7 +54,8 @@ if __name__ == "__main__":
     )
     search_space = {
         'seedid': range(1),
-        'representation_size': [64]
+        'dropout': [0.08, 0.1, 0.12],
+        'generator_threshold': [2, 3, 4]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

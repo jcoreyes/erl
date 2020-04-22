@@ -103,15 +103,15 @@ class DCGANTrainer():
                     fake = self.netG(self.fixed_noise).detach().cpu()
                 sample = vutils.make_grid(fake, padding=2, normalize=True)
                 self.img_list.append(sample)
-                self.dump_samples("sample: " + str(epoch), self.iters, sample)
-                self.dump_samples("real: " + str(epoch), self.iters, vutils.make_grid(real_cpu.cpu().data[:64, ], padding=2, normalize=True))
+                self.dump_samples("sample" + str(epoch), self.iters, sample)
+                self.dump_samples("real" + str(epoch), self.iters, vutils.make_grid(real_cpu.cpu().data[:64, ], padding=2, normalize=True))
             self.iters += 1
 
     def dump_samples(self, epoch, iters, sample):
         fig = plt.figure(figsize=(8,8))
         plt.axis("off")
         plt.imshow(np.transpose(sample,(1,2,0)))
-        save_dir = osp.join(self.log_dir, 's' + str(epoch) + '-' + str(iters) + '.png')
+        save_dir = osp.join(self.log_dir, str(epoch) + '-' + str(iters) + '.png')
         plt.savefig(save_dir)
 
     def get_stats(self, epoch):

@@ -23,7 +23,7 @@ from torchvision.utils import save_image
 
 class BiGANTrainer():
 
-    def __init__(self, model, ngpu, lr, beta, latent_size):
+    def __init__(self, model, ngpu, lr, beta, latent_size, generator_threshold):
         self.model = model
         self.netE = self.model.netE
         self.netG = self.model.netG
@@ -40,6 +40,7 @@ class BiGANTrainer():
         self.lr = lr
         self.beta = beta
         self.latent_size = latent_size
+        self.generator_threshold = generator_threshold
 
         self.optimizerG = optim.Adam([{'params' : self.netE.parameters()},
                          {'params' : self.netG.parameters()}], lr=lr, betas=(beta,0.999))
@@ -82,7 +83,9 @@ class BiGANTrainer():
             fake_d = self.netG(fake_z)
             # Encoder
             real_z, _, _, _ = self.netE(real_d)
+            #real_z = torch.zeros([b_size, self.latent_size*2], device = self.device)
             real_z = real_z.view(b_size, -1)
+
             mu, log_sigma = real_z[:, :self.latent_size], real_z[:, self.latent_size:]
             sigma = torch.exp(log_sigma)
             epsilon = torch.randn(b_size, self.latent_size, device = self.device)
@@ -95,7 +98,7 @@ class BiGANTrainer():
             errG = self.criterion(output_fake, real_label) + self.criterion(output_real, fake_label)
 
 
-            if errG.item() < 1:
+            if errG.item() < self.generator_threshold:
                 self.optimizerD.zero_grad()
                 errD.backward(retain_graph=True)
                 self.optimizerD.step()
@@ -123,8 +126,8 @@ class BiGANTrainer():
                     fake = self.netG(self.fixed_noise(64)).detach().cpu()
                 sample = vutils.make_grid(fake, padding=2, normalize=True)
                 self.img_list.append(sample)
-                self.dump_samples("sample: " + str(epoch), self.iters, sample)
-                self.dump_samples("real: " + str(epoch), self.iters, vutils.make_grid(real_d.cpu(), padding=2, normalize=True))
+                self.dump_samples("sample" + str(epoch), self.iters, sample)
+                self.dump_samples("real" + str(epoch), self.iters, vutils.make_grid(real_d.cpu(), padding=2, normalize=True))
 
             self.iters += 1
 
@@ -132,7 +135,7 @@ class BiGANTrainer():
         fig = plt.figure(figsize=(8,8))
         plt.axis("off")
         plt.imshow(np.transpose(sample,(1,2,0)))
-        save_dir = osp.join(self.log_dir, 's' + str(epoch) + '-' + str(iters) + '.png')
+        save_dir = osp.join(self.log_dir, str(epoch) + '-' + str(iters) + '.png')
         plt.savefig(save_dir)
 
     def get_stats(self, epoch):

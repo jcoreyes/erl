@@ -1,6 +1,5 @@
 from __future__ import print_function
 import railrl.misc.hyperparameter as hyp
-from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
