@@ -85,6 +85,34 @@ class VAEBase(PyTorchModule, metaclass=abc.ABCMeta):
         reconstructions, obs_distribution_params = self.decode(latents)
         return reconstructions, obs_distribution_params, latent_distribution_params
 
+    ### Numpy functions
+
+    def decode_np(self, latents):
+        self.eval()
+        reconstructions, _ = self.decode(ptu.from_numpy(latents))
+        decoded = ptu.get_numpy(reconstructions)
+        return decoded
+
+    def encode_one_np(self, img):
+        return self.encode_np(img[None])[0]
+
+    def decode_one_np(self, latent):
+        return self.decode_np(latent[None])[0]
+
+    def encode_np(self, imgs):
+        self.eval()
+        latent_distribution_params = self.encode(ptu.from_numpy(imgs))
+        return ptu.get_numpy(latent_distribution_params[0])
+
+    # def _reconstruct_img(self, flat_img):
+    #     self.vae.eval()
+    #     latent_distribution_params = self.vae.encode(ptu.from_numpy(flat_img.reshape(1,-1)))
+    #     reconstructions, _ = self.vae.decode(latent_distribution_params[0])
+    #     imgs = ptu.get_numpy(reconstructions)
+    #     imgs = imgs.reshape(
+    #         1, self.input_channels, self.imsize, self.imsize
+    #     )
+    #     return imgs[0]
 
 class GaussianLatentVAE(VAEBase):
     def __init__(

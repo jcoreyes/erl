@@ -225,7 +225,6 @@ class TanhNormal(Distribution):
         self.normal_std = normal_std
         self.normal = Normal(normal_mean, normal_std)
         self.epsilon = epsilon
-        self.pre_tanh_value = None
 
     def sample_n(self, n, return_pre_tanh_value=False):
         z = self.normal.sample_n(n)
@@ -264,9 +263,8 @@ class TanhNormal(Distribution):
         if pre_tanh_value is None:
             value = torch.clamp(value, -0.999999, 0.999999) # errors or instability at values near 1
             pre_tanh_value = torch.log(1+value) / 2 - torch.log(1-value) / 2
-        else:
+        # else:
             # assert torch.tanh(value) == self.pre_tanh_value
-            pre_tanh_value = self.pre_tanh_value
         return self.log_prob_from_pre_tanh(pre_tanh_value)
 
     def rsample_with_pretanh(self, ):
@@ -306,3 +304,6 @@ class TanhNormal(Distribution):
         value, pre_tanh_value = self.rsample_with_pretanh()
         log_p = self.log_prob(value, pre_tanh_value)
         return value, log_p
+
+    def sample_deterministic(self, ):
+        return self.normal_mean.detach()

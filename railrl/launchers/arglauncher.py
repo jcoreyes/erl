@@ -56,10 +56,11 @@ def run_variants(experiment, vs, process_args_fn=None, run_id=0, ):
     print("Running", len(variants), "variants")
 
 def run_variant(experiment, variant):
+    launcher_config = variant.pop("launcher_config")
     lu.run_experiment(
         experiment,
         variant=variant,
-        **variant["launcher_config"],
+        **launcher_config,
     )
 
 def parallel_run(experiment, variants, n_p):

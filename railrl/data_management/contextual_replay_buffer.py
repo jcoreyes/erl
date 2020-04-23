@@ -53,7 +53,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             fraction_future_context,
             fraction_distribution_context,
             post_process_batch_fn=None,
-            observation_key='observation',
+            observation_key='observation', # is this repeated?
             save_data_in_snapshot=False,
             internal_keys=None,
     ):
@@ -79,7 +79,9 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         self._context_keys = context_keys
         self._context_distribution = context_distribution
         if set(self._context_distribution.spaces.keys()) != set(context_keys):
-            raise TypeError("Distributions must match.")
+            print(self._context_distribution.spaces.keys())
+            print(context_keys)
+            # raise TypeError("Distributions must match.")
         self._sample_context_from_obs_dict_fn = sample_context_from_obs_dict_fn
         self._reward_fn = reward_fn
         self._fraction_future_context = fraction_future_context
@@ -116,15 +118,15 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         actions = self._actions[indices]
 
         keys = set(contexts[0].keys())
-        for c in contexts[1:]:
-            if set(c.keys()) != keys:
-                raise RuntimeError(
-                    "Context distributions don't match. Replay buffer context "
-                    "distribution keys={}, other distribution keys={}".format(
-                        keys,
-                        set(c.keys())
-                    )
-                )
+        # for c in contexts[1:]:
+        #     if set(c.keys()) != keys:
+        #         raise RuntimeError(
+        #             "Context distributions don't match. Replay buffer context "
+        #             "distribution keys={}, other distribution keys={}".format(
+        #                 keys,
+        #                 set(c.keys())
+        #             )
+        #         )
 
         def concat(*x):
             return np.concatenate(x, axis=0)

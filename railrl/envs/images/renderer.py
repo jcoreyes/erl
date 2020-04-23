@@ -23,7 +23,13 @@ class Renderer(object):
         self.flatten = flatten
         self.channels = 1 if grayscale else 3
 
+        self.initialize_camera = False
+
     def create_image(self, env):
+        if not self.initialize_camera and self.init_camera is not None:
+            env.initialize_camera(self.init_camera)
+            self.initialize_camera = True
+
         image_obs = env.get_image(
             width=self.img_width,
             height=self.img_height,

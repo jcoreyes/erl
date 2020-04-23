@@ -1,7 +1,7 @@
 import warnings
 
 import numpy as np
-from gym.spaces import Box
+from gym.spaces import Box, Dict
 from multiworld.core.multitask_env import MultitaskEnv
 
 from railrl import pythonplusplus as ppp
@@ -9,6 +9,7 @@ from railrl.core.distribution import DictDistribution
 from railrl.envs.contextual import ContextualRewardFn
 from railrl.envs.images import Renderer
 
+import railrl.torch.pytorch_util as ptu
 
 class GoalDictDistributionFromMultitaskEnv(DictDistribution):
     def __init__(
@@ -71,6 +72,68 @@ class AddImageDistribution(DictDistribution):
 
         contexts[self._image_goal_key] = np.array(images)
         return contexts
+
+    @property
+    def spaces(self):
+        return self._spaces
+
+
+class AddLatentDistribution(DictDistribution):
+    def __init__(
+            self,
+            dist,
+            input_key,
+            output_key,
+            model,
+    ):
+        self.dist = dist
+        self._spaces = dist.spaces
+        self.input_key = input_key
+        self.output_key = output_key
+        self.model = model
+        self.representation_size = self.model.representation_size
+        latent_space = Box(
+            -10 * np.ones(self.representation_size),
+            10 * np.ones(self.representation_size),
+            dtype=np.float32,
+        )
+        self._spaces[output_key] = latent_space
+
+    def sample(self, batch_size: int):
+        s = self.dist.sample(batch_size)
+        s[self.output_key] = self.model.encode_np(s[self.input_key])
+        return s
+
+    @property
+    def spaces(self):
+        return self._spaces
+
+
+class PriorDistribution(DictDistribution):
+    def __init__(
+            self,
+            model,
+            key,
+    ):
+        self._spaces = {}
+        self.key = key
+        if type(model) is str:
+            self.model = load_local_or_remote_file(model)
+        else:
+            self.model = model
+        self.representation_size = self.model.representation_size
+        latent_space = Box(
+            -10 * np.ones(self.representation_size),
+            10 * np.ones(self.representation_size),
+            dtype=np.float32,
+        )
+        self._spaces[key] = latent_space
+
+    def sample(self, batch_size: int):
+        mu, sigma = 0, 1 # sample from prior
+        n = np.random.randn(batch_size, self.representation_size)
+        s = {self.key: sigma * n + mu}
+        return s
 
     @property
     def spaces(self):

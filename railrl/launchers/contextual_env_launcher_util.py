@@ -54,7 +54,9 @@ def goal_conditioned_sac_experiment(
         save_video=True,
         save_video_kwargs=None,
         renderer_kwargs=None,
+        **kwargs
 ):
+    print(kwargs)
     if exploration_policy_kwargs is None:
         exploration_policy_kwargs = {}
     if not save_video_kwargs:
@@ -259,3 +261,8 @@ def get_gym_env(env_id, env_class=None, env_kwargs=None):
     else:
         env = env_class(**env_kwargs)
     return env
+
+
+def process_args(variant):
+    if variant.get("debug", False):
+        pass
