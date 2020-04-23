@@ -26,7 +26,7 @@ if __name__ == "__main__":
         max_path_length=100,
         algo_kwargs=dict(
             batch_size=128,
-            num_epochs=101,
+            num_epochs=1001,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
@@ -46,7 +46,7 @@ if __name__ == "__main__":
         ),
         train_vae_kwargs=dict(
             vae_path=None,
-            representation_size=11,
+            representation_size=4,
             beta=10.0 / 128,
             num_epochs=501,
             dump_skew_debug_plots=False,
@@ -77,8 +77,8 @@ if __name__ == "__main__":
             flatten=True,
             init_camera=sawyer_init_camera_zoomed_in,
         ),
-        evaluation_goal_sampling_mode="vae_prior",
-        exploration_goal_sampling_mode="reset_of_env",
+        evaluation_goal_sampling_mode="reset_of_env",
+        exploration_goal_sampling_mode="vae_prior",
 
         launcher_config=dict(
             unpack_variant=True,
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        "launcher_config.seedid": range(3),
+        "seed": range(5),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

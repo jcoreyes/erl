@@ -486,14 +486,6 @@ def goal_conditioned_sac_experiment(
 
         renderer = Renderer(**renderer_kwargs)
         img_env = InsertImageEnv(state_env, renderer=renderer)
-        # img_env = ImageEnv(
-        #     env,
-        #     imsize,
-        #     # init_camera=init_camera,
-        #     transpose=True,
-        #     normalize=True,
-        #     # non_presampled_goal_img_is_garbage=non_presampled_goal_img_is_garbage,
-        # )
 
         encoded_env = EncoderWrappedEnv(
             img_env,
@@ -522,9 +514,6 @@ def goal_conditioned_sac_experiment(
         else:
             error
 
-        # env = VAEWrappedEnv(img_env, model, imsize=imsize)
-        # env.goal_sampling_mode = goal_sampling_mode
-
         reward_fn = DistanceRewardFn(
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
@@ -536,13 +525,6 @@ def goal_conditioned_sac_experiment(
             observation_key=observation_key,
             # update_env_info_fn=DeleteOldEnvInfo(),
         )
-        # env = ContextualEnv(
-        #     env,
-        #     context_distribution=goal_distribution,
-        #     reward_fn=reward_fn,
-        #     observation_key=observation_key,
-        #     # update_env_info_fn=DeleteOldEnvInfo(),
-        # )
         return env, latent_goal_distribution, reward_fn
 
     model = train_vae(train_vae_kwargs)
@@ -637,21 +619,22 @@ def goal_conditioned_sac_experiment(
 
     if save_video:
         expl_video_func = RIGVideoSaveFunction(
-            None,
+            model,
             expl_path_collector,
             "train",
-            "image_desired_goal",
+            "image_decoded_goal",
             rows=2,
             columns=5,
             unnormalize=True,
             save_video_period=50,
             # max_path_length=200,
             imsize=48,
+            # **save_video_kwargs
         )
         algorithm.post_train_funcs.append(expl_video_func)
 
         eval_video_func = RIGVideoSaveFunction(
-            model,
+            None,
             eval_path_collector,
             "eval",
             "image_desired_goal",
@@ -661,56 +644,9 @@ def goal_conditioned_sac_experiment(
             save_video_period=50,
             # max_path_length=200,
             imsize=48,
+            # **save_video_kwargs
         )
         algorithm.post_train_funcs.append(eval_video_func)
-
-        # rollout_function = partial(
-        #     rf.contextual_rollout,
-        #     max_path_length=max_path_length,
-        #     observation_key=observation_key,
-        #     context_key=context_key,
-        # )
-        # renderer = Renderer(**renderer_kwargs)
-
-        # def add_images(env, state_distribution):
-        #     state_env = env.env
-        #     image_goal_distribution = AddImageDistribution(
-        #         env=state_env,
-        #         base_distribution=state_distribution,
-        #         image_goal_key='image_desired_goal',
-        #         renderer=renderer,
-        #     )
-        #     img_env = InsertImageEnv(state_env, renderer=renderer)
-        #     return ContextualEnv(
-        #         img_env,
-        #         context_distribution=image_goal_distribution,
-        #         reward_fn=eval_reward,
-        #         observation_key=observation_key,
-        #         # update_env_info_fn=DeleteOldEnvInfo(),
-        #     )
-        # img_eval_env = eval_env # add_images(eval_env, eval_context_distrib)
-        # img_expl_env = expl_env # add_images(expl_env, expl_context_distrib)
-        # eval_video_func = get_save_video_function(
-        #     rollout_function,
-        #     img_eval_env,
-        #     MakeDeterministic(policy),
-        #     tag="eval",
-        #     imsize=renderer.image_shape[0],
-        #     image_format='CWH',
-        #     **save_video_kwargs
-        # )
-        # expl_video_func = get_save_video_function(
-        #     rollout_function,
-        #     img_expl_env,
-        #     exploration_policy,
-        #     tag="train",
-        #     imsize=renderer.image_shape[0],
-        #     image_format='CWH',
-        #     **save_video_kwargs
-        # )
-
-        # algorithm.post_train_funcs.append(eval_video_func)
-        # algorithm.post_train_funcs.append(expl_video_func)
 
     algorithm.train()
 
