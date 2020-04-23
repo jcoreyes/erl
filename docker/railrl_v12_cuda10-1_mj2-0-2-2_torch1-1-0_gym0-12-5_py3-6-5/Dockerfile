@@ -125,5 +125,7 @@ RUN pip install gym[all]==0.12.5
 ##########################################################
 ### Cleanup
 ##########################################################
-# I'm going to keep PATH to prioritize the conda env
-# ENV PATH $OLDPATH
+
+# Technically this shouldn't be necessary since we put this in the bashrc
+# but for some reason, bashrc isn't being run on AWS.
+ENTRYPOINT source activate railrl
