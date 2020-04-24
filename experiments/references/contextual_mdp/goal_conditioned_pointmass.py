@@ -23,7 +23,7 @@ if __name__ == "__main__":
         max_path_length=100,
         algo_kwargs=dict(
             batch_size=128,
-            num_epochs=100,
+            num_epochs=25,
             num_eval_steps_per_epoch=100,
             num_expl_steps_per_train_loop=100,
             num_trains_per_train_loop=100,
@@ -61,7 +61,9 @@ if __name__ == "__main__":
     # exp_name = 'dev'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
+        for seed in range(n_seeds):
+            variant['exp_id'] = exp_id
+            variant['seed'] = seed
             run_experiment(
                 goal_conditioned_sac_experiment,
                 exp_name=exp_name,

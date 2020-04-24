@@ -9,11 +9,13 @@ from railrl.data_management.contextual_replay_buffer import (
     ContextualRelabelingReplayBuffer,
     RemapKeyFn,
 )
-from railrl.envs.contextual import ContextualEnv
+from railrl.envs.contextual import ContextualEnv, delete_info
+
 from railrl.envs.contextual.goal_conditioned import (
     GoalDictDistributionFromMultitaskEnv,
     ContextualRewardFnFromMultitaskEnv,
     AddImageDistribution,
+    GoalConditionedDiagnosticsToContextualDiagnostics,
 )
 from railrl.envs.images import Renderer, InsertImageEnv
 from railrl.launchers.rl_exp_launcher_util import create_exploration_policy
@@ -27,11 +29,6 @@ from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from railrl.core import logger
-
-
-class DeleteOldEnvInfo(object):
-    def __call__(self, contexutal_env, info, obs, reward, done):
-        return {}
 
 
 def goal_conditioned_sac_experiment(
@@ -77,12 +74,17 @@ def goal_conditioned_sac_experiment(
             achieved_goal_key=achieved_goal_key,
             observation_key=observation_key,
         )
+        diag_fn = GoalConditionedDiagnosticsToContextualDiagnostics(
+            env.goal_conditioned_diagnostics,
+            desired_goal_key,
+        )
         env = ContextualEnv(
             env,
             context_distribution=goal_distribution,
             reward_fn=reward_fn,
             observation_key=observation_key,
-            # update_env_info_fn=DeleteOldEnvInfo(),
+            contextual_diagnostics_fns=[diag_fn],
+            update_env_info_fn=delete_info,
         )
         return env, goal_distribution, reward_fn
 
@@ -149,7 +151,7 @@ def goal_conditioned_sac_experiment(
         eval_env,
         MakeDeterministic(policy),
         observation_key=observation_key,
-        context_key=context_key,
+        context_keys=[context_key],
     )
     exploration_policy = create_exploration_policy(
         policy, **exploration_policy_kwargs)
@@ -157,7 +159,7 @@ def goal_conditioned_sac_experiment(
         expl_env,
         exploration_policy,
         observation_key=observation_key,
-        context_key=context_key,
+        context_keys=[context_key],
     )
 
     algorithm = TorchBatchRLAlgorithm(
@@ -177,7 +179,7 @@ def goal_conditioned_sac_experiment(
             rf.contextual_rollout,
             max_path_length=max_path_length,
             observation_key=observation_key,
-            context_key=context_key,
+            context_keys=[context_key],
         )
         renderer = Renderer(**renderer_kwargs)
 
@@ -195,7 +197,7 @@ def goal_conditioned_sac_experiment(
                 context_distribution=image_goal_distribution,
                 reward_fn=eval_reward,
                 observation_key=observation_key,
-                # update_env_info_fn=DeleteOldEnvInfo(),
+                update_env_info_fn=delete_info,
             )
         img_eval_env = add_images(eval_env, eval_context_distrib)
         img_expl_env = add_images(expl_env, expl_context_distrib)

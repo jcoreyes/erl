@@ -1,13 +1,12 @@
 from collections import deque, OrderedDict
+from functools import partial
 
 import numpy as np
 
 from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.samplers.data_collector.base import PathCollector
-from railrl.samplers.rollout_functions import (
-    rollout,
-)
+from railrl.samplers.rollout_functions import rollout
 
 
 class MdpPathCollector(PathCollector):
@@ -18,7 +17,7 @@ class MdpPathCollector(PathCollector):
             max_num_epoch_paths_saved=None,
             render=False,
             render_kwargs=None,
-            preprocess_obs_for_policy_fn=None,
+            rollout_fn=rollout,
     ):
         if render_kwargs is None:
             render_kwargs = {}
@@ -28,7 +27,7 @@ class MdpPathCollector(PathCollector):
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
         self._render = render
         self._render_kwargs = render_kwargs
-        self._preprocess_obs_for_policy_fn = preprocess_obs_for_policy_fn
+        self._rollout_fn = rollout_fn
 
         self._num_steps_total = 0
         self._num_paths_total = 0
@@ -46,13 +45,12 @@ class MdpPathCollector(PathCollector):
                 max_path_length,
                 num_steps - num_steps_collected,
             )
-            path = rollout(
+            path = self._rollout_fn(
                 self._env,
                 self._policy,
                 max_path_length=max_path_length_this_loop,
                 render=self._render,
                 render_kwargs=self._render_kwargs,
-                preprocess_obs_for_policy_fn=self._preprocess_obs_for_policy_fn,
             )
             path_len = len(path['actions'])
             if (
@@ -106,8 +104,11 @@ class GoalConditionedPathCollector(MdpPathCollector):
         def obs_processor(o):
             return np.hstack((o[observation_key], o[desired_goal_key]))
 
-        super().__init__(*args, preprocess_obs_for_policy_fn=obs_processor,
-                         **kwargs)
+        rollout_fn = partial(
+            rollout,
+            preprocess_obs_for_policy_fn=obs_processor,
+        )
+        super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
         self._observation_key = observation_key
         self._desired_goal_key = desired_goal_key
         self._goal_sampling_mode = goal_sampling_mode
@@ -135,8 +136,11 @@ class ObsDictPathCollector(MdpPathCollector):
         def obs_processor(obs):
             return obs[observation_key]
 
-        super().__init__(*args, preprocess_obs_for_policy_fn=obs_processor,
-                         **kwargs)
+        rollout_fn = partial(
+            rollout,
+            preprocess_obs_for_policy_fn=obs_processor,
+        )
+        super().__init__(*args, rollout_fn=rollout_fn, **kwargs)
         self._observation_key = observation_key
 
     def get_snapshot(self):
