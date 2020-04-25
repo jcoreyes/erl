@@ -1,10 +1,22 @@
 import abc
+from collections import OrderedDict
+
 import gym
-from gym.spaces import Dict
+import gym.spaces
 import numpy as np
+from typing import Union, Callable, Any, Dict, List
 
 from railrl.core.distribution import DictDistribution
 from railrl import pythonplusplus as ppp
+
+
+Path = Dict
+Diagnostics = Dict
+Context = Any
+ContextualDiagnosticsFn = Callable[
+    [List[Path], List[Context]],
+    Diagnostics,
+]
 
 
 class ContextualRewardFn(object, metaclass=abc.ABCMeta):
@@ -29,14 +41,17 @@ class ContextualEnv(gym.Wrapper):
             reward_fn: ContextualRewardFn,
             observation_key='observation',
             update_env_info_fn=None,
+            contextual_diagnostics_fns: Union[None, List[ContextualDiagnosticsFn]]=None,
     ):
         super().__init__(env)
-        if not isinstance(env.observation_space, Dict):
+        if contextual_diagnostics_fns is None:
+            contextual_diagnostics_fns = []
+        if not isinstance(env.observation_space, gym.spaces.Dict):
             raise ValueError("ContextualEnvs require wrapping Dict spaces.")
         spaces = env.observation_space.spaces
         for k, space in context_distribution.spaces.items():
             spaces[k] = space
-        self.observation_space = Dict(spaces)
+        self.observation_space = gym.spaces.Dict(spaces)
         self.context_distribution = context_distribution
         self._reward_fn = reward_fn
         self._context_keys = list(context_distribution.spaces.keys())
@@ -44,6 +59,7 @@ class ContextualEnv(gym.Wrapper):
         self._last_obs = None
         self._rollout_context_batch = None
         self._update_env_info = update_env_info_fn or insert_reward
+        self._contextual_diagnostics_fns = contextual_diagnostics_fns
 
     def reset(self):
         obs = self.env.reset()
@@ -77,10 +93,40 @@ class ContextualEnv(gym.Wrapper):
         for k in self._context_keys:
             obs[k] = self._rollout_context_batch[k][0]
 
+    def get_diagnostics(self, paths):
+        stats = OrderedDict()
+        contexts = [self._get_context(p) for p in paths]
+        non_contextual_paths = [self._remove_context(p) for p in paths]
+        for fn in self._contextual_diagnostics_fns:
+            stats.update(fn(non_contextual_paths, contexts))
+        return stats
+
+    def _get_context(self, path):
+        first_observation = path['observations'][0]
+        return {
+            k: first_observation[k] for k in self._context_keys
+        }
+
+    def _remove_context(self, path):
+        new_path = path.copy()
+        new_path['observations'] = np.array([
+            o[self._observation_key] for o in path['observations']
+        ])
+        new_path['next_observations'] = np.array([
+            o[self._observation_key] for o in path['next_observations']
+        ])
+        new_path.pop('full_observations', None)
+        new_path.pop('full_next_observations', None)
+        return new_path
+
 
 def insert_reward(contexutal_env, info, obs, reward, done):
     info['ContextualEnv/old_reward'] = reward
     return info
+
+
+def delete_info(contexutal_env, info, obs, reward, done):
+    return {}
 
 
 def batchify(x):

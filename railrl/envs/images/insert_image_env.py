@@ -2,14 +2,13 @@ import gym
 import numpy as np
 from gym.spaces import Box, Dict
 
-from railrl.envs.contextual import ContextualEnv
 from railrl.envs.images import Renderer
 
 
 class InsertImageEnv(gym.Wrapper):
     def __init__(
             self,
-            wrapped_env: ContextualEnv,
+            wrapped_env: gym.Env,
             renderer: Renderer,
             image_key='image_observation',
     ):

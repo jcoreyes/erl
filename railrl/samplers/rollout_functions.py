@@ -45,11 +45,17 @@ def contextual_rollout(
         env,
         agent,
         observation_key=None,
-        context_key='context',
+        context_keys=None,
         **kwargs
 ):
+    if context_keys is None:
+        context_keys = ['context']
+
     def obs_processor(o):
-        return np.hstack((o[observation_key], o[context_key]))
+        combined_obs = [o[observation_key]]
+        for k in context_keys:
+            combined_obs.append(o[k])
+        return np.hstack(combined_obs)
     paths = rollout(
         env,
         agent,

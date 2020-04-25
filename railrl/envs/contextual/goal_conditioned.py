@@ -1,4 +1,5 @@
 import warnings
+from typing import Any, Callable, List
 
 import numpy as np
 from gym.spaces import Box, Dict
@@ -7,9 +8,21 @@ from multiworld.core.multitask_env import MultitaskEnv
 from railrl import pythonplusplus as ppp
 from railrl.core.distribution import DictDistribution
 from railrl.envs.contextual import ContextualRewardFn
+from railrl.envs.contextual.contextual_env import (
+    ContextualDiagnosticsFn,
+    Path,
+    Context,
+    Diagnostics,
+)
 from railrl.envs.images import Renderer
 
 import railrl.torch.pytorch_util as ptu
+
+Goal = Any
+GoalConditionedDiagnosticsFn = Callable[
+    [List[Path], List[Goal]],
+    Diagnostics,
+]
 
 class GoalDictDistributionFromMultitaskEnv(DictDistribution):
     def __init__(
@@ -182,3 +195,18 @@ class ContextualRewardFnFromMultitaskEnv(ContextualRewardFn):
            self._desired_goal_key: contexts[self._desired_goal_key],
         }
         return self._env.compute_rewards(actions, obs)
+
+
+class GoalConditionedDiagnosticsToContextualDiagnostics(ContextualDiagnosticsFn):
+    # use a class rather than function for serialization
+    def __init__(
+            self,
+            goal_conditioned_diagnostics: GoalConditionedDiagnosticsFn,
+            goal_key: str
+    ):
+        self._goal_conditioned_diagnostics = goal_conditioned_diagnostics
+        self._goal_key = goal_key
+
+    def __call__(self, paths: List[Path], contexts: List[Context]) -> Diagnostics:
+        goals = [c[self._goal_key] for c in contexts]
+        return self._goal_conditioned_diagnostics(paths, goals)
