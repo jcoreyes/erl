@@ -3,6 +3,7 @@ import os.path as osp
 
 import numpy as np
 
+from torch.utils import data
 import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.contextual_replay_buffer import (
@@ -113,6 +114,14 @@ def goal_conditioned_sac_experiment(
         import railrl.torch.pytorch_util as ptu
         from railrl.pythonplusplus import identity
         import torch
+
+        logger.remove_tabular_output(
+            'progress.csv', relative_to_snapshot_dir=True
+        )
+        logger.add_tabular_output(
+            'model_progress.csv', relative_to_snapshot_dir=True
+        )
+
         beta = variant["beta"]
         representation_size = variant.get("representation_size", variant.get("latent_sizes", None))
         use_linear_dynamics = variant.get('use_linear_dynamics', False)
@@ -193,6 +202,15 @@ def goal_conditioned_sac_experiment(
             if epoch % 50 == 0:
                 logger.save_itr_params(epoch, model)
         logger.save_extra_data(model, 'vae.pkl', mode='pickle')
+
+        logger.remove_tabular_output(
+            'model_progress.csv',
+            relative_to_snapshot_dir=True,
+        )
+        logger.add_tabular_output(
+            'progress.csv',
+            relative_to_snapshot_dir=True,
+        )
         if return_data:
             return model, train_dataset, test_dataset
         return model
@@ -574,7 +592,7 @@ def goal_conditioned_sac_experiment(
         context_keys=[context_key],
         observation_keys=[observation_key],
         observation_key=observation_key,
-        context_distribution=eval_context_distrib,
+        context_distribution=expl_context_distrib,
         sample_context_from_obs_dict_fn=RemapKeyFn({context_key: observation_key}),
         reward_fn=eval_reward,
         post_process_batch_fn=concat_context_to_obs,
@@ -690,7 +708,11 @@ def get_gym_env(env_id, env_class=None, env_kwargs=None):
 
 def process_args(variant):
     if variant.get("debug", False):
-        variant["train_vae_kwargs"]["num_epochs"] = 1
+        train_vae_kwargs = variant["train_vae_kwargs"]
+        train_vae_kwargs["num_epochs"] = 1
+        train_vae_kwargs["algo_kwargs"]["batch_size"] = 7
+        train_vae_kwargs["generate_vae_dataset_kwargs"]["batch_size"] = 7
+        train_vae_kwargs["generate_vae_dataset_kwargs"]["N"] = 100
         variant["max_path_length"] = 50
         algo_kwargs = variant["algo_kwargs"]
         algo_kwargs["batch_size"] = 2

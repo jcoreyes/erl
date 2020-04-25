@@ -111,12 +111,12 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'env': ["pen-sparse-v0", "door-sparse-v0", "relocate-sparse-v0", ],
+        'env': ["relocate-sparse-v0", ],
         # 'env': ["relocate-sparse-v0", ],
         'trainer_kwargs.bc_loss_type': ["mle"],
         'trainer_kwargs.awr_loss_type': ["mle"],
         'seedid': range(3),
-        'trainer_kwargs.beta': [0.3, ],
+        'trainer_kwargs.beta': [0.1, 0.2, 0.3, 0.4, ],
 
         'trainer_kwargs.clip_score': [1, ],
 
