@@ -105,9 +105,9 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    n_seeds = 3
-    mode = 'htp'
-    exp_name = 'pnp-1obj-encoder-dist-sweep-future-fraction'
+    # n_seeds = 3
+    # mode = 'htp'
+    # exp_name = 'pnp-1obj-encoder-dist-sweep-future-fraction'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
