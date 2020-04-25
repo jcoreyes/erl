@@ -39,7 +39,8 @@ class VideoSaveFunction:
         if 'imsize' not in self.dump_video_kwargs:
             self.dump_video_kwargs['imsize'] = env.imsize
         self.dump_video_kwargs.setdefault("rows", 2)
-        self.dump_video_kwargs.setdefault("columns", 5)
+        # self.dump_video_kwargs.setdefault("columns", 5)
+        self.dump_video_kwargs.setdefault("columns", 1)
         self.dump_video_kwargs.setdefault("unnormalize", True)
         self.save_period = self.dump_video_kwargs.pop('save_video_period', 50)
         self.exploration_goal_image_key = self.dump_video_kwargs.pop(
@@ -106,21 +107,61 @@ def add_border(img, border_thickness, border_color):
     return framed_img
 
 
+def make_image_fit_into_hwc_format(
+        img, output_imwidth, output_imheight, input_image_format
+):
+    if len(img.shape) == 1:
+        if input_image_format == 'HWC':
+            hwc_img = img.reshape(output_imheight, output_imwidth, -1)
+        elif input_image_format == 'CWH':
+            cwh_img = img.reshape(-1, output_imwidth, output_imheight)
+            hwc_img = cwh_img.transpose()
+        else:
+            raise ValueError(input_image_format)
+    else:
+        a, b, c = img.shape
+        # TODO: remove hack
+        if a == b and a != c:
+            input_image_format = 'HWC'
+        elif a != b and b == c:
+            input_image_format = 'CWH'
+        if input_image_format == 'HWC':
+            hwc_img = img
+        elif input_image_format == 'CWH':
+            hwc_img = img.transpose()
+        else:
+            raise ValueError(input_image_format)
+
+    if hwc_img.shape == (output_imheight, output_imwidth, 3):
+        image_that_fits = hwc_img
+    else:
+        try:
+            import cv2
+            image_that_fits = cv2.resize(
+                hwc_img,
+                dsize=(output_imwidth, output_imheight),
+            )
+        except ImportError:
+            image_that_fits = np.zeros((output_imheight, output_imwidth, 3))
+            h, w = hwc_img.shape[:2]
+            image_that_fits[:h, :w, :] = hwc_img
+    return image_that_fits
+
+
 def get_image(
         imgs, imwidth, imheight,
         subpad_length=1, subpad_color=255,
         pad_length=1, pad_color=255,
         unnormalize=True,
-        image_format='HWC',
+        image_format='CWH',
 ):
-    if len(imgs[0].shape) == 1:
-        for i in range(len(imgs)):
-            imgs[i] = imgs[i].reshape(-1, imwidth, imheight).transpose(2, 1, 0)
-    new_imgs = []
+    hwc_imgs = [
+        make_image_fit_into_hwc_format(img, imwidth, imheight, image_format)
+        for img in imgs
+    ]
 
-    for img in imgs:
-        if image_format == 'CWH':
-            img = img.transpose(2, 1, 0)
+    new_imgs = []
+    for img in hwc_imgs:
         if unnormalize:
             img = np.uint8(255 * img)
         if subpad_length > 0:
@@ -151,6 +192,7 @@ def dump_video(
         imsize=84,
         get_extra_imgs=None,
         grayscale=False,
+        keys_to_show=None,
 ):
     """
 
@@ -182,8 +224,8 @@ def dump_video(
     if get_extra_imgs is None:
         get_extra_imgs = get_generic_env_imgs
     num_channels = 1 if grayscale else 3
+    keys_to_show = keys_to_show or ['image_desired_goal', 'image_observation']
     frames = []
-    W = imsize
     N = rows * columns
     for i in range(N):
         start = time.time()
@@ -196,10 +238,7 @@ def dump_video(
 
         l = []
         for i_in_path, d in enumerate(path['full_observations']):
-            imgs_to_stack = [
-                d['image_desired_goal'],
-                d['image_observation'],
-            ]
+            imgs_to_stack = [d[k] for k in keys_to_show]
             imgs_to_stack += get_extra_imgs(path, i_in_path, env)
             l.append(
                 get_image(

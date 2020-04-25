@@ -8,20 +8,34 @@ class Renderer(object):
             img_width=48,
             img_height=48,
             init_camera=None,
-            transpose=True,
             grayscale=False,
             normalize=True,
             flatten=False,
+            input_image_format='HWC',
+            output_image_format='HWC',
     ):
         """Render an image."""
+        if input_image_format not in {'HWC', 'CWH'}:
+            raise ValueError(
+                "Only support input format of WHC or CWH, not {}".format(
+                    input_image_format
+                )
+            )
+        if output_image_format not in {'HWC', 'CWH'}:
+            raise ValueError(
+                "Only support output format of WHC or CWH, not {}".format(
+                    output_image_format
+                )
+            )
         self.img_width = img_width
         self.img_height = img_height
         self.init_camera = init_camera
-        self.transpose = transpose
         self.grayscale = grayscale
         self.normalize = normalize
         self.flatten = flatten
         self.channels = 1 if grayscale else 3
+        self.input_image_format = input_image_format
+        self.output_image_format = output_image_format
 
         self._camera_is_initialized = False
 
@@ -39,9 +53,9 @@ class Renderer(object):
             image_obs = np.array(image_obs)
         if self.normalize:
             image_obs = image_obs / 255.0
-        if self.transpose:
+        if self.input_image_format != self.output_image_format:
             image_obs = image_obs.transpose()
-        assert image_obs.shape[0] == self.channels
+        assert image_obs.shape == self.image_shape
         if self.flatten:
             return image_obs.flatten()
         else:
@@ -49,4 +63,9 @@ class Renderer(object):
 
     @property
     def image_shape(self):
-        return self.img_width, self.img_height, self.channels
+        if self.output_image_format == 'HWC':
+            return self.img_height, self.img_width, self.channels
+        elif self.output_image_format == 'CWH':
+            return self.channels, self.img_width, self.img_height
+        else:
+            raise ValueError(self.output_image_format)

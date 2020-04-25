@@ -22,7 +22,7 @@ if __name__ == "__main__":
         max_path_length=100,
         algo_kwargs=dict(
             batch_size=128,
-            num_epochs=25,
+            num_epochs=300,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
@@ -38,17 +38,24 @@ if __name__ == "__main__":
             save_video_period=10,
             pad_color=0,
         ),
+        exploration_policy_kwargs=dict(
+            exploration_version='occasionally_repeat',
+            repeat_prob=0.5,
+        ),
         env_renderer_kwargs=dict(
-            img_width=4,
-            img_height=4,
+            img_width=8,
+            img_height=8,
         ),
         video_renderer_kwargs=dict(
-            img_width=4,
-            img_height=4,
+            img_width=48,
+            img_height=48,
         ),
     )
 
     search_space = {
+        'exploration_policy_kwargs.repeat_prob': [
+            0.5, 0.25, 0.
+        ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -60,9 +67,9 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    exp_name = 'dev-image-based-gc-pointmass'
+    n_seeds = 1
+    mode = 'local'
+    exp_name = 'image-based-gc-pointmass-post-hstack-fix--local2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):

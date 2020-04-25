@@ -28,8 +28,15 @@ from railrl.samplers.data_collector.contextual_path_collector import (
 )
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.networks import FlattenMlp
-from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.torch.networks.basic import (
+    MultiInputSequential,
+    FlattenEachParallel,
+    Flatten,
+)
+from railrl.torch.sac.policies import (
+    MakeDeterministic,
+    TanhGaussianWithBasicObsProcessorPolicy,
+)
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
@@ -62,7 +69,6 @@ def image_based_goal_conditioned_sac_experiment(
         env_renderer_kwargs = {}
     if not video_renderer_kwargs:
         video_renderer_kwargs = {}
-    # TODO: do not require flatten
     img_observation_key = 'image_observation'
     img_desired_goal_key = 'image_desired_goal'
     state_observation_key = 'state_observation'
@@ -124,8 +130,7 @@ def image_based_goal_conditioned_sac_experiment(
         )
         return env, goal_distribution, reward_fn
 
-    # TODO: do not require flatten
-    env_renderer = Renderer(flatten=True, **env_renderer_kwargs)
+    env_renderer = Renderer(**env_renderer_kwargs)
     expl_env, expl_context_distrib, expl_reward = setup_contextual_env(
         env_id, env_class, env_kwargs, exploration_goal_sampling_mode,
         env_renderer
@@ -142,10 +147,13 @@ def image_based_goal_conditioned_sac_experiment(
     action_dim = expl_env.action_space.low.size
 
     def create_qf():
-        return FlattenMlp(
-            input_size=obs_dim + action_dim,
-            output_size=1,
-            **qf_kwargs
+        return MultiInputSequential(
+            FlattenEachParallel(),
+            FlattenMlp(
+                input_size=obs_dim + action_dim,
+                output_size=1,
+                **qf_kwargs
+            )
         )
 
     qf1 = create_qf()
@@ -153,7 +161,8 @@ def image_based_goal_conditioned_sac_experiment(
     target_qf1 = create_qf()
     target_qf2 = create_qf()
 
-    policy = TanhGaussianPolicy(
+    policy = TanhGaussianWithBasicObsProcessorPolicy(
+        obs_processor=Flatten(),
         obs_dim=obs_dim,
         action_dim=action_dim,
         **policy_kwargs
@@ -222,29 +231,45 @@ def image_based_goal_conditioned_sac_experiment(
             observation_key=img_observation_key,
             context_keys_for_policy=[img_desired_goal_key],
         )
-        video_renderer = Renderer(flatten=False, **video_renderer_kwargs)
-        img_expl_env, *_ = setup_contextual_env(
-            env_id, env_class, env_kwargs, exploration_goal_sampling_mode, video_renderer
+        video_renderer = Renderer(**video_renderer_kwargs)
+        video_eval_env = InsertImageEnv(
+            eval_env, renderer=video_renderer, image_key='video_observation')
+        video_expl_env = InsertImageEnv(
+            expl_env, renderer=video_renderer, image_key='video_observation')
+        video_eval_env = ContextualEnv(
+            video_eval_env,
+            context_distribution=eval_env.context_distribution,
+            reward_fn=lambda *_: np.array([0]),
+            observation_key=img_observation_key,
         )
-        img_eval_env, *_ = setup_contextual_env(
-            env_id, env_class, env_kwargs, evaluation_goal_sampling_mode, video_renderer
+        video_expl_env = ContextualEnv(
+            video_expl_env,
+            context_distribution=expl_env.context_distribution,
+            reward_fn=lambda *_: np.array([0]),
+            observation_key=img_observation_key,
         )
         eval_video_func = get_save_video_function(
             rollout_function,
-            img_eval_env,
+            video_eval_env,
             MakeDeterministic(policy),
             tag="eval",
-            imsize=video_renderer.image_shape[0],
-            image_format='CWH',
+            imsize=video_renderer.image_shape[1],
+            image_format='HWC',
+            keys_to_show=[
+                'image_desired_goal', 'image_observation', 'video_observation'
+            ],
             **save_video_kwargs
         )
         expl_video_func = get_save_video_function(
             rollout_function,
-            img_expl_env,
+            video_expl_env,
             exploration_policy,
             tag="train",
-            imsize=video_renderer.image_shape[0],
-            image_format='CWH',
+            imsize=video_renderer.image_shape[1],
+            image_format='HWC',
+            keys_to_show=[
+                'image_desired_goal', 'image_observation', 'video_observation'
+            ],
             **save_video_kwargs
         )
 

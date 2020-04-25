@@ -52,13 +52,10 @@ def contextual_rollout(
         context_keys_for_policy = ['context']
 
     def obs_processor(o):
-        # TODO: do not require flatten
-        combined_obs = [o[observation_key].flatten()]
-        # combined_obs = [o[observation_key]]
+        combined_obs = [o[observation_key]]
         for k in context_keys_for_policy:
-            combined_obs.append(o[k].flatten())
-            # combined_obs.append(o[k])
-        return np.hstack(combined_obs)
+            combined_obs.append(o[k])
+        return np.concatenate(combined_obs, axis=0)
     paths = rollout(
         env,
         agent,
