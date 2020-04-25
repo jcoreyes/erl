@@ -15,6 +15,8 @@ from railrl.envs.contextual.goal_conditioned import (
     GoalDictDistributionFromMultitaskEnv,
     ContextualRewardFnFromMultitaskEnv,
     AddImageDistribution,
+)
+from railrl.envs.contextual.latent_distributions import (
     AddLatentDistribution,
     PriorDistribution,
 )
@@ -513,7 +515,7 @@ def goal_conditioned_sac_experiment(
         )
         if goal_sampling_mode == "vae_prior":
             latent_goal_distribution = PriorDistribution(
-                model,
+                model.representation_size,
                 "latent_desired_goal",
             )
         elif goal_sampling_mode == "reset_of_env":
@@ -612,7 +614,7 @@ def goal_conditioned_sac_experiment(
         eval_env,
         MakeDeterministic(policy),
         observation_key=observation_key,
-        context_key=context_key,
+        context_keys=[context_key, ],
     )
     exploration_policy = create_exploration_policy(
         policy, **exploration_policy_kwargs)
@@ -620,7 +622,7 @@ def goal_conditioned_sac_experiment(
         expl_env,
         exploration_policy,
         observation_key=observation_key,
-        context_key=context_key,
+        context_keys=[context_key, ],
     )
 
     algorithm = TorchBatchRLAlgorithm(
