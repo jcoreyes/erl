@@ -11,7 +11,7 @@ from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
 from multiworld.core.multitask_env import MultitaskEnv
 from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
-from railrl.envs.proxy_env import ProxyEnv
+from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
 import time
 
@@ -32,6 +32,7 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         render_rollouts=False,
         reward_params=None,
         goal_sampling_mode="vae_prior",
+        num_goals_to_presample=0,
         imsize=84,
         obs_size=None,
         norm_order=2,
@@ -51,6 +52,7 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
             render_rollouts,
             reward_params,
             goal_sampling_mode,
+            num_goals_to_presample,
             imsize,
             obs_size,
             norm_order,
@@ -58,12 +60,8 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
             presampled_goals,
             )
 
-        if type(pixel_cnn) is str:
-            self.pixel_cnn = load_local_or_remote_file(pixel_cnn)
         self.num_keys = self.vae.num_embeddings
-        self.representation_size = 144 * self.vae.representation_size
-        print("*******UNFIX REPRESENTATION SIZE*********")
-        print("Location: VQVAE WRAPPER")
+        self.representation_size = self.vae.representation_size
 
         latent_space = Box(
             -10 * np.ones(obs_size or self.representation_size),
@@ -84,7 +82,8 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
     def get_latent_distance(self, latent1, latent2):
         latent1 = ptu.from_numpy(latent1 * self.num_keys).long()
         latent2 = ptu.from_numpy(latent2 * self.num_keys).long()
-        return self.vae.get_distance(latent1, latent2)
+        return self.vae.get_distance(latent1, latent2)        
+
 
     def _update_info(self, info, obs):
         self.vae.eval()
@@ -103,14 +102,21 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         if self.reward_type == 'latent_distance':
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
-            dist = self.get_latent_distance(achieved_goals, desired_goals)
+            dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
             return -dist
         elif self.reward_type == 'latent_sparse':
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
-            dist = self.get_latent_distance(achieved_goals, desired_goals)
+            dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
             success = dist < self.epsilon
             reward = success - 1
+            return reward
+
+        elif self.reward_type == 'latent_clamp':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
+            dist = np.linalg.norm(desired_goals - achieved_goals, axis=1)
+            reward = - np.minimum(dist, self.epsilon)
             return reward
         #WARNING: BELOW ARE HARD CODED FOR SIM PUSHER ENV (IN DIMENSION SIZES)
         elif self.reward_type == 'state_distance':
@@ -165,13 +171,6 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         latents = np.array(ptu.get_numpy(latents))
         return latents
 
-    # def _encode(self, imgs):
-    #     #MAKE FLOAT
-    #     self.vae.eval()
-    #     latents = self.vae.encode(ptu.from_numpy(imgs))
-    #     latents = np.array(ptu.get_numpy(latents)) / self.num_keys
-    #     return latents
-
     def _reconstruct_img(self, flat_img):
         self.vae.eval()
         img = flat_img.reshape(1, self.input_channels, self.imsize, self.imsize)
@@ -182,8 +181,7 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         )
         return imgs[0]
 
-    def _sample_vae_prior(self, batch_size):
+    def _sample_vae_prior(self, batch_size, cont=True):
         self.vae.eval()
-        samples = self.pixel_cnn.generate(shape=(12,12), batch_size=batch_size).reshape(batch_size, -1)
-        #samples = self.vae.sample_prior(batch_size)#.cpu())
+        samples = self.vae.sample_prior(batch_size, cont)
         return samples

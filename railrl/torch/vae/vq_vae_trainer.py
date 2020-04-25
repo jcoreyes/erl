@@ -47,7 +47,7 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
 
     def encode_dataset(self, dataset, epoch):
         encoding_list = []
-        save_dir = osp.join(self.log_dir, 'dataset_latents_%d.npy' % epoch)
+        save_dir = osp.join(self.log_dir, 'dataset_latents.npy' % epoch)
         for i in range(len(dataset)):
             obs = dataset.random_batch(self.batch_size)["x_t"]
             encodings = self.model.encode(obs)
