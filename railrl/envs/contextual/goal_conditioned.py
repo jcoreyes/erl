@@ -16,8 +16,6 @@ from railrl.envs.contextual.contextual_env import (
 )
 from railrl.envs.images import Renderer
 
-import railrl.torch.pytorch_util as ptu
-
 Goal = Any
 GoalConditionedDiagnosticsFn = Callable[
     [List[Path], List[Goal]],
