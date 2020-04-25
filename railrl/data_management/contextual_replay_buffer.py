@@ -10,7 +10,10 @@ from railrl import pythonplusplus as ppp
 
 
 class SampleContextFromObsDictFn(object, metaclass=abc.ABCMeta):
-    """Interface definer, but you can also just pass in a function."""
+    """Interface definer, but you can also just pass in a function.
+
+    This function maps an observation to some context that ``was achieved''.
+    """
 
     @abc.abstractmethod
     def __call__(self, obs: dict) -> Any:
@@ -18,6 +21,7 @@ class SampleContextFromObsDictFn(object, metaclass=abc.ABCMeta):
 
 
 class RemapKeyFn(SampleContextFromObsDictFn):
+    """A simple map that forwards observations to become the context."""
     def __init__(self, context_to_input_key: Dict[str, str]):
         self._context_to_input_key = context_to_input_key
 

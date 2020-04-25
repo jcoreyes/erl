@@ -11,16 +11,18 @@ from railrl.data_management.contextual_replay_buffer import (
     SampleContextFromObsDictFn,
     RemapKeyFn,
 )
-from railrl.envs.contextual import ContextualEnv, ContextualRewardFn
+from railrl.envs.contextual import (
+    ContextualEnv, ContextualRewardFn,
+    delete_info,
+)
 from railrl.envs.contextual.goal_conditioned import (
-    GoalDictDistributionFromMultitaskEnv,
     AddImageDistribution,
+    GoalConditionedDiagnosticsToContextualDiagnostics,
 )
 from railrl.envs.images import Renderer, InsertImageEnv
-from railrl.launchers.contextual_env_launcher_util import (
-    DeleteOldEnvInfo,
-    get_gym_env,
+from railrl.launchers.contextual.util import (
     get_save_video_function,
+    get_gym_env,
 )
 from railrl.policies.action_repeat import ActionRepeatPolicy
 from railrl.samplers.data_collector.contextual_path_collector import (
@@ -65,7 +67,8 @@ class EncoderRewardFnFromMultitaskEnv(ContextualRewardFn):
 
     def __call__(self, states, actions, next_states, contexts):
         if self._context_key not in contexts:
-            import ipdb; ipdb.set_trace()
+            import ipdb
+            ipdb.set_trace()
         z_s = self._encoder.encode(next_states[self._next_state_key])
         z_g = contexts[self._context_key]
         if self._vectorize:
@@ -73,6 +76,7 @@ class EncoderRewardFnFromMultitaskEnv(ContextualRewardFn):
         else:
             rewards = - np.linalg.norm(z_s - z_g, axis=1, ord=1)
         return self._reward_scale * rewards
+
 
 class EncodedGoalDictDistributionFromMultitaskEnv(DictDistribution):
     def __init__(
@@ -167,18 +171,25 @@ def encoder_goal_conditioned_sac_experiment(
     state_desired_goal_key = 'state_desired_goal'
     context_key_for_rl = 'state_desired_goal'
 
-    def setup_env(env, encoder, reward_fn):
+    def setup_env(state_env, encoder, reward_fn):
         goal_distribution = EncodedGoalDictDistributionFromMultitaskEnv(
-            env,
+            state_env,
             encoder=encoder,
             keys_to_keep=[state_desired_goal_key],
             encoder_input_key=state_desired_goal_key,
             encoder_output_key=latent_desired_goal_key,
         )
+        state_diag_fn = GoalConditionedDiagnosticsToContextualDiagnostics(
+            state_env.goal_conditioned_diagnostics,
+            desired_goal_key=state_desired_goal_key,
+            observation_key=state_observation_key,
+        )
         env = ContextualEnv(
-            env,
+            state_env,
             context_distribution=goal_distribution,
             reward_fn=reward_fn,
+            contextual_diagnostics_fns=[state_diag_fn],
+            update_env_info_fn=delete_info,
             **contextual_env_kwargs,
         )
         return env, goal_distribution
@@ -285,7 +296,7 @@ def encoder_goal_conditioned_sac_experiment(
         eval_env,
         MakeDeterministic(policy),
         observation_key=state_observation_key,
-        context_key=context_key_for_rl,
+        context_keys_for_policy=[context_key_for_rl],
     )
     exploration_policy = create_exploration_policy(
         policy, **exploration_policy_kwargs)
@@ -293,7 +304,7 @@ def encoder_goal_conditioned_sac_experiment(
         expl_env,
         exploration_policy,
         observation_key=state_observation_key,
-        context_key=context_key_for_rl,
+        context_keys_for_policy=[context_key_for_rl],
     )
 
     algorithm = TorchBatchRLAlgorithm(
@@ -313,7 +324,7 @@ def encoder_goal_conditioned_sac_experiment(
             rf.contextual_rollout,
             max_path_length=max_path_length,
             observation_key=state_observation_key,
-            context_key=context_key_for_rl,
+            context_keys_for_policy=[context_key_for_rl],
         )
         renderer = Renderer(**renderer_kwargs)
 
@@ -331,8 +342,9 @@ def encoder_goal_conditioned_sac_experiment(
                 context_distribution=image_goal_distribution,
                 reward_fn=reward_fn,
                 observation_key=state_observation_key,
-                update_env_info_fn=DeleteOldEnvInfo(),
+                update_env_info_fn=delete_info,
             )
+
         img_eval_env = add_images(eval_env, eval_context_distrib)
         img_expl_env = add_images(expl_env, expl_context_distrib)
         eval_video_func = get_save_video_function(
@@ -357,7 +369,6 @@ def encoder_goal_conditioned_sac_experiment(
         algorithm.post_train_funcs.append(eval_video_func)
         algorithm.post_train_funcs.append(expl_video_func)
 
-
     algorithm.train()
 
 
@@ -366,4 +377,5 @@ def compose(*functions):
         for f in functions:
             x = f(x)
         return x
+
     return composite_function

@@ -1,5 +1,4 @@
 from functools import partial
-import os.path as osp
 
 import numpy as np
 
@@ -16,19 +15,22 @@ from railrl.envs.contextual.goal_conditioned import (
     ContextualRewardFnFromMultitaskEnv,
     AddImageDistribution,
     GoalConditionedDiagnosticsToContextualDiagnostics,
+    IndexIntoAchievedGoal,
 )
 from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.launchers.contextual.util import (
+    get_save_video_function,
+    get_gym_env,
+)
 from railrl.launchers.rl_exp_launcher_util import create_exploration_policy
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
-from railrl.visualization.video import dump_video
 from railrl.torch.networks import FlattenMlp
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-from railrl.core import logger
 
 
 def goal_conditioned_sac_experiment(
@@ -58,6 +60,8 @@ def goal_conditioned_sac_experiment(
         save_video_kwargs = {}
     if not renderer_kwargs:
         renderer_kwargs = {}
+    context_key = desired_goal_key
+    sample_context_from_obs_dict_fn = RemapKeyFn({context_key: observation_key})
 
     def contextual_env_distrib_and_reward(
             env_id, env_class, env_kwargs, goal_sampling_mode
@@ -70,13 +74,14 @@ def goal_conditioned_sac_experiment(
         )
         reward_fn = ContextualRewardFnFromMultitaskEnv(
             env=env,
+            achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key),
             desired_goal_key=desired_goal_key,
             achieved_goal_key=achieved_goal_key,
-            observation_key=observation_key,
         )
         diag_fn = GoalConditionedDiagnosticsToContextualDiagnostics(
             env.goal_conditioned_diagnostics,
-            desired_goal_key,
+            desired_goal_key=desired_goal_key,
+            observation_key=observation_key,
         )
         env = ContextualEnv(
             env,
@@ -95,7 +100,6 @@ def goal_conditioned_sac_experiment(
     eval_env, eval_context_distrib, eval_reward = contextual_env_distrib_and_reward(
         env_id, env_class, env_kwargs, evaluation_goal_sampling_mode
     )
-    context_key = desired_goal_key
 
     obs_dim = (
             expl_env.observation_space.spaces[observation_key].low.size
@@ -132,7 +136,7 @@ def goal_conditioned_sac_experiment(
         context_keys=[context_key],
         observation_keys=[observation_key],
         context_distribution=eval_context_distrib,
-        sample_context_from_obs_dict_fn=RemapKeyFn({context_key: observation_key}),
+        sample_context_from_obs_dict_fn=sample_context_from_obs_dict_fn,
         reward_fn=eval_reward,
         post_process_batch_fn=concat_context_to_obs,
         **replay_buffer_kwargs
@@ -151,7 +155,7 @@ def goal_conditioned_sac_experiment(
         eval_env,
         MakeDeterministic(policy),
         observation_key=observation_key,
-        context_keys=[context_key],
+        context_keys_for_policy=[context_key],
     )
     exploration_policy = create_exploration_policy(
         policy, **exploration_policy_kwargs)
@@ -159,7 +163,7 @@ def goal_conditioned_sac_experiment(
         expl_env,
         exploration_policy,
         observation_key=observation_key,
-        context_keys=[context_key],
+        context_keys_for_policy=[context_key],
     )
 
     algorithm = TorchBatchRLAlgorithm(
@@ -179,7 +183,7 @@ def goal_conditioned_sac_experiment(
             rf.contextual_rollout,
             max_path_length=max_path_length,
             observation_key=observation_key,
-            context_keys=[context_key],
+            context_keys_for_policy=[context_key],
         )
         renderer = Renderer(**renderer_kwargs)
 
@@ -224,40 +228,3 @@ def goal_conditioned_sac_experiment(
         algorithm.post_train_funcs.append(expl_video_func)
 
     algorithm.train()
-
-
-def get_save_video_function(
-        rollout_function,
-        env,
-        policy,
-        save_video_period=10,
-        imsize=48,
-        tag="",
-        **dump_video_kwargs
-):
-    logdir = logger.get_snapshot_dir()
-
-    def save_video(algo, epoch):
-        if epoch % save_video_period == 0 or epoch == algo.num_epochs:
-            filename = osp.join(
-                logdir,
-                'video_{}_{epoch}_env.mp4'.format(tag, epoch=epoch),
-            )
-            dump_video(env, policy, filename, rollout_function,
-                       imsize=imsize, **dump_video_kwargs)
-    return save_video
-
-
-def get_gym_env(env_id, env_class=None, env_kwargs=None):
-    if env_kwargs is None:
-        env_kwargs = {}
-
-    assert env_id or env_class
-    if env_id:
-        import gym
-        import multiworld
-        multiworld.register_all_envs()
-        env = gym.make(env_id)
-    else:
-        env = env_class(**env_kwargs)
-    return env

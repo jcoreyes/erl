@@ -96,9 +96,8 @@ class ContextualEnv(gym.Wrapper):
     def get_diagnostics(self, paths):
         stats = OrderedDict()
         contexts = [self._get_context(p) for p in paths]
-        non_contextual_paths = [self._remove_context(p) for p in paths]
         for fn in self._contextual_diagnostics_fns:
-            stats.update(fn(non_contextual_paths, contexts))
+            stats.update(fn(paths, contexts))
         return stats
 
     def _get_context(self, path):
@@ -106,18 +105,6 @@ class ContextualEnv(gym.Wrapper):
         return {
             k: first_observation[k] for k in self._context_keys
         }
-
-    def _remove_context(self, path):
-        new_path = path.copy()
-        new_path['observations'] = np.array([
-            o[self._observation_key] for o in path['observations']
-        ])
-        new_path['next_observations'] = np.array([
-            o[self._observation_key] for o in path['next_observations']
-        ])
-        new_path.pop('full_observations', None)
-        new_path.pop('full_next_observations', None)
-        return new_path
 
 
 def insert_reward(contexutal_env, info, obs, reward, done):
