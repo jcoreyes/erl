@@ -1,8 +1,9 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.contextual_env_launcher_util import (
-    goal_conditioned_sac_experiment
+    goal_conditioned_sac_experiment, process_args
 )
 from railrl.launchers.launcher_util import run_experiment
+from railrl.launchers.arglauncher import run_variants
 
 if __name__ == "__main__":
     variant = dict(
@@ -23,7 +24,7 @@ if __name__ == "__main__":
         max_path_length=100,
         algo_kwargs=dict(
             batch_size=128,
-            num_epochs=100,
+            num_epochs=101,
             num_eval_steps_per_epoch=100,
             num_expl_steps_per_train_loop=100,
             num_trains_per_train_loop=100,
@@ -42,39 +43,21 @@ if __name__ == "__main__":
             save_video_period=10,
             pad_color=0,
         ),
+
+        launcher_config=dict(
+            unpack_variant=True,
+        )
     )
 
     search_space = {
+        "launcher_config.seedid": range(3),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
 
-    n_seeds = 1
-    mode = 'local'
-    exp_name = 'dev-{}'.format(
-        __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    )
+    variants = []
+    for variant in sweeper.iterate_hyperparameters():
+        variants.append(variant)
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_name = 'dev'
-
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(n_seeds):
-            run_experiment(
-                goal_conditioned_sac_experiment,
-                exp_name=exp_name,
-                mode=mode,
-                variant=variant,
-                use_gpu=True,
-                num_exps_per_instance=3,
-                gcp_kwargs=dict(
-                    zone='us-east1-c',
-                    gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-k80',
-                        num_gpu=1,
-                    )
-                ),
-                time_in_mins=int(2.5*24*60),
-            )
+    run_variants(goal_conditioned_sac_experiment, variants, process_args)
