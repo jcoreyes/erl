@@ -3,7 +3,6 @@ AWR + SAC from demo experiment
 """
 
 from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
-from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.launchers.experiments.ashvin.awr_sac_gcrl import experiment, process_args
 
 import railrl.misc.hyperparameter as hyp
@@ -17,7 +16,7 @@ if __name__ == "__main__":
     variant = dict(
         num_epochs=1001,
         num_eval_steps_per_epoch=1000,
-        num_trains_per_train_loop=1000,
+        num_trains_per_train_loop=4000,
         num_expl_steps_per_train_loop=1000,
         min_num_steps_before_training=1000,
         max_path_length=200,
@@ -54,21 +53,21 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             beta=1,
-            use_automatic_entropy_tuning=True,
+            use_automatic_entropy_tuning=False,
             alpha=0,
 
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=0,
+            q_num_pretrain2_steps=1000000,
             policy_weight_decay=1e-4,
             q_weight_decay=0,
 
             rl_weight=1.0,
-            use_awr_update=False,
-            use_reparam_update=True,
-            compute_bc=False,
-            reparam_weight=1.0,
-            awr_weight=0.0,
+            use_awr_update=True,
+            use_reparam_update=False,
+            compute_bc=True,
+            reparam_weight=0.0,
+            awr_weight=1.0,
             bc_weight=0.0,
 
             reward_transform_kwargs=None, # r' = r + 1
@@ -79,13 +78,12 @@ if __name__ == "__main__":
 
         path_loader_class=DictToMDPPathLoader,
         path_loader_kwargs=dict(
-            obs_key="state_observation",
             demo_paths=[
-                # dict(
-                #     path="demos/icml2020/hand/pen2_sparse.npy",
-                #     obs_dict=True,
-                #     is_demo=True,
-                # ),
+                dict(
+                    path="demos/icml2020/pusher/demos100.npy",
+                    obs_dict=False, # misleading but this arg is really "unwrap_obs_dict"
+                    is_demo=True,
+                ),
                 # dict(
                 #     path="demos/icml2020/hand/pen_bc5.npy",
                 #     obs_dict=False,
@@ -101,8 +99,8 @@ if __name__ == "__main__":
         #     tensorboard=True,
         # ),
         load_demos=True,
-        pretrain_policy=False,
-        pretrain_rl=False,
+        pretrain_policy=True,
+        pretrain_rl=True,
         # save_pretrained_algorithm=True,
         # snapshot_mode="all",
         env_class=SawyerPushAndReachXYEnv,
@@ -125,10 +123,12 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(3),
-        'num_trains_per_train_loop': [1000, ],
+        'seedid': range(5),
+        'trainer_kwargs.beta': [0.01, 0.1, 1, ],
+        'num_trains_per_train_loop': [4000],
         'env_kwargs.reward_type': ['puck_distance', 'hand_and_puck_distance', ],
-        'policy_kwargs.min_log_std': [-6, -5, -4],
+        'policy_kwargs.min_log_std': [-6, ],
+        # 'trainer_kwargs.bc_weight': [0, 1],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
