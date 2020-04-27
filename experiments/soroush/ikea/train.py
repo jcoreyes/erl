@@ -67,12 +67,19 @@ variant = dict(
         unity=False,
         tight_action_space=False,
         preempt_collisions=True,
-        pos_dist=0.1,
+        pos_dist=0.2,
         num_connect_steps=0,
         num_connected_ob=True,
         num_connected_reward_scale=5.0,
         goal_type='reset',
-        reset_type='var_2dpos', #'var_2dpos+var_1drot', 'var_2dpos+objs_near',
+        reset_type='var_2dpos+no_rot', #'var_2dpos+var_1drot', 'var_2dpos+objs_near',
+
+        task_type='connect',
+        control_degrees='3dpos+3drot+select+connect',
+        obj_joint_type='slide',
+        connector_ob_type='dist',
+
+        light_logging=True,
     ),
     imsize=400,
 )
@@ -80,50 +87,43 @@ variant = dict(
 env_params = {
     'block-2obj': {
         'env_kwargs.furniture_name': ['block'],
-
-        'env_kwargs.task_type': [
-            # 'reach+select+connect+move',
-            # 'connect+move',
-            # 'reach+select+connect',
-            'connect',
-        ],
-        'env_kwargs.control_degrees': [
-            # '3dpos+3drot+select+connect',
-            '3dpos+select+connect',
-            '2dpos+select+connect',
-        ],
         'env_kwargs.reward_type': [
-            # 'object_distance',
-            # 'object_xyz_distance',
-            # 'object1_distance',
-
-            'object1_xyz_distance',
-            'object_xyz_in_bounds',
+            'object_in_bounds+num_connected',
         ],
+
+        'rl_variant.replay_buffer_kwargs.ob_keys_to_save': [['oracle_info']],
 
         'rl_variant.algo_kwargs.num_epochs': [500],
         'rl_variant.save_video_period': [25],  # 50
     },
     'chair-2obj': {
         'env_kwargs.furniture_name': ['chair_agne_0007_2obj'],
-
-        'env_kwargs.task_type': [
-            # 'reach+select+connect+move',
-            # 'connect+move',
-            # 'reach+select+connect',
-            'connect',
-        ],
-        'env_kwargs.control_degrees': [
-            '3dpos+3drot+select+connect',
-            # '2dpos+select+connect',
-        ],
         'env_kwargs.reward_type': [
-            # 'object_distance',
-            # 'object_xyz_distance',
-            # 'object1_distance',
+            'object_in_bounds+num_connected',
+            'object_in_bounds+num_connected+connector_dist',
+        ],
 
-            # 'object1_xyz_distance',
-            'object_xyz_in_bounds',
+        'rl_variant.algo_kwargs.num_epochs': [500],
+        'rl_variant.save_video_period': [25],  # 50
+    },
+    'chair': {
+        'env_kwargs.furniture_name': ['chair_agne_0007'],
+        'env_kwargs.reward_type': [
+            'object_in_bounds+num_connected',
+            'object_in_bounds+num_connected+connector_dist',
+        ],
+
+        'rl_variant.algo_kwargs.num_epochs': [500],
+        'rl_variant.save_video_period': [25],  # 50
+    },
+    'swivel': {
+        'env_kwargs.furniture_name': ['swivel_chair_0700'],
+        'env_kwargs.pos_dist': [
+            0.2,
+        ],
+
+        'env_kwargs.reward_type': [
+            'object_in_bounds+num_connected+connector_dist',
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [500],
@@ -199,6 +199,7 @@ if __name__ == "__main__":
                 rl_experiment,
                 exp_folder=args.env,
                 exp_prefix=exp_prefix,
+                exp_id=exp_id,
                 mode=args.mode,
                 variant=variant,
                 use_gpu=(not args.no_gpu),
@@ -208,4 +209,8 @@ if __name__ == "__main__":
 
                 snapshot_gap=50,
                 snapshot_mode="none", #'gap_and_last',
-          )
+            )
+
+            if args.first_variant_only:
+                exit()
+
