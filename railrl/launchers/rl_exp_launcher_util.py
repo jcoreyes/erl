@@ -1,9 +1,12 @@
 import os.path as osp
 
+from railrl.policies.action_repeat import ActionRepeatPolicy
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
 from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector
-from railrl.torch.grill.video_gen import VideoSaveFunction
+from railrl.visualization.video import VideoSaveFunction
 from railrl.torch.her.her import HERTrainer
+from railrl.envs.reward_mask_wrapper import DiscreteDistribution, RewardMaskWrapper
+
 
 def td3_experiment(variant):
     import railrl.samplers.rollout_functions as rf
@@ -18,23 +21,35 @@ def td3_experiment(variant):
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-    preprocess_rl_variant(variant)
+    # preprocess_rl_variant(variant)
     env = get_envs(variant)
+    expl_env = env
+    eval_env = env
     es = get_exploration_strategy(variant, env)
+
+    if variant.get("use_masks", False):
+        mask_wrapper_kwargs = variant.get("mask_wrapper_kwargs", dict())
+
+        expl_mask_distribution_kwargs = variant["expl_mask_distribution_kwargs"]
+        expl_mask_distribution = DiscreteDistribution(**expl_mask_distribution_kwargs)
+        expl_env = RewardMaskWrapper(env, expl_mask_distribution, **mask_wrapper_kwargs)
+
+        eval_mask_distribution_kwargs = variant["eval_mask_distribution_kwargs"]
+        eval_mask_distribution = DiscreteDistribution(**eval_mask_distribution_kwargs)
+        eval_env = RewardMaskWrapper(env, eval_mask_distribution, **mask_wrapper_kwargs)
+        env = eval_env
 
     max_path_length = variant['max_path_length']
 
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
-    achieved_goal_key = desired_goal_key.replace("desired", "achieved")
+    achieved_goal_key = variant.get('achieved_goal_key', 'latent_achieved_goal')
+    # achieved_goal_key = desired_goal_key.replace("desired", "achieved")
     obs_dim = (
             env.observation_space.spaces[observation_key].low.size
             + env.observation_space.spaces[desired_goal_key].low.size
     )
-    if variant.get("use_masks", False):
-        assert env.observation_space.spaces[observation_key].low.size \
-               == env.observation_space.spaces[desired_goal_key].low.size
-        obs_dim += env.observation_space.spaces[observation_key].low.size
+
     action_dim = env.action_space.low.size
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
@@ -97,7 +112,7 @@ def td3_experiment(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
         achieved_goal_key=achieved_goal_key,
-        use_masks=variant.get("use_masks", False),
+        # use_masks=variant.get("use_masks", False),
         **variant['replay_buffer_kwargs']
     )
 
@@ -110,41 +125,41 @@ def td3_experiment(variant):
         target_policy=target_policy,
         **variant['td3_trainer_kwargs']
     )
-    if variant.get("use_masks", False):
-        from railrl.torch.her.her import MaskedHERTrainer
-        trainer = MaskedHERTrainer(trainer)
-    else:
-        trainer = HERTrainer(trainer)
+    # if variant.get("use_masks", False):
+    #     from railrl.torch.her.her import MaskedHERTrainer
+    #     trainer = MaskedHERTrainer(trainer)
+    # else:
+    trainer = HERTrainer(trainer)
     if variant.get("do_state_exp", False):
         eval_path_collector = GoalConditionedPathCollector(
-            env,
+            eval_env,
             policy,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
-            use_masks=variant.get("use_masks", False),
-            full_mask=True,
+            # use_masks=variant.get("use_masks", False),
+            # full_mask=True,
         )
         expl_path_collector = GoalConditionedPathCollector(
-            env,
+            expl_env,
             expl_policy,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
-            use_masks=variant.get("use_masks", False),
+            # use_masks=variant.get("use_masks", False),
         )
     else:
         eval_path_collector = VAEWrappedEnvPathCollector(
-            variant['evaluation_goal_sampling_mode'],
             env,
             policy,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
+            goal_sampling_mode=['evaluation_goal_sampling_mode'],
         )
         expl_path_collector = VAEWrappedEnvPathCollector(
-            variant['exploration_goal_sampling_mode'],
             env,
             expl_policy,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
+            goal_sampling_mode=['exploration_goal_sampling_mode'],
         )
 
     algorithm = TorchBatchRLAlgorithm(
@@ -167,9 +182,9 @@ def td3_experiment(variant):
                 max_path_length=max_path_length,
                 observation_key=observation_key,
                 desired_goal_key=desired_goal_key,
-                use_masks=variant.get("use_masks", False),
-                full_mask=True,
-                vis_list=vis_list,
+                # use_masks=variant.get("use_masks", False),
+                # full_mask=True,
+                # vis_list=vis_list,
             )
             video_func = get_video_save_func(
                 rollout_function,
@@ -191,7 +206,6 @@ def td3_experiment(variant):
 
 
 def twin_sac_experiment(variant):
-    import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
@@ -508,7 +522,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
     from multiworld.core.image_env import ImageEnv
     from railrl.core import logger
     from railrl.envs.vae_wrappers import temporary_mode
-    from railrl.torch.grill.video_gen import dump_video
+    from railrl.visualization.video import dump_video
     logdir = logger.get_snapshot_dir()
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)
@@ -557,3 +571,13 @@ def get_video_save_func(rollout_function, env, policy, variant):
                     kwargs=dump_video_kwargs
                 )
     return save_video
+
+
+def create_exploration_policy(policy, exploration_version='identity', **kwargs):
+    # TODO: merge with get_exploration_strategy
+    if exploration_version == 'identity':
+        return policy
+    elif exploration_version == 'occasionally_repeat':
+        return ActionRepeatPolicy(policy, **kwargs)
+    else:
+        raise ValueError(exploration_version)

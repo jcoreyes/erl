@@ -1,9 +1,10 @@
+import logging
 import numpy as np
 from gym.spaces import Dict, Discrete
 
-from multiworld.core.multitask_env import MultitaskEnv
 from railrl.data_management.replay_buffer import ReplayBuffer
 import railrl.data_management.images as image_np
+
 
 class ObsDictReplayBuffer(ReplayBuffer):
     """
@@ -68,9 +69,9 @@ class ObsDictReplayBuffer(ReplayBuffer):
             if key.startswith('image'):
                 arr_initializer = image_np
             self._obs[key] = arr_initializer.zeros(
-                (max_size, self.ob_spaces[key].low.size), dtype=np.float32)
+                (max_size, *self.ob_spaces[key].low.shape), dtype=np.float32)
             self._next_obs[key] = arr_initializer.zeros(
-                (max_size, self.ob_spaces[key].low.size), dtype=np.float32)
+                (max_size, *self.ob_spaces[key].low.shape), dtype=np.float32)
 
         self._top = 0
         self._size = 0
@@ -100,10 +101,8 @@ class ObsDictReplayBuffer(ReplayBuffer):
         terminals = path["terminals"]
         path_len = len(rewards)
 
-        actions = flatten_n(actions)
-        # why do we need: obs[:, 0] on this line and the next line sometimes?
-        obs = flatten_dict(obs, self.ob_keys_to_save + self.internal_keys)
-        next_obs = flatten_dict(next_obs, self.ob_keys_to_save + self.internal_keys)
+        obs = combine_dicts(obs, self.ob_keys_to_save + self.internal_keys)
+        next_obs = combine_dicts(next_obs, self.ob_keys_to_save + self.internal_keys)
 
         if self._top + path_len >= self.max_size:
             num_pre_wrap_steps = self.max_size - self._top
@@ -239,7 +238,8 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             achieved_goal_key='achieved_goal',
             vectorized=False,
             ob_keys_to_save=None,
-            use_masks=False,
+            use_multitask_rewards=True,
+            recompute_rewards=True,
             **kwargs
     ):
         """
@@ -259,6 +259,14 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             ob_keys_to_save.append(desired_goal_key)
         if achieved_goal_key not in ob_keys_to_save:
             ob_keys_to_save.append(achieved_goal_key)
+        if goal_keys is not None:
+            for goal_key in goal_keys:
+                if goal_key not in ob_keys_to_save:
+                    ob_keys_to_save.append(goal_key)
+                    # TODO: fix hack. Necessary for future-style relabeling
+                    ob_keys_to_save.append(
+                        goal_key.replace('desired', 'achieved')
+                    )
         super().__init__(
             max_size,
             env,
@@ -266,10 +274,16 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             **kwargs
         )
         if goal_keys is None:
-            goal_keys = [desired_goal_key]
-        self.goal_keys = goal_keys
-        if desired_goal_key not in self.goal_keys:
-            self.goal_keys.append(desired_goal_key)
+            self.goal_keys = [k for k in ob_keys_to_save if 'desired' in k]
+        else:
+            logging.warning("""
+            Are you sure you want to set the goal keys manually?
+            You're less likely to get bugs by setting it automatically.
+            In particular, relabeling will ONLY relabel the keys in goal_keys,
+            which may break if you have wrapped environments.
+            For details, ask @vitchyr.
+            """)
+            self.goal_keys = list(goal_keys)
         assert isinstance(env.observation_space, Dict)
         assert 0 <= fraction_goals_rollout_goals
         assert 0 <= fraction_goals_env_goals
@@ -279,13 +293,16 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
         self.fraction_goals_env_goals = fraction_goals_env_goals
         self.desired_goal_key = desired_goal_key
         self.achieved_goal_key = achieved_goal_key
+        self.recompute_rewards = recompute_rewards
         self.vectorized = vectorized
-        self.use_masks = use_masks
+        self.use_multitask_rewards = use_multitask_rewards
+
+        if self.vectorized:
+            self._rewards = np.zeros(
+                (max_size, self.ob_spaces[achieved_goal_key].low.size))
 
     def random_batch(self, batch_size):
         indices = self._sample_indices(batch_size)
-        resampled_goals = self._next_obs[self.desired_goal_key][indices]
-
         num_env_goals = int(batch_size * self.fraction_goals_env_goals)
         num_rollout_goals = int(batch_size * self.fraction_goals_rollout_goals)
         num_future_goals = batch_size - (num_env_goals + num_rollout_goals)
@@ -296,9 +313,6 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             env_goals = self._sample_goals_from_env(num_env_goals)
             last_env_goal_idx = num_rollout_goals + num_env_goals
 
-            resampled_goals[num_rollout_goals:last_env_goal_idx] = (
-                env_goals[self.desired_goal_key]
-            )
             for goal_key in self.goal_keys:
                 new_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = \
                     env_goals[goal_key]
@@ -314,27 +328,20 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
                 next_obs_i = int(np.random.randint(0, num_options))
                 future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
             future_obs_idxs = np.array(future_obs_idxs)
-            resampled_goals[-num_future_goals:] = self._next_obs[
-                self.achieved_goal_key
-            ][future_obs_idxs]
             for goal_key in self.goal_keys:
-                new_obs_dict[goal_key][-num_future_goals:] = \
-                    self._next_obs[goal_key][future_obs_idxs]
-                new_next_obs_dict[goal_key][-num_future_goals:] = \
-                    self._next_obs[goal_key][future_obs_idxs]
-
-        new_obs_dict[self.desired_goal_key] = resampled_goals
-        new_next_obs_dict[self.desired_goal_key] = resampled_goals
-        resampled_goals = new_next_obs_dict[self.desired_goal_key]
-
-        if self.use_masks:
-            resampled_masks = self.env.sample_masks(batch_size=batch_size)
-            new_obs_dict['mask'] = resampled_masks
-            new_next_obs_dict['mask'] = resampled_masks
+                achieved_k = goal_key.replace('desired', 'achieved')
+                new_obs_dict[goal_key][-num_future_goals:] = (
+                    self._next_obs[achieved_k][future_obs_idxs]
+                )
+                new_next_obs_dict[goal_key][-num_future_goals:] = (
+                    self._next_obs[achieved_k][future_obs_idxs]
+                )
 
         new_actions = self._actions[indices]
 
-        if isinstance(self.env, MultitaskEnv):
+        if not self.recompute_rewards:
+            new_rewards = self._rewards[indices]
+        elif self.use_multitask_rewards:
             new_rewards = self.env.compute_rewards(
                 new_actions,
                 new_next_obs_dict,
@@ -352,6 +359,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
 
         new_obs = new_obs_dict[self.observation_key]
         new_next_obs = new_next_obs_dict[self.observation_key]
+        resampled_goals = new_next_obs_dict[self.desired_goal_key]
         batch = {
             'observations': new_obs,
             'actions': new_actions,
@@ -361,20 +369,14 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             'resampled_goals': resampled_goals,
             'indices': np.array(indices).reshape(-1, 1),
         }
-        if self.use_masks:
-            batch['resampled_masks'] = resampled_masks
         return batch
 
-def flatten_n(xs):
-    xs = np.asarray(xs)
-    return xs.reshape((xs.shape[0], -1))
 
-
-def flatten_dict(dicts, keys):
+def combine_dicts(dicts, keys):
     """
     Turns list of dicts into dict of np arrays
     """
     return {
-        key: flatten_n([d[key] for d in dicts])
+        key: np.array([d[key] for d in dicts])
         for key in keys
     }

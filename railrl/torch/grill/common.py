@@ -1,19 +1,12 @@
 import os.path as osp
 import time
 
-import cv2
+#import sys
+#sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
+#import cv2
 import numpy as np
 
 from torch.utils import data
-
-from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
-from railrl.torch.her.her import HERTrainer
-from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
-
-from railrl.torch.grill.video_gen import VideoSaveFunction
-
 
 def full_experiment_variant_preprocess(variant):
     train_vae_variant = variant['train_vae_variant']
@@ -81,7 +74,7 @@ def train_vae_and_update_variant(variant):
 
 
 def train_vae(variant, return_data=False):
-    from railrl.misc.ml_util import PiecewiseLinearSchedule
+    from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
     from railrl.torch.vae.conv_vae import (
         ConvVAE,
         ConvDynamicsVAE,
@@ -96,11 +89,13 @@ def train_vae(variant, return_data=False):
     import torch
     import gym
     beta = variant["beta"]
-    representation_size = variant.get("representation_size", variant.get("latent_sizes", None))
+    representation_size = variant.get("representation_size",
+        variant.get("latent_sizes", variant.get("embedding_dim", None)))
     use_linear_dynamics = variant.get('use_linear_dynamics', False)
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
                                             generate_vae_dataset)
     variant['generate_vae_dataset_kwargs']['use_linear_dynamics'] = use_linear_dynamics
+    variant['generate_vae_dataset_kwargs']['batch_size'] = variant['algo_kwargs']['batch_size']
     train_dataset, test_dataset, info = generate_vae_dataset_fctn(
         variant['generate_vae_dataset_kwargs'])
 
@@ -114,6 +109,13 @@ def train_vae(variant, return_data=False):
             **variant['beta_schedule_kwargs'])
     else:
         beta_schedule = None
+    if 'context_schedule' in variant:
+        schedule = variant['context_schedule']
+        if type(schedule) is dict:
+            context_schedule = PiecewiseLinearSchedule(**schedule)
+        else:
+            context_schedule = ConstantSchedule(schedule)
+        variant['algo_kwargs']['context_schedule'] = context_schedule
     if variant.get('decoder_activation', None) == 'sigmoid':
         decoder_activation = torch.nn.Sigmoid()
     else:
@@ -140,7 +142,8 @@ def train_vae(variant, return_data=False):
 
     vae_trainer_class = variant.get('vae_trainer_class', ConvVAETrainer)
     trainer = vae_trainer_class(model, beta=beta,
-                       beta_schedule=beta_schedule, **variant['algo_kwargs'])
+                       beta_schedule=beta_schedule,
+                       **variant['algo_kwargs'])
     save_period = variant['save_period']
 
     dump_skew_debug_plots = variant.get('dump_skew_debug_plots', False)
@@ -178,6 +181,7 @@ def generate_vae_dataset(variant):
     env_kwargs = variant.get('env_kwargs',None)
     env_id = variant.get('env_id', None)
     N = variant.get('N', 10000)
+    batch_size = variant.get('batch_size', 128)
     test_p = variant.get('test_p', 0.9)
     use_cached = variant.get('use_cached', True)
     imsize = variant.get('imsize', 84)
@@ -238,7 +242,7 @@ def generate_vae_dataset(variant):
             tag,
         )
         if use_cached and osp.isfile(filename):
-            dataset = np.load(filename)
+            dataset = load_local_or_remote_file(filename)
             if conditional_vae_dataset:
                 dataset = dataset.item()
             print("loaded data from saved file", filename)
@@ -343,7 +347,7 @@ def generate_vae_dataset(variant):
                     # radius = input('waiting...')
             print("done making training data", filename, time.time() - now)
             np.save(filename, dataset)
-            np.save(filename[:-4] + 'labels.npy', np.array(labels))
+            #np.save(filename[:-4] + 'labels.npy', np.array(labels))
 
     info['train_labels'] = []
     info['test_labels'] = []
@@ -434,11 +438,11 @@ def generate_vae_dataset(variant):
 
         train_batch_loader_kwargs = variant.get(
             'train_batch_loader_kwargs',
-            dict(batch_size=32, num_workers=0, )
+            dict(batch_size=batch_size, num_workers=0, )
         )
         test_batch_loader_kwargs = variant.get(
             'test_batch_loader_kwargs',
-            dict(batch_size=32, num_workers=0, )
+            dict(batch_size=batch_size, num_workers=0, )
         )
 
         train_data_loader = data.DataLoader(train_dataset,
@@ -457,8 +461,10 @@ def generate_vae_dataset(variant):
 def get_envs(variant):
     from multiworld.core.image_env import ImageEnv
     from railrl.envs.vae_wrappers import VAEWrappedEnv, ConditionalVAEWrappedEnv
+    from railrl.envs.encoder_wrappers import VQVAEWrappedEnv
     from railrl.misc.asset_loader import load_local_or_remote_file
     from railrl.torch.vae.conditional_conv_vae import CVAE, ConditionalConvVAE
+    from railrl.torch.vae.vq_vae import VQ_VAE
 
     render = variant.get('render', False)
     vae_path = variant.get("vae_path", None)
@@ -548,6 +554,17 @@ def get_envs(variant):
                     reward_params=reward_params,
                     **variant.get('vae_wrapped_env_kwargs', {})
                 )
+            elif isinstance(vae, VQ_VAE):
+                vae_env = VQVAEWrappedEnv(
+                image_env,
+                vae,
+                imsize=image_env.imsize,
+                decode_goals=render,
+                render_goals=render,
+                render_rollouts=render,
+                reward_params=reward_params,
+                **variant.get('vae_wrapped_env_kwargs', {})
+                )
             else:
                 vae_env = VAEWrappedEnv(
                     image_env,
@@ -619,7 +636,7 @@ def get_state_experiment_video_save_function(rollout_function, env, policy, vari
     from multiworld.core.image_env import ImageEnv
     from railrl.core import logger
     from railrl.envs.vae_wrappers import temporary_mode
-    from railrl.torch.grill.video_gen import dump_video
+    from railrl.visualization.video import dump_video
     logdir = logger.get_snapshot_dir()
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)

@@ -4,7 +4,7 @@ import warnings
 
 import torch
 
-import cv2
+# import cv2
 import numpy as np
 from gym import Env
 from gym.spaces import Box, Dict
@@ -33,6 +33,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         render_rollouts=False,
         reward_params=None,
         goal_sampling_mode="vae_prior",
+        num_goals_to_presample=0,
         imsize=84,
         obs_size=None,
         norm_order=2,
@@ -80,10 +81,14 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         spaces['latent_achieved_goal'] = latent_space
         self.observation_space = Dict(spaces)
         self._presampled_goals = presampled_goals
+
+        if num_goals_to_presample > 0:
+            self._presampled_goals = self.wrapped_env.sample_goals(num_goals_to_presample)
+
         if self._presampled_goals is None:
             self.num_goals_presampled = 0
         else:
-            self.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
+            self.num_goals_presampled = self._presampled_goals[random.choice(list(self._presampled_goals))].shape[0]
 
         self.vae_input_key_prefix = vae_input_key_prefix
         assert vae_input_key_prefix in {'image', 'image_proprio'}
@@ -105,8 +110,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         self.set_goal(goal)
 
         if self.decode_goals_on_reset:
-            reconstructions, _ = self.vae.decode(ptu.from_numpy(goal["latent_desired_goal"]).view(1, -1))
-            imgs = ptu.get_numpy(reconstructions)
+            imgs = self._decode_one(goal["latent_desired_goal"]).reshape(1, -1)
             self.decoded_goal_image = imgs.reshape(
                 self.input_channels, self.imsize, self.imsize
             ).flatten()
@@ -164,9 +168,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
     """
     def sample_goals(self, batch_size):
         self.vae.eval()
-        # print(self._goal_sampling_mode)
-        # if self._goal_sampling_mode == "reset_of_env":
-        #     import ipdb; ipdb.set_trace()
+
         # TODO: make mode a parameter you pass in
         if self._goal_sampling_mode == 'custom_goal_sampler':
             return self.custom_goal_sampler(batch_size)
@@ -243,7 +245,15 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
             dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
-            reward = 0 if dist < self.epsilon else -1
+            success = dist < self.epsilon
+            reward = success - 1
+            return reward
+        elif self.reward_type == 'latent_clamp':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
+            dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
+            clamped_dist = np.minimum(dist, self.epsilon) / self.epsilon #Scale Distance
+            reward = - clamped_dist
             return reward
         elif self.reward_type == 'success_prob':
             desired_goals = self._decode(obs['latent_desired_goal'])
@@ -255,6 +265,14 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             achieved_goals = obs['state_achieved_goal']
             desired_goals = obs['state_desired_goal']
             return - np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
+        elif self.reward_type == 'state_sparse':
+            ob_p = obs['state_achieved_goal'].reshape(-1, 2, 2)
+            goal = obs['state_desired_goal'].reshape(-1, 2, 2)
+            distance = np.linalg.norm(ob_p - goal, axis=2)
+            max_dist = np.linalg.norm(distance, axis=1, ord=np.inf)
+            success = max_dist < self.epsilon
+            reward = success - 1
+            return reward
         elif self.reward_type == 'wrapped_env':
             return self.wrapped_env.compute_rewards(actions, obs)
         else:
@@ -424,6 +442,9 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
     def _encode_one(self, img):
         return self._encode(img[None])[0]
 
+    def _decode_one(self, latent):
+        return self._decode(latent[None])[0]
+
     def _encode(self, imgs):
         self.vae.eval()
         latent_distribution_params = self.vae.encode(ptu.from_numpy(imgs))
@@ -493,6 +514,7 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
         if self.reward_type == 'latent_distance':
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
+            #distance = np.multiply(1 / self.prior_var, desired_goals - achieved_goals)
             dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
             return -dist
         elif self.reward_type == 'vectorized_latent_distance':
@@ -503,14 +525,15 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
             dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
-            reward = 0 if dist < self.epsilon else -1
+            success = dist < self.epsilon
+            reward = success - 1
             return reward
 
+        #WARNING: BELOW ARE HARD CODED FOR SIM PUSHER ENV (IN DIMENSION SIZES)
         elif self.reward_type == 'latent_score':
             dist = np.abs(obs['latent_achieved_goal'][:, :self.vae.latent_sizes[0]] - obs['latent_desired_goal'][:, :self.vae.latent_sizes[0]])
             score = np.sum(np.where(dist < self.epsilon, 1, 0), axis=1)
             return np.square(score)
-
 
             return reward
         elif self.reward_type == 'latent_bound':
@@ -530,10 +553,29 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
             achieved_goals = ptu.from_numpy(self._decode(obs['latent_achieved_goal']))
             reward = - 1 * np.log(ptu.get_numpy(1e-5 + -1 * self.vae.logprob(desired_goals, achieved_goals, mean=False)))
             return reward
+
         elif self.reward_type == 'state_distance':
-            achieved_goals = obs['state_achieved_goal']
-            desired_goals = obs['state_desired_goal']
-            return - np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
+            achieved_goals = obs['state_achieved_goal'].reshape(-1, 4)
+            desired_goals = obs['state_desired_goal'].reshape(-1, 4)
+            return - np.linalg.norm(desired_goals - achieved_goals, axis=1)
+        elif self.reward_type == 'state_sparse':
+            ob_p = obs['state_achieved_goal'].reshape(-1, 2, 2)
+            goal = obs['state_desired_goal'].reshape(-1, 2, 2)
+            distance = np.linalg.norm(ob_p - goal, axis=2)
+            max_dist = np.linalg.norm(distance, axis=1, ord=np.inf)
+            success = max_dist < self.epsilon
+            reward = success - 1
+            return reward
+        elif self.reward_type == 'state_hand_distance':
+            ob_p = obs['state_achieved_goal'].reshape(-1, 2, 2)
+            goal = obs['state_desired_goal'].reshape(-1, 2, 2)
+            distance = np.linalg.norm(ob_p - goal, axis=2)[:, :1]
+            return - distance
+        elif self.reward_type == 'state_puck_distance':
+            ob_p = obs['state_achieved_goal'].reshape(-1, 2, 2)
+            goal = obs['state_desired_goal'].reshape(-1, 2, 2)
+            distance = np.linalg.norm(ob_p - goal, axis=2)[:, 1:]
+            return - distance
         elif self.reward_type == 'wrapped_env':
             return self.wrapped_env.compute_rewards(actions, obs)
         else:
@@ -573,14 +615,12 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
         if x0_latent is None:
             x0 = ptu.from_numpy(self._initial_obs["image_observation"][None])
             if not self.sample_from_true_prior:
-                return 1/0 #NOT IMPLEMENTED
+                return ptu.get_numpy(self.vae.sample_prior(batch_size, x0, true_prior=False))
             return ptu.get_numpy(self.vae.sample_prior(batch_size, x0))
         else:
             mu, sigma = 0, 1  # sample from prior
             n = np.random.randn(batch_size, self.vae.latent_sizes)
             z = sigma * n + mu
-            # z0 = np.tile(x0_latent, (batch_size, 1))
-            # np.concatenate((z, z0), axis=1)
             return np.concatenate((z, x0_latent), axis=1)
 
 def temporary_mode(env, mode, func, args=None, kwargs=None):

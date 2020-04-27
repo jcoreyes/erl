@@ -1,27 +1,3 @@
-
-from collections import OrderedDict
-import os
-from os import path as osp
-import numpy as np
-import torch
-from torch import optim
-from torch.distributions import Normal
-from torch.utils.data import DataLoader
-from torch.nn import functional as F
-from torchvision.utils import save_image
-from railrl.data_management.images import normalize_image
-from railrl.core import logger
-import railrl.core.util as util
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch import pytorch_util as ptu
-from railrl.torch.data import (
-    ImageDataset, InfiniteWeightedRandomSampler,
-    InfiniteRandomSampler,
-)
-from railrl.torch.core import np_to_pytorch_batch
-import collections
-
 from collections import OrderedDict
 import os
 from os import path as osp
@@ -47,7 +23,7 @@ import collections
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 
 class ConditionalConvVAETrainer(ConvVAETrainer):
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch, test=False):
         prefix = "test/" if test else "train/"
 
         beta = float(self.beta_schedule.get_value(epoch))
@@ -182,7 +158,7 @@ class CVAETrainer(ConditionalConvVAETrainer):
             weight_decay=weight_decay,
         )
 
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         reconstructions, obs_distribution_params, latent_distribution_params = self.model(batch["x_t"], batch["env"])
@@ -302,6 +278,7 @@ class DeltaCVAETrainer(ConditionalConvVAETrainer):
             log_interval=0,
             beta=0.5,
             beta_schedule=None,
+            context_schedule=None,
             lr=None,
             do_scatterplot=False,
             normalize=False,
@@ -344,21 +321,23 @@ class DeltaCVAETrainer(ConditionalConvVAETrainer):
             start_skew_epoch,
             weight_decay,
         )
+        self.context_schedule = context_schedule
         self.optimizer = optim.Adam(self.model.parameters(),
             lr=self.lr,
             weight_decay=weight_decay,
         )
 
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
+        context_weight = float(self.context_schedule.get_value(epoch))
         x_t, env = self.model(batch["x_t"], batch["env"])
         reconstructions, obs_distribution_params, latent_distribution_params = x_t
         env_reconstructions, env_distribution_params = env
         log_prob = self.model.logprob(batch["x_t"], obs_distribution_params)
         env_log_prob = self.model.logprob(batch["env"], env_distribution_params)
         kle = self.model.kl_divergence(latent_distribution_params)
-        loss = -1 * (log_prob + env_log_prob) + beta * kle
+        loss = -1 * (log_prob + context_weight * env_log_prob) + beta * kle
 
         self.eval_statistics['epoch'] = epoch
         self.eval_statistics['beta'] = beta
@@ -455,7 +434,7 @@ class CDVAETrainer(CVAETrainer):
         latent_next_obs = self.model.encode(x_next, env, distrib=False)
         return torch.norm(latent_obs - latent_next_obs) ** 2 / self.batch_size
 
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         reconstructions, obs_distribution_params, latent_distribution_params = self.model(batch["x_t"], batch["env"])
@@ -542,7 +521,7 @@ class CDVAETrainer(CVAETrainer):
 
 class DeltaDynamicsCVAETrainer(CDVAETrainer):
 
-    def compute_loss(self, epoch, batch, test=False):
+    def compute_loss(self, batch, epoch, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         x_t, env = self.model(batch["x_t"], batch["env"])

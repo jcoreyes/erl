@@ -121,19 +121,20 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev-{}'.format(
+    exp_name = 'dev-{}'.format(
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = 'reference-skew-fit-door'
+    # n_seeds = 3
+    # mode = 'ec2'
+    # exp_name = 'reference-skew-fit-door'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
                 grill_her_twin_sac_online_vae_full_experiment,
-                exp_prefix=exp_prefix,
+                unpack_variant=False,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 use_gpu=True,

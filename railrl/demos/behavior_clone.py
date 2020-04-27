@@ -26,7 +26,6 @@ from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc import eval_util
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
-from railrl.samplers.rollout_functions import rollout
 import railrl.envs.env_utils as env_utils
 
 import random

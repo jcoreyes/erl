@@ -8,7 +8,7 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.plotter import QFPolicyPlotter
+from railrl.visualization.plotter import QFPolicyPlotter
 from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.torch.ddpg.ddpg import DDPG
 

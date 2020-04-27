@@ -14,7 +14,7 @@ import railrl.pythonplusplus as ppp
 import railrl.torch.vae.skew.skewed_vae as sv
 from railrl.core import logger
 from railrl.misc.html_report import HTMLReport
-from railrl.misc.visualization_util import gif
+from railrl.visualization.visualization_util import gif
 from railrl.torch.vae.skew.common import (
     Dynamics, plot_curves,
     visualize_samples,
