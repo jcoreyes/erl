@@ -28,9 +28,6 @@ class Distribution(TorchDistribution):
     def rsample_deterministic(self, ):
         return None
 
-    def log_std(self, ):
-        return None
-
     def get_diagnostics(self, ):
         return {}
 
@@ -45,7 +42,7 @@ class Normal(TorchNormal, Distribution):
     def get_diagnostics(self, ):
         stats = OrderedDict()
         stats.update(create_stats_ordered_dict(
-            'mu',
+            'mean',
             ptu.get_numpy(self.loc),
         ))
         stats.update(create_stats_ordered_dict(
