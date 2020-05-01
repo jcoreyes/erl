@@ -50,14 +50,14 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             max_size,
             env,
             context_keys,
-            observation_keys,
+            observation_keys, # TODO: rename as observation_keys_to_save
             sample_context_from_obs_dict_fn: SampleContextFromObsDictFn,
             reward_fn: ContextualRewardFn,
             context_distribution: DictDistribution,
             fraction_future_context,
             fraction_distribution_context,
             post_process_batch_fn=None,
-            observation_key='observation', # is this repeated?
+            observation_key='observation',
             save_data_in_snapshot=False,
             internal_keys=None,
     ):
