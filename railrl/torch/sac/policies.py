@@ -2,18 +2,36 @@ import numpy as np
 import torch
 from torch import nn as nn
 
-from railrl.policies.base import TorchPolicy, Policy, ExplorationPolicy
+from railrl.policies.base import Policy, ExplorationPolicy
 from railrl.torch.core import eval_np
 from railrl.torch.distributions import (
     Delta, TanhNormal, Normal, GaussianMixture, GaussianMixtureFull
 )
 from railrl.torch.networks import Mlp, CNN
+from railrl.torch.core import torch_ify, elem_or_tuple_to_numpy
 
 import railrl.torch.pytorch_util as ptu
 import torch.nn.functional as F
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
+
+
+class TorchPolicy(ExplorationPolicy):
+    def get_action(self, obs_np, ):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs_np, ):
+        dist = self.get_dist_from_np(obs_np)
+        actions = dist.sample()
+        return elem_or_tuple_to_numpy(actions)
+
+    def get_dist_from_np(self, *args, **kwargs):
+        torch_args = tuple(torch_ify(x) for x in args)
+        torch_kwargs = {k: torch_ify(v) for k, v in kwargs.items()}
+        dist = self(*torch_args, **torch_kwargs)
+        return dist
 
 
 class TanhGaussianPolicyAdapter(nn.Module, TorchPolicy):

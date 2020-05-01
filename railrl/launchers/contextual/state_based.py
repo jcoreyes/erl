@@ -53,9 +53,7 @@ def goal_conditioned_sac_experiment(
         save_video=True,
         save_video_kwargs=None,
         renderer_kwargs=None,
-        **kwargs
 ):
-    print(kwargs)
     if exploration_policy_kwargs is None:
         exploration_policy_kwargs = {}
     if not save_video_kwargs:
