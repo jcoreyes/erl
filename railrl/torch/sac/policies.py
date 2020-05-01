@@ -2,10 +2,13 @@ import numpy as np
 import torch
 from torch import nn as nn
 
-from railrl.policies.base import ExplorationPolicy, Policy
+from railrl.policies.base import Policy, ExplorationPolicy
 from railrl.torch.core import eval_np
-from railrl.torch.distributions import TanhNormal, Normal, GaussianMixture
+from railrl.torch.distributions import (
+    Delta, TanhNormal, Normal, GaussianMixture, GaussianMixtureFull
+)
 from railrl.torch.networks import Mlp, CNN
+from railrl.torch.core import torch_ify, elem_or_tuple_to_numpy
 
 import railrl.torch.pytorch_util as ptu
 import torch.nn.functional as F
@@ -14,7 +17,24 @@ LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 
 
-class TanhGaussianPolicyAdapter(nn.Module, ExplorationPolicy):
+class TorchPolicy(ExplorationPolicy):
+    def get_action(self, obs_np, ):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs_np, ):
+        dist = self.get_dist_from_np(obs_np)
+        actions = dist.sample()
+        return elem_or_tuple_to_numpy(actions)
+
+    def get_dist_from_np(self, *args, **kwargs):
+        torch_args = tuple(torch_ify(x) for x in args)
+        torch_kwargs = {k: torch_ify(v) for k, v in kwargs.items()}
+        dist = self(*torch_args, **torch_kwargs)
+        return dist
+
+
+class TanhGaussianPolicyAdapter(nn.Module, TorchPolicy):
     """
     Usage:
 
@@ -41,104 +61,23 @@ class TanhGaussianPolicyAdapter(nn.Module, ExplorationPolicy):
         )
         self.action_dim = action_dim
 
-    def get_action(self, obs_np, deterministic=False):
-        actions = self.get_actions(obs_np[None], deterministic=deterministic)
-        return actions[0, :], {}
-
-    def get_actions(self, obs_np, deterministic=False):
-        return eval_np(self, obs_np, deterministic=deterministic)[0]
-
-    def forward(
-            self,
-            obs,
-            reparameterize=True,
-            deterministic=False,
-            return_log_prob=False,
-            return_entropy=False,
-            return_log_prob_of_mean=False,
-    ):
-        """
-        :param obs: Observation
-        :param deterministic: If True, do not sample
-        :param return_log_prob: If True, return a sample and its log probability
-        :param return_entropy: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        :param return_log_prob_of_mean: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        """
+    def forward(self, obs):
         h = self.obs_processor(obs)
         h = self.mean_and_log_std_net(h)
         mean, log_std = torch.split(h, self.action_dim, dim=1)
         log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
         std = torch.exp(log_std)
 
-        log_prob = None
-        entropy = None
-        mean_action_log_prob = None
-        pre_tanh_value = None
-        if deterministic:
-            action = torch.tanh(mean)
-        else:
-            tanh_normal = TanhNormal(mean, std)
-            if return_log_prob:
-                if reparameterize is True:
-                    action, pre_tanh_value = tanh_normal.rsample(
-                        return_pretanh_value=True
-                    )
-                else:
-                    action, pre_tanh_value = tanh_normal.sample(
-                        return_pretanh_value=True
-                    )
-                log_prob = tanh_normal.log_prob(
-                    action,
-                    pre_tanh_value=pre_tanh_value
-                )
-                log_prob = log_prob.sum(dim=1, keepdim=True)
-            else:
-                if reparameterize is True:
-                    action = tanh_normal.rsample()
-                else:
-                    action = tanh_normal.sample()
-
-        if return_entropy:
-            entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
-            # I'm not sure how to compute the (differential) entropy for a
-            # tanh(Gaussian)
-            entropy = entropy.sum(dim=1, keepdim=True)
-            raise NotImplementedError()
-        if return_log_prob_of_mean:
-            tanh_normal = TanhNormal(mean, std)
-            mean_action_log_prob = tanh_normal.log_prob(
-                torch.tanh(mean),
-                pre_tanh_value=mean,
-            )
-            mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
-        return (
-            action, mean, log_std, log_prob, entropy, std,
-            mean_action_log_prob, pre_tanh_value,
-        )
-
+        tanh_normal = TanhNormal(mean, std)
+        return tanh_normal
 
 # noinspection PyMethodOverriding
-class TanhGaussianPolicy(Mlp, ExplorationPolicy):
+class TanhGaussianPolicy(Mlp, TorchPolicy):
     """
     Usage:
 
     ```
     policy = TanhGaussianPolicy(...)
-    action, mean, log_std, _ = policy(obs)
-    action, mean, log_std, _ = policy(obs, deterministic=True)
-    action, mean, log_std, log_prob = policy(obs, return_log_prob=True)
-    ```
-
-    Here, mean and log_std are the mean and log_std of the Gaussian that is
-    sampled from.
-
-    If deterministic is True, action = tanh(mean).
-    If return_log_prob is False (default), log_prob = None
-        This is done because computing the log_prob can be a bit expensive.
     """
 
     def __init__(
@@ -170,33 +109,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
 
-    def get_action(self, obs_np, deterministic=False):
-        actions = self.get_actions(obs_np[None], deterministic=deterministic)
-        return actions[0, :], {}
-
-    def get_actions(self, obs_np, deterministic=False):
-        return eval_np(self, obs_np, deterministic=deterministic)[0]
-
-    def forward(
-            self,
-            obs,
-            reparameterize=True,
-            deterministic=False,
-            return_log_prob=False,
-            return_entropy=False,
-            return_log_prob_of_mean=False,
-    ):
-        """
-        :param obs: Observation
-        :param deterministic: If True, do not sample
-        :param return_log_prob: If True, return a sample and its log probability
-        :param return_entropy: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        :param return_log_prob_of_mean: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        """
+    def forward(self, obs):
         h = obs
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
@@ -214,50 +127,9 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         mean_action_log_prob = None
         pre_tanh_value = None
         tanh_normal = TanhNormal(mean, std)
-        if deterministic:
-            action = torch.tanh(mean)
-        else:
-            tanh_normal = TanhNormal(mean, std)
-            if return_log_prob:
-                if reparameterize is True:
-                    action, pre_tanh_value = tanh_normal.rsample(
-                        return_pretanh_value=True
-                    )
-                else:
-                    action, pre_tanh_value = tanh_normal.sample(
-                        return_pretanh_value=True
-                    )
-                log_prob = tanh_normal.log_prob(
-                    action,
-                    pre_tanh_value=pre_tanh_value
-                )
-                log_prob = log_prob.sum(dim=1, keepdim=True)
-            else:
-                if reparameterize is True:
-                    action = tanh_normal.rsample()
-                else:
-                    action = tanh_normal.sample()
-
-        if return_entropy:
-            entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
-            # I'm not sure how to compute the (differential) entropy for a
-            # tanh(Gaussian)
-            entropy = entropy.sum(dim=1, keepdim=True)
-            raise NotImplementedError()
-        if return_log_prob_of_mean:
-            tanh_normal = TanhNormal(mean, std)
-            mean_action_log_prob = tanh_normal.log_prob(
-                torch.tanh(mean),
-                pre_tanh_value=mean,
-            )
-            mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
-        return (
-            action, mean, log_std, log_prob, entropy, std,
-            mean_action_log_prob, pre_tanh_value, tanh_normal
-        )
+        return tanh_normal
 
     def logprob(self, action, mean, std):
-        # import ipdb; ipdb.set_trace()
         tanh_normal = TanhNormal(mean, std)
         log_prob = tanh_normal.log_prob(
             action,
@@ -265,7 +137,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         log_prob = log_prob.sum(dim=1, keepdim=True)
         return log_prob
 
-class GaussianPolicy(Mlp, ExplorationPolicy):
+class GaussianPolicy(Mlp, TorchPolicy):
     def __init__(
             self,
             hidden_sizes,
@@ -307,33 +179,7 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
 
-    def get_action(self, obs_np, deterministic=False):
-        actions = self.get_actions(obs_np[None], deterministic=deterministic)
-        return actions[0, :], {}
-
-    def get_actions(self, obs_np, deterministic=False):
-        return eval_np(self, obs_np, deterministic=deterministic)[0]
-
-    def forward(
-            self,
-            obs,
-            reparameterize=True,
-            deterministic=False,
-            return_log_prob=False,
-            return_entropy=False,
-            return_log_prob_of_mean=False,
-    ):
-        """
-        :param obs: Observation
-        :param deterministic: If True, do not sample
-        :param return_log_prob: If True, return a sample and its log probability
-        :param return_entropy: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        :param return_log_prob_of_mean: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        """
+    def forward(self, obs):
         h = obs
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
@@ -359,39 +205,9 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
         mean_action_log_prob = None
         pre_tanh_value = None
         normal = Normal(mean, std)
-        if deterministic:
-            action = mean
-        else:
-            if return_log_prob:
-                if reparameterize is True:
-                    action = normal.rsample()
-                else:
-                    action = normal.sample()
-                log_prob = normal.log_prob(action)
-                log_prob = log_prob.sum(dim=1, keepdim=True)
-            else:
-                if reparameterize is True:
-                    action = normal.rsample()
-                else:
-                    action = normal.sample()
+        return normal
 
-        if return_entropy:
-            entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
-            # I'm not sure how to compute the (differential) entropy for a
-            # tanh(Gaussian)
-            entropy = entropy.sum(dim=1, keepdim=True)
-            raise NotImplementedError()
-        if return_log_prob_of_mean:
-            normal = Normal(mean, std)
-            mean_action_log_prob = normal.log_prob(mean)
-            mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
-
-        return (
-            action, mean, log_std, log_prob, entropy, std,
-            mean_action_log_prob, pre_tanh_value, normal,
-        )
-
-class GaussianMixturePolicy(Mlp, ExplorationPolicy):
+class GaussianMixturePolicy(Mlp, TorchPolicy):
     def __init__(
             self,
             hidden_sizes,
@@ -440,33 +256,7 @@ class GaussianMixturePolicy(Mlp, ExplorationPolicy):
         self.last_fc_weights.weight.data.uniform_(-init_w, init_w)
         self.last_fc_weights.bias.data.uniform_(-init_w, init_w)
 
-    def get_action(self, obs_np, deterministic=False):
-        actions = self.get_actions(obs_np[None], deterministic=deterministic)
-        return actions[0, :], {}
-
-    def get_actions(self, obs_np, deterministic=False):
-        return eval_np(self, obs_np, deterministic=deterministic)[0]
-
-    def forward(
-            self,
-            obs,
-            reparameterize=True,
-            deterministic=False,
-            return_log_prob=False,
-            return_entropy=False,
-            return_log_prob_of_mean=False,
-    ):
-        """
-        :param obs: Observation
-        :param deterministic: If True, do not sample
-        :param return_log_prob: If True, return a sample and its log probability
-        :param return_entropy: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        :param return_log_prob_of_mean: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        """
+    def forward(self, obs):
         h = obs
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
@@ -492,46 +282,86 @@ class GaussianMixturePolicy(Mlp, ExplorationPolicy):
         mixture_means = mean.reshape((-1, self.action_dim, self.num_gaussians, ))
         mixture_stds = std.reshape((-1, self.action_dim, self.num_gaussians, ))
         dist = GaussianMixture(mixture_means, mixture_stds, weights)
+        return dist
 
-        # normal = Normal(mean, std)
-        # import ipdb; ipdb.set_trace()
-
-        mean = dist.mean()
-
-        log_prob = None
-        entropy = None
-        mean_action_log_prob = None
-        if deterministic:
-            action = mean
-        else:
-            # normal = Normal(mean, std)
-            if return_log_prob:
-                if reparameterize is True:
-                    action = dist.rsample()
-                else:
-                    action = dist.sample()
-                log_prob = dist.log_prob(action)
-            else:
-                if reparameterize is True:
-                    action = dist.rsample()
-                else:
-                    action = dist.sample()
-
-        if return_entropy:
-            entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
-            # I'm not sure how to compute the (differential) entropy for a
-            # tanh(Gaussian)
-            entropy = entropy.sum(dim=1, keepdim=True)
-            raise NotImplementedError()
-        if return_log_prob_of_mean:
-            normal = Normal(mean, std)
-            mean_action_log_prob = normal.log_prob(mean)
-            mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
-
-        return (
-            action, mean, log_std, log_prob, entropy, std,
-            mean_action_log_prob, None, dist,
+class BinnedGMMPolicy(Mlp, TorchPolicy):
+    def __init__(
+            self,
+            hidden_sizes,
+            obs_dim,
+            action_dim,
+            std=None,
+            init_w=1e-3,
+            min_log_std=None,
+            max_log_std=None,
+            num_gaussians=1,
+            std_architecture="shared",
+            **kwargs
+    ):
+        super().__init__(
+            hidden_sizes,
+            input_size=obs_dim,
+            output_size=action_dim * num_gaussians,
+            init_w=init_w,
+            # output_activation=torch.tanh,
+            **kwargs
         )
+        self.action_dim = action_dim
+        self.num_gaussians = num_gaussians
+        self.min_log_std = min_log_std
+        self.max_log_std = max_log_std
+        self.log_std = None
+        self.std = std
+        self.std_architecture = std_architecture
+        if std is None:
+            last_hidden_size = obs_dim
+            if len(hidden_sizes) > 0:
+                last_hidden_size = hidden_sizes[-1]
+
+            if self.std_architecture == "shared":
+                self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim * num_gaussians)
+                self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
+                self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
+            elif self.std_architecture == "values":
+                self.log_std_logits = nn.Parameter(ptu.zeros(action_dim * num_gaussians, requires_grad=True))
+            else:
+                error
+        else:
+            self.log_std = np.log(std)
+            assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
+        self.last_fc_weights = nn.Linear(last_hidden_size, action_dim * num_gaussians)
+        self.last_fc_weights.weight.data.uniform_(-init_w, init_w)
+        self.last_fc_weights.bias.data.uniform_(-init_w, init_w)
+
+    def forward(self, obs):
+        h = obs
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        # preactivation = self.last_fc(h)
+        # mean = self.output_activation(preactivation)
+        if self.std is None:
+            # log_std = self.last_fc_log_std(h)
+            # log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+            # log_std = torch.sigmoid(self.last_fc_log_std(h))
+            if self.std_architecture == "shared":
+                log_std = torch.sigmoid(self.last_fc_log_std(h))
+            elif self.std_architecture == "values":
+                log_std = torch.sigmoid(self.log_std_logits)
+            else:
+                error
+            log_std = self.min_log_std + log_std * (self.max_log_std - self.min_log_std)
+            std = torch.exp(log_std)
+        else:
+            std = torch.from_numpy(self.std)
+            log_std = self.log_std
+        batch_size = len(obs)
+        logits = self.last_fc_weights(h).reshape((-1, self.action_dim, self.num_gaussians, ))
+        weights = F.softmax(logits, dim=2)
+        linspace = np.tile(np.linspace(-1, 1, self.num_gaussians), (batch_size, self.action_dim, 1))
+        mixture_means = ptu.from_numpy(linspace)
+        mixture_stds = std.reshape((-1, self.action_dim, self.num_gaussians, ))
+        dist = GaussianMixtureFull(mixture_means, mixture_stds, weights)
+        return dist
 
 class TanhGaussianObsProcessorPolicy(TanhGaussianPolicy):
     def __init__(self, obs_processor, *args, **kwargs):
@@ -564,23 +394,12 @@ class TanhGaussianWithBasicObsProcessorPolicy(TanhGaussianPolicy):
 
 
 # noinspection PyMethodOverriding
-class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
+class TanhCNNGaussianPolicy(CNN, TorchPolicy):
     """
     Usage:
 
     ```
     policy = TanhGaussianPolicy(...)
-    action, mean, log_std, _ = policy(obs)
-    action, mean, log_std, _ = policy(obs, deterministic=True)
-    action, mean, log_std, log_prob = policy(obs, return_log_prob=True)
-    ```
-
-    Here, mean and log_std are the mean and log_std of the Gaussian that is
-    sampled from.
-
-    If deterministic is True, action = tanh(mean).
-    If return_log_prob is False (default), log_prob = None
-        This is done because computing the log_prob can be a bit expensive.
     """
 
     def __init__(
@@ -608,33 +427,7 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
 
-    def get_action(self, obs_np, deterministic=False):
-        actions = self.get_actions(obs_np[None], deterministic=deterministic)
-        return actions[0, :], {}
-
-    def get_actions(self, obs_np, deterministic=False):
-        return eval_np(self, obs_np, deterministic=deterministic)[0]
-
-    def forward(
-            self,
-            obs,
-            reparameterize=True,
-            deterministic=False,
-            return_log_prob=False,
-            return_entropy=False,
-            return_log_prob_of_mean=False,
-    ):
-        """
-        :param obs: Observation
-        :param deterministic: If True, do not sample
-        :param return_log_prob: If True, return a sample and its log probability
-        :param return_entropy: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        :param return_log_prob_of_mean: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        """
+    def forward(self, obs):
         h = super().forward(obs, return_last_activations=True)
 
         mean = self.last_fc(h)
@@ -650,57 +443,17 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
         entropy = None
         mean_action_log_prob = None
         pre_tanh_value = None
-        if deterministic:
-            action = torch.tanh(mean)
-        else:
-            tanh_normal = TanhNormal(mean, std)
-            if return_log_prob:
-                if reparameterize is True:
-                    action, pre_tanh_value = tanh_normal.rsample(
-                        return_pretanh_value=True
-                    )
-                else:
-                    action, pre_tanh_value = tanh_normal.sample(
-                        return_pretanh_value=True
-                    )
-                log_prob = tanh_normal.log_prob(
-                    action,
-                    pre_tanh_value=pre_tanh_value
-                )
-                log_prob = log_prob.sum(dim=1, keepdim=True)
-            else:
-                if reparameterize is True:
-                    action = tanh_normal.rsample()
-                else:
-                    action = tanh_normal.sample()
-
-        if return_entropy:
-            entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
-            # I'm not sure how to compute the (differential) entropy for a
-            # tanh(Gaussian)
-            entropy = entropy.sum(dim=1, keepdim=True)
-            raise NotImplementedError()
-        if return_log_prob_of_mean:
-            tanh_normal = TanhNormal(mean, std)
-            mean_action_log_prob = tanh_normal.log_prob(
-                torch.tanh(mean),
-                pre_tanh_value=mean,
-            )
-            mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
-        return (
-            action, mean, log_std, log_prob, entropy, std,
-            mean_action_log_prob, pre_tanh_value,
-        )
+        tanh_normal = TanhNormal(mean, std)
+        return tanh_normal
 
 
-class MakeDeterministic(Policy, ):
+class MakeDeterministic(TorchPolicy, ):
     def __init__(self, stochastic_policy):
         self.stochastic_policy = stochastic_policy
 
-    def get_action(self, *args, deterministic=False, **kwargs):
-        return self.stochastic_policy.get_action(
-            *args, deterministic=True, **kwargs
-        )
+    def __call__(self, *args, **kwargs):
+        dist = self.stochastic_policy(*args, **kwargs)
+        return Delta(dist.get_mle())
 
     def to(self, device):
         self.stochastic_policy.to(device)

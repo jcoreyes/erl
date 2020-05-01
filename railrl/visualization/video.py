@@ -47,6 +47,7 @@ class VideoSaveFunction:
             "exploration_goal_image_key", "decoded_goal_image")
         self.evaluation_goal_image_key = self.dump_video_kwargs.pop(
             "evaluation_goal_image_key", "image_desired_goal")
+        self.path_length = variant.get('algo_kwargs', {}).get('max_path_length', 200)
         self.expl_path_collector = expl_path_collector
         self.eval_path_collector = eval_path_collector
         self.variant = variant
@@ -54,8 +55,8 @@ class VideoSaveFunction:
     def __call__(self, algo, epoch):
         if self.expl_path_collector:
             expl_paths = self.expl_path_collector.collect_new_paths(
-                max_path_length=self.variant['algo_kwargs']['max_path_length'],
-                num_steps=self.variant['algo_kwargs']['max_path_length'] * 5,
+                max_path_length=self.path_length,
+                num_steps=self.path_length * 5,
                 discard_incomplete_paths=False
             )
         else:
@@ -72,8 +73,8 @@ class VideoSaveFunction:
 
         if self.eval_path_collector:
             eval_paths = self.eval_path_collector.collect_new_paths(
-                max_path_length=self.variant['algo_kwargs']['max_path_length'],
-                num_steps=self.variant['algo_kwargs']['max_path_length'] * 5,
+                max_path_length=self.path_length,
+                num_steps=self.path_length * 5,
                 discard_incomplete_paths=False
             )
         else:
@@ -88,6 +89,44 @@ class VideoSaveFunction:
                        **self.dump_video_kwargs,
                        )
 
+
+class RIGVideoSaveFunction:
+    def __init__(self,
+        model,
+        data_collector,
+        tag,
+        goal_image_key,
+        save_video_period,
+        **kwargs
+    ):
+        self.model = model
+        self.data_collector = data_collector
+        self.tag = tag
+        self.goal_image_key = goal_image_key
+        self.dump_video_kwargs = kwargs
+        self.save_video_period = save_video_period
+        self.logdir = logger.get_snapshot_dir()
+
+    def __call__(self, algo, epoch):
+        paths = self.data_collector.get_epoch_paths()
+        if epoch % self.save_video_period == 0 or epoch == algo.num_epochs:
+            filename = osp.join(self.logdir,
+                'video_{epoch}_{tag}.mp4'.format(epoch=epoch, tag=self.tag))
+            if self.model:
+                for i in range(len(paths)):
+                    self.add_decoded_goal_to_path(paths[i])
+            dump_paths(None,
+                filename,
+                paths,
+                self.goal_image_key,
+                **self.dump_video_kwargs,
+            )
+
+    def add_decoded_goal_to_path(self, path):
+        latent = path['full_observations'][0]['latent_desired_goal']
+        decoded_img = self.model.decode_one_np(latent)
+        for i_in_path, d in enumerate(path['full_observations']):
+            d[self.goal_image_key] = decoded_img
 
 def add_border(img, border_thickness, border_color):
     imheight, imwidth = img.shape[:2]
@@ -391,32 +430,7 @@ def dump_paths(
         if do_timer:
             print(i, time.time() - start)
 
-    # #TODO: can probably replace all of this with
-    # outputdata = reshape_for_video(frames, N, rows, columns, num_channels)
-    frames = np.array(frames, dtype=np.uint8)
-    path_length = frames.size // (
-            N * (H + num_gaps * pad_length) * (
-                W + num_gaps * pad_length) * num_channels
-    )
-    try:
-        frames = np.array(frames, dtype=np.uint8).reshape(
-            (N, path_length, H + num_gaps * pad_length,
-             W + num_gaps * pad_length, num_channels)
-        )
-    except:
-        import ipdb;
-        ipdb.set_trace()
-    f1 = []
-    for k1 in range(columns):
-        f2 = []
-        for k2 in range(rows):
-            k = k1 * rows + k2
-            f2.append(frames[k:k + 1, :, :, :, :].reshape(
-                (path_length, H + num_gaps * pad_length,
-                 W + num_gaps * pad_length, num_channels)
-            ))
-        f1.append(np.concatenate(f2, axis=1))
-    outputdata = np.concatenate(f1, axis=2)
+    outputdata = reshape_for_video(frames, N, rows, columns, num_channels)
     skvideo.io.vwrite(filename, outputdata)
     print("Saved video to ", filename)
 

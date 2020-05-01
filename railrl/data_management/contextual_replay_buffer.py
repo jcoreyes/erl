@@ -50,7 +50,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             max_size,
             env,
             context_keys,
-            observation_keys,
+            observation_keys, # TODO: rename as observation_keys_to_save
             sample_context_from_obs_dict_fn: SampleContextFromObsDictFn,
             reward_fn: ContextualRewardFn,
             context_distribution: DictDistribution,
@@ -82,8 +82,10 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             ))
         self._context_keys = context_keys
         self._context_distribution = context_distribution
-        if set(self._context_distribution.spaces.keys()) != set(context_keys):
-            raise TypeError("Distributions must match.")
+        for k in context_keys:
+            distribution_keys = set(self._context_distribution.spaces.keys())
+            if k not in distribution_keys:
+                raise TypeError("All context keys must be in context distribution.")
         self._sample_context_from_obs_dict_fn = sample_context_from_obs_dict_fn
         self._reward_fn = reward_fn
         self._fraction_future_context = fraction_future_context

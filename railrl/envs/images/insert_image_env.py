@@ -61,7 +61,6 @@ class InsertImagesEnv(gym.Wrapper):
 class InsertImageEnv(InsertImagesEnv):
     """
     Add an image to the observation. Usage:
-
     ```
     obs = env.reset()
     print(obs.keys())  # ['observations']

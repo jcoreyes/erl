@@ -9,7 +9,7 @@ from torch import nn as nn
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchTrainer
-
+from railrl.core.logging import add_prefix
 
 SACLosses = namedtuple(
     'SACLosses',
@@ -145,9 +145,8 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         Policy and Alpha Loss
         """
-        new_obs_actions, policy_mean, policy_log_std, log_pi, *_ = self.policy(
-            obs, reparameterize=True, return_log_prob=True,
-        )
+        dist = self.policy(obs)
+        new_obs_actions, log_pi = dist.rsample_and_logprob()
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
             alpha = self.log_alpha.exp()
@@ -166,9 +165,8 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         q1_pred = self.qf1(obs, actions)
         q2_pred = self.qf2(obs, actions)
-        new_next_actions, _, _, new_log_pi, *_ = self.policy(
-            next_obs, reparameterize=True, return_log_prob=True,
-        )
+        next_dist = self.policy(next_obs)
+        new_next_actions, new_log_pi = next_dist.rsample_and_logprob()
         target_q_values = torch.min(
             self.target_qf1(next_obs, new_next_actions),
             self.target_qf2(next_obs, new_next_actions),
@@ -205,14 +203,8 @@ class SACTrainer(TorchTrainer, LossFunction):
                 'Log Pis',
                 ptu.get_numpy(log_pi),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Policy mu',
-                ptu.get_numpy(policy_mean),
-            ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Policy log std',
-                ptu.get_numpy(policy_log_std),
-            ))
+            policy_statistics = add_prefix(dist.get_diagnostics(), "policy/")
+            self.eval_statistics.update(policy_statistics)
             if self.use_automatic_entropy_tuning:
                 self.eval_statistics['Alpha'] = alpha.item()
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
