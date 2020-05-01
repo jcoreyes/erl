@@ -23,7 +23,7 @@ class Distribution(TorchDistribution):
         return s, log_p
 
     def get_mle(self, ):
-        return self.sample()
+        raise NotImplementedError
 
     def get_diagnostics(self, ):
         return {}
@@ -42,12 +42,6 @@ class Delta(Distribution):
 
 
 class Normal(TorchNormal, Distribution):
-    def sample_deterministic(self, ):
-        return self.loc.detach()
-
-    def rsample_deterministic(self, ):
-        return self.loc
-
     def get_diagnostics(self, ):
         stats = OrderedDict()
         stats.update(create_stats_ordered_dict(
@@ -72,6 +66,9 @@ class Normal(TorchNormal, Distribution):
         log_std = torch.log(self.scale)
         entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
         return entropy.sum(dim=1, keepdim=True)
+
+    def get_mle(self, ):
+        return self.loc
 
 class GaussianMixture(Distribution):
     def __init__(self, normal_means, normal_stds, weights):
@@ -113,7 +110,7 @@ class GaussianMixture(Distribution):
         s = torch.matmul(z, c)
         return torch.squeeze(s, 2)
 
-    def mean(self, ):
+    def get_mle(self, ):
         """Misleading function name; this actually now samples the mean of the
         most likely component.
         c ~ argmax(C), returns mu_c
@@ -196,7 +193,7 @@ class GaussianMixtureFull(Distribution):
         # return torch.squeeze(s, 2)
         return s[:, :, 0]
 
-    def mean(self, ):
+    def get_mle(self, ):
         """Misleading function name; this actually now samples the mean of the
         most likely component.
         c ~ argmax(C), returns mu_c
@@ -311,5 +308,5 @@ class TanhNormal(Distribution):
         log_p = self.log_prob(value, pre_tanh_value)
         return value, log_p
 
-    def sample_deterministic(self, ):
-        return self.normal_mean.detach()
+    def get_mle(self, ):
+        return self.normal_mean

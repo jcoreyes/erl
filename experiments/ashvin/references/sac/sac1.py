@@ -224,7 +224,7 @@ if __name__ == "__main__":
             # 'humanoid',
             # 'swimmer',
         ],
-        'seedid': range(4),
+        'seedid': range(5),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
