@@ -38,8 +38,6 @@ class Renderer(object):
         self.output_image_format = output_img_format
         self._camera_is_initialized = False
 
-        self._camera_is_initialized = False
-
     def create_image(self, env):
         if not self._camera_is_initialized and self._init_camera is not None:
             env.initialize_camera(self._init_camera)

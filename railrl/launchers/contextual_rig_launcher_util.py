@@ -101,7 +101,7 @@ def goal_conditioned_sac_experiment(
         renderer_kwargs = {}
 
     renderer = Renderer(**renderer_kwargs)
-    init_camera = renderer.init_camera
+    init_camera = renderer._init_camera
 
     def train_vae(variant, return_data=False):
         from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
@@ -614,7 +614,7 @@ def goal_conditioned_sac_experiment(
         eval_env,
         MakeDeterministic(policy),
         observation_key=observation_key,
-        context_keys=[context_key, ],
+        context_keys_for_policy=[context_key, ],
     )
     exploration_policy = create_exploration_policy(
         policy, **exploration_policy_kwargs)
@@ -622,7 +622,7 @@ def goal_conditioned_sac_experiment(
         expl_env,
         exploration_policy,
         observation_key=observation_key,
-        context_keys=[context_key, ],
+        context_keys_for_policy=[context_key, ],
     )
 
     algorithm = TorchBatchRLAlgorithm(

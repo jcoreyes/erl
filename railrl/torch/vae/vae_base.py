@@ -104,15 +104,16 @@ class VAEBase(PyTorchModule, metaclass=abc.ABCMeta):
         latent_distribution_params = self.encode(ptu.from_numpy(imgs))
         return ptu.get_numpy(latent_distribution_params[0])
 
-    # def _reconstruct_img(self, flat_img):
-    #     self.vae.eval()
-    #     latent_distribution_params = self.vae.encode(ptu.from_numpy(flat_img.reshape(1,-1)))
-    #     reconstructions, _ = self.vae.decode(latent_distribution_params[0])
-    #     imgs = ptu.get_numpy(reconstructions)
-    #     imgs = imgs.reshape(
-    #         1, self.input_channels, self.imsize, self.imsize
-    #     )
-    #     return imgs[0]
+    def _reconstruct_img(self, flat_img):
+        self.vae.eval()
+        latent_distribution_params = self.vae.encode(ptu.from_numpy(flat_img.reshape(1,-1)))
+        reconstructions, _ = self.vae.decode(latent_distribution_params[0])
+        imgs = ptu.get_numpy(reconstructions)
+        imgs = imgs.reshape(
+            1, self.input_channels, self.imsize, self.imsize
+        )
+        return imgs[0]
+
 
 class GaussianLatentVAE(VAEBase):
     def __init__(

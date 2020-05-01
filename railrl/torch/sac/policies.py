@@ -2,9 +2,11 @@ import numpy as np
 import torch
 from torch import nn as nn
 
-from railrl.policies.base import ExplorationPolicy, Policy
+from railrl.policies.base import TorchPolicy, Policy, ExplorationPolicy
 from railrl.torch.core import eval_np
-from railrl.torch.distributions import TanhNormal, Normal, GaussianMixture, GaussianMixtureFull
+from railrl.torch.distributions import (
+    Delta, TanhNormal, Normal, GaussianMixture, GaussianMixtureFull
+)
 from railrl.torch.networks import Mlp, CNN
 
 import railrl.torch.pytorch_util as ptu
@@ -14,7 +16,7 @@ LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 
 
-class TanhGaussianPolicyAdapter(nn.Module, ExplorationPolicy):
+class TanhGaussianPolicyAdapter(nn.Module, TorchPolicy):
     """
     Usage:
 
@@ -52,7 +54,7 @@ class TanhGaussianPolicyAdapter(nn.Module, ExplorationPolicy):
         return tanh_normal
 
 # noinspection PyMethodOverriding
-class TanhGaussianPolicy(Mlp, ExplorationPolicy):
+class TanhGaussianPolicy(Mlp, TorchPolicy):
     """
     Usage:
 
@@ -117,7 +119,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         log_prob = log_prob.sum(dim=1, keepdim=True)
         return log_prob
 
-class GaussianPolicy(Mlp, ExplorationPolicy):
+class GaussianPolicy(Mlp, TorchPolicy):
     def __init__(
             self,
             hidden_sizes,
@@ -187,7 +189,7 @@ class GaussianPolicy(Mlp, ExplorationPolicy):
         normal = Normal(mean, std)
         return normal
 
-class GaussianMixturePolicy(Mlp, ExplorationPolicy):
+class GaussianMixturePolicy(Mlp, TorchPolicy):
     def __init__(
             self,
             hidden_sizes,
@@ -264,7 +266,7 @@ class GaussianMixturePolicy(Mlp, ExplorationPolicy):
         dist = GaussianMixture(mixture_means, mixture_stds, weights)
         return dist
 
-class BinnedGMMPolicy(Mlp, ExplorationPolicy):
+class BinnedGMMPolicy(Mlp, TorchPolicy):
     def __init__(
             self,
             hidden_sizes,
@@ -374,7 +376,7 @@ class TanhGaussianWithBasicObsProcessorPolicy(TanhGaussianPolicy):
 
 
 # noinspection PyMethodOverriding
-class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
+class TanhCNNGaussianPolicy(CNN, TorchPolicy):
     """
     Usage:
 
@@ -427,14 +429,13 @@ class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
         return tanh_normal
 
 
-class MakeDeterministic(Policy, ):
+class MakeDeterministic(TorchPolicy, ):
     def __init__(self, stochastic_policy):
         self.stochastic_policy = stochastic_policy
 
-    def get_action(self, *args, deterministic=False, **kwargs):
-        return self.stochastic_policy.get_action(
-            *args, deterministic=True, **kwargs
-        )
+    def __call__(self, *args, **kwargs):
+        dist = self.stochastic_policy(*args, **kwargs)
+        return Delta(dist.get_mle())
 
     def to(self, device):
         self.stochastic_policy.to(device)

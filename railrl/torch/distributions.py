@@ -22,14 +22,23 @@ class Distribution(TorchDistribution):
         log_p = self.log_prob(s)
         return s, log_p
 
-    def sample_deterministic(self, ):
-        return None
-
-    def rsample_deterministic(self, ):
-        return None
+    def get_mle(self, ):
+        return self.sample()
 
     def get_diagnostics(self, ):
         return {}
+
+
+class Delta(Distribution):
+    """A deterministic distribution"""
+    def __init__(self, value):
+        self.value = value
+
+    def sample(self, ):
+        return self.value.detach()
+
+    def rsample(self, ):
+        return self.value
 
 
 class Normal(TorchNormal, Distribution):

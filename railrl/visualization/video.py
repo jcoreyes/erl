@@ -430,32 +430,7 @@ def dump_paths(
         if do_timer:
             print(i, time.time() - start)
 
-    # #TODO: can probably replace all of this with
     outputdata = reshape_for_video(frames, N, rows, columns, num_channels)
-    # frames = np.array(frames, dtype=np.uint8)
-    # path_length = frames.size // (
-    #         N * (H + num_gaps * pad_length) * (
-    #             W + num_gaps * pad_length) * num_channels
-    # )
-    # try:
-    #     frames = np.array(frames, dtype=np.uint8).reshape(
-    #         (N, path_length, H + num_gaps * pad_length,
-    #          W + num_gaps * pad_length, num_channels)
-    #     )
-    # except:
-    #     import ipdb;
-    #     ipdb.set_trace()
-    # f1 = []
-    # for k1 in range(columns):
-    #     f2 = []
-    #     for k2 in range(rows):
-    #         k = k1 * rows + k2
-    #         f2.append(frames[k:k + 1, :, :, :, :].reshape(
-    #             (path_length, H + num_gaps * pad_length,
-    #              W + num_gaps * pad_length, num_channels)
-    #         ))
-    #     f1.append(np.concatenate(f2, axis=1))
-    # outputdata = np.concatenate(f1, axis=2)
     skvideo.io.vwrite(filename, outputdata)
     print("Saved video to ", filename)
 

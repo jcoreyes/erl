@@ -516,7 +516,7 @@ class AWRSACTrainer(TorchTrainer):
         """
         dist = self.policy(obs)
         new_obs_actions, log_pi = dist.rsample_and_logprob()
-        policy_mean = dist.sample_deterministic()
+        policy_mean = dist.get_mle()
 
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()

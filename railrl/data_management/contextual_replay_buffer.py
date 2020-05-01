@@ -82,10 +82,13 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             ))
         self._context_keys = context_keys
         self._context_distribution = context_distribution
-        if set(self._context_distribution.spaces.keys()) != set(context_keys):
-            print(self._context_distribution.spaces.keys())
-            print(context_keys)
-            # raise TypeError("Distributions must match.")
+        for k in context_keys:
+            distribution_keys = set(self._context_distribution.spaces.keys())
+            if k not in distribution_keys:
+                print(self._context_distribution.spaces.keys())
+                print(context_keys)
+                print(k)
+                raise TypeError("All context keys must be in context distribution.")
         self._sample_context_from_obs_dict_fn = sample_context_from_obs_dict_fn
         self._reward_fn = reward_fn
         self._fraction_future_context = fraction_future_context
@@ -122,15 +125,15 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         actions = self._actions[indices]
 
         keys = set(contexts[0].keys())
-        # for c in contexts[1:]:
-        #     if set(c.keys()) != keys:
-        #         raise RuntimeError(
-        #             "Context distributions don't match. Replay buffer context "
-        #             "distribution keys={}, other distribution keys={}".format(
-        #                 keys,
-        #                 set(c.keys())
-        #             )
-        #         )
+        for c in contexts[1:]:
+            if set(c.keys()) != keys:
+                raise RuntimeError(
+                    "Context distributions don't match. Replay buffer context "
+                    "distribution keys={}, other distribution keys={}".format(
+                        keys,
+                        set(c.keys())
+                    )
+                )
 
         def concat(*x):
             return np.concatenate(x, axis=0)
