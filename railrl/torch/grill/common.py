@@ -77,6 +77,7 @@ def train_vae(variant, return_data=False):
     from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
     from railrl.torch.vae.conv_vae import (
         ConvVAE,
+        ConvDynamicsVAE,
         SpatialAutoEncoder,
         AutoEncoder,
     )
@@ -86,8 +87,10 @@ def train_vae(variant, return_data=False):
     import railrl.torch.pytorch_util as ptu
     from railrl.pythonplusplus import identity
     import torch
+    import gym
     beta = variant["beta"]
-    representation_size = variant.get("representation_size", variant.get("latent_sizes", None))
+    representation_size = variant.get("representation_size",
+        variant.get("latent_sizes", variant.get("embedding_dim", None)))
     use_linear_dynamics = variant.get('use_linear_dynamics', False)
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
                                             generate_vae_dataset)
@@ -212,7 +215,8 @@ def generate_vae_dataset(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.misc.asset_loader import load_local_or_remote_file
     from railrl.data_management.dataset  import (
-        TrajectoryDataset, ImageObservationDataset, EnvironmentDataset, ConditionalDynamicsDataset, InitialObservationNumpyDataset,
+        TrajectoryDataset, ImageObservationDataset, InitialObservationDataset,
+        EnvironmentDataset, ConditionalDynamicsDataset, InitialObservationNumpyDataset,
         InfiniteBatchLoader,
     )
 

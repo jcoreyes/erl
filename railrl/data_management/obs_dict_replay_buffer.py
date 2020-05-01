@@ -69,9 +69,9 @@ class ObsDictReplayBuffer(ReplayBuffer):
             if key.startswith('image'):
                 arr_initializer = image_np
             self._obs[key] = arr_initializer.zeros(
-                (max_size, self.ob_spaces[key].low.size), dtype=np.float32)
+                (max_size, *self.ob_spaces[key].low.shape), dtype=np.float32)
             self._next_obs[key] = arr_initializer.zeros(
-                (max_size, self.ob_spaces[key].low.size), dtype=np.float32)
+                (max_size, *self.ob_spaces[key].low.shape), dtype=np.float32)
 
         self._top = 0
         self._size = 0
@@ -101,10 +101,8 @@ class ObsDictReplayBuffer(ReplayBuffer):
         terminals = path["terminals"]
         path_len = len(rewards)
 
-        actions = flatten_n(actions)
-        # why do we need: obs[:, 0] on this line and the next line sometimes?
-        obs = flatten_dict(obs, self.ob_keys_to_save + self.internal_keys)
-        next_obs = flatten_dict(next_obs, self.ob_keys_to_save + self.internal_keys)
+        obs = combine_dicts(obs, self.ob_keys_to_save + self.internal_keys)
+        next_obs = combine_dicts(next_obs, self.ob_keys_to_save + self.internal_keys)
 
         if self._top + path_len >= self.max_size:
             num_pre_wrap_steps = self.max_size - self._top
@@ -374,16 +372,11 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
         return batch
 
 
-def flatten_n(xs):
-    xs = np.asarray(xs)
-    return xs.reshape((xs.shape[0], -1))
-
-
-def flatten_dict(dicts, keys):
+def combine_dicts(dicts, keys):
     """
     Turns list of dicts into dict of np arrays
     """
     return {
-        key: flatten_n([d[key] for d in dicts])
+        key: np.array([d[key] for d in dicts])
         for key in keys
     }

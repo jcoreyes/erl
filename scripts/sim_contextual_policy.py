@@ -53,7 +53,7 @@ def simulate_policy(args):
             render=not args.hide,
             observation_key=data.get('evaluation/observation_key', 'observation'),
             # desired_goal_key=data.get('evaluation/desired_goal_key', 'desired_goal'),
-            context_key='state_desired_goal',
+            context_keys_for_policy=['state_desired_goal'],
         ))
         if hasattr(env, "log_diagnostics"):
             env.log_diagnostics(paths)

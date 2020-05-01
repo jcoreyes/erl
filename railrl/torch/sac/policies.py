@@ -363,6 +363,16 @@ class TanhGaussianObsProcessorPolicy(TanhGaussianPolicy):
         return super().forward(flat_inputs, *args, **kwargs)
 
 
+class TanhGaussianWithBasicObsProcessorPolicy(TanhGaussianPolicy):
+    def __init__(self, obs_processor, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.obs_processor = obs_processor
+
+    def forward(self, obs, *args, **kwargs):
+        obs = self.obs_processor(obs)
+        return super().forward(obs, *args, **kwargs)
+
+
 # noinspection PyMethodOverriding
 class TanhCNNGaussianPolicy(CNN, ExplorationPolicy):
     """

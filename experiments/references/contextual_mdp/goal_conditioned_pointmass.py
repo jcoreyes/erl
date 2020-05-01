@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.launchers.contextual_env_launcher_util import (
+from railrl.launchers.contextual.state_based import (
     goal_conditioned_sac_experiment
 )
 from railrl.launchers.launcher_util import run_experiment
@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_name = 'dev'
+    exp_name = 'dev-gc-2d-point'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):

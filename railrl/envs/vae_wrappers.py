@@ -11,7 +11,7 @@ from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
 from multiworld.core.multitask_env import MultitaskEnv
 from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
-from railrl.envs.proxy_env import ProxyEnv
+from railrl.envs.wrappers import ProxyEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
 import time
 
@@ -33,6 +33,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         render_rollouts=False,
         reward_params=None,
         goal_sampling_mode="vae_prior",
+        num_goals_to_presample=0,
         imsize=84,
         obs_size=None,
         norm_order=2,
@@ -80,10 +81,14 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         spaces['latent_achieved_goal'] = latent_space
         self.observation_space = Dict(spaces)
         self._presampled_goals = presampled_goals
+
+        if num_goals_to_presample > 0:
+            self._presampled_goals = self.wrapped_env.sample_goals(num_goals_to_presample)
+
         if self._presampled_goals is None:
             self.num_goals_presampled = 0
         else:
-            self.num_goals_presampled = presampled_goals[random.choice(list(presampled_goals))].shape[0]
+            self.num_goals_presampled = self._presampled_goals[random.choice(list(self._presampled_goals))].shape[0]
 
         self.vae_input_key_prefix = vae_input_key_prefix
         assert vae_input_key_prefix in {'image', 'image_proprio'}
@@ -95,8 +100,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         self._initial_obs = None
         self._custom_goal_sampler = None
         self._goal_sampling_mode = goal_sampling_mode
-        # self.prior_var = np.concatenate([np.exp(self.vae.prior_logvar), \
-            # np.ones(self.representation_size - self.vae.prior_logvar.shape[0])])
 
 
     def reset(self):
@@ -165,9 +168,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
     """
     def sample_goals(self, batch_size):
         self.vae.eval()
-        # print(self._goal_sampling_mode)
-        # if self._goal_sampling_mode == "reset_of_env":
-        #     import ipdb; ipdb.set_trace()
+
         # TODO: make mode a parameter you pass in
         if self._goal_sampling_mode == 'custom_goal_sampler':
             return self.custom_goal_sampler(batch_size)
@@ -244,7 +245,15 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             achieved_goals = obs['latent_achieved_goal']
             desired_goals = obs['latent_desired_goal']
             dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
-            reward = 0 if dist < self.epsilon else -1
+            success = dist < self.epsilon
+            reward = success - 1
+            return reward
+        elif self.reward_type == 'latent_clamp':
+            achieved_goals = obs['latent_achieved_goal']
+            desired_goals = obs['latent_desired_goal']
+            dist = np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
+            clamped_dist = np.minimum(dist, self.epsilon) / self.epsilon #Scale Distance
+            reward = - clamped_dist
             return reward
         elif self.reward_type == 'success_prob':
             desired_goals = self._decode(obs['latent_desired_goal'])
@@ -256,6 +265,14 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
             achieved_goals = obs['state_achieved_goal']
             desired_goals = obs['state_desired_goal']
             return - np.linalg.norm(desired_goals - achieved_goals, ord=self.norm_order, axis=1)
+        elif self.reward_type == 'state_sparse':
+            ob_p = obs['state_achieved_goal'].reshape(-1, 2, 2)
+            goal = obs['state_desired_goal'].reshape(-1, 2, 2)
+            distance = np.linalg.norm(ob_p - goal, axis=2)
+            max_dist = np.linalg.norm(distance, axis=1, ord=np.inf)
+            success = max_dist < self.epsilon
+            reward = success - 1
+            return reward
         elif self.reward_type == 'wrapped_env':
             return self.wrapped_env.compute_rewards(actions, obs)
         else:
@@ -604,8 +621,6 @@ class ConditionalVAEWrappedEnv(VAEWrappedEnv):
             mu, sigma = 0, 1  # sample from prior
             n = np.random.randn(batch_size, self.vae.latent_sizes)
             z = sigma * n + mu
-            # z0 = np.tile(x0_latent, (batch_size, 1))
-            # np.concatenate((z, z0), axis=1)
             return np.concatenate((z, x0_latent), axis=1)
 
 def temporary_mode(env, mode, func, args=None, kwargs=None):

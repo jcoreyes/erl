@@ -54,10 +54,12 @@ class SACTrainer(TorchTrainer, LossFunction):
 
         self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
         if self.use_automatic_entropy_tuning:
-            if target_entropy:
-                self.target_entropy = target_entropy
+            if target_entropy is None:
+                # Use heuristic value from SAC paper
+                self.target_entropy = -np.prod(
+                    self.env.action_space.shape).item()
             else:
-                self.target_entropy = -np.prod(self.env.action_space.shape).item()  # heuristic value from Tuomas
+                self.target_entropy = target_entropy
             self.log_alpha = ptu.zeros(1, requires_grad=True)
             self.alpha_optimizer = optimizer_class(
                 [self.log_alpha],
@@ -98,9 +100,10 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         Update networks
         """
-        self.alpha_optimizer.zero_grad()
-        losses.alpha_loss.backward()
-        self.alpha_optimizer.step()
+        if self.use_automatic_entropy_tuning:
+            self.alpha_optimizer.zero_grad()
+            losses.alpha_loss.backward()
+            self.alpha_optimizer.step()
 
         self.qf1_optimizer.zero_grad()
         losses.qf1_loss.backward()

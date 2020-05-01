@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Callable, List
+from typing import Any, Callable, Dict, List
 
 import numpy as np
 from gym.spaces import Box, Dict
@@ -16,11 +16,13 @@ from railrl.envs.contextual.contextual_env import (
 )
 from railrl.envs.images import Renderer
 
+Observation = Dict
 Goal = Any
 GoalConditionedDiagnosticsFn = Callable[
     [List[Path], List[Goal]],
     Diagnostics,
 ]
+
 
 class GoalDictDistributionFromMultitaskEnv(DictDistribution):
     def __init__(
@@ -115,22 +117,50 @@ class ContextualRewardFnFromMultitaskEnv(ContextualRewardFn):
     def __init__(
             self,
             env: MultitaskEnv,
+            achieved_goal_from_observation: Callable[[Observation], Goal],
             desired_goal_key='desired_goal',
             achieved_goal_key='achieved_goal',
-            observation_key='observation',
     ):
         self._env = env
         self._desired_goal_key = desired_goal_key
         self._achieved_goal_key = achieved_goal_key
-        self._observation_key = observation_key
+        self._achieved_goal_from_observation = achieved_goal_from_observation
 
     def __call__(self, states, actions, next_states, contexts):
         del states
+        achieved = self._achieved_goal_from_observation(next_states)
+
         obs = {
-           self._achieved_goal_key: next_states[self._observation_key],
-           self._desired_goal_key: contexts[self._desired_goal_key],
+            self._achieved_goal_key: achieved,
+            self._desired_goal_key: contexts[self._desired_goal_key],
         }
         return self._env.compute_rewards(actions, obs)
+
+
+class IndexIntoAchievedGoal(object):
+    def __init__(self, key):
+        self._key = key
+
+    def __call__(self, observations):
+        return observations[self._key]
+
+
+class PixelDistance(ContextualRewardFn):
+    def __init__(
+            self,
+            env: MultitaskEnv,
+            achieved_goal_from_observation: Callable[[Observation], Goal],
+            desired_goal_key='desired_goal',
+    ):
+        self._env = env
+        self._desired_goal_key = desired_goal_key
+        self._achieved_goal_from_observation = achieved_goal_from_observation
+
+    def __call__(self, states, actions, next_states, contexts):
+        del states
+        achieved = self._achieved_goal_from_observation(next_states)
+        desired = contexts[self._desired_goal_key]
+        return np.linalg.norm(achieved - desired, axis=-1)
 
 
 class GoalConditionedDiagnosticsToContextualDiagnostics(ContextualDiagnosticsFn):
@@ -138,11 +168,27 @@ class GoalConditionedDiagnosticsToContextualDiagnostics(ContextualDiagnosticsFn)
     def __init__(
             self,
             goal_conditioned_diagnostics: GoalConditionedDiagnosticsFn,
-            goal_key: str
+            desired_goal_key: str,
+            observation_key: str,
     ):
         self._goal_conditioned_diagnostics = goal_conditioned_diagnostics
-        self._goal_key = goal_key
+        self._desired_goal_key = desired_goal_key
+        self._observation_key = observation_key
 
-    def __call__(self, paths: List[Path], contexts: List[Context]) -> Diagnostics:
-        goals = [c[self._goal_key] for c in contexts]
-        return self._goal_conditioned_diagnostics(paths, goals)
+    def __call__(self, paths: List[Path],
+                 contexts: List[Context]) -> Diagnostics:
+        goals = [c[self._desired_goal_key] for c in contexts]
+        non_contextual_paths = [self._remove_context(p) for p in paths]
+        return self._goal_conditioned_diagnostics(non_contextual_paths, goals)
+
+    def _remove_context(self, path):
+        new_path = path.copy()
+        new_path['observations'] = np.array([
+            o[self._observation_key] for o in path['observations']
+        ])
+        new_path['next_observations'] = np.array([
+            o[self._observation_key] for o in path['next_observations']
+        ])
+        new_path.pop('full_observations', None)
+        new_path.pop('full_next_observations', None)
+        return new_path
