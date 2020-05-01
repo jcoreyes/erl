@@ -85,9 +85,6 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         for k in context_keys:
             distribution_keys = set(self._context_distribution.spaces.keys())
             if k not in distribution_keys:
-                print(self._context_distribution.spaces.keys())
-                print(context_keys)
-                print(k)
                 raise TypeError("All context keys must be in context distribution.")
         self._sample_context_from_obs_dict_fn = sample_context_from_obs_dict_fn
         self._reward_fn = reward_fn
