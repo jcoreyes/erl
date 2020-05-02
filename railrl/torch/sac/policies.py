@@ -1,40 +1,56 @@
+import abc
+
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch import nn as nn
 
-from railrl.policies.base import Policy, ExplorationPolicy
-from railrl.torch.core import eval_np
+import railrl.torch.pytorch_util as ptu
+from railrl.policies.base import ExplorationPolicy
+from railrl.torch.core import torch_ify, elem_or_tuple_to_numpy
 from railrl.torch.distributions import (
-    Delta, TanhNormal, Normal, GaussianMixture, GaussianMixtureFull
+    Delta, TanhNormal, Normal, GaussianMixture, GaussianMixtureFull,
+    Distribution,
 )
 from railrl.torch.networks import Mlp, CNN
-from railrl.torch.core import torch_ify, elem_or_tuple_to_numpy
-
-import railrl.torch.pytorch_util as ptu
-import torch.nn.functional as F
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 
 
-class TorchPolicy(ExplorationPolicy):
+class TorchStochasticPolicy(nn.Module, ExplorationPolicy, metaclass=abc.ABCMeta):
+    def forward(self, *input) -> Distribution:
+        raise NotImplementedError
+
     def get_action(self, obs_np, ):
         actions = self.get_actions(obs_np[None])
         return actions[0, :], {}
 
     def get_actions(self, obs_np, ):
-        dist = self.get_dist_from_np(obs_np)
+        dist = self._get_dist_from_np(obs_np)
         actions = dist.sample()
         return elem_or_tuple_to_numpy(actions)
 
-    def get_dist_from_np(self, *args, **kwargs):
+    def _get_dist_from_np(self, *args, **kwargs):
         torch_args = tuple(torch_ify(x) for x in args)
         torch_kwargs = {k: torch_ify(v) for k, v in kwargs.items()}
         dist = self(*torch_args, **torch_kwargs)
         return dist
 
 
-class TanhGaussianPolicyAdapter(nn.Module, TorchPolicy):
+class PolicyFromDistributionModule(TorchStochasticPolicy):
+    """
+    Convert and torch module that outputs a distribution into a TorchPolicy.
+    """
+    def __init__(self, module_that_outputs_a_distribution):
+        super().__init__()
+        self.module = module_that_outputs_a_distribution
+
+    def forward(self, *args, **kwargs):
+        return self.module(*args, **kwargs)
+
+
+class TanhGaussianPolicyAdapter(TorchStochasticPolicy):
     """
     Usage:
 
@@ -56,7 +72,7 @@ class TanhGaussianPolicyAdapter(nn.Module, TorchPolicy):
         self.obs_processor_output_dim = obs_processor_output_dim
         self.mean_and_log_std_net = Mlp(
             hidden_sizes=hidden_sizes,
-            output_size=action_dim*2,
+            output_size=action_dim * 2,
             input_size=obs_processor_output_dim,
         )
         self.action_dim = action_dim
@@ -71,8 +87,9 @@ class TanhGaussianPolicyAdapter(nn.Module, TorchPolicy):
         tanh_normal = TanhNormal(mean, std)
         return tanh_normal
 
+
 # noinspection PyMethodOverriding
-class TanhGaussianPolicy(Mlp, TorchPolicy):
+class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
     """
     Usage:
 
@@ -119,15 +136,10 @@ class TanhGaussianPolicy(Mlp, TorchPolicy):
             log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
             std = torch.exp(log_std)
         else:
-            std = torch.from_numpy(np.array([self.std, ])).float().to(ptu.device)
-            log_std = torch.log(std) # self.log_std
+            std = torch.from_numpy(np.array([self.std, ])).float().to(
+                ptu.device)
 
-        log_prob = None
-        entropy = None
-        mean_action_log_prob = None
-        pre_tanh_value = None
-        tanh_normal = TanhNormal(mean, std)
-        return tanh_normal
+        return TanhNormal(mean, std)
 
     def logprob(self, action, mean, std):
         tanh_normal = TanhNormal(mean, std)
@@ -137,7 +149,8 @@ class TanhGaussianPolicy(Mlp, TorchPolicy):
         log_prob = log_prob.sum(dim=1, keepdim=True)
         return log_prob
 
-class GaussianPolicy(Mlp, TorchPolicy):
+
+class GaussianPolicy(Mlp, TorchStochasticPolicy):
     def __init__(
             self,
             hidden_sizes,
@@ -172,9 +185,10 @@ class GaussianPolicy(Mlp, TorchPolicy):
                 self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
                 self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
             elif self.std_architecture == "values":
-                self.log_std_logits = nn.Parameter(ptu.zeros(action_dim, requires_grad=True))
+                self.log_std_logits = nn.Parameter(
+                    ptu.zeros(action_dim, requires_grad=True))
             else:
-                error
+                raise ValueError(self.std_architecture)
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
@@ -186,28 +200,23 @@ class GaussianPolicy(Mlp, TorchPolicy):
         preactivation = self.last_fc(h)
         mean = self.output_activation(preactivation)
         if self.std is None:
-            # log_std = self.last_fc_log_std(h)
-            # log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
             if self.std_architecture == "shared":
                 log_std = torch.sigmoid(self.last_fc_log_std(h))
             elif self.std_architecture == "values":
                 log_std = torch.sigmoid(self.log_std_logits)
             else:
-                error
-            log_std = self.min_log_std + log_std * (self.max_log_std - self.min_log_std)
+                raise ValueError(self.std_architecture)
+            log_std = self.min_log_std + log_std * (
+                        self.max_log_std - self.min_log_std)
             std = torch.exp(log_std)
         else:
-            std = torch.from_numpy(np.array([self.std, ])).float().to(ptu.device)
-            log_std = torch.log(std) # self.log_std
+            std = torch.from_numpy(np.array([self.std, ])).float().to(
+                ptu.device)
 
-        log_prob = None
-        entropy = None
-        mean_action_log_prob = None
-        pre_tanh_value = None
-        normal = Normal(mean, std)
-        return normal
+        return Normal(mean, std)
 
-class GaussianMixturePolicy(Mlp, TorchPolicy):
+
+class GaussianMixturePolicy(Mlp, TorchStochasticPolicy):
     def __init__(
             self,
             hidden_sizes,
@@ -242,13 +251,15 @@ class GaussianMixturePolicy(Mlp, TorchPolicy):
                 last_hidden_size = hidden_sizes[-1]
 
             if self.std_architecture == "shared":
-                self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim * num_gaussians)
+                self.last_fc_log_std = nn.Linear(last_hidden_size,
+                                                 action_dim * num_gaussians)
                 self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
                 self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
             elif self.std_architecture == "values":
-                self.log_std_logits = nn.Parameter(ptu.zeros(action_dim * num_gaussians, requires_grad=True))
+                self.log_std_logits = nn.Parameter(
+                    ptu.zeros(action_dim * num_gaussians, requires_grad=True))
             else:
-                error
+                raise ValueError(self.std_architecture)
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
@@ -271,20 +282,23 @@ class GaussianMixturePolicy(Mlp, TorchPolicy):
             elif self.std_architecture == "values":
                 log_std = torch.sigmoid(self.log_std_logits)
             else:
-                error
-            log_std = self.min_log_std + log_std * (self.max_log_std - self.min_log_std)
+                raise ValueError(self.std_architecture)
+            log_std = self.min_log_std + log_std * (
+                        self.max_log_std - self.min_log_std)
             std = torch.exp(log_std)
         else:
             std = torch.from_numpy(self.std)
             log_std = self.log_std
 
-        weights = F.softmax(self.last_fc_weights(h)).reshape((-1, self.num_gaussians, 1))
-        mixture_means = mean.reshape((-1, self.action_dim, self.num_gaussians, ))
-        mixture_stds = std.reshape((-1, self.action_dim, self.num_gaussians, ))
+        weights = F.softmax(self.last_fc_weights(h)).reshape(
+            (-1, self.num_gaussians, 1))
+        mixture_means = mean.reshape((-1, self.action_dim, self.num_gaussians,))
+        mixture_stds = std.reshape((-1, self.action_dim, self.num_gaussians,))
         dist = GaussianMixture(mixture_means, mixture_stds, weights)
         return dist
 
-class BinnedGMMPolicy(Mlp, TorchPolicy):
+
+class BinnedGMMPolicy(Mlp, TorchStochasticPolicy):
     def __init__(
             self,
             hidden_sizes,
@@ -319,17 +333,20 @@ class BinnedGMMPolicy(Mlp, TorchPolicy):
                 last_hidden_size = hidden_sizes[-1]
 
             if self.std_architecture == "shared":
-                self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim * num_gaussians)
+                self.last_fc_log_std = nn.Linear(last_hidden_size,
+                                                 action_dim * num_gaussians)
                 self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
                 self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
             elif self.std_architecture == "values":
-                self.log_std_logits = nn.Parameter(ptu.zeros(action_dim * num_gaussians, requires_grad=True))
+                self.log_std_logits = nn.Parameter(
+                    ptu.zeros(action_dim * num_gaussians, requires_grad=True))
             else:
-                error
+                raise ValueError(self.std_architecture)
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
-        self.last_fc_weights = nn.Linear(last_hidden_size, action_dim * num_gaussians)
+        self.last_fc_weights = nn.Linear(last_hidden_size,
+                                         action_dim * num_gaussians)
         self.last_fc_weights.weight.data.uniform_(-init_w, init_w)
         self.last_fc_weights.bias.data.uniform_(-init_w, init_w)
 
@@ -348,20 +365,24 @@ class BinnedGMMPolicy(Mlp, TorchPolicy):
             elif self.std_architecture == "values":
                 log_std = torch.sigmoid(self.log_std_logits)
             else:
-                error
-            log_std = self.min_log_std + log_std * (self.max_log_std - self.min_log_std)
+                raise ValueError(self.std_architecture)
+            log_std = self.min_log_std + log_std * (
+                        self.max_log_std - self.min_log_std)
             std = torch.exp(log_std)
         else:
             std = torch.from_numpy(self.std)
             log_std = self.log_std
         batch_size = len(obs)
-        logits = self.last_fc_weights(h).reshape((-1, self.action_dim, self.num_gaussians, ))
+        logits = self.last_fc_weights(h).reshape(
+            (-1, self.action_dim, self.num_gaussians,))
         weights = F.softmax(logits, dim=2)
-        linspace = np.tile(np.linspace(-1, 1, self.num_gaussians), (batch_size, self.action_dim, 1))
+        linspace = np.tile(np.linspace(-1, 1, self.num_gaussians),
+                           (batch_size, self.action_dim, 1))
         mixture_means = ptu.from_numpy(linspace)
-        mixture_stds = std.reshape((-1, self.action_dim, self.num_gaussians, ))
+        mixture_stds = std.reshape((-1, self.action_dim, self.num_gaussians,))
         dist = GaussianMixtureFull(mixture_means, mixture_stds, weights)
         return dist
+
 
 class TanhGaussianObsProcessorPolicy(TanhGaussianPolicy):
     def __init__(self, obs_processor, *args, **kwargs):
@@ -383,18 +404,8 @@ class TanhGaussianObsProcessorPolicy(TanhGaussianPolicy):
         return super().forward(flat_inputs, *args, **kwargs)
 
 
-class TanhGaussianWithBasicObsProcessorPolicy(TanhGaussianPolicy):
-    def __init__(self, obs_processor, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.obs_processor = obs_processor
-
-    def forward(self, obs, *args, **kwargs):
-        obs = self.obs_processor(obs)
-        return super().forward(obs, *args, **kwargs)
-
-
 # noinspection PyMethodOverriding
-class TanhCNNGaussianPolicy(CNN, TorchPolicy):
+class TanhCNNGaussianPolicy(CNN, TorchStochasticPolicy):
     """
     Usage:
 
@@ -437,29 +448,16 @@ class TanhCNNGaussianPolicy(CNN, TorchPolicy):
             std = torch.exp(log_std)
         else:
             std = self.std
-            log_std = self.log_std
 
-        log_prob = None
-        entropy = None
-        mean_action_log_prob = None
-        pre_tanh_value = None
         tanh_normal = TanhNormal(mean, std)
         return tanh_normal
 
 
-class MakeDeterministic(TorchPolicy, ):
+class MakeDeterministic(TorchStochasticPolicy):
     def __init__(self, stochastic_policy):
+        super().__init__()
         self.stochastic_policy = stochastic_policy
 
-    def __call__(self, *args, **kwargs):
+    def forward(self, *args, **kwargs):
         dist = self.stochastic_policy(*args, **kwargs)
         return Delta(dist.get_mle())
-
-    def to(self, device):
-        self.stochastic_policy.to(device)
-
-    def load_state_dict(self, stochastic_state_dict):
-        self.stochastic_policy.load_state_dict(stochastic_state_dict)
-
-    def state_dict(self):
-        return self.stochastic_policy.state_dict()

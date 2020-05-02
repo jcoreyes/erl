@@ -32,7 +32,7 @@ from railrl.torch import pytorch_util as ptu
 from railrl.torch.networks import BasicCNN, FlattenMlp, basic
 from railrl.torch.sac.policies import (
     MakeDeterministic,
-    TanhGaussianWithBasicObsProcessorPolicy,
+    PolicyFromDistributionModule,
     TanhGaussianPolicy,
 )
 from railrl.torch.sac.sac import SACTrainer
@@ -199,23 +199,15 @@ def image_based_goal_conditioned_sac_experiment(
     target_qf1 = create_qf()
     target_qf2 = create_qf()
 
-    cnn = BasicCNN(
-        input_width=img_width,
-        input_height=img_height,
-        input_channels=img_num_channels,
-        **cnn_kwargs
-    )
-    joint_cnn = ApplyConvToStateAndGoalImage(cnn)
-    obs_processor = nn.Sequential(
-        joint_cnn,
-        basic.Flatten(),
-    )
-    policy_obs_dim = joint_cnn.output_size
-    policy = TanhGaussianWithBasicObsProcessorPolicy(
-        obs_processor=obs_processor,
-        obs_dim=policy_obs_dim,
-        action_dim=action_dim,
-        **policy_kwargs
+    policy = PolicyFromDistributionModule(
+        nn.Sequential(
+            Flatten(),
+            TanhGaussianPolicy(
+                obs_dim=obs_dim,
+                action_dim=action_dim,
+                ** policy_kwargs
+            )
+        )
     )
 
     def concat_context_to_obs(batch):
