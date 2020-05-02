@@ -309,4 +309,4 @@ class TanhNormal(Distribution):
         return value, log_p
 
     def get_mle(self, ):
-        return self.normal_mean
+        return torch.tanh(self.normal_mean)
