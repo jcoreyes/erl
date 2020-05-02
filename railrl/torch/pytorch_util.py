@@ -3,7 +3,12 @@ import numpy as np
 from torch import nn
 
 
-_str_to_hidden_activation = {
+def identity(x):
+    return x
+
+
+_str_to_activation = {
+    'identity': identity,
     'relu': nn.ReLU(),
     'tanh': nn.Tanh(),
     'leaky_relu': nn.LeakyReLU(),
@@ -13,8 +18,8 @@ _str_to_hidden_activation = {
 }
 
 
-def hidden_activation_from_str(string):
-    return _str_to_hidden_activation[string]
+def activation_from_string(string):
+    return _str_to_activation[string]
 
 
 def soft_update_from_to(source, target, tau):

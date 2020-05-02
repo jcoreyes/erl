@@ -30,10 +30,13 @@ from railrl.samplers.data_collector.contextual_path_collector import (
 )
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.networks import BasicCNN, FlattenMlp, basic
+from railrl.torch.networks.mlp import MultiHeadedMlp
+from railrl.torch.networks.stochastic.distribution_generator import (
+    TanhGaussianDistributionGenerator,
+)
 from railrl.torch.sac.policies import (
     MakeDeterministic,
-    PolicyFromDistributionModule,
-    TanhGaussianPolicy,
+    PolicyFromDistributionGenerator,
 )
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
@@ -205,20 +208,18 @@ def image_based_goal_conditioned_sac_experiment(
         **cnn_kwargs
     )
     joint_cnn = ApplyConvToStateAndGoalImage(cnn)
+    policy_obs_dim = joint_cnn.output_size
     obs_processor = nn.Sequential(
         joint_cnn,
         basic.Flatten(),
-    )
-    policy_obs_dim = joint_cnn.output_size
-    policy = PolicyFromDistributionModule(
-        nn.Sequential(
-            obs_processor,
-            TanhGaussianPolicy(
-                obs_dim=policy_obs_dim,
-                action_dim=action_dim,
-                ** policy_kwargs
-            )
+        MultiHeadedMlp(
+            input_size=policy_obs_dim,
+            output_sizes=[action_dim, action_dim],
+            **policy_kwargs
         )
+    )
+    policy = PolicyFromDistributionGenerator(
+        TanhGaussianDistributionGenerator(obs_processor)
     )
 
     def concat_context_to_obs(batch):

@@ -8,7 +8,7 @@ from railrl.torch.core import PyTorchModule, eval_np
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 
 
-from railrl.torch.pytorch_util import hidden_activation_from_str
+from railrl.torch.pytorch_util import activation_from_string
 
 
 class CNN(PyTorchModule):
@@ -265,7 +265,7 @@ class BasicCNN(PyTorchModule):
         self.input_channels = input_channels
         self.output_activation = output_activation
         if isinstance(hidden_activation, str):
-            hidden_activation = hidden_activation_from_str(hidden_activation)
+            hidden_activation = activation_from_string(hidden_activation)
         self.hidden_activation = hidden_activation
         self.conv_normalization_type = conv_normalization_type
         self.conv_input_length = self.input_width * self.input_height * self.input_channels

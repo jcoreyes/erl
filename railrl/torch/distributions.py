@@ -4,6 +4,7 @@ Add custom distributions in addition to th existing ones
 import torch
 from torch.distributions import Categorical, OneHotCategorical
 from torch.distributions import Normal as TorchNormal
+from torch.distributions import Beta as TorchBeta
 from torch.distributions import Distribution as TorchDistribution
 from railrl.misc.eval_util import create_stats_ordered_dict
 import railrl.torch.pytorch_util as ptu
@@ -41,6 +42,30 @@ class Delta(Distribution):
         return self.value
 
 
+class Beta(TorchBeta, Distribution):
+    def get_diagnostics(self, ):
+        stats = OrderedDict()
+        stats.update(create_stats_ordered_dict(
+            'alpha',
+            ptu.get_numpy(self.concentration0),
+        ))
+        stats.update(create_stats_ordered_dict(
+            'beta',
+            ptu.get_numpy(self.concentration1),
+        ))
+        stats.update(create_stats_ordered_dict(
+            'entropy',
+            ptu.get_numpy(self.entropy()),
+        ))
+        return stats
+
+    def get_entropy(self, ):
+        return self.entropy()
+
+    def get_mle(self, ):
+        return self.mean()
+
+
 class Normal(TorchNormal, Distribution):
     def get_diagnostics(self, ):
         stats = OrderedDict()
@@ -69,6 +94,7 @@ class Normal(TorchNormal, Distribution):
 
     def get_mle(self, ):
         return self.loc
+
 
 class GaussianMixture(Distribution):
     def __init__(self, normal_means, normal_stds, weights):
@@ -141,6 +167,7 @@ class GaussianMixture(Distribution):
 
 
 epsilon = 0.001
+
 
 class GaussianMixtureFull(Distribution):
     def __init__(self, normal_means, normal_stds, weights):

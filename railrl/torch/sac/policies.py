@@ -1,4 +1,5 @@
 import abc
+import logging
 
 import numpy as np
 import torch
@@ -10,18 +11,21 @@ from railrl.policies.base import ExplorationPolicy
 from railrl.torch.core import torch_ify, elem_or_tuple_to_numpy
 from railrl.torch.distributions import (
     Delta, TanhNormal, Normal, GaussianMixture, GaussianMixtureFull,
-    Distribution,
 )
 from railrl.torch.networks import Mlp, CNN
+from railrl.torch.networks.basic import MultiInputSequential
+from railrl.torch.networks.stochastic.distribution_generator import (
+    DistributionGenerator
+)
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 
 
-class TorchStochasticPolicy(nn.Module, ExplorationPolicy, metaclass=abc.ABCMeta):
-    def forward(self, *input) -> Distribution:
-        raise NotImplementedError
-
+class TorchStochasticPolicy(
+    DistributionGenerator,
+    ExplorationPolicy, metaclass=abc.ABCMeta
+):
     def get_action(self, obs_np, ):
         actions = self.get_actions(obs_np[None])
         return actions[0, :], {}
@@ -38,16 +42,28 @@ class TorchStochasticPolicy(nn.Module, ExplorationPolicy, metaclass=abc.ABCMeta)
         return dist
 
 
-class PolicyFromDistributionModule(TorchStochasticPolicy):
+class PolicyFromDistributionGenerator(MultiInputSequential, TorchStochasticPolicy):
     """
-    Convert and torch module that outputs a distribution into a TorchPolicy.
+    Usage:
+    ```
+    distribution_generator = FancyGenerativeModel()
+    policy = PolicyFromDistributionModule(distribution_generator)
+    ```
     """
-    def __init__(self, module_that_outputs_a_distribution):
+    pass
+
+
+class MakeDeterministic(TorchStochasticPolicy):
+    def __init__(self, stochastic_policy):
         super().__init__()
-        self.module = module_that_outputs_a_distribution
+        self.stochastic_policy = stochastic_policy
 
     def forward(self, *args, **kwargs):
-        return self.module(*args, **kwargs)
+        dist = self.stochastic_policy(*args, **kwargs)
+        return Delta(dist.get_mle())
+
+
+# TODO: deprecate classes below in favor for PolicyFromDistributionModule
 
 
 class TanhGaussianPolicyAdapter(TorchStochasticPolicy):
@@ -453,11 +469,3 @@ class TanhCNNGaussianPolicy(CNN, TorchStochasticPolicy):
         return tanh_normal
 
 
-class MakeDeterministic(TorchStochasticPolicy):
-    def __init__(self, stochastic_policy):
-        super().__init__()
-        self.stochastic_policy = stochastic_policy
-
-    def forward(self, *args, **kwargs):
-        dist = self.stochastic_policy(*args, **kwargs)
-        return Delta(dist.get_mle())
