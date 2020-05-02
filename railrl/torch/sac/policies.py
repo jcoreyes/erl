@@ -54,13 +54,16 @@ class PolicyFromDistributionGenerator(MultiInputSequential, TorchStochasticPolic
 
 
 class MakeDeterministic(TorchStochasticPolicy):
-    def __init__(self, stochastic_policy):
+    def __init__(
+            self,
+            action_distribution_generator: DistributionGenerator,
+    ):
         super().__init__()
-        self.stochastic_policy = stochastic_policy
+        self._action_distribution_generator = action_distribution_generator
 
     def forward(self, *args, **kwargs):
-        dist = self.stochastic_policy(*args, **kwargs)
-        return Delta(dist.get_mle())
+        dist = self._action_distribution_generator.forward(*args, **kwargs)
+        return Delta(dist.mle_estimate())
 
 
 # TODO: deprecate classes below in favor for PolicyFromDistributionModule

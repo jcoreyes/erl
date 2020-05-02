@@ -13,20 +13,20 @@ from collections import OrderedDict
 
 
 class Distribution(TorchDistribution):
-    def sample_and_logprob(self, ):
+    def sample_and_logprob(self):
         s = self.sample()
         log_p = self.log_prob(s)
         return s, log_p
 
-    def rsample_and_logprob(self, ):
+    def rsample_and_logprob(self):
         s = self.rsample()
         log_p = self.log_prob(s)
         return s, log_p
 
-    def get_mle(self, ):
-        raise NotImplementedError
+    def mle_estimate(self):
+        return self.mean
 
-    def get_diagnostics(self, ):
+    def get_diagnostics(self):
         return {}
 
 
@@ -35,11 +35,41 @@ class Delta(Distribution):
     def __init__(self, value):
         self.value = value
 
-    def sample(self, ):
+    def sample(self):
         return self.value.detach()
 
-    def rsample(self, ):
+    def rsample(self):
         return self.value
+
+    @property
+    def mean(self):
+        return self.value
+
+    @property
+    def variance(self):
+        return 0
+
+    @property
+    def entropy(self):
+        return 0
+
+
+class Beta(TorchBeta, Distribution):
+    def get_diagnostics(self):
+        stats = OrderedDict()
+        stats.update(create_stats_ordered_dict(
+            'alpha',
+            ptu.get_numpy(self.concentration0),
+        ))
+        stats.update(create_stats_ordered_dict(
+            'beta',
+            ptu.get_numpy(self.concentration1),
+        ))
+        stats.update(create_stats_ordered_dict(
+            'entropy',
+            ptu.get_numpy(self.entropy()),
+        ))
+        return stats
 
 
 class Beta(TorchBeta, Distribution):
@@ -67,7 +97,7 @@ class Beta(TorchBeta, Distribution):
 
 
 class Normal(TorchNormal, Distribution):
-    def get_diagnostics(self, ):
+    def get_diagnostics(self):
         stats = OrderedDict()
         stats.update(create_stats_ordered_dict(
             'mean',
@@ -87,13 +117,11 @@ class Normal(TorchNormal, Distribution):
         ))
         return stats
 
-    def get_entropy(self, ):
+    def get_entropy(self):
         log_std = torch.log(self.scale)
         entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
         return entropy.sum(dim=1, keepdim=True)
 
-    def get_mle(self, ):
-        return self.loc
 
 
 class GaussianMixture(Distribution):
@@ -112,17 +140,17 @@ class GaussianMixture(Distribution):
         log_p = log_p.sum(dim=1)
         log_weights = torch.log(self.weights[:, :, 0])
         lp = log_weights + log_p
-        m = lp.max(dim=1, keepdim=True)[0] # log-sum-exp numerical stability trick
+        m = lp.max(dim=1, keepdim=True)[0]  # log-sum-exp numerical stability trick
         log_p_mixture = m + torch.log(torch.exp(lp - m).sum(dim=1, keepdim=True))
         return log_p_mixture
 
-    def sample(self, ):
+    def sample(self):
         z = self.normal.sample().detach()
         c = self.categorical.sample()[:, :, None]
         s = torch.matmul(z, c)
         return torch.squeeze(s, 2)
 
-    def rsample(self, ):
+    def rsample(self):
         z = (
             self.normal_means +
             self.normal_stds *
@@ -136,10 +164,8 @@ class GaussianMixture(Distribution):
         s = torch.matmul(z, c)
         return torch.squeeze(s, 2)
 
-    def get_mle(self, ):
-        """Misleading function name; this actually now samples the mean of the
-        most likely component.
-        c ~ argmax(C), returns mu_c
+    def mle_estimate(self):
+        """Return the mean of the most likely component.
 
         This often computes the mode of the distribution, but not always.
         """
@@ -148,18 +174,6 @@ class GaussianMixture(Distribution):
         c.scatter_(1, ind, 1)
         s = torch.matmul(self.normal_means, c[:, :, None])
         return torch.squeeze(s, 2)
-
-        # same computation but iterative; seems much slower
-        # r = ptu.zeros(self.normal_means.shape[:2])
-        # ind = torch.argmax(self.weights, dim=1)[:, 0]
-        # torch.scatter_
-        # for i in range(len(r)):
-        #     r[i, :] = self.normal_means[i, :, ind[i].item()]
-        # return r
-
-        # this computes the mean; not too meaningful for GMM
-        # m = torch.matmul(self.normal_means, self.weights.detach()).detach()
-        # return torch.squeeze(m, 2)
 
     def __repr__(self):
         s = "GaussianMixture(normal_means=%s, normal_stds=%s, weights=%s)"
@@ -181,29 +195,21 @@ class GaussianMixtureFull(Distribution):
         self.categorical = Categorical(self.weights)
 
     def log_prob(self, value, ):
-        weights = ptu.get_numpy(self.weights)
-        normal_means = ptu.get_numpy(self.normal_means)
-        normal_stds = ptu.get_numpy(self.normal_stds)
-        v = ptu.get_numpy(value)
         log_p = [self.normals[i].log_prob(value) for i in range(self.num_gaussians)]
-        # log_p = self.normal.log_prob(value)
         log_p = torch.stack(log_p, -1)
-        # log_p = log_p.sum(dim=1)
         log_weights = torch.log(self.weights)
         lp = log_weights + log_p
-        m = lp.max(dim=2, keepdim=True)[0] # log-sum-exp numerical stability trick
+        m = lp.max(dim=2, keepdim=True)[0]  # log-sum-exp numerical stability trick
         log_p_mixture = m + torch.log(torch.exp(lp - m).sum(dim=2, keepdim=True))
         return torch.squeeze(log_p_mixture, 2)
 
-    def sample(self, ):
+    def sample(self):
         z = self.normal.sample().detach()
         c = self.categorical.sample()[:, :, None]
-        # ind = torch.argmax(c, dim=2)[:, :, None]
         s = torch.gather(z, dim=2, index=c)
-        # return torch.squeeze(s, 2)
         return s[:, :, 0]
 
-    def rsample(self, ):
+    def rsample(self):
         z = (
             self.normal_means +
             self.normal_stds *
@@ -214,20 +220,14 @@ class GaussianMixtureFull(Distribution):
         )
         z.requires_grad_()
         c = self.categorical.sample()[:, :, None]
-        # ind = torch.argmax(c, dim=2)[:, :, None]
         s = torch.gather(z, dim=2, index=c)
-        # import ipdb; ipdb.set_trace()
-        # return torch.squeeze(s, 2)
         return s[:, :, 0]
 
-    def get_mle(self, ):
-        """Misleading function name; this actually now samples the mean of the
-        most likely component.
-        c ~ argmax(C), returns mu_c
+    def mle_estimate(self):
+        """Return the mean of the most likely component.
 
         This often computes the mode of the distribution, but not always.
         """
-        c = ptu.zeros(self.weights.shape)
         ind = torch.argmax(self.weights, dim=2)[:, :, None]
         means = torch.gather(self.normal_means, dim=2, index=ind)
         return torch.squeeze(means, 2)
@@ -291,13 +291,12 @@ class TanhNormal(Distribution):
 
     def log_prob(self, value, pre_tanh_value=None):
         if pre_tanh_value is None:
-            value = torch.clamp(value, -0.999999, 0.999999) # errors or instability at values near 1
+            # errors or instability at values near 1
+            value = torch.clamp(value, -0.999999, 0.999999)
             pre_tanh_value = torch.log(1+value) / 2 - torch.log(1-value) / 2
-        # else:
-            # assert torch.tanh(value) == self.pre_tanh_value
         return self.log_prob_from_pre_tanh(pre_tanh_value)
 
-    def rsample_with_pretanh(self, ):
+    def rsample_with_pretanh(self):
         z = (
             self.normal_mean +
             self.normal_std *
@@ -308,7 +307,7 @@ class TanhNormal(Distribution):
         )
         return torch.tanh(z), z
 
-    def sample(self, ):
+    def sample(self):
         """
         Gradients will and should *not* pass through this operation.
 
@@ -317,23 +316,24 @@ class TanhNormal(Distribution):
         value, pre_tanh_value = self.rsample_with_pretanh()
         return value.detach()
 
-    def rsample(self, ):
+    def rsample(self):
         """
         Sampling in the reparameterization case.
         """
         value, pre_tanh_value = self.rsample_with_pretanh()
         return value
 
-    def sample_and_logprob(self, ):
+    def sample_and_logprob(self):
         value, pre_tanh_value = self.rsample_with_pretanh()
         value, pre_tanh_value = value.detach(), pre_tanh_value.detach()
         log_p = self.log_prob(value, pre_tanh_value)
         return value, log_p
 
-    def rsample_and_logprob(self, ):
+    def rsample_and_logprob(self):
         value, pre_tanh_value = self.rsample_with_pretanh()
         log_p = self.log_prob(value, pre_tanh_value)
         return value, log_p
 
-    def get_mle(self, ):
+    @property
+    def mean(self):
         return torch.tanh(self.normal_mean)
