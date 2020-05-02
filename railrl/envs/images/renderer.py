@@ -1,5 +1,9 @@
+import logging
 import numpy as np
 from PIL import Image
+
+
+VALID_IMG_FORMATS = {'CHW', 'CWH', 'HCW', 'HWC', 'WCH', 'WHC'}
 
 
 class Renderer(object):
@@ -15,18 +19,21 @@ class Renderer(object):
             output_img_format='HWC',
     ):
         """Render an image."""
-        if input_img_format not in {'HWC', 'CWH'}:
+        if input_img_format not in VALID_IMG_FORMATS:
             raise ValueError(
-                "Only support input format of WHC or CWH, not {}".format(
-                    input_img_format
+                "Invalid input image format: {}. Valid formats: {}".format(
+                    input_img_format, VALID_IMG_FORMATS
                 )
             )
-        if output_img_format not in {'HWC', 'CWH'}:
+        if output_img_format not in {'HWC', 'CHW'}:
             raise ValueError(
-                "Only support output format of WHC or CWH, not {}".format(
-                    output_img_format
+                "Invalid output image format: {}. Valid formats: {}".format(
+                    output_img_format, VALID_IMG_FORMATS
                 )
             )
+        if output_img_format != 'CHW':
+            logging.warning("An output image format of CHW is recommended, as "
+                            "this is the default PyTorch format.")
         self._img_width = img_width
         self._img_height = img_height
         self._init_camera = init_camera
@@ -37,6 +44,11 @@ class Renderer(object):
         self.input_image_format = input_img_format
         self.output_image_format = output_img_format
         self._camera_is_initialized = False
+        self._letter_to_size = {
+            'H': self._img_height,
+            'W': self._img_width,
+            'C': self._num_channels,
+        }
 
     def create_image(self, env):
         if not self._camera_is_initialized and self._init_camera is not None:
@@ -52,8 +64,9 @@ class Renderer(object):
             image_obs = np.array(image_obs)
         if self._normalize_imgs:
             image_obs = image_obs / 255.0
-        if self.input_image_format != self.output_image_format:
-            image_obs = image_obs.transpose()
+        transpose_index = [self.input_image_format.index(c) for c in
+                           self.output_image_format]
+        image_obs = image_obs.transpose(transpose_index)
         assert image_obs.shape == self.image_shape
         if self._flatten:
             return image_obs.flatten()
@@ -66,9 +79,6 @@ class Renderer(object):
 
     @property
     def image_shape(self):
-        if self.output_image_format == 'HWC':
-            return self._img_height, self._img_width, self._num_channels
-        elif self.output_image_format == 'CWH':
-            return self._num_channels, self._img_width, self._img_height
-        else:
-            raise ValueError(self.output_image_format)
+        return tuple(
+            self._letter_to_size[letter] for letter in self.output_image_format
+        )

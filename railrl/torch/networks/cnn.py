@@ -8,8 +8,11 @@ from railrl.torch.core import PyTorchModule, eval_np
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 
 
-# TODO: remove the FC parts of this code
+from railrl.torch.pytorch_util import hidden_activation_from_str
+
+
 class CNN(PyTorchModule):
+    # TODO: remove the FC parts of this code
     def __init__(
             self,
             input_width,
@@ -225,3 +228,110 @@ class CNNPolicy(CNN, Policy):
 
     def get_actions(self, obs):
         return eval_np(self, obs)
+
+
+class BasicCNN(PyTorchModule):
+    # TODO: clean up CNN using this basic CNN
+    def __init__(
+            self,
+            input_width,
+            input_height,
+            input_channels,
+            kernel_sizes,
+            n_channels,
+            strides,
+            paddings,
+            conv_normalization_type='none',
+            fc_normalization_type='none',
+            hidden_init=None,
+            hidden_activation='relu',
+            output_activation=identity,
+            pool_type='none',
+            pool_sizes=None,
+            pool_strides=None,
+            pool_paddings=None,
+    ):
+        assert len(kernel_sizes) == \
+               len(n_channels) == \
+               len(strides) == \
+               len(paddings)
+        assert conv_normalization_type in {'none', 'batch', 'layer'}
+        assert fc_normalization_type in {'none', 'batch', 'layer'}
+        assert pool_type in {'none', 'max2d'}
+        if pool_type == 'max2d':
+            assert len(pool_sizes) == len(pool_strides) == len(pool_paddings)
+        super().__init__()
+
+        self.input_width = input_width
+        self.input_height = input_height
+        self.input_channels = input_channels
+        self.output_activation = output_activation
+        if isinstance(hidden_activation, str):
+            hidden_activation = hidden_activation_from_str(hidden_activation)
+        self.hidden_activation = hidden_activation
+        self.conv_normalization_type = conv_normalization_type
+        self.fc_normalization_type = fc_normalization_type
+        self.conv_input_length = self.input_width * self.input_height * self.input_channels
+        self.pool_type = pool_type
+
+        self.conv_layers = nn.ModuleList()
+        self.conv_norm_layers = nn.ModuleList()
+        self.pool_layers = nn.ModuleList()
+        self.fc_layers = nn.ModuleList()
+        self.fc_norm_layers = nn.ModuleList()
+
+        for i, (out_channels, kernel_size, stride, padding) in enumerate(
+                zip(n_channels, kernel_sizes, strides, paddings)
+        ):
+            conv = nn.Conv2d(input_channels,
+                             out_channels,
+                             kernel_size,
+                             stride=stride,
+                             padding=padding)
+            if hidden_init:
+                hidden_init(conv.weight)
+
+            conv_layer = conv
+            self.conv_layers.append(conv_layer)
+            input_channels = out_channels
+
+            if pool_type == 'max2d':
+                self.pool_layers.append(
+                    nn.MaxPool2d(
+                        kernel_size=pool_sizes[i],
+                        stride=pool_strides[i],
+                        padding=pool_paddings[i],
+                    )
+                )
+
+        # use torch rather than ptu because initially the model is on CPU
+        test_mat = torch.zeros(
+            1,
+            self.input_channels,
+            self.input_width,
+            self.input_height,
+        )
+        # find output dim of conv_layers by trial and add norm conv layers
+        for i, conv_layer in enumerate(self.conv_layers):
+            test_mat = conv_layer(test_mat)
+            if self.conv_normalization_type == 'batch':
+                self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
+            if self.conv_normalization_type == 'layer':
+                self.conv_norm_layers.append(nn.LayerNorm(test_mat.shape[1:]))
+            if self.pool_type != 'none':
+                test_mat = self.pool_layers[i](test_mat)
+
+        self.output_shape = test_mat.shape
+
+    def forward(self, conv_input):
+        return self.apply_forward_conv(conv_input)
+
+    def apply_forward_conv(self, h):
+        for i, layer in enumerate(self.conv_layers):
+            h = layer(h)
+            if self.conv_normalization_type != 'none':
+                h = self.conv_norm_layers[i](h)
+            if self.pool_type != 'none':
+                h = self.pool_layers[i](h)
+            h = self.hidden_activation(h)
+        return h
