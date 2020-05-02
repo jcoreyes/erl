@@ -25,7 +25,7 @@ class Renderer(object):
                     input_img_format, VALID_IMG_FORMATS
                 )
             )
-        if output_img_format not in {'HWC', 'CHW'}:
+        if output_img_format not in VALID_IMG_FORMATS:
             raise ValueError(
                 "Invalid output image format: {}. Valid formats: {}".format(
                     output_img_format, VALID_IMG_FORMATS
