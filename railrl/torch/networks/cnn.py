@@ -242,7 +242,6 @@ class BasicCNN(PyTorchModule):
             strides,
             paddings,
             conv_normalization_type='none',
-            fc_normalization_type='none',
             hidden_init=None,
             hidden_activation='relu',
             output_activation=identity,
@@ -256,7 +255,6 @@ class BasicCNN(PyTorchModule):
                len(strides) == \
                len(paddings)
         assert conv_normalization_type in {'none', 'batch', 'layer'}
-        assert fc_normalization_type in {'none', 'batch', 'layer'}
         assert pool_type in {'none', 'max2d'}
         if pool_type == 'max2d':
             assert len(pool_sizes) == len(pool_strides) == len(pool_paddings)
@@ -270,7 +268,6 @@ class BasicCNN(PyTorchModule):
             hidden_activation = hidden_activation_from_str(hidden_activation)
         self.hidden_activation = hidden_activation
         self.conv_normalization_type = conv_normalization_type
-        self.fc_normalization_type = fc_normalization_type
         self.conv_input_length = self.input_width * self.input_height * self.input_channels
         self.pool_type = pool_type
 
@@ -296,13 +293,16 @@ class BasicCNN(PyTorchModule):
             input_channels = out_channels
 
             if pool_type == 'max2d':
-                self.pool_layers.append(
-                    nn.MaxPool2d(
-                        kernel_size=pool_sizes[i],
-                        stride=pool_strides[i],
-                        padding=pool_paddings[i],
+                if pool_sizes[i] > 1:
+                    self.pool_layers.append(
+                        nn.MaxPool2d(
+                            kernel_size=pool_sizes[i],
+                            stride=pool_strides[i],
+                            padding=pool_paddings[i],
+                        )
                     )
-                )
+                else:
+                    self.pool_layers.append(None)
 
         # use torch rather than ptu because initially the model is on CPU
         test_mat = torch.zeros(
@@ -319,7 +319,8 @@ class BasicCNN(PyTorchModule):
             if self.conv_normalization_type == 'layer':
                 self.conv_norm_layers.append(nn.LayerNorm(test_mat.shape[1:]))
             if self.pool_type != 'none':
-                test_mat = self.pool_layers[i](test_mat)
+                if self.pool_layers[i]:
+                    test_mat = self.pool_layers[i](test_mat)
 
         self.output_shape = test_mat.shape
 
@@ -332,6 +333,7 @@ class BasicCNN(PyTorchModule):
             if self.conv_normalization_type != 'none':
                 h = self.conv_norm_layers[i](h)
             if self.pool_type != 'none':
-                h = self.pool_layers[i](h)
+                if self.pool_layers[i]:
+                    h = self.pool_layers[i](h)
             h = self.hidden_activation(h)
         return h
