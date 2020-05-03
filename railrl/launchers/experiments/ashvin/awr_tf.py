@@ -1,4 +1,14 @@
-"""See https://github.com/aravindr93/hand_dapg for setup instructions"""
+"""Script runner for AWR
+Use this branch: git@github.com:anair13/awr.git
+
+Setup instructions to run on AWS:
+1. Add AWR code path to doodad code_dirs_to_mount
+2. If using AWS S3 from AWR, make sure you update the following hardcoded paths
+in util/asset_loader.py:
+
+LOCAL_LOG_DIR = '/home/ashvin/data/s3doodad'
+AWS_S3_PATH="s3://s3doodad/doodad/logs"
+"""
 
 import os.path as osp
 import pickle
@@ -229,17 +239,18 @@ AWR_CONFIGS = {
 
         "weight_clip": 20,
         "td_lambda": 0.95,
-        "temp": 100.0,
+        "max_path_length": 100,
+        # "temp": 1.0,
 
         "load_offpolicy_data": True,
         "offpolicy_data_sources": [
             dict(
-                path="/home/ashvin/data/s3doodad/demos/icml2020/hand/pen2_sparse.npy",
+                path="demos/icml2020/hand/pen2_sparse.npy",
                 obs_dict=True,
                 is_demo=True,
             ),
             dict(
-                path="/home/ashvin/data/s3doodad/demos/icml2020/hand/pen_bc_sparse4.npy",
+                path="demos/icml2020/hand/pen_bc_sparse4.npy",
                 obs_dict=False,
                 is_demo=False,
                 train_split=0.9,
@@ -247,7 +258,7 @@ AWR_CONFIGS = {
         ],
     },
 
-    "pen-v0":
+    "door-v0":
     {
         "actor_net_layers": [128, 64],
         "actor_stepsize": 0.00005,
@@ -270,17 +281,60 @@ AWR_CONFIGS = {
 
         "weight_clip": 20,
         "td_lambda": 0.95,
-        "temp": 100.0,
+        "max_path_length": 200,
+        # "temp": 100.0,
 
         "load_offpolicy_data": True,
         "offpolicy_data_sources": [
             dict(
-                path="/home/ashvin/data/s3doodad/demos/icml2020/hand/pen2_sparse.npy",
+                path="demos/icml2020/hand/door2_sparse.npy",
                 obs_dict=True,
                 is_demo=True,
             ),
             dict(
-                path="/home/ashvin/data/s3doodad/demos/icml2020/hand/pen_bc_sparse4.npy",
+                path="demos/icml2020/hand/door_bc_sparse4.npy",
+                obs_dict=False,
+                is_demo=False,
+                train_split=0.9,
+            ),
+        ],
+    },
+
+    "relocate-v0":
+    {
+        "actor_net_layers": [128, 64],
+        "actor_stepsize": 0.00005,
+        "actor_momentum": 0.9,
+        "actor_init_output_scale": 0.01,
+        "actor_batch_size": 256,
+        "actor_steps": 1000,
+        "action_std": 0.4,
+
+        "critic_net_layers": [128, 64],
+        "critic_stepsize": 0.01,
+        "critic_momentum": 0.9,
+        "critic_batch_size": 256,
+        "critic_steps": 200,
+
+        "discount": 0.99,
+        "samples_per_iter": 2048,
+        "replay_buffer_size": 50000,
+        "normalizer_samples": 300000,
+
+        "weight_clip": 20,
+        "td_lambda": 0.95,
+        "max_path_length": 200,
+        # "temp": 100.0,
+
+        "load_offpolicy_data": True,
+        "offpolicy_data_sources": [
+            dict(
+                path="demos/icml2020/hand/relocate2_sparse.npy",
+                obs_dict=True,
+                is_demo=True,
+            ),
+            dict(
+                path="demos/icml2020/hand/relocate_bc_sparse4.npy",
                 obs_dict=False,
                 is_demo=False,
                 train_split=0.9,
@@ -299,10 +353,10 @@ def build_env(env_id):
     env = gym.make(env_id)
     return env
 
-def build_agent(env, env_id):
+def build_agent(env, env_id, agent_configs):
     agent_configs = {}
     if (env_id in AWR_CONFIGS):
-        agent_configs = AWR_CONFIGS[env_id]
+        agent_configs.update(AWR_CONFIGS[env_id])
 
     graph = tf.Graph()
     sess = tf.Session(graph=graph)
@@ -318,6 +372,7 @@ default_variant = dict(
     output_iters = 50,
     visualize = False,
     model_file = "",
+    agent_configs = {},
 )
 
 def experiment(user_variant):
@@ -330,7 +385,8 @@ def experiment(user_variant):
     env_id = variant["env"]
     env = build_env(env_id)
 
-    agent = build_agent(env, env_id)
+    agent_configs = variant["agent_configs"]
+    agent = build_agent(env, env_id, agent_configs)
     agent.visualize = variant["visualize"]
     model_file = variant.get("model_file")
     if (model_file is not ""):
