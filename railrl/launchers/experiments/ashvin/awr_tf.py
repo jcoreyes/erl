@@ -404,20 +404,3 @@ def experiment(user_variant):
         agent.eval(num_episodes=variant["test_episodes"])
 
     return
-
-if __name__ == "__main__":
-    main(sys.argv)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
