@@ -18,7 +18,7 @@ if __name__ == "__main__":
             num_exps_per_instance=1,
             region='us-west-2',
         ),
-        max_iter = 1000,
+        max_iter = 1500,
         env='door-v0',
         agent_configs=dict(
             temp=1.0,

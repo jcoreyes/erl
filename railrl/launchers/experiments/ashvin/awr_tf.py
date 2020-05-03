@@ -8,6 +8,8 @@ in util/asset_loader.py:
 
 LOCAL_LOG_DIR = '/home/ashvin/data/s3doodad'
 AWS_S3_PATH="s3://s3doodad/doodad/logs"
+
+3. This code has been tested in docker image: "anair17/railrl-hand-tf-v1"
 """
 
 import os.path as osp
