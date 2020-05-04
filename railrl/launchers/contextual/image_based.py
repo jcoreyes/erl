@@ -32,7 +32,7 @@ from railrl.torch import pytorch_util as ptu
 from railrl.torch.networks import BasicCNN, FlattenMlp, basic
 from railrl.torch.networks.mlp import MultiHeadedMlp
 from railrl.torch.networks.stochastic.distribution_generator import (
-    TanhGaussianDistributionGenerator,
+    TanhGaussian,
 )
 from railrl.torch.sac.policies import (
     MakeDeterministic,
@@ -219,7 +219,7 @@ def image_based_goal_conditioned_sac_experiment(
         )
     )
     policy = PolicyFromDistributionGenerator(
-        TanhGaussianDistributionGenerator(obs_processor)
+        TanhGaussian(obs_processor)
     )
 
     def concat_context_to_obs(batch):

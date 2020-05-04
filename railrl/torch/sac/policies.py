@@ -10,7 +10,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.policies.base import ExplorationPolicy
 from railrl.torch.core import torch_ify, elem_or_tuple_to_numpy
 from railrl.torch.distributions import (
-    Delta, TanhNormal, Normal, GaussianMixture, GaussianMixtureFull,
+    Delta, TanhNormal, MultivariateDiagonalNormal, GaussianMixture, GaussianMixtureFull,
 )
 from railrl.torch.networks import Mlp, CNN
 from railrl.torch.networks.basic import MultiInputSequential
@@ -42,12 +42,15 @@ class TorchStochasticPolicy(
         return dist
 
 
-class PolicyFromDistributionGenerator(MultiInputSequential, TorchStochasticPolicy):
+class PolicyFromDistributionGenerator(
+    MultiInputSequential,
+    TorchStochasticPolicy,
+):
     """
     Usage:
     ```
     distribution_generator = FancyGenerativeModel()
-    policy = PolicyFromDistributionModule(distribution_generator)
+    policy = PolicyFromBatchDistributionModule(distribution_generator)
     ```
     """
     pass
@@ -232,7 +235,7 @@ class GaussianPolicy(Mlp, TorchStochasticPolicy):
             std = torch.from_numpy(np.array([self.std, ])).float().to(
                 ptu.device)
 
-        return Normal(mean, std)
+        return MultivariateDiagonalNormal(mean, std)
 
 
 class GaussianMixturePolicy(Mlp, TorchStochasticPolicy):
