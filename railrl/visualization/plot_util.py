@@ -183,6 +183,7 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
     reduce_op=sum, method_order=None, remap_keys={},
     label_to_color=None, return_data=False, bar_plot=False, label_include_key=True,
     plot_error_bars=True, plot_seeds=False, overlay=False,
+    formatting_func=None,
 ):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
@@ -319,6 +320,9 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
 
     if print_legend:
         plt.legend(handles=lines, bbox_to_anchor=(1.0, 0.75))
+
+    if formatting_func:
+        plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(formatting_func))
 
     if return_data:
         return xs, ys
@@ -523,8 +527,11 @@ def configure_matplotlib(matplotlib):
     matplotlib.rcParams['font.family'] = 'STIXGeneral'
     matplotlib.rcParams.update({'font.size': 18})
 
-def format_func(value, tick_number):
+def number_K_format_func(value, tick_number):
     return(str(int(value // 1000)) + 'K')
+
+def number_M_format_func(value, tick_number):
+    return(str(int(value // 1000000)) + 'M')
 
 def format_func_epoch(value, tick_number):
     return(str(int(value)) + 'K')
