@@ -10,6 +10,10 @@ LOCAL_LOG_DIR = '/home/ashvin/data/s3doodad'
 AWS_S3_PATH="s3://s3doodad/doodad/logs"
 
 3. This code has been tested in docker image: "anair17/railrl-hand-tf-v1"
+
+4. To view logs, use:
+exps = plot.load_exps(dirs, suppress_output=True,
+        progress_filename="log.txt", custom_log_reader=plot.AWRLogReader())
 """
 
 import os.path as osp

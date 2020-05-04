@@ -30,12 +30,43 @@ def suppress_stdout():
         finally:
             sys.stdout = old_stdout
 
-def load_exps(dirnames, filter_fn=true_fn, suppress_output=False, progress_filename="progress.csv"):
+class AWRLogReader:
+    def read_log(self, exp_path, filename):
+        output_data = dict()
+        with open(filename, "r") as csvfile:
+            headers = csvfile.readline().split()
+            data = []
+            for h in headers:
+                data.append([])
+            for line in csvfile:
+                for i, v in enumerate(line.split()):
+                    data[i].append(v)
+        for i, h in enumerate(headers):
+            output_data[h] = np.array(data[i], dtype=np.float)
+        return output_data
+
+class NumpyLogReader:
+    def read_log(self, exp_path, filename):
+        data_path = os.path.join(progress_path, "tensorboard_log.npy")
+        keys_path = os.path.join(progress_path, "tensorboard_keys.npy")
+
+        D = np.load(data_path).T
+        keys = np.load(keys_path)
+
+        d = dict()
+        for i in range(len(keys)):
+            d[keys[i]] = D[i, :]
+
+        return d
+
+def load_exps(dirnames, filter_fn=true_fn, suppress_output=False, progress_filename="progress.csv", custom_log_reader=None):
     def load():
         if progress_filename == "progress.csv":
             return core.load_exps_data(dirnames)
         elif progress_filename == "tensorboard_log.npy":
-            return load_exps_data_numpy(dirnames, progress_filename=progress_filename)
+            return load_exps_data_numpy(dirnames, NumpyLogReader(), progress_filename=progress_filename, )
+        elif custom_log_reader:
+            return load_exps_data_numpy(dirnames, custom_log_reader, progress_filename=progress_filename, )
         else:
             return core.load_exps_data(dirnames, progress_filename=progress_filename)
 
@@ -50,7 +81,7 @@ def load_exps(dirnames, filter_fn=true_fn, suppress_output=False, progress_filen
             good_exps.append(e)
     return good_exps
 
-def load_exps_data_numpy(exp_folder_paths,disable_variant=False,progress_filename="progress.csv"):
+def load_exps_data_numpy(exp_folder_paths, log_reader, disable_variant=False, progress_filename="progress.csv", ):
     exps = []
     for exp_folder_path in exp_folder_paths:
         exps += [x[0] for x in os.walk(exp_folder_path)]
@@ -62,7 +93,7 @@ def load_exps_data_numpy(exp_folder_paths,disable_variant=False,progress_filenam
             params_json_path = os.path.join(exp_path, "params.pkl")
             variant_json_path = os.path.join(exp_path, "variant.json")
             progress_csv_path = os.path.join(exp_path, progress_filename)
-            progress = load_progress_numpy(exp_path)
+            progress = log_reader.read_log(exp_path, progress_csv_path)
             if disable_variant:
                 params = core.load_params(params_json_path)
             else:
@@ -75,19 +106,6 @@ def load_exps_data_numpy(exp_folder_paths,disable_variant=False,progress_filenam
         except IOError as e:
             print(e)
     return exps_data
-
-def load_progress_numpy(progress_path):
-    data_path = os.path.join(progress_path, "tensorboard_log.npy")
-    keys_path = os.path.join(progress_path, "tensorboard_keys.npy")
-
-    D = np.load(data_path).T
-    keys = np.load(keys_path)
-
-    d = dict()
-    for i in range(len(keys)):
-        d[keys[i]] = D[i, :]
-
-    return d
 
 def tag_exps(exps, tag_key, tag_value):
     for e in exps:
@@ -228,6 +246,8 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
 
             is_not_nan = np.logical_not(np.isnan(y))
             if xlabel:
+                if xlabel not in d:
+                    print(d.keys())
                 x = d[xlabel]
             else:
                 x = np.array(range(len(y)))
