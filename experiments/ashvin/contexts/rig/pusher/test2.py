@@ -9,7 +9,7 @@ from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 
 if __name__ == "__main__":
     variant = dict(
-        env_id='Point2DLargeEnv-v1',
+        env_id='SawyerPushNIPS-v0',
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
@@ -26,7 +26,7 @@ if __name__ == "__main__":
         max_path_length=100,
         algo_kwargs=dict(
             batch_size=128,
-            num_epochs=101,
+            num_epochs=1001,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
@@ -49,12 +49,12 @@ if __name__ == "__main__":
         train_vae_kwargs=dict(
             vae_path=None,
             representation_size=4,
-            beta=10.0,
+            beta=10.0 / 128,
             # beta_schedule_kwargs=dict(
             #     x_values=(0, 500),
             #     y_values=(1  / 128.0, 50  / 128.0),
             # ),
-            num_epochs=101,
+            num_epochs=501,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
@@ -87,11 +87,10 @@ if __name__ == "__main__":
             save_period=5,
         ),
         renderer_kwargs=dict(
-            # input_img_format='HWC',
-            # output_img_format='CWH',
-            output_img_format='CHW',
+            input_img_format='HWC',
+            output_img_format='CWH',
+            init_camera=sawyer_init_camera_zoomed_in,
             flatten_img=True,
-            # normalize_img=False,
         ),
         evaluation_goal_sampling_mode="reset_of_env",
         exploration_goal_sampling_mode="vae_prior",

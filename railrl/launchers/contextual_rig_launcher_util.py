@@ -41,19 +41,6 @@ import time
 from multiworld.core.image_env import ImageEnv, unormalize_image
 import multiworld
 
-# from railrl.torch.grill.common import (
-#     train_vae,
-#     full_experiment_variant_preprocess,
-#     train_vae_and_update_variant,
-# )
-
-
-# def train_vae(variant):
-#     variant['grill_variant']['save_vae_data'] = True
-#     full_experiment_variant_preprocess(variant)
-#     train_vae_and_update_variant(variant)
-
-
 class DeleteOldEnvInfo(object):
     def __call__(self, contexutal_env, info, obs, reward, done):
         return {}
