@@ -209,8 +209,6 @@ def dump_video(
                     subpad_length=subpad_length,
                     subpad_color=subpad_color,
                     image_format=image_format,
-                    pad_length=pad_length,
-                    pad_color=pad_color,
                 )
             )
         frames += l
