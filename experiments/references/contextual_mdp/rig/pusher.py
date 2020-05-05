@@ -45,6 +45,7 @@ if __name__ == "__main__":
             pad_color=0,
             subpad_length=1,
             pad_length=1,
+            num_columns_per_rollout=2,
         ),
         train_vae_kwargs=dict(
             vae_path=None,

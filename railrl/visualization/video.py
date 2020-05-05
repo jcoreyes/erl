@@ -170,6 +170,7 @@ def dump_video(
         get_extra_imgs=None,
         grayscale=False,
         keys_to_show=None,
+        num_columns_per_rollout=1,
 ):
     """
 
@@ -218,8 +219,9 @@ def dump_video(
             imgs_to_stack = [d[k] for k in keys_to_show]
             imgs_to_stack += get_extra_imgs(path, i_in_path, env)
             l.append(
-                get_image(
+                combine_images_into_grid(
                     imgs_to_stack,
+                    max_num_cols=num_columns_per_rollout,
                     imwidth=imsize,
                     imheight=imsize,
                     pad_length=pad_length,
@@ -313,6 +315,7 @@ def dump_paths(
         unnormalize=True,
         grayscale=False,
         get_extra_imgs=None,
+        num_columns_per_rollout=1,
 ):
     if get_extra_imgs is None:
         get_extra_imgs = get_generic_env_imgs
@@ -342,6 +345,7 @@ def dump_paths(
                     imgs,
                     imwidth,
                     imheight,
+                    max_num_cols=num_columns_per_rollout,
                     pad_length=pad_length,
                     pad_color=pad_color,
                     subpad_length=subpad_length,
