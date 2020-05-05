@@ -308,8 +308,8 @@ class BasicCNN(PyTorchModule):
         test_mat = torch.zeros(
             1,
             self.input_channels,
-            self.input_width,
             self.input_height,
+            self.input_width,
         )
         # find output dim of conv_layers by trial and add norm conv layers
         for i, conv_layer in enumerate(self.conv_layers):

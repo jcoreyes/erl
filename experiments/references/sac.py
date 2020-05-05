@@ -205,11 +205,11 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev'
+    exp_name = 'dev'
 
     # n_seeds = 5
     # mode = 'sss'
-    # exp_prefix = 'railrl-half-cheetah-online'
+    # exp_name = 'railrl-half-cheetah-online'
 
     search_space = {
         'env': [
@@ -228,11 +228,12 @@ if __name__ == "__main__":
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
+            variant['exp_id'] = exp_id
             run_experiment(
                 experiment,
-                exp_prefix=exp_prefix,
+                unpack_variant=False,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
-                exp_id=exp_id,
                 time_in_mins=int(2.8 * 24 * 60),  # if you use mode=sss
             )

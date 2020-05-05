@@ -60,6 +60,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             observation_key='observation',
             save_data_in_snapshot=False,
             internal_keys=None,
+            **kwargs
     ):
         ob_keys_to_save = observation_keys + context_keys
         super().__init__(
@@ -69,6 +70,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             internal_keys=internal_keys,
             observation_key=observation_key,
             save_data_in_snapshot=save_data_in_snapshot,
+            **kwargs
         )
         if (
             fraction_distribution_context < 0

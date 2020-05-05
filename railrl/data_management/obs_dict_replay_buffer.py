@@ -27,6 +27,7 @@ class ObsDictReplayBuffer(ReplayBuffer):
             internal_keys=None,
             observation_key='observation',
             save_data_in_snapshot=False,
+            reward_dim=1,
     ):
         """
 
@@ -55,6 +56,8 @@ class ObsDictReplayBuffer(ReplayBuffer):
         # self._terminals[i] = a terminal was received at time i
         self._terminals = np.zeros((max_size, 1), dtype='uint8')
         self._rewards = np.zeros((max_size, 1))
+        self.vectorized = reward_dim > 1
+        self._rewards = np.zeros((max_size, reward_dim))
         # self._obs[key][i] is the value of observation[key] at time i
         self._obs = {}
         self._next_obs = {}
@@ -236,7 +239,6 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             goal_keys=None,
             desired_goal_key='desired_goal',
             achieved_goal_key='achieved_goal',
-            vectorized=False,
             ob_keys_to_save=None,
             use_multitask_rewards=True,
             recompute_rewards=True,
@@ -294,12 +296,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
         self.desired_goal_key = desired_goal_key
         self.achieved_goal_key = achieved_goal_key
         self.recompute_rewards = recompute_rewards
-        self.vectorized = vectorized
         self.use_multitask_rewards = use_multitask_rewards
-
-        if self.vectorized:
-            self._rewards = np.zeros(
-                (max_size, self.ob_spaces[achieved_goal_key].low.size))
 
     def random_batch(self, batch_size):
         indices = self._sample_indices(batch_size)

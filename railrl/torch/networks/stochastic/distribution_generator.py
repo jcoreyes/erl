@@ -7,7 +7,7 @@ from railrl.torch.distributions import (
     Distribution,
     GaussianMixture,
     GaussianMixtureFull,
-    Normal,
+    MultivariateDiagonalNormal,
     TanhNormal,
 )
 from railrl.torch.networks.basic import MultiInputSequential
@@ -26,32 +26,32 @@ class ModuleToDistributionGenerator(
     pass
 
 
-class BetaDistributionGenerator(ModuleToDistributionGenerator):
+class Beta(ModuleToDistributionGenerator):
     def forward(self, *input):
         alpha, beta = super().forward(*input)
         return Beta(alpha, beta)
 
 
-class GaussianDistributionGenerator(ModuleToDistributionGenerator):
+class Gaussian(ModuleToDistributionGenerator):
     def forward(self, *input):
         mean, log_std = super().forward(*input)
         std = log_std.exp()
-        return Normal(mean, std)
+        return MultivariateDiagonalNormal(mean, std)
 
 
-class GaussianMixtureDistributionGenerator(ModuleToDistributionGenerator):
+class GaussianMixture(ModuleToDistributionGenerator):
     def forward(self, *input):
         mixture_means, mixture_stds, weights = super().forward(*input)
         return GaussianMixture(mixture_means, mixture_stds, weights)
 
 
-class GaussianMixtureFullDistributionGenerator(ModuleToDistributionGenerator):
+class GaussianMixtureFull(ModuleToDistributionGenerator):
     def forward(self, *input):
         mixture_means, mixture_stds, weights = super().forward(*input)
         return GaussianMixtureFull(mixture_means, mixture_stds, weights)
 
 
-class TanhGaussianDistributionGenerator(ModuleToDistributionGenerator):
+class TanhGaussian(ModuleToDistributionGenerator):
     def forward(self, *input):
         mean, log_std = super().forward(*input)
         std = log_std.exp()

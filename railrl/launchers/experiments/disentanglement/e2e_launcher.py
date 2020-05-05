@@ -116,7 +116,7 @@ def _e2e_disentangled_experiment(
             )
         else:
             return DisentangledMlpQf(
-                goal_processor=encoder,
+                encoder=encoder,
                 preprocess_obs_dim=obs_dim,
                 action_dim=action_dim,
                 qf_kwargs=qf_kwargs,
