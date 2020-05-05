@@ -6,10 +6,42 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 
 if __name__ == "__main__":
+    x_var = 0.2
+    x_low = -x_var
+    x_high = x_var
+    y_low = 0.5
+    y_high = 0.7
+    t = 0.05
+
     variant = dict(
-        env_id='SawyerPushNIPS-v0',
+        env_class=SawyerMultiobjectEnv,
+        env_kwargs=dict(
+            fixed_start=True,
+            fixed_colors=False,
+            num_objects=1,
+            object_meshes=None,
+            preload_obj_dict=
+            [{'color1': [1, 1, 1],
+            'color2': [1, 1, 1]}],
+            num_scene_objects=[1],
+            maxlen=0.1,
+            action_repeat=1,
+            puck_goal_low=(x_low + 0.01, y_low + 0.01),
+            puck_goal_high=(x_high - 0.01, y_high - 0.01),
+            hand_goal_low=(x_low + 0.01, y_low + 0.01),
+            hand_goal_high=(x_high - 0.01, y_high - 0.01),
+            mocap_low=(x_low, y_low, 0.0),
+            mocap_high=(x_high, y_high, 0.5),
+            object_low=(x_low + 0.01, y_low + 0.01, 0.02),
+            object_high=(x_high - 0.01, y_high - 0.01, 0.02),
+            use_textures=False,
+            init_camera=sawyer_init_camera_zoomed_in,
+            cylinder_radius=0.05,
+        ),
+
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
         ),

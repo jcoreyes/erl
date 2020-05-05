@@ -70,7 +70,7 @@ class StateImageGoalDiagnosticsFn:
                 goal = contexts[i][goal_key]
                 distance = np.linalg.norm(state - goal)
                 values.append(distance)
-            diagnostics_key = goal_key + "_distance"
+            diagnostics_key = goal_key + "/distance"
             diagnostics.update(create_stats_ordered_dict(
                 diagnostics_key,
                 values,
@@ -151,9 +151,8 @@ def rig_experiment(
                 desired_goal_key,
                 model,
             )
-            diagnostics = StateImageGoalDiagnosticsFn({
-                    "state_observation": "state_desired_goal",
-                }, )
+            state_goal_env.get_contextual_diagnostics
+            diagnostics = state_goal_env.get_contextual_diagnostics
         else:
             error
 
