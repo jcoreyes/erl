@@ -430,7 +430,7 @@ def encoder_goal_conditioned_sac_experiment(
                 image_goal_key='image_desired_goal',
                 renderer=renderer,
             )
-            img_env = InsertDebugImageEnv(state_env, renderer=renderer)
+            img_env = InsertImageEnv(state_env, renderer=renderer)
             img_env = InsertDebugImagesEnv(
                 img_env,
                 obj1_sweep_renderers,
