@@ -34,9 +34,12 @@ from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from railrl.core import logger
 from railrl.envs.encoder_wrappers import EncoderWrappedEnv
 from railrl.envs.vae_wrappers import VAEWrappedEnv
+from railrl.misc.asset_loader import load_local_or_remote_file
+
 import time
 
 from multiworld.core.image_env import ImageEnv, unormalize_image
+import multiworld
 
 # from railrl.torch.grill.common import (
 #     train_vae,
@@ -64,7 +67,7 @@ class DistanceRewardFn:
     def __call__(self, states, actions, next_states, contexts):
         s = next_states[self.observation_key]
         c = contexts[self.desired_goal_key]
-        return np.linalg.norm(s - c, axis=1)
+        return -np.linalg.norm(s - c, axis=1)
 
 
 def goal_conditioned_sac_experiment(
@@ -89,6 +92,7 @@ def goal_conditioned_sac_experiment(
         save_video_kwargs=None,
         renderer_kwargs=None,
         imsize=48,
+        pretrained_vae_path="",
         **kwargs
 ):
     print(kwargs)
@@ -499,10 +503,6 @@ def goal_conditioned_sac_experiment(
             env_id, env_class, env_kwargs, goal_sampling_mode
     ):
         state_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
-        state_goal_distribution = GoalDictDistributionFromMultitaskEnv(
-            state_env,
-            desired_goal_keys=["state_desired_goal"],
-        )
 
         renderer = Renderer(**renderer_kwargs)
         img_env = InsertImageEnv(state_env, renderer=renderer)
@@ -519,6 +519,11 @@ def goal_conditioned_sac_experiment(
                 "latent_desired_goal",
             )
         elif goal_sampling_mode == "reset_of_env":
+            state_goal_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
+            state_goal_distribution = GoalDictDistributionFromMultitaskEnv(
+                state_goal_env,
+                desired_goal_keys=["state_desired_goal"],
+            )
             image_goal_distribution = AddImageDistribution(
                 env=state_env,
                 base_distribution=state_goal_distribution,
@@ -547,9 +552,12 @@ def goal_conditioned_sac_experiment(
         )
         return env, latent_goal_distribution, reward_fn
 
-    model = train_vae(train_vae_kwargs)
-    if type(model) is str:
-        model = load_local_or_remote_file(model)
+    if pretrained_vae_path:
+        model = load_local_or_remote_file(pretrained_vae_path)
+    else:
+        model = train_vae(train_vae_kwargs)
+        if type(model) is str:
+            model = load_local_or_remote_file(model)
 
     expl_env, expl_context_distrib, expl_reward = contextual_env_distrib_and_reward(
         env_id, env_class, env_kwargs, exploration_goal_sampling_mode
@@ -642,29 +650,31 @@ def goal_conditioned_sac_experiment(
             model,
             expl_path_collector,
             "train",
-            "image_decoded_goal",
+            decode_goal_image_key="image_decoded_goal",
+            reconstruction_key="image_reconstruction",
             rows=2,
             columns=5,
             unnormalize=True,
-            save_video_period=50,
             # max_path_length=200,
             imsize=48,
-            # **save_video_kwargs
+            **save_video_kwargs
         )
         algorithm.post_train_funcs.append(expl_video_func)
 
         eval_video_func = RIGVideoSaveFunction(
-            None,
+            model,
             eval_path_collector,
             "eval",
-            "image_desired_goal",
+            goal_image_key="image_desired_goal",
+            decode_goal_image_key="image_decoded_goal",
+            reconstruction_key="image_reconstruction",
+            num_imgs=4,
             rows=2,
             columns=5,
             unnormalize=True,
-            save_video_period=50,
             # max_path_length=200,
             imsize=48,
-            # **save_video_kwargs
+            **save_video_kwargs
         )
         algorithm.post_train_funcs.append(eval_video_func)
 
