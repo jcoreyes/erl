@@ -14,6 +14,7 @@ import scipy.misc
 
 from multiworld.core.image_env import ImageEnv
 from railrl.core import logger
+from railrl.visualization.image import add_border, make_image_fit_into_hwc_format, combine_images_into_grid
 import pickle
 
 
@@ -148,90 +149,6 @@ class RIGVideoSaveFunction:
             latent = d['latent_observation']
             decoded_img = self.model.decode_one_np(latent)
             d[self.reconstruction_key] = decoded_img
-
-def add_border(img, border_thickness, border_color):
-    imheight, imwidth = img.shape[:2]
-    framed_img = np.ones(
-        (
-            imheight + 2 * border_thickness,
-            imwidth + 2 * border_thickness,
-            img.shape[2]
-        ),
-        dtype=np.uint8
-    ) * border_color
-    framed_img[
-        border_thickness:-border_thickness,
-        border_thickness:-border_thickness,
-        :
-    ] = img
-    return framed_img
-
-
-def make_image_fit_into_hwc_format(
-        img, output_imwidth, output_imheight, input_image_format
-):
-    if len(img.shape) == 1:
-        if input_image_format == 'HWC':
-            hwc_img = img.reshape(output_imheight, output_imwidth, -1)
-        elif input_image_format == 'CWH':
-            cwh_img = img.reshape(-1, output_imwidth, output_imheight)
-            hwc_img = cwh_img.transpose()
-        else:
-            raise ValueError(input_image_format)
-    else:
-        a, b, c = img.shape
-        # TODO: remove hack
-        if a == b and a != c:
-            input_image_format = 'HWC'
-        elif a != b and b == c:
-            input_image_format = 'CWH'
-        if input_image_format == 'HWC':
-            hwc_img = img
-        elif input_image_format == 'CWH':
-            hwc_img = img.transpose()
-        else:
-            raise ValueError(input_image_format)
-
-    if hwc_img.shape == (output_imheight, output_imwidth, 3):
-        image_that_fits = hwc_img
-    else:
-        try:
-            import cv2
-            image_that_fits = cv2.resize(
-                hwc_img,
-                dsize=(output_imwidth, output_imheight),
-            )
-        except ImportError:
-            image_that_fits = np.zeros((output_imheight, output_imwidth, 3))
-            h, w = hwc_img.shape[:2]
-            image_that_fits[:h, :w, :] = hwc_img
-    return image_that_fits
-
-
-def get_image(
-        imgs, imwidth, imheight,
-        subpad_length=1, subpad_color=255,
-        pad_length=1, pad_color=255,
-        unnormalize=True,
-        image_format='CWH',
-):
-    hwc_imgs = [
-        make_image_fit_into_hwc_format(img, imwidth, imheight, image_format)
-        for img in imgs
-    ]
-
-    new_imgs = []
-    for img in hwc_imgs:
-        if unnormalize:
-            img = np.uint8(255 * img)
-        if subpad_length > 0:
-            img = add_border(img, subpad_length, subpad_color)
-        new_imgs.append(img)
-    final_image = np.concatenate(new_imgs, axis=0)
-    if pad_length > 0:
-        final_image = add_border(final_image, pad_length, pad_color)
-    return final_image
-
 
 def dump_video(
         env,
@@ -421,7 +338,7 @@ def dump_paths(
             imgs = imgs + get_extra_imgs(path, i_in_path, env)
             imgs = imgs[:num_imgs]
             l.append(
-                get_image(
+                combine_images_into_grid(
                     imgs,
                     imwidth,
                     imheight,

@@ -44,10 +44,6 @@ import multiworld
 
 from railrl.launchers.contextual.rig.model_train_launcher import train_vae
 
-class DeleteOldEnvInfo(object):
-    def __call__(self, contexutal_env, info, obs, reward, done):
-        return {}
-
 
 class DistanceRewardFn:
     def __init__(self, observation_key, desired_goal_key):
@@ -93,9 +89,10 @@ def rig_experiment(
         env_id=None,
         env_class=None,
         env_kwargs=None,
-        observation_key='state_observation',
-        desired_goal_key='state_desired_goal',
-        achieved_goal_key='state_achieved_goal',
+        observation_key='latent_observation',
+        desired_goal_key='latent_desired_goal',
+        state_goal_key='state_desired_goal',
+        image_goal_key='image_desired_goal',
         exploration_policy_kwargs=None,
         evaluation_goal_sampling_mode=None,
         exploration_goal_sampling_mode=None,
@@ -105,6 +102,7 @@ def rig_experiment(
         renderer_kwargs=None,
         imsize=48,
         pretrained_vae_path="",
+        init_camera=None,
 ):
     if exploration_policy_kwargs is None:
         exploration_policy_kwargs = {}
@@ -113,8 +111,7 @@ def rig_experiment(
     if not renderer_kwargs:
         renderer_kwargs = {}
 
-    renderer = Renderer(**renderer_kwargs)
-    init_camera = renderer._init_camera
+    Renderer(init_camera=init_camera, **renderer_kwargs)
 
     def contextual_env_distrib_and_reward(
             env_id, env_class, env_kwargs, goal_sampling_mode
@@ -133,25 +130,25 @@ def rig_experiment(
         if goal_sampling_mode == "vae_prior":
             latent_goal_distribution = PriorDistribution(
                 model.representation_size,
-                "latent_desired_goal",
+                desired_goal_key,
             )
             diagnostics = StateImageGoalDiagnosticsFn({}, )
         elif goal_sampling_mode == "reset_of_env":
             state_goal_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
             state_goal_distribution = GoalDictDistributionFromMultitaskEnv(
                 state_goal_env,
-                desired_goal_keys=["state_desired_goal"],
+                desired_goal_keys=[state_goal_key],
             )
             image_goal_distribution = AddImageDistribution(
                 env=state_env,
                 base_distribution=state_goal_distribution,
-                image_goal_key='image_desired_goal',
+                image_goal_key=image_goal_key,
                 renderer=renderer,
             )
             latent_goal_distribution = AddLatentDistribution(
                 image_goal_distribution,
-                "image_desired_goal",
-                "latent_desired_goal",
+                image_goal_key,
+                desired_goal_key,
                 model,
             )
             diagnostics = StateImageGoalDiagnosticsFn({
@@ -179,8 +176,6 @@ def rig_experiment(
         model = load_local_or_remote_file(pretrained_vae_path)
     else:
         model = train_vae(train_vae_kwargs, env_kwargs, env_id, env_class, imsize, init_camera)
-        if type(model) is str:
-            model = load_local_or_remote_file(model)
 
     expl_env, expl_context_distrib, expl_reward = contextual_env_distrib_and_reward(
         env_id, env_class, env_kwargs, exploration_goal_sampling_mode
@@ -288,7 +283,7 @@ def rig_experiment(
             model,
             eval_path_collector,
             "eval",
-            goal_image_key="image_desired_goal",
+            goal_image_key=image_goal_key,
             decode_goal_image_key="image_decoded_goal",
             reconstruction_key="image_reconstruction",
             num_imgs=4,

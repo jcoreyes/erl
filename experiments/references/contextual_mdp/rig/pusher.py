@@ -88,9 +88,9 @@ if __name__ == "__main__":
         renderer_kwargs=dict(
             input_img_format='HWC',
             output_img_format='CWH',
-            init_camera=sawyer_init_camera_zoomed_in,
             flatten_img=True,
         ),
+        init_camera=sawyer_init_camera_zoomed_in,
         evaluation_goal_sampling_mode="reset_of_env",
         exploration_goal_sampling_mode="vae_prior",
 
