@@ -1,6 +1,6 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.launchers.contextual_rig_launcher_util import (
-    goal_conditioned_sac_experiment, process_args
+from railrl.launchers.contextual.rig.rig_launcher import (
+    rig_experiment, process_args
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
@@ -50,17 +50,16 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=4,
             beta=10.0 / 128,
-            # beta_schedule_kwargs=dict(
-            #     x_values=(0, 500),
-            #     y_values=(1  / 128.0, 50  / 128.0),
-            # ),
+            beta_schedule_kwargs=dict(
+                x_values=(0, 500),
+                y_values=(1, 50),
+            ),
             num_epochs=501,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             generate_vae_dataset_kwargs=dict(
                 test_p=.9,
                 N=10000,
-                oracle_dataset=False,
                 oracle_dataset_using_set_to_goal=False,
                 non_presampled_goal_img_is_garbage=False,
                 random_rollout_data=True,
@@ -111,4 +110,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(goal_conditioned_sac_experiment, variants, process_args)
+    run_variants(rig_experiment, variants, process_args)

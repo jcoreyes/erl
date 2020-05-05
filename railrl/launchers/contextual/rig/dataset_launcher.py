@@ -4,33 +4,40 @@
 import time
 import numpy as np
 
-def generate_vae_dataset(env_kwargs, env_id, env_class, imsize, init_camera, variant):
-    N = variant.get('N', 10000)
-    batch_size = variant.get('batch_size', 128)
-    test_p = variant.get('test_p', 0.9)
-    use_cached = variant.get('use_cached', True)
-    num_channels = variant.get('num_channels', 3)
-    show = variant.get('show', False)
-    dataset_path = variant.get('dataset_path', None)
-    oracle_dataset_using_set_to_goal = variant.get('oracle_dataset_using_set_to_goal', False)
-    random_rollout_data = variant.get('random_rollout_data', False)
-    random_rollout_data_set_to_goal = variant.get('random_rollout_data_set_to_goal', True)
-    random_and_oracle_policy_data=variant.get('random_and_oracle_policy_data', False)
-    random_and_oracle_policy_data_split=variant.get('random_and_oracle_policy_data_split', 0)
-    policy_file = variant.get('policy_file', None)
-    n_random_steps = variant.get('n_random_steps', 100)
-    vae_dataset_specific_env_kwargs = variant.get('vae_dataset_specific_env_kwargs', None)
-    save_file_prefix = variant.get('save_file_prefix', None)
-    non_presampled_goal_img_is_garbage = variant.get('non_presampled_goal_img_is_garbage', None)
-
-    conditional_vae_dataset = variant.get('conditional_vae_dataset', False)
-    use_env_labels = variant.get('use_env_labels', False)
-    use_linear_dynamics = variant.get('use_linear_dynamics', False)
-    enviorment_dataset = variant.get('enviorment_dataset', False)
-    save_trajectories = variant.get('save_trajectories', False)
+def generate_vae_dataset(
+        env_kwargs,
+        env_id,
+        env_class,
+        imsize,
+        init_camera,
+        N=10000,
+        batch_size=128,
+        test_p=0.9,
+        use_cached=True,
+        num_channels=3,
+        show=False,
+        dataset_path=None,
+        oracle_dataset_using_set_to_goal=False,
+        random_rollout_data=False,
+        random_rollout_data_set_to_goal=True,
+        random_and_oracle_policy_data=False,
+        random_and_oracle_policy_data_split=0,
+        policy_file=None,
+        n_random_steps=100,
+        vae_dataset_specific_env_kwargs=None,
+        save_file_prefix=None,
+        non_presampled_goal_img_is_garbage=None,
+        conditional_vae_dataset=False,
+        use_env_labels=False,
+        use_linear_dynamics=False,
+        enviorment_dataset=False,
+        save_trajectories=False,
+        tag="",
+        train_batch_loader_kwargs=None,
+        test_batch_loader_kwargs=None,
+        vae_dataset_specific_kwargs=None,
+    ):
     save_trajectories = save_trajectories or use_linear_dynamics or conditional_vae_dataset
-
-    tag = variant.get('tag', '')
 
     assert N % n_random_steps == 0, "Fix N/horizon or dataset generation will fail"
 
@@ -257,14 +264,10 @@ def generate_vae_dataset(env_kwargs, env_id, env_class, imsize, init_camera, var
                 'observations': dataset['observations'][test_i, :, :],
             })
 
-        train_batch_loader_kwargs = variant.get(
-            'train_batch_loader_kwargs',
-            dict(batch_size=batch_size, num_workers=0, )
-        )
-        test_batch_loader_kwargs = variant.get(
-            'test_batch_loader_kwargs',
-            dict(batch_size=batch_size, num_workers=0, )
-        )
+        if train_batch_loader_kwargs is None:
+            train_batch_loader_kwargs = dict(batch_size=batch_size, num_workers=0)
+        if test_batch_loader_kwargs is None:
+            test_batch_loader_kwargs = dict(batch_size=batch_size, num_workers=0)
 
         train_data_loader = data.DataLoader(train_dataset,
             shuffle=True, drop_last=True, **train_batch_loader_kwargs)

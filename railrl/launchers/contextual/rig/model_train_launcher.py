@@ -1,6 +1,8 @@
 from railrl.launchers.contextual.rig.dataset_launcher import generate_vae_dataset
 
-def train_vae(variant, env_kwargs, env_id, env_class, imsize, init_camera, return_data=False):
+def train_vae(
+        variant, env_kwargs, env_id, env_class, imsize, init_camera, return_data=False
+    ):
         from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
         from railrl.torch.vae.conv_vae import (
             ConvVAE,
@@ -30,7 +32,7 @@ def train_vae(variant, env_kwargs, env_id, env_class, imsize, init_camera, retur
         variant['generate_vae_dataset_kwargs']['batch_size'] = variant['algo_kwargs']['batch_size']
         train_dataset, test_dataset, info = generate_vae_dataset_fctn(
             env_kwargs, env_id, env_class, imsize, init_camera,
-            variant['generate_vae_dataset_kwargs']
+            **variant['generate_vae_dataset_kwargs']
         )
 
         if use_linear_dynamics:
