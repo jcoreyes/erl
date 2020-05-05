@@ -346,3 +346,19 @@ class TanhNormal(Distribution):
     @property
     def mean(self):
         return torch.tanh(self.normal_mean)
+
+    def get_diagnostics(self):
+        stats = OrderedDict()
+        stats.update(create_stats_ordered_dict(
+            'mean',
+            ptu.get_numpy(self.mean),
+        ))
+        stats.update(create_stats_ordered_dict(
+            'normal/std',
+            ptu.get_numpy(self.normal_std)
+        ))
+        stats.update(create_stats_ordered_dict(
+            'normal/log_std',
+            ptu.get_numpy(torch.log(self.normal_std)),
+        ))
+        return stats
