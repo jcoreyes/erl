@@ -35,11 +35,15 @@ from railrl.core import logger
 from railrl.envs.encoder_wrappers import EncoderWrappedEnv
 from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
+from railrl.misc.eval_util import create_stats_ordered_dict
+
+from collections import OrderedDict
 
 import time
 
 from multiworld.core.image_env import ImageEnv, unormalize_image
 import multiworld
+
 
 class DeleteOldEnvInfo(object):
     def __call__(self, contexutal_env, info, obs, reward, done):
@@ -55,6 +59,28 @@ class DistanceRewardFn:
         s = next_states[self.observation_key]
         c = contexts[self.desired_goal_key]
         return -np.linalg.norm(s - c, axis=1)
+
+
+class StateImageGoalDiagnosticsFn:
+    def __init__(self, state_to_goal_keys_map):
+        self.state_to_goal_keys_map = state_to_goal_keys_map
+
+    def __call__(self, paths, contexts):
+        diagnostics = OrderedDict()
+        for state_key in self.state_to_goal_keys_map:
+            goal_key = self.state_to_goal_keys_map[state_key]
+            values = []
+            for i in range(len(paths)):
+                state = paths[i]["observations"][-1][state_key]
+                goal = contexts[i][goal_key]
+                distance = np.linalg.norm(state - goal)
+                values.append(distance)
+            diagnostics_key = goal_key + "_distance"
+            diagnostics.update(create_stats_ordered_dict(
+                diagnostics_key,
+                values,
+            ))
+        return diagnostics
 
 
 def goal_conditioned_sac_experiment(
@@ -505,6 +531,7 @@ def goal_conditioned_sac_experiment(
                 model.representation_size,
                 "latent_desired_goal",
             )
+            diagnostics = StateImageGoalDiagnosticsFn({}, )
         elif goal_sampling_mode == "reset_of_env":
             state_goal_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
             state_goal_distribution = GoalDictDistributionFromMultitaskEnv(
@@ -523,6 +550,9 @@ def goal_conditioned_sac_experiment(
                 "latent_desired_goal",
                 model,
             )
+            diagnostics = StateImageGoalDiagnosticsFn({
+                    "state_observation": "state_desired_goal",
+                }, )
         else:
             error
 
@@ -530,11 +560,13 @@ def goal_conditioned_sac_experiment(
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
         )
+
         env = ContextualEnv(
             encoded_env,
             context_distribution=latent_goal_distribution,
             reward_fn=reward_fn,
             observation_key=observation_key,
+            contextual_diagnostics_fns=[diagnostics],
             # update_env_info_fn=DeleteOldEnvInfo(),
         )
         return env, latent_goal_distribution, reward_fn
