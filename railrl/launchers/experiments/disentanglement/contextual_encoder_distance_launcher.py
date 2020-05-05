@@ -2,6 +2,7 @@ from functools import partial
 
 import numpy as np
 from multiworld.core.multitask_env import MultitaskEnv
+from torch import nn
 
 import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
@@ -24,6 +25,13 @@ from railrl.launchers.contextual.util import (
     get_save_video_function,
     get_gym_env,
 )
+from railrl.launchers.experiments.disentanglement.debug import (
+    JointTrainer,
+    DebugTrainer,
+    DebugRenderer,
+    InsertDebugImagesEnv,
+    create_visualize_representation,
+)
 from railrl.policies.action_repeat import ActionRepeatPolicy
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
@@ -32,11 +40,18 @@ from railrl.torch.disentanglement.encoder_wrapped_env import (
     Encoder,
     EncoderFromNetwork,
 )
-from railrl.torch.disentanglement.networks import DisentangledMlpQf
-from railrl.torch.modules import Detach
-from railrl.torch.networks import FlattenMlp
-from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.torch.disentanglement.networks import (
+    DisentangledMlpQf,
+    EncodeObsAndGoal,
+)
+from railrl.torch.modules import Concat
+from railrl.torch.networks import FlattenMlp, Flatten
+from railrl.torch.networks.mlp import MultiHeadedMlp
+from railrl.torch.networks.stochastic.distribution_generator import TanhGaussian
+from railrl.torch.sac.policies import (
+    MakeDeterministic,
+    PolicyFromDistributionGenerator,
+)
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
@@ -133,15 +148,16 @@ def encoder_goal_conditioned_sac_experiment(
         qf_kwargs,
         sac_trainer_kwargs,
         replay_buffer_kwargs,
-        policy_kwargs,
         algo_kwargs,
+        policy_kwargs,
         # Encoder parameters
         disentangled_qf_kwargs,
         encoder_kwargs=None,
         vectorized_reward=None,
         use_target_encoder_for_reward=False,
         encoder_reward_scale=1.,
-        detach_encoder=False,
+        # Policy params
+        policy_using_encoder_settings=None,
         # Env settings
         env_id=None,
         env_class=None,
@@ -154,7 +170,13 @@ def encoder_goal_conditioned_sac_experiment(
         save_video=True,
         save_video_kwargs=None,
         renderer_kwargs=None,
+        debug_renderer_kwargs=None,
+        debug_visualization_kwargs=None,
 ):
+    if policy_using_encoder_settings is None:
+        policy_using_encoder_settings = {}
+    if debug_visualization_kwargs is None:
+        debug_visualization_kwargs = {}
     if exploration_policy_kwargs is None:
         exploration_policy_kwargs = {}
     if contextual_env_kwargs is None:
@@ -165,11 +187,13 @@ def encoder_goal_conditioned_sac_experiment(
         save_video_kwargs = {}
     if renderer_kwargs is None:
         renderer_kwargs = {}
+    if debug_renderer_kwargs is None:
+        debug_renderer_kwargs = {}
 
     state_observation_key = 'state_observation'
+    latent_observation_key = 'latent_observation'
     latent_desired_goal_key = 'latent_desired_goal'
     state_desired_goal_key = 'state_desired_goal'
-    context_key_for_rl = 'state_desired_goal'
 
     def setup_env(state_env, encoder, reward_fn):
         goal_distribution = EncodedGoalDictDistributionFromMultitaskEnv(
@@ -203,6 +227,7 @@ def encoder_goal_conditioned_sac_experiment(
         expl_env.observation_space.spaces['state_observation'].low.size
     )
     encoder_net = FlattenMlp(input_size=state_dim, **encoder_kwargs)
+    encoder_output_dim = encoder_net.output_size
     target_encoder_net = FlattenMlp(input_size=state_dim, **encoder_kwargs)
     encoder = EncoderFromNetwork(encoder_net)
     if use_target_encoder_for_reward:
@@ -212,12 +237,14 @@ def encoder_goal_conditioned_sac_experiment(
             next_state_encoder_input_key=state_observation_key,
             context_key=latent_desired_goal_key,
             reward_scale=encoder_reward_scale,
+            vectorize=vectorized_reward,
         )
     else:
         reward_fn = EncoderRewardFnFromMultitaskEnv(
             encoder=encoder,
             next_state_encoder_input_key=state_observation_key,
             context_key=latent_desired_goal_key,
+            vectorize=vectorized_reward,
         )
     expl_env, expl_context_distrib = setup_env(expl_env, encoder, reward_fn)
     eval_env, eval_context_distrib = setup_env(eval_env, encoder, reward_fn)
@@ -225,10 +252,8 @@ def encoder_goal_conditioned_sac_experiment(
     action_dim = expl_env.action_space.low.size
 
     def make_qf(enc):
-        if detach_encoder:
-            enc = Detach(enc)
         return DisentangledMlpQf(
-            goal_processor=enc,
+            encoder=enc,
             preprocess_obs_dim=state_dim,
             action_dim=action_dim,
             qf_kwargs=qf_kwargs,
@@ -241,14 +266,26 @@ def encoder_goal_conditioned_sac_experiment(
     target_qf1 = make_qf(target_encoder_net)
     target_qf2 = make_qf(target_encoder_net)
 
-    obs_dim = (
-            expl_env.observation_space.spaces[state_observation_key].low.size
-            + expl_env.observation_space.spaces[context_key_for_rl].low.size
+    context_key_for_rl = state_desired_goal_key
+    observation_key_for_rl = state_observation_key
+    state_dim = (
+        expl_env.observation_space.spaces[context_key_for_rl].low.size)
+    policy_encoder_net = EncodeObsAndGoal(
+        encoder_net,
+        state_dim,
+        **policy_using_encoder_settings
     )
-    policy = TanhGaussianPolicy(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        **policy_kwargs
+    obs_processor = nn.Sequential(
+        policy_encoder_net,
+        Concat(),
+        MultiHeadedMlp(
+            input_size=policy_encoder_net.output_size,
+            output_sizes=[action_dim, action_dim],
+            **policy_kwargs
+        )
+    )
+    policy = PolicyFromDistributionGenerator(
+        TanhGaussian(obs_processor)
     )
 
     def concat_context_to_obs(batch):
@@ -259,15 +296,15 @@ def encoder_goal_conditioned_sac_experiment(
         batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
         return batch
 
-    sample_context = compose(
+    sample_context_from_observation = compose(
         # first map 'state_observation' --> 'state_desired_goal'
         RemapKeyFn({
-            context_key_for_rl: state_observation_key
+            state_desired_goal_key: state_observation_key
         }),
         # them map `state_desired_goal` -> `latent_desired_goal`
         ReEncoderAchievedStateFn(
             encoder=encoder,
-            encoder_input_key=context_key_for_rl,
+            encoder_input_key=state_desired_goal_key,
             encoder_output_key=latent_desired_goal_key,
         ),
     )
@@ -276,10 +313,12 @@ def encoder_goal_conditioned_sac_experiment(
         env=eval_env,
         context_keys=[state_desired_goal_key, latent_desired_goal_key],
         context_distribution=eval_context_distrib,
-        sample_context_from_obs_dict_fn=sample_context,
+        sample_context_from_obs_dict_fn=sample_context_from_observation,
         observation_keys=[state_observation_key],
+        observation_key=observation_key_for_rl,
         reward_fn=reward_fn,
         post_process_batch_fn=concat_context_to_obs,
+        reward_dim=encoder_output_dim if vectorized_reward else 1,
         **replay_buffer_kwargs
     )
     trainer = SACTrainer(
@@ -291,11 +330,19 @@ def encoder_goal_conditioned_sac_experiment(
         target_qf2=target_qf2,
         **sac_trainer_kwargs
     )
+    debug_trainer = DebugTrainer(
+        observation_space=expl_env.observation_space.spaces[
+            state_observation_key
+        ],
+        encoder=encoder_net,
+        encoder_output_dim=encoder_output_dim,
+    )
+    trainer = JointTrainer([trainer, debug_trainer])
 
     eval_path_collector = ContextualPathCollector(
         eval_env,
         MakeDeterministic(policy),
-        observation_key=state_observation_key,
+        observation_key=observation_key_for_rl,
         context_keys_for_policy=[context_key_for_rl],
     )
     exploration_policy = create_exploration_policy(
@@ -303,7 +350,7 @@ def encoder_goal_conditioned_sac_experiment(
     expl_path_collector = ContextualPathCollector(
         expl_env,
         exploration_policy,
-        observation_key=state_observation_key,
+        observation_key=observation_key_for_rl,
         context_keys_for_policy=[context_key_for_rl],
     )
 
@@ -319,14 +366,61 @@ def encoder_goal_conditioned_sac_experiment(
     )
     algorithm.to(ptu.device)
 
+    renderer = Renderer(**renderer_kwargs)
     if save_video:
         rollout_function = partial(
             rf.contextual_rollout,
             max_path_length=max_path_length,
-            observation_key=state_observation_key,
+            observation_key=observation_key_for_rl,
             context_keys_for_policy=[context_key_for_rl],
         )
-        renderer = Renderer(**renderer_kwargs)
+
+        obj1_sweep_renderers = {
+            'sweep_obj1_%d' % i: DebugRenderer(
+                encoder, i, **debug_renderer_kwargs)
+            for i in range(encoder_output_dim)
+        }
+        obj0_sweep_renderers = {
+            'sweep_obj0_%d' % i: DebugRenderer(
+                encoder, i, **debug_renderer_kwargs)
+            for i in range(encoder_output_dim)
+
+        }
+
+        debugger_one = DebugRenderer(encoder, 0, **debug_renderer_kwargs)
+
+        def create_shared_data_creator(obj_index):
+            def compute_shared_data(raw_obs, env):
+                state = raw_obs['state_observation']
+                obs = state[:2]
+                goal = state[2:]
+                low = env.env.observation_space['state_observation'].low.min()
+                high = env.env.observation_space['state_observation'].high.max()
+                y = np.linspace(low, high, num=debugger_one.image_shape[0])
+                x = np.linspace(low, high, num=debugger_one.image_shape[1])
+                cross = np.transpose([np.tile(x, len(y)), np.repeat(y, len(x))])
+                if obj_index == 0:
+                    new_states = np.concatenate(
+                        [
+                            np.repeat(obs[None, :], cross.shape[0], axis=0),
+                            cross,
+                        ],
+                        axis=1,
+                    )
+                elif obj_index == 1:
+                    new_states = np.concatenate(
+                        [
+                            cross,
+                            np.repeat(goal[None, :], cross.shape[0], axis=0),
+                        ],
+                        axis=1,
+                    )
+                else:
+                    raise ValueError(obj_index)
+                return encoder.encode(new_states)
+            return compute_shared_data
+        obj0_sweeper = create_shared_data_creator(0)
+        obj1_sweeper = create_shared_data_creator(1)
 
         def add_images(env, base_distribution):
             state_env = env.env
@@ -336,17 +430,40 @@ def encoder_goal_conditioned_sac_experiment(
                 image_goal_key='image_desired_goal',
                 renderer=renderer,
             )
-            img_env = InsertImageEnv(state_env, renderer=renderer)
+            img_env = InsertDebugImageEnv(state_env, renderer=renderer)
+            img_env = InsertDebugImagesEnv(
+                img_env,
+                obj1_sweep_renderers,
+                compute_shared_data=obj1_sweeper,
+            )
+            img_env = InsertDebugImagesEnv(
+                img_env,
+                obj0_sweep_renderers,
+                compute_shared_data=obj0_sweeper,
+            )
             return ContextualEnv(
                 img_env,
                 context_distribution=image_goal_distribution,
                 reward_fn=reward_fn,
-                observation_key=state_observation_key,
+                observation_key=observation_key_for_rl,
                 update_env_info_fn=delete_info,
             )
 
         img_eval_env = add_images(eval_env, eval_context_distrib)
         img_expl_env = add_images(expl_env, expl_context_distrib)
+
+        def get_extra_imgs(
+                path,
+                index_in_path,
+                env,
+        ):
+            return [
+                path['full_observations'][index_in_path][key]
+                for key in obj1_sweep_renderers
+            ] + [
+                path['full_observations'][index_in_path][key]
+                for key in obj0_sweep_renderers
+            ]
         eval_video_func = get_save_video_function(
             rollout_function,
             img_eval_env,
@@ -354,6 +471,7 @@ def encoder_goal_conditioned_sac_experiment(
             tag="eval",
             imsize=renderer.image_shape[0],
             image_format='CWH',
+            get_extra_imgs=get_extra_imgs,
             **save_video_kwargs
         )
         expl_video_func = get_save_video_function(
@@ -363,11 +481,23 @@ def encoder_goal_conditioned_sac_experiment(
             tag="train",
             imsize=renderer.image_shape[0],
             image_format='CWH',
+            get_extra_imgs=get_extra_imgs,
             **save_video_kwargs
         )
 
+
         algorithm.post_train_funcs.append(eval_video_func)
         algorithm.post_train_funcs.append(expl_video_func)
+    visualize_representation = create_visualize_representation(
+        encoder, True, eval_env, renderer,
+        **debug_visualization_kwargs
+    )
+    algorithm.post_train_funcs.append(visualize_representation)
+    visualize_representation = create_visualize_representation(
+        encoder, False, eval_env, renderer,
+        **debug_visualization_kwargs
+    )
+    algorithm.post_train_funcs.append(visualize_representation)
 
     algorithm.train()
 

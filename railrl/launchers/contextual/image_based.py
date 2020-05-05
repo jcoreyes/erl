@@ -33,6 +33,7 @@ from railrl.torch.networks import BasicCNN, FlattenMlp, basic
 from railrl.torch.networks.mlp import MultiHeadedMlp
 from railrl.torch.networks.stochastic.distribution_generator import (
     TanhGaussian,
+    Gaussian,
 )
 from railrl.torch.sac.policies import (
     MakeDeterministic,
@@ -75,6 +76,7 @@ def image_based_goal_conditioned_sac_experiment(
         policy_kwargs,
         algo_kwargs,
         cnn_kwargs,
+        policy_type='tanh-normal',
         env_id=None,
         env_class=None,
         env_kwargs=None,
@@ -126,7 +128,8 @@ def image_based_goal_conditioned_sac_experiment(
             image_goal_key=img_desired_goal_key,
             renderer=renderer,
         )
-        goal_distribution = PresampledDistribution(image_goal_distribution, 256)
+        goal_distribution = PresampledDistribution(
+            image_goal_distribution, 5000)
         img_env = InsertImageEnv(state_env, renderer=renderer)
         if reward_type == 'state_distance':
             reward_fn = ContextualRewardFnFromMultitaskEnv(
@@ -209,18 +212,48 @@ def image_based_goal_conditioned_sac_experiment(
     )
     joint_cnn = ApplyConvToStateAndGoalImage(cnn)
     policy_obs_dim = joint_cnn.output_size
-    obs_processor = nn.Sequential(
-        joint_cnn,
-        basic.Flatten(),
-        MultiHeadedMlp(
-            input_size=policy_obs_dim,
-            output_sizes=[action_dim, action_dim],
-            **policy_kwargs
+    if policy_type == 'normal':
+        obs_processor = nn.Sequential(
+            joint_cnn,
+            basic.Flatten(),
+            MultiHeadedMlp(
+                input_size=policy_obs_dim,
+                output_sizes=[action_dim, action_dim],
+                **policy_kwargs
+            )
         )
-    )
-    policy = PolicyFromDistributionGenerator(
-        TanhGaussian(obs_processor)
-    )
+        policy = PolicyFromDistributionGenerator(
+            Gaussian(obs_processor)
+        )
+    elif policy_type == 'tanh-normal':
+        obs_processor = nn.Sequential(
+            joint_cnn,
+            basic.Flatten(),
+            MultiHeadedMlp(
+                input_size=policy_obs_dim,
+                output_sizes=[action_dim, action_dim],
+                **policy_kwargs
+            )
+        )
+        policy = PolicyFromDistributionGenerator(
+            TanhGaussian(obs_processor)
+        )
+    elif policy_type == 'normal-tanh-mean':
+        obs_processor = nn.Sequential(
+            joint_cnn,
+            basic.Flatten(),
+            MultiHeadedMlp(
+                input_size=policy_obs_dim,
+                output_sizes=[action_dim, action_dim],
+                output_activations=['tanh', 'identity'],
+                **policy_kwargs
+            )
+        )
+        policy = PolicyFromDistributionGenerator(
+            Gaussian(obs_processor)
+        )
+    else:
+        raise ValueError("Unknown policy type: {}".format(policy_type))
 
     def concat_context_to_obs(batch):
         obs = batch['observations']
@@ -258,7 +291,7 @@ def image_based_goal_conditioned_sac_experiment(
         context_keys_for_policy=[img_desired_goal_key],
     )
     exploration_policy = create_exploration_policy(
-        policy, **exploration_policy_kwargs)
+        policy, expl_env.action_space, **exploration_policy_kwargs)
     expl_path_collector = ContextualPathCollector(
         expl_env,
         exploration_policy,
@@ -318,7 +351,7 @@ def image_based_goal_conditioned_sac_experiment(
             rollout_function,
             video_expl_env,
             exploration_policy,
-            tag="train",
+            tag="xplor",
             imsize=video_renderer.image_shape[1],
             image_format='HWC',
             keys_to_show=[
