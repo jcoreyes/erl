@@ -291,7 +291,7 @@ def image_based_goal_conditioned_sac_experiment(
         context_keys_for_policy=[img_desired_goal_key],
     )
     exploration_policy = create_exploration_policy(
-        policy, expl_env.action_space, **exploration_policy_kwargs)
+        policy, **exploration_policy_kwargs)
     expl_path_collector = ContextualPathCollector(
         expl_env,
         exploration_policy,
