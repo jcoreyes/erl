@@ -2,11 +2,20 @@ import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 import os
 
+from railrl.misc.asset_loader import sync_down
+
+
 def experiment(variant):
     from railrl.core import logger
+    demo_path = sync_down('demos/hc_action_noise_15.npy')
+    off_policy_path = sync_down('demos/hc_off_policy_15_demos_100.npy')
     logdir = logger.get_snapshot_dir()
-    os.system('python -m BEAR.main --demo_data=research/railrl/data/local/demos/hc_action_noise_15.npy --off_policy_data=research/railrl/data/local/demos/hc_off_policy_15_demos_100.npy --eval_freq=1000 --algo_name=BEAR'
-+ ' --env_name=HalfCheetah-v2 --log_dir='+logdir+' --lagrange_thresh=10.0 --distance_type=MMD'
+    os.system('python -m BEAR.main' +
+              ' --demo_data='+demo_path+
+              ' --off_policy_data='+off_policy_path+
+              ' --eval_freq=1000 --algo_name=BEAR'+
+              ' --env_name=HalfCheetah-v2 --log_dir='+logdir+
+              ' --lagrange_thresh=10.0 --distance_type=MMD'
 + ' --mode=auto --num_samples_match=5 --lamda=0.0 --version=0 --mmd_sigma=10.0 --kernel_type=laplacian --use_ensemble_variance="False" ')
 
 if __name__ == "__main__":
