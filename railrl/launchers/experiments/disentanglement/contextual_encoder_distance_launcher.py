@@ -115,10 +115,8 @@ class EncodedGoalDictDistributionFromMultitaskEnv(DictDistribution):
         self._spaces[encoder_output_key] = encoder.space
 
     def sample(self, batch_size: int):
-        goals = {
-            k: self._env.sample_goals(batch_size)[k]
-            for k in self._goal_keys_to_keep
-        }
+        sampled_goals = self._env.sample_goals(batch_size)
+        goals = {k: sampled_goals[k] for k in self._goal_keys_to_keep}
         goals[self._encoder_output_key] = self._encoder.encode(
             goals[self._encoder_input_key]
         )
