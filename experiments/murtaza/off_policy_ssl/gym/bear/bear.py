@@ -54,7 +54,7 @@ if __name__ == "__main__":
     )
 
     n_seeds = 1
-    mode = 'local'
+    mode = 'ec2'
     exp_name = 'test1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
