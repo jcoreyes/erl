@@ -70,7 +70,7 @@ class StateImageGoalDiagnosticsFn:
                 goal = contexts[i][goal_key]
                 distance = np.linalg.norm(state - goal)
                 values.append(distance)
-            diagnostics_key = goal_key + "/distance"
+            diagnostics_key = goal_key + "/final/distance"
             diagnostics.update(create_stats_ordered_dict(
                 diagnostics_key,
                 values,
