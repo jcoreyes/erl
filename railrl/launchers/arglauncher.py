@@ -56,10 +56,11 @@ def run_variants(experiment, vs, process_args_fn=None, run_id=0, ):
     print("Running", len(variants), "variants")
 
 def run_variant(experiment, variant):
+    launcher_config = variant.pop("launcher_config")
     lu.run_experiment(
         experiment,
         variant=variant,
-        **variant["launcher_config"],
+        **launcher_config,
     )
 
 def parallel_run(experiment, variants, n_p):
@@ -112,7 +113,7 @@ def process_logger_args(variant):
     logger_config = variant.setdefault("logger_config", dict())
 
     logger_config["snapshot_mode"] = logger_config.get("snapshot_mode", "gap")
-    logger_config["snapshot_gap"] = logger_config.get("snapshot_gap", 20)
+    logger_config["snapshot_gap"] = logger_config.get("snapshot_gap", 100)
     if "--snapshot" in sys.argv:
         logger_config["snapshot_mode"] = 'gap_and_last'
         logger_config["snapshot_gap"] = 20
@@ -195,3 +196,4 @@ def process_launcher_args(variant):
         n = len(s)
         assert sys.argv[0][:n] == s
         launcher_config["exp_name"] = sys.argv[0][n:-3]
+

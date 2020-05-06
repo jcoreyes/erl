@@ -1,7 +1,9 @@
-import numpy as np
+from functools import partial
+
 from railrl.envs.contextual import ContextualEnv
 from railrl.policies.base import Policy
 from railrl.samplers.data_collector import MdpPathCollector
+from railrl.samplers.rollout_functions import contextual_rollout
 
 
 class ContextualPathCollector(MdpPathCollector):
@@ -11,23 +13,26 @@ class ContextualPathCollector(MdpPathCollector):
             policy: Policy,
             max_num_epoch_paths_saved=None,
             observation_key='observation',
-            context_key='context',
+            context_keys_for_policy='context',
             render=False,
             render_kwargs=None,
     ):
-        def obs_processor(o):
-            return np.hstack((o[observation_key], o[context_key]))
+        rollout_fn = partial(
+            contextual_rollout,
+            context_keys_for_policy=context_keys_for_policy,
+            observation_key=observation_key,
+        )
         super().__init__(
             env, policy, max_num_epoch_paths_saved, render, render_kwargs,
-            preprocess_obs_for_policy_fn=obs_processor
+            rollout_fn=rollout_fn,
         )
         self._observation_key = observation_key
-        self._context_key = context_key
+        self._context_keys_for_policy = context_keys_for_policy
 
     def get_snapshot(self):
         snapshot = super().get_snapshot()
         snapshot.update(
             observation_key=self._observation_key,
-            context_key=self._context_key,
+            context_keys_for_policy=self._context_keys_for_policy,
         )
         return snapshot

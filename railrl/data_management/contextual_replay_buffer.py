@@ -10,7 +10,10 @@ from railrl import pythonplusplus as ppp
 
 
 class SampleContextFromObsDictFn(object, metaclass=abc.ABCMeta):
-    """Interface definer, but you can also just pass in a function."""
+    """Interface definer, but you can also just pass in a function.
+
+    This function maps an observation to some context that ``was achieved''.
+    """
 
     @abc.abstractmethod
     def __call__(self, obs: dict) -> Any:
@@ -18,6 +21,7 @@ class SampleContextFromObsDictFn(object, metaclass=abc.ABCMeta):
 
 
 class RemapKeyFn(SampleContextFromObsDictFn):
+    """A simple map that forwards observations to become the context."""
     def __init__(self, context_to_input_key: Dict[str, str]):
         self._context_to_input_key = context_to_input_key
 
@@ -46,7 +50,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             max_size,
             env,
             context_keys,
-            observation_keys,
+            observation_keys, # TODO: rename as observation_keys_to_save
             sample_context_from_obs_dict_fn: SampleContextFromObsDictFn,
             reward_fn: ContextualRewardFn,
             context_distribution: DictDistribution,
@@ -56,6 +60,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             observation_key='observation',
             save_data_in_snapshot=False,
             internal_keys=None,
+            **kwargs
     ):
         ob_keys_to_save = observation_keys + context_keys
         super().__init__(
@@ -65,6 +70,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             internal_keys=internal_keys,
             observation_key=observation_key,
             save_data_in_snapshot=save_data_in_snapshot,
+            **kwargs
         )
         if (
             fraction_distribution_context < 0
@@ -78,8 +84,10 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             ))
         self._context_keys = context_keys
         self._context_distribution = context_distribution
-        if set(self._context_distribution.spaces.keys()) != set(context_keys):
-            raise TypeError("Distributions must match.")
+        for k in context_keys:
+            distribution_keys = set(self._context_distribution.spaces.keys())
+            if k not in distribution_keys:
+                raise TypeError("All context keys must be in context distribution.")
         self._sample_context_from_obs_dict_fn = sample_context_from_obs_dict_fn
         self._reward_fn = reward_fn
         self._fraction_future_context = fraction_future_context

@@ -2,11 +2,13 @@ import torch
 from torch import nn
 
 
-class Clamp:
+class Clamp(nn.Module):
     def __init__(self, **kwargs):
+        super().__init__()
         self.kwargs = kwargs
+        self.__name__ = "Clamp"
 
-    def __call__(self, x):
+    def forward(self, x):
         return torch.clamp(x, **self.kwargs)
 
 
@@ -35,6 +37,11 @@ class FlattenEach(nn.Module):
         return tuple(x.view(x.size(0), -1) for x in inputs)
 
 
+class FlattenEachParallel(nn.Module):
+    def forward(self, *inputs):
+        return tuple(x.view(x.size(0), -1) for x in inputs)
+
+
 class Flatten(nn.Module):
     def forward(self, inputs):
         return inputs.view(inputs.size(0), -1)
@@ -43,3 +50,10 @@ class Flatten(nn.Module):
 class Concat(nn.Module):
     def forward(self, inputs):
         return torch.cat(inputs, dim=1)
+
+
+class MultiInputSequential(nn.Sequential):
+    def forward(self, *input):
+        for module in self._modules.values():
+            input = module(*input)
+        return input

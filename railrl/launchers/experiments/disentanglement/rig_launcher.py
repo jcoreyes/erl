@@ -117,7 +117,7 @@ def _disentangled_grill_her_twin_sac_experiment(
             )
         else:
             return DisentangledMlpQf(
-                goal_processor=encoder,
+                encoder=encoder,
                 preprocess_obs_dim=obs_dim,
                 action_dim=action_dim,
                 qf_kwargs=qf_kwargs,

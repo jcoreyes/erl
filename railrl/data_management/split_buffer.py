@@ -48,7 +48,7 @@ class SplitReplayBuffer(ReplayBuffer):
             return self.validation_replay_buffer
 
     def random_batch(self, batch_size):
-        return self.replay_buffer.random_batch(batch_size)
+        return self.train_replay_buffer.random_batch(batch_size)
 
     def __getattr__(self, attrname):
         return getattr(self.replay_buffer, attrname)
