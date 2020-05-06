@@ -43,10 +43,11 @@ if __name__ == "__main__":
         mmd_sigma='10.0',
         kernel_type='laplacian',
         use_ensemble_variance='"False"',
-
     )
 
     search_space = {
+        'mmd_sigma':['10.0', '20.0'],
+        'num_samples_match':['5', '10', '20'],
 
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -54,8 +55,12 @@ if __name__ == "__main__":
     )
 
     n_seeds = 1
-    mode = 'ec2'
-    exp_name = 'test1'
+    mode = 'local_docker'
+    exp_name = 'test'
+
+    # n_seeds = 1
+    # mode = 'ec2'
+    # exp_name = 'hc_bear_sweep_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
