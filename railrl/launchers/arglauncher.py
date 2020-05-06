@@ -16,9 +16,8 @@ def run_variants(experiment, vs, process_args_fn=None, run_id=0, ):
     variants = []
     for i, v in enumerate(vs):
         v["exp_id"] = i
-        v["run_id"] = run_id
         process_run_args(v)
-        process_logger_args(v)
+        process_logger_args(v, run_id=run_id)
         process_launcher_args(v)
         if process_args_fn:
             process_args_fn(v)
@@ -46,7 +45,7 @@ def run_variants(experiment, vs, process_args_fn=None, run_id=0, ):
     print("Running", len(variants), "variants")
 
     # run
-    parallel = variants[0]["parallel"]
+    parallel = variants[0].get("parallel", False)
     if parallel:
         parallel_run(experiment, variants, parallel)
     else:
@@ -105,11 +104,9 @@ def process_run_args(variant):
             variant["use_gpu"] = True
         else:
             variant["gpus"] = list(range(parallel))
-    else:
-        variant["parallel"] = False
 
 
-def process_logger_args(variant):
+def process_logger_args(variant, run_id=None):
     logger_config = variant.setdefault("logger_config", dict())
 
     logger_config["snapshot_mode"] = logger_config.get("snapshot_mode", "gap")
@@ -120,6 +117,12 @@ def process_logger_args(variant):
     elif "--nosnapshot" in sys.argv:
         logger_config["snapshot_mode"] = 'none'
         logger_config["snapshot_gap"] = 1
+
+    if "--run" in sys.argv:
+        i = sys.argv.index("--run")
+        logger_config["run_id"] = int(sys.argv[i+1])
+    else:
+        logger_config["run_id"] = run_id
 
 
 def process_launcher_args(variant):
@@ -186,10 +189,6 @@ def process_launcher_args(variant):
         launcher_config["base_log_dir"] = None
     if "--mac" in sys.argv:
         launcher_config["base_log_dir"] = "/Users/ashvin/data/s3doodad/"
-
-    if "--run" in sys.argv:
-        i = sys.argv.index("--run")
-        variant["run_id"] = int(sys.argv[i+1])
 
     if "exp_name" not in launcher_config:
         s = "experiments/"

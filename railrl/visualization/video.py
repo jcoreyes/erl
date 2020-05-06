@@ -2,6 +2,8 @@ import os
 import os.path as osp
 import uuid
 
+from railrl.envs.vae_wrappers import VAEWrappedEnv, ConditionalVAEWrappedEnv
+
 filename = str(uuid.uuid4())
 
 import skvideo.io
@@ -12,9 +14,7 @@ import scipy.misc
 
 from multiworld.core.image_env import ImageEnv
 from railrl.core import logger
-from railrl.envs.vae_wrappers import VAEWrappedEnv, ConditionalVAEWrappedEnv
-from railrl.visualization.image import combine_images_into_grid
-
+from railrl.visualization.image import add_border, make_image_fit_into_hwc_format, combine_images_into_grid
 import pickle
 
 
@@ -68,7 +68,7 @@ class VideoSaveFunction:
             dump_paths(self.env,
                        filename,
                        expl_paths,
-                       self.exploration_goal_image_key,
+                       [self.exploration_goal_image_key, "image_observation", ],
                        **self.dump_video_kwargs,
                        )
 
@@ -86,7 +86,7 @@ class VideoSaveFunction:
             dump_paths(self.env,
                        filename,
                        eval_paths,
-                       self.evaluation_goal_image_key,
+                       [self.evaluation_goal_image_key, "image_observation", ],
                        **self.dump_video_kwargs,
                        )
 
@@ -96,16 +96,28 @@ class RIGVideoSaveFunction:
         model,
         data_collector,
         tag,
-        goal_image_key,
         save_video_period,
+        goal_image_key=None,
+        decode_goal_image_key=None,
+        reconstruction_key=None,
         **kwargs
     ):
         self.model = model
         self.data_collector = data_collector
         self.tag = tag
         self.goal_image_key = goal_image_key
+        self.decode_goal_image_key = decode_goal_image_key
+        self.reconstruction_key = reconstruction_key
         self.dump_video_kwargs = kwargs
         self.save_video_period = save_video_period
+        self.keys = []
+        if goal_image_key:
+            self.keys.append(goal_image_key)
+        if decode_goal_image_key:
+            self.keys.append(decode_goal_image_key)
+        self.keys.append("image_observation")
+        if reconstruction_key:
+            self.keys.append(reconstruction_key)
         self.logdir = logger.get_snapshot_dir()
 
     def __call__(self, algo, epoch):
@@ -113,13 +125,16 @@ class RIGVideoSaveFunction:
         if epoch % self.save_video_period == 0 or epoch == algo.num_epochs:
             filename = osp.join(self.logdir,
                 'video_{epoch}_{tag}.mp4'.format(epoch=epoch, tag=self.tag))
-            if self.model:
+            if self.decode_goal_image_key:
                 for i in range(len(paths)):
                     self.add_decoded_goal_to_path(paths[i])
+            if self.reconstruction_key:
+                for i in range(len(paths)):
+                    self.add_reconstruction_to_path(paths[i])
             dump_paths(None,
                 filename,
                 paths,
-                self.goal_image_key,
+                self.keys,
                 **self.dump_video_kwargs,
             )
 
@@ -127,8 +142,13 @@ class RIGVideoSaveFunction:
         latent = path['full_observations'][0]['latent_desired_goal']
         decoded_img = self.model.decode_one_np(latent)
         for i_in_path, d in enumerate(path['full_observations']):
-            d[self.goal_image_key] = decoded_img
+            d[self.decode_goal_image_key] = decoded_img
 
+    def add_reconstruction_to_path(self, path):
+        for i_in_path, d in enumerate(path['full_observations']):
+            latent = d['latent_observation']
+            decoded_img = self.model.decode_one_np(latent)
+            d[self.reconstruction_key] = decoded_img
 
 def dump_video(
         env,
@@ -276,7 +296,7 @@ def dump_paths(
         env,
         filename,
         paths,
-        goal_image_key,
+        keys,
         rows=3,
         columns=6,
         pad_length=0,
@@ -317,10 +337,7 @@ def dump_paths(
         path = paths[i]
         l = []
         for i_in_path, d in enumerate(path['full_observations']):
-            imgs = [
-                d[goal_image_key],
-                d['image_observation'],
-            ]
+            imgs = [d[k] for k in keys]
             imgs = imgs + get_extra_imgs(path, i_in_path, env)
             imgs = imgs[:num_imgs]
             l.append(
@@ -328,12 +345,12 @@ def dump_paths(
                     imgs,
                     imwidth,
                     imheight,
+                    max_num_cols=num_columns_per_rollout,
                     pad_length=pad_length,
                     pad_color=pad_color,
                     subpad_length=subpad_length,
                     subpad_color=subpad_color,
                     unnormalize=unnormalize,
-                    max_num_cols=num_columns_per_rollout,
                 )
             )
         frames += l
