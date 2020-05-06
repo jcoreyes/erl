@@ -80,7 +80,7 @@ if __name__ == "__main__":
             pad_length=1,
             num_columns_per_rollout=2,
         ),
-        # pretrained_vae_path="ashvin/contexts/rig/old1/run0/id0/vae.pkl",
+        pretrained_vae_path="ashvin/contexts/rig/old1/run0/id0/vae.pkl",
         train_vae_kwargs=dict(
             vae_path=None,
             representation_size=4,

@@ -5,6 +5,7 @@ from railrl.launchers.contextual.rig.rig_launcher import (
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 
+from railrl.torch.vae.conv_vae import imsize48_default_architecture, imsize48_default_architecture_with_more_hidden_layers
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 
 if __name__ == "__main__":
@@ -75,6 +76,8 @@ if __name__ == "__main__":
             ),
             vae_kwargs=dict(
                 input_channels=3,
+                architecture=imsize48_default_architecture_with_more_hidden_layers,
+                decoder_distribution='gaussian_identity_variance',
             ),
             algo_kwargs=dict(
                 do_scatterplot=False,

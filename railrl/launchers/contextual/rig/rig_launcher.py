@@ -118,7 +118,7 @@ def rig_experiment(
     ):
         state_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
 
-        renderer = Renderer(**renderer_kwargs)
+        renderer = Renderer(init_camera=init_camera, **renderer_kwargs)
         img_env = InsertImageEnv(state_env, renderer=renderer)
 
         encoded_env = EncoderWrappedEnv(
