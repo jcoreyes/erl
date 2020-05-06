@@ -68,7 +68,7 @@ class VideoSaveFunction:
             dump_paths(self.env,
                        filename,
                        expl_paths,
-                       self.exploration_goal_image_key,
+                       [self.exploration_goal_image_key, "image_observation", ],
                        **self.dump_video_kwargs,
                        )
 
@@ -86,7 +86,7 @@ class VideoSaveFunction:
             dump_paths(self.env,
                        filename,
                        eval_paths,
-                       self.evaluation_goal_image_key,
+                       [self.evaluation_goal_image_key, "image_observation", ],
                        **self.dump_video_kwargs,
                        )
 

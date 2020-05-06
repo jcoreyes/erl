@@ -126,7 +126,7 @@ if __name__ == "__main__":
                 sample_from_true_prior=True,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            #vae_path=None
+            vae_path="ashvin/contexts/rig/old1/run0/id0/vae.pkl",
         ),
         train_vae_variant=dict(
             latent_sizes=4,

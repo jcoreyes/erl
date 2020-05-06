@@ -167,7 +167,6 @@ def rig_experiment(
             reward_fn=reward_fn,
             observation_key=observation_key,
             contextual_diagnostics_fns=[diagnostics],
-            # update_env_info_fn=DeleteOldEnvInfo(),
         )
         return env, latent_goal_distribution, reward_fn
 
