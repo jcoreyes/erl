@@ -7,19 +7,42 @@ from railrl.misc.asset_loader import sync_down
 
 def experiment(variant):
     from railrl.core import logger
-    demo_path = sync_down('demos/hc_action_noise_15.npy')
-    off_policy_path = sync_down('demos/hc_off_policy_15_demos_100.npy')
+    demo_path = sync_down(variant['demo_path'])
+    off_policy_path = sync_down(variant['off_policy_path'])
     logdir = logger.get_snapshot_dir()
     os.system('python -m BEAR.main' +
               ' --demo_data='+demo_path+
               ' --off_policy_data='+off_policy_path+
-              ' --eval_freq=1000 --algo_name=BEAR'+
-              ' --env_name=HalfCheetah-v2 --log_dir='+logdir+
-              ' --lagrange_thresh=10.0 --distance_type=MMD'
-+ ' --mode=auto --num_samples_match=5 --lamda=0.0 --version=0 --mmd_sigma=10.0 --kernel_type=laplacian --use_ensemble_variance="False" ')
+              ' --eval_freq='+variant['eval_freq']+
+              ' --algo_name='+variant['algo_name']+
+              ' --env_name='+variant['env_name']+
+              ' --log_dir='+logdir+
+              ' --lagrange_thresh='+variant['lagrange_thresh']+
+              ' --distance_type='+variant['distance_type']+
+              ' --mode='+variant['mode']+
+              ' --num_samples_match='+variant['num_samples_match']+
+              ' --lamda='+variant['lambda_']+
+              ' --version='+variant['version']+
+              ' --mmd_sigma='+variant['mmd_sigma']+
+              ' --kernel_type='+variant['kernel_type']+
+              ' --use_ensemble_variance='+variant['use_ensemble_variance'])
 
 if __name__ == "__main__":
     variant = dict(
+        demo_path='demos/hc_action_noise_15.npy',
+        off_policy_path='demos/hc_off_policy_15_demos_100.npy',
+        eval_freq='1000',
+        algo_name='BEAR',
+        env_name='HalfCheetah-v2',
+        lagrange_thresh='10.0',
+        distance_type='MMD',
+        mode='auto',
+        num_samples_match='5',
+        lambda_='0.0',
+        version='0.0',
+        mmd_sigma='10.0',
+        kernel_type='laplacian',
+        use_ensemble_variance='"False"',
 
     )
 
