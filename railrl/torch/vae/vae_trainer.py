@@ -49,7 +49,7 @@ class VAETrainer(LossFunction):
             priority_function_kwargs=None,
             start_skew_epoch=0,
             weight_decay=0,
-            key_to_reconstruct="observations",
+            key_to_reconstruct='observations',
     ):
         #TODO:steven fix pickling
         assert not use_parallel_dataloading, "Have to fix pickling the dataloaders first"

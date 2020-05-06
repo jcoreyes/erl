@@ -30,6 +30,7 @@ class SimpleReplayBuffer(ReplayBuffer):
         self._terminals = np.zeros((max_replay_buffer_size, 1), dtype='uint8')
         # Define self._env_infos[key][i] to be the return value of env_info[key]
         # at time i
+        self.env_info_sizes = env_info_sizes
         self._env_infos = {}
         for key, size in env_info_sizes.items():
             self._env_infos[key] = np.zeros((max_replay_buffer_size, size))
@@ -91,3 +92,51 @@ class SimpleReplayBuffer(ReplayBuffer):
         return OrderedDict([
             ('size', self._size)
         ])
+
+    def __getstate__(self):
+        # Do not save self.replay_buffer since it's a duplicate and seems to
+        # cause joblib recursion issues.
+        return dict(
+            observations = self._observations[:self._top],
+            actions = self._actions[:self._top],
+            rewards = self._rewards[:self._top],
+            terminals = self._terminals[:self._top],
+            next_obs = self._next_obs[:self._top],
+            observation_dim = self._observation_dim,
+            action_dim = self._action_dim,
+            max_replay_buffer_size = self._max_replay_buffer_size,
+            env_info_sizes = self.env_info_sizes,
+            top = self._top,
+            size = self._size,
+        )
+
+    def __setstate__(self, d):
+        observation_dim = d["observation_dim"]
+        max_replay_buffer_size = d["max_replay_buffer_size"]
+        action_dim = d["action_dim"]
+
+        self._observation_dim = observation_dim
+        self._action_dim = action_dim
+        self._max_replay_buffer_size = max_replay_buffer_size
+        self._observations = np.zeros((max_replay_buffer_size, observation_dim))
+        self._next_obs = np.zeros((max_replay_buffer_size, observation_dim))
+        self._actions = np.zeros((max_replay_buffer_size, action_dim))
+        self._rewards = np.zeros((max_replay_buffer_size, 1))
+        self._terminals = np.zeros((max_replay_buffer_size, 1), dtype='uint8')
+
+        env_info_sizes = d["env_info_sizes"]
+        self.env_info_sizes = env_info_sizes
+        self._env_infos = {}
+        for key, size in env_info_sizes.items():
+            self._env_infos[key] = np.zeros((max_replay_buffer_size, size))
+        self._env_info_keys = list(env_info_sizes.keys())
+
+        self._top = d["top"]
+        self._size = d["size"]
+
+        # restore data
+        self._observations[:self._top] = d["observations"]
+        self._actions[:self._top] = d["actions"]
+        self._rewards[:self._top] = d["rewards"]
+        self._terminals[:self._top] = d["terminals"]
+        self._next_obs[:self._top] = d["next_obs"]

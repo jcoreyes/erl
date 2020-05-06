@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.launchers.contextual_env_launcher_util import (
+from railrl.launchers.contextual.state_based import (
     goal_conditioned_sac_experiment
 )
 from railrl.launchers.launcher_util import run_experiment

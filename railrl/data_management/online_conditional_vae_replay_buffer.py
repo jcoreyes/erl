@@ -4,7 +4,7 @@ from torchvision.utils import save_image
 
 from railrl.core import logger
 from railrl.data_management.obs_dict_replay_buffer import (
-    flatten_dict,
+    combine_dicts,
     ObsDictRelabelingBuffer
 )
 from railrl.data_management.shared_obs_dict_replay_buffer import \

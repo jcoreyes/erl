@@ -96,7 +96,7 @@ def experiment(variant):
     # Train Loop
     # ===============================================================================
 
-    seed = int(job_data['seed'])
+    seed = int(job_data['seedid'])
 
     e = GymEnv(job_data['env'])
     if job_data['sparse_reward']:
