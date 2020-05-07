@@ -516,7 +516,7 @@ class AWRSACTrainer(TorchTrainer):
         """
         dist = self.policy(obs)
         new_obs_actions, log_pi = dist.rsample_and_logprob()
-        policy_mle = dist.mle_estimate()
+        policy_mean = dist.mle_estimate()
 
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
@@ -557,8 +557,8 @@ class AWRSACTrainer(TorchTrainer):
 
         # Advantage-weighted regression
         if self.awr_use_mle_for_vf:
-            v1_pi = self.qf1(obs, policy_mle)
-            v2_pi = self.qf2(obs, policy_mle)
+            v1_pi = self.qf1(obs, policy_mean)
+            v2_pi = self.qf2(obs, policy_mean)
             v_pi = torch.min(v1_pi, v2_pi)
         else:
             if self.vf_K > 1:
@@ -591,10 +591,10 @@ class AWRSACTrainer(TorchTrainer):
                 q_adv = q1_pred
 
         if self.awr_loss_type == "mse":
-            policy_logpp = -(policy_mle - actions) ** 2
+            policy_logpp = -(policy_mean - actions) ** 2
         else:
             policy_logpp = dist.log_prob(u)
-            policy_logpp = policy_logpp.sum(dim=1, keepdim=True)
+            # policy_logpp = policy_logpp.sum(dim=1, keepdim=True)
 
         if self.use_automatic_beta_tuning:
             buffer_dist = self.buffer_policy(obs)

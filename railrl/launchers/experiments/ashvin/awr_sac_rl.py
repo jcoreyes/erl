@@ -14,6 +14,7 @@ from railrl.torch.torch_rl_algorithm import (
     TorchOnlineRLAlgorithm,
 )
 
+from railrl.demos.source.hdf5_path_loader import HDF5PathLoader
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.visualization.video import save_paths, VideoSaveFunction
 
@@ -281,15 +282,19 @@ def experiment(variant):
         return
 
     if 'env' in variant:
-        env_params = ENV_PARAMS[variant['env']]
+        env_params = ENV_PARAMS.get(variant['env'], {})
         variant.update(env_params)
+        env_name = variant.get("env")
 
-        if 'env_id' in env_params:
-            if env_params['env_id'] in ['pen-v0', 'pen-sparse-v0', 'door-v0', 'relocate-v0', 'hammer-v0',
-                                        'pen-sparse-v0', 'door-sparse-v0', 'relocate-sparse-v0', 'hammer-sparse-v0']:
-                import mj_envs
+        if env_name in ['pen-v0', 'pen-sparse-v0', 'door-v0', 'relocate-v0', 'hammer-v0', 'pen-sparse-v0', 'door-sparse-v0', 'relocate-sparse-v0', 'hammer-sparse-v0']:
+            import mj_envs
             expl_env = gym.make(env_params['env_id'])
             eval_env = gym.make(env_params['env_id'])
+
+        elif env_name in ["maze2d-open-v0", "maze2d-umaze-v0", "maze2d-medium-v0", "maze2d-large-v0", "maze2d-open-dense-v0", "maze2d-umaze-dense-v0", "maze2d-medium-dense-v0", "maze2d-large-dense-v0", "antmaze-umaze-v0", "antmaze-umaze-diverse-v0", "antmaze-medium-diverse-v0", "antmaze-medium-play-v0", "antmaze-large-diverse-v0", "antmaze-large-play-v0", "pen-demos-v0", "pen-cloned-v0", "pen-expert-v0", "hammer-demos-v0", "hammer-cloned-v0", "hammer-expert-v0", "door-demos-v0", "door-cloned-v0", "door-expert-v0", "relocate-demos-v0", "relocate-cloned-v0", "relocate-expert-v0", "halfcheetah-random-v0", "halfcheetah-medium-v0", "halfcheetah-expert-v0", "halfcheetah-mixed-v0", "halfcheetah-medium-expert-v0", "walker2d-random-v0", "walker2d-medium-v0", "walker2d-expert-v0", "walker2d-mixed-v0", "walker2d-medium-expert-v0", "hopper-random-v0", "hopper-medium-v0", "hopper-expert-v0", "hopper-mixed-v0", "hopper-medium-expert-v0"]:
+            import d4rl
+            expl_env = gym.make(env_name)
+            eval_env = gym.make(env_name)
         else:
             expl_env = NormalizedBoxEnv(variant['env_class']())
             eval_env = NormalizedBoxEnv(variant['env_class']())
@@ -522,6 +527,15 @@ def experiment(variant):
             **path_loader_kwargs
         )
         path_loader.load_demos()
+    if variant.get('load_env_dataset_demos', False):
+        path_loader_class = variant.get('path_loader_class', HDF5PathLoader)
+        path_loader = path_loader_class(trainer,
+            replay_buffer=replay_buffer,
+            demo_train_buffer=demo_train_buffer,
+            demo_test_buffer=demo_test_buffer,
+            **path_loader_kwargs
+        )
+        path_loader.load_demos(expl_env.get_dataset())
     if variant.get('save_initial_buffers', False):
         buffers = dict(
             replay_buffer=replay_buffer,
