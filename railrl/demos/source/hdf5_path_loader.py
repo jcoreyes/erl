@@ -34,11 +34,11 @@ def load_hdf5(dataset, replay_buffer):
     _rew = dataset['rewards'][:N]
     _done = dataset['terminals'][:N]
 
-    replay_buffer._observations = _obs
-    replay_buffer._next_obs = _next_obs
-    replay_buffer._actions = _actions
-    replay_buffer._rewards = np.expand_dims(_rew, 1)
-    replay_buffer._terminals = np.expand_dims(_done, 1)
+    replay_buffer._observations[:N] = _obs[:N]
+    replay_buffer._next_obs[:N] = _next_obs[:N]
+    replay_buffer._actions[:N] = _actions[:N]
+    replay_buffer._rewards[:N] = np.expand_dims(_rew, 1)[:N]
+    replay_buffer._terminals[:N] = np.expand_dims(_done, 1)[:N]
     replay_buffer._size = N-1
     replay_buffer._top = replay_buffer._size
 

@@ -13,14 +13,14 @@ from railrl.torch.networks import Clamp
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=5001,
+        num_epochs=101,
         num_eval_steps_per_epoch=1000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
         min_num_steps_before_training=1000,
         max_path_length=1000,
         batch_size=1024,
-        replay_buffer_size=int(1E6),
+        replay_buffer_size=int(2E6),
 
         layer_size=256,
         policy_class=GaussianPolicy,
@@ -95,16 +95,16 @@ if __name__ == "__main__":
 
     search_space = {
         # 'env': ["pen-sparse-v0", "door-sparse-v0"],
-        'env': ["halfcheetah-mixed-v0", ],
+        'env': ["halfcheetah-mixed-v0", "walker2d-mixed-v0", "hopper-mixed-v0", ],
         'trainer_kwargs.bc_loss_type': ["mle"],
         'trainer_kwargs.awr_loss_type': ["mle"],
-        'seedid': range(5),
-        'trainer_kwargs.beta': [0.5, 0.6, ],
+        'seedid': range(3),
+        'trainer_kwargs.beta': [0.1, 0.3, 1.0, ],
         'trainer_kwargs.reparam_weight': [0.0, ],
         'trainer_kwargs.awr_weight': [1.0],
         'trainer_kwargs.bc_weight': [1.0, ],
         'policy_kwargs.std_architecture': ["values", ],
-        'trainer_kwargs.clip_score': [0.5, 1, 2, ],
+        # 'trainer_kwargs.clip_score': [0.5, ],
 
         # 'trainer_kwargs.compute_bc': [True, ],
         'trainer_kwargs.awr_use_mle_for_vf': [True, ],
@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
         'trainer_kwargs.reward_transform_kwargs': [None, ],
         'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0), ],
-        'qf_kwargs.output_activation': [Clamp(max=0)],
+        # 'qf_kwargs.output_activation': [Clamp(max=0)],
         # 'trainer_kwargs.train_bc_on_rl_buffer':[True],
         # 'policy_kwargs.num_gaussians': [1, ],
     }
