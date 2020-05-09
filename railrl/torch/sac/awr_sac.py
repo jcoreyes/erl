@@ -10,6 +10,7 @@ from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.core import np_to_pytorch_batch
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 from railrl.core import logger
+from railrl.core.logging import add_prefix
 from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 import torch.nn.functional as F
 from railrl.torch.networks import LinearTransform
@@ -64,12 +65,16 @@ class AWRSACTrainer(TorchTrainer):
             rl_weight=1.0,
             use_awr_update=True,
             use_reparam_update=False,
+            use_klac_update=False,
             reparam_weight=1.0,
             awr_weight=1.0,
+            klac_weight=1.0,
+            klac_K=10,
             post_pretrain_hyperparams=None,
             post_bc_pretrain_hyperparams=None,
 
             awr_use_mle_for_vf=False,
+            vf_K=1,
             awr_sample_actions=False,
             awr_min_q=False,
 
@@ -85,6 +90,11 @@ class AWRSACTrainer(TorchTrainer):
             train_bc_on_rl_buffer=False,
             use_automatic_beta_tuning=False,
             beta_epsilon=1e-10,
+            normalize_over_batch=True,
+            normalize_over_state="advantage",
+            Z_K=10,
+            clip_score=None,
+            validation_qlearning=False,
     ):
         super().__init__()
         self.env = env
@@ -111,6 +121,7 @@ class AWRSACTrainer(TorchTrainer):
             )
 
         self.awr_use_mle_for_vf = awr_use_mle_for_vf
+        self.vf_K = vf_K
         self.awr_sample_actions = awr_sample_actions
         self.awr_min_q = awr_min_q
 
@@ -120,11 +131,14 @@ class AWRSACTrainer(TorchTrainer):
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
 
+        self.optimizers = {}
+
         self.policy_optimizer = optimizer_class(
             self.policy.parameters(),
             weight_decay=policy_weight_decay,
             lr=policy_lr,
         )
+        self.optimizers[self.policy] = self.policy_optimizer
         self.qf1_optimizer = optimizer_class(
             self.qf1.parameters(),
             weight_decay=q_weight_decay,
@@ -142,6 +156,7 @@ class AWRSACTrainer(TorchTrainer):
                 weight_decay=policy_weight_decay,
                 lr=policy_lr,
             )
+            self.optimizers[self.buffer_policy] = self.buffer_policy_optimizer
 
         self.use_automatic_beta_tuning = use_automatic_beta_tuning and buffer_policy and train_bc_on_rl_buffer
         self.beta_epsilon=beta_epsilon
@@ -184,12 +199,17 @@ class AWRSACTrainer(TorchTrainer):
 
         self.reparam_weight = reparam_weight
         self.awr_weight = awr_weight
+        self.klac_weight = klac_weight
+        self.klac_K = klac_K
         self.post_pretrain_hyperparams = post_pretrain_hyperparams
         self.post_bc_pretrain_hyperparams = post_bc_pretrain_hyperparams
         self.update_policy = True
         self.pretraining_env_logging_period = pretraining_env_logging_period
         self.pretraining_logging_period = pretraining_logging_period
         self.do_pretrain_rollouts = do_pretrain_rollouts
+        self.normalize_over_batch = normalize_over_batch
+        self.normalize_over_state = normalize_over_state
+        self.Z_K = Z_K
 
         self.reward_transform_class = reward_transform_class or LinearTransform
         self.reward_transform_kwargs = reward_transform_kwargs or dict(m=1, b=0)
@@ -198,9 +218,11 @@ class AWRSACTrainer(TorchTrainer):
         self.reward_transform = self.reward_transform_class(**self.reward_transform_kwargs)
         self.terminal_transform = self.terminal_transform_class(**self.terminal_transform_kwargs)
         self.use_reparam_update = use_reparam_update
+        self.use_klac_update = use_klac_update
+        self.clip_score = clip_score
 
         self.train_bc_on_rl_buffer = train_bc_on_rl_buffer and buffer_policy
-
+        self.validation_qlearning = validation_qlearning
 
     def get_batch_from_buffer(self, replay_buffer, batch_size):
         batch = replay_buffer.random_batch(batch_size)
@@ -215,11 +237,11 @@ class AWRSACTrainer(TorchTrainer):
         # og = torch.cat((o, g), dim=1)
         og = o
         # pred_u, *_ = self.policy(og)
-        pred_u, policy_mean, policy_log_std, log_pi, entropy, policy_std, mean_action_log_prob, pretanh_value, dist = policy(
-            og, deterministic=False, reparameterize=True, return_log_prob=True,
-        )
+        dist = policy(og)
+        pred_u, log_pi = dist.rsample_and_logprob()
+        stats = dist.get_diagnostics()
 
-        mse = (policy_mean - u) ** 2
+        mse = (pred_u - u) ** 2
         mse_loss = mse.mean()
 
         policy_logpp = dist.log_prob(u, )
@@ -233,7 +255,7 @@ class AWRSACTrainer(TorchTrainer):
         else:
             error
 
-        return policy_loss, logp_loss, mse_loss, policy_log_std
+        return policy_loss, logp_loss, mse_loss, stats
 
     def do_rollouts(self):
         total_ret = 0
@@ -249,27 +271,28 @@ class AWRSACTrainer(TorchTrainer):
             total_ret += ret
         return total_ret
 
-    def pretrain_policy_with_bc(self):
+    def pretrain_policy_with_bc(self, policy, train_buffer, test_buffer, steps, label="policy", ):
         logger.remove_tabular_output(
-            'progress.csv', relative_to_snapshot_dir=True
+            'progress.csv', relative_to_snapshot_dir=True,
         )
         logger.add_tabular_output(
-            'pretrain_policy.csv', relative_to_snapshot_dir=True
+            'pretrain_%s.csv' % label, relative_to_snapshot_dir=True,
         )
         if self.do_pretrain_rollouts:
             total_ret = self.do_rollouts()
             print("INITIAL RETURN", total_ret/20)
 
+        optimizer = self.optimizers[policy]
         prev_time = time.time()
-        for i in range(self.bc_num_pretrain_steps):
-            train_policy_loss, train_logp_loss, train_mse_loss, train_log_std = self.run_bc_batch(self.demo_train_buffer, self.policy)
+        for i in range(steps):
+            train_policy_loss, train_logp_loss, train_mse_loss, train_stats = self.run_bc_batch(train_buffer, policy)
             train_policy_loss = train_policy_loss * self.bc_weight
 
-            self.policy_optimizer.zero_grad()
+            optimizer.zero_grad()
             train_policy_loss.backward()
-            self.policy_optimizer.step()
+            optimizer.step()
 
-            test_policy_loss, test_logp_loss, test_mse_loss, test_log_std = self.run_bc_batch(self.demo_test_buffer, self.policy)
+            test_policy_loss, test_logp_loss, test_mse_loss, test_stats = self.run_bc_batch(test_buffer, policy)
             test_policy_loss = test_policy_loss * self.bc_weight
 
             if self.do_pretrain_rollouts and i % self.pretraining_env_logging_period == 0:
@@ -293,16 +316,14 @@ class AWRSACTrainer(TorchTrainer):
 
                 logger.record_dict(stats)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
-                pickle.dump(self.policy, open(logger.get_snapshot_dir() + '/bc.pkl', "wb"))
+                pickle.dump(self.policy, open(logger.get_snapshot_dir() + '/bc_%s.pkl' % label, "wb"))
                 prev_time = time.time()
 
         logger.remove_tabular_output(
-            'pretrain_policy.csv',
-            relative_to_snapshot_dir=True,
+            'pretrain_%s.csv' % label, relative_to_snapshot_dir=True,
         )
         logger.add_tabular_output(
-            'progress.csv',
-            relative_to_snapshot_dir=True,
+            'progress.csv', relative_to_snapshot_dir=True,
         )
 
         if self.post_bc_pretrain_hyperparams:
@@ -330,7 +351,8 @@ class AWRSACTrainer(TorchTrainer):
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
             self.train_from_torch(train_data)
             if i%self.pretraining_logging_period == 0:
-                logger.record_dict(self.eval_statistics)
+                stats_with_prefix = add_prefix(self.eval_statistics, prefix="trainer/")
+                logger.record_dict(stats_with_prefix)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
 
         self.update_policy = True
@@ -357,7 +379,8 @@ class AWRSACTrainer(TorchTrainer):
                     self.eval_statistics["pretrain_bc/avg_return"] = total_ret / 20
                 self.eval_statistics["batch"] = i
                 self.eval_statistics["epoch_time"] = time.time()-prev_time
-                logger.record_dict(self.eval_statistics)
+                stats_with_prefix = add_prefix(self.eval_statistics, prefix="trainer/")
+                logger.record_dict(stats_with_prefix)
                 logger.dump_tabular(with_prefix=True, with_timestamp=False)
                 prev_time = time.time()
 
@@ -394,7 +417,7 @@ class AWRSACTrainer(TorchTrainer):
         # self.use_reparam_update = use_reparam_update
         # self.awr_weight = awr_weight
 
-    def train_from_torch(self, batch):
+    def test_from_torch(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -416,6 +439,87 @@ class AWRSACTrainer(TorchTrainer):
 
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+            alpha = self.log_alpha.exp()
+        else:
+            alpha_loss = 0
+            alpha = self.alpha
+
+        q1_pred = self.qf1(obs, actions)
+        q2_pred = self.qf2(obs, actions)
+        # Make sure policy accounts for squashing functions like tanh correctly!
+        new_next_actions, _, _, new_log_pi, *_ = self.policy(
+            next_obs, reparameterize=True, return_log_prob=True,
+        )
+        target_q_values = torch.min(
+            self.target_qf1(next_obs, new_next_actions),
+            self.target_qf2(next_obs, new_next_actions),
+        ) - alpha * new_log_pi
+
+        q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
+        qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
+        qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
+
+        qf1_new_actions = self.qf1(obs, new_obs_actions)
+        qf2_new_actions = self.qf2(obs, new_obs_actions)
+        q_new_actions = torch.min(
+            qf1_new_actions,
+            qf2_new_actions,
+        )
+
+        policy_loss = (log_pi - q_new_actions).mean()
+
+        self.eval_statistics['validation/QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
+        self.eval_statistics['validation/QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
+        self.eval_statistics['validation/Policy Loss'] = np.mean(ptu.get_numpy(
+            policy_loss
+        ))
+        self.eval_statistics.update(create_stats_ordered_dict(
+            'validation/Q1 Predictions',
+            ptu.get_numpy(q1_pred),
+        ))
+        self.eval_statistics.update(create_stats_ordered_dict(
+            'validation/Q2 Predictions',
+            ptu.get_numpy(q2_pred),
+        ))
+        self.eval_statistics.update(create_stats_ordered_dict(
+            'validation/Q Targets',
+            ptu.get_numpy(q_target),
+        ))
+        self.eval_statistics.update(create_stats_ordered_dict(
+            'validation/Log Pis',
+            ptu.get_numpy(log_pi),
+        ))
+        self.eval_statistics.update(create_stats_ordered_dict(
+            'validation/Policy mu',
+            ptu.get_numpy(policy_mean),
+        ))
+        self.eval_statistics.update(create_stats_ordered_dict(
+            'validation/Policy log std',
+            ptu.get_numpy(policy_log_std),
+        ))
+
+    def train_from_torch(self, batch, train=True):
+        rewards = batch['rewards']
+        terminals = batch['terminals']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        weights = batch.get('weights', None)
+        if self.reward_transform:
+            rewards = self.reward_transform(rewards)
+
+        if self.terminal_transform:
+            terminals = self.terminal_transform(terminals)
+
+        """
+        Policy and Alpha Loss
+        """
+        dist = self.policy(obs)
+        new_obs_actions, log_pi = dist.rsample_and_logprob()
+        policy_mle = dist.mle_estimate()
+
+        if self.use_automatic_entropy_tuning:
+            alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
             self.alpha_optimizer.zero_grad()
             alpha_loss.backward()
             self.alpha_optimizer.step()
@@ -430,9 +534,8 @@ class AWRSACTrainer(TorchTrainer):
         q1_pred = self.qf1(obs, actions)
         q2_pred = self.qf2(obs, actions)
         # Make sure policy accounts for squashing functions like tanh correctly!
-        new_next_actions, _, _, new_log_pi, *_ = self.policy(
-            next_obs, reparameterize=True, return_log_prob=True,
-        )
+        next_dist = self.policy(next_obs)
+        new_next_actions, new_log_pi = next_dist.rsample_and_logprob()
         target_q_values = torch.min(
             self.target_qf1(next_obs, new_next_actions),
             self.target_qf2(next_obs, new_next_actions),
@@ -454,9 +557,25 @@ class AWRSACTrainer(TorchTrainer):
 
         # Advantage-weighted regression
         if self.awr_use_mle_for_vf:
-            v_pi = self.qf1(obs, policy_mean)
+            v1_pi = self.qf1(obs, policy_mle)
+            v2_pi = self.qf2(obs, policy_mle)
+            v_pi = torch.min(v1_pi, v2_pi)
         else:
-            v_pi = self.qf1(obs, new_obs_actions)
+            if self.vf_K > 1:
+                vs = []
+                for i in range(self.vf_K):
+                    u = dist.sample()
+                    q1 = self.qf1(obs, u)
+                    q2 = self.qf2(obs, u)
+                    v = torch.min(q1, q2)
+                    # v = q1
+                    vs.append(v)
+                v_pi = torch.cat(vs, 1).mean(dim=1)
+            else:
+                # v_pi = self.qf1(obs, new_obs_actions)
+                v1_pi = self.qf1(obs, new_obs_actions)
+                v2_pi = self.qf2(obs, new_obs_actions)
+                v_pi = torch.min(v1_pi, v2_pi)
 
         if self.awr_sample_actions:
             u = new_obs_actions
@@ -472,30 +591,119 @@ class AWRSACTrainer(TorchTrainer):
                 q_adv = q1_pred
 
         if self.awr_loss_type == "mse":
-            policy_logpp = -(policy_mean - actions) ** 2
+            policy_logpp = -(policy_mle - actions) ** 2
         else:
             policy_logpp = dist.log_prob(u)
             policy_logpp = policy_logpp.sum(dim=1, keepdim=True)
 
-        advantage = q_adv - v_pi
+        if self.use_automatic_beta_tuning:
+            buffer_dist = self.buffer_policy(obs)
+            beta = self.log_beta.exp()
+            kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
+            beta_loss = -1*(beta*(kldiv-self.beta_epsilon).detach()).mean()
+
+            self.beta_optimizer.zero_grad()
+            beta_loss.backward()
+            self.beta_optimizer.step()
+        else:
+            beta = self.beta_schedule.get_value(self._n_train_steps_total)
+
+        if self.normalize_over_state == "advantage":
+            score = q_adv - v_pi
+        elif self.normalize_over_state == "Z":
+            *_, buffer_dist = self.buffer_policy(
+                obs, reparameterize=True, return_log_prob=True,
+            )
+            K = self.Z_K
+            buffer_obs = []
+            buffer_actions = []
+            log_bs = []
+            log_pis = []
+            for i in range(K):
+                u = buffer_dist.sample()
+                log_b = buffer_dist.log_prob(u)
+                log_pi = dist.log_prob(u)
+                buffer_obs.append(obs)
+                buffer_actions.append(u)
+                log_bs.append(log_b)
+                log_pis.append(log_pi)
+            buffer_obs = torch.cat(buffer_obs, 0)
+            buffer_actions = torch.cat(buffer_actions, 0)
+            p_buffer = torch.exp(torch.cat(log_bs, 0).sum(dim=1, ))
+            log_pi = torch.cat(log_pis, 0)
+            log_pi = log_pi.sum(dim=1, )
+            q1_b = self.qf1(buffer_obs, buffer_actions)
+            q2_b = self.qf2(buffer_obs, buffer_actions)
+            q_b = torch.min(q1_b, q2_b)
+            q_b = torch.reshape(q_b, (-1, K))
+            adv_b = q_b - v_pi
+            # if self._n_train_steps_total % 100 == 0:
+            #     import ipdb; ipdb.set_trace()
+            # Z = torch.exp(adv_b / beta).mean(dim=1, keepdim=True)
+            # score = torch.exp((q_adv - v_pi) / beta) / Z
+            # score = score / sum(score)
+            logK = torch.log(ptu.tensor(float(K)))
+            logZ = torch.logsumexp(adv_b/beta - logK, dim=1, keepdim=True)
+            logS = (q_adv - v_pi)/beta - logZ
+            # logZ = torch.logsumexp(q_b/beta - logK, dim=1, keepdim=True)
+            # logS = q_adv/beta - logZ
+            score = F.softmax(logS, dim=0) # score / sum(score)
+        else:
+            error
+
+        if self.clip_score is not None:
+            score = torch.clamp(score, max=self.clip_score)
 
         if self.weight_loss and weights is None:
-            if self.use_automatic_beta_tuning:
-                _, _, _, _, _, _, _, _, buffer_dist = self.buffer_policy(
-                    obs, reparameterize=True, return_log_prob=True,
-                )
-                beta = self.log_beta.exp()
-                kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
-                beta_loss = -1*(beta*(kldiv-self.beta_epsilon).detach()).mean()
-
-                self.beta_optimizer.zero_grad()
-                beta_loss.backward()
-                self.beta_optimizer.step()
+            if self.normalize_over_batch == True:
+                weights = F.softmax(score / beta, dim=0)
+            elif self.normalize_over_batch == "whiten":
+                adv_mean = torch.mean(score)
+                adv_std = torch.std(score) + 1e-5
+                normalized_score = (score - adv_mean) / adv_std
+                weights = torch.exp(normalized_score / beta)
+            elif self.normalize_over_batch == "exp":
+                weights = torch.exp(score / beta)
+            elif self.normalize_over_batch == False:
+                weights = score
             else:
-                beta = self.beta_schedule.get_value(self._n_train_steps_total)
-            weights = F.softmax(advantage / beta, dim=0)
+                error
 
         policy_loss = alpha * log_pi.mean()
+
+
+        if self.use_klac_update:
+            *_, buffer_dist = self.buffer_policy(
+                obs, reparameterize=True, return_log_prob=True,
+            )
+            K = self.klac_K
+            buffer_obs = []
+            buffer_actions = []
+            log_bs = []
+            log_pis = []
+            for i in range(K):
+                u = buffer_dist.sample()
+                log_b = buffer_dist.log_prob(u)
+                log_pi = dist.log_prob(u)
+                buffer_obs.append(obs)
+                buffer_actions.append(u)
+                log_bs.append(log_b)
+                log_pis.append(log_pi)
+            buffer_obs = torch.cat(buffer_obs, 0)
+            buffer_actions = torch.cat(buffer_actions, 0)
+            p_buffer = torch.exp(torch.cat(log_bs, 0).sum(dim=1, ))
+            log_pi = torch.cat(log_pis, 0)
+            log_pi = log_pi.sum(dim=1, )
+            q1_b = self.qf1(buffer_obs, buffer_actions)
+            q2_b = self.qf2(buffer_obs, buffer_actions)
+            q_b = torch.min(q1_b, q2_b)
+            q_b = torch.reshape(q_b, (-1, K))
+            q_max = q_b.max(dim=1)[0][:, None]
+            q_normalized = q_b - q_max
+            q_weights_b = F.softmax(q_normalized / beta, dim=1).flatten() * K
+            # klac_loss = (-log_pi * q_weights_b.detach() / p_buffer.detach()).mean()
+            klac_loss = (-log_pi * q_weights_b.detach()).mean()
+            policy_loss = policy_loss + self.klac_weight * klac_loss
 
         if self.use_awr_update and self.weight_loss:
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp * len(weights)*weights.detach()).mean()
@@ -511,7 +719,7 @@ class AWRSACTrainer(TorchTrainer):
             policy_loss = policy_loss + self.bc_weight * train_policy_loss
 
         if self.train_bc_on_rl_buffer:
-            buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(self.replay_buffer, self.buffer_policy)
+            buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(self.replay_buffer.train_replay_buffer, self.buffer_policy)
         """
         Update networks
         """
@@ -579,18 +787,23 @@ class AWRSACTrainer(TorchTrainer):
                 'Log Pis',
                 ptu.get_numpy(log_pi),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Policy mu',
-                ptu.get_numpy(policy_mean),
-            ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Policy log std',
-                ptu.get_numpy(policy_log_std),
-            ))
+            policy_statistics = add_prefix(dist.get_diagnostics(), "policy/")
+            self.eval_statistics.update(policy_statistics)
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Advantage Weights',
                 ptu.get_numpy(weights),
             ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Advantage Score',
+                ptu.get_numpy(score),
+            ))
+
+            if self.normalize_over_state == "Z":
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'logZ',
+                    ptu.get_numpy(logZ),
+                ))
+
             if self.use_automatic_entropy_tuning:
                 self.eval_statistics['Alpha'] = alpha.item()
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
@@ -606,11 +819,9 @@ class AWRSACTrainer(TorchTrainer):
                     "bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
                 })
             if self.train_bc_on_rl_buffer:
-                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.replay_buffer,
+                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.replay_buffer.validation_replay_buffer,
                                                                                        self.buffer_policy)
-                _, _, _, _, _, _, _, _, buffer_dist = self.buffer_policy(
-                    obs, reparameterize=True, return_log_prob=True,
-                )
+                buffer_dist = self.buffer_policy(obs)
 
                 kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
 
@@ -628,6 +839,28 @@ class AWRSACTrainer(TorchTrainer):
                     "adaptive_beta/beta":ptu.get_numpy(beta.mean()),
                     "adaptive_beta/beta loss": ptu.get_numpy(beta_loss.mean()),
                 })
+            if self.use_klac_update:
+                self.eval_statistics.update({
+                    "klac/loss": ptu.get_numpy(klac_loss.mean()),
+                })
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'klac/weights',
+                    ptu.get_numpy(q_weights_b),
+                ))
+                self.eval_statistics.update(create_stats_ordered_dict(
+                    'klac/p_buffer',
+                    ptu.get_numpy(p_buffer),
+                ))
+
+            # if self.validation_qlearning:
+            #     train_data = self.replay_buffer.validation_replay_buffer.random_batch(self.bc_batch_size)
+            #     train_data = np_to_pytorch_batch(train_data)
+            #     obs = train_data['observations']
+            #     next_obs = train_data['next_observations']
+            #     # goals = train_data['resampled_goals']
+            #     train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
+            #     train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
+            #     self.test_from_torch(train_data)
 
         self._n_train_steps_total += 1
 

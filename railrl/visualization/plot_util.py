@@ -30,12 +30,43 @@ def suppress_stdout():
         finally:
             sys.stdout = old_stdout
 
-def load_exps(dirnames, filter_fn=true_fn, suppress_output=False, progress_filename="progress.csv"):
+class AWRLogReader:
+    def read_log(self, exp_path, filename):
+        output_data = dict()
+        with open(filename, "r") as csvfile:
+            headers = csvfile.readline().split()
+            data = []
+            for h in headers:
+                data.append([])
+            for line in csvfile:
+                for i, v in enumerate(line.split()):
+                    data[i].append(v)
+        for i, h in enumerate(headers):
+            output_data[h] = np.array(data[i], dtype=np.float)
+        return output_data
+
+class NumpyLogReader:
+    def read_log(self, exp_path, filename):
+        data_path = os.path.join(progress_path, "tensorboard_log.npy")
+        keys_path = os.path.join(progress_path, "tensorboard_keys.npy")
+
+        D = np.load(data_path).T
+        keys = np.load(keys_path)
+
+        d = dict()
+        for i in range(len(keys)):
+            d[keys[i]] = D[i, :]
+
+        return d
+
+def load_exps(dirnames, filter_fn=true_fn, suppress_output=False, progress_filename="progress.csv", custom_log_reader=None):
     def load():
         if progress_filename == "progress.csv":
             return core.load_exps_data(dirnames)
         elif progress_filename == "tensorboard_log.npy":
-            return load_exps_data_numpy(dirnames, progress_filename=progress_filename)
+            return load_exps_data_numpy(dirnames, NumpyLogReader(), progress_filename=progress_filename, )
+        elif custom_log_reader:
+            return load_exps_data_numpy(dirnames, custom_log_reader, progress_filename=progress_filename, )
         else:
             return core.load_exps_data(dirnames, progress_filename=progress_filename)
 
@@ -50,7 +81,7 @@ def load_exps(dirnames, filter_fn=true_fn, suppress_output=False, progress_filen
             good_exps.append(e)
     return good_exps
 
-def load_exps_data_numpy(exp_folder_paths,disable_variant=False,progress_filename="progress.csv"):
+def load_exps_data_numpy(exp_folder_paths, log_reader, disable_variant=False, progress_filename="progress.csv", ):
     exps = []
     for exp_folder_path in exp_folder_paths:
         exps += [x[0] for x in os.walk(exp_folder_path)]
@@ -62,7 +93,7 @@ def load_exps_data_numpy(exp_folder_paths,disable_variant=False,progress_filenam
             params_json_path = os.path.join(exp_path, "params.pkl")
             variant_json_path = os.path.join(exp_path, "variant.json")
             progress_csv_path = os.path.join(exp_path, progress_filename)
-            progress = load_progress_numpy(exp_path)
+            progress = log_reader.read_log(exp_path, progress_csv_path)
             if disable_variant:
                 params = core.load_params(params_json_path)
             else:
@@ -75,19 +106,6 @@ def load_exps_data_numpy(exp_folder_paths,disable_variant=False,progress_filenam
         except IOError as e:
             print(e)
     return exps_data
-
-def load_progress_numpy(progress_path):
-    data_path = os.path.join(progress_path, "tensorboard_log.npy")
-    keys_path = os.path.join(progress_path, "tensorboard_keys.npy")
-
-    D = np.load(data_path).T
-    keys = np.load(keys_path)
-
-    d = dict()
-    for i in range(len(keys)):
-        d[keys[i]] = D[i, :]
-
-    return d
 
 def tag_exps(exps, tag_key, tag_value):
     for e in exps:
@@ -163,15 +181,21 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
     xlabel=None, default_vary=False, xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True, print_legend=True,
     reduce_op=sum, method_order=None, remap_keys={},
-    label_to_color=None, return_data=False, bar_plot=False,
+    label_to_color=None, return_data=False, bar_plot=False, label_include_key=True,
+    plot_error_bars=True, plot_seeds=False, overlay=False,
+    formatting_func=None,
 ):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
     vary is (what we might think is) the causal variable
     f is a filter function on the exp parameters"""
     if print_plot:
-        plt.figure(figsize=figsize)
-        plt.title("Vary " + " ".join(vary))
+        if overlay:
+            label_suffix = key
+        else:
+            label_suffix = ""
+            plt.figure(figsize=figsize)
+            plt.title("Vary " + " ".join(vary))
         if not bar_plot:
             plt.ylabel(key)
         if xlim:
@@ -191,7 +215,10 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
         error_key_not_found_in_flat_params
     for l in exps:
         if f(l) and l['progress']:
-            label = " ".join([v + ":" + lookup(v) for v in vary])
+            if label_include_key:
+                label = " ".join([v + ":" + lookup(v) for v in vary])
+            else:
+                label = " ".join([lookup(v) for v in vary])
             ys = y_data.setdefault(label, [])
             xs = x_data.setdefault(label, [])
 
@@ -216,9 +243,12 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                 else:
                     print("not found", key)
                     print(d.keys())
+                    continue
 
             is_not_nan = np.logical_not(np.isnan(y))
             if xlabel:
+                if xlabel not in d:
+                    print(d.keys())
                 x = d[xlabel]
             else:
                 x = np.array(range(len(y)))
@@ -245,15 +275,20 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
 
         s = np.nanstd(ys, axis=0) / (len(ys) ** 0.5)
         if print_plot:
-            if label_to_color is None:
-                plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2)
-                line, = plt.plot(x, y, label=str(label))
-            else:
+            plot_kwargs = dict()
+            if not label_to_color is None:
                 label_without_vary_prefix = label.split(":")[-1]
                 color = label_to_color[label_without_vary_prefix]
-                plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.2, color=color)
-                line, = plt.plot(x, y, label=str(label), color=color)
+                plot_kwargs["color"] = color
+            if plot_error_bars:
+                plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.1, **plot_kwargs)
+            line, = plt.plot(x, y, label=str(label) + label_suffix, **plot_kwargs)
             lines.append(line)
+
+            if plot_seeds:
+                color = line.get_color()
+                for i in range(len(ys)):
+                    plt.plot(x, ys[i, :], color=color, alpha=0.25)
 
         if print_final:
             print(label, y[-1])
@@ -286,6 +321,9 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
     if print_legend:
         plt.legend(handles=lines, bbox_to_anchor=(1.0, 0.75))
 
+    if formatting_func:
+        plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(formatting_func))
+
     if return_data:
         return xs, ys
 
@@ -304,6 +342,7 @@ def split(exps,
     default_vary=False,
     xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True,
+    split_fig=False,
     **kwargs):
 
     split_values = {}
@@ -330,18 +369,23 @@ def split(exps,
             c.append((s, v))
         configurations.append(c)
     for c in itertools.product(*configurations):
+        if split_fig:
+            plt.figure(figsize=figsize)
         fsplit = lambda exp: all([exp['flat_params'][k] == v for k, v in c]) and f(exp)
         # for exp in exps:
         #     print(fsplit(exp), exp['flat_params'])
+        lines = []
         for key in keys:
             if print_final or print_max or print_min:
                 print(key, c)
-            comparison(exps, key, vary, f=fsplit, smooth=smooth,
+            lines += comparison(exps, key, vary, f=fsplit, smooth=smooth,
                 figsize=figsize, xlabel=xlabel, default_vary=default_vary, xlim=xlim, ylim=ylim,
                 print_final=print_final, print_max=print_max, print_min=print_min, print_plot=print_plot,
                 **kwargs)
             if print_plot:
                 plt.title(prettify_configuration(c) + " Vary " + " ".join(vary))
+        if split_fig:
+            plt.legend(handles=lines, bbox_to_anchor=(1.0, 0.75))
 
 
 def min_length(trials, key):
@@ -467,3 +511,27 @@ def scatterplot_matrix(data1, data2, **kwargs):
     #     axes[i,j].yaxis.set_visible(True)
 
     return fig
+
+def plot_horizontal(x, values, label):
+    mean, std = np.mean(values), np.std(values)
+    plt.fill_between(x, mean- std, mean + std, alpha=0.1)
+    return plt.plot(x, [mean, mean], label=label)
+
+def plot_with_errors(x, values, label):
+    mean, std = np.mean(values, axis=0), np.std(values, axis=0)
+    plt.fill_between(x, mean- std, mean + std, alpha=0.1)
+    return plt.plot(x, mean, label=label)
+
+def configure_matplotlib(matplotlib):
+    matplotlib.rcParams['mathtext.fontset'] = 'stix'
+    matplotlib.rcParams['font.family'] = 'STIXGeneral'
+    matplotlib.rcParams.update({'font.size': 18})
+
+def number_K_format_func(value, tick_number):
+    return(str(int(value // 1000)) + 'K')
+
+def number_M_format_func(value, tick_number):
+    return(str(int(value // 1000000)) + 'M')
+
+def format_func_epoch(value, tick_number):
+    return(str(int(value)) + 'K')

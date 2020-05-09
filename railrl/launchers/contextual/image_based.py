@@ -1,6 +1,8 @@
 from functools import partial
 
 import numpy as np
+import torch
+from torch import nn
 
 from railrl.data_management.contextual_replay_buffer import (
     ContextualRelabelingReplayBuffer,
@@ -27,18 +29,43 @@ from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.networks import FlattenMlp
-from railrl.torch.networks.basic import (
-    MultiInputSequential,
-    FlattenEachParallel,
-    Flatten,
+from railrl.torch.networks import BasicCNN, FlattenMlp, basic
+from railrl.torch.networks.mlp import MultiHeadedMlp
+from railrl.torch.networks.stochastic.distribution_generator import (
+    TanhGaussian,
+    Gaussian,
 )
 from railrl.torch.sac.policies import (
     MakeDeterministic,
-    TanhGaussianWithBasicObsProcessorPolicy,
+    PolicyFromDistributionGenerator,
 )
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+
+
+class ApplyConvToStateAndGoalImage(nn.Module):
+    def __init__(self, cnn):
+        super().__init__()
+        self.cnn = cnn
+        shape = self.cnn.output_shape
+        self.output_shape = (2 * shape[0], *shape[1:])
+        self.output_size = int(np.prod(self.output_shape))
+
+    def forward(self, obs, *args, **kwargs):
+        state, goal = obs.chunk(2, dim=1)
+        h_state = self.cnn(state)
+        h_goal = self.cnn(goal)
+        return torch.cat((h_state, h_goal), dim=1)
+
+
+class ApplyToObs(nn.Module):
+    def __init__(self, module):
+        super().__init__()
+        self.module = module
+
+    def forward(self, obs, action):
+        h_obs = self.module(obs)
+        return h_obs, action
 
 
 def image_based_goal_conditioned_sac_experiment(
@@ -48,6 +75,8 @@ def image_based_goal_conditioned_sac_experiment(
         replay_buffer_kwargs,
         policy_kwargs,
         algo_kwargs,
+        cnn_kwargs,
+        policy_type='tanh-normal',
         env_id=None,
         env_class=None,
         env_kwargs=None,
@@ -99,7 +128,8 @@ def image_based_goal_conditioned_sac_experiment(
             image_goal_key=img_desired_goal_key,
             renderer=renderer,
         )
-        goal_distribution = PresampledDistribution(image_goal_distribution, 256)
+        goal_distribution = PresampledDistribution(
+            image_goal_distribution, 5000)
         img_env = InsertImageEnv(state_env, renderer=renderer)
         if reward_type == 'state_distance':
             reward_fn = ContextualRewardFnFromMultitaskEnv(
@@ -140,17 +170,31 @@ def image_based_goal_conditioned_sac_experiment(
         env_renderer
     )
 
-    obs_dim = (
-            expl_env.observation_space.spaces[img_observation_key].low.size
-            + expl_env.observation_space.spaces[img_desired_goal_key].low.size
-    )
     action_dim = expl_env.action_space.low.size
+    if env_renderer.output_image_format == 'WHC':
+        img_width, img_height, img_num_channels = (
+            expl_env.observation_space[img_observation_key].shape
+        )
+    elif env_renderer.output_image_format == 'CHW':
+        img_num_channels, img_height, img_width = (
+            expl_env.observation_space[img_observation_key].shape
+        )
+    else:
+        raise ValueError(env_renderer.output_image_format)
 
     def create_qf():
-        return MultiInputSequential(
-            FlattenEachParallel(),
+        cnn = BasicCNN(
+            input_width=img_width,
+            input_height=img_height,
+            input_channels=img_num_channels,
+            **cnn_kwargs
+        )
+        joint_cnn = ApplyConvToStateAndGoalImage(cnn)
+        return basic.MultiInputSequential(
+            ApplyToObs(joint_cnn),
+            basic.FlattenEachParallel(),
             FlattenMlp(
-                input_size=obs_dim + action_dim,
+                input_size=joint_cnn.output_size + action_dim,
                 output_size=1,
                 **qf_kwargs
             )
@@ -160,13 +204,56 @@ def image_based_goal_conditioned_sac_experiment(
     qf2 = create_qf()
     target_qf1 = create_qf()
     target_qf2 = create_qf()
-
-    policy = TanhGaussianWithBasicObsProcessorPolicy(
-        obs_processor=Flatten(),
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        **policy_kwargs
+    cnn = BasicCNN(
+        input_width=img_width,
+        input_height=img_height,
+        input_channels=img_num_channels,
+        **cnn_kwargs
     )
+    joint_cnn = ApplyConvToStateAndGoalImage(cnn)
+    policy_obs_dim = joint_cnn.output_size
+    if policy_type == 'normal':
+        obs_processor = nn.Sequential(
+            joint_cnn,
+            basic.Flatten(),
+            MultiHeadedMlp(
+                input_size=policy_obs_dim,
+                output_sizes=[action_dim, action_dim],
+                **policy_kwargs
+            )
+        )
+        policy = PolicyFromDistributionGenerator(
+            Gaussian(obs_processor)
+        )
+    elif policy_type == 'tanh-normal':
+        obs_processor = nn.Sequential(
+            joint_cnn,
+            basic.Flatten(),
+            MultiHeadedMlp(
+                input_size=policy_obs_dim,
+                output_sizes=[action_dim, action_dim],
+                **policy_kwargs
+            )
+        )
+        policy = PolicyFromDistributionGenerator(
+            TanhGaussian(obs_processor)
+        )
+    elif policy_type == 'normal-tanh-mean':
+        obs_processor = nn.Sequential(
+            joint_cnn,
+            basic.Flatten(),
+            MultiHeadedMlp(
+                input_size=policy_obs_dim,
+                output_sizes=[action_dim, action_dim],
+                output_activations=['tanh', 'identity'],
+                **policy_kwargs
+            )
+        )
+        policy = PolicyFromDistributionGenerator(
+            Gaussian(obs_processor)
+        )
+    else:
+        raise ValueError("Unknown policy type: {}".format(policy_type))
 
     def concat_context_to_obs(batch):
         obs = batch['observations']
@@ -264,7 +351,7 @@ def image_based_goal_conditioned_sac_experiment(
             rollout_function,
             video_expl_env,
             exploration_policy,
-            tag="train",
+            tag="xplor",
             imsize=video_renderer.image_shape[1],
             image_format='HWC',
             keys_to_show=[

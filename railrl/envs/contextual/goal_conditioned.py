@@ -2,7 +2,7 @@ import warnings
 from typing import Any, Callable, Dict, List
 
 import numpy as np
-from gym.spaces import Box
+from gym.spaces import Box, Dict
 from multiworld.core.multitask_env import MultitaskEnv
 
 from railrl import pythonplusplus as ppp

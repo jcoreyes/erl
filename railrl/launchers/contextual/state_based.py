@@ -228,3 +228,8 @@ def goal_conditioned_sac_experiment(
         algorithm.post_train_funcs.append(expl_video_func)
 
     algorithm.train()
+
+
+def process_args(variant):
+    if variant.get("debug", False):
+        pass

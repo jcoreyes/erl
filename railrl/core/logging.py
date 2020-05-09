@@ -352,6 +352,7 @@ def setup_logger(
         unique_id=None,
         git_infos=None,
         script_name=None,
+        run_id=None,
         **create_log_dir_kwargs
 ):
     """
@@ -381,6 +382,7 @@ def setup_logger(
             exp_name=exp_name,
             base_log_dir=base_log_dir,
             variant=variant,
+            run_id=run_id,
             **create_log_dir_kwargs
         )
 
@@ -462,6 +464,7 @@ def create_log_dir(
         variant=None,
         trial_dir_suffix=None,
         include_exp_name_sub_dir=True,
+        run_id=None,
 ):
     """
     Creates and returns a unique log directory.
@@ -470,8 +473,8 @@ def create_log_dir(
     :param exp_id: Different exp_ids will be in different directories.
     :return:
     """
-    if variant and "run_id" in variant and variant["run_id"] is not None:
-        run_id, exp_id = variant["run_id"], variant["exp_id"]
+    if run_id is not None:
+        exp_id = variant["exp_id"]
         if variant.get("num_exps_per_instance", 0) > 1:
             now = datetime.datetime.now(dateutil.tz.tzlocal())
             timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')

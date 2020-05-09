@@ -241,28 +241,28 @@ def _disentangled_her_twin_sac_experiment_v2(
     )
 
     qf1 = DisentangledMlpQf(
-        goal_processor=encoder,
+        encoder=encoder,
         preprocess_obs_dim=obs_dim,
         action_dim=action_dim,
         qf_kwargs=qf_kwargs,
         **disentangled_qf_kwargs
     )
     qf2 = DisentangledMlpQf(
-        goal_processor=encoder,
+        encoder=encoder,
         preprocess_obs_dim=obs_dim,
         action_dim=action_dim,
         qf_kwargs=qf_kwargs,
         **disentangled_qf_kwargs
     )
     target_qf1 = DisentangledMlpQf(
-        goal_processor=Detach(encoder),
+        encoder=Detach(encoder),
         preprocess_obs_dim=obs_dim,
         action_dim=action_dim,
         qf_kwargs=qf_kwargs,
         **disentangled_qf_kwargs
     )
     target_qf2 = DisentangledMlpQf(
-        goal_processor=Detach(encoder),
+        encoder=Detach(encoder),
         preprocess_obs_dim=obs_dim,
         action_dim=action_dim,
         qf_kwargs=qf_kwargs,

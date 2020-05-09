@@ -12,6 +12,13 @@ if __name__ == "__main__":
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
+        cnn_kwargs=dict(
+            kernel_sizes=[3, 3, 3],
+            n_channels=[8, 16, 32],
+            strides=[1, 1, 1],
+            paddings=[0, 0, 0],
+            pool_type='none',
+        ),
         sac_trainer_kwargs=dict(
             reward_scale=1,
             discount=0.99,
@@ -22,11 +29,11 @@ if __name__ == "__main__":
         max_path_length=100,
         algo_kwargs=dict(
             batch_size=128,
-            num_epochs=300,
-            num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000,
-            min_num_steps_before_training=1000,
+            num_epochs=100,
+            num_eval_steps_per_epoch=100,
+            num_expl_steps_per_train_loop=100,
+            num_trains_per_train_loop=100,
+            min_num_steps_before_training=100,
         ),
         replay_buffer_kwargs=dict(
             fraction_future_context=0.3,
@@ -45,11 +52,14 @@ if __name__ == "__main__":
         env_renderer_kwargs=dict(
             img_width=8,
             img_height=8,
+            output_img_format='CHW',
         ),
         video_renderer_kwargs=dict(
             img_width=48,
             img_height=48,
+            output_img_format='CHW',
         ),
+        reward_type='state_distance',
     )
 
     search_space = {
@@ -69,7 +79,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_name = 'image-based-gc-pointmass-post-hstack-fix--local2'
+    exp_name = 'imaged-based-goal-reaching'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):

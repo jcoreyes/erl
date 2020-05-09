@@ -1,6 +1,5 @@
 import abc
 
-
 class Policy(object, metaclass=abc.ABCMeta):
     """
     General policy interface.
