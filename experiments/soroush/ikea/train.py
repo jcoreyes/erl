@@ -28,8 +28,14 @@ variant = dict(
         twin_sac_trainer_kwargs=dict(),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_goals_rollout_goals=0.5,
+            fraction_goals_rollout_goals=1.0,
             fraction_goals_env_goals=0.0,
+
+            recompute_rewards=False,
+            ob_keys_to_save=[
+                'oracle_connector_info',
+                'oracle_robot_info',
+            ],
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -71,7 +77,7 @@ variant = dict(
         num_connect_steps=0,
         num_connected_ob=True,
         num_connected_reward_scale=5.0,
-        goal_type='reset',
+        goal_type='zeros', #reset
         reset_type='var_2dpos+no_rot', #'var_2dpos+var_1drot', 'var_2dpos+objs_near',
 
         task_type='connect',
@@ -88,10 +94,8 @@ env_params = {
     'block-2obj': {
         'env_kwargs.furniture_name': ['block'],
         'env_kwargs.reward_type': [
-            'object_in_bounds+num_connected',
+            'oib+nc+conn_dist',
         ],
-
-        'rl_variant.replay_buffer_kwargs.ob_keys_to_save': [['oracle_info']],
 
         'rl_variant.algo_kwargs.num_epochs': [500],
         'rl_variant.save_video_period': [25],  # 50
@@ -99,8 +103,8 @@ env_params = {
     'chair-2obj': {
         'env_kwargs.furniture_name': ['chair_agne_0007_2obj'],
         'env_kwargs.reward_type': [
-            'object_in_bounds+num_connected',
-            'object_in_bounds+num_connected+connector_dist',
+            'oib+nc',
+            'oib+nc+sel_conn_dist',
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [500],
@@ -109,12 +113,80 @@ env_params = {
     'chair': {
         'env_kwargs.furniture_name': ['chair_agne_0007'],
         'env_kwargs.reward_type': [
-            'object_in_bounds+num_connected',
-            'object_in_bounds+num_connected+connector_dist',
+            'oib+nc+first_conn_dist',
+            'oib+nc+first_conn_dist+cursor_dist',
+            'oib+nc+first_conn_dist+cursor_dist+cursor_sparse_dist',
+            'oib+nc+next_conn_dist',
+            'oib+nc+next_conn_dist+cursor_dist',
+            'oib+nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
+            'oib+nc+sel_conn_dist',
+            'oib+nc+sel_conn_dist+cursor_dist',
+            'oib+nc+sel_conn_dist+cursor_dist+cursor_sparse_dist',
+
+        ],
+        'env_kwargs.task_connect_sequence': [
+            [0, 1, 2], # leg1 -> leg2 -> seat
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [500],
-        'rl_variant.save_video_period': [25],  # 50
+        'rl_variant.algo_kwargs.num_trains_per_train_loop': [1000],
+        'rl_variant.algo_kwargs.num_epochs': [1500],
+
+        'rl_variant.save_video_period': [50],  # 25
+    },
+    'shelf': {
+        'env_kwargs.furniture_name': ['shelf_ivar_0678'],
+        'env_kwargs.reward_type': [
+            # 'oib+nc',
+
+            # 'oib+nc+next_conn_dist',
+            'oib+nc+next_conn_dist+cursor_dist',
+            'oib+nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
+
+            # 'oib+nc+cursor_dist',
+        ],
+
+        # 'env_kwargs.num_connected_reward_scale': [
+        #     0.5,
+        #     1.0,
+        #     5.0,
+        # ],
+
+        'rl_variant.max_path_length': [
+            100,
+            150,
+        ],
+
+
+        'env_kwargs.task_connect_sequence': [
+            [0, 1, 2, 3, 4, 5],  # col -> box1 -> box2 -> box3 -> box4 -> box5
+        ],
+
+        'env_kwargs.select_next_obj_only': [True],
+
+        'rl_variant.algo_kwargs.num_epochs': [1500],
+
+        'rl_variant.save_video_period': [50],  # 25
+    },
+    'shelf-4obj': {
+        'env_kwargs.furniture_name': ['shelf_ivar_0678_4obj'],
+        'env_kwargs.reward_type': [
+            'oib+nc',
+
+            'oib+nc+next_conn_dist',
+            'oib+nc+next_conn_dist+cursor_dist',
+            'oib+nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
+
+            # 'oib+nc+cursor_dist',
+        ],
+        'env_kwargs.task_connect_sequence': [
+            [0, 1, 2, 3],  # col -> box1 -> box2 -> box3
+        ],
+
+        'env_kwargs.select_next_obj_only': [True],
+
+        'rl_variant.algo_kwargs.num_epochs': [1500],
+
+        'rl_variant.save_video_period': [50],  # 25
     },
     'swivel': {
         'env_kwargs.furniture_name': ['swivel_chair_0700'],
@@ -123,7 +195,7 @@ env_params = {
         ],
 
         'env_kwargs.reward_type': [
-            'object_in_bounds+num_connected+connector_dist',
+            'oib+nc+conn_dist',
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [500],
