@@ -220,6 +220,7 @@ def dump_video(
                 policy,
                 max_path_length=horizon,
                 render=False,
+                return_dict_obs=True,
             )
         l = []
         x_0 = path['full_observations'][0]['image_observation']

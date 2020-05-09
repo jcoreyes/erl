@@ -21,7 +21,7 @@ def td3_experiment(variant):
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-    # preprocess_rl_variant(variant)
+    preprocess_rl_variant(variant)
     env = get_envs(variant)
     expl_env = env
     eval_env = env
@@ -106,7 +106,6 @@ def td3_experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-
     replay_buffer = ObsDictRelabelingBuffer(
         env=env,
         observation_key=observation_key,
@@ -515,14 +514,15 @@ def preprocess_rl_variant(variant):
     if variant.get("do_state_exp", False):
         variant['observation_key'] = 'state_observation'
         variant['desired_goal_key'] = 'state_desired_goal'
-        variant['achieved_goal_key'] = 'state_acheived_goal'
+        variant['achieved_goal_key'] = 'state_achieved_goal'
 
 
 def get_video_save_func(rollout_function, env, policy, variant):
     from multiworld.core.image_env import ImageEnv
     from railrl.core import logger
     from railrl.envs.vae_wrappers import temporary_mode
-    from railrl.visualization.video import dump_video
+    # from railrl.visualization.video import dump_video
+    from railrl.torch.grill.video_gen import dump_video
     logdir = logger.get_snapshot_dir()
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)
