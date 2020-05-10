@@ -52,11 +52,6 @@ variant = dict(
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
-        use_subgoal_policy=False,
-        subgoal_policy_kwargs=dict(
-            num_subgoals_per_episode=2,
-        ),
-        use_masks=False,
         exploration_type='gaussian_and_epsilon',
         es_kwargs=dict(
             max_sigma=.2,
@@ -64,14 +59,17 @@ variant = dict(
             epsilon=.3,
         ),
         algorithm="TD3",
-        dump_video_kwargs=dict(
+        context_based=True,
+        save_video=True,
+        save_video_kwargs=dict(
+            save_video_period=10,
+            pad_color=0,
+            pad_length=0,
+            subpad_length=0,
             rows=1,
             columns=8,
         ),
-        vis_kwargs=dict(
-            vis_list=dict(),
-        ),
-        save_video_period=50,
+        renderer_kwargs=dict(),
     ),
     env_class=FurnitureMultiworld,
     env_kwargs=dict(
@@ -146,9 +144,11 @@ def process_variant(variant):
         rl_variant['algo_kwargs']['num_expl_steps_per_train_loop'] = 200
         rl_variant['algo_kwargs']['num_trains_per_train_loop'] = 200
         rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
-        rl_variant['dump_video_kwargs']['columns'] = 2
-        rl_variant['save_video_period'] = 2
-        variant['imsize'] = 250
+        rl_variant['save_video_kwargs']['columns'] = 2
+        rl_variant['save_video_kwargs']['save_video_period'] = 2
+        rl_variant['renderer_kwargs']['img_width'] = 250
+        rl_variant['renderer_kwargs']['img_height'] = 250
+        # variant['imsize'] = 250
 
     if args.no_video:
         rl_variant['save_video'] = False

@@ -115,16 +115,16 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         append_log(algo_log, self.trainer.get_diagnostics(), prefix='trainer/')
         # Exploration
         append_log(algo_log, self.expl_data_collector.get_diagnostics(),
-                   prefix='exploration/')
+                   prefix='expl/')
         expl_paths = self.expl_data_collector.get_epoch_paths()
         for fn in self._expl_get_diag_fns:
-            append_log(algo_log, fn(expl_paths), prefix='exploration/')
+            append_log(algo_log, fn(expl_paths), prefix='expl/')
         # Eval
         append_log(algo_log, self.eval_data_collector.get_diagnostics(),
-                   prefix='evaluation/')
+                   prefix='eval/')
         eval_paths = self.eval_data_collector.get_epoch_paths()
         for fn in self._eval_get_diag_fns:
-            append_log(algo_log, fn(eval_paths), prefix='evaluation/')
+            append_log(algo_log, fn(eval_paths), prefix='eval/')
 
         timer.stamp('logging')
         append_log(algo_log, _get_epoch_timings())

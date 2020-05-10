@@ -172,15 +172,17 @@ def td3_experiment(variant):
         **variant['algo_kwargs']
     )
 
-    vis_variant = variant.get('vis_kwargs', {})
-    vis_list = vis_variant.get('vis_list', [])
+    # vis_variant = variant.get('vis_kwargs', {})
+    # vis_list = vis_variant.get('vis_list', [])
     if variant.get("save_video", True):
         if variant.get("do_state_exp", False):
-            rollout_function = rf.create_rollout_function(
+            from functools import partial
+            rollout_function = partial(
                 rf.multitask_rollout,
                 max_path_length=max_path_length,
                 observation_key=observation_key,
                 desired_goal_key=desired_goal_key,
+                return_dict_obs=True,
                 # use_masks=variant.get("use_masks", False),
                 # full_mask=True,
                 # vis_list=vis_list,
@@ -541,7 +543,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
         )
 
         def save_video(algo, epoch):
-            if epoch % save_period == 0 or epoch == algo.num_epochs:
+            if epoch % save_period == 0 or epoch >= algo.num_epochs - 1:
                 filename = osp.join(logdir,
                                     'video_{epoch}_env.mp4'.format(epoch=epoch))
                 dump_video(image_env, policy, filename, rollout_function,
@@ -551,7 +553,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
         dump_video_kwargs['imsize'] = env.imsize
 
         def save_video(algo, epoch):
-            if epoch % save_period == 0 or epoch == algo.num_epochs:
+            if epoch % save_period == 0 or epoch >= algo.num_epochs - 1:
                 filename = osp.join(logdir,
                                     'video_{epoch}_env.mp4'.format(epoch=epoch))
                 temporary_mode(

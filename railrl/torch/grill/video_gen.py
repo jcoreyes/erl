@@ -175,6 +175,7 @@ def dump_video(
         subdirname="rollouts",
         imsize=84,
         vis_list=None,
+        **kwargs
 ):
     assert (paths is not None) != (rollout_function is not None)
     assert filename is not None

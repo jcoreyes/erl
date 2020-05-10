@@ -30,9 +30,17 @@ variant = dict(
             max_size=int(1E6),
             fraction_goals_rollout_goals=1.0,
             fraction_goals_env_goals=0.0,
-
             recompute_rewards=False,
             ob_keys_to_save=[
+                'oracle_connector_info',
+                'oracle_robot_info',
+            ],
+        ),
+        contextual_replay_buffer_kwargs=dict(
+            max_size=int(1E6),
+            fraction_future_context=0.0,
+            fraction_distribution_context=0.0,
+            observation_keys=[
                 'oracle_connector_info',
                 'oracle_robot_info',
             ],
@@ -58,14 +66,20 @@ variant = dict(
             epsilon=.3,
         ),
         algorithm="TD3",
+        context_based=True,
+        save_video=True,
         dump_video_kwargs=dict(
             rows=1,
             columns=8,
+            pad_color=0,
+            pad_length=0,
+            subpad_length=0,
         ),
         vis_kwargs=dict(
             vis_list=dict(),
         ),
         save_video_period=50,
+        renderer_kwargs=dict(),
     ),
     env_class=FurnitureMultiworld,
     env_kwargs=dict(
@@ -170,10 +184,10 @@ env_params = {
     'shelf-4obj': {
         'env_kwargs.furniture_name': ['shelf_ivar_0678_4obj'],
         'env_kwargs.reward_type': [
-            'oib+nc',
-
-            'oib+nc+next_conn_dist',
-            'oib+nc+next_conn_dist+cursor_dist',
+            # 'oib+nc',
+            #
+            # 'oib+nc+next_conn_dist',
+            # 'oib+nc+next_conn_dist+cursor_dist',
             'oib+nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
 
             # 'oib+nc+cursor_dist',
@@ -184,7 +198,12 @@ env_params = {
 
         'env_kwargs.select_next_obj_only': [True],
 
-        'rl_variant.algo_kwargs.num_epochs': [1500],
+        'rl_variant.algo_kwargs.num_epochs': [750],
+
+        'rl_variant.context_based': [
+            True,
+            False,
+        ],
 
         'rl_variant.save_video_period': [50],  # 25
     },
@@ -221,6 +240,8 @@ def process_variant(variant):
         rl_variant['dump_video_kwargs']['columns'] = 2
         rl_variant['save_video_period'] = 2
         variant['imsize'] = 250
+    rl_variant['renderer_kwargs']['img_width'] = variant['imsize']
+    rl_variant['renderer_kwargs']['img_height'] = variant['imsize']
 
     if args.no_video:
         rl_variant['save_video'] = False

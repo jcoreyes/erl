@@ -20,9 +20,13 @@ def rl_experiment(variant):
     if 'sac' in rl_variant['algorithm'].lower():
         twin_sac_experiment(rl_variant)
     else:
-        from railrl.launchers.contextual.state_based_soroush import td3_experiment as td3_experiment_contextual
-        td3_experiment_contextual(rl_variant)
-        # td3_experiment(rl_variant)
+        if rl_variant.get('context_based', False):
+            print("Using contexts")
+            from railrl.launchers.contextual.state_based_soroush import td3_experiment as td3_experiment_contextual
+            td3_experiment_contextual(rl_variant)
+        else:
+            print("NOT using contexts")
+            td3_experiment(rl_variant)
 
     # TODO: add online VAE exps, tdm exps, other baseline exps
 
