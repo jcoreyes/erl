@@ -150,6 +150,7 @@ class RIGVideoSaveFunction:
             decoded_img = self.model.decode_one_np(latent)
             d[self.reconstruction_key] = decoded_img
 
+
 def dump_video(
         env,
         policy,
@@ -157,11 +158,6 @@ def dump_video(
         rollout_function,
         rows=3,
         columns=6,
-        pad_length=1,
-        pad_color=255,
-        subpad_length=1,
-        subpad_color=127,
-        image_format='HWC',
         do_timer=True,
         horizon=100,
         dirname_to_save_images=None,
@@ -171,6 +167,7 @@ def dump_video(
         grayscale=False,
         keys_to_show=None,
         num_columns_per_rollout=1,
+        **combine_img_kwargs
 ):
     """
 
@@ -181,8 +178,6 @@ def dump_video(
     :param rows:
     :param columns:
     :param pad_length:
-    :param pad_color:
-    :param subpad_length:
     :param subpad_color:
     :param do_timer:
     :param horizon:
@@ -224,11 +219,7 @@ def dump_video(
                     max_num_cols=num_columns_per_rollout,
                     imwidth=imsize,
                     imheight=imsize,
-                    pad_length=pad_length,
-                    pad_color=pad_color,
-                    subpad_length=subpad_length,
-                    subpad_color=subpad_color,
-                    image_format=image_format,
+                    **combine_img_kwargs
                 )
             )
         frames += l
@@ -299,12 +290,7 @@ def dump_paths(
         keys,
         rows=3,
         columns=6,
-        pad_length=0,
-        pad_color=255,
-        subpad_length=0,
-        subpad_color=127,
         do_timer=True,
-        horizon=100,
         dirname_to_save_images=None,
         subdirname="rollouts",
         imsize=84,
@@ -312,10 +298,10 @@ def dump_paths(
         imheight=None,
         num_imgs=3,  # how many vertical images we stack per rollout
         dump_pickle=False,
-        unnormalize=True,
         grayscale=False,
         get_extra_imgs=None,
         num_columns_per_rollout=1,
+        **combine_img_kwargs
 ):
     if get_extra_imgs is None:
         get_extra_imgs = get_generic_env_imgs
@@ -346,11 +332,7 @@ def dump_paths(
                     imwidth,
                     imheight,
                     max_num_cols=num_columns_per_rollout,
-                    pad_length=pad_length,
-                    pad_color=pad_color,
-                    subpad_length=subpad_length,
-                    subpad_color=subpad_color,
-                    unnormalize=unnormalize,
+                    **combine_img_kwargs
                 )
             )
         frames += l

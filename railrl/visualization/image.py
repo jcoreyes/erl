@@ -59,14 +59,20 @@ def combine_images_into_grid(
         pad_length=1, pad_color=255,
         subpad_length=1, subpad_color=255,
         unnormalize=True,
-        image_format='CWH',
+        image_format=None,
+        image_formats=None,
 ):
+    if image_formats is None and image_format is None:
+        raise RuntimeError(
+            "either image_format or image_formats must be provided")
+    if image_formats is None:
+        image_formats = [image_format for _ in imgs]
     num_imgs = len(imgs)
     num_cols = min(max_num_cols, num_imgs)
     num_rows = int(math.ceil(num_imgs / num_cols))
 
     new_imgs = []
-    for img in imgs:
+    for img, image_format in zip(imgs, image_formats):
         img = make_image_fit_into_hwc_format(
             img, imwidth, imheight, image_format)
         if unnormalize:
