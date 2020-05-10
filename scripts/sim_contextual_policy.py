@@ -45,6 +45,14 @@ def simulate_policy(args):
     if isinstance(policy, PyTorchModule):
         policy.train(False)
     paths = []
+    import torch
+    def check(net):
+        for name, param in net.named_parameters():
+            if torch.isnan(param).any():
+                print(name)
+    qf = data['trainer/qf1']
+    import ipdb; ipdb.set_trace()
+
     while True:
         paths.append(contextual_rollout(
             env,
@@ -52,8 +60,8 @@ def simulate_policy(args):
             max_path_length=args.H,
             render=not args.hide,
             observation_key=data.get('evaluation/observation_key', 'observation'),
-            # desired_goal_key=data.get('evaluation/desired_goal_key', 'desired_goal'),
-            context_keys_for_policy=['state_desired_goal'],
+            context_keys_for_policy=data.get('evaluation/context_keys_for_policy', ['context']),
+            # context_keys_for_policy=['state_desired_goal'],
         ))
         if hasattr(env, "log_diagnostics"):
             env.log_diagnostics(paths)
@@ -61,7 +69,6 @@ def simulate_policy(args):
             for k, v in env.get_diagnostics(paths).items():
                 logger.record_tabular(k, v)
         logger.dump_tabular()
-
 
 if __name__ == "__main__":
 

@@ -34,17 +34,8 @@ def make_image_fit_into_hwc_format(
             raise ValueError(input_image_format)
     else:
         a, b, c = img.shape
-        # TODO: remove hack
-        if a == b and a != c:
-            input_image_format = 'HWC'
-        elif a != b and b == c:
-            input_image_format = 'CWH'
-        if input_image_format == 'HWC':
-            hwc_img = img
-        elif input_image_format == 'CWH':
-            hwc_img = img.transpose()
-        else:
-            raise ValueError(input_image_format)
+        transpose_index = [input_image_format.index(channel) for channel in 'HWC']
+        hwc_img = img.transpose(transpose_index)
 
     if hwc_img.shape == (output_imheight, output_imwidth, 3):
         image_that_fits = hwc_img

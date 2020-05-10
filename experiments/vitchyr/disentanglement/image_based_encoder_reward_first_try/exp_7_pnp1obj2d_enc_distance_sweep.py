@@ -9,20 +9,20 @@ from railrl.launchers.launcher_util import run_experiment
 if __name__ == "__main__":
     variant = dict(
         env_id='OneObjectPickAndPlace2DEnv-v0',
-        qf_kwargs=dict(
-            hidden_sizes=[64, 64],
-        ),
         disentangled_qf_kwargs=dict(
             encode_state=True,
         ),
+        qf_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
         policy_kwargs=dict(
-            hidden_sizes=[64, 64],
+            hidden_sizes=[400, 300],
         ),
         policy_using_encoder_settings=dict(
             encode_state=False,
             encode_goal=False,
-            detach_encoder_via_goal=True,
-            detach_encoder_via_state=True,
+            detach_encoder_via_goal=False,
+            detach_encoder_via_state=False,
         ),
         sac_trainer_kwargs=dict(
             reward_scale=1,
@@ -31,29 +31,30 @@ if __name__ == "__main__":
             target_update_period=1,
             use_automatic_entropy_tuning=True,
         ),
+        num_presampled_goals=5000,
         max_path_length=100,
         algo_kwargs=dict(
             batch_size=256,
-            num_epochs=300,
-            num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000,
-            min_num_steps_before_training=1000,
-            # num_epochs=5,
+            num_epochs=200,
+            num_eval_steps_per_epoch=5000,
+            num_expl_steps_per_train_loop=5000,
+            num_trains_per_train_loop=5000,
+            min_num_steps_before_training=5000,
+            # num_epochs=10,
             # num_eval_steps_per_epoch=100,
             # num_expl_steps_per_train_loop=100,
             # num_trains_per_train_loop=100,
-            # min_num_steps_before_training=300,
+            # min_num_steps_before_training=100,
         ),
         replay_buffer_kwargs=dict(
             fraction_future_context=0.5,
             fraction_distribution_context=0.5,
             max_size=int(1e6),
         ),
+        save_debug_video=False,
         save_video=True,
         save_video_kwargs=dict(
-            save_video_period=50,
-            # save_video_period=1,
+            save_video_period=20,
             rows=1,
             columns=2,
             subpad_length=1,
@@ -68,50 +69,62 @@ if __name__ == "__main__":
             exploration_version='occasionally_repeat',
             repeat_prob=0.5,
         ),
-        encoder_kwargs=dict(
-            output_size=8,
-            hidden_sizes=[64, 64],
-            hidden_activation=F.leaky_relu,
+        encoder_cnn_kwargs=dict(
+            kernel_sizes=[3, 3, 3],
+            n_channels=[8, 16, 32],
+            strides=[1, 1, 1],
+            paddings=[0, 0, 0],
+            pool_type='none',
+            hidden_activation='relu',
         ),
-        renderer_kwargs=dict(
-            img_width=32,
-            img_height=32,
+        use_image_observations=True,
+        env_renderer_kwargs=dict(
+            img_width=8,
+            img_height=8,
+            output_img_format='CHW',
+        ),
+        video_renderer_kwargs=dict(
+            img_width=16,
+            img_height=16,
+            output_img_format='CHW',
         ),
         debug_renderer_kwargs=dict(
             img_width=16,
             img_height=16,
-            sweep='goal',
+            output_img_format='CHW',
         ),
+        use_separate_encoder_for_policy=True,
+        skip_encoder_mlp=False,
+        encoder_kwargs=dict(
+            hidden_sizes=[],
+        ),
+        distance_scatterplot_save_period=20,
+        distance_scatterplot_initial_save_period=2,
     )
 
     search_space = {
-        'use_target_encoder_for_reward': [
-            False,
-        ],
-        'encoder_reward_scale': [
-            1.,
+        'reward_type': [
+            'encoder_distance',
         ],
         'encoder_kwargs.output_size': [
-            8,
-            # 32,
+            8, 32,
         ],
         'encoder_kwargs.hidden_sizes': [
-            [64, 64],
-        ],
-        'encoder_kwargs.hidden_activation': [
-            F.leaky_relu,
+            [],
+            # [64],
+            # [64, 64],
         ],
         'vectorized_reward': [
-            True,
             False,
+            True,
+        ],
+        'replay_buffer_kwargs.fraction_future_context': [
+            0.5,
         ],
         'disentangled_qf_kwargs.architecture': [
             'splice',
             'single_head_match_many_heads',
             'many_heads',
-        ],
-        'disentangled_qf_kwargs.encode_state': [
-            False,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -125,8 +138,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 1
-    mode = 'ec2'
-    exp_name = 'pnp-1obj-state-obs-encoder-reward-post-policy-refactor-pi-uses-state-take2'
+    mode = 'sss'
+    exp_name = 'pnp-img-obs-encoder-distance-sweep-encoder-mlp'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):
@@ -137,7 +150,7 @@ if __name__ == "__main__":
                 exp_name=exp_name,
                 mode=mode,
                 variant=variant,
-                use_gpu=False,
+                use_gpu=True,
                 num_exps_per_instance=3,
                 # slurm_config_name='cpu_co',
                 gcp_kwargs=dict(

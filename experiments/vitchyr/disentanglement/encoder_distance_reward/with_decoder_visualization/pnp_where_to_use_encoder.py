@@ -124,9 +124,9 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    n_seeds = 2
+    n_seeds = 1
     mode = 'ec2'
-    exp_name = 'pnp-1obj-sweep-where-to-use-encoder-ec2-c5-one-seeds-take2'
+    exp_name = 'pnp-1obj-sweep-where-to-use-encoder-ec2-c5-one-seeds-take4'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):
