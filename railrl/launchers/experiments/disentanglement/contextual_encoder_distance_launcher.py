@@ -47,8 +47,7 @@ from railrl.torch.disentanglement.networks import (
     DisentangledMlpQf,
     EncodeObsAndGoal,
 )
-from railrl.torch.modules import Concat
-from railrl.torch.networks import FlattenMlp, BasicCNN, Flatten
+from railrl.torch.networks import FlattenMlp, BasicCNN, Flatten, ConcatTuple
 from railrl.torch.networks.mlp import MultiHeadedMlp, Mlp
 from railrl.torch.networks.stochastic.distribution_generator import TanhGaussian
 from railrl.torch.sac.policies import (
@@ -374,7 +373,7 @@ def encoder_goal_conditioned_sac_experiment(
         )
     obs_processor = nn.Sequential(
         policy_encoder_net,
-        Concat(),
+        ConcatTuple(),
         MultiHeadedMlp(
             input_size=policy_encoder_net.output_size,
             output_sizes=[action_dim, action_dim],

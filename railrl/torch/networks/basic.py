@@ -47,9 +47,22 @@ class Flatten(nn.Module):
         return inputs.view(inputs.size(0), -1)
 
 
-class Concat(nn.Module):
+class ConcatTuple(nn.Module):
+    def __init__(self, dim=1):
+        super().__init__()
+        self.dim = dim
+
     def forward(self, inputs):
-        return torch.cat(inputs, dim=1)
+        return torch.cat(inputs, dim=self.dim)
+
+
+class Concat(nn.Module):
+    def __init__(self, dim=1):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, *inputs):
+        return torch.cat(inputs, dim=self.dim)
 
 
 class MultiInputSequential(nn.Sequential):
