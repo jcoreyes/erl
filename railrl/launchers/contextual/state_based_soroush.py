@@ -83,11 +83,15 @@ class SequentialTaskPathCollector(ContextualPathCollector):
                 combined_obs.append(o[k])
             return np.concatenate(combined_obs, axis=0)
 
+        def reset_postprocess_func():
+            self.rollout_tasks = []
+
         self._rollout_fn = partial(
             contextual_rollout,
             context_keys_for_policy=self._context_keys_for_policy,
             observation_key=self._observation_key,
             obs_processor=obs_processor,
+            reset_postprocess_func=reset_postprocess_func,
         )
 
 def td3_experiment(variant):
@@ -299,6 +303,7 @@ def td3_experiment(variant):
     if variant.get("save_video", True):
         save_period = variant.get('save_video_period', 50)
         dump_video_kwargs = variant.get("dump_video_kwargs", dict())
+        dump_video_kwargs['horizon'] = max_path_length
 
         # rollout_function = partial(
         #     rf.contextual_rollout,

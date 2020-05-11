@@ -88,6 +88,7 @@ variant = dict(
         unity=False,
         tight_action_space=False,
         preempt_collisions=True,
+        boundary=[0.5, 0.5, 1.2],
         pos_dist=0.2,
         num_connect_steps=0,
         num_connected_ob=True,
@@ -151,30 +152,38 @@ env_params = {
     'shelf': {
         'env_kwargs.furniture_name': ['shelf_ivar_0678'],
         'env_kwargs.reward_type': [
-            # 'oib+nc',
+            # 'nc',
 
-            # 'oib+nc+next_conn_dist',
-            'oib+nc+next_conn_dist+cursor_dist',
-            'oib+nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
+            # 'nc+next_conn_dist',
+            # 'nc+next_conn_dist+cursor_dist',
+            'nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
 
-            # 'oib+nc+cursor_dist',
+            # 'nc+cursor_dist',
         ],
 
-        # 'env_kwargs.num_connected_reward_scale': [
-        #     0.5,
-        #     1.0,
-        #     5.0,
-        # ],
+        'env_kwargs.num_connected_reward_scale': [
+            # 0.5,
+            1.0,
+            5.0,
+        ],
+
+        'rl_variant.td3_trainer_kwargs.reward_scale': [
+            1.0,
+            10.0,
+        ],
 
         'rl_variant.max_path_length': [
-            100,
             150,
         ],
-
 
         'env_kwargs.task_connect_sequence': [
             [0, 1, 2, 3, 4, 5],  # col -> box1 -> box2 -> box3 -> box4 -> box5
         ],
+        'rl_variant.task_conditioned': [
+            True,
+            False,
+        ],
+        'rl_variant.num_tasks': [9],
 
         'env_kwargs.select_next_obj_only': [True],
 
@@ -199,7 +208,6 @@ env_params = {
 
         'rl_variant.task_conditioned': [
             True,
-            # False,
         ],
         'rl_variant.num_tasks': [5],
 
