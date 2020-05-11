@@ -143,6 +143,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
                                    atomic_type=np.ndarray)
 
         if not self._recompute_rewards:
+            assert (num_distrib_contexts == 0) and (num_future_contexts == 0)
             new_rewards = self._rewards[indices]
         else:
             new_rewards = self._reward_fn(

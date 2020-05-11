@@ -17,9 +17,13 @@ def get_save_video_function(
 
     def save_video(algo, epoch):
         if epoch % save_video_period == 0 or epoch >= algo.num_epochs - 1:
+            if tag is not None and len(tag) > 0:
+                filename = 'video_{}_{epoch}_env.mp4'.format(tag, epoch=epoch)
+            else:
+                filename = 'video_{epoch}_env.mp4'.format(epoch=epoch)
             filename = osp.join(
                 logdir,
-                'video_{}_{epoch}_env.mp4'.format(tag, epoch=epoch),
+                filename,
             )
             dump_video(env, policy, filename, rollout_function,
                        imsize=imsize, **dump_video_kwargs)

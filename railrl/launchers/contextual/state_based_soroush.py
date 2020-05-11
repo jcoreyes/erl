@@ -4,7 +4,6 @@ import numpy as np
 
 from railrl.data_management.contextual_replay_buffer import (
     ContextualRelabelingReplayBuffer,
-    RemapKeyFn,
 )
 from railrl.envs.contextual import ContextualEnv, delete_info
 
@@ -29,8 +28,69 @@ from railrl.launchers.rl_exp_launcher_util import (
     get_exploration_strategy,
 )
 
+from gym.spaces import Box
+from railrl.samplers.rollout_functions import contextual_rollout
+
+class TaskGoalDictDistributionFromMultitaskEnv(
+        GoalDictDistributionFromMultitaskEnv):
+    def __init__(
+            self,
+            *args,
+            task_dim=1,
+            task_key='task_id',
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.task_key = task_key
+        self._spaces[task_key] = Box(
+            low=np.zeros(task_dim),
+            high=np.ones(task_dim))
+        self.task_dim = task_dim
+
+    def sample(self, batch_size: int):
+        goals = super().sample(batch_size)
+        goals[self.task_key] = np.zeros((batch_size, self.task_dim))
+        return goals
+
+class SequentialTaskPathCollector(ContextualPathCollector):
+    def __init__(
+            self,
+            *args,
+            task_key=None,
+            max_path_length=100,
+            num_tasks=None,
+            **kwargs
+    ):
+        self.rollout_tasks = []
+        super().__init__(*args, **kwargs)
+
+        def obs_processor(o):
+            if len(self.rollout_tasks) == 0:
+                num_steps_per_task = max_path_length // num_tasks
+                self.rollout_tasks = np.ones((max_path_length, 1)) * (num_tasks - 1)
+                for t in range(num_tasks):
+                    start = t * num_steps_per_task
+                    end = start + num_steps_per_task
+                    self.rollout_tasks[start:end] = t
+
+            task = self.rollout_tasks[0]
+            self.rollout_tasks = self.rollout_tasks[1:]
+            o[task_key] = task
+            self._env._rollout_context_batch[task_key] = task[None]
+
+            combined_obs = [o[self._observation_key]]
+            for k in self._context_keys_for_policy:
+                combined_obs.append(o[k])
+            return np.concatenate(combined_obs, axis=0)
+
+        self._rollout_fn = partial(
+            contextual_rollout,
+            context_keys_for_policy=self._context_keys_for_policy,
+            observation_key=self._observation_key,
+            obs_processor=obs_processor,
+        )
+
 def td3_experiment(variant):
-    import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
     from railrl.exploration_strategies.base import (
         PolicyWrappedWithExplorationStrategy
@@ -45,22 +105,46 @@ def td3_experiment(variant):
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = variant.get('achieved_goal_key', 'latent_achieved_goal')
     context_key = desired_goal_key
-    sample_context_from_obs_dict_fn = RemapKeyFn({context_key: observation_key})
+
+    task_conditioned = variant.get('task_conditioned', False)
+    task_dim = 1
+    task_key = 'task_id'
+
+    if task_conditioned:
+        context_keys = [context_key, task_key]
+    else:
+        context_keys = [context_key]
 
     def contextual_env_distrib_and_reward(goal_sampling_mode):
         env = get_envs(variant)
         env.goal_sampling_mode = goal_sampling_mode
-        goal_distribution = GoalDictDistributionFromMultitaskEnv(
-            env,
-            desired_goal_keys=[desired_goal_key],
-        )
-        reward_fn = ContextualRewardFnFromMultitaskEnv(
-            env=env,
-            achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key),
-            desired_goal_key=desired_goal_key,
-            achieved_goal_key=achieved_goal_key,
-            additional_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
-        )
+        if task_conditioned:
+            goal_distribution = TaskGoalDictDistributionFromMultitaskEnv(
+                env,
+                desired_goal_keys=[desired_goal_key],
+                task_key=task_key,
+                task_dim=task_dim,
+            )
+            reward_fn = ContextualRewardFnFromMultitaskEnv(
+                env=env,
+                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key),
+                desired_goal_key=desired_goal_key,
+                achieved_goal_key=achieved_goal_key,
+                additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
+                additional_context_keys=[task_key],
+            )
+        else:
+            goal_distribution = GoalDictDistributionFromMultitaskEnv(
+                env,
+                desired_goal_keys=[desired_goal_key],
+            )
+            reward_fn = ContextualRewardFnFromMultitaskEnv(
+                env=env,
+                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key),
+                desired_goal_key=desired_goal_key,
+                achieved_goal_key=achieved_goal_key,
+                additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
+            )
         diag_fn = GoalConditionedDiagnosticsToContextualDiagnostics(
             env.goal_conditioned_diagnostics,
             desired_goal_key=desired_goal_key,
@@ -87,6 +171,8 @@ def td3_experiment(variant):
             expl_env.observation_space.spaces[observation_key].low.size
             + expl_env.observation_space.spaces[context_key].low.size
     )
+    if task_conditioned:
+        obs_dim += task_dim
     action_dim = expl_env.action_space.low.size
 
     qf1 = FlattenMlp(
@@ -126,12 +212,25 @@ def td3_experiment(variant):
         policy=policy,
     )
 
+    def context_from_obs_dict_fn(obs_dict):
+        context_dict = {
+            context_key: obs_dict[observation_key],
+        }
+        if task_conditioned:
+            context_dict[task_key] = obs_dict[task_key]
+        return context_dict
+
     def concat_context_to_obs(batch):
         obs = batch['observations']
         next_obs = batch['next_observations']
         context = batch[context_key]
-        batch['observations'] = np.concatenate([obs, context], axis=1)
-        batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
+        if task_conditioned:
+            task = batch[task_key]
+            batch['observations'] = np.concatenate([obs, context, task], axis=1)
+            batch['next_observations'] = np.concatenate([next_obs, context, task], axis=1)
+        else:
+            batch['observations'] = np.concatenate([obs, context], axis=1)
+            batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
         return batch
 
     if 'observation_keys' not in variant['contextual_replay_buffer_kwargs']:
@@ -142,10 +241,9 @@ def td3_experiment(variant):
 
     replay_buffer = ContextualRelabelingReplayBuffer(
         env=eval_env,
-        context_keys=[context_key],
-        # observation_keys=observation_keys,
+        context_keys=context_keys,
         context_distribution=eval_context_distrib,
-        sample_context_from_obs_dict_fn=sample_context_from_obs_dict_fn,
+        sample_context_from_obs_dict_fn=context_from_obs_dict_fn,
         reward_fn=eval_reward,
         post_process_batch_fn=concat_context_to_obs,
         **variant['contextual_replay_buffer_kwargs']
@@ -161,18 +259,27 @@ def td3_experiment(variant):
         **variant['td3_trainer_kwargs']
     )
 
-    eval_path_collector = ContextualPathCollector(
-        eval_env,
-        policy,
-        observation_key=observation_key,
-        context_keys_for_policy=[context_key],
-    )
-    expl_path_collector = ContextualPathCollector(
-        expl_env,
-        expl_policy,
-        observation_key=observation_key,
-        context_keys_for_policy=[context_key],
-    )
+    def create_path_collector(env, policy):
+        if task_conditioned:
+            return SequentialTaskPathCollector(
+                env,
+                policy,
+                observation_key=observation_key,
+                context_keys_for_policy=context_keys,
+                task_key=task_key,
+                max_path_length=max_path_length,
+                num_tasks=variant['num_tasks'],
+            )
+        else:
+            return ContextualPathCollector(
+                env,
+                policy,
+                observation_key=observation_key,
+                context_keys_for_policy=context_keys,
+            )
+
+    eval_path_collector = create_path_collector(eval_env, policy)
+    expl_path_collector = create_path_collector(expl_env, expl_policy)
 
     algorithm = TorchBatchRLAlgorithm(
         trainer=trainer,
@@ -193,12 +300,12 @@ def td3_experiment(variant):
         save_period = variant.get('save_video_period', 50)
         dump_video_kwargs = variant.get("dump_video_kwargs", dict())
 
-        rollout_function = partial(
-            rf.contextual_rollout,
-            max_path_length=max_path_length,
-            observation_key=observation_key,
-            context_keys_for_policy=[context_key],
-        )
+        # rollout_function = partial(
+        #     rf.contextual_rollout,
+        #     max_path_length=max_path_length,
+        #     observation_key=observation_key,
+        #     context_keys_for_policy=context_keys,
+        # )
         renderer = Renderer(**variant.get('renderer_kwargs', {}))
 
         def add_images(env, state_distribution):
@@ -218,13 +325,17 @@ def td3_experiment(variant):
                 update_env_info_fn=delete_info,
             )
         img_eval_env = add_images(eval_env, eval_context_distrib)
+
+        video_path_collector = create_path_collector(img_eval_env, policy)
+        rollout_function = video_path_collector._rollout_fn
+
         eval_video_func = get_save_video_function(
             rollout_function,
             img_eval_env,
             policy,
             tag="",
             imsize=renderer.image_shape[0],
-            image_format='CWH',
+            image_format='HWC',
             save_video_period=save_period,
             **dump_video_kwargs
         )

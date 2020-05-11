@@ -197,10 +197,16 @@ env_params = {
             [0, 1, 2, 3],  # col -> box1 -> box2 -> box3
         ],
 
+        'rl_variant.task_conditioned': [
+            True,
+            # False,
+        ],
+        'rl_variant.num_tasks': [5],
+
         'env_kwargs.select_next_obj_only': [True],
 
         'rl_variant.algo_kwargs.num_epochs': [750],
-        'rl_variant.save_video_period': [50],  # 25
+        'rl_variant.save_video_period': [50],  # 50
     },
     'swivel': {
         'env_kwargs.furniture_name': ['swivel_chair_0700'],
