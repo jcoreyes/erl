@@ -6,6 +6,10 @@ from railrl.samplers.data_collector.path_collector import GoalConditionedPathCol
 from railrl.visualization.video import VideoSaveFunction
 from railrl.torch.her.her import HERTrainer
 from railrl.envs.reward_mask_wrapper import DiscreteDistribution, RewardMaskWrapper
+from railrl.exploration_strategies.base import (
+    PolicyWrappedWithExplorationStrategy
+)
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 
 def td3_experiment(variant):
@@ -575,11 +579,21 @@ def get_video_save_func(rollout_function, env, policy, variant):
     return save_video
 
 
-def create_exploration_policy(policy, exploration_version='identity', **kwargs):
+def create_exploration_policy(env, policy, exploration_version='identity',
+                              **kwargs):
     # TODO: merge with get_exploration_strategy
     if exploration_version == 'identity':
         return policy
     elif exploration_version == 'occasionally_repeat':
         return ActionRepeatPolicy(policy, **kwargs)
+    elif exploration_version == 'ou':
+        return PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=OUStrategy(
+                action_space=env.action_space,
+                max_sigma=kwargs['exploration_noise'],
+                min_sigma=kwargs['exploration_noise']
+            ),
+            policy=policy
+        )
     else:
         raise ValueError(exploration_version)

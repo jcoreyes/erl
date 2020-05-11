@@ -158,7 +158,7 @@ def goal_conditioned_sac_experiment(
         context_keys_for_policy=[context_key],
     )
     exploration_policy = create_exploration_policy(
-        policy, **exploration_policy_kwargs)
+        policy=policy, env=expl_env, **exploration_policy_kwargs)
     expl_path_collector = ContextualPathCollector(
         expl_env,
         exploration_policy,

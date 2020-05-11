@@ -97,20 +97,26 @@ class DisentangledMlpQf(PyTorchModule):
                 output_size=1,
                 **new_qf_kwargs
             ))
-        else:
+        elif architecture in {'many_heads', 'splice'}:
             for _ in range(self.postprocess_goal_dim):
                 self.feature_qfs.append(FlattenMlp(
                     input_size=qf_input_size,
                     output_size=1,
                     **qf_kwargs
                 ))
+        else:
+            raise ValueError(architecture)
 
     def forward(self, obs, actions, return_individual_q_vals=False, **kwargs):
         obs_and_goal = obs
-        assert obs_and_goal.shape[1] == (
-                self.preprocess_obs_dim + self.preprocess_goal_dim)
-        obs = obs_and_goal[:, :self.preprocess_obs_dim]
-        goal = obs_and_goal[:, self.preprocess_obs_dim:]
+        # TODO: undo hack. probably just get rid of these variables
+        if self.preprocess_obs_dim == self.preprocess_goal_dim:
+            obs, goal = obs_and_goal.chunk(2, dim=1)
+        else:
+            assert obs_and_goal.shape[1] == (
+                    self.preprocess_obs_dim + self.preprocess_goal_dim)
+            obs = obs_and_goal[:, :self.preprocess_obs_dim]
+            goal = obs_and_goal[:, self.preprocess_obs_dim:]
 
         h_obs = self.encoder(obs) if self.encode_state else obs
         h_obs = h_obs.detach() if self._detach_encoder_via_state else h_obs
