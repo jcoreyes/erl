@@ -68,5 +68,8 @@ class Concat(nn.Module):
 class MultiInputSequential(nn.Sequential):
     def forward(self, *input):
         for module in self._modules.values():
-            input = module(*input)
+            if isinstance(input, tuple):
+                input = module(*input)
+            else:
+                input = module(input)
         return input
