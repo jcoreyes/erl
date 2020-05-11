@@ -60,6 +60,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             observation_key='observation',
             save_data_in_snapshot=False,
             internal_keys=None,
+            recompute_rewards=True,
             **kwargs
     ):
         ob_keys_to_save = observation_keys + context_keys
@@ -95,6 +96,8 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             fraction_distribution_context
         )
         self._post_process_batch_fn = post_process_batch_fn
+
+        self._recompute_rewards = recompute_rewards
 
     def random_batch(self, batch_size):
         num_future_contexts = int(batch_size * self._fraction_future_context)
@@ -138,12 +141,16 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             return np.concatenate(x, axis=0)
         new_contexts = ppp.treemap(concat, *tuple(contexts),
                                    atomic_type=np.ndarray)
-        new_rewards = self._reward_fn(
-            obs_dict,
-            actions,
-            next_obs_dict,
-            new_contexts,
-        )
+
+        if not self._recompute_rewards:
+            new_rewards = self._rewards[indices]
+        else:
+            new_rewards = self._reward_fn(
+                obs_dict,
+                actions,
+                next_obs_dict,
+                new_contexts,
+            )
         if len(new_rewards.shape) == 1:
             new_rewards = new_rewards.reshape(-1, 1)
         batch = {

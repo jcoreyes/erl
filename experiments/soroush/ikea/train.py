@@ -40,6 +40,7 @@ variant = dict(
             max_size=int(1E6),
             fraction_future_context=0.0,
             fraction_distribution_context=0.0,
+            recompute_rewards=False,
             observation_keys=[
                 'oracle_connector_info',
                 'oracle_robot_info',
@@ -202,7 +203,7 @@ env_params = {
 
         'rl_variant.context_based': [
             True,
-            False,
+            # False,
         ],
 
         'rl_variant.save_video_period': [50],  # 25
