@@ -1,16 +1,10 @@
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
 from railrl.envs.mujoco.sawyer_push_and_reach_env import \
     SawyerPushAndReachXYEasyEnv
-from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
-from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
-from railrl.envs.multitask.pusher2d import FullPusher2DEnv
 from railrl.images.camera import sawyer_init_camera
 
-from railrl.launchers.arglauncher import run_variants
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.modules import HuberLoss
-from railrl.torch.vae.relabeled_vae_experiment import experiment
+from railrl.torch.networks.experimental import HuberLoss
 from railrl.torch.vae.tdm_td3_vae_experiment import tdm_td3_vae_experiment
 
 if __name__ == "__main__":

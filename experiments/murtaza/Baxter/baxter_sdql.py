@@ -17,7 +17,7 @@ from railrl.state_distance.old.networks import (
 from railrl.state_distance.state_distance_q_learning import (
     HorizonFedStateDistanceQLearning,
 )
-from railrl.torch.modules import HuberLoss
+from railrl.torch.networks.experimental import HuberLoss
 
 
 def experiment(variant):

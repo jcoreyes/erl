@@ -9,7 +9,7 @@ from railrl.launchers.experiments.disentanglement.util import (
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.disentanglement.networks import DisentangledMlpQf
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.modules import Detach
+from railrl.torch.networks.basic import Detach
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
 
