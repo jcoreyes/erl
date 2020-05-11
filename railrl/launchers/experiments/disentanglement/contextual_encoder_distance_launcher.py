@@ -587,13 +587,18 @@ def encoder_goal_conditioned_sac_experiment(
                     path['full_observations'][index_in_path][key]
                     for key in obj0_sweep_renderers
                 ]
+            img_formats = [video_renderer.output_image_format]
+            for r in obj1_sweep_renderers.values():
+                img_formats.append(r.output_image_format)
+            for r in obj0_sweep_renderers.values():
+                img_formats.append(r.output_image_format)
             eval_video_func = get_save_video_function(
                 rollout_function,
                 img_eval_env,
                 MakeDeterministic(policy),
                 tag="eval",
-                imsize=video_renderer.image_shape[0],
-                image_format='CWH',
+                imsize=video_renderer.image_chw[1],
+                image_formats=img_formats,
                 get_extra_imgs=get_extra_imgs,
                 **save_video_kwargs
             )
@@ -602,8 +607,8 @@ def encoder_goal_conditioned_sac_experiment(
                 img_expl_env,
                 exploration_policy,
                 tag="train",
-                imsize=video_renderer.image_shape[0],
-                image_format='CWH',
+                imsize=video_renderer.image_chw[1],
+                image_formats=img_formats,
                 get_extra_imgs=get_extra_imgs,
                 **save_video_kwargs
             )
@@ -656,10 +661,9 @@ def encoder_goal_conditioned_sac_experiment(
                 img_eval_env,
                 MakeDeterministic(policy),
                 tag="eval",
-                imsize=video_renderer.image_chw[0],
+                imsize=video_renderer.image_chw[1],
                 keys_to_show=keys_to_show,
-                # image_formats=image_formats,
-                image_format=video_renderer.output_image_format,
+                image_formats=image_formats,
                 **save_video_kwargs
             )
             expl_video_func = get_save_video_function(
@@ -667,10 +671,9 @@ def encoder_goal_conditioned_sac_experiment(
                 img_expl_env,
                 exploration_policy,
                 tag="train",
-                imsize=video_renderer.image_chw[0],
+                imsize=video_renderer.image_chw[1],
                 keys_to_show=keys_to_show,
-                # image_formats=image_formats,
-                image_format=video_renderer.output_image_format,
+                image_formats=image_formats,
                 **save_video_kwargs
             )
 

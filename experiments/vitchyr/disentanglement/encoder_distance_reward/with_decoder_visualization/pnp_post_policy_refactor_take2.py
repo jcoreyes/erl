@@ -34,16 +34,16 @@ if __name__ == "__main__":
         max_path_length=100,
         algo_kwargs=dict(
             batch_size=256,
-            # num_epochs=300,
-            # num_eval_steps_per_epoch=1000,
-            # num_expl_steps_per_train_loop=1000,
-            # num_trains_per_train_loop=1000,
-            # min_num_steps_before_training=1000,
-            num_epochs=5,
-            num_eval_steps_per_epoch=100,
-            num_expl_steps_per_train_loop=100,
-            num_trains_per_train_loop=100,
-            min_num_steps_before_training=300,
+            num_epochs=300,
+            num_eval_steps_per_epoch=1000,
+            num_expl_steps_per_train_loop=1000,
+            num_trains_per_train_loop=1000,
+            min_num_steps_before_training=1000,
+            # num_epochs=5,
+            # num_eval_steps_per_epoch=100,
+            # num_expl_steps_per_train_loop=100,
+            # num_trains_per_train_loop=100,
+            # min_num_steps_before_training=300,
         ),
         replay_buffer_kwargs=dict(
             fraction_future_context=0.5,
@@ -88,7 +88,7 @@ if __name__ == "__main__":
             img_height=16,
             output_img_format='CHW',
         ),
-        save_debug_video=True,
+        save_debug_video=False,
         use_image_observations=False,
     )
 
@@ -129,8 +129,8 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    # n_seeds = 1
-    # mode = 'ec2'
+    n_seeds = 1
+    mode = 'ec2'
     # exp_name = 'pnp-1obj-state-obs-encoder-reward-post-policy-refactor-pi-uses-state-take2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
