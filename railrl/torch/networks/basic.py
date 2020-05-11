@@ -1,5 +1,8 @@
 import torch
 from torch import nn
+from torch.nn import __init__
+
+from railrl.torch.pytorch_util import activation_from_string
 
 
 class Clamp(nn.Module):
@@ -73,3 +76,49 @@ class MultiInputSequential(nn.Sequential):
             else:
                 input = module(input)
         return input
+
+
+class Splitter(nn.Module):
+    """
+           .-> head 0
+          /
+    input ---> head 1
+          \
+           '-> head 2
+    """
+    def __init__(
+            self,
+            output_sizes,
+            output_activations=None,
+    ):
+        super().__init__()
+        if output_activations is None:
+            output_activations = ['identity' for _ in output_sizes]
+        else:
+            if len(output_activations) != len(output_sizes):
+                raise ValueError("output_activation and output_sizes must have "
+                                 "the same length")
+
+        self._output_narrow_params = []
+        self._output_activations = []
+        for output_activation in output_activations:
+            if isinstance(output_activation, str):
+                output_activation = activation_from_string(output_activation)
+            self._output_activations.append(output_activation)
+        start_idx = 0
+        for output_size in output_sizes:
+            self._output_narrow_params.append((start_idx, output_size))
+            start_idx = start_idx + output_size
+
+    def forward(self, flat_outputs):
+        pre_activation_outputs = tuple(
+            flat_outputs.narrow(1, start, length)
+            for start, length in self._output_narrow_params
+        )
+        outputs = tuple(
+            activation(x)
+            for activation, x in zip(
+                self._output_activations, pre_activation_outputs
+            )
+        )
+        return outputs

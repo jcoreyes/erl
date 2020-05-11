@@ -8,7 +8,7 @@ from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule, eval_np
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import LayerNorm
-from railrl.torch.pytorch_util import activation_from_string
+from railrl.torch.networks.basic import Splitter
 
 
 class Mlp(PyTorchModule):
@@ -103,37 +103,14 @@ class MultiHeadedMlp(Mlp):
             layer_norm=layer_norm,
             layer_norm_kwargs=layer_norm_kwargs,
         )
-        if output_activations is None:
-            output_activations = ['identity' for _ in output_sizes]
-        else:
-            if len(output_activations) != len(output_sizes):
-                raise ValueError("output_activation and output_sizes must have "
-                                 "the same length")
-
-        self._output_narrow_params = []
-        self._output_activations = []
-        for output_activation in output_activations:
-            if isinstance(output_activation, str):
-                output_activation = activation_from_string(output_activation)
-            self._output_activations.append(output_activation)
-        start_idx = 0
-        for output_size in output_sizes:
-            self._output_narrow_params.append((start_idx, output_size))
-            start_idx = start_idx + output_size
+        self._splitter = Splitter(
+            output_sizes,
+            output_activations,
+        )
 
     def forward(self, input):
         flat_outputs = super().forward(input)
-        pre_activation_outputs = tuple(
-            flat_outputs.narrow(1, start, length)
-            for start, length in self._output_narrow_params
-        )
-        outputs = tuple(
-            activation(x)
-            for activation, x in zip(
-                self._output_activations, pre_activation_outputs
-            )
-        )
-        return outputs
+        return self._splitter(flat_outputs)
 
 
 class FlattenMlp(Mlp):
