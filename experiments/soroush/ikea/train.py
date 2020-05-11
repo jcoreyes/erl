@@ -200,12 +200,6 @@ env_params = {
         'env_kwargs.select_next_obj_only': [True],
 
         'rl_variant.algo_kwargs.num_epochs': [750],
-
-        'rl_variant.context_based': [
-            True,
-            # False,
-        ],
-
         'rl_variant.save_video_period': [50],  # 25
     },
     'swivel': {
