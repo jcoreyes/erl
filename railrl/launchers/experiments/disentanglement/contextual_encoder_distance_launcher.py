@@ -211,7 +211,7 @@ def encoder_goal_conditioned_sac_experiment(
     img_desired_goal_key = 'image_desired_goal'
 
     if use_image_observations:
-        renderer = Renderer(**env_renderer_kwargs)
+        env_renderer = Renderer(**env_renderer_kwargs)
 
     def setup_env(state_env, encoder, reward_fn):
         goal_distribution = GoalDictDistributionFromMultitaskEnv(
@@ -223,9 +223,9 @@ def encoder_goal_conditioned_sac_experiment(
                 env=state_env,
                 base_distribution=goal_distribution,
                 image_goal_key=img_desired_goal_key,
-                renderer=renderer,
+                renderer=env_renderer,
             )
-            base_env = InsertImageEnv(state_env, renderer=renderer)
+            base_env = InsertImageEnv(state_env, renderer=env_renderer)
             goal_distribution = EncodedGoalDictDistribution(
                 goal_distribution,
                 encoder=encoder,
@@ -274,7 +274,7 @@ def encoder_goal_conditioned_sac_experiment(
         observation_key_for_rl = img_observation_key
 
         def create_encoder():
-            img_num_channels, img_height, img_width = renderer.image_chw
+            img_num_channels, img_height, img_width = env_renderer.image_chw
             cnn = BasicCNN(
                 input_width=img_width,
                 input_height=img_height,
@@ -408,6 +408,7 @@ def encoder_goal_conditioned_sac_experiment(
                 keys_to_keep=[state_desired_goal_key, img_desired_goal_key],
             ),
         )
+        ob_keys_to_save_in_buffer = [state_observation_key, img_observation_key]
     else:
         sample_context_from_observation = compose(
             RemapKeyFn({
@@ -420,6 +421,7 @@ def encoder_goal_conditioned_sac_experiment(
                 keys_to_keep=[state_desired_goal_key],
             ),
         )
+        ob_keys_to_save_in_buffer = [state_observation_key]
 
     encoder_output_dim = encoder_net.output_size
     replay_buffer = ContextualRelabelingReplayBuffer(
@@ -427,7 +429,7 @@ def encoder_goal_conditioned_sac_experiment(
         context_keys=context_keys_to_save,
         context_distribution=expl_context_distrib,
         sample_context_from_obs_dict_fn=sample_context_from_observation,
-        observation_keys=[state_observation_key, img_observation_key],
+        observation_keys=ob_keys_to_save_in_buffer,
         observation_key=observation_key_for_rl,
         reward_fn=reward_fn,
         post_process_batch_fn=concat_context_to_obs,
@@ -514,9 +516,8 @@ def encoder_goal_conditioned_sac_experiment(
             def create_shared_data_creator(obj_index):
                 def compute_shared_data(raw_obs, env):
                     state = raw_obs[observation_key_for_rl]
-                    # obs = state[:2]
-                    # goal = state[2:]
-                    obs, goal = np.array_split(state, 2, axis=1)
+                    obs = state[:2]
+                    goal = state[2:]
                     if obj_index == 0:
                         new_states = np.concatenate(
                             [
@@ -607,10 +608,11 @@ def encoder_goal_conditioned_sac_experiment(
                 **save_video_kwargs
             )
         else:
+            video_renderer = Renderer(**video_renderer_kwargs)
+
             def add_images(env, base_distribution):
-                video_renderer = Renderer(**video_renderer_kwargs)
                 video_env = InsertImageEnv(
-                    env, renderer=video_renderer, image_key='video_observation')
+                    env, renderer=video_renderer, image_key='image_observation')
                 if use_image_observations:
                     image_goal_distribution = base_distribution
                 else:
@@ -632,16 +634,32 @@ def encoder_goal_conditioned_sac_experiment(
             img_eval_env = add_images(eval_env, eval_context_distrib)
             img_expl_env = add_images(expl_env, expl_context_distrib)
 
+            if use_image_observations:
+                keys_to_show = [
+                    'image_desired_goal',
+                    'image_observation',
+                    'video_observation',
+                ]
+                image_formats = [
+                    env_renderer.output_image_format,
+                    env_renderer.output_image_format,
+                    video_renderer.output_image_format,
+                ]
+            else:
+                keys_to_show = ['image_desired_goal', 'image_observation']
+                image_formats = [
+                    video_renderer.output_image_format,
+                    video_renderer.output_image_format,
+                ]
             eval_video_func = get_save_video_function(
                 rollout_function,
                 img_eval_env,
                 MakeDeterministic(policy),
                 tag="eval",
-                imsize=video_renderer.image_shape[0],
-                image_format='CWH',
-                keys_to_show=[
-                    'image_desired_goal', 'image_observation', 'video_observation'
-                ],
+                imsize=video_renderer.image_chw[0],
+                keys_to_show=keys_to_show,
+                # image_formats=image_formats,
+                image_format=video_renderer.output_image_format,
                 **save_video_kwargs
             )
             expl_video_func = get_save_video_function(
@@ -649,11 +667,10 @@ def encoder_goal_conditioned_sac_experiment(
                 img_expl_env,
                 exploration_policy,
                 tag="train",
-                imsize=video_renderer.image_shape[0],
-                image_format='CWH',
-                keys_to_show=[
-                    'image_desired_goal', 'image_observation', 'video_observation'
-                ],
+                imsize=video_renderer.image_chw[0],
+                keys_to_show=keys_to_show,
+                # image_formats=image_formats,
+                image_format=video_renderer.output_image_format,
                 **save_video_kwargs
             )
 
@@ -666,20 +683,20 @@ def encoder_goal_conditioned_sac_experiment(
             }
             env_state = state_eval_env.get_env_state()
             state_eval_env.set_to_goal(goal_dict)
-            start_img = renderer.create_image(state_eval_env)
+            start_img = env_renderer.create_image(state_eval_env)
             state_eval_env.set_env_state(env_state)
             return start_img
         visualize_representation = create_visualize_representation(
             encoder, True, eval_env, video_renderer,
             state_to_encoder_input=state_to_encoder_input,
-            env_renderer=renderer,
+            env_renderer=env_renderer,
             **debug_visualization_kwargs
         )
         algorithm.post_train_funcs.append(visualize_representation)
         visualize_representation = create_visualize_representation(
             encoder, False, eval_env, video_renderer,
             state_to_encoder_input=state_to_encoder_input,
-            env_renderer=renderer,
+            env_renderer=env_renderer,
             **debug_visualization_kwargs
         )
         algorithm.post_train_funcs.append(visualize_representation)

@@ -213,7 +213,7 @@ def create_visualize_representation(encoder, sweep_object_zero, env, renderer,
                                     state_to_encoder_input=None):
     if initial_save_period is None:
         initial_save_period = save_period
-    env_renderer = env_renderer or None
+    env_renderer = env_renderer or renderer
     state_space = env.env.observation_space['state_observation']
     low = state_space.low.min()
     high = state_space.high.max()
