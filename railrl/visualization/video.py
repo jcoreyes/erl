@@ -183,7 +183,7 @@ def dump_video(
     :param horizon:
     :param dirname_to_save_images:
     :param subdirname:
-    :param imsize:
+    :param imsize: TODO: automatically set if not provided
     :param get_extra_imgs: A function with type
 
         def get_extra_imgs(
@@ -293,7 +293,7 @@ def dump_paths(
         do_timer=True,
         dirname_to_save_images=None,
         subdirname="rollouts",
-        imsize=84,
+        imsize=84,  # TODO: automatically set if not provided
         imwidth=None,
         imheight=None,
         num_imgs=3,  # how many vertical images we stack per rollout
@@ -303,6 +303,7 @@ def dump_paths(
         num_columns_per_rollout=1,
         **combine_img_kwargs
 ):
+    # TODO: merge with `dump_video`
     if get_extra_imgs is None:
         get_extra_imgs = get_generic_env_imgs
     # num_channels = env.vae.input_channels
