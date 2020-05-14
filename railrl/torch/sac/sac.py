@@ -92,10 +92,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         self._need_to_update_eval_statistics = True
 
     def train_from_torch(self, batch):
-        losses = self.compute_loss(
-            batch,
-            update_eval_statistics=self._need_to_update_eval_statistics,
-        )
+        losses = self.compute_loss(batch)
 
         """
         Update networks
@@ -117,13 +114,18 @@ class SACTrainer(TorchTrainer, LossFunction):
         losses.policy_loss.backward()
         self.policy_optimizer.step()
 
-        if self._n_train_steps_total % self.target_update_period == 0:
-            self.update_target_networks()
+    def signal_completed_training_step(self):
+        super().signal_completed_training_step()
         self._n_train_steps_total += 1
+        self.try_update_target_networks()
 
         if self._need_to_update_eval_statistics:
             # Compute statistics using only one batch per epoch
             self._need_to_update_eval_statistics = False
+
+    def try_update_target_networks(self):
+        if self._n_train_steps_total % self.target_update_period == 0:
+            self.update_target_networks()
 
     def update_target_networks(self):
         ptu.soft_update_from_to(
@@ -133,9 +135,7 @@ class SACTrainer(TorchTrainer, LossFunction):
             self.qf2, self.target_qf2, self.soft_target_tau
         )
 
-    def compute_loss(
-            self, batch, update_eval_statistics=False,
-    ) -> SACLosses:
+    def compute_loss(self, batch) -> SACLosses:
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -181,7 +181,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         Save some statistics for eval
         """
-        if update_eval_statistics:
+        if self._need_to_update_eval_statistics:
             policy_loss = (log_pi - q_new_actions).mean()
 
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
@@ -234,6 +234,15 @@ class SACTrainer(TorchTrainer, LossFunction):
             self.qf2,
             self.target_qf1,
             self.target_qf2,
+        ]
+
+    @property
+    def optimizers(self):
+        return [
+            self.alpha_optimizer,
+            self.qf1_optimizer,
+            self.qf2_optimizer,
+            self.policy_optimizer,
         ]
 
     def get_snapshot(self):

@@ -346,3 +346,51 @@ class DDRArchitecture(PyTorchModule):
             return total_q_value, individual_q_vals
         else:
             return total_q_value
+
+class VAE:
+    def __init__(self, encoder, decoder):
+        self._encoder = encoder
+        self._decoder = decoder
+
+    def encode(self, x):
+        return self._encoder(x)
+
+    def encode_mu(self, x):
+        mu, logvar = self._encoder(x)
+        return mu
+
+    def decode(self, z):
+        return self._decoder(z)
+
+    def reparameterize(self, mu, logvar):
+        std = logvar.mul(0.5).exp_()
+        eps = std.data.new(std.size()).normal_()
+        return eps.mul(std).add_(mu)
+
+    def reconstruct(x, use_mean=True, return_latent_params=False):
+        mu, logvar = self._encode(x)
+        z = mu
+        if not use_mean:
+            z = self.reparameterize(mu, logvar)
+        if return_latent:
+            return self._decoder(z), mu, logvar
+        else:
+            return self._decoder(z)
+
+    def logprob(self, x, x_recon):
+        return -1 * F.binary_cross_entropy(
+            x_recon,
+            x,
+            reduction='sum'
+        )
+
+
+class EncoderMuFromEncoderDistribution:
+    """Requires encoder(x) to produce mean and variance of latent distribution
+    """
+    def __init__(self, encoder):
+        self._encoder = encoder
+
+    def __forward__(self, x):
+        mu, var = self._encoder(x)
+        return mu
