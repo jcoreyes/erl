@@ -82,3 +82,9 @@ class Renderer(object):
         return tuple(
             self._letter_to_size[letter] for letter in self.output_image_format
         )
+
+    @property
+    def image_chw(self):
+        return tuple(
+            self._letter_to_size[letter] for letter in 'CHW'
+        )

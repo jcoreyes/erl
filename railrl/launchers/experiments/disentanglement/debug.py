@@ -168,7 +168,6 @@ class DebugRenderer(Renderer):
             self,
             encoder: DisentangledMlpQf,
             head_index,
-            sweep='state',
             **kwargs
     ):
         super().__init__(**kwargs)
@@ -176,7 +175,6 @@ class DebugRenderer(Renderer):
         self.channels = 3
         self.encoder = encoder
         self.head_idx = head_index
-        self.sweep = sweep
 
     def create_image(self, env, encoded):
         values = encoded[:, self.head_idx]
@@ -208,15 +206,20 @@ class InsertDebugImagesEnv(InsertImagesEnv):
             obs[image_key] = renderer.create_image(self.env, shared_data)
 
 
-def create_visualize_representation(encoder, sweep_object_one, env, renderer,
-        save_period=50, num_presampled_states=2, num_random_states=2):
+def create_visualize_representation(encoder, sweep_object_zero, env, renderer,
+        save_period=50, num_presampled_states=2, num_random_states=2,
+        env_renderer=None,
+        initial_save_period=None,
+                                    state_to_encoder_input=None):
+    if initial_save_period is None:
+        initial_save_period = save_period
+    env_renderer = env_renderer or renderer
     state_space = env.env.observation_space['state_observation']
     low = state_space.low.min()
     high = state_space.high.max()
-    y = np.linspace(low, high, num=renderer.image_shape[0])
-    x = np.linspace(low, high, num=renderer.image_shape[1])
+    y = np.linspace(low, high, num=env_renderer.image_chw[1])
+    x = np.linspace(low, high, num=env_renderer.image_chw[2])
     all_xy = np.transpose([np.tile(x, len(y)), np.repeat(y, len(x))])
-
     # y = np.linspace(low / 2, high / 2, num=2)
     # x = np.linspace(low / 2, high / 2, num=2)
     # all_start_xy = np.transpose([np.tile(x, len(y)), np.repeat(y, len(x))])
@@ -226,73 +229,96 @@ def create_visualize_representation(encoder, sweep_object_one, env, renderer,
     same_start_state = np.vstack([
         state_space.sample() for _ in range(num_presampled_states)
     ])
+    random_states = np.vstack([
+        state_space.sample() for _ in range(num_random_states)
+    ])
+    all_start_xy = np.concatenate((same_start_state, random_states), axis=0)
+
+    goal_dicts = []
+    for start_state in all_start_xy:
+        if sweep_object_zero:
+            new_states = np.concatenate(
+                [
+                    all_xy,
+                    np.repeat(start_state[None, 2:], all_xy.shape[0], axis=0),
+                ],
+                axis=1,
+            )
+        else:
+            new_states = np.concatenate(
+                [
+                    np.repeat(start_state[None, :2], all_xy.shape[0], axis=0),
+                    all_xy,
+                ],
+                axis=1,
+            )
+        if state_to_encoder_input:
+            img_obs = True
+            new_states = np.concatenate(
+                [
+                    state_to_encoder_input(state)[None, ...] for state in new_states
+                ],
+                axis=0,
+            )
+        else:
+            img_obs = False
+        goal_dict = {
+            'state_desired_goal': start_state,
+        }
+        env_state = env.get_env_state()
+        env.set_to_goal(goal_dict)
+        start_img = renderer.create_image(env)
+        env.set_env_state(env_state)
+        goal_dict['image_observation'] = start_img
+        goal_dict['new_states'] = new_states
+        goal_dicts.append(goal_dict)
+
     def visualize_representation(algo, epoch):
-        if epoch % save_period == 0:
+        if (
+                (epoch < save_period and epoch % initial_save_period == 0)
+                or epoch % save_period == 0
+                or epoch >= algo.num_epochs - 1
+        ):
             logdir = logger.get_snapshot_dir()
-            if sweep_object_one:
-                filename = osp.join(
-                    logdir,
-                    'obj1_sweep_visualization_{epoch}.png'.format(epoch=epoch),
-                )
-            else:
+            if sweep_object_zero:
                 filename = osp.join(
                     logdir,
                     'obj0_sweep_visualization_{epoch}.png'.format(epoch=epoch),
                 )
-
-            random_states = np.vstack([
-                state_space.sample() for _ in range(num_random_states)
-            ])
-            # import ipdb; ipdb.set_trace()
-            all_start_xy = np.concatenate((same_start_state, random_states), axis=0)
+            else:
+                filename = osp.join(
+                    logdir,
+                    'obj1_sweep_visualization_{epoch}.png'.format(epoch=epoch),
+                )
 
             columns = []
-            for start_state in all_start_xy:
-                goal_dict = {
-                    'state_desired_goal': start_state,
-                }
-                env_state = env.get_env_state()
-                env.set_to_goal(goal_dict)
-                start_img = renderer.create_image(env)
-                env.set_env_state(env_state)
+            for goal_dict in goal_dicts:
+                start_img = goal_dict['image_observation']
+                new_states = goal_dict['new_states']
 
-                if sweep_object_one:
-                    new_states = np.concatenate(
-                        [
-                            all_xy,
-                            np.repeat(start_state[None, 2:], all_xy.shape[0], axis=0),
-                        ],
-                        axis=1,
-                    )
-                else:
-                    new_states = np.concatenate(
-                        [
-                            np.repeat(start_state[None, :2], all_xy.shape[0], axis=0),
-                            all_xy,
-                        ],
-                        axis=1,
-                    )
                 encoded = encoder.encode(new_states)
+                # img_format = renderer.output_image_format
                 images_to_stack = [start_img]
                 for i in range(encoded.shape[1]):
                     values = encoded[:, i]
-                    value_image = values.reshape(renderer.image_shape[:2])
+                    value_image = values.reshape(env_renderer.image_chw[1:])
+                    # TODO: fix hardcoding of CHW
                     value_img_rgb = np.repeat(
-                        value_image[:, :, None],
+                        value_image[None, :, :],
                         3,
-                        axis=2
+                        axis=0
                     )
                     value_img_rgb = (
                             (value_img_rgb - value_img_rgb.min()) /
-                            (value_img_rgb.max() - value_img_rgb.min())
+                            (value_img_rgb.max() - value_img_rgb.min() + 1e-9)
                     )
                     images_to_stack.append(value_img_rgb)
 
                 columns.append(
                     combine_images_into_grid(
                         images_to_stack,
-                        imwidth=renderer.image_shape[1],
-                        imheight=renderer.image_shape[0],
+                        imwidth=renderer.image_chw[2],
+                        imheight=renderer.image_chw[1],
                         max_num_cols=5,
                         pad_length=1,
                         pad_color=0,
