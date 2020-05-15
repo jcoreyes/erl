@@ -179,7 +179,7 @@ def filter_exps(exps, filter_fn):
 
 def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3.5),
     xlabel=None, default_vary=False, xlim=None, ylim=None,
-    print_final=False, print_max=False, print_min=False, print_plot=True, print_legend=True,
+    print_final=False, print_start=False, print_max=False, print_min=False, print_plot=True, print_legend=True,
     reduce_op=sum, method_order=None, remap_keys={},
     label_to_color=None, return_data=False, bar_plot=False, label_include_key=True,
     plot_error_bars=True, plot_seeds=False, overlay=False,
@@ -290,6 +290,8 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                 for i in range(len(ys)):
                     plt.plot(x, ys[i, :], color=color, alpha=0.25)
 
+        if print_start:
+            print(label, y[0])
         if print_final:
             print(label, y[-1])
         snapshot = 1
