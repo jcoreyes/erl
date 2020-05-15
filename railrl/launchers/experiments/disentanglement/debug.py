@@ -112,8 +112,11 @@ NonLinearResults = namedtuple(
 )
 
 
-def get_non_linear_results(ob_space, encoder, latent_dim) -> NonLinearResults:
-    batch_size = 128
+def get_non_linear_results(
+    ob_space, encoder, latent_dim,
+    batch_size=128,
+    num_batches=10000,
+) -> NonLinearResults:
     state_dim = ob_space.low.size
 
     decoder = Mlp(
@@ -121,9 +124,8 @@ def get_non_linear_results(ob_space, encoder, latent_dim) -> NonLinearResults:
         output_size=state_dim,
         input_size=latent_dim,
     )
+    decoder.to(ptu.device)
     optimizer = optim.Adam(decoder.parameters())
-    # num_batches = 20000
-    num_batches = 20
 
     initial_loss = last_10_percent_loss = 0
     for i in range(num_batches):
