@@ -73,6 +73,10 @@ if __name__ == "__main__":
             hidden_sizes=[64, 64],
             hidden_activation=F.leaky_relu,
         ),
+        decoder_kwargs=dict(
+            hidden_sizes=[64, 64],
+            hidden_activation=F.leaky_relu,
+        ),
         env_renderer_kwargs=dict(
             img_width=32,
             img_height=32,
@@ -90,6 +94,7 @@ if __name__ == "__main__":
         ),
         save_debug_video=False,
         use_image_observations=False,
+        train_encoder_as_vae=True,
     )
 
     search_space = {
@@ -111,9 +116,9 @@ if __name__ == "__main__":
             False,
         ],
         'disentangled_qf_kwargs.architecture': [
-            'splice',
+            # 'splice',
             'single_head_match_many_heads',
-            'many_heads',
+            # 'many_heads',
         ],
         'disentangled_qf_kwargs.encode_state': [
             False,
@@ -130,8 +135,8 @@ if __name__ == "__main__":
     )
 
     n_seeds = 1
-    mode = 'ec2'
-    # exp_name = 'pnp-1obj-state-obs-encoder-reward-post-policy-refactor-pi-uses-state-take2'
+    mode = 'local'
+    exp_name = 'vae-test'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):

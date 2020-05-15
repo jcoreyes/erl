@@ -6,6 +6,7 @@ Algorithm-specific networks should go else-where.
 import numpy as np
 import torch
 from torch import nn as nn
+from torch.nn import functional as F
 
 from railrl.policies.base import Policy
 from railrl.torch.core import PyTorchModule
@@ -347,10 +348,12 @@ class DDRArchitecture(PyTorchModule):
         else:
             return total_q_value
 
-class VAE:
+class VAE(PyTorchModule):
     def __init__(self, encoder, decoder):
+        super().__init__()
         self._encoder = encoder
         self._decoder = decoder
+        self.latent_dim = self._decoder.input_size
 
     def encode(self, x):
         return self._encoder(x)
@@ -367,12 +370,12 @@ class VAE:
         eps = std.data.new(std.size()).normal_()
         return eps.mul(std).add_(mu)
 
-    def reconstruct(x, use_mean=True, return_latent_params=False):
-        mu, logvar = self._encode(x)
+    def reconstruct(self, x, use_mean=True, return_latent_params=False):
+        mu, logvar = self.encode(x)
         z = mu
         if not use_mean:
             z = self.reparameterize(mu, logvar)
-        if return_latent:
+        if return_latent_params:
             return self._decoder(z), mu, logvar
         else:
             return self._decoder(z)
@@ -381,16 +384,27 @@ class VAE:
         return -1 * F.binary_cross_entropy(
             x_recon,
             x,
-            reduction='sum'
-        )
+            reduction='elementwise_mean'
+        ) * self._encoder.input_size
+
+    def sample_np(self, batch_size):
+        latents = np.random.normal(size=(batch_size, self.latent_dim))
+        latents_torch = ptu.from_numpy(latents)
+        return ptu.get_numpy(self.decode(latents_torch))
+
+    def forward(self, x):
+        return self.reconstruct(x)
 
 
-class EncoderMuFromEncoderDistribution:
+class EncoderMuFromEncoderDistribution(PyTorchModule):
     """Requires encoder(x) to produce mean and variance of latent distribution
     """
     def __init__(self, encoder):
+        super().__init__()
         self._encoder = encoder
+        self.input_size = encoder.input_size
+        self.output_size = encoder.output_size
 
-    def __forward__(self, x):
+    def forward(self, x):
         mu, var = self._encoder(x)
         return mu

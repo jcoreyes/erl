@@ -13,8 +13,7 @@ from railrl.core.logging import add_prefix
 
 VAELosses = namedtuple(
     'VAELoss',
-    'recon_loss',
-    'scaled_kl_loss',
+    'vae_loss',
 )
 
 
@@ -34,6 +33,7 @@ class VAETrainer(TorchTrainer, LossFunction):
             lr=vae_lr,
         )
         self._n_train_steps_total = 0
+        self.eval_statistics = OrderedDict()
         self._need_to_update_eval_statistics = True
 
     def train_from_torch(self, batch):
@@ -53,7 +53,7 @@ class VAETrainer(TorchTrainer, LossFunction):
         ).mean()
 
     def compute_loss(self, batch) -> VAELosses:
-        next_obs = batch['next_observations']
+        next_obs = batch['raw_next_observations']
 
         recon, z_mu, z_logvar = self.vae.reconstruct(
             next_obs,
@@ -62,11 +62,14 @@ class VAETrainer(TorchTrainer, LossFunction):
         )
 
         vae_logprob = self.vae.logprob(next_obs, recon)
+        if vae_logprob > 10:
+            import pdb; pdb.set_trace()
         recon_loss = -vae_logprob
 
         kl_divergence = self.kl_divergence(z_mu, z_logvar)
         kl_loss = kl_divergence
         scaled_kl_loss = self.beta * kl_loss
+        vae_loss = recon_loss + scaled_kl_loss
 
         """
         Save some statistics
@@ -83,8 +86,7 @@ class VAETrainer(TorchTrainer, LossFunction):
             ))
 
         return VAELosses(
-            recon_loss=recon_loss,
-            kl_loss=scaled_kl_loss
+            vae_loss=vae_loss,
         )
 
     def get_diagnostics(self):

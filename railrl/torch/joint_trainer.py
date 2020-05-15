@@ -1,4 +1,9 @@
-from typing import List
+from collections import OrderedDict
+from typing import (
+    List,
+    MutableMapping,
+)
+
 from torch.optim import Optimizer
 
 from railrl.torch.torch_rl_algorithm import TorchTrainer
@@ -50,17 +55,18 @@ class JointLossTrainer(TorchTrainer):
 
     def train_from_torch(self, batch):
         # Compute losses
-        losses = []
+        trainer_losses = []
         for trainer in self._trainers.values():
-            losses.append(trainer.compute_loss(batch))
+            trainer_losses.append(trainer.compute_loss(batch))
 
         # Clear optimizer gradients
         for optimizer in self._optimizers:
             optimizer.zero_grad()
 
         # Compute gradients
-        for loss in losses:
-            loss.backward()
+        for trainer_loss in trainer_losses:
+            for loss in trainer_loss:
+                loss.backward()
 
         # Backprop gradients
         for optimizer in self._optimizers:
@@ -69,7 +75,6 @@ class JointLossTrainer(TorchTrainer):
         # Cleanup
         for trainer in self._trainers.values():
             trainer.signal_completed_training_step()
-        self._n_train_steps_total += 1
 
     @property
     def networks(self):

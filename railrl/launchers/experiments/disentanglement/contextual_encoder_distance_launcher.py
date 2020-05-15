@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from functools import partial
 
 import numpy as np
@@ -187,6 +188,11 @@ def encoder_goal_conditioned_sac_experiment(
         distance_scatterplot_initial_save_period=0,
         debug_renderer_kwargs=None,
         debug_visualization_kwargs=None,
+
+        # vae stuff
+        train_encoder_as_vae=False,
+        vae_trainer_kwargs=None,
+        decoder_kwargs=None,
 ):
     if encoder_cnn_kwargs is None:
         encoder_cnn_kwargs = {}
@@ -376,7 +382,7 @@ def encoder_goal_conditioned_sac_experiment(
         raise ValueError("That doesn't make sense.")
 
     if use_separate_encoder_for_policy:
-        policy_encoder = create_encoder()
+        policy_encoder = EncoderMuFromEncoderDistribution(create_encoder())
         policy_encoder_net = EncodeObsAndGoal(
             policy_encoder,
             encoder_input_dim,
@@ -410,6 +416,7 @@ def encoder_goal_conditioned_sac_experiment(
         context = batch[context_key_for_rl]
         batch['observations'] = np.concatenate([obs, context], axis=1)
         batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
+        batch['raw_next_observations'] = next_obs
         return batch
 
     if use_image_observations:
@@ -481,14 +488,14 @@ def encoder_goal_conditioned_sac_experiment(
                 return Mlp(
                     input_size=latent_dim,
                     output_size=encoder_input_dim,
+                    output_activation=nn.Sigmoid(),
                     **decoder_kwargs
                 )
 
-        decoder = make_decoder()
-        vae = VAE(encoder, decoder)
+        decoder_net = make_decoder()
+        vae = VAE(encoder_net, decoder_net)
 
         vae_trainer = VAETrainer(
-            env=expl_env,
             vae=vae,
             **vae_trainer_kwargs
         )
@@ -514,7 +521,7 @@ def encoder_goal_conditioned_sac_experiment(
             observation_space=expl_env.observation_space.spaces[
                 state_observation_key
             ],
-            encoder=encoder_net,
+            encoder=mu_encoder_net,
             encoder_output_dim=encoder_output_dim,
         )
         trainer = JointTrainer([trainer, debug_trainer])
@@ -785,6 +792,10 @@ def encoder_goal_conditioned_sac_experiment(
             encoder,
             observation_key_for_rl,
         ))
+    def debug(algo, epoch):
+        test = vae
+        import pdb; pdb.set_trace()
+    algorithm.post_train_funcs.append(debug)
     algorithm.train()
 
 
