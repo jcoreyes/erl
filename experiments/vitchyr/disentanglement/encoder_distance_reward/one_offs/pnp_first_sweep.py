@@ -101,7 +101,7 @@ if __name__ == "__main__":
     )
 
     n_seeds = 3
-    mode = 'local'
+    mode = 'htp'
     exp_name = 'pnp-encoder-dist-first-sweep-contextual-dict-take2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
