@@ -16,7 +16,7 @@ from railrl.torch.networks import (
     MlpQfWithObsProcessor,
     Split,
     FlattenEach,
-    Concat,
+    ConcatTuple,
 )
 from railrl.torch.sac.policies import (
     MakeDeterministic, TanhGaussianPolicyAdapter,
@@ -66,7 +66,7 @@ def experiment(variant):
         qf_obs_processor = nn.Sequential(
             Split(qf_cnn, identity, image_dim),
             FlattenEach(),
-            Concat(),
+            ConcatTuple(),
         )
 
         qf_kwargs = copy.deepcopy(variant['qf_kwargs'])
@@ -82,7 +82,7 @@ def experiment(variant):
         target_qf_obs_processor = nn.Sequential(
             Split(target_qf_cnn, identity, image_dim),
             FlattenEach(),
-            Concat(),
+            ConcatTuple(),
         )
         target_qf_kwargs = copy.deepcopy(variant['qf_kwargs'])
         target_qf_kwargs['obs_processor'] = target_qf_obs_processor
@@ -124,7 +124,7 @@ def experiment(variant):
     policy_obs_processor = nn.Sequential(
         Split(policy_cnn, identity, image_dim),
         FlattenEach(),
-        Concat(),
+        ConcatTuple(),
     )
     policy = TanhGaussianPolicyAdapter(
         policy_obs_processor,

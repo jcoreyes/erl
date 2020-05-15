@@ -2,7 +2,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.envs.mujoco.sawyer_reset_free_push_env import SawyerResetFreePushEnv
 from railrl.images.camera import sawyer_init_camera_zoomed_in_fixed
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.modules import HuberLoss
+from railrl.torch.networks.experimental import HuberLoss
 from railrl.torch.vae.tdm_td3_vae_experiment import tdm_td3_vae_experiment
 
 if __name__ == "__main__":

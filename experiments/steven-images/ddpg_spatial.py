@@ -1,28 +1,16 @@
-import gym
-import numpy as np
-
-from railrl.torch.dqn.double_dqn import DoubleDQN
-
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.dqn.dqn import DQN
-from railrl.torch.networks import Mlp
 from torch import nn as nn
-from railrl.torch.modules import HuberLoss
-from railrl.envs.wrappers import DiscretizeEnv
+from railrl.torch.networks.experimental import HuberLoss
 from railrl.torch.ddpg.feat_point_ddpg import FeatPointDDPG
 from railrl.torch.networks import FeatPointMlp
-from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy, AETanhPolicy
-from railrl.envs.wrappers import NormalizedBoxEnv
+from railrl.torch.networks import FlattenMlp, AETanhPolicy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.envs.mujoco.pusher2d import Pusher2DEnv, RandomGoalPusher2DEnv
-from railrl.envs.wrappers import ImageMujocoEnv, ImageMujocoWithObsEnv
+from railrl.envs.wrappers import ImageMujocoWithObsEnv
 #from railrl.images.camera import pusher_2d_init_camera
-from railrl.launchers.launcher_util import setup_logger
 #from railrl.envs.mujoco.simple_sawyer import SawyerXYZEnv
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
 

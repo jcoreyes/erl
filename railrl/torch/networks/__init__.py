@@ -4,7 +4,7 @@ General networks for pytorch.
 Algorithm-specific networks should go else-where.
 """
 from railrl.torch.networks.basic import (
-    Clamp, Concat, Flatten, FlattenEach, Split,
+    Clamp, ConcatTuple, Flatten, FlattenEach, Split,
 )
 from railrl.torch.networks.cnn import BasicCNN, CNN, MergedCNN, CNNPolicy
 from railrl.torch.networks.dcnn import DCNN, TwoHeadDCNN
@@ -24,7 +24,7 @@ from railrl.torch.networks.two_headed_mlp import TwoHeadMlp
 
 __all__ = [
     'Clamp',
-    'Concat',
+    'ConcatTuple',
     'BasicCNN',
     'CNN',
     'CNNPolicy',

@@ -1,15 +1,10 @@
 import gym
-import numpy as np
-
-from railrl.torch.dqn.double_dqn import DoubleDQN
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.dqn.dqn import DQN
-from railrl.torch.networks import Mlp
 from torch import nn as nn
-from railrl.torch.modules import HuberLoss
+from railrl.torch.networks.experimental import HuberLoss
 from railrl.torch.ddpg.ddpg import DDPG
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.envs.wrappers import NormalizedBoxEnv
