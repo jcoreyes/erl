@@ -1,5 +1,5 @@
 import torch
-from torch.nn import __init__ as nn
+from torch import nn
 
 
 class Clamp(nn.Module):
