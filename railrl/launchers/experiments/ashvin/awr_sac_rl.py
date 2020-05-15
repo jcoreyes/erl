@@ -6,7 +6,7 @@ from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWr
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector, ObsDictPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.awr_sac import AWRSACTrainer
 from railrl.torch.torch_rl_algorithm import (
@@ -337,22 +337,22 @@ def experiment(variant):
         env_info_sizes = dict()
 
     qf_kwargs = variant.get("qf_kwargs", {})
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs

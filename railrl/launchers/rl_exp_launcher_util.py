@@ -24,7 +24,7 @@ def td3_experiment(variant):
     from railrl.torch.td3.td3 import TD3 as TD3Trainer
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     # preprocess_rl_variant(variant)
     env = get_envs(variant)
     expl_env = env
@@ -55,12 +55,12 @@ def td3_experiment(variant):
     )
 
     action_dim = env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -70,12 +70,12 @@ def td3_experiment(variant):
         output_size=action_dim,
         **variant['policy_kwargs']
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -213,7 +213,7 @@ def twin_sac_experiment(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp
+    from railrl.torch.networks import ConcatMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
     from railrl.torch.sac.policies import MakeDeterministic
@@ -230,22 +230,22 @@ def twin_sac_experiment(variant):
             + env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']

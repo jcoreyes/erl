@@ -14,7 +14,7 @@ from railrl.exploration_strategies.base import (
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy
 # from railrl.torch.her.her_twin_sac import HerTwinSac

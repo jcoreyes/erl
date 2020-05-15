@@ -45,7 +45,7 @@ def her_sac_experiment(
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp
+    from railrl.torch.networks import ConcatMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
     if not save_video_kwargs:
@@ -70,22 +70,22 @@ def her_sac_experiment(
             + train_env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = train_env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs
@@ -209,7 +209,7 @@ def _disentangled_her_twin_sac_experiment_v2(
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp
+    from railrl.torch.networks import ConcatMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
@@ -234,7 +234,7 @@ def _disentangled_her_twin_sac_experiment_v2(
     goal_dim = train_env.observation_space.spaces[desired_goal_key].low.size
     action_dim = train_env.action_space.low.size
 
-    encoder = FlattenMlp(
+    encoder = ConcatMlp(
         input_size=goal_dim,
         output_size=latent_dim,
         **encoder_kwargs
@@ -358,7 +358,7 @@ def _disentangled_her_twin_sac_experiment_v2(
             get_extra_imgs=partial(get_extra_imgs, img_keys=img_keys),
             **save_video_kwargs
         )
-        decoder = FlattenMlp(
+        decoder = ConcatMlp(
             input_size=obs_dim,
             output_size=obs_dim,
             hidden_sizes=[128, 128],

@@ -113,13 +113,16 @@ class MultiHeadedMlp(Mlp):
         return self._splitter(flat_outputs)
 
 
-class FlattenMlp(Mlp):
+class ConcatMlp(Mlp):
     """
-    Flatten inputs along dim 1 and then pass through MLP.
+    Concatenate inputs along dimension and then pass through MLP.
     """
+    def __init__(self, *args, dim=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dim = dim
 
     def forward(self, *inputs, **kwargs):
-        flat_inputs = torch.cat(inputs, dim=1)
+        flat_inputs = torch.cat(inputs, dim=self.dim)
         return super().forward(flat_inputs, **kwargs)
 
 
@@ -159,7 +162,7 @@ class TanhMlpPolicy(MlpPolicy):
         super().__init__(*args, output_activation=torch.tanh, **kwargs)
 
 
-class MlpQf(FlattenMlp):
+class MlpQf(ConcatMlp):
     def __init__(
             self,
             *args,

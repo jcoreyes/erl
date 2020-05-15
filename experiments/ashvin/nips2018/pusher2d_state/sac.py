@@ -5,7 +5,7 @@ from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SoftActorCritic
 from railrl.launchers.arglauncher import run_variants
@@ -21,12 +21,12 @@ def experiment(variant):
         env = NormalizedBoxEnv(env)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    vf = FlattenMlp(
+    vf = ConcatMlp(
         input_size=obs_dim,
         output_size=1,
         **variant['vf_kwargs']

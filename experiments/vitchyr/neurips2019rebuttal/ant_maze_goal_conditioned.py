@@ -13,7 +13,7 @@ from railrl.samplers.data_collector.step_collector import (
     GoalConditionedStepCollector,
 )
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import (
@@ -45,22 +45,22 @@ def experiment(variant):
     goal_dim = eval_env.observation_space.spaces['desired_goal'].low.size
 
     M = variant['layer_size']
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         hidden_sizes=[M, M],

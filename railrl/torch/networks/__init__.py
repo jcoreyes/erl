@@ -15,7 +15,7 @@ from railrl.torch.networks.feat_point_mlp import FeatPointMlp
 from railrl.torch.networks.image_state import ImageStatePolicy, ImageStateQ
 from railrl.torch.networks.linear_transform import LinearTransform
 from railrl.torch.networks.mlp import (
-    Mlp, FlattenMlp, MlpPolicy, TanhMlpPolicy,
+    Mlp, ConcatMlp, MlpPolicy, TanhMlpPolicy,
     MlpQf,
     MlpQfWithObsProcessor,
 )
@@ -34,7 +34,7 @@ __all__ = [
     'FeatPointMlp',
     'Flatten',
     'FlattenEach',
-    'FlattenMlp',
+    'ConcatMlp',
     'LinearTransform',
     'ImageStatePolicy',
     'ImageStateQ',

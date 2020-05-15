@@ -3,7 +3,7 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 from railrl.envs.vae_wrappers import load_vae
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.supervised_learning.supervised_algorithm import SupervisedAlgorithm
 
 
@@ -27,7 +27,7 @@ def experiment(variant):
         mu = np.mean(states, axis=0)
         states = np.divide((states - mu), std)
         print(mu, std)
-    net = FlattenMlp(input_size=32, hidden_sizes=variant['hidden_sizes'], output_size=states.shape[1])
+    net = ConcatMlp(input_size=32, hidden_sizes=variant['hidden_sizes'], output_size=states.shape[1])
     vae = variant['vae']
     vae.cuda()
     tensor = ptu.np_to_var(images)

@@ -5,7 +5,7 @@ from torch import nn as nn
 from railrl.torch.networks.experimental import HuberLoss
 from railrl.torch.ddpg.feat_point_ddpg import FeatPointDDPG
 from railrl.torch.networks import FeatPointMlp
-from railrl.torch.networks import FlattenMlp, AETanhPolicy
+from railrl.torch.networks import ConcatMlp, AETanhPolicy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -58,7 +58,7 @@ def experiment(variant):
     )
 
 
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size= latent_obs_dim + extra_fc_size + action_dim,
         output_size=1,
         hidden_sizes=[400, 300]

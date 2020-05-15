@@ -47,7 +47,7 @@ from railrl.torch.disentanglement.networks import (
     DisentangledMlpQf,
     EncodeObsAndGoal,
 )
-from railrl.torch.networks import FlattenMlp, BasicCNN, Flatten, ConcatTuple
+from railrl.torch.networks import ConcatMlp, BasicCNN, Flatten, ConcatTuple
 from railrl.torch.networks.mlp import MultiHeadedMlp, Mlp
 from railrl.torch.networks.stochastic.distribution_generator import TanhGaussian
 from railrl.torch.sac.policies import (
@@ -299,7 +299,7 @@ def encoder_goal_conditioned_sac_experiment(
             in_dim = (
                 state_expl_env.observation_space.spaces[state_observation_key].low.size
             )
-            return FlattenMlp(input_size=in_dim, **encoder_kwargs)
+            return ConcatMlp(input_size=in_dim, **encoder_kwargs)
 
     encoder_net = create_encoder()
     target_encoder_net = create_encoder()

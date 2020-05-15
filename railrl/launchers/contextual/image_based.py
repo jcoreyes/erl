@@ -33,7 +33,7 @@ from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.networks import BasicCNN, FlattenMlp, basic
+from railrl.torch.networks import BasicCNN, ConcatMlp, basic
 from railrl.torch.networks.mlp import MultiHeadedMlp
 from railrl.torch.networks.stochastic.distribution_generator import (
     TanhGaussian,
@@ -200,7 +200,7 @@ def image_based_goal_conditioned_sac_experiment(
         return basic.MultiInputSequential(
             ApplyToObs(joint_cnn),
             basic.FlattenEachParallel(),
-            FlattenMlp(
+            ConcatMlp(
                 input_size=joint_cnn.output_size + action_dim,
                 output_size=1,
                 **qf_kwargs

@@ -9,7 +9,7 @@ from railrl.exploration_strategies.gaussian_and_epislon import \
 from railrl.launchers.launcher_util import setup_logger
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 # from railrl.torch.td3.td3 import TD3
 from railrl.demos.td3_bc import TD3BCTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
@@ -30,8 +30,8 @@ if __name__ == "__main__":
     variant = dict(
         env_class=SawyerReachXYZEnv,
         env_kwargs=dict(
-            action_mode="position", 
-            max_speed = 0.05, 
+            action_mode="position",
+            max_speed = 0.05,
             camera="sawyer_head"
         ),
         # algo_kwargs=dict(

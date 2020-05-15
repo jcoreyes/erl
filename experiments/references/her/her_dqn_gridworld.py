@@ -11,7 +11,7 @@ from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.dqn.dqn import DQNTrainer
 from railrl.torch.dqn.policy import ArgmaxDiscretePolicy
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 try:
@@ -29,12 +29,12 @@ def experiment(variant):
     obs_dim = expl_env.observation_space.spaces['observation'].low.size
     goal_dim = expl_env.observation_space.spaces['desired_goal'].low.size
     action_dim = expl_env.action_space.n
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=obs_dim + goal_dim,
         output_size=action_dim,
         hidden_sizes=[400, 300],
     )
-    target_qf = FlattenMlp(
+    target_qf = ConcatMlp(
         input_size=obs_dim + goal_dim,
         output_size=action_dim,
         hidden_sizes=[400, 300],

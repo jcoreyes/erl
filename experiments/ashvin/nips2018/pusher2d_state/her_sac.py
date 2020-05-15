@@ -7,7 +7,7 @@ from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.her.her_sac import HerSac
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SoftActorCritic
 from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer
@@ -18,7 +18,7 @@ from railrl.exploration_strategies.base import \
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.launchers.launcher_util import setup_logger, run_experiment
 from railrl.torch.her.her_td3 import HerTd3
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
 
@@ -30,12 +30,12 @@ def experiment(variant):
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     goal_dim = env.goal_dim
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    vf = FlattenMlp(
+    vf = ConcatMlp(
         input_size=obs_dim + goal_dim,
         output_size=1,
         **variant['vf_kwargs']

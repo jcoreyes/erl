@@ -9,7 +9,7 @@ from torch import nn as nn
 
 from railrl.policies.base import Policy
 from railrl.torch.core import PyTorchModule
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 import railrl.torch.pytorch_util as ptu
 
 
@@ -68,7 +68,7 @@ class DisentangledMlpQf(PyTorchModule):
         else:
             qf_input_size = preprocess_obs_dim + action_dim + qf_goal_input_size
         if architecture == 'single_head':
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 input_size=qf_input_size,
                 output_size=1,
                 **qf_kwargs
@@ -79,7 +79,7 @@ class DisentangledMlpQf(PyTorchModule):
             new_hidden_sizes = [
                 size * self.postprocess_goal_dim for size in hidden_sizes
             ]
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 hidden_sizes=new_hidden_sizes,
                 input_size=qf_input_size,
                 output_size=1,
@@ -91,7 +91,7 @@ class DisentangledMlpQf(PyTorchModule):
             new_hidden_sizes = [
                 hidden_sizes[0] * self.postprocess_goal_dim
             ] + hidden_sizes[1:]
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 hidden_sizes=new_hidden_sizes,
                 input_size=qf_input_size,
                 output_size=1,
@@ -99,7 +99,7 @@ class DisentangledMlpQf(PyTorchModule):
             ))
         elif architecture in {'many_heads', 'splice'}:
             for _ in range(self.postprocess_goal_dim):
-                self.feature_qfs.append(FlattenMlp(
+                self.feature_qfs.append(ConcatMlp(
                     input_size=qf_input_size,
                     output_size=1,
                     **qf_kwargs
@@ -279,7 +279,7 @@ class DDRArchitecture(PyTorchModule):
         else:
             qf_input_size = preprocess_obs_dim + action_dim + qf_goal_input_size
         if architecture == 'single_head':
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 input_size=qf_input_size,
                 output_size=1,
                 **qf_kwargs
@@ -290,7 +290,7 @@ class DDRArchitecture(PyTorchModule):
             new_hidden_sizes = [
                 size * self.postprocess_goal_dim for size in hidden_sizes
             ]
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 hidden_sizes=new_hidden_sizes,
                 input_size=qf_input_size,
                 output_size=1,
@@ -302,7 +302,7 @@ class DDRArchitecture(PyTorchModule):
             new_hidden_sizes = [
                                    hidden_sizes[0] * self.postprocess_goal_dim
                                ] + hidden_sizes[1:]
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 hidden_sizes=new_hidden_sizes,
                 input_size=qf_input_size,
                 output_size=1,
@@ -310,7 +310,7 @@ class DDRArchitecture(PyTorchModule):
             ))
         else:
             for _ in range(self.postprocess_goal_dim):
-                self.feature_qfs.append(FlattenMlp(
+                self.feature_qfs.append(ConcatMlp(
                     input_size=qf_input_size,
                     output_size=1,
                     **qf_kwargs

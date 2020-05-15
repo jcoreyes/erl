@@ -1,6 +1,6 @@
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 import railrl.torch.pytorch_util as ptu
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SoftActorCritic
@@ -16,12 +16,12 @@ def experiment(variant):
     action_dim = int(np.prod(env.action_space.shape))
 
     net_size = variant['net_size']
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         hidden_sizes=[net_size, net_size],
         input_size=obs_dim + action_dim,
         output_size=1,
     )
-    vf = FlattenMlp(
+    vf = ConcatMlp(
         hidden_sizes=[net_size, net_size],
         input_size=obs_dim,
         output_size=1,
