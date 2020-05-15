@@ -62,8 +62,6 @@ class VAETrainer(TorchTrainer, LossFunction):
         )
 
         vae_logprob = self.vae.logprob(next_obs, recon)
-        if vae_logprob > 10:
-            import pdb; pdb.set_trace()
         recon_loss = -vae_logprob
 
         kl_divergence = self.kl_divergence(z_mu, z_logvar)

@@ -381,7 +381,7 @@ class VAE(PyTorchModule):
             return self._decoder(z)
 
     def logprob(self, x, x_recon):
-        return -1 * F.binary_cross_entropy(
+        return -1 * F.mse_loss(
             x_recon,
             x,
             reduction='elementwise_mean'

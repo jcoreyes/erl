@@ -488,7 +488,6 @@ def encoder_goal_conditioned_sac_experiment(
                 return Mlp(
                     input_size=latent_dim,
                     output_size=encoder_input_dim,
-                    output_activation=nn.Sigmoid(),
                     **decoder_kwargs
                 )
 
@@ -792,10 +791,6 @@ def encoder_goal_conditioned_sac_experiment(
             encoder,
             observation_key_for_rl,
         ))
-    def debug(algo, epoch):
-        test = vae
-        import pdb; pdb.set_trace()
-    algorithm.post_train_funcs.append(debug)
     algorithm.train()
 
 
