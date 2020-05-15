@@ -109,7 +109,7 @@ ENV_PARAMS = {
     },
 
     'pen-sparse-v0': {
-        'env_id': 'pen-v0',
+        'env_id': 'pen-binary-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
@@ -128,7 +128,7 @@ ENV_PARAMS = {
         ),
     },
     'door-sparse-v0': {
-        'env_id': 'door-v0',
+        'env_id': 'door-binary-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
@@ -146,7 +146,7 @@ ENV_PARAMS = {
         ),
     },
     'relocate-sparse-v0': {
-        'env_id': 'relocate-v0',
+        'env_id': 'relocate-binary-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
@@ -163,7 +163,7 @@ ENV_PARAMS = {
         ),
     },
     'hammer-sparse-v0': {
-        'env_id': 'hammer-v0',
+        'env_id': 'hammer-binary-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
