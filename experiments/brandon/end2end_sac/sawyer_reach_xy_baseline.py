@@ -8,7 +8,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.samplers.data_collector.path_collector import ObsDictPathCollector
 from railrl.samplers.data_collector.step_collector import ObsDictStepCollector
 from railrl.torch.networks import (
-    FlattenMlp, CNN, Flatten,
+    ConcatMlp, CNN, Flatten,
     MlpQfWithObsProcessor,
 )
 from railrl.torch.sac.policies import (

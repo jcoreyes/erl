@@ -1,22 +1,17 @@
 """
 Run PyTorch Soft Actor Critic on ImagePusher2dEnv.
 """
-import random
 
 import numpy as np
-import gym
 
-from railrl.torch.modules import HuberLoss
+from railrl.torch.networks.experimental import HuberLoss
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.policies import TanhCNNGaussianPolicy
 from railrl.torch.sac.sac import SACTrainer
 
-from railrl.torch.networks import Mlp, CNN, CNNPolicy, MergedCNN
-from torch import nn as nn
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import CNN, MergedCNN
 
 from railrl.envs.mujoco.image_pusher_2d_brandon import ImageForkReacher2dEnv
 
@@ -118,9 +113,9 @@ if __name__ == "__main__":
     SERIES = 10
 
     for j in range(SERIES):
-    
+
         for i in range(PARALLEL):
-    
+
             run_experiment(
                 experiment,
                 variant=variant,

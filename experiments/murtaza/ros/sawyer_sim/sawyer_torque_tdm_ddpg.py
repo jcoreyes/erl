@@ -7,7 +7,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.state_distance.tdm_networks import TdmNormalizer, TdmQf, TdmPolicy
-from railrl.torch.modules import HuberLoss
+from railrl.torch.networks.experimental import HuberLoss
 import railrl.torch.pytorch_util as ptu
 
 def experiment(variant):

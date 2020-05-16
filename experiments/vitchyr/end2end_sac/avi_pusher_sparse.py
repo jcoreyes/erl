@@ -16,7 +16,7 @@ from railrl.torch.networks import (
     MlpQfWithObsProcessor,
     Split,
     FlattenEach,
-    Concat,
+    ConcatTuple,
     Flatten,
 )
 from railrl.torch.sac.policies import (

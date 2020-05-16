@@ -26,7 +26,7 @@ from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
 from railrl.visualization.video import dump_video, VideoSaveFunction, RIGVideoSaveFunction
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SACTrainer
@@ -190,7 +190,7 @@ def rig_experiment(
     action_dim = expl_env.action_space.low.size
 
     def create_qf():
-        return FlattenMlp(
+        return ConcatMlp(
             input_size=obs_dim + action_dim,
             output_size=1,
             **qf_kwargs

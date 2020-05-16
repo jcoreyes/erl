@@ -8,7 +8,7 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import setup_logger
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy, CNN, CNNPolicy, MergedCNN
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy, CNN, CNNPolicy, MergedCNN
 from railrl.torch.td3.td3 import TD3
 from railrl.torch.ddpg.ddpg import DDPG
 

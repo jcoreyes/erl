@@ -9,7 +9,7 @@ from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.samplers.data_collector import MdpPathCollector
-from railrl.torch.networks import MergedCNN, FlattenMlp
+from railrl.torch.networks import MergedCNN, ConcatMlp
 from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy
 from railrl.torch.sac.policies import TanhCNNGaussianPolicy
 from railrl.torch.sac.twin_sac import TwinSACTrainer
@@ -26,22 +26,22 @@ def experiment(variant):
     action_dim = int(np.prod(env.action_space.shape))
     obs_dim = int(np.prod(env.observation_space.shape))
 
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']

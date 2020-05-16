@@ -10,7 +10,7 @@ from torch.nn import functional as F
 
 from railrl.policies.base import Policy
 from railrl.torch.core import PyTorchModule
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 import railrl.torch.pytorch_util as ptu
 
 
@@ -18,11 +18,11 @@ class DisentangledMlpQf(PyTorchModule):
 
     def __init__(
             self,
-            encoder,
+            goal_encoder,
+            state_encoder,
             qf_kwargs,
             preprocess_obs_dim,
             action_dim,
-            encode_state=False,
             vectorized=False,
             architecture='splice',
             detach_encoder_via_goal=False,
@@ -34,7 +34,6 @@ class DisentangledMlpQf(PyTorchModule):
         :param qf_kwargs:
         :param preprocess_obs_dim:
         :param action_dim:
-        :param encode_state:
         :param vectorized:
         :param architecture:
          - 'splice': give each Q function a single index into the latent goal
@@ -46,11 +45,11 @@ class DisentangledMlpQf(PyTorchModule):
              first hidden size by the number of heads in `many_heads`
         """
         super().__init__()
-        self.encoder = encoder
+        self.goal_encoder = goal_encoder
+        self.state_encoder = state_encoder
         self.preprocess_obs_dim = preprocess_obs_dim
-        self.preprocess_goal_dim = encoder.input_size
-        self.postprocess_goal_dim = encoder.output_size
-        self.encode_state = encode_state
+        self.preprocess_goal_dim = goal_encoder.input_size
+        self.postprocess_goal_dim = goal_encoder.output_size
         self.vectorized = vectorized
         self._architecture = architecture
         self._detach_encoder_via_goal = detach_encoder_via_goal
@@ -62,14 +61,11 @@ class DisentangledMlpQf(PyTorchModule):
             qf_goal_input_size = 1
         else:
             qf_goal_input_size = self.postprocess_goal_dim
-        if self.encode_state:
-            qf_input_size = (
-                    self.postprocess_goal_dim + action_dim + qf_goal_input_size
-            )
-        else:
-            qf_input_size = preprocess_obs_dim + action_dim + qf_goal_input_size
+        qf_input_size = (
+                state_encoder.output_size + action_dim + qf_goal_input_size
+        )
         if architecture == 'single_head':
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 input_size=qf_input_size,
                 output_size=1,
                 **qf_kwargs
@@ -80,7 +76,7 @@ class DisentangledMlpQf(PyTorchModule):
             new_hidden_sizes = [
                 size * self.postprocess_goal_dim for size in hidden_sizes
             ]
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 hidden_sizes=new_hidden_sizes,
                 input_size=qf_input_size,
                 output_size=1,
@@ -92,7 +88,7 @@ class DisentangledMlpQf(PyTorchModule):
             new_hidden_sizes = [
                 hidden_sizes[0] * self.postprocess_goal_dim
             ] + hidden_sizes[1:]
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 hidden_sizes=new_hidden_sizes,
                 input_size=qf_input_size,
                 output_size=1,
@@ -100,7 +96,7 @@ class DisentangledMlpQf(PyTorchModule):
             ))
         elif architecture in {'many_heads', 'splice'}:
             for _ in range(self.postprocess_goal_dim):
-                self.feature_qfs.append(FlattenMlp(
+                self.feature_qfs.append(ConcatMlp(
                     input_size=qf_input_size,
                     output_size=1,
                     **qf_kwargs
@@ -111,17 +107,17 @@ class DisentangledMlpQf(PyTorchModule):
     def forward(self, obs, actions, return_individual_q_vals=False, **kwargs):
         obs_and_goal = obs
         # TODO: undo hack. probably just get rid of these variables
-        if self.preprocess_obs_dim == self.preprocess_goal_dim:
-            obs, goal = obs_and_goal.chunk(2, dim=1)
-        else:
-            assert obs_and_goal.shape[1] == (
-                    self.preprocess_obs_dim + self.preprocess_goal_dim)
-            obs = obs_and_goal[:, :self.preprocess_obs_dim]
-            goal = obs_and_goal[:, self.preprocess_obs_dim:]
+        obs, goal = obs_and_goal.chunk(2, dim=1)
+        # if self.preprocess_obs_dim == self.preprocess_goal_dim:
+        # else:
+            # assert obs_and_goal.shape[1] == (
+                    # self.preprocess_obs_dim + self.preprocess_goal_dim)
+            # obs = obs_and_goal[:, :self.preprocess_obs_dim]
+            # goal = obs_and_goal[:, self.preprocess_obs_dim:]
 
-        h_obs = self.encoder(obs) if self.encode_state else obs
+        h_obs = self.state_encoder(obs)
         h_obs = h_obs.detach() if self._detach_encoder_via_state else h_obs
-        h_goal = self.encoder(goal)
+        h_goal = self.goal_encoder(goal)
         h_goal = h_goal.detach() if self._detach_encoder_via_goal else h_goal
 
         total_q_value = 0
@@ -280,7 +276,7 @@ class DDRArchitecture(PyTorchModule):
         else:
             qf_input_size = preprocess_obs_dim + action_dim + qf_goal_input_size
         if architecture == 'single_head':
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 input_size=qf_input_size,
                 output_size=1,
                 **qf_kwargs
@@ -291,7 +287,7 @@ class DDRArchitecture(PyTorchModule):
             new_hidden_sizes = [
                 size * self.postprocess_goal_dim for size in hidden_sizes
             ]
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 hidden_sizes=new_hidden_sizes,
                 input_size=qf_input_size,
                 output_size=1,
@@ -303,7 +299,7 @@ class DDRArchitecture(PyTorchModule):
             new_hidden_sizes = [
                                    hidden_sizes[0] * self.postprocess_goal_dim
                                ] + hidden_sizes[1:]
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 hidden_sizes=new_hidden_sizes,
                 input_size=qf_input_size,
                 output_size=1,
@@ -311,7 +307,7 @@ class DDRArchitecture(PyTorchModule):
             ))
         else:
             for _ in range(self.postprocess_goal_dim):
-                self.feature_qfs.append(FlattenMlp(
+                self.feature_qfs.append(ConcatMlp(
                     input_size=qf_input_size,
                     output_size=1,
                     **qf_kwargs

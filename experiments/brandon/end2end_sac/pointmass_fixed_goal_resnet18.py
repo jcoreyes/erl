@@ -8,7 +8,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import (
-    FlattenMlp, MergedCNN, PretrainedCNN, Flatten,
+    ConcatMlp, MergedCNN, PretrainedCNN, Flatten,
     MlpQfWithObsProcessor,
 )
 from railrl.torch.sac.policies import (
@@ -192,7 +192,7 @@ if __name__ == "__main__":
         ),
         cnn_params=dict(
             hidden_sizes=[32, 32],
-            model_architecture=models.resnet18, 
+            model_architecture=models.resnet18,
         ),
         # replay_buffer_size=int(1E6),
         qf_kwargs=dict(

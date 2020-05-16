@@ -41,7 +41,7 @@ def grill_her_sac_experiment(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp
+    from railrl.torch.networks import ConcatMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
     from railrl.torch.sac.sac import SACTrainer
     from railrl.torch.her.her import HERTrainer
@@ -69,22 +69,22 @@ def grill_her_sac_experiment(variant):
             + env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -146,7 +146,7 @@ def grill_her_twin_sac_experiment_online_vae(vae_exp, variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp
+    from railrl.torch.networks import ConcatMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.grill.launcher import grill_preprocess_variant, get_envs
@@ -181,22 +181,22 @@ def grill_her_twin_sac_experiment_online_vae(vae_exp, variant):
     )
     action_dim = env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,

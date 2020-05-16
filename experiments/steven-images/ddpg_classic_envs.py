@@ -1,19 +1,10 @@
-import gym
-import numpy as np
-
-from railrl.torch.dqn.double_dqn import DoubleDQN
-
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.dqn.dqn import DQN
-from railrl.torch.networks import Mlp
 from torch import nn as nn
-from railrl.torch.modules import HuberLoss
-from railrl.envs.wrappers import DiscretizeEnv
+from railrl.torch.networks.experimental import HuberLoss
 from railrl.torch.ddpg.ddpg import DDPG
-from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.base import \
@@ -30,7 +21,7 @@ def experiment(variant):
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
 
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[128, 128]

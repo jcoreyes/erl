@@ -43,31 +43,6 @@ class BatchSquareDiagonal(nn.Module):
         return ptu.batch_square_vector(vector=vector, M=M)
 
 
-class Concat(nn.Module):
-    """
-    Flatten a tuple of inputs.
-
-    Usage:
-    ```
-    net = nn.Sequential(
-        Concat(),
-        nn.Linear(3, 1),
-    )
-
-    a = Variable(torch.ones(32, 2))
-    b = Variable(torch.ones(32, 1))
-
-    result = net((a, b))
-    ```
-    """
-    def __init__(self, *, dim=1):
-        super().__init__()
-        self.dim = dim
-
-    def forward(self, inputs):
-        return torch.cat(inputs, dim=self.dim)
-
-
 class HuberLoss(nn.Module):
     def __init__(self, delta=1):
         super().__init__()
@@ -106,18 +81,3 @@ class LayerNorm(nn.Module):
         if self.center:
             output = output + self.center_param
         return output
-
-
-class Detach(nn.Module):
-    def __init__(self, wrapped_mlp):
-        super().__init__()
-        self.wrapped_mlp = wrapped_mlp
-
-    def forward(self, inputs):
-        return self.wrapped_mlp.forward(inputs).detach()
-
-    def __getattr__(self, attr_name):
-        try:
-            return super().__getattr__(attr_name)
-        except AttributeError:
-            return getattr(self.wrapped_mlp, attr_name)
