@@ -28,7 +28,6 @@ from railrl.launchers.contextual.util import (
     get_gym_env,
 )
 from railrl.launchers.experiments.disentanglement.debug import (
-    JointTrainer,
     DebugTrainer,
     DebugRenderer,
     InsertDebugImagesEnv,
@@ -54,7 +53,7 @@ from railrl.torch.sac.policies import (
     MakeDeterministic,
     PolicyFromDistributionGenerator,
 )
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm, JointTrainer
 
 
 def create_exploration_policy(policy, exploration_version='identity', **kwargs):
