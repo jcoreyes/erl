@@ -6,6 +6,7 @@ Algorithm-specific networks should go else-where.
 import numpy as np
 import torch
 from torch import nn as nn
+from torch.nn import functional as F
 
 from railrl.policies.base import Policy
 from railrl.torch.core import PyTorchModule
@@ -342,3 +343,64 @@ class DDRArchitecture(PyTorchModule):
             return total_q_value, individual_q_vals
         else:
             return total_q_value
+
+class VAE(PyTorchModule):
+    def __init__(self, encoder, decoder):
+        super().__init__()
+        self._encoder = encoder
+        self._decoder = decoder
+        self.latent_dim = self._decoder.input_size
+
+    def encode(self, x):
+        return self._encoder(x)
+
+    def encode_mu(self, x):
+        mu, logvar = self._encoder(x)
+        return mu
+
+    def decode(self, z):
+        return self._decoder(z)
+
+    def reparameterize(self, mu, logvar):
+        std = logvar.mul(0.5).exp_()
+        eps = std.data.new(std.size()).normal_()
+        return eps.mul(std).add_(mu)
+
+    def reconstruct(self, x, use_mean=True, return_latent_params=False):
+        mu, logvar = self.encode(x)
+        z = mu
+        if not use_mean:
+            z = self.reparameterize(mu, logvar)
+        if return_latent_params:
+            return self._decoder(z), mu, logvar
+        else:
+            return self._decoder(z)
+
+    def logprob(self, x, x_recon):
+        return -1 * F.mse_loss(
+            x_recon,
+            x,
+            reduction='mean'
+        ) * self._encoder.input_size
+
+    def sample_np(self, batch_size):
+        latents = np.random.normal(size=(batch_size, self.latent_dim))
+        latents_torch = ptu.from_numpy(latents)
+        return ptu.get_numpy(self.decode(latents_torch))
+
+    def forward(self, x):
+        return self.reconstruct(x)
+
+
+class EncoderMuFromEncoderDistribution(PyTorchModule):
+    """Requires encoder(x) to produce mean and variance of latent distribution
+    """
+    def __init__(self, encoder):
+        super().__init__()
+        self._encoder = encoder
+        self.input_size = encoder.input_size
+        self.output_size = encoder.output_size
+
+    def forward(self, x):
+        mu, var = self._encoder(x)
+        return mu

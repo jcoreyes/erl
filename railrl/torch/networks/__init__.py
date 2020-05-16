@@ -18,12 +18,15 @@ from railrl.torch.networks.mlp import (
     Mlp, ConcatMlp, MlpPolicy, TanhMlpPolicy,
     MlpQf,
     MlpQfWithObsProcessor,
+    ConcatMultiHeadedMlp,
 )
 from railrl.torch.networks.pretrained_cnn import PretrainedCNN
 from railrl.torch.networks.two_headed_mlp import TwoHeadMlp
 
 __all__ = [
     'Clamp',
+    'ConcatMlp',
+    'ConcatMultiHeadedMlp',
     'ConcatTuple',
     'BasicCNN',
     'CNN',
@@ -34,7 +37,6 @@ __all__ = [
     'FeatPointMlp',
     'Flatten',
     'FlattenEach',
-    'ConcatMlp',
     'LinearTransform',
     'ImageStatePolicy',
     'ImageStateQ',

@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import numpy as np
 import torch
 
@@ -18,7 +20,7 @@ class DisentangedTrainer(SACTrainer):
         self.single_uses_mean_not_sum = single_uses_mean_not_sum
 
     def compute_loss(
-            self, batch, update_eval_statistics=False,
+            self, batch, return_statistics=False,
     ) -> SACLosses:
         rewards = batch['rewards']
         terminals = batch['terminals']
@@ -92,36 +94,37 @@ class DisentangedTrainer(SACTrainer):
         """
         Save some statistics for eval
         """
-        if update_eval_statistics:
+        eval_statistics = OrderedDict()
+        if return_statistics:
             policy_loss = (log_pi - q_new_actions).mean()
 
-            self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
-            self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
-            self.eval_statistics['QF1 Loss single'] = np.mean(ptu.get_numpy(single_qf1_loss))
-            self.eval_statistics['QF2 Loss single'] = np.mean(ptu.get_numpy(single_qf2_loss))
-            self.eval_statistics['QF1 Loss vec'] = np.mean(ptu.get_numpy(vec_qf1_loss))
-            self.eval_statistics['QF2 Loss vec'] = np.mean(ptu.get_numpy(vec_qf2_loss))
-            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
+            eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
+            eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
+            eval_statistics['QF1 Loss single'] = np.mean(ptu.get_numpy(single_qf1_loss))
+            eval_statistics['QF2 Loss single'] = np.mean(ptu.get_numpy(single_qf2_loss))
+            eval_statistics['QF1 Loss vec'] = np.mean(ptu.get_numpy(vec_qf1_loss))
+            eval_statistics['QF2 Loss vec'] = np.mean(ptu.get_numpy(vec_qf2_loss))
+            eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Q1 Predictions',
                 ptu.get_numpy(q1_pred),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Q2 Predictions',
                 ptu.get_numpy(q2_pred),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Q Targets',
                 ptu.get_numpy(q_target),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Log Pis',
                 ptu.get_numpy(log_pi),
             ))
             policy_statistics = add_prefix(dist.get_diagnostics(), "policy/")
-            self.eval_statistics.update(policy_statistics)
+            eval_statistics.update(policy_statistics)
             if self.use_automatic_entropy_tuning:
                 self.eval_statistics['Alpha'] = alpha.item()
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
@@ -131,4 +134,4 @@ class DisentangedTrainer(SACTrainer):
             qf1_loss=qf1_loss,
             qf2_loss=qf2_loss,
             alpha_loss=alpha_loss,
-        )
+        ), eval_statistics
