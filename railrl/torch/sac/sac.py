@@ -87,13 +87,15 @@ class SACTrainer(TorchTrainer, LossFunction):
 
         self.discount = discount
         self.reward_scale = reward_scale
-        self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
+        self.eval_statistics = OrderedDict()
 
     def train_from_torch(self, batch):
-        losses = self.compute_loss(batch)
-
+        losses, stats = self.compute_loss(
+            batch, self._need_to_update_eval_statistics)
+        if self._need_to_update_eval_statistics:
+            self.eval_statistics = stats
         """
         Update networks
         """
@@ -114,14 +116,14 @@ class SACTrainer(TorchTrainer, LossFunction):
         losses.policy_loss.backward()
         self.policy_optimizer.step()
 
+        if self._need_to_update_eval_statistics:
+            # Compute statistics using only one batch per epoch
+            self._need_to_update_eval_statistics = False
+
     def signal_completed_training_step(self):
         super().signal_completed_training_step()
         self._n_train_steps_total += 1
         self.try_update_target_networks()
-
-        if self._need_to_update_eval_statistics:
-            # Compute statistics using only one batch per epoch
-            self._need_to_update_eval_statistics = False
 
     def try_update_target_networks(self):
         if self._n_train_steps_total % self.target_update_period == 0:
@@ -135,7 +137,7 @@ class SACTrainer(TorchTrainer, LossFunction):
             self.qf2, self.target_qf2, self.soft_target_tau
         )
 
-    def compute_loss(self, batch) -> SACLosses:
+    def compute_loss(self, batch, return_statistics=False) -> SACLosses:
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -181,42 +183,45 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         Save some statistics for eval
         """
-        if self._need_to_update_eval_statistics:
+        eval_statistics = OrderedDict()
+        if return_statistics:
             policy_loss = (log_pi - q_new_actions).mean()
 
-            self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
-            self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
-            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
+            eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
+            eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
+            eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Q1 Predictions',
                 ptu.get_numpy(q1_pred),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Q2 Predictions',
                 ptu.get_numpy(q2_pred),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Q Targets',
                 ptu.get_numpy(q_target),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Log Pis',
                 ptu.get_numpy(log_pi),
             ))
             policy_statistics = add_prefix(dist.get_diagnostics(), "policy/")
-            self.eval_statistics.update(policy_statistics)
+            eval_statistics.update(policy_statistics)
             if self.use_automatic_entropy_tuning:
-                self.eval_statistics['Alpha'] = alpha.item()
-                self.eval_statistics['Alpha Loss'] = alpha_loss.item()
+                eval_statistics['Alpha'] = alpha.item()
+                eval_statistics['Alpha Loss'] = alpha_loss.item()
 
-        return SACLosses(
+        loss = SACLosses(
             policy_loss=policy_loss,
             qf1_loss=qf1_loss,
             qf2_loss=qf2_loss,
             alpha_loss=alpha_loss,
         )
+
+        return loss, eval_statistics
 
     def get_diagnostics(self):
         stats = super().get_diagnostics()

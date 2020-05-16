@@ -1,4 +1,7 @@
-from collections import OrderedDict
+from collections import (
+    defaultdict,
+    OrderedDict,
+)
 from typing import (
     List,
     MutableMapping,
@@ -39,12 +42,15 @@ class JointLossTrainer(TorchTrainer):
         self,
         trainers: OrderedDictType[str, TorchTrainer],
         optimizers: List[Optimizer],
+        trainer_loss_scales: MutableMapping[TorchTrainer, float]=None,
+
     ):
         super().__init__()
         if len(trainers) == 0:
             raise ValueError("Need at least one trainer")
         self._trainers = trainers
         self._optimizers = optimizers
+        self._trainer_stats = {}
 
         for name, trainer in self._trainers.items():
             if hasattr(trainer, 'optimizers'):
@@ -53,11 +59,23 @@ class JointLossTrainer(TorchTrainer):
                     assert optimizer in self._optimizers, (
                         'Joint loss trainer {} missing optimizer'.format(name))
 
+        self.trainer_loss_scales = trainer_loss_scales
+        if self.trainer_loss_scales is None:
+            self.trainer_loss_scales = defaultdict(lambda trainer: 1)
+        self._need_to_update_eval_statistics = True
+
     def train_from_torch(self, batch):
         # Compute losses
         trainer_losses = []
         for trainer in self._trainers.values():
-            trainer_losses.append(trainer.compute_loss(batch))
+            trainer_loss, eval_stats = trainer.compute_loss(
+                batch,
+                self._need_to_update_eval_statistics
+            )
+            trainer_losses.append(trainer_loss)
+
+            if self._need_to_update_eval_statistics:
+                self._trainer_stats[trainer] = eval_stats
 
         # Clear optimizer gradients
         for optimizer in self._optimizers:
@@ -65,8 +83,9 @@ class JointLossTrainer(TorchTrainer):
 
         # Compute gradients
         for trainer_loss in trainer_losses:
+            trainer_loss_scale = self.trainer_loss_scales[trainer]
             for loss in trainer_loss:
-                loss.backward()
+                (trainer_loss_scale * loss).backward()
 
         # Backprop gradients
         for optimizer in self._optimizers:
@@ -75,6 +94,13 @@ class JointLossTrainer(TorchTrainer):
         # Cleanup
         for trainer in self._trainers.values():
             trainer.signal_completed_training_step()
+        self.signal_completed_training_step()
+
+    def signal_completed_training_step(self):
+        super().signal_completed_training_step()
+        if self._need_to_update_eval_statistics:
+            # Compute statistics using only one batch per epoch
+            self._need_to_update_eval_statistics = False
 
     @property
     def networks(self):
@@ -89,6 +115,7 @@ class JointLossTrainer(TorchTrainer):
     def end_epoch(self, epoch):
         for trainer in self._trainers.values():
             trainer.end_epoch(epoch)
+        self._need_to_update_eval_statistics = True
 
     def get_snapshot(self):
         snapshot = {}
@@ -102,9 +129,9 @@ class JointLossTrainer(TorchTrainer):
         return snapshot
 
     def get_diagnostics(self):
-        stats = {}
+        stats = OrderedDict()
         for trainer_name, trainer in self._trainers.items():
-            for k, v in trainer.get_diagnostics().items():
+            for k, v in self._trainer_stats[trainer].items():
                 if trainer_name:
                     new_k = '{}/{}'.format(trainer_name, k)
                     stats[new_k] = v

@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torch.nn import functional as F, __init__ as nn
+from torch.nn import functional as F
 
 from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
@@ -111,6 +111,19 @@ class MultiHeadedMlp(Mlp):
     def forward(self, input):
         flat_outputs = super().forward(input)
         return self._splitter(flat_outputs)
+
+
+class ConcatMultiHeadedMlp(MultiHeadedMlp):
+    """
+    Concatenate inputs along dimension and then pass through MultiHeadedMlp.
+    """
+    def __init__(self, *args, dim=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dim = dim
+
+    def forward(self, *inputs, **kwargs):
+        flat_inputs = torch.cat(inputs, dim=self.dim)
+        return super().forward(flat_inputs, **kwargs)
 
 
 class ConcatMlp(Mlp):

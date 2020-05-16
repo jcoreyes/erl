@@ -304,11 +304,14 @@ def encoder_goal_conditioned_sac_experiment(
                 enc = nn.Sequential(cnn, Flatten())
                 enc.output_size = cnn_output_size
             else:
-                mlp = MultiHeadedMlp(input_size=cnn_output_size,
-                                     **encoder_kwargs)
-                enc = nn.Sequential(cnn, Flatten(), mlp)
-                enc.output_size = latent_dim
+                # mlp = MultiHeadedMlp(input_size=cnn_output_size,
+                                     # **encoder_kwargs)
+                # enc = nn.Sequential(cnn, Flatten(), mlp)
+                # enc.output_size = latent_dim
+                enc = ConcatMultiHeadedMlp(input_size=cnn_output_size,
+                                            **encoder_kwargs)
             enc.input_size = img_width * img_height * img_num_channels
+            enc.output_size = latent_dim
             return enc
     else:
         context_keys_to_save = [state_desired_goal_key, latent_desired_goal_key]
@@ -319,7 +322,10 @@ def encoder_goal_conditioned_sac_experiment(
             in_dim = (
                 state_expl_env.observation_space.spaces[state_observation_key].low.size
             )
-            return ConcatMultiHeadedMlp(input_size=in_dim, **encoder_kwargs)
+            enc = ConcatMultiHeadedMlp(input_size=in_dim, **encoder_kwargs)
+            enc.input_size = in_dim
+            enc.output_size = latent_dim
+            return enc
 
     encoder_net = create_encoder()
     mu_encoder_net = EncoderMuFromEncoderDistribution(encoder_net)
@@ -364,7 +370,7 @@ def encoder_goal_conditioned_sac_experiment(
         if qf_state_encoder_is_goal_encoder:
             state_encoder = goal_encoder
         else:
-            state_encoder = create_encoder()
+            state_encoder = EncoderMuFromEncoderDistribution(create_encoder())
         return DisentangledMlpQf(
             goal_encoder=goal_encoder,
             state_encoder=state_encoder,
@@ -501,19 +507,19 @@ def encoder_goal_conditioned_sac_experiment(
         trainer = JointLossTrainer(
             trainers,
             optimizers=[
-                sac_trainer.qf1_optimizer,
-                sac_trainer.qf2_optimizer,
-                sac_trainer.alpha_optimizer,
-                sac_trainer.policy_optimizer,
+                disentangled_trainer.qf1_optimizer,
+                disentangled_trainer.qf2_optimizer,
+                disentangled_trainer.alpha_optimizer,
+                disentangled_trainer.policy_optimizer,
                 vae_trainer.vae_optimizer,
             ],
-            trainer_loss_scales=dict(
-                vae_trainer=vae_to_sac_loss_scale,
-                disentangled_trainer=1,
-            )
+            trainer_loss_scales={
+                vae_trainer: vae_to_sac_loss_scale,
+                disentangled_trainer: 1,
+            }
         )
     else:
-        trainer = sac_trainer
+        trainer = disentangled_trainer
 
     if not use_image_observations:
         # TODO: implement this for images

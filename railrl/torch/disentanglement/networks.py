@@ -380,7 +380,7 @@ class VAE(PyTorchModule):
         return -1 * F.mse_loss(
             x_recon,
             x,
-            reduction='elementwise_mean'
+            reduction='mean'
         ) * self._encoder.input_size
 
     def sample_np(self, batch_size):
