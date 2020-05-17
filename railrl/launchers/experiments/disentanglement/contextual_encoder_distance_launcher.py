@@ -35,7 +35,6 @@ from railrl.launchers.experiments.disentanglement.debug import (
     create_visualize_representation,
 )
 from railrl.torch.vae.vae_torch_trainer import VAETrainer
-from railrl.torch.joint_trainer import JointLossTrainer
 from railrl.policies.action_repeat import ActionRepeatPolicy
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector

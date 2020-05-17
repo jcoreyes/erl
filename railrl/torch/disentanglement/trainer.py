@@ -1,10 +1,12 @@
 from collections import OrderedDict
+from typing import Tuple
 
 import numpy as np
 import torch
 
 import railrl.torch.pytorch_util as ptu
 from railrl.core.logging import add_prefix
+from railrl.core.loss import LossStatistics
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.sac.sac import SACTrainer, SACLosses
 
@@ -21,7 +23,7 @@ class DisentangedTrainer(SACTrainer):
 
     def compute_loss(
             self, batch, skip_statistics=False,
-    ) -> SACLosses:
+    ) -> Tuple[SACLosses, LossStatistics]:
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']

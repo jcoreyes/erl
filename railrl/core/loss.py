@@ -1,4 +1,9 @@
 import abc
+from collections import OrderedDict
+
+
+LossStatistics = OrderedDict
+
 
 class LossFunction(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod

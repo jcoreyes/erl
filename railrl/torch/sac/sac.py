@@ -4,7 +4,7 @@ from typing import Tuple
 import numpy as np
 import torch
 import torch.optim as optim
-from railrl.core.loss import LossFunction
+from railrl.core.loss import LossFunction, LossStatistics
 from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
@@ -16,7 +16,6 @@ SACLosses = namedtuple(
     'SACLosses',
     'policy_loss qf1_loss qf2_loss alpha_loss',
 )
-LossStatistics = OrderedDict
 
 class SACTrainer(TorchTrainer, LossFunction):
     def __init__(
