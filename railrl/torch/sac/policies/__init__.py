@@ -19,7 +19,6 @@ __all__ = [
     'TorchStochasticPolicy',
     'PolicyFromDistributionGenerator',
     'MakeDeterministic',
-    'VAEPolicy',
     'TanhGaussianPolicyAdapter',
     'TanhGaussianPolicy',
     'GaussianPolicy',
