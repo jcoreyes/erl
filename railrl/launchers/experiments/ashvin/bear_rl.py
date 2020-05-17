@@ -39,6 +39,18 @@ from railrl.core import logger
 from railrl.misc.asset_loader import load_local_or_remote_file
 import pickle
 
+import copy
+import torch.nn as nn
+from railrl.samplers.data_collector import MdpPathCollector # , CustomMdpPathCollector
+from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+from railrl.torch.networks import MlpQf, TanhMlpPolicy
+from railrl.torch.sac.policies import (
+    TanhGaussianPolicy, VAEPolicy
+)
+from railrl.torch.sac.bear import BEARTrainer
+from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+
+
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
@@ -251,6 +263,7 @@ def encoder_wrapped_env(variant):
 
     return env
 
+
 def resume(variant):
     data = load_local_or_remote_file(variant.get("pretrained_algorithm_path"), map_location="cuda")
     algo = data['algorithm']
@@ -262,6 +275,7 @@ def resume(variant):
 
     algo.train()
 
+
 def process_args(variant):
     if variant.get("debug", False):
         variant['max_path_length'] = 50
@@ -271,310 +285,112 @@ def process_args(variant):
         variant['num_expl_steps_per_train_loop'] = 100
         variant['num_trains_per_train_loop'] = 10
         variant['min_num_steps_before_training'] = 100
+        variant['trainer_kwargs']['num_pretrain_steps'] = min(10, variant['trainer_kwargs'].get('num_pretrain_steps', 0))
+
 
 def experiment(variant):
-    if variant.get("pretrained_algorithm_path", False):
-        resume(variant)
-        return
+    import mj_envs
 
-    if 'env' in variant:
-        env_params = ENV_PARAMS.get(variant['env'], {})
-        variant.update(env_params)
-        env_name = variant.get("env")
+    expl_env = gym.make(variant['env'])
+    eval_env = gym.make(variant['env'])
 
-        if env_name in [
-            'pen-v0', 'pen-sparse-v0', 'door-v0', 'relocate-v0', 'hammer-v0',
-            'pen-sparse-v0', 'door-sparse-v0', 'relocate-sparse-v0', 'hammer-sparse-v0'
-        ]:
-            import mj_envs
-            expl_env = gym.make(env_params['env_id'])
-            eval_env = gym.make(env_params['env_id'])
-        elif env_name in [ # D4RL envs
-            "maze2d-open-v0", "maze2d-umaze-v0", "maze2d-medium-v0", "maze2d-large-v0",
-            "maze2d-open-dense-v0", "maze2d-umaze-dense-v0", "maze2d-medium-dense-v0", "maze2d-large-dense-v0",
-            "antmaze-umaze-v0", "antmaze-umaze-diverse-v0", "antmaze-medium-diverse-v0",
-            "antmaze-medium-play-v0", "antmaze-large-diverse-v0", "antmaze-large-play-v0",
-            "pen-human-v0", "pen-cloned-v0", "pen-expert-v0", "hammer-human-v0", "hammer-cloned-v0", "hammer-expert-v0",
-            "door-human-v0", "door-cloned-v0", "door-expert-v0", "relocate-human-v0", "relocate-cloned-v0", "relocate-expert-v0",
-            "halfcheetah-random-v0", "halfcheetah-medium-v0", "halfcheetah-expert-v0", "halfcheetah-mixed-v0", "halfcheetah-medium-expert-v0",
-            "walker2d-random-v0", "walker2d-medium-v0", "walker2d-expert-v0", "walker2d-mixed-v0", "walker2d-medium-expert-v0",
-            "hopper-random-v0", "hopper-medium-v0", "hopper-expert-v0", "hopper-mixed-v0", "hopper-medium-expert-v0"
-        ]:
-            import d4rl
-            expl_env = gym.make(env_name)
-            eval_env = gym.make(env_name)
-        else:
-            expl_env = NormalizedBoxEnv(variant['env_class']())
-            eval_env = NormalizedBoxEnv(variant['env_class']())
+    action_dim = int(np.prod(eval_env.action_space.shape))
+    state_dim = obs_dim = np.prod(expl_env.observation_space.shape)
+    M = 256
 
-        if variant.get('sparse_reward', False):
-            expl_env = RewardWrapperEnv(expl_env, compute_hand_sparse_reward)
-            eval_env = RewardWrapperEnv(eval_env, compute_hand_sparse_reward)
+    qf_kwargs = copy.deepcopy(variant['qf_kwargs'])
+    qf_kwargs['output_size'] = 1
+    qf_kwargs['input_size'] = action_dim + state_dim
+    qf1 = MlpQf(**qf_kwargs)
+    qf2 = MlpQf(**qf_kwargs)
 
-        if variant.get('add_env_demos', False):
-            variant["path_loader_kwargs"]["demo_paths"].append(variant["env_demo_path"])
+    target_qf_kwargs = copy.deepcopy(qf_kwargs)
+    target_qf1 = MlpQf(**target_qf_kwargs)
+    target_qf2 = MlpQf(**target_qf_kwargs)
 
-        if variant.get('add_env_offpolicy_data', False):
-            variant["path_loader_kwargs"]["demo_paths"].append(variant["env_offpolicy_data_path"])
-    else:
-        expl_env = encoder_wrapped_env(variant)
-        eval_env = encoder_wrapped_env(variant)
+    policy_kwargs = copy.deepcopy(variant['policy_kwargs'])
+    policy_kwargs['action_dim'] = action_dim
+    policy_kwargs['obs_dim'] = state_dim
+    policy = TanhGaussianPolicy(**policy_kwargs)
 
-    path_loader_kwargs = variant.get("path_loader_kwargs", {})
-    stack_obs = path_loader_kwargs.get("stack_obs", 1)
-    if stack_obs > 1:
-        expl_env = StackObservationEnv(expl_env, stack_obs=stack_obs)
-        eval_env = StackObservationEnv(eval_env, stack_obs=stack_obs)
-
-    obs_dim = expl_env.observation_space.low.size
-    action_dim = eval_env.action_space.low.size
-    if hasattr(expl_env, 'info_sizes'):
-        env_info_sizes = expl_env.info_sizes
-    else:
-        env_info_sizes = dict()
-
-    qf_kwargs = variant.get("qf_kwargs", {})
-    qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **qf_kwargs
-    )
-    qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **qf_kwargs
-    )
-    target_qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **qf_kwargs
-    )
-    target_qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **qf_kwargs
+    vae_policy = VAEPolicy(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        hidden_sizes=[M, M],
+        latent_dim=action_dim * 2,
     )
 
-    policy_class = variant.get("policy_class", TanhGaussianPolicy)
-    policy_kwargs = variant['policy_kwargs']
-    policy_path = variant.get("policy_path", False)
-    if policy_path:
-        policy = load_local_or_remote_file(policy_path)
-    else:
-        policy = policy_class(
-            obs_dim=obs_dim,
-            action_dim=action_dim,
-            **policy_kwargs,
-        )
-    buffer_policy_path = variant.get("buffer_policy_path", False)
-    if buffer_policy_path:
-        buffer_policy = load_local_or_remote_file(buffer_policy_path)
-    else:
-        buffer_policy_class = variant.get("buffer_policy_class", policy_class)
-        buffer_policy = buffer_policy_class(
-            obs_dim=obs_dim,
-            action_dim=action_dim,
-            **variant.get("buffer_policy_kwargs", policy_kwargs),
-        )
-
-    eval_policy = MakeDeterministic(policy)
+    expl_path_collector = MdpPathCollector(
+        expl_env,
+        policy,
+        **variant['expl_path_collector_kwargs']
+    )
     eval_path_collector = MdpPathCollector(
         eval_env,
-        eval_policy,
+        # save_images=False,
+        MakeDeterministic(policy),
+        **variant['eval_path_collector_kwargs']
     )
 
-    expl_policy = policy
-    exploration_kwargs =  variant.get('exploration_kwargs', {})
-    if exploration_kwargs:
-        if exploration_kwargs.get("deterministic_exploration", False):
-            expl_policy = MakeDeterministic(policy)
+    # vae_eval_path_collector = MdpPathCollector(
+    #     eval_env,
+    #     vae_policy,
+    #     # max_num_epoch_paths_saved=5,
+    #     # save_images=False,
+    # )
 
-        exploration_strategy = exploration_kwargs.get("strategy", None)
-        if exploration_strategy is None:
-            pass
-        elif exploration_strategy == 'ou':
-            es = OUStrategy(
-                action_space=expl_env.action_space,
-                max_sigma=exploration_kwargs['noise'],
-                min_sigma=exploration_kwargs['noise'],
-            )
-            expl_policy = PolicyWrappedWithExplorationStrategy(
-                exploration_strategy=es,
-                policy=expl_policy,
-            )
-        elif exploration_strategy == 'gauss_eps':
-            es = GaussianAndEpislonStrategy(
-                action_space=expl_env.action_space,
-                max_sigma=exploration_kwargs['noise'],
-                min_sigma=exploration_kwargs['noise'],  # constant sigma
-                epsilon=0,
-            )
-            expl_policy = PolicyWrappedWithExplorationStrategy(
-                exploration_strategy=es,
-                policy=expl_policy,
-            )
-        else:
-            error
 
-    if variant.get('replay_buffer_class', EnvReplayBuffer) == AWREnvReplayBuffer:
-        main_replay_buffer_kwargs = variant['replay_buffer_kwargs']
-        main_replay_buffer_kwargs['env'] = expl_env
-        main_replay_buffer_kwargs['qf1'] = qf1
-        main_replay_buffer_kwargs['qf2'] = qf2
-        main_replay_buffer_kwargs['policy'] = policy
-    else:
-        main_replay_buffer_kwargs=dict(
-            max_replay_buffer_size=variant['replay_buffer_size'],
-            env=expl_env,
-        )
-    replay_buffer_kwargs = dict(
+    replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
+        max_replay_buffer_size=variant['replay_buffer_size'],
+        env=expl_env,
+    )
+    demo_train_replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
+        max_replay_buffer_size=variant['replay_buffer_size'],
+        env=expl_env,
+    )
+    demo_test_replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
         max_replay_buffer_size=variant['replay_buffer_size'],
         env=expl_env,
     )
 
-    replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
-        **main_replay_buffer_kwargs,
-    )
-    if variant.get('use_validation_buffer', False):
-        train_replay_buffer = replay_buffer
-        validation_replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
-            **main_replay_buffer_kwargs,
-        )
-        replay_buffer = SplitReplayBuffer(train_replay_buffer, validation_replay_buffer, 0.9)
 
-    trainer_class = variant.get("trainer_class", AWRSACTrainer)
-    trainer = trainer_class(
+    trainer = BEARTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
         qf2=qf2,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
-        # buffer_policy=buffer_policy,
+        vae=vae_policy,
+        replay_buffer=replay_buffer,
         **variant['trainer_kwargs']
     )
-    if variant['collection_mode'] == 'online':
-        expl_path_collector = MdpStepCollector(
-            expl_env,
-            policy,
-        )
-        algorithm = TorchOnlineRLAlgorithm(
-            trainer=trainer,
-            exploration_env=expl_env,
-            evaluation_env=eval_env,
-            exploration_data_collector=expl_path_collector,
-            evaluation_data_collector=eval_path_collector,
-            replay_buffer=replay_buffer,
-            max_path_length=variant['max_path_length'],
-            batch_size=variant['batch_size'],
-            num_epochs=variant['num_epochs'],
-            num_eval_steps_per_epoch=variant['num_eval_steps_per_epoch'],
-            num_expl_steps_per_train_loop=variant['num_expl_steps_per_train_loop'],
-            num_trains_per_train_loop=variant['num_trains_per_train_loop'],
-            min_num_steps_before_training=variant['min_num_steps_before_training'],
-        )
-    else:
-        expl_path_collector = MdpPathCollector(
-            expl_env,
-            expl_policy,
-        )
-        algorithm = TorchBatchRLAlgorithm(
-            trainer=trainer,
-            exploration_env=expl_env,
-            evaluation_env=eval_env,
-            exploration_data_collector=expl_path_collector,
-            evaluation_data_collector=eval_path_collector,
-            replay_buffer=replay_buffer,
-            max_path_length=variant['max_path_length'],
-            batch_size=variant['batch_size'],
-            num_epochs=variant['num_epochs'],
-            num_eval_steps_per_epoch=variant['num_eval_steps_per_epoch'],
-            num_expl_steps_per_train_loop=variant['num_expl_steps_per_train_loop'],
-            num_trains_per_train_loop=variant['num_trains_per_train_loop'],
-            min_num_steps_before_training=variant['min_num_steps_before_training'],
-        )
+
+    path_loader_class = variant.get('path_loader_class', MDPPathLoader)
+    path_loader_kwargs = variant.get("path_loader_kwargs", {})
+    path_loader = path_loader_class(trainer,
+                                    replay_buffer=replay_buffer,
+                                    demo_train_buffer=demo_train_replay_buffer,
+                                    demo_test_buffer=demo_test_replay_buffer,
+                                    **path_loader_kwargs,
+                                    # demo_off_policy_path=variant['data_path'],
+                                    )
+    # path_loader.load_bear_demos(pickled=False)
+    path_loader.load_demos()
+    algorithm = TorchBatchRLAlgorithm(
+        trainer=trainer,
+        exploration_env=expl_env,
+        evaluation_env=eval_env,
+        exploration_data_collector=expl_path_collector,
+        evaluation_data_collector=eval_path_collector,
+        # vae_evaluation_data_collector=vae_eval_path_collector,
+        replay_buffer=replay_buffer,
+        # q_learning_alg=True,
+        # batch_rl=variant['batch_rl'],
+        **variant['algo_kwargs']
+    )
+
+
     algorithm.to(ptu.device)
-
-    demo_train_buffer = EnvReplayBuffer(
-        **replay_buffer_kwargs,
-    )
-    demo_test_buffer = EnvReplayBuffer(
-        **replay_buffer_kwargs,
-    )
-
-    if variant.get("save_video", False):
-        if variant.get("presampled_goals", None):
-            variant['image_env_kwargs']['presampled_goals'] = load_local_or_remote_file(variant['presampled_goals']).item()
-        image_eval_env = ImageEnv(GymToMultiEnv(eval_env), **variant["image_env_kwargs"])
-        image_eval_path_collector = ObsDictPathCollector(
-            image_eval_env,
-            eval_policy,
-            observation_key="state_observation",
-        )
-        image_expl_env = ImageEnv(GymToMultiEnv(expl_env), **variant["image_env_kwargs"])
-        image_expl_path_collector = ObsDictPathCollector(
-            image_expl_env,
-            expl_policy,
-            observation_key="state_observation",
-        )
-        video_func = VideoSaveFunction(
-            image_eval_env,
-            variant,
-            image_expl_path_collector,
-            image_eval_path_collector,
-        )
-        algorithm.post_train_funcs.append(video_func)
-    if variant.get('save_paths', False):
-        algorithm.post_train_funcs.append(save_paths)
-    if variant.get('load_demos', False):
-        path_loader_class = variant.get('path_loader_class', MDPPathLoader)
-        path_loader = path_loader_class(trainer,
-            replay_buffer=replay_buffer,
-            demo_train_buffer=demo_train_buffer,
-            demo_test_buffer=demo_test_buffer,
-            **path_loader_kwargs
-        )
-        path_loader.load_demos()
-    if variant.get('load_env_dataset_demos', False):
-        path_loader_class = variant.get('path_loader_class', HDF5PathLoader)
-        path_loader = path_loader_class(trainer,
-            replay_buffer=replay_buffer,
-            demo_train_buffer=demo_train_buffer,
-            demo_test_buffer=demo_test_buffer,
-            **path_loader_kwargs
-        )
-        path_loader.load_demos(expl_env.get_dataset())
-    if variant.get('save_initial_buffers', False):
-        buffers = dict(
-            replay_buffer=replay_buffer,
-            demo_train_buffer=demo_train_buffer,
-            demo_test_buffer=demo_test_buffer,
-        )
-        buffer_path = osp.join(logger.get_snapshot_dir(), 'buffers.p')
-        pickle.dump(buffers, open(buffer_path, "wb"))
-    if variant.get('pretrain_buffer_policy', False):
-        trainer.pretrain_policy_with_bc(
-            buffer_policy,
-            replay_buffer.train_replay_buffer,
-            replay_buffer.validation_replay_buffer,
-            10000,
-            label="buffer",
-        )
-    if variant.get('pretrain_policy', False):
-        trainer.pretrain_policy_with_bc(
-            policy,
-            demo_train_buffer,
-            demo_test_buffer,
-            trainer.bc_num_pretrain_steps,
-        )
-    if variant.get('pretrain_rl', False):
-        trainer.pretrain_q_with_bc_data()
-    if variant.get('save_pretrained_algorithm', False):
-        p_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.p')
-        pt_path = osp.join(logger.get_snapshot_dir(), 'pretrain_algorithm.pt')
-        data = algorithm._get_snapshot()
-        data['algorithm'] = algorithm
-        torch.save(data, open(pt_path, "wb"))
-        torch.save(data, open(p_path, "wb"))
-    if variant.get('train_rl', True):
-        algorithm.train()
+    trainer.pretrain_q_with_bc_data(256)
+    algorithm.train()

@@ -336,7 +336,7 @@ class BEARTrainer(TorchTrainer):
                 next_obs.shape[0] * 10, next_obs.shape[1])
 
             # Compute value of perturbed actions sampled from the VAE
-            action_rep = self.policy(state_rep)[0]
+            action_rep = self.policy(state_rep).sample()
             target_qf1 = self.target_qf1(state_rep, action_rep)
             target_qf2 = self.target_qf2(state_rep, action_rep)
 
@@ -360,11 +360,11 @@ class BEARTrainer(TorchTrainer):
         """
         sampled_actions, raw_sampled_actions = self.vae.decode_multiple(obs,
                                                                         num_decode=self.num_samples_mmd_match)
-        actor_samples, _, _, _, _, _, _, raw_actor_actions,_ = self.policy(
+        actor_samples, raw_actor_actions = self.policy(
             obs.unsqueeze(1).repeat(1, self.num_samples_mmd_match, 1).view(-1,
                                                                            obs.shape[
                                                                                1]),
-            return_log_prob=True)
+            ).rsample_with_pretanh()
         actor_samples = actor_samples.view(obs.shape[0],
                                            self.num_samples_mmd_match,
                                            actions.shape[1])
