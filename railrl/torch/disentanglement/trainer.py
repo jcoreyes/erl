@@ -20,7 +20,7 @@ class DisentangedTrainer(SACTrainer):
         self.single_uses_mean_not_sum = single_uses_mean_not_sum
 
     def compute_loss(
-            self, batch, return_statistics=False,
+            self, batch, skip_statistics=True,
     ) -> SACLosses:
         rewards = batch['rewards']
         terminals = batch['terminals']
@@ -95,7 +95,7 @@ class DisentangedTrainer(SACTrainer):
         Save some statistics for eval
         """
         eval_statistics = OrderedDict()
-        if return_statistics:
+        if not skip_statistics:
             policy_loss = (log_pi - q_new_actions).mean()
 
             eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))

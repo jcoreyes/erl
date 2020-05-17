@@ -95,7 +95,7 @@ class SACTrainer(TorchTrainer, LossFunction):
     def train_from_torch(self, batch):
         losses, stats = self.compute_loss(
             batch,
-            skip_statistics=not self._need_to_update_eval_statistics
+            skip_statistics=not self._need_to_update_eval_statistics,
         )
         """
         Update networks
@@ -140,7 +140,7 @@ class SACTrainer(TorchTrainer, LossFunction):
     def compute_loss(
         self,
         batch,
-        skip_statistics=True
+        skip_statistics=True,
     ) -> Tuple[SACLosses, LossStatistics]:
         rewards = batch['rewards']
         terminals = batch['terminals']
