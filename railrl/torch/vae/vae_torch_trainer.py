@@ -36,9 +36,6 @@ class VAETrainer(TorchTrainer, LossFunction):
     def train_from_torch(self, batch):
         raise NotImplementedError()
 
-    def signal_completed_training_step(self):
-        super().signal_completed_training_step()
-
     def kl_divergence(self, z_mu, logvar):
         return - 0.5 * torch.sum(
             1 + logvar - z_mu.pow(2) - logvar.exp(), dim=1
