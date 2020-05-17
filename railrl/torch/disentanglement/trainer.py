@@ -1,10 +1,12 @@
 from collections import OrderedDict
+from typing import Tuple
 
 import numpy as np
 import torch
 
 import railrl.torch.pytorch_util as ptu
 from railrl.core.logging import add_prefix
+from railrl.core.loss import LossStatistics
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.sac.sac import SACTrainer, SACLosses
 
@@ -20,8 +22,8 @@ class DisentangedTrainer(SACTrainer):
         self.single_uses_mean_not_sum = single_uses_mean_not_sum
 
     def compute_loss(
-            self, batch, return_statistics=False,
-    ) -> SACLosses:
+            self, batch, skip_statistics=False,
+    ) -> Tuple[SACLosses, LossStatistics]:
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -95,7 +97,7 @@ class DisentangedTrainer(SACTrainer):
         Save some statistics for eval
         """
         eval_statistics = OrderedDict()
-        if return_statistics:
+        if not skip_statistics:
             policy_loss = (log_pi - q_new_actions).mean()
 
             eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
