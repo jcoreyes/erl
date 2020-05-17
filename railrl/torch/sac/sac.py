@@ -1,4 +1,5 @@
 from collections import OrderedDict, namedtuple
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -15,7 +16,7 @@ SACLosses = namedtuple(
     'SACLosses',
     'policy_loss qf1_loss qf2_loss alpha_loss',
 )
-
+LossStatistics = OrderedDict
 
 class SACTrainer(TorchTrainer, LossFunction):
     def __init__(
@@ -93,9 +94,9 @@ class SACTrainer(TorchTrainer, LossFunction):
 
     def train_from_torch(self, batch):
         losses, stats = self.compute_loss(
-            batch, self._need_to_update_eval_statistics)
-        if self._need_to_update_eval_statistics:
-            self.eval_statistics = stats
+            batch,
+            skip_statistics=not self._need_to_update_eval_statistics
+        )
         """
         Update networks
         """
@@ -117,6 +118,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         self.policy_optimizer.step()
 
         if self._need_to_update_eval_statistics:
+            self.eval_statistics = stats
             # Compute statistics using only one batch per epoch
             self._need_to_update_eval_statistics = False
 
@@ -137,7 +139,11 @@ class SACTrainer(TorchTrainer, LossFunction):
             self.qf2, self.target_qf2, self.soft_target_tau
         )
 
-    def compute_loss(self, batch, return_statistics=False) -> SACLosses:
+    def compute_loss(
+        self,
+        batch,
+        skip_statistics=True
+    ) -> Tuple[SACLosses, LossStatistics]:
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -184,7 +190,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         Save some statistics for eval
         """
         eval_statistics = OrderedDict()
-        if return_statistics:
+        if not skip_statistics:
             policy_loss = (log_pi - q_new_actions).mean()
 
             eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))

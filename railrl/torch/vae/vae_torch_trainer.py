@@ -1,4 +1,5 @@
 from collections import OrderedDict, namedtuple
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -15,6 +16,7 @@ VAELosses = namedtuple(
     'VAELoss',
     'vae_loss',
 )
+LossStatistics = OrderedDict
 
 
 class VAETrainer(TorchTrainer, LossFunction):
@@ -44,7 +46,11 @@ class VAETrainer(TorchTrainer, LossFunction):
             1 + logvar - z_mu.pow(2) - logvar.exp(), dim=1
         ).mean()
 
-    def compute_loss(self, batch, return_statistics=False) -> VAELosses:
+    def compute_loss(
+        self,
+        batch,
+        skip_statistics=True
+    ) -> Tuple[VAELosses, LossStatistics]:
         next_obs = batch['raw_next_observations']
 
         recon, z_mu, z_logvar = self.vae.reconstruct(
