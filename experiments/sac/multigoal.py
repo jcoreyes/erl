@@ -12,7 +12,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.visualization.plotter import QFPolicyPlotter
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SoftActorCritic
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 
 
 def experiment(variant):
@@ -25,12 +25,12 @@ def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
 
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         hidden_sizes=[100, 100],
         input_size=obs_dim + action_dim,
         output_size=1,
     )
-    vf = FlattenMlp(
+    vf = ConcatMlp(
         hidden_sizes=[100, 100],
         input_size=obs_dim,
         output_size=1,

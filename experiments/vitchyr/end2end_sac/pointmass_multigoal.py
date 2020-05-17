@@ -8,7 +8,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import (
-    FlattenMlp, MergedCNN, CNN,
+    ConcatMlp, MergedCNN, CNN,
     MlpQfWithObsProcessor,
 )
 from railrl.torch.sac.policies import (

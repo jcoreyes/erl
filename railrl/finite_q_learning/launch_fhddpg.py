@@ -8,7 +8,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.envs.mujoco.hopper_env import HopperEnv
 from railrl.finite_q_learning.finite_horizon_ddpg import FiniteHorizonDDPG
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import Mlp, TanhMlpPolicy, FlattenMlp
+from railrl.torch.networks import Mlp, TanhMlpPolicy, ConcatMlp
 
 
 def experiment(variant):
@@ -17,7 +17,7 @@ def experiment(variant):
     action_dim = env.action_space.low.size
     obs_dim = env.observation_space.low.size
 
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=action_dim + obs_dim,
         output_size=1,
         **variant['qf_kwargs']

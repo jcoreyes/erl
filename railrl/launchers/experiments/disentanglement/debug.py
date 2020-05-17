@@ -1,7 +1,7 @@
 import time
 from collections import OrderedDict, namedtuple
 from os import path as osp
-from typing import List
+from typing import MutableMapping
 import typing
 
 import cv2
@@ -18,39 +18,6 @@ from railrl.torch.networks import Mlp
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 from railrl.visualization.image import combine_images_into_grid
 
-
-class JointTrainer(TorchTrainer):
-    def __init__(self, trainers: List[TorchTrainer]):
-        super().__init__()
-        if len(trainers) == 0:
-            raise ValueError("Need at least one trainer")
-        self._trainers = trainers
-
-    def train_from_torch(self, batch):
-        for trainer in self._trainers:
-            trainer.train_from_torch(batch)
-
-    @property
-    def networks(self):
-        for trainer in self._trainers:
-            for net in trainer.networks:
-                yield net
-
-    def end_epoch(self, epoch):
-        for trainer in self._trainers:
-            trainer.end_epoch(epoch)
-
-    def get_snapshot(self):
-        snapshot = self._trainers[0].get_snapshot()
-        for trainer in self._trainers[1:]:
-            snapshot.update(trainer.get_snapshot())
-        return snapshot
-
-    def get_diagnostics(self):
-        stats = self._trainers[0].get_diagnostics()
-        for trainer in self._trainers[1:]:
-            stats.update(trainer.get_diagnostics())
-        return stats
 
 
 class DebugTrainer(TorchTrainer):
@@ -112,8 +79,11 @@ NonLinearResults = namedtuple(
 )
 
 
-def get_non_linear_results(ob_space, encoder, latent_dim) -> NonLinearResults:
-    batch_size = 128
+def get_non_linear_results(
+    ob_space, encoder, latent_dim,
+    batch_size=128,
+    num_batches=10000,
+) -> NonLinearResults:
     state_dim = ob_space.low.size
 
     decoder = Mlp(
@@ -121,9 +91,8 @@ def get_non_linear_results(ob_space, encoder, latent_dim) -> NonLinearResults:
         output_size=state_dim,
         input_size=latent_dim,
     )
+    decoder.to(ptu.device)
     optimizer = optim.Adam(decoder.parameters())
-    # num_batches = 20000
-    num_batches = 20
 
     initial_loss = last_10_percent_loss = 0
     for i in range(num_batches):

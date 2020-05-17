@@ -9,7 +9,7 @@ from railrl.state_distance.util import split_flat_obs, split_tau
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.networks import Mlp, FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import Mlp, ConcatMlp, TanhMlpPolicy
 
 
 class StructuredQF(Mlp):
@@ -317,7 +317,7 @@ class TauVectorSeparateFirstLayerQF(SeparateFirstLayerMlp):
         return - torch.abs(super().forward(h, tau_vector))
 
 
-class InternalGcmQf(FlattenMlp):
+class InternalGcmQf(ConcatMlp):
     """
     Parameterize QF as
 
@@ -610,7 +610,7 @@ def make_binary_tensor(tensor, max_len, batch_size):
     return binary
 
 
-class DebugQf(FlattenMlp):
+class DebugQf(ConcatMlp):
     def __init__(
             self,
             env,

@@ -11,7 +11,7 @@ import torch.optim as optim
 import torch.nn as nn
 from railrl.torch.core import np_to_pytorch_batch
 from railrl.torch.inverse_model.rollout_util import InverseModelSimplePathSampler
-from railrl.torch.modules import HuberLoss
+from railrl.torch.networks.experimental import HuberLoss
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
 

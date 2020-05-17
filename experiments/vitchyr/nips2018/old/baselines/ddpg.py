@@ -11,7 +11,7 @@ from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.ddpg.ddpg import DDPG
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 
 
 def experiment(variant):
@@ -37,7 +37,7 @@ def experiment(variant):
         raise Exception("Invalid type: " + exploration_type)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[400, 300],

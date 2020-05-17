@@ -9,7 +9,7 @@ from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 import railrl.torch.pytorch_util as ptu
 from railrl.torch.td3.td3 import TD3
 import railrl.misc.hyperparameter as hyp
@@ -34,7 +34,7 @@ def her_td3_experiment(variant):
     from railrl.exploration_strategies.ou_strategy import OUStrategy
     from railrl.torch.grill.launcher import get_video_save_func
     from railrl.torch.her.her_td3 import HerTd3
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     from railrl.data_management.obs_dict_replay_buffer import (
         ObsDictRelabelingBuffer
     )
@@ -83,12 +83,12 @@ def her_td3_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -150,12 +150,12 @@ def experiment(variant):
         raise Exception("Invalid type: " + exploration_type)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[400, 300],
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[400, 300],

@@ -1,7 +1,7 @@
-from functools import partial
 
 import numpy as np
 import torch
+from functools import partial
 from torch import nn
 
 from railrl.data_management.contextual_replay_buffer import (
@@ -19,6 +19,10 @@ from railrl.envs.contextual.goal_conditioned import (
     PresampledDistribution,
 )
 from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.images.data_augmentation import (
+    BatchPad,
+    JointRandomCrop,
+)
 from railrl.launchers.contextual.util import (
     get_gym_env,
     get_save_video_function,
@@ -29,7 +33,7 @@ from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.networks import BasicCNN, FlattenMlp, basic
+from railrl.torch.networks import BasicCNN, ConcatMlp, basic
 from railrl.torch.networks.mlp import MultiHeadedMlp
 from railrl.torch.networks.stochastic.distribution_generator import (
     TanhGaussian,
@@ -85,6 +89,9 @@ def image_based_goal_conditioned_sac_experiment(
         exploration_goal_sampling_mode=None,
         reward_type='state_distance',
         env_renderer_kwargs=None,
+        # Data augmentations
+        apply_random_crops=False,
+        random_crop_pixel_shift=4,
         # Video parameters
         save_video=True,
         save_video_kwargs=None,
@@ -193,7 +200,7 @@ def image_based_goal_conditioned_sac_experiment(
         return basic.MultiInputSequential(
             ApplyToObs(joint_cnn),
             basic.FlattenEachParallel(),
-            FlattenMlp(
+            ConcatMlp(
                 input_size=joint_cnn.output_size + action_dim,
                 output_size=1,
                 **qf_kwargs
@@ -255,13 +262,39 @@ def image_based_goal_conditioned_sac_experiment(
     else:
         raise ValueError("Unknown policy type: {}".format(policy_type))
 
-    def concat_context_to_obs(batch):
-        obs = batch['observations']
-        next_obs = batch['next_observations']
-        context = batch[img_desired_goal_key]
-        batch['observations'] = np.concatenate([obs, context], axis=1)
-        batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
-        return batch
+    if apply_random_crops:
+        pad = BatchPad(
+            env_renderer.output_image_format,
+            random_crop_pixel_shift,
+            random_crop_pixel_shift,
+        )
+        crop = JointRandomCrop(
+            env_renderer.output_image_format,
+            env_renderer.image_shape,
+        )
+
+        def concat_context_to_obs(batch):
+            obs = batch['observations']
+            next_obs = batch['next_observations']
+            context = batch[img_desired_goal_key]
+            obs_padded = pad(obs)
+            next_obs_padded = pad(next_obs)
+            context_padded = pad(context)
+            obs_aug, context_aug = crop(obs_padded, context_padded)
+            next_obs_aug, next_context_aug = crop(next_obs_padded, context_padded)
+
+            batch['observations'] = np.concatenate([obs_aug, context_aug], axis=1)
+            batch['next_observations'] = np.concatenate(
+                [next_obs_aug, next_context_aug], axis=1)
+            return batch
+    else:
+        def concat_context_to_obs(batch):
+            obs = batch['observations']
+            next_obs = batch['next_observations']
+            context = batch[img_desired_goal_key]
+            batch['observations'] = np.concatenate([obs, context], axis=1)
+            batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
+            return batch
 
     replay_buffer = ContextualRelabelingReplayBuffer(
         env=eval_env,
@@ -341,7 +374,11 @@ def image_based_goal_conditioned_sac_experiment(
             MakeDeterministic(policy),
             tag="eval",
             imsize=video_renderer.image_shape[1],
-            image_format='HWC',
+            image_formats=[
+                env_renderer.output_image_format,
+                env_renderer.output_image_format,
+                video_renderer.output_image_format,
+            ],
             keys_to_show=[
                 'image_desired_goal', 'image_observation', 'video_observation'
             ],
@@ -353,7 +390,11 @@ def image_based_goal_conditioned_sac_experiment(
             exploration_policy,
             tag="xplor",
             imsize=video_renderer.image_shape[1],
-            image_format='HWC',
+            image_formats=[
+                env_renderer.output_image_format,
+                env_renderer.output_image_format,
+                video_renderer.output_image_format,
+            ],
             keys_to_show=[
                 'image_desired_goal', 'image_observation', 'video_observation'
             ],
