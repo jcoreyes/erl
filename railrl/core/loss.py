@@ -2,7 +2,7 @@ import abc
 
 class LossFunction(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def compute_loss(self, batch, skip_statistics=True, **kwargs):
+    def compute_loss(self, batch, skip_statistics=False, **kwargs):
         """Returns loss and statistics given a batch of data.
         batch : Data to compute loss of
         skip_statistics: Whether statistics should be calculated. If True, then

@@ -20,7 +20,7 @@ class DisentangedTrainer(SACTrainer):
         self.single_uses_mean_not_sum = single_uses_mean_not_sum
 
     def compute_loss(
-            self, batch, skip_statistics=True,
+            self, batch, skip_statistics=False,
     ) -> SACLosses:
         rewards = batch['rewards']
         terminals = batch['terminals']
