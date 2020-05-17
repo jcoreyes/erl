@@ -117,15 +117,13 @@ class SACTrainer(TorchTrainer, LossFunction):
         losses.policy_loss.backward()
         self.policy_optimizer.step()
 
+        self._n_train_steps_total += 1
+
+        self.try_update_target_networks()
         if self._need_to_update_eval_statistics:
             self.eval_statistics = stats
             # Compute statistics using only one batch per epoch
             self._need_to_update_eval_statistics = False
-
-    def signal_completed_training_step(self):
-        super().signal_completed_training_step()
-        self._n_train_steps_total += 1
-        self.try_update_target_networks()
 
     def try_update_target_networks(self):
         if self._n_train_steps_total % self.target_update_period == 0:
