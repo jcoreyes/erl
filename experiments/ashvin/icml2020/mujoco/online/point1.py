@@ -14,7 +14,7 @@ from railrl.envs.simple.point import Point
 if __name__ == "__main__":
     variant = dict(
         num_epochs=1001,
-        num_eval_steps_per_epoch=5000,
+        num_eval_steps_per_epoch=1000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
         min_num_steps_before_training=1000,
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         'env': [Point, ],
         # 'trainer_kwargs.bc_loss_type': ["mse"],
         'seedid': range(3),
-        'trainer_kwargs.beta': [0.1, 1, 10],
+        'trainer_kwargs.beta': [0.001, 0.01], # [0.1, 1, 10],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

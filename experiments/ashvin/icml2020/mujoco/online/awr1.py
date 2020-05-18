@@ -12,7 +12,7 @@ from railrl.torch.sac.policies import GaussianPolicy
 if __name__ == "__main__":
     variant = dict(
         num_epochs=3000,
-        num_eval_steps_per_epoch=5000,
+        num_eval_steps_per_epoch=1000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
         min_num_steps_before_training=1000,
