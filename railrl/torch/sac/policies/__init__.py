@@ -13,6 +13,7 @@ from railrl.torch.sac.policies.gaussian_policy import (
     TanhCNNGaussianPolicy,
 )
 from railrl.torch.sac.policies.vae_policy import VAEPolicy
+from railrl.torch.sac.policies.policy_from_q import PolicyFromQ
 
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     'TanhGaussianObsProcessorPolicy',
     'TanhCNNGaussianPolicy',
     'VAEPolicy',
+    'PolicyFromQ',
 ]

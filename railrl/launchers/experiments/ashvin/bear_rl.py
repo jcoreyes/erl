@@ -6,7 +6,7 @@ from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWr
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector, ObsDictPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic, PolicyFromQ
 from railrl.torch.sac.awr_sac import AWRSACTrainer
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
@@ -327,7 +327,8 @@ def experiment(variant):
     eval_path_collector = MdpPathCollector(
         eval_env,
         # save_images=False,
-        MakeDeterministic(policy),
+        # MakeDeterministic(policy),
+        PolicyFromQ(qf1, policy),
         **variant['eval_path_collector_kwargs']
     )
 
