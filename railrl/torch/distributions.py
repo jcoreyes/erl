@@ -55,6 +55,9 @@ class TorchDistributionWrapper(Distribution):
     def entropy(self):
         return self.distribution.entropy()
 
+    def __repr__(self):
+        return 'Wrapped ' + self.distribution.__repr__()
+
 
 class Delta(Distribution):
     """A deterministic distribution"""
@@ -99,6 +102,9 @@ class Beta(Distribution, TorchBeta):
 
 
 class MultivariateDiagonalNormal(TorchDistributionWrapper):
+    from torch.distributions import constraints
+    arg_constraints = {'loc': constraints.real, 'scale': constraints.positive}
+
     def __init__(self, loc, scale_diag):
         dist = Independent(TorchNormal(loc, scale_diag), 1)
         super().__init__(dist)
@@ -122,6 +128,9 @@ class MultivariateDiagonalNormal(TorchDistributionWrapper):
             ptu.get_numpy(self.entropy()),
         ))
         return stats
+
+    def __repr__(self):
+        return self.distribution.base_dist.__repr__()
 
 
 class GaussianMixture(Distribution):
