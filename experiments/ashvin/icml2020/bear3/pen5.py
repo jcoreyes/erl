@@ -113,45 +113,7 @@ if __name__ == "__main__":
         shared_qf_conv=False,
         use_robot_state=True,
         batch_rl=False,
-        # path_loader_kwargs=dict(
-            # demo_paths=[
-                # dict(
-                    # path='demos/hc_action_noise_15.npy',
-                    # obs_dict=False,
-                    # is_demo=False,
-                    # train_split=.9,
-                # ),
-                # dict(
-                    # path='demos/hc_off_policy_15_demos_100.npy',
-                    # obs_dict=False,
-                    # is_demo=False,
-                # ),
-            # ],
-        # ),
-
     )
-
-    # import argparse
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--env", type=str, default='Ant-v2',
-    #                     choices=('SawyerReach-v0', 'SawyerGraspOne-v0'))
-    # parser.add_argument("--buffer", type=str, default=DEFAULT_BUFFER)
-    # args = parser.parse_args()
-
-    # variant['env'] = args.env
-    # variant['obs'] = 'state'
-    # variant['buffer'] = args.buffer
-
-    n_seeds = 3
-    # mode = 'local_docker'
-    mode = 'local'
-    # exp_prefix = 'dev-{}'.format(
-    #     __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    # )
-    exp_prefix = 'bear_ant_our_data_online_v1'
-
-    # n_seeds = 5
-    # mode = 'ec2'
 
     search_space = {
         'env': ['pen-binary-v0', ],
@@ -164,7 +126,7 @@ if __name__ == "__main__":
         'trainer_kwargs.target_mmd_thresh':[.05, ],
         'trainer_kwargs.num_samples_mmd_match':[10, ],
         'trainer_kwargs.mmd_sigma':[50, ],
-        'seedid': range(3),
+        'seedid': range(5),
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
