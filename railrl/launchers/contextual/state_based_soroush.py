@@ -81,24 +81,19 @@ class SequentialTaskPathCollector(ContextualPathCollector):
             task_key=None,
             max_path_length=100,
             task_ids=None,
+            rotate_freq=0.0,
             **kwargs
     ):
-        self.rollout_tasks = []
         super().__init__(*args, **kwargs)
+        self.rotate_freq = rotate_freq
+        self.rollout_tasks = []
 
         def obs_processor(o):
-            if len(self.rollout_tasks) == 0:
-                num_steps_per_task = max_path_length // len(task_ids)
-                self.rollout_tasks = np.ones((max_path_length, 1)) * (len(task_ids) - 1)
-                for (idx, id) in enumerate(task_ids):
-                    start = idx * num_steps_per_task
-                    end = start + num_steps_per_task
-                    self.rollout_tasks[start:end] = id
-
-            task = self.rollout_tasks[0]
-            self.rollout_tasks = self.rollout_tasks[1:]
-            o[task_key] = task
-            self._env._rollout_context_batch[task_key] = task[None]
+            if len(self.rollout_tasks) > 0:
+                task = self.rollout_tasks[0]
+                self.rollout_tasks = self.rollout_tasks[1:]
+                o[task_key] = task
+                self._env._rollout_context_batch[task_key] = task[None]
 
             combined_obs = [o[self._observation_key]]
             for k in self._context_keys_for_policy:
@@ -106,7 +101,15 @@ class SequentialTaskPathCollector(ContextualPathCollector):
             return np.concatenate(combined_obs, axis=0)
 
         def reset_postprocess_func():
+            rotate = (np.random.uniform() < self.rotate_freq)
             self.rollout_tasks = []
+            if rotate:
+                num_steps_per_task = max_path_length // len(task_ids)
+                self.rollout_tasks = np.ones((max_path_length, 1)) * (len(task_ids) - 1)
+                for (idx, id) in enumerate(task_ids):
+                    start = idx * num_steps_per_task
+                    end = start + num_steps_per_task
+                    self.rollout_tasks[start:end] = id
 
         self._rollout_fn = partial(
             contextual_rollout,
@@ -322,24 +325,18 @@ def td3_experiment(variant):
         assert mode in ['expl', 'eval']
 
         if task_conditioned:
-            rotate = task_variant['rotate_task_for_expl'] if mode == 'expl' else task_variant['rotate_task_for_eval']
-            if rotate:
-                return SequentialTaskPathCollector(
-                    env,
-                    policy,
-                    observation_key=observation_key,
-                    context_keys_for_policy=context_keys,
-                    task_key=task_key,
-                    max_path_length=max_path_length,
-                    task_ids=task_variant['task_ids'],
-                )
-            else:
-                return ContextualPathCollector(
-                    env,
-                    policy,
-                    observation_key=observation_key,
-                    context_keys_for_policy=context_keys,
-                )
+            rotate_freq = task_variant['rotate_task_freq_for_expl'] if mode == 'expl' \
+                else task_variant['rotate_task_freq_for_eval']
+            return SequentialTaskPathCollector(
+                env,
+                policy,
+                observation_key=observation_key,
+                context_keys_for_policy=context_keys,
+                task_key=task_key,
+                max_path_length=max_path_length,
+                task_ids=task_variant['task_ids'],
+                rotate_freq=rotate_freq,
+            )
         elif mask_conditioned:
             return ContextualPathCollector(
                 env,

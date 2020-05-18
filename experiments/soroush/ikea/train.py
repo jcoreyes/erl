@@ -158,8 +158,7 @@ env_params = {
     'shelf': {
         'env_kwargs.furniture_name': ['shelf_ivar_0678'],
         'env_kwargs.reward_type': [
-            # 'nc',
-
+            'nc',
             'nc+next_conn_dist',
             'nc+next_conn_dist+cursor_dist',
             'nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
@@ -179,14 +178,8 @@ env_params = {
             [1, 2, 3, 4, 5],
         ],
 
-        'rl_variant.task_variant.rotate_task_for_expl': [
-            # True,
-            False,
-        ],
-        'rl_variant.task_variant.rotate_task_for_eval': [
-            True,
-            # False,
-        ],
+        'rl_variant.task_variant.rotate_task_freq_for_expl': [0.25],
+        'rl_variant.task_variant.rotate_task_freq_for_eval': [1.0],
 
         'env_kwargs.task_type': [
             # "select2+connect",
