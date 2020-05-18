@@ -154,10 +154,10 @@ def encoder_goal_conditioned_sac_experiment(
         disentangled_qf_kwargs,
         encoder_kwargs=None,
         encoder_cnn_kwargs=None,
-        skip_encoder_mlp=False,
         qf_state_encoder_is_goal_encoder=False,
         reward_type='encoder_distance',
         reward_config=None,
+        latent_dim=8,
         # Policy params
         policy_using_encoder_settings=None,
         use_separate_encoder_for_policy=True,
@@ -184,6 +184,7 @@ def encoder_goal_conditioned_sac_experiment(
         distance_scatterplot_initial_save_period=0,
         debug_renderer_kwargs=None,
         debug_visualization_kwargs=None,
+        use_debug_trainer=False,
 
         # vae stuff
         train_encoder_as_vae=False,
@@ -214,7 +215,6 @@ def encoder_goal_conditioned_sac_experiment(
 
     img_observation_key = 'image_observation'
     state_observation_key = 'state_observation'
-    latent_observation_key = 'latent_observation'
     latent_desired_goal_key = 'latent_desired_goal'
     state_desired_goal_key = 'state_desired_goal'
     img_desired_goal_key = 'image_desired_goal'
@@ -235,6 +235,8 @@ def encoder_goal_conditioned_sac_experiment(
                 renderer=env_renderer,
             )
             base_env = InsertImageEnv(state_env, renderer=env_renderer)
+            goal_distribution = PresampledDistribution(
+                goal_distribution, num_presampled_goals)
             goal_distribution = EncodedGoalDictDistribution(
                 goal_distribution,
                 encoder=encoder,
@@ -242,8 +244,6 @@ def encoder_goal_conditioned_sac_experiment(
                 encoder_input_key=img_desired_goal_key,
                 encoder_output_key=latent_desired_goal_key,
             )
-            goal_distribution = PresampledDistribution(
-                    goal_distribution, num_presampled_goals)
         else:
             base_env = state_env
             goal_distribution = EncodedGoalDictDistribution(
@@ -273,13 +273,6 @@ def encoder_goal_conditioned_sac_experiment(
     state_eval_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
     state_eval_env.goal_sampling_mode = evaluation_goal_sampling_mode
 
-    latent_dim = encoder_kwargs['output_size']
-    encoder_kwargs['output_sizes'] = [
-        latent_dim,
-        latent_dim
-    ]
-    del encoder_kwargs['output_size']
-
     if use_image_observations:
         context_keys_to_save = [
             state_desired_goal_key,
@@ -298,16 +291,11 @@ def encoder_goal_conditioned_sac_experiment(
                 **encoder_cnn_kwargs
             )
             cnn_output_size = np.prod(cnn.output_shape)
-            if skip_encoder_mlp:
-                enc = nn.Sequential(cnn, Flatten())
-                enc.output_size = cnn_output_size
-            else:
-                # mlp = MultiHeadedMlp(input_size=cnn_output_size,
-                                     # **encoder_kwargs)
-                # enc = nn.Sequential(cnn, Flatten(), mlp)
-                # enc.output_size = latent_dim
-                enc = ConcatMultiHeadedMlp(input_size=cnn_output_size,
-                                            **encoder_kwargs)
+            mlp = MultiHeadedMlp(
+                input_size=cnn_output_size,
+                output_sizes=[latent_dim, latent_dim],
+                **encoder_kwargs)
+            enc = nn.Sequential(cnn, Flatten(), mlp)
             enc.input_size = img_width * img_height * img_num_channels
             enc.output_size = latent_dim
             return enc
@@ -320,7 +308,11 @@ def encoder_goal_conditioned_sac_experiment(
             in_dim = (
                 state_expl_env.observation_space.spaces[state_observation_key].low.size
             )
-            enc = ConcatMultiHeadedMlp(input_size=in_dim, **encoder_kwargs)
+            enc = ConcatMultiHeadedMlp(
+                input_size=in_dim,
+                output_sizes=[latent_dim, latent_dim],
+                **encoder_kwargs
+            )
             enc.input_size = in_dim
             enc.output_size = latent_dim
             return enc
@@ -519,7 +511,7 @@ def encoder_goal_conditioned_sac_experiment(
     else:
         trainer = disentangled_trainer
 
-    if not use_image_observations:
+    if not use_image_observations and use_debug_trainer:
         # TODO: implement this for images
         debug_trainer = DebugTrainer(
             observation_space=expl_env.observation_space.spaces[

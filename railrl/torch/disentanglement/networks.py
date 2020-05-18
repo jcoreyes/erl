@@ -402,5 +402,5 @@ class EncoderMuFromEncoderDistribution(PyTorchModule):
         self.output_size = encoder.output_size
 
     def forward(self, x):
-        mu, var = self._encoder(x)
+        mu, _ = self._encoder(x)
         return mu
