@@ -36,20 +36,42 @@ class TaskGoalDictDistributionFromMultitaskEnv(
     def __init__(
             self,
             *args,
-            task_dim=1,
             task_key='task_id',
+            task_ids=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.task_key = task_key
         self._spaces[task_key] = Box(
-            low=np.zeros(task_dim),
-            high=np.ones(task_dim))
-        self.task_dim = task_dim
+            low=np.zeros(1),
+            high=np.ones(1))
+        self.task_ids = np.array(task_ids)
 
     def sample(self, batch_size: int):
         goals = super().sample(batch_size)
-        goals[self.task_key] = np.zeros((batch_size, self.task_dim))
+        idxs = np.random.choice(len(self.task_ids), batch_size)
+        goals[self.task_key] = self.task_ids[idxs].reshape(-1, 1)
+        return goals
+
+class MaskedGoalDictDistributionFromMultitaskEnv(
+        GoalDictDistributionFromMultitaskEnv):
+    def __init__(
+            self,
+            *args,
+            mask_dim=1,
+            mask_key='mask',
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.mask_key = mask_key
+        self._spaces[mask_key] = Box(
+            low=np.zeros(mask_dim),
+            high=np.ones(mask_dim))
+        self.mask_dim = mask_dim
+
+    def sample(self, batch_size: int):
+        goals = super().sample(batch_size)
+        goals[self.mask_key] = np.zeros((batch_size, self.mask_dim))
         return goals
 
 class SequentialTaskPathCollector(ContextualPathCollector):
@@ -58,7 +80,7 @@ class SequentialTaskPathCollector(ContextualPathCollector):
             *args,
             task_key=None,
             max_path_length=100,
-            num_tasks=None,
+            task_ids=None,
             **kwargs
     ):
         self.rollout_tasks = []
@@ -66,12 +88,12 @@ class SequentialTaskPathCollector(ContextualPathCollector):
 
         def obs_processor(o):
             if len(self.rollout_tasks) == 0:
-                num_steps_per_task = max_path_length // num_tasks
-                self.rollout_tasks = np.ones((max_path_length, 1)) * (num_tasks - 1)
-                for t in range(num_tasks):
-                    start = t * num_steps_per_task
+                num_steps_per_task = max_path_length // len(task_ids)
+                self.rollout_tasks = np.ones((max_path_length, 1)) * (len(task_ids) - 1)
+                for (idx, id) in enumerate(task_ids):
+                    start = idx * num_steps_per_task
                     end = start + num_steps_per_task
-                    self.rollout_tasks[start:end] = t
+                    self.rollout_tasks[start:end] = id
 
             task = self.rollout_tasks[0]
             self.rollout_tasks = self.rollout_tasks[1:]
@@ -110,12 +132,22 @@ def td3_experiment(variant):
     achieved_goal_key = variant.get('achieved_goal_key', 'latent_achieved_goal')
     context_key = desired_goal_key
 
-    task_conditioned = variant.get('task_conditioned', False)
-    task_dim = 1
+    task_variant = variant.get('task_variant', {})
+    task_conditioned = task_variant.get('task_conditioned', False)
     task_key = 'task_id'
+
+    mask_variant = variant.get('mask_variant', {})
+    env = get_envs(variant)
+    mask_conditioned = mask_variant.get('mask_conditioned', False)
+    mask_dim = env.observation_space.spaces[context_key].low.size
+    mask_key = 'mask'
+
+    assert not (task_conditioned and mask_conditioned)
 
     if task_conditioned:
         context_keys = [context_key, task_key]
+    elif mask_conditioned:
+        context_keys = [context_key, mask_key]
     else:
         context_keys = [context_key]
 
@@ -127,7 +159,7 @@ def td3_experiment(variant):
                 env,
                 desired_goal_keys=[desired_goal_key],
                 task_key=task_key,
-                task_dim=task_dim,
+                task_ids=task_variant['task_ids']
             )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
@@ -136,6 +168,21 @@ def td3_experiment(variant):
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
                 additional_context_keys=[task_key],
+            )
+        elif mask_conditioned:
+            goal_distribution = MaskedGoalDictDistributionFromMultitaskEnv(
+                env,
+                desired_goal_keys=[desired_goal_key],
+                mask_key=mask_key,
+                mask_dim=mask_dim,
+            )
+            reward_fn = ContextualRewardFnFromMultitaskEnv(
+                env=env,
+                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key),
+                desired_goal_key=desired_goal_key,
+                achieved_goal_key=achieved_goal_key,
+                additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
+                additional_context_keys=[mask_key],
             )
         else:
             goal_distribution = GoalDictDistributionFromMultitaskEnv(
@@ -176,7 +223,9 @@ def td3_experiment(variant):
             + expl_env.observation_space.spaces[context_key].low.size
     )
     if task_conditioned:
-        obs_dim += task_dim
+        obs_dim += 1
+    elif mask_conditioned:
+        obs_dim += mask_dim
     action_dim = expl_env.action_space.low.size
 
     qf1 = FlattenMlp(
@@ -222,6 +271,8 @@ def td3_experiment(variant):
         }
         if task_conditioned:
             context_dict[task_key] = obs_dict[task_key]
+        elif mask_conditioned:
+            context_dict[mask_key] = obs_dict[mask_key]
         return context_dict
 
     def concat_context_to_obs(batch):
@@ -232,6 +283,10 @@ def td3_experiment(variant):
             task = batch[task_key]
             batch['observations'] = np.concatenate([obs, context, task], axis=1)
             batch['next_observations'] = np.concatenate([next_obs, context, task], axis=1)
+        elif mask_conditioned:
+            mask = batch[mask_key]
+            batch['observations'] = np.concatenate([obs, context, mask], axis=1)
+            batch['next_observations'] = np.concatenate([next_obs, context, mask], axis=1)
         else:
             batch['observations'] = np.concatenate([obs, context], axis=1)
             batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
@@ -263,16 +318,34 @@ def td3_experiment(variant):
         **variant['td3_trainer_kwargs']
     )
 
-    def create_path_collector(env, policy):
+    def create_path_collector(env, policy, mode='expl'):
+        assert mode in ['expl', 'eval']
+
         if task_conditioned:
-            return SequentialTaskPathCollector(
+            rotate = task_variant['rotate_task_for_expl'] if mode == 'expl' else task_variant['rotate_task_for_eval']
+            if rotate:
+                return SequentialTaskPathCollector(
+                    env,
+                    policy,
+                    observation_key=observation_key,
+                    context_keys_for_policy=context_keys,
+                    task_key=task_key,
+                    max_path_length=max_path_length,
+                    task_ids=task_variant['task_ids'],
+                )
+            else:
+                return ContextualPathCollector(
+                    env,
+                    policy,
+                    observation_key=observation_key,
+                    context_keys_for_policy=context_keys,
+                )
+        elif mask_conditioned:
+            return ContextualPathCollector(
                 env,
                 policy,
                 observation_key=observation_key,
                 context_keys_for_policy=context_keys,
-                task_key=task_key,
-                max_path_length=max_path_length,
-                num_tasks=variant['num_tasks'],
             )
         else:
             return ContextualPathCollector(
@@ -282,8 +355,8 @@ def td3_experiment(variant):
                 context_keys_for_policy=context_keys,
             )
 
-    eval_path_collector = create_path_collector(eval_env, policy)
-    expl_path_collector = create_path_collector(expl_env, expl_policy)
+    expl_path_collector = create_path_collector(expl_env, expl_policy, mode='expl')
+    eval_path_collector = create_path_collector(eval_env, policy, mode='eval')
 
     algorithm = TorchBatchRLAlgorithm(
         trainer=trainer,
@@ -331,7 +404,7 @@ def td3_experiment(variant):
             )
         img_eval_env = add_images(eval_env, eval_context_distrib)
 
-        video_path_collector = create_path_collector(img_eval_env, policy)
+        video_path_collector = create_path_collector(img_eval_env, policy, mode='eval')
         rollout_function = video_path_collector._rollout_fn
 
         eval_video_func = get_save_video_function(
