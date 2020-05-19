@@ -208,7 +208,7 @@ class BasicDCNN(PyTorchModule):
             if pool_type == 'max2d':
                 if pool_sizes[i] > 1:
                     self.pool_layers.append(
-                        nn.MaxPool2d(
+                        nn.MaxUnpool2d(
                             kernel_size=pool_sizes[i],
                             stride=pool_strides[i],
                             padding=pool_paddings[i],
