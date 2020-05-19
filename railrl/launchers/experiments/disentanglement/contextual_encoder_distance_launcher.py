@@ -56,6 +56,7 @@ from railrl.torch.networks import (
     Flatten,
     ConcatTuple,
     ConcatMultiHeadedMlp,
+    DCNN,
 )
 from railrl.torch.networks.mlp import MultiHeadedMlp, Mlp
 from railrl.torch.networks.stochastic.distribution_generator import TanhGaussian
@@ -190,7 +191,7 @@ def encoder_goal_conditioned_sac_experiment(
         train_encoder_as_vae=False,
         vae_trainer_kwargs=None,
         decoder_kwargs=None,
-        vae_to_sac_loss_scale=1.0,
+        decoder_dcnn_kwargs=None,
 ):
     if reward_config is None:
         reward_config = {}
@@ -476,7 +477,12 @@ def encoder_goal_conditioned_sac_experiment(
         # VAE training
         def make_decoder():
             if use_image_observations:
-                raise NotImplementedError
+                dcnn = DCNN(
+                    fc_input_size=latent_dim,
+                    **decoder_dcnn_kwargs,
+                )
+                dcnn.input_size = latent_dim
+                return dcnn
             else:
                 return Mlp(
                     input_size=latent_dim,
@@ -491,23 +497,11 @@ def encoder_goal_conditioned_sac_experiment(
             vae=vae,
             **vae_trainer_kwargs
         )
+
         trainers = OrderedDict()
         trainers['vae_trainer'] = vae_trainer
         trainers['disentangled_trainer'] = disentangled_trainer
-        trainer = JointLossTrainer(
-            trainers,
-            optimizers=[
-                disentangled_trainer.qf1_optimizer,
-                disentangled_trainer.qf2_optimizer,
-                disentangled_trainer.alpha_optimizer,
-                disentangled_trainer.policy_optimizer,
-                vae_trainer.vae_optimizer,
-            ],
-            trainer_loss_scales={
-                vae_trainer: vae_to_sac_loss_scale,
-                disentangled_trainer: 1,
-            }
-        )
+        trainer = JointTrainer(trainers)
     else:
         trainer = disentangled_trainer
 

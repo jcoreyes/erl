@@ -25,6 +25,7 @@ class VAETrainer(TorchTrainer, LossFunction):
             vae,
             vae_lr=1e-3,
             beta=1,
+            loss_scale=1.0,
             optimizer_class=optim.Adam,
     ):
         super().__init__()
@@ -34,9 +35,22 @@ class VAETrainer(TorchTrainer, LossFunction):
             self.vae.parameters(),
             lr=vae_lr,
         )
+        self._need_to_update_eval_statistics = True
+        self.loss_scale = loss_scale
+        self.eval_statistics = OrderedDict()
 
     def train_from_torch(self, batch):
-        raise NotImplementedError()
+        losses, stats = self.compute_loss(
+            batch,
+            skip_statistics=not self._need_to_update_eval_statistics,
+        )
+        self.vae_optimizer.zero_grad()
+        losses.vae_loss.backward()
+        self.vae_optimizer.step()
+
+        if self._need_to_update_eval_statistics:
+            self.eval_statistics = stats
+            self._need_to_update_eval_statistics = False
 
     def kl_divergence(self, z_mu, logvar):
         return - 0.5 * torch.sum(
@@ -46,7 +60,7 @@ class VAETrainer(TorchTrainer, LossFunction):
     def compute_loss(
         self,
         batch,
-        skip_statistics=True
+        skip_statistics=False
     ) -> Tuple[VAELosses, LossStatistics]:
         next_obs = batch['raw_next_observations']
 
@@ -65,13 +79,13 @@ class VAETrainer(TorchTrainer, LossFunction):
         vae_loss = recon_loss + scaled_kl_loss
 
         loss = VAELosses(
-            vae_loss=vae_loss,
+            vae_loss=vae_loss * self.loss_scale,
         )
         """
         Save some statistics
         """
         eval_statistics = OrderedDict()
-        if return_statistics:
+        if not skip_statistics:
             mean_vae_logprob = vae_logprob.mean()
             mean_kl_divergence = kl_divergence.mean()
 
