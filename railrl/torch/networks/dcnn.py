@@ -145,6 +145,7 @@ class DCNN(TwoHeadDCNN):
 
 class BasicDCNN(PyTorchModule):
     """Deconvolution neural network."""
+    # TODO (maybe?): merge with BasicCNN code
     def __init__(
             self,
             input_width,
