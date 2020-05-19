@@ -34,6 +34,7 @@ from railrl.launchers.experiments.disentanglement.debug import (
     InsertDebugImagesEnv,
     create_visualize_representation,
 )
+from railrl.torch.networks.dcnn import BasicDCNN
 from railrl.torch.vae.vae_torch_trainer import VAETrainer
 from railrl.policies.action_repeat import ActionRepeatPolicy
 from railrl.samplers.data_collector.contextual_path_collector import (
@@ -51,12 +52,10 @@ from railrl.torch.disentanglement.networks import (
 )
 from railrl.torch.disentanglement.trainer import DisentangedTrainer
 from railrl.torch.networks import (
-    ConcatMlp,
     BasicCNN,
     Flatten,
     ConcatTuple,
     ConcatMultiHeadedMlp,
-    DCNN,
 )
 from railrl.torch.networks.mlp import MultiHeadedMlp, Mlp
 from railrl.torch.networks.stochastic.distribution_generator import TanhGaussian
@@ -144,6 +143,29 @@ class ReEncoderAchievedStateFn(SampleContextFromObsDictFn):
         return context
 
 
+def invert_encoder_params(encoder_cnn_kwargs, num_channels_in_output_image):
+    reverse_params = encoder_cnn_kwargs.copy()
+    n_channels = (
+            encoder_cnn_kwargs['n_channels'][:-1][::-1]
+            + [num_channels_in_output_image]
+    )
+    reverse_params.update(dict(
+        kernel_sizes=encoder_cnn_kwargs['kernel_sizes'][::-1],
+        n_channels=n_channels,
+        strides=encoder_cnn_kwargs['strides'][::-1],
+        paddings=encoder_cnn_kwargs['paddings'][::-1],
+    ))
+    return reverse_params
+
+
+def invert_encoder_mlp_params(encoder_kwargs):
+    reverse_params = encoder_kwargs.copy()
+    reverse_params.update(dict(
+        hidden_sizes=encoder_kwargs['hidden_sizes'][::-1],
+    ))
+    return reverse_params
+
+
 def encoder_goal_conditioned_sac_experiment(
         max_path_length,
         qf_kwargs,
@@ -191,7 +213,6 @@ def encoder_goal_conditioned_sac_experiment(
         train_encoder_as_vae=False,
         vae_trainer_kwargs=None,
         decoder_kwargs=None,
-        decoder_dcnn_kwargs=None,
 ):
     if reward_config is None:
         reward_config = {}
@@ -472,17 +493,36 @@ def encoder_goal_conditioned_sac_experiment(
         if vae_trainer_kwargs is None:
             vae_trainer_kwargs = {}
         if decoder_kwargs is None:
-            decoder_kwargs = {}
+            decoder_kwargs = invert_encoder_mlp_params(encoder_kwargs)
 
         # VAE training
         def make_decoder():
             if use_image_observations:
-                dcnn = DCNN(
-                    fc_input_size=latent_dim,
-                    **decoder_dcnn_kwargs,
+                dcnn_in_channels, dcnn_in_height, dcnn_in_width = (
+                    encoder_net._modules['0'].output_shape
                 )
-                dcnn.input_size = latent_dim
-                return dcnn
+                dcnn_input_size = (
+                    dcnn_in_channels * dcnn_in_width * dcnn_in_height
+                )
+                img_num_channels, img_height, img_width = env_renderer.image_chw
+                decoder_cnn_kwargs = invert_encoder_params(
+                    encoder_cnn_kwargs,
+                    img_num_channels,
+                )
+                dcnn = BasicDCNN(
+                    input_width=dcnn_in_width,
+                    input_height=dcnn_in_height,
+                    input_channels=dcnn_in_channels,
+                    **decoder_cnn_kwargs
+                )
+                mlp = Mlp(
+                    input_size=latent_dim,
+                    output_size=dcnn_input_size,
+                    **decoder_kwargs
+                )
+                dec = nn.Sequential(mlp, dcnn)
+                dec.input_size = latent_dim
+                return dec
             else:
                 return Mlp(
                     input_size=latent_dim,

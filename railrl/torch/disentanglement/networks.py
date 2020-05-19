@@ -344,6 +344,7 @@ class DDRArchitecture(PyTorchModule):
         else:
             return total_q_value
 
+
 class VAE(PyTorchModule):
     def __init__(self, encoder, decoder):
         super().__init__()

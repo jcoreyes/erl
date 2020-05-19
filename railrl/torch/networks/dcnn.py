@@ -3,6 +3,7 @@ from torch import nn as nn
 
 from railrl.pythonplusplus import identity
 from railrl.torch.core import PyTorchModule
+from railrl.torch.pytorch_util import activation_from_string
 
 
 class TwoHeadDCNN(PyTorchModule):
@@ -140,3 +141,110 @@ class TwoHeadDCNN(PyTorchModule):
 class DCNN(TwoHeadDCNN):
     def forward(self, input):
         return super().forward(input)[0]
+
+
+class BasicDCNN(PyTorchModule):
+    """Deconvolution neural network."""
+    # TODO (maybe?): merge with BasicCNN code
+    def __init__(
+            self,
+            input_width,
+            input_height,
+            input_channels,
+
+            kernel_sizes,
+            n_channels,
+            strides,
+            paddings,
+
+            normalization_type='none',
+            hidden_init=None,
+            hidden_activation='relu',
+            output_activation=identity,
+            pool_type='none',
+            pool_sizes=None,
+            pool_strides=None,
+            pool_paddings=None,
+     ):
+        assert len(kernel_sizes) == \
+               len(n_channels) == \
+               len(strides) == \
+               len(paddings)
+        assert normalization_type in {'none', 'batch', 'layer'}
+        assert pool_type in {'none', 'max2d'}
+        if pool_type == 'max2d':
+            assert len(pool_sizes) == len(pool_strides) == len(pool_paddings)
+        super().__init__()
+
+        self.output_activation = output_activation
+        if isinstance(hidden_activation, str):
+            hidden_activation = activation_from_string(hidden_activation)
+        self.hidden_activation = hidden_activation
+
+        self.input_width = input_width
+        self.input_height = input_height
+        self.input_channels = input_channels
+        self.normalization_type = normalization_type
+
+        self.layers = nn.ModuleList()
+        self.pool_layers = nn.ModuleList()
+        self.norm_layers = nn.ModuleList()
+        self.pool_type = pool_type
+
+        for i, (out_channels, kernel_size, stride, padding) in enumerate(
+                zip(n_channels, kernel_sizes, strides, paddings)
+        ):
+            deconv = nn.ConvTranspose2d(input_channels,
+                                        out_channels,
+                                        kernel_size,
+                                        stride=stride,
+                                        padding=padding)
+            if hidden_init:
+                hidden_init(deconv.weight)
+
+            layer = deconv
+            self.layers.append(layer)
+            input_channels = out_channels
+
+            if pool_type == 'max2d':
+                if pool_sizes[i] > 1:
+                    self.pool_layers.append(
+                        nn.MaxUnpool2d(
+                            kernel_size=pool_sizes[i],
+                            stride=pool_strides[i],
+                            padding=pool_paddings[i],
+                        )
+                    )
+                else:
+                    self.pool_layers.append(None)
+
+        test_mat = torch.zeros(
+            1,
+            self.input_channels,
+            self.input_width,
+            self.input_height,
+        )
+        for layer in self.layers:
+            test_mat = layer(test_mat)
+            if self.normalization_type == 'batch':
+                self.norm_layers.append(
+                    nn.BatchNorm2d(test_mat.shape[1])
+                )
+            if self.normalization_type == 'layer':
+                self.norm_layers.append(nn.LayerNorm(test_mat.shape[1:]))
+        self.output_shape = test_mat.shape[1:]  # ignore batch dim
+
+    def forward(self, input):
+        h = input.view(
+            -1, self.input_channels, self.input_width,
+            self.input_height
+        )
+        for i, layer in enumerate(self.layers):
+            h = layer(h)
+            if self.normalization_type != 'none':
+                h = self.norm_layers[i](h)
+            if self.pool_type != 'none':
+                if self.pool_layers[i]:
+                    h = self.pool_layers[i](h)
+            h = self.hidden_activation(h)
+        return h
