@@ -43,9 +43,8 @@ import torch.nn as nn
 from railrl.samplers.data_collector import MdpPathCollector # , CustomMdpPathCollector
 from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
 from railrl.torch.networks import MlpQf, TanhMlpPolicy
-from railrl.torch.sac.policies import (
-    TanhGaussianPolicy, VAEPolicy
-)
+from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.torch.lvm.bear_vae import VAEPolicy
 from railrl.torch.sac.bear import BEARTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
@@ -315,7 +314,6 @@ def experiment(variant):
     vae_policy = VAEPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
-        hidden_sizes=[M, M],
         latent_dim=action_dim * 2,
     )
 
