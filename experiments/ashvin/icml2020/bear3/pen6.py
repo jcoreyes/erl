@@ -13,7 +13,7 @@ from railrl.samplers.data_collector import MdpPathCollector # , CustomMdpPathCol
 from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
 from railrl.torch.networks import MlpQf, TanhMlpPolicy
 from railrl.torch.sac.policies import (
-    TanhGaussianPolicy, VAEPolicy
+    TanhGaussianPolicy
 )
 from railrl.torch.sac.bear import BEARTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
