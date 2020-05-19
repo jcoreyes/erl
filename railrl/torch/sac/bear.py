@@ -316,7 +316,10 @@ class BEARTrainer(TorchTrainer):
         """
         Behavior clone a policy
         """
-        recon, mean, std = self.vae(obs, actions)
+        z_dist = self.vae.encoder(obs, actions)
+        mean, std = z_dist.mean, z_dist.stddev
+        z = z_dist.rsample()
+        recon = self.vae.decoder(obs, z).rsample()
         recon_loss = self.qf_criterion(recon, actions)
         kl_loss = -0.5 * (
                     1 + torch.log(std.pow(2)) - mean.pow(2) - std.pow(2)).mean()
