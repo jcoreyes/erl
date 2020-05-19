@@ -52,12 +52,10 @@ from railrl.torch.disentanglement.networks import (
 )
 from railrl.torch.disentanglement.trainer import DisentangedTrainer
 from railrl.torch.networks import (
-    ConcatMlp,
     BasicCNN,
     Flatten,
     ConcatTuple,
     ConcatMultiHeadedMlp,
-    DCNN,
 )
 from railrl.torch.networks.mlp import MultiHeadedMlp, Mlp
 from railrl.torch.networks.stochastic.distribution_generator import TanhGaussian
@@ -215,10 +213,6 @@ def encoder_goal_conditioned_sac_experiment(
         train_encoder_as_vae=False,
         vae_trainer_kwargs=None,
         decoder_kwargs=None,
-<<<<<<< HEAD
-=======
-        decoder_dcnn_kwargs=None,
->>>>>>> master
 ):
     if reward_config is None:
         reward_config = {}
