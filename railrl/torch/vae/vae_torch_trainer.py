@@ -41,8 +41,6 @@ class VAETrainer(TorchTrainer, LossFunction):
         self.eval_statistics = OrderedDict()
 
     def train_from_torch(self, batch):
-        timer.stamp_start('vae_training')
-
         losses, stats = self.compute_loss(
             batch,
             skip_statistics=not self._need_to_update_eval_statistics,
@@ -54,12 +52,6 @@ class VAETrainer(TorchTrainer, LossFunction):
         if self._need_to_update_eval_statistics:
             self.eval_statistics = stats
             self._need_to_update_eval_statistics = False
-
-        timer.stamp_end(
-            'vae_training',
-            unique=False,
-            update_last_stamp_time=False,
-        )
 
     def kl_divergence(self, z_mu, logvar):
         return - 0.5 * torch.sum(
