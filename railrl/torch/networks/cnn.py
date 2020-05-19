@@ -274,8 +274,6 @@ class BasicCNN(PyTorchModule):
         self.conv_layers = nn.ModuleList()
         self.conv_norm_layers = nn.ModuleList()
         self.pool_layers = nn.ModuleList()
-        self.fc_layers = nn.ModuleList()
-        self.fc_norm_layers = nn.ModuleList()
 
         for i, (out_channels, kernel_size, stride, padding) in enumerate(
                 zip(n_channels, kernel_sizes, strides, paddings)
@@ -322,7 +320,7 @@ class BasicCNN(PyTorchModule):
                 if self.pool_layers[i]:
                     test_mat = self.pool_layers[i](test_mat)
 
-        self.output_shape = test_mat.shape
+        self.output_shape = test_mat.shape[1:]  # ignore batch dim
 
     def forward(self, conv_input):
         return self.apply_forward_conv(conv_input)
