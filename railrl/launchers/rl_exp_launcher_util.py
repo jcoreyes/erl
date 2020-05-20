@@ -477,35 +477,36 @@ def get_exploration_strategy(variant, env):
     from railrl.exploration_strategies.noop import NoopStrategy
 
     exploration_type = variant['exploration_type']
-    # exploration_noise = variant.get('exploration_noise', 0.1)
-    es_kwargs = variant.get('es_kwargs', {})
+    exploration_noise = variant.get('exploration_noise', 0.1)
+
+    # es_kwargs = variant.get('es_kwargs', {})
     if exploration_type == 'ou':
         es = OUStrategy(
             action_space=env.action_space,
-            # max_sigma=exploration_noise,
-            # min_sigma=exploration_noise,  # Constant sigma
-            **es_kwargs
+            max_sigma=exploration_noise,
+            min_sigma=exploration_noise,  # Constant sigma
+            # **es_kwargs
         )
     elif exploration_type == 'gaussian':
         es = GaussianStrategy(
             action_space=env.action_space,
-            # max_sigma=exploration_noise,
-            # min_sigma=exploration_noise,  # Constant sigma
-            **es_kwargs
+            max_sigma=exploration_noise,
+            min_sigma=exploration_noise,  # Constant sigma
+            # **es_kwargs
         )
     elif exploration_type == 'epsilon':
         es = EpsilonGreedy(
             action_space=env.action_space,
-            # prob_random_action=exploration_noise,
-            **es_kwargs
+            prob_random_action=exploration_noise,
+            # **es_kwargs
         )
     elif exploration_type == 'gaussian_and_epsilon':
         es = GaussianAndEpislonStrategy(
             action_space=env.action_space,
-            # max_sigma=exploration_noise,
-            # min_sigma=exploration_noise,  # Constant sigma
-            # epsilon=exploration_noise,
-            **es_kwargs
+            max_sigma=exploration_noise,
+            min_sigma=exploration_noise,  # Constant sigma
+            epsilon=0.3,
+            # **es_kwargs
         )
     elif exploration_type == 'noop':
         es = NoopStrategy(
