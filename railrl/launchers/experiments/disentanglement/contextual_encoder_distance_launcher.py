@@ -48,7 +48,8 @@ from railrl.torch.disentanglement.networks import (
     DisentangledMlpQf,
     EncodeObsAndGoal,
     VAE,
-    EncoderMuFromEncoderDistribution
+    EncoderMuFromEncoderDistribution,
+    ParallelDisentangledMlpQf,
 )
 from railrl.torch.disentanglement.trainer import DisentangedTrainer
 from railrl.torch.networks import (
@@ -175,6 +176,7 @@ def encoder_goal_conditioned_sac_experiment(
         policy_kwargs,
         # Encoder parameters
         disentangled_qf_kwargs,
+        use_parallel_qf=False,
         encoder_kwargs=None,
         encoder_cnn_kwargs=None,
         qf_state_encoder_is_goal_encoder=False,
@@ -383,15 +385,26 @@ def encoder_goal_conditioned_sac_experiment(
             state_encoder = goal_encoder
         else:
             state_encoder = EncoderMuFromEncoderDistribution(create_encoder())
-        return DisentangledMlpQf(
-            goal_encoder=goal_encoder,
-            state_encoder=state_encoder,
-            preprocess_obs_dim=encoder_input_dim,
-            action_dim=action_dim,
-            qf_kwargs=qf_kwargs,
-            vectorized=True,
-            **disentangled_qf_kwargs
-        )
+        if use_parallel_qf:
+            return ParallelDisentangledMlpQf(
+                goal_encoder=goal_encoder,
+                state_encoder=state_encoder,
+                preprocess_obs_dim=encoder_input_dim,
+                action_dim=action_dim,
+                post_encoder_mlp_kwargs=qf_kwargs,
+                vectorized=True,
+                **disentangled_qf_kwargs
+            )
+        else:
+            return DisentangledMlpQf(
+                goal_encoder=goal_encoder,
+                state_encoder=state_encoder,
+                preprocess_obs_dim=encoder_input_dim,
+                action_dim=action_dim,
+                qf_kwargs=qf_kwargs,
+                vectorized=True,
+                **disentangled_qf_kwargs
+            )
     qf1 = make_qf(mu_encoder_net)
     qf2 = make_qf(mu_encoder_net)
     target_qf1 = make_qf(mu_target_encoder_net)
