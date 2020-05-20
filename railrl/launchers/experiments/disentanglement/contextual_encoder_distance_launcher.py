@@ -801,6 +801,14 @@ def encoder_goal_conditioned_sac_experiment(
         algorithm.post_train_funcs.append(eval_video_func)
         algorithm.post_train_funcs.append(expl_video_func)
     if visualize_representation:
+        from multiworld.envs.pygame import PickAndPlaceEnv
+        if not isinstance(state_eval_env, PickAndPlaceEnv):
+            raise NotImplementedError()
+        num_objects = (
+            state_eval_env.observation_space[state_observation_key].low.size
+        ) // 2
+        state_space = state_eval_env.observation_space['state_observation']
+        start_states = np.vstack([state_space.sample() for _ in range(6)])
         if use_image_observations:
             def state_to_encoder_input(state):
                 goal_dict = {
@@ -811,31 +819,22 @@ def encoder_goal_conditioned_sac_experiment(
                 start_img = env_renderer.create_image(state_eval_env)
                 state_eval_env.set_env_state(env_state)
                 return start_img
-            visualize_representation = create_visualize_representation(
-                encoder, True, eval_env, video_renderer,
-                state_to_encoder_input=state_to_encoder_input,
-                env_renderer=env_renderer,
-                **debug_visualization_kwargs
-            )
-            algorithm.post_train_funcs.append(visualize_representation)
-            visualize_representation = create_visualize_representation(
-                encoder, False, eval_env, video_renderer,
-                state_to_encoder_input=state_to_encoder_input,
-                env_renderer=env_renderer,
-                **debug_visualization_kwargs
-            )
-            algorithm.post_train_funcs.append(visualize_representation)
+            for i in range(num_objects):
+                visualize_representation = create_visualize_representation(
+                    encoder, i, eval_env, video_renderer,
+                    state_to_encoder_input=state_to_encoder_input,
+                    env_renderer=env_renderer,
+                    start_states=start_states,
+                    **debug_visualization_kwargs
+                )
+                algorithm.post_train_funcs.append(visualize_representation)
         else:
-            visualize_representation = create_visualize_representation(
-                encoder, True, eval_env, video_renderer,
-                **debug_visualization_kwargs
-            )
-            algorithm.post_train_funcs.append(visualize_representation)
-            visualize_representation = create_visualize_representation(
-                encoder, False, eval_env, video_renderer,
-                **debug_visualization_kwargs
-            )
-            algorithm.post_train_funcs.append(visualize_representation)
+            for i in range(num_objects):
+                visualize_representation = create_visualize_representation(
+                    encoder, i, eval_env, video_renderer,
+                    **debug_visualization_kwargs
+                )
+                algorithm.post_train_funcs.append(visualize_representation)
 
     if distance_scatterplot_save_period > 0:
         algorithm.post_train_funcs.append(create_save_h_vs_state_distance_fn(
