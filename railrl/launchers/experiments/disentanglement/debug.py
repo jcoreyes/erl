@@ -175,11 +175,17 @@ class InsertDebugImagesEnv(InsertImagesEnv):
             obs[image_key] = renderer.create_image(self.env, shared_data)
 
 
-def create_visualize_representation(encoder, sweep_object_zero, env, renderer,
-        save_period=50, num_presampled_states=2, num_random_states=2,
+def create_visualize_representation(
+        encoder,
+        obj_to_sweep,
+        env,
+        renderer,
+        start_states,
+        save_period=50,
         env_renderer=None,
         initial_save_period=None,
-                                    state_to_encoder_input=None):
+        state_to_encoder_input=None,
+):
     if initial_save_period is None:
         initial_save_period = save_period
     env_renderer = env_renderer or renderer
@@ -189,48 +195,20 @@ def create_visualize_representation(encoder, sweep_object_zero, env, renderer,
     y = np.linspace(low, high, num=env_renderer.image_chw[1])
     x = np.linspace(low, high, num=env_renderer.image_chw[2])
     all_xy = np.transpose([np.tile(x, len(y)), np.repeat(y, len(x))])
-    # y = np.linspace(low / 2, high / 2, num=2)
-    # x = np.linspace(low / 2, high / 2, num=2)
-    # all_start_xy = np.transpose([np.tile(x, len(y)), np.repeat(y, len(x))])
-    # same_start_state = np.vstack(
-    #     [np.hstack([xy, xy]) for xy in all_start_xy]
-    # )
-    same_start_state = np.vstack([
-        state_space.sample() for _ in range(num_presampled_states)
-    ])
-    random_states = np.vstack([
-        state_space.sample() for _ in range(num_random_states)
-    ])
-    all_start_xy = np.concatenate((same_start_state, random_states), axis=0)
 
     goal_dicts = []
-    for start_state in all_start_xy:
-        if sweep_object_zero:
-            new_states = np.concatenate(
-                [
-                    all_xy,
-                    np.repeat(start_state[None, 2:], all_xy.shape[0], axis=0),
-                ],
-                axis=1,
-            )
-        else:
-            new_states = np.concatenate(
-                [
-                    np.repeat(start_state[None, :2], all_xy.shape[0], axis=0),
-                    all_xy,
-                ],
-                axis=1,
-            )
+    for start_state in start_states:
+        new_states = np.repeat(start_state[None], all_xy.shape[0], axis=0)
+        start_i = obj_to_sweep * 2
+        end_i = start_i + 2
+        new_states[:, start_i:end_i] = all_xy
         if state_to_encoder_input:
-            img_obs = True
             new_states = np.concatenate(
                 [
                     state_to_encoder_input(state)[None, ...] for state in new_states
                 ],
                 axis=0,
             )
-        else:
-            img_obs = False
         goal_dict = {
             'state_desired_goal': start_state,
         }
@@ -249,18 +227,13 @@ def create_visualize_representation(encoder, sweep_object_zero, env, renderer,
                 or epoch >= algo.num_epochs - 1
         ):
             logdir = logger.get_snapshot_dir()
-            if sweep_object_zero:
-                filename = osp.join(
-                    logdir,
-                    'obj0_sweep_visualization_{epoch}.png'.format(epoch=epoch),
-                )
-            else:
-                filename = osp.join(
-                    logdir,
-                    'obj1_sweep_visualization_{epoch}.png'.format(epoch=epoch),
-                )
-
-            columns = []
+            filename = osp.join(
+                logdir,
+                'obj{obj_id}_sweep_visualization_{epoch}.png'.format(
+                    obj_id=obj_to_sweep,
+                    epoch=epoch),
+            )
+            visualizations = []
             for goal_dict in goal_dicts:
                 start_img = goal_dict['image_observation']
                 new_states = goal_dict['new_states']
@@ -283,12 +256,12 @@ def create_visualize_representation(encoder, sweep_object_zero, env, renderer,
                     )
                     images_to_stack.append(value_img_rgb)
 
-                columns.append(
+                visualizations.append(
                     combine_images_into_grid(
                         images_to_stack,
                         imwidth=renderer.image_chw[2],
                         imheight=renderer.image_chw[1],
-                        max_num_cols=5,
+                        max_num_cols=len(start_states),
                         pad_length=1,
                         pad_color=0,
                         subpad_length=1,
@@ -297,7 +270,16 @@ def create_visualize_representation(encoder, sweep_object_zero, env, renderer,
                     )
                 )
 
-            final_image = np.concatenate(columns, axis=1)
+            final_image = combine_images_into_grid(
+                visualizations,
+                imwidth=visualizations[0].shape[1],
+                imheight=visualizations[0].shape[0],
+                max_num_cols=3,
+                image_format='HWC',
+                pad_length=0,
+                subpad_length=0,
+                unnormalize=False,
+            )
             cv2.imwrite(filename, final_image)
 
             print("Saved visualization image to to ", filename)
