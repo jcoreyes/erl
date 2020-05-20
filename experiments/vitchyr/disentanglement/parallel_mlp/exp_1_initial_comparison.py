@@ -125,6 +125,7 @@ if __name__ == "__main__":
             16,
             32,
             64,
+            128,
         ],
         'vae_trainer_kwargs.vae_lr': [
             0.,
@@ -170,7 +171,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'sss'
-    exp_name = 'parallel-timing-test--gpu'
+    exp_name = 'parallel-mlp__exp-1__timing-test-gpu-take2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):
