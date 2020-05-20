@@ -271,7 +271,7 @@ class ParallelDisentangledMlpQf(PyTorchModule):
             individual_q_vals = self.post_encoder_qf(expanded_inputs)
         else:
             flat_inputs = torch.cat((h_obs, h_goal, actions), dim=1)
-            individual_q_vals = self.post_encoder_qf(flat_inputs)
+            individual_q_vals = self.post_encoder_qf(flat_inputs).squeeze(1)
 
         if self.vectorized:
             return individual_q_vals
