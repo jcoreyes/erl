@@ -32,7 +32,7 @@ if __name__ == "__main__":
         max_path_length=100,
         algo_kwargs=dict(
             batch_size=256,
-            num_epochs=3,
+            num_epochs=200,
             num_eval_steps_per_epoch=400,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000,
@@ -54,7 +54,7 @@ if __name__ == "__main__":
             save_period=20,
             initial_save_period=2,
         ),
-        save_video=False,
+        save_video=True,
         save_video_kwargs=dict(
             save_video_period=20,
             rows=3,
@@ -101,30 +101,23 @@ if __name__ == "__main__":
         ),
         distance_scatterplot_save_period=50,
         distance_scatterplot_initial_save_period=10,
-        train_encoder_as_vae=False,
+        train_encoder_as_vae=True,
         vae_trainer_kwargs=dict(
             vae_lr=1e-3,
         ),
     )
 
     search_space = {
-        'use_parallel_qf': [
-            True,
-            False,
-        ],
         'reward_type': [
             # 'state_distance',
             'encoder_distance',
         ],
         'use_image_observations': [
-            # True,
-            False,
+            True,
+            # False,
         ],
         'latent_dim': [
             8,
-            16,
-            32,
-            64,
         ],
         'vae_trainer_kwargs.vae_lr': [
             0.,
@@ -156,7 +149,10 @@ if __name__ == "__main__":
             # 0.5,
             # 0.1,
             0.0,
-        ]
+        ],
+        'use_parallel_qf': [
+            True,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -168,9 +164,9 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    n_seeds = 1
+    n_seeds = 3
     mode = 'sss'
-    exp_name = 'parallel-timing-test--cpu-take2'
+    exp_name = 'parallel-timing-test__exp-3__compare_performance'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):
@@ -181,7 +177,7 @@ if __name__ == "__main__":
                 exp_name=exp_name,
                 mode=mode,
                 variant=variant,
-                use_gpu=False,
+                use_gpu=True,
                 num_exps_per_instance=2,
                 # slurm_config_name='cpu_co',
                 gcp_kwargs=dict(
@@ -191,5 +187,5 @@ if __name__ == "__main__":
                         num_gpu=1,
                     )
                 ),
-                time_in_mins=60,
+                time_in_mins=int(2.5*24*60),
             )
