@@ -9,10 +9,10 @@ if __name__ == "__main__":
         env_id='OneObjectPickAndPlace2DEnv-v0',
         qf_state_encoder_is_goal_encoder=True,
         qf_kwargs=dict(
-            hidden_sizes=[400, 300],
+            hidden_sizes=[64, 64],
         ),
         policy_kwargs=dict(
-            hidden_sizes=[400, 300],
+            hidden_sizes=[64, 64],
         ),
         policy_using_encoder_settings=dict(
             encode_state=False,
@@ -161,9 +161,9 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    n_seeds = 4
+    n_seeds = 3
     mode = 'sss'
-    exp_name = 'add-vae-loss--exp-3--check-no-vae-loss-works-still-ball-size-0p75'
+    exp_name = 'two_object_init_on_object__exp_3__smaller_networks'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):
