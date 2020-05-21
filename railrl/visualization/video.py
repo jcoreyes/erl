@@ -219,6 +219,7 @@ def dump_video(
                     max_num_cols=num_columns_per_rollout,
                     imwidth=imsize,
                     imheight=imsize,
+                    unnormalize=True,
                     **combine_img_kwargs
                 )
             )
@@ -333,6 +334,7 @@ def dump_paths(
                     imwidth,
                     imheight,
                     max_num_cols=num_columns_per_rollout,
+                    unnormalize=True,
                     **combine_img_kwargs
                 )
             )
