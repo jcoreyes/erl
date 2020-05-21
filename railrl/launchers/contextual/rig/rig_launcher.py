@@ -111,7 +111,7 @@ def rig_experiment(
     if not renderer_kwargs:
         renderer_kwargs = {}
 
-    Renderer(init_camera=init_camera, **renderer_kwargs)
+    renderer = Renderer(init_camera=init_camera, **renderer_kwargs)
 
     def contextual_env_distrib_and_reward(
             env_id, env_class, env_kwargs, goal_sampling_mode
@@ -241,7 +241,7 @@ def rig_experiment(
         context_keys_for_policy=[context_key, ],
     )
     exploration_policy = create_exploration_policy(
-        policy, **exploration_policy_kwargs)
+        expl_env, policy, **exploration_policy_kwargs)
     expl_path_collector = ContextualPathCollector(
         expl_env,
         exploration_policy,
@@ -273,6 +273,7 @@ def rig_experiment(
             unnormalize=True,
             # max_path_length=200,
             imsize=48,
+            image_format=renderer.output_image_format,
             **save_video_kwargs
         )
         algorithm.post_train_funcs.append(expl_video_func)
@@ -290,6 +291,7 @@ def rig_experiment(
             unnormalize=True,
             # max_path_length=200,
             imsize=48,
+            image_format=renderer.output_image_format,
             **save_video_kwargs
         )
         algorithm.post_train_funcs.append(eval_video_func)

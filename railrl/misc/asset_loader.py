@@ -114,6 +114,17 @@ def load_local_or_remote_file(filepath, file_type=None, **kwargs):
     return object
 
 
+def get_absolute_path(path):
+    if path[0] == "/":
+        return path
+    else:
+        is_docker = os.path.isfile("/.dockerenv")
+        if is_docker:
+            local_path = "/tmp/%s" % (path)
+        else:
+            local_path = "%s/%s" % (LOCAL_LOG_DIR, path)
+        return local_path
+
 if __name__ == "__main__":
     p = sync_down("ashvin/vae/new-point2d/run0/id1/params.pkl")
     print("got", p)

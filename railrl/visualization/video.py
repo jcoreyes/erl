@@ -334,7 +334,6 @@ def dump_paths(
                     imwidth,
                     imheight,
                     max_num_cols=num_columns_per_rollout,
-                    unnormalize=True,
                     **combine_img_kwargs
                 )
             )

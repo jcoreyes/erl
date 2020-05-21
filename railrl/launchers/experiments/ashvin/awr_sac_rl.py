@@ -108,8 +108,7 @@ ENV_PARAMS = {
         # 'num_epochs': 1000,
     },
 
-    'pen-sparse-v0': {
-        'env_id': 'pen-binary-v0',
+    'pen-notermination-v0': {
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
@@ -127,43 +126,141 @@ ENV_PARAMS = {
             train_split=0.9,
         ),
     },
-    'door-sparse-v0': {
-        'env_id': 'door-binary-v0',
+    'pen-binary-v0': {
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
-            path="demos/icml2020/hand/door2_sparse.npy",
+            # path="demos/icml2020/hand/pen2_sparse.npy",
+            path="demos/icml2020/hand/sparsity/railrl_pen-binary-v0_demos.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/pen_bc_sparse1.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse2.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse3.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse4.npy",
+            # path="demos/icml2020/hand/sparsity/bc/pen_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/pen-binary1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/pen-binary1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'pen-sparse-v0': {
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/sparsity/railrl_pen-sparse-v0_demos.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/pen_bc_sparse1.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse2.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse3.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/pen-sparse1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/pen-sparse1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'door-binary-v0': {
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            # path="demos/icml2020/hand/door2_sparse.npy",
+            path="demos/icml2020/hand/sparsity/railrl_door-binary-v0_demos.npy",
             obs_dict=True,
             is_demo=True,
         ),
         'env_offpolicy_data_path': dict(
             # path="demos/icml2020/hand/door_bc_sparse1.npy",
             # path="demos/icml2020/hand/door_bc_sparse3.npy",
-            path="demos/icml2020/hand/door_bc_sparse4.npy",
+            # path="demos/icml2020/hand/door_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/door-binary1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/door-binary1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'door-sparse-v0': {
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/sparsity/railrl_door-sparse-v0_demos.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/door_bc_sparse1.npy",
+            # path="demos/icml2020/hand/door_bc_sparse3.npy",
+            # path="demos/icml2020/hand/door_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/door-sparse1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/door-sparse1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'relocate-binary-v0': {
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            # path="demos/icml2020/hand/relocate2_sparse.npy",
+            path="demos/icml2020/hand/sparsity/railrl_relocate-binary-v0_demos.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/relocate_bc_sparse1.npy",
+            # path="demos/icml2020/hand/relocate_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/relocate-binary1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/relocate-binary1/run10",
             obs_dict=False,
             is_demo=False,
             train_split=0.9,
         ),
     },
     'relocate-sparse-v0': {
-        'env_id': 'relocate-binary-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
-            path="demos/icml2020/hand/relocate2_sparse.npy",
+            path="demos/icml2020/hand/sparsity/railrl_relocate-sparse-v0_demos.npy",
             obs_dict=True,
             is_demo=True,
         ),
         'env_offpolicy_data_path': dict(
             # path="demos/icml2020/hand/relocate_bc_sparse1.npy",
-            path="demos/icml2020/hand/relocate_bc_sparse4.npy",
+            # path="demos/icml2020/hand/relocate_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/relocate-sparse1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/relocate-sparse1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+
+    'hammer-binary-v0': {
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/hammer2_sparse.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            path="demos/icml2020/hand/hammer_bc_sparse1.npy",
             obs_dict=False,
             is_demo=False,
             train_split=0.9,
         ),
     },
     'hammer-sparse-v0': {
-        'env_id': 'hammer-binary-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
@@ -281,19 +378,21 @@ def experiment(variant):
         return
 
     # if 'env' in variant:
-    env_params = ENV_PARAMS.get(variant['env'], {})
+    env_params = ENV_PARAMS.get(variant.get('env'), {})
     variant.update(env_params)
-    env_name = variant.get("env")
+    env_name = variant.get("env", None)
     env_id = variant.get('env_id', None)
     env_class = variant.get('env_class', None)
 
     if env_name in [
-        'pen-v0', 'pen-sparse-v0', 'door-v0', 'relocate-v0', 'hammer-v0',
-        'pen-sparse-v0', 'door-sparse-v0', 'relocate-sparse-v0', 'hammer-sparse-v0'
+        'pen-v0', 'pen-sparse-v0', 'pen-notermination-v0', 'pen-binary-v0',
+        'door-v0', 'door-sparse-v0', 'door-binary-v0',
+        'relocate-v0', 'relocate-sparse-v0', 'relocate-binary-v0',
+        'hammer-v0', 'hammer-sparse-v0', 'hammer-binary-v0',
     ]:
         import mj_envs
-        expl_env = gym.make(env_params['env_id'])
-        eval_env = gym.make(env_params['env_id'])
+        expl_env = gym.make(env_params.get('env_id', env_name))
+        eval_env = gym.make(env_params.get('env_id', env_name))
     elif env_name in [ # D4RL envs
         "maze2d-open-v0", "maze2d-umaze-v0", "maze2d-medium-v0", "maze2d-large-v0",
         "maze2d-open-dense-v0", "maze2d-umaze-dense-v0", "maze2d-medium-dense-v0", "maze2d-large-dense-v0",

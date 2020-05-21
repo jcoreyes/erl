@@ -54,9 +54,9 @@ def process_args(variant):
         variant['num_trains_per_train_loop'] = 10
         variant['min_num_steps_before_training'] = 100
         variant['min_num_steps_before_training'] = 100
-        variant['trainer_kwargs']['bc_num_pretrain_steps'] = 10
-        variant['trainer_kwargs']['q_num_pretrain1_steps'] = 10
-        variant['trainer_kwargs']['q_num_pretrain2_steps'] = 10
+        variant['trainer_kwargs']['bc_num_pretrain_steps'] = min(10, variant['trainer_kwargs'].get('bc_num_pretrain_steps', 0))
+        variant['trainer_kwargs']['q_num_pretrain1_steps'] = min(10, variant['trainer_kwargs'].get('q_num_pretrain1_steps', 0))
+        variant['trainer_kwargs']['q_num_pretrain2_steps'] = min(10, variant['trainer_kwargs'].get('q_num_pretrain2_steps', 0))
 
 def experiment(variant):
     render = variant.get("render", False)
@@ -270,7 +270,12 @@ def experiment(variant):
         )
         path_loader.load_demos()
     if variant.get('pretrain_policy', False):
-        trainer.pretrain_policy_with_bc()
+        trainer.pretrain_policy_with_bc(
+            policy,
+            demo_train_buffer,
+            demo_test_buffer,
+            trainer.bc_num_pretrain_steps,
+        )
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
 
