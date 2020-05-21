@@ -15,8 +15,8 @@ from railrl.envs.contextual.goal_conditioned import (
     AddImageDistribution,
     GoalConditionedDiagnosticsToContextualDiagnostics,
     IndexIntoAchievedGoal,
-    PixelDistance,
     PresampledDistribution,
+    NegativeL2Distance,
 )
 from railrl.envs.images import Renderer, InsertImageEnv
 from railrl.images.data_augmentation import (
@@ -148,8 +148,7 @@ def image_based_goal_conditioned_sac_experiment(
                 achieved_goal_key=state_achieved_goal_key,
             )
         elif reward_type == 'pixel_distance':
-            reward_fn = PixelDistance(
-                env=state_env,
+            reward_fn = NegativeL2Distance(
                 achieved_goal_from_observation=IndexIntoAchievedGoal(
                     img_observation_key
                 ),

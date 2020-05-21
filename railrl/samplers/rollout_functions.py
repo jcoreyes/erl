@@ -77,6 +77,7 @@ def rollout(
         get_action_kwargs=None,
         return_dict_obs=False,
         full_o_postprocess_func=None,
+        reset_callback=None,
 ):
     if render_kwargs is None:
         render_kwargs = {}
@@ -96,6 +97,8 @@ def rollout(
     path_length = 0
     agent.reset()
     o = env.reset()
+    if reset_callback:
+        reset_callback(env, agent, o)
     if render:
         env.render(**render_kwargs)
     while path_length < max_path_length:
