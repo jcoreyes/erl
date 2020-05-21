@@ -32,6 +32,8 @@ import torchvision.transforms.functional as F
 from railrl.torch.data import BatchLoader, InfiniteBatchLoader
 from railrl.data_management.external.bair_dataset.config import BAIR_DATASET_LOCATION
 
+from railrl.misc.asset_loader import sync_down_folder
+
 class BAIRDataset(data.Dataset):
     train_data = {}
     test_data = {}
@@ -51,14 +53,14 @@ class BAIRDataset(data.Dataset):
             self.n_files = n_train_files
             for i in range(self.n_files):
                 suffix = 'train{:0>2d}.npz'.format(i)
-                filename = BAIR_DATASET_LOCATION + suffix
+                filename = sync_down_folder(BAIR_DATASET_LOCATION) + "/" + suffix
                 data = np.load(filename)
                 images = data['images']
                 self.train_data[i] = images
         else:
             self.n_files = 1
             suffix = "test.npz"
-            filename = BAIR_DATASET_LOCATION + suffix
+            filename = sync_down_folder(BAIR_DATASET_LOCATION) + "/" + suffix
             data = np.load(filename)
             images = data['images']
             self.test_data[0] = images

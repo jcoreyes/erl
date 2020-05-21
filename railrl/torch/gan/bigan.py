@@ -5,11 +5,16 @@ import torch
 import torch.nn as nn
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
+from railrl.torch.core import PyTorchModule
 import torchvision.utils as vutils
+from railrl.torch import pytorch_util as ptu
 
-class BiGAN:
+class BiGAN(PyTorchModule):
     def __init__(self, ngpu, latent_size, dropout, output_size):
+        super().__init__()
         self.device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
+        self.representation_size = latent_size
+        self.input_channels = 3
 
         self.netE = Encoder(ngpu, latent_size, True).to(self.device)
         self.netG = Generator(ngpu, latent_size).to(self.device)
@@ -28,6 +33,8 @@ class BiGAN:
         self.netG.apply(self.weights_init)
         self.netD.apply(self.weights_init)
 
+    def get_distance(self, z1, z2):
+        return ptu.get_numpy(torch.norm(z1 - z2, dim=1))
 
     def weights_init(self, m):
         classname = m.__class__.__name__
@@ -41,11 +48,7 @@ class BiGAN:
         elif classname.find('Linear') != -1:
             m.bias.data.fill_(0)
 
-
-
-
 class Generator(nn.Module):
-
     def __init__(self, ngpu, latent_size):
         super(Generator, self).__init__()
         self.ngpu = ngpu
@@ -86,15 +89,13 @@ class Generator(nn.Module):
         return output
 
 
-class Encoder(nn.Module):
 
+class Encoder(nn.Module):
     def __init__(self, ngpu, latent_size, noise=False):
         super(Encoder, self).__init__()
         self.ngpu = ngpu
         self.latent_size = latent_size
 
-        if noise:
-            self.latent_size *= 2
         self.main1 = nn.Sequential(
             nn.Conv2d(3, 32, 5, stride=1, bias=False),
             nn.BatchNorm2d(32),
@@ -136,6 +137,7 @@ class Encoder(nn.Module):
         x3 = self.main3(x2)
         output = self.main4(x3)
         return output, x3.view(batch_size, -1), x2.view(batch_size, -1), x1.view(batch_size, -1)
+
 
 
 class Discriminator(nn.Module):

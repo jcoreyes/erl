@@ -17,7 +17,7 @@ import time
 
 from railrl.envs.vae_wrappers import VAEWrappedEnv
 
-class VQVAEWrappedEnv(VAEWrappedEnv):
+class BiGANWrappedEnv(VAEWrappedEnv):
 
     def __init__(
         self,
@@ -60,10 +60,8 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
 
         if type(pixel_cnn) is str:
             self.pixel_cnn = load_local_or_remote_file(pixel_cnn)
-        self.num_keys = self.vae.num_embeddings
-        self.representation_size = 144 * self.vae.representation_size
-        print("*******UNFIX REPRESENTATION SIZE*********")
-        print("Location: VQVAE WRAPPER")
+        self.representation_size = self.vae.representation_size
+        print("Location: BiGAN WRAPPER")
 
         latent_space = Box(
             -10 * np.ones(obs_size or self.representation_size),
@@ -82,8 +80,8 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
 
 
     def get_latent_distance(self, latent1, latent2):
-        latent1 = ptu.from_numpy(latent1 * self.num_keys).long()
-        latent2 = ptu.from_numpy(latent2 * self.num_keys).long()
+        latent1 = ptu.from_numpy(latent1)
+        latent2 = ptu.from_numpy(latent2)
         return self.vae.get_distance(latent1, latent2)
 
     def _update_info(self, info, obs):
@@ -152,17 +150,16 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
     def _decode(self, latents):
         #MAKE INTEGER
         self.vae.eval()
-        latents = ptu.from_numpy(latents)
-        reconstructions = self.vae.decode(latents,cont=True)
+        latents = latents.reshape((1, self.vae.representation_size, 1, 1))
+        reconstructions = self.vae.netG(ptu.from_numpy(latents))
         decoded = ptu.get_numpy(reconstructions)
-        decoded = np.clip(decoded, 0, 1)
         return decoded
 
     def _encode(self, imgs):
-        #MAKE FLOAT
+        imgs = imgs.reshape(-1, 3, 32, 32)
         self.vae.eval()
-        latents = self.vae.encode(ptu.from_numpy(imgs), cont=True)
-        latents = np.array(ptu.get_numpy(latents))
+        latents = self.vae.netE(ptu.from_numpy(imgs))
+        latents = np.array(ptu.get_numpy(latents[0])).reshape((-1, self.vae.representation_size))
         return latents
 
     # def _encode(self, imgs):
@@ -182,11 +179,7 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         )
         return imgs[0]
 
-    def _sample_vae_prior(self, batch_size):
-        self.vae.eval()
-        samples = self.pixel_cnn.generate(shape=(12,12), batch_size=batch_size).reshape(batch_size, -1)
-        #samples = self.vae.sample_prior(batch_size)#.cpu())
-        return samples
+
 
 
 

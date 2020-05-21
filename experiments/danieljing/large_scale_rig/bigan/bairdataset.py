@@ -4,7 +4,7 @@ from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset im
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
-from railrl.torch.grill.common import train_gan
+from railrl.torch.grill.gan_experiments import train_gan
 from railrl.torch.gan.bigan import BiGAN
 from railrl.torch.gan.bigan_trainer import BiGANTrainer
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
@@ -14,13 +14,14 @@ from railrl.launchers.config import CELEBA_DATASET
 if __name__ == "__main__":
 
     variant = dict(
-        num_epochs=5, 
+        region="us-west-2",
+        num_epochs=100, 
         dataset = "bair",
         generate_dataset_kwargs=dict(
             image_size = 32,
             flatten = False,
             transpose = [2, 0, 1],
-            shift = 0.5, 
+            shift = 0, 
             train_batch_loader_kwargs=dict(
                 batch_size=100,
                 num_workers=2,
@@ -34,11 +35,11 @@ if __name__ == "__main__":
         gan_class=BiGAN,
         ngpu = 1, 
         beta = 0.5,
-        lr = 1e-4,
+        lr = 0.0002,
         latent_size = 256,
         output_size = 1,
-        dropout = 0,
-        generator_threshold = 0.5,
+        dropout = 0.2,
+        generator_threshold = 3.5,
         #nc = 3,
         #ngf = 
         #ndf = 

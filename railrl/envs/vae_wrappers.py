@@ -167,7 +167,6 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         self.vae.eval()
         # print(self._goal_sampling_mode)
         # if self._goal_sampling_mode == "reset_of_env":
-        #     import ipdb; ipdb.set_trace()
         # TODO: make mode a parameter you pass in
         if self._goal_sampling_mode == 'custom_goal_sampler':
             return self.custom_goal_sampler(batch_size)

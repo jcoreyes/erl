@@ -22,8 +22,6 @@ class DCGANTrainer():
 
     def __init__(self, model, lr, beta, latent_size):
         self.model = model
-        self.netG = self.model.netG
-        self.netD = self. model.netD
         self.device = self.model.device
 
         self.img_list = []
@@ -38,8 +36,8 @@ class DCGANTrainer():
 
         self.fixed_noise = torch.randn(64, self.latent_size, 1, 1, device=self.device)
 
-        self.optimizerD = optim.Adam(self.netD.parameters(), lr=lr, betas=(beta, 0.999))
-        self.optimizerG = optim.Adam(self.netG.parameters(), lr=lr, betas=(beta, 0.999))
+        self.optimizerD = optim.Adam(self.model.netD.parameters(), lr=lr, betas=(beta, 0.999))
+        self.optimizerG = optim.Adam(self.model.netG.parameters(), lr=lr, betas=(beta, 0.999))
    
     @property
     def log_dir(self):
@@ -49,7 +47,7 @@ class DCGANTrainer():
     def train_epoch(self, dataloader, epoch, num_epochs, get_data = lambda d: d):
         for i, data in enumerate(dataloader, 0):
             data = get_data(data)
-            #import ipdb; ipdb.set_trace()
+            import ipdb; ipdb.set_trace()
             ############################
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             ###########################
@@ -60,14 +58,14 @@ class DCGANTrainer():
             real_label = torch.full((b_size,), 1, device=self.device)
             fake_label = torch.full((b_size,), 0, device=self.device)
 
-            real_output = self.netD(real_cpu).view(-1)
+            real_output = self.model.netD(real_cpu).view(-1)
             errD_real = self.criterion(real_output, real_label)
             D_x = real_output.mean().item()
 
             ## Train with all-fake batch
             noise = torch.randn(b_size, self.latent_size, 1, 1, device=self.device)
-            fake = self.netG(noise)
-            fake_output = self.netD(fake.detach()).view(-1)
+            fake = self.model.netG(noise)
+            fake_output = self.model.netD(fake.detach()).view(-1)
             errD_fake = self.criterion(fake_output, fake_label)
             D_G_z1 = fake_output.mean().item()
             errD = errD_real + errD_fake
@@ -75,21 +73,21 @@ class DCGANTrainer():
             ############################
             # (2) Update G network: maximize log(D(G(z)))
             ###########################
-            self.netG.zero_grad()
-            output = self.netD(fake).view(-1)
+            self.model.netG.zero_grad()
+            output = self.model.netD(fake).view(-1)
             errG = self.criterion(output, real_label)
             errG.backward()
             D_G_z2 = output.mean().item()
             self.optimizerG.step()
 
             if errG.item() < 4:
-                self.netD.zero_grad()
+                self.model.netD.zero_grad()
                 errD_real.backward()
                 errD_fake.backward()
                 self.optimizerD.step()
 
 
-            self.netD.zero_grad()
+            self.model.netD.zero_grad()
 
             # Output training stats
             if i % 50 == 0:
@@ -104,7 +102,7 @@ class DCGANTrainer():
             # Check how the generator is doing by saving G's output on fixed_noise
             if (self.iters % 200 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
                 with torch.no_grad():
-                    fake = self.netG(self.fixed_noise).detach().cpu()
+                    fake = self.model.netG(self.fixed_noise).detach().cpu()
                 sample = vutils.make_grid(fake, padding=2, normalize=True)
                 self.img_list.append(sample)
                 self.dump_samples("sample " + str(epoch), self.iters, sample)
@@ -117,6 +115,7 @@ class DCGANTrainer():
         plt.imshow(np.transpose(sample,(1,2,0)))
         save_dir = osp.join(self.log_dir, str(epoch) + '-' + str(iters) + '.png')
         plt.savefig(save_dir)
+        plt.close()
 
     def get_stats(self, epoch):
         stats = OrderedDict()
@@ -131,11 +130,8 @@ class DCGANTrainer():
     def get_D_losses(self):
         return self.D_losses    
 
-    def get_Generator(self):
-        return self.netG
-
-    def get_Discriminator(self):
-        return self.netD
+    def get_model(self):
+        return self.model
 
     def get_img_list(self):
         return self.img_list

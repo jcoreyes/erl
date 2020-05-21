@@ -52,7 +52,7 @@ def sync_down(path, check_exists=True):
         local_path = None
         print("Failed to sync! path: ", path)
         print("Exception: ", e)
-    return local_path
+    return local_path 
 
 
 def sync_down_folder(path):

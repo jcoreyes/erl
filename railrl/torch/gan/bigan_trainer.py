@@ -23,11 +23,8 @@ from torchvision.utils import save_image
 
 class BiGANTrainer():
 
-    def __init__(self, model, ngpu, lr, beta, latent_size, generator_threshold):
+    def __init__(self, model, ngpu, lr, beta, latent_size, generator_threshold, batch_size = None):
         self.model = model
-        self.netE = self.model.netE
-        self.netG = self.model.netG
-        self.netD = self. model.netD
         self.device = self.model.device
 
         self.img_list = []
@@ -41,10 +38,11 @@ class BiGANTrainer():
         self.beta = beta
         self.latent_size = latent_size
         self.generator_threshold = generator_threshold
+        self.batch_size = batch_size
 
-        self.optimizerG = optim.Adam([{'params' : self.netE.parameters()},
-                         {'params' : self.netG.parameters()}], lr=lr, betas=(beta,0.999))
-        self.optimizerD = optim.Adam(self.netD.parameters(), lr=lr, betas=(beta, 0.999))
+        self.optimizerG = optim.Adam([{'params' : self.model.netE.parameters()},
+                         {'params' : self.model.netG.parameters()}], lr=lr, betas=(beta,0.999))
+        self.optimizerD = optim.Adam(self. model.netD.parameters(), lr=lr, betas=(beta, 0.999))
     
    
     @property
@@ -65,11 +63,10 @@ class BiGANTrainer():
 
     def train_epoch(self, dataloader, epoch, num_epochs, get_data = id):
         for i, data in enumerate(dataloader, 0):
-            #import ipdb; ipdb.set_trace()
+            data = get_data(data)
             ############################
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             ###########################
-            data = get_data(data)
             real_d = data.to(self.device).float()
             b_size = real_d.size(0)
 
@@ -80,19 +77,19 @@ class BiGANTrainer():
             noise2 = self.noise(data.size(), num_epochs, epoch)
 
             fake_z = self.fixed_noise(b_size)
-            fake_d = self.netG(fake_z)
+            fake_d = self.model.netG(fake_z)
             # Encoder
-            #real_z, _, _, _ = self.netE(real_d)
-            real_z = torch.zeros([b_size, self.latent_size*2], device = self.device)
+            real_z, _, _, _= self.model.netE(real_d)
+            #real_z = torch.zeros([b_size, self.latent_size*2], device = self.device)
             real_z = real_z.view(b_size, -1)
+            #mu, log_sigma = real_z[:, :self.latent_size], real_z[:, self.latent_size:]
+            #sigma = torch.exp(log_sigma)
+            #epsilon = torch.randn(b_size, self.latent_size, device = self.device)
+            #output_z = mu + epsilon * sigma
+            output_z = real_z
 
-            mu, log_sigma = real_z[:, :self.latent_size], real_z[:, self.latent_size:]
-            sigma = torch.exp(log_sigma)
-            epsilon = torch.randn(b_size, self.latent_size, device = self.device)
-            output_z = mu + epsilon * sigma
-
-            output_real, _ = self.netD(real_d + noise1, output_z.view(b_size, self.latent_size, 1, 1))
-            output_fake, _ = self.netD(fake_d + noise2, fake_z)
+            output_real, _ = self.model.netD(real_d + noise1, output_z.view(b_size, self.latent_size, 1, 1))
+            output_fake, _ = self.model.netD(fake_d + noise2, fake_z)
 
             errD_real = self.criterion(output_real, real_label)
             errD_fake = self.criterion(output_fake, fake_label)
@@ -123,10 +120,10 @@ class BiGANTrainer():
             self.D_losses.setdefault(epoch, []).append(errD.item())
 
             # Check how the generator is doing by saving G's output on fixed_noise
-            if (self.iters % 200 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
+            if (self.iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
                 #import ipdb; ipdb.set_trace()
                 with torch.no_grad():
-                    fake = self.netG(self.fixed_noise(64)).detach().cpu()
+                    fake = self.model.netG(self.fixed_noise(64)).detach().cpu()
                 sample = vutils.make_grid(fake, padding=2, normalize=True)
                 self.img_list.append(sample)
                 self.dump_samples("sample " + str(epoch), self.iters, sample)
@@ -140,6 +137,7 @@ class BiGANTrainer():
         plt.imshow(np.transpose(sample,(1,2,0)))
         save_dir = osp.join(self.log_dir, str(epoch) + '-' + str(iters) + '.png')
         plt.savefig(save_dir)
+        plt.close()
 
     def get_stats(self, epoch):
         stats = OrderedDict()
@@ -154,14 +152,12 @@ class BiGANTrainer():
     def get_D_losses(self):
         return self.D_losses    
 
-    def get_Encoder(self):
-        return self.netE
+    def get_model(self):
+        return self.model
 
-    def get_Generator(self):
-        return self.netG
-
-    def get_Discriminator(self):
-        return self.netD
 
     def get_img_list(self):
         return self.img_list
+
+    def get_diagnostics(self):
+        return {}
