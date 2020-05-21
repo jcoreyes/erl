@@ -7,7 +7,7 @@ from railrl.exploration_strategies.base import \
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.launchers.launcher_util import setup_logger, run_experiment
 from railrl.torch.her.her_td3 import HerTd3
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 import railrl.misc.hyperparameter as hyp
 
 
@@ -22,12 +22,12 @@ def experiment(variant):
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     goal_dim = env.goal_dim
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         hidden_sizes=[400, 300],
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         hidden_sizes=[400, 300],

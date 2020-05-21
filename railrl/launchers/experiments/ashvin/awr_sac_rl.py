@@ -1,11 +1,12 @@
 import gym
 from railrl.data_management.awr_env_replay_buffer import AWREnvReplayBuffer
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWrapperEnv
 import railrl.torch.pytorch_util as ptu
-from railrl.samplers.data_collector import MdpPathCollector
+from railrl.samplers.data_collector import MdpPathCollector, ObsDictPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.awr_sac import AWRSACTrainer
 from railrl.torch.torch_rl_algorithm import (
@@ -13,11 +14,13 @@ from railrl.torch.torch_rl_algorithm import (
     TorchOnlineRLAlgorithm,
 )
 
+from railrl.demos.source.hdf5_path_loader import HDF5PathLoader
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
-from railrl.visualization.video import save_paths
+from railrl.visualization.video import save_paths, VideoSaveFunction
 
 from multiworld.core.flat_goal_env import FlatGoalEnv
 from multiworld.core.image_env import ImageEnv
+from multiworld.core.gym_to_multi_env import GymToMultiEnv
 
 from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
 from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
@@ -34,6 +37,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 import os.path as osp
 from railrl.core import logger
 from railrl.misc.asset_loader import load_local_or_remote_file
+import pickle
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
@@ -105,7 +109,7 @@ ENV_PARAMS = {
     },
 
     'pen-sparse-v0': {
-        'env_id': 'pen-v0',
+        'env_id': 'pen-binary-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
@@ -124,7 +128,7 @@ ENV_PARAMS = {
         ),
     },
     'door-sparse-v0': {
-        'env_id': 'door-v0',
+        'env_id': 'door-binary-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
@@ -142,7 +146,7 @@ ENV_PARAMS = {
         ),
     },
     'relocate-sparse-v0': {
-        'env_id': 'relocate-v0',
+        'env_id': 'relocate-binary-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
@@ -159,7 +163,7 @@ ENV_PARAMS = {
         ),
     },
     'hammer-sparse-v0': {
-        'env_id': 'hammer-v0',
+        'env_id': 'hammer-binary-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
@@ -258,37 +262,75 @@ def resume(variant):
 
     algo.train()
 
+def process_args(variant):
+    if variant.get("debug", False):
+        variant['max_path_length'] = 50
+        variant['batch_size'] = 5
+        variant['num_epochs'] = 5
+        variant['num_eval_steps_per_epoch'] = 100
+        variant['num_expl_steps_per_train_loop'] = 100
+        variant['num_trains_per_train_loop'] = 10
+        variant['min_num_steps_before_training'] = 100
+        variant['trainer_kwargs']['bc_num_pretrain_steps'] = min(10, variant['trainer_kwargs'].get('bc_num_pretrain_steps', 0))
+        variant['trainer_kwargs']['q_num_pretrain1_steps'] = min(10, variant['trainer_kwargs'].get('q_num_pretrain1_steps', 0))
+        variant['trainer_kwargs']['q_num_pretrain2_steps'] = min(10, variant['trainer_kwargs'].get('q_num_pretrain2_steps', 0))
+
 def experiment(variant):
     if variant.get("pretrained_algorithm_path", False):
         resume(variant)
         return
 
-    if 'env' in variant:
-        env_params = ENV_PARAMS[variant['env']]
-        variant.update(env_params)
+    # if 'env' in variant:
+    env_params = ENV_PARAMS.get(variant['env'], {})
+    variant.update(env_params)
+    env_name = variant.get("env")
+    env_id = variant.get('env_id', None)
+    env_class = variant.get('env_class', None)
 
-        if 'env_id' in env_params:
-            if env_params['env_id'] in ['pen-v0', 'pen-sparse-v0', 'door-v0', 'relocate-v0', 'hammer-v0',
-                                        'pen-sparse-v0', 'door-sparse-v0', 'relocate-sparse-v0', 'hammer-sparse-v0']:
-                import mj_envs
-            expl_env = gym.make(env_params['env_id'])
-            eval_env = gym.make(env_params['env_id'])
-        else:
-            expl_env = NormalizedBoxEnv(variant['env_class']())
-            eval_env = NormalizedBoxEnv(variant['env_class']())
-
-        if variant.get('sparse_reward', False):
-            expl_env = RewardWrapperEnv(expl_env, compute_hand_sparse_reward)
-            eval_env = RewardWrapperEnv(eval_env, compute_hand_sparse_reward)
-
-        if variant.get('add_env_demos', False):
-            variant["path_loader_kwargs"]["demo_paths"].append(variant["env_demo_path"])
-
-        if variant.get('add_env_offpolicy_data', False):
-            variant["path_loader_kwargs"]["demo_paths"].append(variant["env_offpolicy_data_path"])
+    if env_name in [
+        'pen-v0', 'pen-sparse-v0', 'door-v0', 'relocate-v0', 'hammer-v0',
+        'pen-sparse-v0', 'door-sparse-v0', 'relocate-sparse-v0', 'hammer-sparse-v0'
+    ]:
+        import mj_envs
+        expl_env = gym.make(env_params['env_id'])
+        eval_env = gym.make(env_params['env_id'])
+    elif env_name in [ # D4RL envs
+        "maze2d-open-v0", "maze2d-umaze-v0", "maze2d-medium-v0", "maze2d-large-v0",
+        "maze2d-open-dense-v0", "maze2d-umaze-dense-v0", "maze2d-medium-dense-v0", "maze2d-large-dense-v0",
+        "antmaze-umaze-v0", "antmaze-umaze-diverse-v0", "antmaze-medium-diverse-v0",
+        "antmaze-medium-play-v0", "antmaze-large-diverse-v0", "antmaze-large-play-v0",
+        "pen-human-v0", "pen-cloned-v0", "pen-expert-v0", "hammer-human-v0", "hammer-cloned-v0", "hammer-expert-v0",
+        "door-human-v0", "door-cloned-v0", "door-expert-v0", "relocate-human-v0", "relocate-cloned-v0", "relocate-expert-v0",
+        "halfcheetah-random-v0", "halfcheetah-medium-v0", "halfcheetah-expert-v0", "halfcheetah-mixed-v0", "halfcheetah-medium-expert-v0",
+        "walker2d-random-v0", "walker2d-medium-v0", "walker2d-expert-v0", "walker2d-mixed-v0", "walker2d-medium-expert-v0",
+        "hopper-random-v0", "hopper-medium-v0", "hopper-expert-v0", "hopper-mixed-v0", "hopper-medium-expert-v0"
+    ]:
+        import d4rl
+        expl_env = gym.make(env_name)
+        eval_env = gym.make(env_name)
+    elif env_id:
+        expl_env = NormalizedBoxEnv(gym.make(env_id))
+        eval_env = NormalizedBoxEnv(gym.make(env_id))
+    elif env_class:
+        expl_env = NormalizedBoxEnv(env_class())
+        eval_env = NormalizedBoxEnv(env_class())
     else:
-        expl_env = encoder_wrapped_env(variant)
-        eval_env = encoder_wrapped_env(variant)
+        expl_env = NormalizedBoxEnv(variant['env']())
+        eval_env = NormalizedBoxEnv(variant['env']())
+
+
+    # if variant.get('sparse_reward', False):
+    #     expl_env = RewardWrapperEnv(expl_env, compute_hand_sparse_reward)
+    #     eval_env = RewardWrapperEnv(eval_env, compute_hand_sparse_reward)
+
+    if variant.get('add_env_demos', False):
+        variant["path_loader_kwargs"]["demo_paths"].append(variant["env_demo_path"])
+
+    if variant.get('add_env_offpolicy_data', False):
+        variant["path_loader_kwargs"]["demo_paths"].append(variant["env_offpolicy_data_path"])
+    # else:
+    #     expl_env = encoder_wrapped_env(variant)
+    #     eval_env = encoder_wrapped_env(variant)
 
     path_loader_kwargs = variant.get("path_loader_kwargs", {})
     stack_obs = path_loader_kwargs.get("stack_obs", 1)
@@ -303,39 +345,49 @@ def experiment(variant):
     else:
         env_info_sizes = dict()
 
-    M = variant['layer_size']
-    qf1 = FlattenMlp(
+    qf_kwargs = variant.get("qf_kwargs", {})
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
+        **qf_kwargs
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
+        **qf_kwargs
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
+        **qf_kwargs
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[M, M],
-    )
-    policy_class = variant.get("policy_class", TanhGaussianPolicy)
-    policy = policy_class(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        **variant['policy_kwargs'],
+        **qf_kwargs
     )
 
-    buffer_policy = policy_class(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        **variant['policy_kwargs'],
-    )
+    policy_class = variant.get("policy_class", TanhGaussianPolicy)
+    policy_kwargs = variant['policy_kwargs']
+    policy_path = variant.get("policy_path", False)
+    if policy_path:
+        policy = load_local_or_remote_file(policy_path)
+    else:
+        policy = policy_class(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            **policy_kwargs,
+        )
+    buffer_policy_path = variant.get("buffer_policy_path", False)
+    if buffer_policy_path:
+        buffer_policy = load_local_or_remote_file(buffer_policy_path)
+    else:
+        buffer_policy_class = variant.get("buffer_policy_class", policy_class)
+        buffer_policy = buffer_policy_class(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            **variant.get("buffer_policy_kwargs", policy_kwargs),
+        )
 
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
@@ -395,7 +447,15 @@ def experiment(variant):
     replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
         **main_replay_buffer_kwargs,
     )
-    trainer = AWRSACTrainer(
+    if variant.get('use_validation_buffer', False):
+        train_replay_buffer = replay_buffer
+        validation_replay_buffer = variant.get('replay_buffer_class', EnvReplayBuffer)(
+            **main_replay_buffer_kwargs,
+        )
+        replay_buffer = SplitReplayBuffer(train_replay_buffer, validation_replay_buffer, 0.9)
+
+    trainer_class = variant.get("trainer_class", AWRSACTrainer)
+    trainer = trainer_class(
         env=eval_env,
         policy=policy,
         qf1=qf1,
@@ -454,6 +514,28 @@ def experiment(variant):
         **replay_buffer_kwargs,
     )
 
+    if variant.get("save_video", False):
+        if variant.get("presampled_goals", None):
+            variant['image_env_kwargs']['presampled_goals'] = load_local_or_remote_file(variant['presampled_goals']).item()
+        image_eval_env = ImageEnv(GymToMultiEnv(eval_env), **variant["image_env_kwargs"])
+        image_eval_path_collector = ObsDictPathCollector(
+            image_eval_env,
+            eval_policy,
+            observation_key="state_observation",
+        )
+        image_expl_env = ImageEnv(GymToMultiEnv(expl_env), **variant["image_env_kwargs"])
+        image_expl_path_collector = ObsDictPathCollector(
+            image_expl_env,
+            expl_policy,
+            observation_key="state_observation",
+        )
+        video_func = VideoSaveFunction(
+            image_eval_env,
+            variant,
+            image_expl_path_collector,
+            image_eval_path_collector,
+        )
+        algorithm.post_train_funcs.append(video_func)
     if variant.get('save_paths', False):
         algorithm.post_train_funcs.append(save_paths)
     if variant.get('load_demos', False):
@@ -465,8 +547,38 @@ def experiment(variant):
             **path_loader_kwargs
         )
         path_loader.load_demos()
+    if variant.get('load_env_dataset_demos', False):
+        path_loader_class = variant.get('path_loader_class', HDF5PathLoader)
+        path_loader = path_loader_class(trainer,
+            replay_buffer=replay_buffer,
+            demo_train_buffer=demo_train_buffer,
+            demo_test_buffer=demo_test_buffer,
+            **path_loader_kwargs
+        )
+        path_loader.load_demos(expl_env.get_dataset())
+    if variant.get('save_initial_buffers', False):
+        buffers = dict(
+            replay_buffer=replay_buffer,
+            demo_train_buffer=demo_train_buffer,
+            demo_test_buffer=demo_test_buffer,
+        )
+        buffer_path = osp.join(logger.get_snapshot_dir(), 'buffers.p')
+        pickle.dump(buffers, open(buffer_path, "wb"))
+    if variant.get('pretrain_buffer_policy', False):
+        trainer.pretrain_policy_with_bc(
+            buffer_policy,
+            replay_buffer.train_replay_buffer,
+            replay_buffer.validation_replay_buffer,
+            10000,
+            label="buffer",
+        )
     if variant.get('pretrain_policy', False):
-        trainer.pretrain_policy_with_bc()
+        trainer.pretrain_policy_with_bc(
+            policy,
+            demo_train_buffer,
+            demo_test_buffer,
+            trainer.bc_num_pretrain_steps,
+        )
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
     if variant.get('save_pretrained_algorithm', False):

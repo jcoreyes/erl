@@ -12,7 +12,7 @@ from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.torch.her.her_td3 import HerTd3
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.her.her_twin_sac import HerTwinSac
 from railrl.torch.her.her_sac import HerSac
@@ -55,12 +55,12 @@ def her_td3_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -107,17 +107,17 @@ def her_twin_sac_experiment(variant):
     goal_dim = env.observation_space.spaces['desired_goal'].low.size
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    vf = FlattenMlp(
+    vf = ConcatMlp(
         input_size=obs_dim + goal_dim,
         output_size=1,
         **variant['vf_kwargs']
@@ -161,12 +161,12 @@ def her_sac_experiment(variant):
     goal_dim = env.observation_space.spaces['desired_goal'].low.size
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    vf = FlattenMlp(
+    vf = ConcatMlp(
         input_size=obs_dim + goal_dim,
         output_size=1,
         **variant['vf_kwargs']

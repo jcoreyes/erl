@@ -3,11 +3,11 @@ import torch
 
 from railrl.state_distance.policies import UniversalPolicy
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.networks import TanhMlpPolicy, FlattenMlp
+from railrl.torch.networks import TanhMlpPolicy, ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy
 
 
-class TdmQf(FlattenMlp):
+class TdmQf(ConcatMlp):
     def __init__(
             self,
             env,
@@ -68,7 +68,7 @@ class TdmQf(FlattenMlp):
         self.norm_order = norm_order
         self.learn_offset = learn_offset
         if learn_offset:
-            self.offset_network = FlattenMlp(
+            self.offset_network = ConcatMlp(
                 input_size=(
                     self.observation_dim + self.action_dim + self.goal_dim + 1
                 ),
@@ -110,7 +110,7 @@ class TdmQf(FlattenMlp):
         return output
 
 
-class TdmVf(FlattenMlp):
+class TdmVf(ConcatMlp):
     def __init__(
             self,
             env,

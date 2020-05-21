@@ -18,7 +18,7 @@ from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
 import railrl.misc.hyperparameter as hyp
@@ -91,22 +91,22 @@ def experiment(variant):
     action_dim = eval_env.action_space.low.size
 
     M = variant['layer_size']
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
@@ -205,11 +205,11 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev'
+    exp_name = 'dev'
 
     # n_seeds = 5
     # mode = 'sss'
-    # exp_prefix = 'railrl-half-cheetah-online'
+    # exp_name = 'railrl-half-cheetah-online'
 
     search_space = {
         'env': [
@@ -228,11 +228,12 @@ if __name__ == "__main__":
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
+            variant['exp_id'] = exp_id
             run_experiment(
                 experiment,
-                exp_prefix=exp_prefix,
+                unpack_variant=False,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
-                exp_id=exp_id,
                 time_in_mins=int(2.8 * 24 * 60),  # if you use mode=sss
             )

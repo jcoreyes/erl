@@ -45,11 +45,19 @@ def contextual_rollout(
         env,
         agent,
         observation_key=None,
-        context_key='context',
+        context_keys_for_policy=None,
+        obs_processor=None,
         **kwargs
 ):
-    def obs_processor(o):
-        return np.hstack((o[observation_key], o[context_key]))
+    if context_keys_for_policy is None:
+        context_keys_for_policy = ['context']
+
+    if not obs_processor:
+        def obs_processor(o):
+            combined_obs = [o[observation_key]]
+            for k in context_keys_for_policy:
+                combined_obs.append(o[k])
+            return np.concatenate(combined_obs, axis=0)
     paths = rollout(
         env,
         agent,
@@ -69,6 +77,7 @@ def rollout(
         get_action_kwargs=None,
         return_dict_obs=False,
         full_o_postprocess_func=None,
+        reset_callback=None,
 ):
     if render_kwargs is None:
         render_kwargs = {}
@@ -88,12 +97,14 @@ def rollout(
     path_length = 0
     agent.reset()
     o = env.reset()
+    if reset_callback:
+        reset_callback(env, agent, o)
     if render:
         env.render(**render_kwargs)
     while path_length < max_path_length:
         raw_obs.append(o)
-        a, agent_info = agent.get_action(
-            preprocess_obs_for_policy_fn(o), **get_action_kwargs)
+        o_for_agent = preprocess_obs_for_policy_fn(o)
+        a, agent_info = agent.get_action(o_for_agent, **get_action_kwargs)
 
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)

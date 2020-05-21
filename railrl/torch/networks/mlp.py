@@ -7,7 +7,8 @@ from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule, eval_np
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.modules import LayerNorm
+from railrl.torch.networks.experimental import LayerNorm
+from railrl.torch.pytorch_util import activation_from_string
 
 
 class Mlp(PyTorchModule):
@@ -70,13 +71,71 @@ class Mlp(PyTorchModule):
             return output
 
 
-class FlattenMlp(Mlp):
+class MultiHeadedMlp(Mlp):
     """
-    Flatten inputs along dim 1 and then pass through MLP.
+                   .-> linear head 0
+                  /
+    input --> MLP ---> linear head 1
+                  \
+                   .-> linear head 2
     """
+    def __init__(
+            self,
+            hidden_sizes,
+            output_sizes,
+            input_size,
+            init_w=3e-3,
+            hidden_activation=F.relu,
+            output_activations=None,
+            hidden_init=ptu.fanin_init,
+            b_init_value=0.,
+            layer_norm=False,
+            layer_norm_kwargs=None,
+    ):
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            output_size=sum(output_sizes),
+            input_size=input_size,
+            init_w=init_w,
+            hidden_activation=hidden_activation,
+            hidden_init=hidden_init,
+            b_init_value=b_init_value,
+            layer_norm=layer_norm,
+            layer_norm_kwargs=layer_norm_kwargs,
+        )
+        self._splitter = SplitIntoManyHeads(
+            output_sizes,
+            output_activations,
+        )
+
+    def forward(self, input):
+        flat_outputs = super().forward(input)
+        return self._splitter(flat_outputs)
+
+
+class ConcatMultiHeadedMlp(MultiHeadedMlp):
+    """
+    Concatenate inputs along dimension and then pass through MultiHeadedMlp.
+    """
+    def __init__(self, *args, dim=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dim = dim
 
     def forward(self, *inputs, **kwargs):
-        flat_inputs = torch.cat(inputs, dim=1)
+        flat_inputs = torch.cat(inputs, dim=self.dim)
+        return super().forward(flat_inputs, **kwargs)
+
+
+class ConcatMlp(Mlp):
+    """
+    Concatenate inputs along dimension and then pass through MLP.
+    """
+    def __init__(self, *args, dim=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dim = dim
+
+    def forward(self, *inputs, **kwargs):
+        flat_inputs = torch.cat(inputs, dim=self.dim)
         return super().forward(flat_inputs, **kwargs)
 
 
@@ -116,7 +175,7 @@ class TanhMlpPolicy(MlpPolicy):
         super().__init__(*args, output_activation=torch.tanh, **kwargs)
 
 
-class MlpQf(FlattenMlp):
+class MlpQf(ConcatMlp):
     def __init__(
             self,
             *args,
@@ -164,3 +223,49 @@ class MlpGoalQfWithObsProcessor(Mlp):
             h_g = h_g.detach()
         flat_inputs = torch.cat((h_s, h_g, actions), dim=1)
         return super().forward(flat_inputs, **kwargs)
+
+
+class SplitIntoManyHeads(nn.Module):
+    """
+           .-> head 0
+          /
+    input ---> head 1
+          \
+           '-> head 2
+    """
+    def __init__(
+            self,
+            output_sizes,
+            output_activations=None,
+    ):
+        super().__init__()
+        if output_activations is None:
+            output_activations = ['identity' for _ in output_sizes]
+        else:
+            if len(output_activations) != len(output_sizes):
+                raise ValueError("output_activation and output_sizes must have "
+                                 "the same length")
+
+        self._output_narrow_params = []
+        self._output_activations = []
+        for output_activation in output_activations:
+            if isinstance(output_activation, str):
+                output_activation = activation_from_string(output_activation)
+            self._output_activations.append(output_activation)
+        start_idx = 0
+        for output_size in output_sizes:
+            self._output_narrow_params.append((start_idx, output_size))
+            start_idx = start_idx + output_size
+
+    def forward(self, flat_outputs):
+        pre_activation_outputs = tuple(
+            flat_outputs.narrow(1, start, length)
+            for start, length in self._output_narrow_params
+        )
+        outputs = tuple(
+            activation(x)
+            for activation, x in zip(
+                self._output_activations, pre_activation_outputs
+            )
+        )
+        return outputs

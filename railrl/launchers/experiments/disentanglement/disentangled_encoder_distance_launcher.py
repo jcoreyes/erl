@@ -18,7 +18,7 @@ from railrl.torch.disentanglement.encoder_wrapped_env import (
     EncoderWrappedEnv, EncoderFromNetwork,
 )
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import (
     TanhGaussianPolicy,
     MakeDeterministic,
@@ -82,7 +82,7 @@ def _use_disentangled_encoder_distance(
     )
     action_dim = raw_train_env.action_space.low.size
 
-    encoder = FlattenMlp(
+    encoder = ConcatMlp(
         input_size=raw_obs_dim,
         output_size=latent_dim,
         **encoder_kwargs
@@ -110,7 +110,7 @@ def _use_disentangled_encoder_distance(
 
     def make_qf():
         return DisentangledMlpQf(
-            goal_processor=encoder,
+            encoder=encoder,
             preprocess_obs_dim=obs_dim,
             action_dim=action_dim,
             qf_kwargs=qf_kwargs,

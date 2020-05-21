@@ -8,7 +8,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.samplers.data_collector.path_collector import ObsDictPathCollector
 from railrl.samplers.data_collector.step_collector import ObsDictStepCollector
 from railrl.torch.networks import (
-    FlattenMlp, MergedCNN, PretrainedCNN, Flatten,
+    ConcatMlp, MergedCNN, PretrainedCNN, Flatten,
     MlpQfWithObsProcessor,
 )
 from railrl.torch.sac.policies import (
@@ -36,7 +36,7 @@ def experiment(variant):
     )
     from railrl.torch.her.her import HERTrainer
     from railrl.torch.td3.td3 import TD3 as TD3Trainer
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
     from railrl.samplers.data_collector import GoalConditionedPathCollector
     from railrl.torch.grill.launcher import (
@@ -64,12 +64,12 @@ def experiment(variant):
             + expl_env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = expl_env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -79,12 +79,12 @@ def experiment(variant):
         output_size=action_dim,
         **variant['policy_kwargs']
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']

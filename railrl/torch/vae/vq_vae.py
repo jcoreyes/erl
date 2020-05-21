@@ -6,17 +6,15 @@ from torch import nn
 from torch.nn import functional as F
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy, MlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy, MlpPolicy
 from railrl.torch.networks import CNN, TwoHeadDCNN, DCNN
 from railrl.torch.vae.vae_base import compute_bernoulli_log_prob, compute_gaussian_log_prob, GaussianLatentVAE
 from railrl.torch.vae.conv_vae import ConvVAE
 import torch.nn as nn
-
-import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.normal import Normal
 from torch.distributions import kl_divergence
+
 
 class Residual(nn.Module):
     def __init__(self, in_channels, num_hiddens, num_residual_hiddens):
@@ -244,7 +242,7 @@ class VectorQuantizerEMA(nn.Module):
 class VQ_VAE(nn.Module):
     def __init__(
         self,
-        representation_size,
+        embedding_dim,
         input_channels=3,
         num_hiddens=128,
         num_residual_layers=3,
@@ -257,7 +255,7 @@ class VQ_VAE(nn.Module):
         decay=0):
         super(VQ_VAE, self).__init__()
         self.imsize = imsize
-        self.representation_size = representation_size
+        self.embedding_dim = embedding_dim
         self.pixel_cnn = None
         self.input_channels = input_channels
         self.imlength = imsize * imsize * input_channels
@@ -266,19 +264,20 @@ class VQ_VAE(nn.Module):
                                 num_residual_layers,
                                 num_residual_hiddens)
         self._pre_vq_conv = nn.Conv2d(in_channels=num_hiddens,
-                                      out_channels=representation_size,
+                                      out_channels=self.embedding_dim,
                                       kernel_size=1,
                                       stride=1)
         if decay > 0.0:
-            self._vq_vae = VectorQuantizerEMA(num_embeddings, representation_size,
+            self._vq_vae = VectorQuantizerEMA(num_embeddings, self.embedding_dim,
                                               commitment_cost, decay)
         else:
-            self._vq_vae = VectorQuantizer(num_embeddings, representation_size,
+            self._vq_vae = VectorQuantizer(num_embeddings, self.embedding_dim,
                                            commitment_cost)
-        self._decoder = Decoder(representation_size,
+        self._decoder = Decoder(self.embedding_dim,
                                 num_hiddens,
                                 num_residual_layers,
                                 num_residual_hiddens)
+        self.representation_size = 0
 
     def compute_loss(self, inputs):
         inputs = inputs.view(-1,
@@ -288,10 +287,14 @@ class VQ_VAE(nn.Module):
         z = self._encoder(inputs)
         z = self._pre_vq_conv(z)
         vq_loss, quantized, perplexity, _ = self._vq_vae(z)
-        
+
+        if self.representation_size == 0:
+            self.representation_size = quantized[0].flatten().shape[0]
+
         x_recon = self._decoder(quantized)
         recon_error = F.mse_loss(x_recon, inputs)
         return vq_loss, quantized, x_recon, perplexity, recon_error
+
 
     def latent_to_square(self, latents):
         squared_len = int(latents.shape[1] ** 0.5)
@@ -313,17 +316,17 @@ class VQ_VAE(nn.Module):
 
     def discrete_to_cont(self, e_indices):
         e_indices = self.latent_to_square(e_indices)
-        input_shape = e_indices.shape + (self.representation_size,)
+        input_shape = e_indices.shape + (self.embedding_dim,)
         e_indices = e_indices.reshape(-1).unsqueeze(1)
-        
+
         min_encodings = torch.zeros(e_indices.shape[0], self.num_embeddings, device=e_indices.device)
         min_encodings.scatter_(1, e_indices, 1)
-        
+
         e_weights = self._vq_vae._embedding.weight
         quantized = torch.matmul(
             min_encodings, e_weights).view(input_shape)
-        
-        z_q = torch.matmul(min_encodings, e_weights).view(input_shape) 
+
+        z_q = torch.matmul(min_encodings, e_weights).view(input_shape)
         z_q = z_q.permute(0, 3, 1, 2).contiguous()
         return z_q
 
@@ -343,8 +346,8 @@ class VQ_VAE(nn.Module):
     def decode(self, latents, cont=False):
         z_q = None
         if cont:
-            squared_len = int((latents.shape[1] / self.representation_size) ** 0.5)
-            z_q = latents.reshape(-1, self.representation_size, squared_len, squared_len)
+            squared_len = int((latents.shape[1] / self.embedding_dim) ** 0.5)
+            z_q = latents.reshape(-1, self.embedding_dim, squared_len, squared_len)
         else:
             z_q = self.discrete_to_cont(latents)
 
@@ -353,17 +356,17 @@ class VQ_VAE(nn.Module):
     # def generate_samples(self, e_indices):
     #     input_shape = e_indices.shape + (self.representation_size,)
     #     e_indices = e_indices.reshape(-1).unsqueeze(1)#, input_shape[1]*input_shape[2])
-        
+
     #     min_encodings = torch.zeros(e_indices.shape[0], self.num_embeddings, device=e_indices.device)
     #     min_encodings.scatter_(1, e_indices, 1)
-        
+
     #     e_weights = self._vq_vae._embedding.weight
     #     quantized = torch.matmul(
     #         min_encodings, e_weights).view(input_shape)
-        
-    #     z_q = torch.matmul(min_encodings, e_weights).view(input_shape) 
+
+    #     z_q = torch.matmul(min_encodings, e_weights).view(input_shape)
     #     z_q = z_q.permute(0, 3, 1, 2).contiguous()
-     
+
     #     x_recon = self._decoder(z_q)
     #     return x_recon
 
@@ -374,7 +377,10 @@ class VQ_VAE(nn.Module):
         g_q = self.discrete_to_cont(g_indices).reshape(batch_size, -1)
         return ptu.get_numpy(torch.norm(s_q - g_q, dim=1))
 
-    def sample_prior(self, batch_size):
+    def sample_prior(self, batch_size, cont=True):
         e_indices = self.pixel_cnn.generate(shape=(12, 12), batch_size=batch_size)
-        return e_indices.reshape(batch_size, -1)
+        e_indices = e_indices.reshape(batch_size, -1)
+        if cont:
+            return self.discrete_to_cont(e_indices)
+        return e_indices
 

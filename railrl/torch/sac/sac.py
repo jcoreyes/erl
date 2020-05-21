@@ -1,21 +1,21 @@
 from collections import OrderedDict, namedtuple
+from typing import Tuple
 
 import numpy as np
 import torch
 import torch.optim as optim
-from railrl.core.loss import LossFunction
+from railrl.core.loss import LossFunction, LossStatistics
 from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchTrainer
-
+from railrl.core.logging import add_prefix
 
 SACLosses = namedtuple(
     'SACLosses',
     'policy_loss qf1_loss qf2_loss alpha_loss',
 )
-
 
 class SACTrainer(TorchTrainer, LossFunction):
     def __init__(
@@ -54,10 +54,12 @@ class SACTrainer(TorchTrainer, LossFunction):
 
         self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
         if self.use_automatic_entropy_tuning:
-            if target_entropy:
-                self.target_entropy = target_entropy
+            if target_entropy is None:
+                # Use heuristic value from SAC paper
+                self.target_entropy = -np.prod(
+                    self.env.action_space.shape).item()
             else:
-                self.target_entropy = -np.prod(self.env.action_space.shape).item()  # heuristic value from Tuomas
+                self.target_entropy = target_entropy
             self.log_alpha = ptu.zeros(1, requires_grad=True)
             self.alpha_optimizer = optimizer_class(
                 [self.log_alpha],
@@ -85,22 +87,22 @@ class SACTrainer(TorchTrainer, LossFunction):
 
         self.discount = discount
         self.reward_scale = reward_scale
-        self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
+        self.eval_statistics = OrderedDict()
 
     def train_from_torch(self, batch):
-        losses = self.compute_loss(
+        losses, stats = self.compute_loss(
             batch,
-            update_eval_statistics=self._need_to_update_eval_statistics,
+            skip_statistics=not self._need_to_update_eval_statistics,
         )
-
         """
         Update networks
         """
-        self.alpha_optimizer.zero_grad()
-        losses.alpha_loss.backward()
-        self.alpha_optimizer.step()
+        if self.use_automatic_entropy_tuning:
+            self.alpha_optimizer.zero_grad()
+            losses.alpha_loss.backward()
+            self.alpha_optimizer.step()
 
         self.qf1_optimizer.zero_grad()
         losses.qf1_loss.backward()
@@ -114,13 +116,17 @@ class SACTrainer(TorchTrainer, LossFunction):
         losses.policy_loss.backward()
         self.policy_optimizer.step()
 
-        if self._n_train_steps_total % self.target_update_period == 0:
-            self.update_target_networks()
         self._n_train_steps_total += 1
 
+        self.try_update_target_networks()
         if self._need_to_update_eval_statistics:
+            self.eval_statistics = stats
             # Compute statistics using only one batch per epoch
             self._need_to_update_eval_statistics = False
+
+    def try_update_target_networks(self):
+        if self._n_train_steps_total % self.target_update_period == 0:
+            self.update_target_networks()
 
     def update_target_networks(self):
         ptu.soft_update_from_to(
@@ -131,8 +137,10 @@ class SACTrainer(TorchTrainer, LossFunction):
         )
 
     def compute_loss(
-            self, batch, update_eval_statistics=False,
-    ) -> SACLosses:
+        self,
+        batch,
+        skip_statistics=False,
+    ) -> Tuple[SACLosses, LossStatistics]:
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -142,9 +150,9 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         Policy and Alpha Loss
         """
-        new_obs_actions, policy_mean, policy_log_std, log_pi, *_ = self.policy(
-            obs, reparameterize=True, return_log_prob=True,
-        )
+        dist = self.policy(obs)
+        new_obs_actions, log_pi = dist.rsample_and_logprob()
+        log_pi = log_pi.unsqueeze(-1)
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
             alpha = self.log_alpha.exp()
@@ -163,9 +171,9 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         q1_pred = self.qf1(obs, actions)
         q2_pred = self.qf2(obs, actions)
-        new_next_actions, _, _, new_log_pi, *_ = self.policy(
-            next_obs, reparameterize=True, return_log_prob=True,
-        )
+        next_dist = self.policy(next_obs)
+        new_next_actions, new_log_pi = next_dist.rsample_and_logprob()
+        new_log_pi = new_log_pi.unsqueeze(-1)
         target_q_values = torch.min(
             self.target_qf1(next_obs, new_next_actions),
             self.target_qf2(next_obs, new_next_actions),
@@ -178,48 +186,45 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         Save some statistics for eval
         """
-        if update_eval_statistics:
+        eval_statistics = OrderedDict()
+        if not skip_statistics:
             policy_loss = (log_pi - q_new_actions).mean()
 
-            self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
-            self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
-            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
+            eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
+            eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
+            eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Q1 Predictions',
                 ptu.get_numpy(q1_pred),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Q2 Predictions',
                 ptu.get_numpy(q2_pred),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Q Targets',
                 ptu.get_numpy(q_target),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
+            eval_statistics.update(create_stats_ordered_dict(
                 'Log Pis',
                 ptu.get_numpy(log_pi),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Policy mu',
-                ptu.get_numpy(policy_mean),
-            ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Policy log std',
-                ptu.get_numpy(policy_log_std),
-            ))
+            policy_statistics = add_prefix(dist.get_diagnostics(), "policy/")
+            eval_statistics.update(policy_statistics)
             if self.use_automatic_entropy_tuning:
-                self.eval_statistics['Alpha'] = alpha.item()
-                self.eval_statistics['Alpha Loss'] = alpha_loss.item()
+                eval_statistics['Alpha'] = alpha.item()
+                eval_statistics['Alpha Loss'] = alpha_loss.item()
 
-        return SACLosses(
+        loss = SACLosses(
             policy_loss=policy_loss,
             qf1_loss=qf1_loss,
             qf2_loss=qf2_loss,
             alpha_loss=alpha_loss,
         )
+
+        return loss, eval_statistics
 
     def get_diagnostics(self):
         stats = super().get_diagnostics()
@@ -237,6 +242,15 @@ class SACTrainer(TorchTrainer, LossFunction):
             self.qf2,
             self.target_qf1,
             self.target_qf2,
+        ]
+
+    @property
+    def optimizers(self):
+        return [
+            self.alpha_optimizer,
+            self.qf1_optimizer,
+            self.qf2_optimizer,
+            self.policy_optimizer,
         ]
 
     def get_snapshot(self):

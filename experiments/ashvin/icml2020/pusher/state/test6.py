@@ -4,7 +4,7 @@ AWR + SAC from demo experiment
 
 from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
-from railrl.launchers.experiments.ashvin.awr_sac_gcrl import experiment
+from railrl.launchers.experiments.ashvin.awr_sac_gcrl import experiment, process_args
 
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
@@ -27,6 +27,10 @@ if __name__ == "__main__":
             max_size=int(1E6),
             fraction_goals_rollout_goals=0.2,
             fraction_goals_env_goals=0.5,
+        ),
+        demo_replay_buffer_kwargs=dict(
+            fraction_goals_rollout_goals=1.0,
+            fraction_goals_env_goals=0.0,
         ),
 
         layer_size=256,
@@ -135,4 +139,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(experiment, variants, run_id=0)
+    run_variants(experiment, variants, process_args)

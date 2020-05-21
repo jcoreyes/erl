@@ -2,7 +2,7 @@ from railrl.envs.wrappers import StackObservationEnv, RewardWrapperEnv
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.awr_sac import AWRSACTrainer
 from railrl.torch.torch_rl_algorithm import (
@@ -53,6 +53,10 @@ def process_args(variant):
         variant['num_expl_steps_per_train_loop'] = 100
         variant['num_trains_per_train_loop'] = 10
         variant['min_num_steps_before_training'] = 100
+        variant['min_num_steps_before_training'] = 100
+        variant['trainer_kwargs']['bc_num_pretrain_steps'] = 10
+        variant['trainer_kwargs']['q_num_pretrain1_steps'] = 10
+        variant['trainer_kwargs']['q_num_pretrain2_steps'] = 10
 
 def experiment(variant):
     render = variant.get("render", False)
@@ -132,22 +136,22 @@ def experiment(variant):
     )
 
     M = variant['layer_size']
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],

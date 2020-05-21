@@ -36,7 +36,7 @@ from railrl.networks.state_distance import (
     GoalStructuredUniversalQfunction,
 )
 from railrl.state_distance.policies import TerminalRewardSampleOCPolicy
-from railrl.torch.modules import HuberLoss
+from railrl.torch.networks.experimental import HuberLoss
 from railrl.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
 

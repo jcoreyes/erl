@@ -6,10 +6,11 @@ Algorithm-specific networks should go else-where.
 import numpy as np
 import torch
 from torch import nn as nn
+from torch.nn import functional as F
 
 from railrl.policies.base import Policy
 from railrl.torch.core import PyTorchModule
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 import railrl.torch.pytorch_util as ptu
 
 
@@ -17,35 +18,42 @@ class DisentangledMlpQf(PyTorchModule):
 
     def __init__(
             self,
-            goal_processor,
+            goal_encoder,
+            state_encoder,
             qf_kwargs,
             preprocess_obs_dim,
             action_dim,
-            encode_state=False,
             vectorized=False,
             architecture='splice',
+            detach_encoder_via_goal=False,
+            detach_encoder_via_state=False,
     ):
         """
 
-        :param goal_processor:
+        :param encoder:
         :param qf_kwargs:
         :param preprocess_obs_dim:
         :param action_dim:
-        :param encode_state:
         :param vectorized:
         :param architecture:
          - 'splice': give each Q function a single index into the latent goal
          - 'many_heads': give each Q function the entire latent goal
          - 'single_head': have one Q function that takes in entire latent goal
+         - 'huge_single_head': single head but that multiplies the hidden sizes
+             by the number of heads in `many_heads`
+         - 'single_head_match_many_heads': single head but that multiplies the
+             first hidden size by the number of heads in `many_heads`
         """
         super().__init__()
-        self.goal_processor = goal_processor
+        self.goal_encoder = goal_encoder
+        self.state_encoder = state_encoder
         self.preprocess_obs_dim = preprocess_obs_dim
-        self.preprocess_goal_dim = goal_processor.input_size
-        self.postprocess_goal_dim = goal_processor.output_size
-        self.encode_state = encode_state
+        self.preprocess_goal_dim = goal_encoder.input_size
+        self.postprocess_goal_dim = goal_encoder.output_size
         self.vectorized = vectorized
         self._architecture = architecture
+        self._detach_encoder_via_goal = detach_encoder_via_goal
+        self._detach_encoder_via_state = detach_encoder_via_state
 
         # We have a qf for each goal dim, described by qf_kwargs.
         self.feature_qfs = nn.ModuleList()
@@ -53,35 +61,64 @@ class DisentangledMlpQf(PyTorchModule):
             qf_goal_input_size = 1
         else:
             qf_goal_input_size = self.postprocess_goal_dim
-        if self.encode_state:
-            qf_input_size = (
-                    self.postprocess_goal_dim + action_dim + qf_goal_input_size
-            )
-        else:
-            qf_input_size = preprocess_obs_dim + action_dim + qf_goal_input_size
+        qf_input_size = (
+                state_encoder.output_size + action_dim + qf_goal_input_size
+        )
         if architecture == 'single_head':
-            self.feature_qfs.append(FlattenMlp(
+            self.feature_qfs.append(ConcatMlp(
                 input_size=qf_input_size,
                 output_size=1,
                 **qf_kwargs
             ))
-        else:
+        elif architecture == 'huge_single_head':
+            new_qf_kwargs = qf_kwargs.copy()
+            hidden_sizes = new_qf_kwargs.pop('hidden_sizes')
+            new_hidden_sizes = [
+                size * self.postprocess_goal_dim for size in hidden_sizes
+            ]
+            self.feature_qfs.append(ConcatMlp(
+                hidden_sizes=new_hidden_sizes,
+                input_size=qf_input_size,
+                output_size=1,
+                **new_qf_kwargs
+            ))
+        elif architecture == 'single_head_match_many_heads':
+            new_qf_kwargs = qf_kwargs.copy()
+            hidden_sizes = new_qf_kwargs.pop('hidden_sizes')
+            new_hidden_sizes = [
+                hidden_sizes[0] * self.postprocess_goal_dim
+            ] + hidden_sizes[1:]
+            self.feature_qfs.append(ConcatMlp(
+                hidden_sizes=new_hidden_sizes,
+                input_size=qf_input_size,
+                output_size=1,
+                **new_qf_kwargs
+            ))
+        elif architecture in {'many_heads', 'splice'}:
             for _ in range(self.postprocess_goal_dim):
-                self.feature_qfs.append(FlattenMlp(
+                self.feature_qfs.append(ConcatMlp(
                     input_size=qf_input_size,
                     output_size=1,
                     **qf_kwargs
                 ))
+        else:
+            raise ValueError(architecture)
 
     def forward(self, obs, actions, return_individual_q_vals=False, **kwargs):
         obs_and_goal = obs
-        assert obs_and_goal.shape[1] == (
-                self.preprocess_obs_dim + self.preprocess_goal_dim)
-        obs = obs_and_goal[:, :self.preprocess_obs_dim]
-        goal = obs_and_goal[:, self.preprocess_obs_dim:]
+        # TODO: undo hack. probably just get rid of these variables
+        obs, goal = obs_and_goal.chunk(2, dim=1)
+        # if self.preprocess_obs_dim == self.preprocess_goal_dim:
+        # else:
+            # assert obs_and_goal.shape[1] == (
+                    # self.preprocess_obs_dim + self.preprocess_goal_dim)
+            # obs = obs_and_goal[:, :self.preprocess_obs_dim]
+            # goal = obs_and_goal[:, self.preprocess_obs_dim:]
 
-        h_obs = self.goal_processor(obs) if self.encode_state else obs
-        h_goal = self.goal_processor(goal)
+        h_obs = self.state_encoder(obs)
+        h_obs = h_obs.detach() if self._detach_encoder_via_state else h_obs
+        h_goal = self.goal_encoder(goal)
+        h_goal = h_goal.detach() if self._detach_encoder_via_goal else h_goal
 
         total_q_value = 0
         individual_q_vals = []
@@ -89,7 +126,7 @@ class DisentangledMlpQf(PyTorchModule):
             if self._architecture == 'splice':
                 flat_inputs = torch.cat((
                     h_obs,
-                    h_goal[:, goal_dim_idx].reshape(-1, 1),
+                    h_goal[:, goal_dim_idx:goal_dim_idx+1],
                     actions
                 ), dim=1)
             else:
@@ -152,3 +189,219 @@ class QfMaximizingPolicy(Policy):
 
     def to(self, device):
         self.qf.to(device)
+
+
+class EncodeObsAndGoal(PyTorchModule):
+    def __init__(
+            self,
+            encoder,
+            state_dim,
+            encode_state=True,
+            encode_goal=True,
+            detach_encoder_via_goal=False,
+            detach_encoder_via_state=False,
+    ):
+        super().__init__()
+        encoder_output_dim = encoder.output_size
+        output_dim = 0
+        output_dim += encoder_output_dim if encode_state else state_dim
+        output_dim += encoder_output_dim if encode_goal else state_dim
+
+        self._encoder = encoder
+        self._encode_state = encode_state
+        self._encode_goal = encode_goal
+        self._detach_encoder_via_goal = detach_encoder_via_goal
+        self._detach_encoder_via_state = detach_encoder_via_state
+        self.output_size = output_dim
+
+    def forward(self, obs_and_goal, *args, **kwargs):
+        obs, goal = obs_and_goal.chunk(2, dim=1)
+
+        h_obs = self._encoder(obs) if self._encode_state else obs
+        h_obs = h_obs.detach() if self._detach_encoder_via_state else h_obs
+        h_goal = self._encoder(goal) if self._encode_goal else goal
+        h_goal = h_goal.detach() if self._detach_encoder_via_goal else h_goal
+
+        return h_obs, h_goal
+
+
+class DDRArchitecture(PyTorchModule):
+
+    def __init__(
+            self,
+            encoder: EncodeObsAndGoal,
+            qf_kwargs,
+            preprocess_obs_dim,
+            action_dim,
+            encode_state=False,
+            vectorized=False,
+            architecture='splice',
+    ):
+        """
+
+        :param encoder:
+        :param qf_kwargs:
+        :param preprocess_obs_dim:
+        :param action_dim:
+        :param encode_state:
+        :param vectorized:
+        :param architecture:
+         - 'splice': give each Q function a single index into the latent goal
+         - 'many_heads': give each Q function the entire latent goal
+         - 'single_head': have one Q function that takes in entire latent goal
+         - 'huge_single_head': single head but that multiplies the hidden sizes
+             by the number of heads in `many_heads`
+         - 'single_head_match_many_heads': single head but that multiplies the
+             first hidden size by the number of heads in `many_heads`
+        """
+        super().__init__()
+        self.encoder = encoder
+        self.preprocess_obs_dim = preprocess_obs_dim
+        self.preprocess_goal_dim = encoder.input_size
+        self.postprocess_goal_dim = encoder.output_size
+        self.encode_state = encode_state
+        self.vectorized = vectorized
+        self._architecture = architecture
+
+        # We have a qf for each goal dim, described by qf_kwargs.
+        self.feature_qfs = nn.ModuleList()
+        if architecture == 'splice':
+            qf_goal_input_size = 1
+        else:
+            qf_goal_input_size = self.postprocess_goal_dim
+        if self.encode_state:
+            qf_input_size = (
+                    self.postprocess_goal_dim + action_dim + qf_goal_input_size
+            )
+        else:
+            qf_input_size = preprocess_obs_dim + action_dim + qf_goal_input_size
+        if architecture == 'single_head':
+            self.feature_qfs.append(ConcatMlp(
+                input_size=qf_input_size,
+                output_size=1,
+                **qf_kwargs
+            ))
+        elif architecture == 'huge_single_head':
+            new_qf_kwargs = qf_kwargs.copy()
+            hidden_sizes = new_qf_kwargs.pop('hidden_sizes')
+            new_hidden_sizes = [
+                size * self.postprocess_goal_dim for size in hidden_sizes
+            ]
+            self.feature_qfs.append(ConcatMlp(
+                hidden_sizes=new_hidden_sizes,
+                input_size=qf_input_size,
+                output_size=1,
+                **new_qf_kwargs
+            ))
+        elif architecture == 'single_head_match_many_heads':
+            new_qf_kwargs = qf_kwargs.copy()
+            hidden_sizes = new_qf_kwargs.pop('hidden_sizes')
+            new_hidden_sizes = [
+                                   hidden_sizes[0] * self.postprocess_goal_dim
+                               ] + hidden_sizes[1:]
+            self.feature_qfs.append(ConcatMlp(
+                hidden_sizes=new_hidden_sizes,
+                input_size=qf_input_size,
+                output_size=1,
+                **new_qf_kwargs
+            ))
+        else:
+            for _ in range(self.postprocess_goal_dim):
+                self.feature_qfs.append(ConcatMlp(
+                    input_size=qf_input_size,
+                    output_size=1,
+                    **qf_kwargs
+                ))
+
+    def forward(self, obs, actions, return_individual_q_vals=False, **kwargs):
+        obs_and_goal = obs
+        h_obs, h_goal = self.encoder(obs)
+
+        total_q_value = 0
+        individual_q_vals = []
+        for goal_dim_idx, feature_qf in enumerate(self.feature_qfs):
+            if self._architecture == 'splice':
+                flat_inputs = torch.cat((
+                    h_obs,
+                    h_goal[:, goal_dim_idx:goal_dim_idx+1],
+                    actions
+                ), dim=1)
+            else:
+                flat_inputs = torch.cat((
+                    h_obs,
+                    h_goal,
+                    actions
+                ), dim=1)
+            q_idx_value = feature_qf(flat_inputs)
+            total_q_value += q_idx_value
+            individual_q_vals.append(q_idx_value)
+
+        if self.vectorized:
+            total_q_value = torch.cat(individual_q_vals, dim=1)
+
+        if return_individual_q_vals:
+            return total_q_value, individual_q_vals
+        else:
+            return total_q_value
+
+
+class VAE(PyTorchModule):
+    def __init__(self, encoder, decoder):
+        super().__init__()
+        self._encoder = encoder
+        self._decoder = decoder
+        self.latent_dim = self._decoder.input_size
+
+    def encode(self, x):
+        return self._encoder(x)
+
+    def encode_mu(self, x):
+        mu, logvar = self._encoder(x)
+        return mu
+
+    def decode(self, z):
+        return self._decoder(z)
+
+    def reparameterize(self, mu, logvar):
+        std = logvar.mul(0.5).exp_()
+        eps = std.data.new(std.size()).normal_()
+        return eps.mul(std).add_(mu)
+
+    def reconstruct(self, x, use_mean=True, return_latent_params=False):
+        mu, logvar = self.encode(x)
+        z = mu
+        if not use_mean:
+            z = self.reparameterize(mu, logvar)
+        if return_latent_params:
+            return self._decoder(z), mu, logvar
+        else:
+            return self._decoder(z)
+
+    def logprob(self, x, x_recon):
+        return -1 * F.mse_loss(
+            x_recon,
+            x,
+            reduction='mean'
+        ) * self._encoder.input_size
+
+    def sample_np(self, batch_size):
+        latents = np.random.normal(size=(batch_size, self.latent_dim))
+        latents_torch = ptu.from_numpy(latents)
+        return ptu.get_numpy(self.decode(latents_torch))
+
+    def forward(self, x):
+        return self.reconstruct(x)
+
+
+class EncoderMuFromEncoderDistribution(PyTorchModule):
+    """Requires encoder(x) to produce mean and variance of latent distribution
+    """
+    def __init__(self, encoder):
+        super().__init__()
+        self._encoder = encoder
+        self.input_size = encoder.input_size
+        self.output_size = encoder.output_size
+
+    def forward(self, x):
+        mu, _ = self._encoder(x)
+        return mu

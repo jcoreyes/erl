@@ -9,7 +9,8 @@ from railrl.launchers.experiments.ashvin.awr_sac_rl import ENV_PARAMS
 if __name__ == '__main__':
     data = load_local_or_remote_file('ashvin/icml2020/mujoco/reference/run1/id2/itr_200.pkl')
     env = data['evaluation/env']
-    policy = data['evaluation/policy']
+    # policy = data['evaluation/policy']
+    policy = data['exploration/policy']
     # import ipdb; ipdb.set_trace()
     # policy =
     policy.to("cpu")
@@ -20,7 +21,7 @@ if __name__ == '__main__':
     #     transpose=True,
     #     normalize=True,
     # )
-    env_name = pendulum
+    env_name = "pendulum"
     outfile = "/home/ashvin/data/s3doodad/demos/icml2020/mujoco/%s.npy" % env_name
     horizon = ENV_PARAMS[env_name]['max_path_length']
     collect_demos_fixed(env, policy, outfile, N=100, horizon=horizon) # , threshold=.1, add_action_noise=False, key='puck_distance', render=True, noise_sigma=0.0)

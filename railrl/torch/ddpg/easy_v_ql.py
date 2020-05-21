@@ -9,7 +9,7 @@ from railrl.torch.core import PyTorchModule
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
-import railrl.torch.modules as M
+import railrl.torch.networks.experimental as M
 
 
 class EasyVQLearning(DDPG):

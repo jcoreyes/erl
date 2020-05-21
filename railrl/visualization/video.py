@@ -14,6 +14,7 @@ import scipy.misc
 
 from multiworld.core.image_env import ImageEnv
 from railrl.core import logger
+from railrl.visualization.image import add_border, make_image_fit_into_hwc_format, combine_images_into_grid
 import pickle
 
 
@@ -39,13 +40,15 @@ class VideoSaveFunction:
         if 'imsize' not in self.dump_video_kwargs:
             self.dump_video_kwargs['imsize'] = env.imsize
         self.dump_video_kwargs.setdefault("rows", 2)
-        self.dump_video_kwargs.setdefault("columns", 5)
+        # self.dump_video_kwargs.setdefault("columns", 5)
+        self.dump_video_kwargs.setdefault("columns", 1)
         self.dump_video_kwargs.setdefault("unnormalize", True)
         self.save_period = self.dump_video_kwargs.pop('save_video_period', 50)
         self.exploration_goal_image_key = self.dump_video_kwargs.pop(
             "exploration_goal_image_key", "decoded_goal_image")
         self.evaluation_goal_image_key = self.dump_video_kwargs.pop(
             "evaluation_goal_image_key", "image_desired_goal")
+        self.path_length = variant.get('algo_kwargs', {}).get('max_path_length', 200)
         self.expl_path_collector = expl_path_collector
         self.eval_path_collector = eval_path_collector
         self.variant = variant
@@ -53,8 +56,8 @@ class VideoSaveFunction:
     def __call__(self, algo, epoch):
         if self.expl_path_collector:
             expl_paths = self.expl_path_collector.collect_new_paths(
-                max_path_length=self.variant['algo_kwargs']['max_path_length'],
-                num_steps=self.variant['algo_kwargs']['max_path_length'] * 5,
+                max_path_length=self.path_length,
+                num_steps=self.path_length * 5,
                 discard_incomplete_paths=False
             )
         else:
@@ -65,14 +68,14 @@ class VideoSaveFunction:
             dump_paths(self.env,
                        filename,
                        expl_paths,
-                       self.exploration_goal_image_key,
+                       [self.exploration_goal_image_key, "image_observation", ],
                        **self.dump_video_kwargs,
                        )
 
         if self.eval_path_collector:
             eval_paths = self.eval_path_collector.collect_new_paths(
-                max_path_length=self.variant['algo_kwargs']['max_path_length'],
-                num_steps=self.variant['algo_kwargs']['max_path_length'] * 5,
+                max_path_length=self.path_length,
+                num_steps=self.path_length * 5,
                 discard_incomplete_paths=False
             )
         else:
@@ -83,53 +86,69 @@ class VideoSaveFunction:
             dump_paths(self.env,
                        filename,
                        eval_paths,
-                       self.evaluation_goal_image_key,
+                       [self.evaluation_goal_image_key, "image_observation", ],
                        **self.dump_video_kwargs,
                        )
 
 
-def add_border(img, border_thickness, border_color):
-    imheight, imwidth = img.shape[:2]
-    framed_img = np.ones(
-        (
-            imheight + 2 * border_thickness,
-            imwidth + 2 * border_thickness,
-            img.shape[2]
-        ),
-        dtype=np.uint8
-    ) * border_color
-    framed_img[
-        border_thickness:-border_thickness,
-        border_thickness:-border_thickness,
-        :
-    ] = img
-    return framed_img
+class RIGVideoSaveFunction:
+    def __init__(self,
+        model,
+        data_collector,
+        tag,
+        save_video_period,
+        goal_image_key=None,
+        decode_goal_image_key=None,
+        reconstruction_key=None,
+        **kwargs
+    ):
+        self.model = model
+        self.data_collector = data_collector
+        self.tag = tag
+        self.goal_image_key = goal_image_key
+        self.decode_goal_image_key = decode_goal_image_key
+        self.reconstruction_key = reconstruction_key
+        self.dump_video_kwargs = kwargs
+        self.save_video_period = save_video_period
+        self.keys = []
+        if goal_image_key:
+            self.keys.append(goal_image_key)
+        if decode_goal_image_key:
+            self.keys.append(decode_goal_image_key)
+        self.keys.append("image_observation")
+        if reconstruction_key:
+            self.keys.append(reconstruction_key)
+        self.logdir = logger.get_snapshot_dir()
 
+    def __call__(self, algo, epoch):
+        paths = self.data_collector.get_epoch_paths()
+        if epoch % self.save_video_period == 0 or epoch == algo.num_epochs:
+            filename = osp.join(self.logdir,
+                'video_{epoch}_{tag}.mp4'.format(epoch=epoch, tag=self.tag))
+            if self.decode_goal_image_key:
+                for i in range(len(paths)):
+                    self.add_decoded_goal_to_path(paths[i])
+            if self.reconstruction_key:
+                for i in range(len(paths)):
+                    self.add_reconstruction_to_path(paths[i])
+            dump_paths(None,
+                filename,
+                paths,
+                self.keys,
+                **self.dump_video_kwargs,
+            )
 
-def get_image(
-        imgs, imwidth, imheight,
-        subpad_length=1, subpad_color=255,
-        pad_length=1, pad_color=255,
-        unnormalize=True,
-        image_format='HWC',
-):
-    if len(imgs[0].shape) == 1:
-        for i in range(len(imgs)):
-            imgs[i] = imgs[i].reshape(-1, imwidth, imheight).transpose(2, 1, 0)
-    new_imgs = []
+    def add_decoded_goal_to_path(self, path):
+        latent = path['full_observations'][0]['latent_desired_goal']
+        decoded_img = self.model.decode_one_np(latent)
+        for i_in_path, d in enumerate(path['full_observations']):
+            d[self.decode_goal_image_key] = decoded_img
 
-    for img in imgs:
-        if image_format == 'CWH':
-            img = img.transpose(2, 1, 0)
-        if unnormalize:
-            img = np.uint8(255 * img)
-        if subpad_length > 0:
-            img = add_border(img, subpad_length, subpad_color)
-        new_imgs.append(img)
-    final_image = np.concatenate(new_imgs, axis=0)
-    if pad_length > 0:
-        final_image = add_border(final_image, pad_length, pad_color)
-    return final_image
+    def add_reconstruction_to_path(self, path):
+        for i_in_path, d in enumerate(path['full_observations']):
+            latent = d['latent_observation']
+            decoded_img = self.model.decode_one_np(latent)
+            d[self.reconstruction_key] = decoded_img
 
 
 def dump_video(
@@ -139,11 +158,6 @@ def dump_video(
         rollout_function,
         rows=3,
         columns=6,
-        pad_length=1,
-        pad_color=255,
-        subpad_length=1,
-        subpad_color=127,
-        image_format='HWC',
         do_timer=True,
         horizon=100,
         dirname_to_save_images=None,
@@ -151,6 +165,9 @@ def dump_video(
         imsize=84,
         get_extra_imgs=None,
         grayscale=False,
+        keys_to_show=None,
+        num_columns_per_rollout=1,
+        **combine_img_kwargs
 ):
     """
 
@@ -161,14 +178,12 @@ def dump_video(
     :param rows:
     :param columns:
     :param pad_length:
-    :param pad_color:
-    :param subpad_length:
     :param subpad_color:
     :param do_timer:
     :param horizon:
     :param dirname_to_save_images:
     :param subdirname:
-    :param imsize:
+    :param imsize: TODO: automatically set if not provided
     :param get_extra_imgs: A function with type
 
         def get_extra_imgs(
@@ -182,8 +197,8 @@ def dump_video(
     if get_extra_imgs is None:
         get_extra_imgs = get_generic_env_imgs
     num_channels = 1 if grayscale else 3
+    keys_to_show = keys_to_show or ['image_desired_goal', 'image_observation']
     frames = []
-    W = imsize
     N = rows * columns
     for i in range(N):
         start = time.time()
@@ -196,21 +211,16 @@ def dump_video(
 
         l = []
         for i_in_path, d in enumerate(path['full_observations']):
-            imgs_to_stack = [
-                d['image_desired_goal'],
-                d['image_observation'],
-            ]
+            imgs_to_stack = [d[k] for k in keys_to_show]
             imgs_to_stack += get_extra_imgs(path, i_in_path, env)
             l.append(
-                get_image(
+                combine_images_into_grid(
                     imgs_to_stack,
+                    max_num_cols=num_columns_per_rollout,
                     imwidth=imsize,
                     imheight=imsize,
-                    pad_length=pad_length,
-                    pad_color=pad_color,
-                    subpad_length=subpad_length,
-                    subpad_color=subpad_color,
-                    image_format=image_format,
+                    unnormalize=True,
+                    **combine_img_kwargs
                 )
             )
         frames += l
@@ -278,26 +288,23 @@ def dump_paths(
         env,
         filename,
         paths,
-        goal_image_key,
+        keys,
         rows=3,
         columns=6,
-        pad_length=0,
-        pad_color=255,
-        subpad_length=0,
-        subpad_color=127,
         do_timer=True,
-        horizon=100,
         dirname_to_save_images=None,
         subdirname="rollouts",
-        imsize=84,
+        imsize=84,  # TODO: automatically set if not provided
         imwidth=None,
         imheight=None,
         num_imgs=3,  # how many vertical images we stack per rollout
         dump_pickle=False,
-        unnormalize=True,
         grayscale=False,
         get_extra_imgs=None,
+        num_columns_per_rollout=1,
+        **combine_img_kwargs
 ):
+    # TODO: merge with `dump_video`
     if get_extra_imgs is None:
         get_extra_imgs = get_generic_env_imgs
     # num_channels = env.vae.input_channels
@@ -318,22 +325,17 @@ def dump_paths(
         path = paths[i]
         l = []
         for i_in_path, d in enumerate(path['full_observations']):
-            imgs = [
-                d[goal_image_key],
-                d['image_observation'],
-            ]
+            imgs = [d[k] for k in keys]
             imgs = imgs + get_extra_imgs(path, i_in_path, env)
             imgs = imgs[:num_imgs]
             l.append(
-                get_image(
+                combine_images_into_grid(
                     imgs,
                     imwidth,
                     imheight,
-                    pad_length=pad_length,
-                    pad_color=pad_color,
-                    subpad_length=subpad_length,
-                    subpad_color=subpad_color,
-                    unnormalize=unnormalize,
+                    max_num_cols=num_columns_per_rollout,
+                    unnormalize=True,
+                    **combine_img_kwargs
                 )
             )
         frames += l
@@ -352,32 +354,7 @@ def dump_paths(
         if do_timer:
             print(i, time.time() - start)
 
-    # #TODO: can probably replace all of this with
-    # outputdata = reshape_for_video(frames, N, rows, columns, num_channels)
-    frames = np.array(frames, dtype=np.uint8)
-    path_length = frames.size // (
-            N * (H + num_gaps * pad_length) * (
-                W + num_gaps * pad_length) * num_channels
-    )
-    try:
-        frames = np.array(frames, dtype=np.uint8).reshape(
-            (N, path_length, H + num_gaps * pad_length,
-             W + num_gaps * pad_length, num_channels)
-        )
-    except:
-        import ipdb;
-        ipdb.set_trace()
-    f1 = []
-    for k1 in range(columns):
-        f2 = []
-        for k2 in range(rows):
-            k = k1 * rows + k2
-            f2.append(frames[k:k + 1, :, :, :, :].reshape(
-                (path_length, H + num_gaps * pad_length,
-                 W + num_gaps * pad_length, num_channels)
-            ))
-        f1.append(np.concatenate(f2, axis=1))
-    outputdata = np.concatenate(f1, axis=2)
+    outputdata = reshape_for_video(frames, N, rows, columns, num_channels)
     skvideo.io.vwrite(filename, outputdata)
     print("Saved video to ", filename)
 

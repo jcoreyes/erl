@@ -18,7 +18,7 @@ def td3_experiment_online_vae(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.td3.td3 import TD3
     from railrl.exploration_strategies.base import (
@@ -47,22 +47,22 @@ def td3_experiment_online_vae(variant):
     )
     action_dim = env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
@@ -170,7 +170,7 @@ def twin_sac_experiment_online_vae(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp
+    from railrl.torch.networks import ConcatMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
 
@@ -194,22 +194,22 @@ def twin_sac_experiment_online_vae(variant):
     )
     action_dim = env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
@@ -304,7 +304,7 @@ def td3_experiment_online_vae_exploring(variant):
         PolicyWrappedWithExplorationStrategy
     )
     from railrl.torch.her.online_vae_joint_algo import OnlineVaeHerJointAlgo
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     from railrl.torch.td3.td3 import TD3
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     preprocess_rl_variant(variant)
@@ -318,12 +318,12 @@ def td3_experiment_online_vae_exploring(variant):
             + env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs'],
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs'],
@@ -338,12 +338,12 @@ def td3_experiment_online_vae_exploring(variant):
         policy=policy,
     )
 
-    exploring_qf1 = FlattenMlp(
+    exploring_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs'],
     )
-    exploring_qf2 = FlattenMlp(
+    exploring_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs'],
@@ -442,7 +442,7 @@ def td3_experiment_offpolicy_online_vae(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.td3.td3 import TD3
     from railrl.exploration_strategies.base import (
@@ -472,22 +472,22 @@ def td3_experiment_offpolicy_online_vae(variant):
     )
     action_dim = env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
@@ -945,7 +945,7 @@ def tdm_twin_sac_experiment(variant):
 def active_representation_learning_experiment(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import ObsDictReplayBuffer
-    from railrl.torch.networks import FlattenMlp
+    from railrl.torch.networks import ConcatMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.arl.active_representation_learning_algorithm import \
         ActiveRepresentationLearningAlgorithm
@@ -992,22 +992,22 @@ def active_representation_learning_experiment(variant):
     obs_dim = env.observation_space.spaces[observation_key].low.size
     action_dim = env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,

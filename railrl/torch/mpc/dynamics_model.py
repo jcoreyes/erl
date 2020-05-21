@@ -1,8 +1,8 @@
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 
 
-class DynamicsModel(FlattenMlp):
+class DynamicsModel(ConcatMlp):
     def __init__(
             self,
             observation_dim,

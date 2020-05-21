@@ -1,7 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -9,9 +8,9 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
 from railrl.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
 from railrl.state_distance.tdm_networks import TdmPolicy, \
-    TdmQf, TdmNormalizer
+    TdmQf
 from railrl.state_distance.tdm_td3 import TdmTd3
-from railrl.torch.modules import HuberLoss
+from railrl.torch.networks.experimental import HuberLoss
 
 
 def experiment(variant):

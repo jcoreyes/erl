@@ -15,7 +15,7 @@ from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.ddpg.ddpg import DDPG
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 
 
 def experiment(variant):
@@ -26,7 +26,7 @@ def experiment(variant):
     )
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']

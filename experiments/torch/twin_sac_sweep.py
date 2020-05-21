@@ -14,7 +14,7 @@ from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import TwinSAC
 from railrl.torch.td3.td3 import TD3
@@ -24,17 +24,17 @@ def experiment(variant):
     env = NormalizedBoxEnv(variant['env_class']())
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    vf = FlattenMlp(input_size=obs_dim, output_size=1, **variant['vf_kwargs'])
+    vf = ConcatMlp(input_size=obs_dim, output_size=1, **variant['vf_kwargs'])
     policy = TanhGaussianPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,

@@ -19,7 +19,7 @@ from railrl.samplers.data_collector import (
 )
 from railrl.torch.disentanglement.networks import DisentangledMlpQf
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import (
     TanhGaussianPolicy,
     MakeDeterministic,
@@ -101,7 +101,7 @@ def _e2e_disentangled_experiment(
     goal_dim = train_env.observation_space.spaces[desired_goal_key].low.size
     action_dim = train_env.action_space.low.size
 
-    encoder = FlattenMlp(
+    encoder = ConcatMlp(
         input_size=obs_dim,
         output_size=latent_dim,
         **encoder_kwargs
@@ -109,14 +109,14 @@ def _e2e_disentangled_experiment(
 
     def make_qf():
         if have_no_disentangled_encoder:
-            return FlattenMlp(
+            return ConcatMlp(
                 input_size=obs_dim + goal_dim + action_dim,
                 output_size=1,
                 **qf_kwargs,
             )
         else:
             return DisentangledMlpQf(
-                goal_processor=encoder,
+                encoder=encoder,
                 preprocess_obs_dim=obs_dim,
                 action_dim=action_dim,
                 qf_kwargs=qf_kwargs,

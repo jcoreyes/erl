@@ -1,14 +1,10 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer, \
-    HerReplayBuffer
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
 from railrl.envs.mujoco.sawyer_push_and_reach_env import \
     SawyerPushAndReachXYEasyEnv
-from railrl.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
-from railrl.envs.mujoco.sawyer_reset_free_push_env import SawyerResetFreePushEnv
 from railrl.launchers.experiments.vitchyr.multitask import tdm_td3_experiment
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.modules import HuberLoss
+from railrl.torch.networks.experimental import HuberLoss
 
 if __name__ == "__main__":
     n_seeds = 1

@@ -190,7 +190,7 @@ def grill_her_td3_experiment(variant):
         PolicyWrappedWithExplorationStrategy
     )
     from railrl.demos.her_td3bc import HerTD3BC
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     grill_preprocess_variant(variant)
     env = get_envs(variant)
     es = get_exploration_strategy(variant, env)
@@ -203,12 +203,12 @@ def grill_her_td3_experiment(variant):
             + env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']

@@ -6,7 +6,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
 from railrl.samplers.data_collector import MdpPathCollector
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
@@ -19,22 +19,22 @@ def experiment(variant):
     action_dim = env.action_space.low.size
 
     hidden_sizes = variant['hidden_sizes']
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
