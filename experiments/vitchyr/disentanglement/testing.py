@@ -28,7 +28,8 @@ if __name__ == "__main__":
             single_loss_weight=0.5,
             use_automatic_entropy_tuning=True,
         ),
-        num_presampled_goals=5000,
+        # num_presampled_goals=5000,
+        num_presampled_goals=5,
         max_path_length=100,
         algo_kwargs=dict(
             batch_size=256,
@@ -59,10 +60,10 @@ if __name__ == "__main__":
             save_video_period=20,
             rows=2,
             columns=3,
-            subpad_length=1,
-            subpad_color=127,
-            pad_length=1,
-            pad_color=0,
+            # subpad_length=1,
+            # subpad_color=127,
+            # pad_length=1,
+            # pad_color=0,
             num_columns_per_rollout=5,
         ),
         evaluation_goal_sampling_mode='random',
@@ -96,7 +97,6 @@ if __name__ == "__main__":
             output_img_format='CHW',
         ),
         use_separate_encoder_for_policy=True,
-        skip_encoder_mlp=False,
         encoder_kwargs=dict(
             hidden_sizes=[],
         ),
@@ -108,8 +108,8 @@ if __name__ == "__main__":
         'reward_type': [
             'encoder_distance',
         ],
-        'encoder_kwargs.output_size': [
-            8,
+        'latent_dim': [
+            # 8,
             16,
         ],
         'max_path_length': [
@@ -121,7 +121,8 @@ if __name__ == "__main__":
         'env_id': [
             # 'TwoObjectPickAndPlace2DEnv-v0',
             # 'TwoObjectPickAndPlaceRandomInit2DEnv-v0',
-            'OneObjectPickAndPlaceRandomInit2DEnv-v0',
+            # 'OneObjectPickAndPlaceRandomInit2DEnv-v0',
+            'OneObject-PickAndPlace-OnRandomObjectInit-2D-v1',
         ],
         'replay_buffer_kwargs.fraction_future_context': [
             0.5,

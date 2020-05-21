@@ -7,6 +7,7 @@ VALID_IMG_FORMATS = {'CHW', 'CWH', 'HCW', 'HWC', 'WCH', 'WHC'}
 
 
 class Renderer(object):
+    # TODO: switch to env.render interface
     def __init__(
             self,
             img_width=48,

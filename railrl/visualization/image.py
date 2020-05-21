@@ -56,9 +56,11 @@ def make_image_fit_into_hwc_format(
 def combine_images_into_grid(
         imgs, imwidth, imheight,
         max_num_cols=5,
-        pad_length=1, pad_color=255,
-        subpad_length=1, subpad_color=255,
-        unnormalize=True,
+        pad_length=1,
+        pad_color=0,
+        subpad_length=1,
+        subpad_color=127,
+        unnormalize=False,
         image_format=None,
         image_formats=None,
 ):

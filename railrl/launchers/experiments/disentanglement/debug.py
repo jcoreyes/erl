@@ -267,6 +267,7 @@ def create_visualize_representation(
                         subpad_length=1,
                         subpad_color=128,
                         image_format=renderer.output_image_format,
+                        unnormalize=True,
                     )
                 )
 
@@ -278,7 +279,6 @@ def create_visualize_representation(
                 image_format='HWC',
                 pad_length=0,
                 subpad_length=0,
-                unnormalize=False,
             )
             cv2.imwrite(filename, final_image)
 
