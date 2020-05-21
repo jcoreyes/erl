@@ -47,8 +47,8 @@ class TaskGoalDictDistributionFromMultitaskEnv(
             high=np.ones(1))
         self.task_ids = np.array(task_ids)
 
-    def sample(self, batch_size: int):
-        goals = super().sample(batch_size)
+    def sample(self, batch_size: int, use_env_goal=False):
+        goals = super().sample(batch_size, use_env_goal)
         idxs = np.random.choice(len(self.task_ids), batch_size)
         goals[self.task_key] = self.task_ids[idxs].reshape(-1, 1)
         return goals
@@ -60,6 +60,7 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             *args,
             mask_dim=1,
             mask_key='mask',
+            mask_idxs=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -68,10 +69,19 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             low=np.zeros(mask_dim),
             high=np.ones(mask_dim))
         self.mask_dim = mask_dim
+        self.mask_idxs = mask_idxs
+        if mask_idxs is not None:
+            self.masks = np.zeros((len(self.mask_idxs), self.mask_dim))
+            for (i, idx_list) in enumerate(self.mask_idxs):
+                self.masks[i][idx_list] = 1
 
-    def sample(self, batch_size: int):
-        goals = super().sample(batch_size)
-        goals[self.mask_key] = np.zeros((batch_size, self.mask_dim))
+    def sample(self, batch_size: int, use_env_goal=False):
+        goals = super().sample(batch_size, use_env_goal)
+        if self.mask_idxs is not None:
+            idxs = np.random.choice(len(self.masks), batch_size)
+            goals[self.mask_key] = self.masks[idxs]
+        else:
+            goals[self.mask_key] = np.zeros((batch_size, self.mask_dim))
         return goals
 
 class SequentialTaskPathCollector(ContextualPathCollector):
@@ -166,7 +176,7 @@ def td3_experiment(variant):
             )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key),
+                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), #achieved_goal_key
                 desired_goal_key=desired_goal_key,
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
@@ -178,10 +188,11 @@ def td3_experiment(variant):
                 desired_goal_keys=[desired_goal_key],
                 mask_key=mask_key,
                 mask_dim=mask_dim,
+                mask_idxs=mask_variant.get('mask_idxs', None),
             )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key),
+                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), #achieved_goal_key
                 desired_goal_key=desired_goal_key,
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
@@ -194,7 +205,7 @@ def td3_experiment(variant):
             )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key),
+                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), #achieved_goal_key
                 desired_goal_key=desired_goal_key,
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),

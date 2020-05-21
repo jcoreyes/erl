@@ -63,7 +63,7 @@ class ContextualEnv(gym.Wrapper):
 
     def reset(self):
         obs = self.env.reset()
-        self._rollout_context_batch = self.context_distribution.sample(1)
+        self._rollout_context_batch = self.context_distribution.sample(1, use_env_goal=True)
         self._update_obs(obs)
         self._last_obs = obs
         return obs

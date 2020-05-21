@@ -208,35 +208,49 @@ env_params = {
             # 'nc',
             # 'nc+next_conn_dist',
             # 'nc+next_conn_dist+cursor_dist',
-            'nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
-            'nc+cursor_dist+cursor_sparse_dist',
-            'cursor_dist',
-            'cursor_dist+cursor_sparse_dist',
+            # 'nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
+            # 'nc+cursor_dist+cursor_sparse_dist',
+            # 'cursor_dist',
+            # 'cursor_dist+cursor_sparse_dist',
+
+            'next_conn_dist',
         ],
 
         'rl_variant.max_path_length': [75],
 
         'env_kwargs.task_connect_sequence': [[0, 1, 2, 3]],  # col -> box1 -> box2 -> box3
-        'rl_variant.task_variant.task_conditioned': [
-            True,
-            # False,
-        ],
-        'rl_variant.task_variant.task_ids': [
-            # [1],
-            [3],
-            # [1, 2, 3],
+
+        # 'rl_variant.task_variant.task_conditioned': [True],
+        # 'rl_variant.task_variant.task_ids': [
+        #     # [1],
+        #     [3],
+        #     # [1, 2, 3],
+        # ],
+        # 'rl_variant.task_variant.rotate_task_freq_for_expl': [0.25],
+        # 'rl_variant.task_variant.rotate_task_freq_for_eval': [1.0],
+
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.mask_idxs': [
+            # [[3, 4, 5], [17, 18, 19]],
+            [[3, 4, 5]],
+            [[17, 18, 19]],
         ],
 
-        'rl_variant.task_variant.rotate_task_freq_for_expl': [0.25],
-        'rl_variant.task_variant.rotate_task_freq_for_eval': [1.0],
+        'rl_variant.contextual_replay_buffer_kwargs.fraction_future_context': [0.4],
+        'rl_variant.contextual_replay_buffer_kwargs.fraction_distribution_context': [0.4],
+        'rl_variant.contextual_replay_buffer_kwargs.recompute_rewards': [True],
+
+        'env_kwargs.goal_type': [
+            'assembled',
+            # 'zeros',
+        ],
 
         'env_kwargs.task_type': [
             # "connect",
             # "select2+connect",
 
-            "reach2+select2",
-            "reach2+select2+move2",
             # "reach2+select2",
+            "reach2+select2+move2",
         ],
 
         'rl_variant.td3_trainer_kwargs.reward_scale': [1000],
