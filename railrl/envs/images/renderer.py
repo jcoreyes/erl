@@ -1,3 +1,4 @@
+import abc
 import logging
 import numpy as np
 from PIL import Image
@@ -6,73 +7,75 @@ from PIL import Image
 VALID_IMG_FORMATS = {'CHW', 'CWH', 'HCW', 'HWC', 'WCH', 'WHC'}
 
 
-class Renderer(object):
+class Renderer(metaclass=abc.ABCMeta):
     # TODO: switch to env.render interface
     def __init__(
             self,
-            img_width=48,
-            img_height=48,
+            width=48,
+            height=48,
             num_channels=3,
-            init_camera=None,
-            normalize_img=True,
-            flatten_img=False,
-            input_img_format='HWC',
-            output_img_format='HWC',
+            normalize_image=True,
+            flatten_image=False,
+            create_image_format=None,
+            output_image_format='CHW',
     ):
         """Render an image."""
-        if input_img_format not in VALID_IMG_FORMATS:
-            raise ValueError(
-                "Invalid input image format: {}. Valid formats: {}".format(
-                    input_img_format, VALID_IMG_FORMATS
-                )
-            )
-        if output_img_format not in VALID_IMG_FORMATS:
+        if output_image_format not in VALID_IMG_FORMATS:
             raise ValueError(
                 "Invalid output image format: {}. Valid formats: {}".format(
-                    output_img_format, VALID_IMG_FORMATS
+                    output_image_format, VALID_IMG_FORMATS
                 )
             )
-        if output_img_format != 'CHW':
+        if create_image_format is None:
+            create_image_format = output_image_format
+        if create_image_format not in VALID_IMG_FORMATS:
+            raise ValueError(
+                "Invalid input image format: {}. Valid formats: {}".format(
+                    create_image_format, VALID_IMG_FORMATS
+                )
+            )
+        if output_image_format != 'CHW':
             logging.warning("An output image format of CHW is recommended, as "
                             "this is the default PyTorch format.")
-        self._img_width = img_width
-        self._img_height = img_height
-        self._init_camera = init_camera
+        self.width = width
+        self.height = height
+        self.num_channels = num_channels
+        self.output_image_format = output_image_format
+
         self._grayscale = num_channels == 1
-        self._normalize_imgs = normalize_img
-        self._flatten = flatten_img
-        self._num_channels = num_channels
-        self.input_image_format = input_img_format
-        self.output_image_format = output_img_format
-        self._camera_is_initialized = False
+        self._normalize_imgs = normalize_image
+        self._flatten = flatten_image
+        self._create_image_format = create_image_format
         self._letter_to_size = {
-            'H': self._img_height,
-            'W': self._img_width,
-            'C': self._num_channels,
+            'H': self.height,
+            'W': self.width,
+            'C': self.num_channels,
         }
 
-    def create_image(self, env):
-        if not self._camera_is_initialized and self._init_camera is not None:
-            env.initialize_camera(self._init_camera)
-            self._camera_is_initialized = True
-
-        image_obs = env.get_image(
-            width=self._img_width,
-            height=self._img_height,
-        )
+    def __call__(self, *args, **kwargs):
+        image = self._create_image(*args, **kwargs)
         if self._grayscale:
-            image_obs = Image.fromarray(image_obs).convert('L')
-            image_obs = np.array(image_obs)
+            image = Image.fromarray(image).convert('L')
+            image = np.array(image)
         if self._normalize_imgs:
-            image_obs = image_obs / 255.0
-        transpose_index = [self.input_image_format.index(c) for c in
+            image = image / 255.0
+        transpose_index = [self._create_image_format.index(c) for c in
                            self.output_image_format]
-        image_obs = image_obs.transpose(transpose_index)
-        assert image_obs.shape == self.image_shape
+        image = image.transpose(transpose_index)
+        if image.shape != self.image_shape:
+            raise RuntimeError("Image shape mismatch: {}, {}".format(
+                image.shape,
+                self.image_shape,
+            ))
+        assert image.shape == self.image_shape
         if self._flatten:
-            return image_obs.flatten()
+            return image.flatten()
         else:
-            return image_obs
+            return image
+
+    @abc.abstractmethod
+    def _create_image(self, *args, **kwargs):
+        raise NotImplementedError()
 
     @property
     def image_is_normalized(self):
