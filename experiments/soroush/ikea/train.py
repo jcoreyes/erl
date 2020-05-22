@@ -214,42 +214,43 @@ env_params = {
             # 'cursor_dist+cursor_sparse_dist',
 
             'next_conn_dist',
+            'nc+next_conn_dist',
+            'next_conn_dist+cursor_dist',
+            'nc+next_conn_dist+cursor_dist',
+            'next_conn_dist+cursor_dist+cursor_sparse_dist',
+            'nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
         ],
 
         'rl_variant.max_path_length': [75],
 
-        'env_kwargs.task_connect_sequence': [[0, 1, 2, 3]],  # col -> box1 -> box2 -> box3
+        'env_kwargs.task_connect_sequence': [
+            # [0, 1, 2, 3],  # col -> box1 -> box2 -> box3
+            [0, 3, 2, 1],
+        ],
 
-        # 'rl_variant.task_variant.task_conditioned': [True],
-        # 'rl_variant.task_variant.task_ids': [
-        #     # [1],
-        #     [3],
-        #     # [1, 2, 3],
+        'rl_variant.task_variant.task_conditioned': [True],
+        'rl_variant.task_variant.task_ids': [
+            # [1],
+            [3],
+            # [1, 2, 3],
+        ],
+        'rl_variant.task_variant.rotate_task_freq_for_expl': [0.25],
+        'rl_variant.task_variant.rotate_task_freq_for_eval': [1.0],
+
+        # 'rl_variant.mask_variant.mask_conditioned': [True],
+        # 'rl_variant.mask_variant.mask_idxs': [
+        #     # [[3, 4, 5], [17, 18, 19]],
+        #     [[3, 4, 5]],
+        #     [[17, 18, 19]],
         # ],
-        # 'rl_variant.task_variant.rotate_task_freq_for_expl': [0.25],
-        # 'rl_variant.task_variant.rotate_task_freq_for_eval': [1.0],
-
-        'rl_variant.mask_variant.mask_conditioned': [True],
-        'rl_variant.mask_variant.mask_idxs': [
-            # [[3, 4, 5], [17, 18, 19]],
-            [[3, 4, 5]],
-            [[17, 18, 19]],
-        ],
-
-        'rl_variant.contextual_replay_buffer_kwargs.fraction_future_context': [0.4],
-        'rl_variant.contextual_replay_buffer_kwargs.fraction_distribution_context': [0.4],
-        'rl_variant.contextual_replay_buffer_kwargs.recompute_rewards': [True],
-
-        'env_kwargs.goal_type': [
-            'assembled',
-            # 'zeros',
-        ],
+        # 'rl_variant.contextual_replay_buffer_kwargs.fraction_future_context': [0.4],
+        # 'rl_variant.contextual_replay_buffer_kwargs.fraction_distribution_context': [0.4],
+        # 'rl_variant.contextual_replay_buffer_kwargs.recompute_rewards': [True],
+        # 'env_kwargs.goal_type': ['assembled'],
 
         'env_kwargs.task_type': [
-            # "connect",
-            # "select2+connect",
-
-            # "reach2+select2",
+            "move2",
+            "select2+move2",
             "reach2+select2+move2",
         ],
 
@@ -285,6 +286,7 @@ def process_variant(variant):
     if args.debug:
         rl_variant['algo_kwargs']['num_epochs'] = 4
         rl_variant['algo_kwargs']['batch_size'] = 128
+        rl_variant['contextual_replay_buffer_kwargs']['max_size'] = int(1e4)
         rl_variant['replay_buffer_kwargs']['max_size'] = int(1e4)
         rl_variant['algo_kwargs']['num_eval_steps_per_epoch'] = 200
         rl_variant['algo_kwargs']['num_expl_steps_per_train_loop'] = 200

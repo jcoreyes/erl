@@ -2,11 +2,11 @@ from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
 import argparse
 import math
+import numpy as np
 
 from railrl.launchers.exp_launcher import rl_experiment
-from roboverse.envs.goal_conditioned.sawyer_lift import SawyerLiftEnvGC
 
-from multiworld.envs.mujoco.cameras import *
+from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
 
 variant = dict(
     rl_variant=dict(
@@ -25,19 +25,11 @@ variant = dict(
             policy_saturation_cost_threshold=5.0,
         ),
         twin_sac_trainer_kwargs=dict(),
-        replay_buffer_kwargs=dict(
-            max_size=int(1E6),
-            fraction_goals_rollout_goals=1.0,
-            fraction_goals_env_goals=0.0,
-            recompute_rewards=False,
-            ob_keys_to_save=[],
-        ),
         contextual_replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_future_context=0.4,
             fraction_distribution_context=0.4,
             recompute_rewards=True,
-            observation_keys=[],
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -63,13 +55,15 @@ variant = dict(
             columns=8,
             pad_color=0,
             pad_length=0,
-            subpad_length=0,
+            subpad_length=1,
         ),
         vis_kwargs=dict(
             vis_list=dict(),
         ),
         save_video_period=50,
         renderer_kwargs=dict(),
+        exploration_goal_sampling_mode='random',
+        evaluation_goal_sampling_mode='random',
         task_variant=dict(
             task_conditioned=False,
         ),
@@ -77,41 +71,58 @@ variant = dict(
             mask_conditioned=False,
         ),
     ),
-    env_class=SawyerLiftEnvGC,
-    env_kwargs={
-        'action_scale': .06,
-        'action_repeat': 5, #10
-        'timestep': 1./240, #1./120
-        'solver_iterations': 150,
-        'max_force': 1000,
+    # env_id='FourObject-PickAndPlace-RandomInit-2D-v1',
+    env_class=PickAndPlaceEnv,
+    env_kwargs=dict(
+        # Environment dynamics
+        action_scale=1.0,
+        ball_radius=1.,
+        boundary_dist=4,
+        object_radius=0.50,
+        min_grab_distance=0.5,
+        walls=None,
+        # Rewards
+        action_l2norm_penalty=0,
+        reward_type="dense", #dense_l1
+        success_threshold=0.60,
+        # Reset settings
+        fixed_goal=None,
+        # Visualization settings
+        images_are_rgb=True,
+        render_dt_msec=0,
+        render_onscreen=False,
+        render_size=84,
+        show_goal=True,
+        # get_image_base_render_size=(48, 48),
+        # Goal sampling
+        goal_samplers=None,
+        goal_sampling_mode='random',
+        num_presampled_goals=10000,
+        object_reward_only=True,
 
-        'gui': False,
-        'pos_init': [.75, -.3, 0],
-        'pos_high': [.75, .4, .3],
-        'pos_low': [.75, -.4, -.36],
-        'reset_obj_in_hand_rate': 0.0,
-        'img_dim': 48,
-        'goal_mode': 'obj_in_bowl',
-        'num_obj': 0, #2
-    },
+        init_position_strategy='random',
+    ),
     imsize=256,
 )
 
 env_params = {
-    'pb-reach': {
-        'env_kwargs.num_obj': [0],
-        'rl_variant.algo_kwargs.num_epochs': [50],
-        'rl_variant.save_video_period': [5],  # 25
-    },
-    'pb-1obj': {
-        'env_kwargs.num_obj': [1],
-        'env_kwargs.reward_type': [
-            'obj_dist',
-            'hand_dist+obj_dist',
+    'pg-1obj': {
+        'env_kwargs.num_objects': [1],
+        'env_kwargs.object_reward_only': [
+            True,
+            False,
         ],
-
-        'rl_variant.algo_kwargs.num_epochs': [200],
-        'rl_variant.save_video_period': [25],  # 25
+        'rl_variant.algo_kwargs.num_epochs': [500],
+        'rl_variant.save_video_period': [50],
+    },
+    'pg-2obj': {
+        'env_kwargs.num_objects': [2],
+        'env_kwargs.object_reward_only': [
+            True,
+            False,
+        ],
+        'rl_variant.algo_kwargs.num_epochs': [500],
+        'rl_variant.save_video_period': [50],
     },
 }
 
@@ -126,7 +137,6 @@ def process_variant(variant):
         rl_variant['algo_kwargs']['num_epochs'] = 4
         rl_variant['algo_kwargs']['batch_size'] = 128
         rl_variant['contextual_replay_buffer_kwargs']['max_size'] = int(1e4)
-        rl_variant['replay_buffer_kwargs']['max_size'] = int(1e4)
         rl_variant['algo_kwargs']['num_eval_steps_per_epoch'] = 200
         rl_variant['algo_kwargs']['num_expl_steps_per_train_loop'] = 200
         rl_variant['algo_kwargs']['num_trains_per_train_loop'] = 200
@@ -136,7 +146,6 @@ def process_variant(variant):
         variant['imsize'] = 256
     rl_variant['renderer_kwargs']['img_width'] = variant['imsize']
     rl_variant['renderer_kwargs']['img_height'] = variant['imsize']
-    variant['env_kwargs']['img_dim'] = variant['imsize']
 
     if args.no_video:
         rl_variant['save_video'] = False

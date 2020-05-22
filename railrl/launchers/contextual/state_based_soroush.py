@@ -176,7 +176,7 @@ def td3_experiment(variant):
             )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), #achieved_goal_key
+                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), # achieved_goal_key
                 desired_goal_key=desired_goal_key,
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
@@ -192,7 +192,7 @@ def td3_experiment(variant):
             )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), #achieved_goal_key
+                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), # achieved_goal_key
                 desired_goal_key=desired_goal_key,
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
@@ -205,7 +205,7 @@ def td3_experiment(variant):
             )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), #achieved_goal_key
+                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), # achieved_goal_key
                 desired_goal_key=desired_goal_key,
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
