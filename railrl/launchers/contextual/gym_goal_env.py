@@ -23,7 +23,7 @@ from railrl.envs.contextual.gym_goal_envs import \
     GenericGoalConditionedContextualDiagnostics,
 )
 from railrl.envs.images import InsertImageEnv
-from railrl.envs.images.adapter import GymEnvRenderer
+from railrl.envs.images.env_renderer import GymEnvRenderer
 from railrl.launchers.contextual.util import (
     get_save_video_function,
     get_gym_env,

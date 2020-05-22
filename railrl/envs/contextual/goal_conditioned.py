@@ -79,7 +79,7 @@ class AddImageDistribution(DictDistribution):
             goal = ppp.treemap(lambda x: x[i], contexts, atomic_type=np.ndarray)
             env_state = self._env.get_env_state()
             self._env.set_to_goal(goal)
-            img_goal = self._renderer.create_image(self._env)
+            img_goal = self._renderer(self._env)
             self._env.set_env_state(env_state)
             images.append(img_goal)
 

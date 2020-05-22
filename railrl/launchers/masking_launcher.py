@@ -19,7 +19,7 @@ from railrl.envs.contextual.goal_conditioned import (
     AddImageDistribution,
     IndexIntoAchievedGoal,
 )
-from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.launchers.rl_exp_launcher_util import create_exploration_policy
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector,
@@ -425,7 +425,7 @@ def masking_sac_experiment(
             obs_processor=lambda o: np.hstack(
                 (o[observation_key], o[context_key], np.ones(mask_dim)))
         )
-        renderer = Renderer(**renderer_kwargs)
+        renderer = EnvRenderer(**renderer_kwargs)
 
         def add_images(env, state_distribution):
             state_env = env.env

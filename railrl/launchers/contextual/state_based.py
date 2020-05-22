@@ -17,7 +17,7 @@ from railrl.envs.contextual.goal_conditioned import (
     GoalConditionedDiagnosticsToContextualDiagnostics,
     IndexIntoAchievedGoal,
 )
-from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.launchers.contextual.util import (
     get_save_video_function,
     get_gym_env,
@@ -185,7 +185,7 @@ def goal_conditioned_sac_experiment(
             observation_key=observation_key,
             context_keys_for_policy=[context_key],
         )
-        renderer = Renderer(**renderer_kwargs)
+        renderer = EnvRenderer(**renderer_kwargs)
 
         def add_images(env, state_distribution):
             state_env = env.env
@@ -210,8 +210,8 @@ def goal_conditioned_sac_experiment(
             img_eval_env,
             MakeDeterministic(policy),
             tag="eval",
-            imsize=renderer.image_shape[0],
-            image_format='CWH',
+            imsize=renderer.width,
+            image_format=renderer.output_image_format,
             **save_video_kwargs
         )
         expl_video_func = get_save_video_function(
@@ -219,8 +219,8 @@ def goal_conditioned_sac_experiment(
             img_expl_env,
             exploration_policy,
             tag="train",
-            imsize=renderer.image_shape[0],
-            image_format='CWH',
+            imsize=renderer.width,
+            image_format=renderer.output_image_format,
             **save_video_kwargs
         )
 

@@ -18,7 +18,7 @@ from railrl.envs.contextual.goal_conditioned import (
     PresampledDistribution,
     NegativeL2Distance,
 )
-from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.images.data_augmentation import (
     BatchPad,
     JointRandomCrop,
@@ -166,7 +166,7 @@ def image_based_goal_conditioned_sac_experiment(
         )
         return env, goal_distribution, reward_fn
 
-    env_renderer = Renderer(**env_renderer_kwargs)
+    env_renderer = EnvRenderer(**env_renderer_kwargs)
     expl_env, expl_context_distrib, expl_reward = setup_contextual_env(
         env_id, env_class, env_kwargs, exploration_goal_sampling_mode,
         env_renderer
@@ -350,7 +350,7 @@ def image_based_goal_conditioned_sac_experiment(
             observation_key=img_observation_key,
             context_keys_for_policy=[img_desired_goal_key],
         )
-        video_renderer = Renderer(**video_renderer_kwargs)
+        video_renderer = EnvRenderer(**video_renderer_kwargs)
         video_eval_env = InsertImageEnv(
             eval_env, renderer=video_renderer, image_key='video_observation')
         video_expl_env = InsertImageEnv(
