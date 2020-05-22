@@ -61,6 +61,7 @@ class BiGANWrappedEnv(VAEWrappedEnv):
         if type(pixel_cnn) is str:
             self.pixel_cnn = load_local_or_remote_file(pixel_cnn)
         self.representation_size = self.vae.representation_size
+        self.imsize = self.vae.imsize
         print("Location: BiGAN WRAPPER")
 
         latent_space = Box(

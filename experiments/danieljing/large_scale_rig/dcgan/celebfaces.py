@@ -3,12 +3,12 @@ import railrl.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
-from railrl.torch.grill.gan_experiments import train_gan
 from railrl.torch.gan.dcgan import DCGAN
 from railrl.torch.gan.dcgan_trainer import DCGANTrainer
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 from railrl.launchers.config import CELEBA_DATASET
+from experiments.danieljing.large_scale_rig.gan_launcher import train_gan
 
 if __name__ == "__main__":
 

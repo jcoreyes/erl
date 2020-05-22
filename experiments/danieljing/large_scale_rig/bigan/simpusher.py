@@ -2,9 +2,9 @@ import railrl.misc.hyperparameter as hyp
 from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2
 from railrl.launchers.launcher_util import run_experiment
-import railrl.torch.gan.gan_schedules as gan_schedules
+import railrl.torch.vae.vae_schedules as vae_schedules
 from railrl.launchers.arglauncher import run_variants
-from railrl.torch.grill.gan_experiments import (
+from railrl.torch.grill.cvae_experiments import (
     grill_her_td3_offpolicy_online_vae_full_experiment,
 )
 from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
@@ -14,6 +14,7 @@ from railrl.torch.gan.bigan import BiGAN
 from railrl.torch.gan.bigan_trainer import BiGANTrainer
 from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
+from experiments.danieljing.large_scale_rig.gan_launcher import train_gan
 
 
 x_var = 0.2
@@ -56,9 +57,10 @@ if __name__ == "__main__":
         ),
 
         grill_variant=dict(
+            vae_trainer_class=BiGANTrainer,
             save_video=True,
             custom_goal_sampler='replay_buffer',
-            online_gan_trainer_kwargs=dict(
+            online_vae_trainer_kwargs=dict(
                 ngpu = 1, 
                 beta = 0.5,
                 lr = 0.0002,
@@ -81,7 +83,7 @@ if __name__ == "__main__":
                 num_eval_steps_per_epoch=1000,
                 num_expl_steps_per_train_loop=1000,
                 min_num_steps_before_training=4000,
-                vae_training_schedule=gan_schedules.never_train,
+                vae_training_schedule=vae_schedules.never_train,
                 oracle_data=False,
                 vae_save_period=25,
                 parallel_vae_train=False,
@@ -129,19 +131,19 @@ if __name__ == "__main__":
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
             #vae_path="/home/danieljing/large-scale-rig/bigan/bairdataset/run3/id0/gan.pkl"
         ),
-        train_gan_variant=dict(
+        train_vae_variant=dict(
             simpusher=True,
             beta=0.5,
             beta_schedule_kwargs=dict(
                 x_values=(0, 500),
                 y_values=(1, 50),
             ),
-            num_epochs=40,
+            num_epochs=5,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=10000, #1000000
+                N=1000, #1000000
                 n_random_steps=50,
                 test_p=.9,
                 dataset_path=None,
@@ -156,8 +158,9 @@ if __name__ == "__main__":
                 save_trajectories=False,
                 enviorment_dataset=False,
             ),
-            gan_trainer_class=BiGANTrainer,
-            gan_class=BiGAN,
+            vae_trainer_class=BiGANTrainer,
+            vae_class=BiGAN,
+            train_fn = train_gan,
             gan_kwargs=dict(
                 ngpu = 1, 
                 dropout = 0.2,
@@ -202,10 +205,10 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(1),
-        'train_gan_variant.latent_size': [4, 8, 16, 32, 64, 128, 256],
-        'train_gan_variant.algo_kwargs.batch_size': [128],
+        'train_vae_variant.latent_size': [4], #[4, 8, 16, 32, 64, 128, 256],
+        'train_vae_variant.algo_kwargs.batch_size': [128],
         'grill_variant.algo_kwargs.num_trains_per_train_loop':[4000],
-        'grill_variant.reward_params.epsilon': [0, 0.001, 0.0025, 0.005, 0.075],
+        'grill_variant.reward_params.epsilon': [0.005], #[0, 0.001, 0.0025, 0.005, 0.075],
         'grill_variant.algo_kwargs.batch_size': [128,],
         'grill_variant.exploration_noise': [0.8],
 

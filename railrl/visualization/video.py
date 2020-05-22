@@ -328,13 +328,13 @@ def dump_paths(
             imgs = [d[k] for k in keys]
             imgs = imgs + get_extra_imgs(path, i_in_path, env)
             imgs = imgs[:num_imgs]
+            import ipdb; ipdb.set_trace()
             l.append(
                 combine_images_into_grid(
                     imgs,
                     imwidth,
                     imheight,
                     max_num_cols=num_columns_per_rollout,
-                    unnormalize=True,
                     **combine_img_kwargs
                 )
             )

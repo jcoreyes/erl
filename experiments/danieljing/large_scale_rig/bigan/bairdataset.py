@@ -4,12 +4,12 @@ from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset im
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
-from railrl.torch.grill.gan_experiments import train_gan
 from railrl.torch.gan.bigan import BiGAN
 from railrl.torch.gan.bigan_trainer import BiGANTrainer
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 from railrl.launchers.config import CELEBA_DATASET
+from experiments.danieljing.large_scale_rig.gan_launcher import train_gan
 
 if __name__ == "__main__":
 

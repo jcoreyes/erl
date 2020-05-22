@@ -10,14 +10,14 @@ from railrl.torch.gan.bigan_trainer import BiGANTrainer
 def grill_her_td3_offpolicy_online_vae_full_experiment(variant):
     variant['grill_variant']['save_vae_data'] = True
     full_experiment_variant_preprocess(variant)
-    train_gan_and_update_variant(variant)
+    train_vae_and_update_variant(variant)
     grill_her_td3_experiment_offpolicy_online_vae(variant['grill_variant'])
 
 def grill_her_td3_experiment_offpolicy_online_vae(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.td3.td3 import TD3
     from railrl.exploration_strategies.base import (
@@ -50,22 +50,22 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
     )
     action_dim = env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
@@ -109,8 +109,8 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
     )
     replay_buffer.representation_size = vae.representation_size
 
-    gan_trainer_class = variant.get("gan_trainer_class", BiGANTrainer)
-    gan_trainer = gan_trainer_class(env.vae, **variant['online_gan_trainer_kwargs'])
+    vae_trainer_class = variant.get("vae_trainer_class", BiGANTrainer)
+    vae_trainer = vae_trainer_class(env.vae, **variant['online_vae_trainer_kwargs'])
 
 
     assert 'vae_training_schedule' not in variant, "Just put it in algo_kwargs"
@@ -151,7 +151,7 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
         evaluation_data_collector=eval_path_collector,
         replay_buffer=replay_buffer,
         vae=vae,
-        vae_trainer=gan_trainer,
+        vae_trainer=vae_trainer,
         uniform_dataset=uniform_dataset,
         max_path_length=max_path_length,
         **variant['algo_kwargs']
