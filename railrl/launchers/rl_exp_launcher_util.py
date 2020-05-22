@@ -1,5 +1,6 @@
 import os.path as osp
 
+from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.policies.action_repeat import ActionRepeatPolicy
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
 from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector
@@ -583,7 +584,32 @@ def create_exploration_policy(env, policy, exploration_version='identity',
     if exploration_version == 'identity':
         return policy
     elif exploration_version == 'occasionally_repeat':
-        return ActionRepeatPolicy(policy, **kwargs)
+        return ActionRepeatPolicy(policy, repeat_prob=kwargs['repeat_prob'])
+    elif exploration_version == 'epsilon_greedy':
+        return PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=EpsilonGreedy(
+                action_space=env.action_space,
+                prob_random_action=kwargs['prob_random_action'],
+            ),
+            policy=policy
+        )
+    elif exploration_version == 'epsilon_greedy_and_occasionally_repeat':
+        policy = PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=EpsilonGreedy(
+                action_space=env.action_space,
+                prob_random_action=kwargs['prob_random_action'],
+            ),
+            policy=policy
+        )
+        return ActionRepeatPolicy(policy, repeat_prob=kwargs['repeat_prob'])
+    elif exploration_version == 'epsilon_greedy':
+        return PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=EpsilonGreedy(
+                action_space=env.action_space,
+                prob_random_action=kwargs['prob_random_action'],
+            ),
+            policy=policy
+        )
     elif exploration_version == 'ou':
         return PolicyWrappedWithExplorationStrategy(
             exploration_strategy=OUStrategy(

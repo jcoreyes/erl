@@ -10,7 +10,7 @@ import numpy as np
 from torch import optim
 
 from railrl.core import logger
-from railrl.envs.images import Renderer, InsertImagesEnv
+from railrl.envs.images import EnvRenderer, InsertImagesEnv
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import eval_np
 from railrl.torch.disentanglement.networks import DisentangledMlpQf
@@ -132,7 +132,7 @@ def get_batch(ob_space, batch_size):
     return noise * (ob_space.high - ob_space.low) + ob_space.low
 
 
-class DebugRenderer(Renderer):
+class DebugEnvRenderer(EnvRenderer):
     def __init__(
             self,
             encoder: DisentangledMlpQf,
@@ -145,7 +145,7 @@ class DebugRenderer(Renderer):
         self.encoder = encoder
         self.head_idx = head_index
 
-    def create_image(self, env, encoded):
+    def _create_image(self, env, encoded):
         values = encoded[:, self.head_idx]
         value_image = values.reshape(self.image_shape[:2])
         value_img_rgb = np.repeat(
@@ -163,7 +163,7 @@ class InsertDebugImagesEnv(InsertImagesEnv):
     def __init__(
             self,
             wrapped_env: gym.Env,
-            renderers: typing.Dict[str, DebugRenderer],
+            renderers: typing.Dict[str, DebugEnvRenderer],
             compute_shared_data=None,
     ):
         super().__init__(wrapped_env, renderers)
@@ -172,7 +172,7 @@ class InsertDebugImagesEnv(InsertImagesEnv):
     def _update_obs(self, obs):
         shared_data = self.compute_shared_data(obs, self.env)
         for image_key, renderer in self.renderers.items():
-            obs[image_key] = renderer.create_image(self.env, shared_data)
+            obs[image_key] = renderer(self.env, shared_data)
 
 
 def create_visualize_representation(
@@ -214,7 +214,7 @@ def create_visualize_representation(
         }
         env_state = env.get_env_state()
         env.set_to_goal(goal_dict)
-        start_img = renderer.create_image(env)
+        start_img = renderer(env)
         env.set_env_state(env_state)
         goal_dict['image_observation'] = start_img
         goal_dict['new_states'] = new_states

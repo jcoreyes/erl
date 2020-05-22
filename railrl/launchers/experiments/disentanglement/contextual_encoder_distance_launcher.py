@@ -23,14 +23,14 @@ from railrl.envs.contextual.goal_conditioned import (
     ContextualRewardFnFromMultitaskEnv,
     IndexIntoAchievedGoal,
 )
-from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.launchers.contextual.util import (
     get_save_video_function,
     get_gym_env,
 )
 from railrl.launchers.experiments.disentanglement.debug import (
     DebugTrainer,
-    DebugRenderer,
+    DebugEnvRenderer,
     InsertDebugImagesEnv,
     create_visualize_representation,
 )
@@ -244,7 +244,7 @@ def encoder_goal_conditioned_sac_experiment(
     img_desired_goal_key = 'image_desired_goal'
 
     if use_image_observations:
-        env_renderer = Renderer(**env_renderer_kwargs)
+        env_renderer = EnvRenderer(**env_renderer_kwargs)
 
     def setup_env(state_env, encoder, reward_fn):
         goal_distribution = GoalDictDistributionFromMultitaskEnv(
@@ -596,7 +596,7 @@ def encoder_goal_conditioned_sac_experiment(
     )
     algorithm.to(ptu.device)
 
-    video_renderer = Renderer(**video_renderer_kwargs)
+    video_renderer = EnvRenderer(**video_renderer_kwargs)
     if save_video:
         rollout_function = partial(
             rf.contextual_rollout,
@@ -607,18 +607,18 @@ def encoder_goal_conditioned_sac_experiment(
         if save_debug_video and not use_image_observations:
             # TODO: add visualization for image-based envs
             obj1_sweep_renderers = {
-                'sweep_obj1_%d' % i: DebugRenderer(
+                'sweep_obj1_%d' % i: DebugEnvRenderer(
                     encoder, i, **debug_renderer_kwargs)
                 for i in range(encoder_output_dim)
             }
             obj0_sweep_renderers = {
-                'sweep_obj0_%d' % i: DebugRenderer(
+                'sweep_obj0_%d' % i: DebugEnvRenderer(
                     encoder, i, **debug_renderer_kwargs)
                 for i in range(encoder_output_dim)
 
             }
 
-            debugger_one = DebugRenderer(encoder, 0, **debug_renderer_kwargs)
+            debugger_one = DebugEnvRenderer(encoder, 0, **debug_renderer_kwargs)
 
             low = eval_env.env.observation_space[state_observation_key].low.min()
             high = eval_env.env.observation_space[state_observation_key].high.max()
@@ -726,7 +726,7 @@ def encoder_goal_conditioned_sac_experiment(
                 **save_video_kwargs
             )
         else:
-            video_renderer = Renderer(**video_renderer_kwargs)
+            video_renderer = EnvRenderer(**video_renderer_kwargs)
 
             def add_images(env, base_distribution):
                 if use_image_observations:
@@ -816,7 +816,7 @@ def encoder_goal_conditioned_sac_experiment(
                 }
                 env_state = state_eval_env.get_env_state()
                 state_eval_env.set_to_goal(goal_dict)
-                start_img = env_renderer.create_image(state_eval_env)
+                start_img = env_renderer(state_eval_env)
                 state_eval_env.set_env_state(env_state)
                 return start_img
             for i in range(num_objects):
