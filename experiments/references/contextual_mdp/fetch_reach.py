@@ -42,9 +42,9 @@ if __name__ == "__main__":
             pad_color=0,
         ),
         renderer_kwargs=dict(
-            img_width=320,
-            img_height=320,
-            output_img_format='CHW',
+            width=320,
+            height=320,
+            output_image_format='CHW',
         ),
     )
 

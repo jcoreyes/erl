@@ -30,7 +30,7 @@ class ScrollingPlotRenderer(Renderer):
             **kwargs
     ):
         """Render an image."""
-        super().__init__(**kwargs)
+        super().__init__(create_image_format='HWC', **kwargs)
         self._min_value = min_value # TODO: use
         self._max_value = max_value
         self._dpi = dpi # TODO: use automatically

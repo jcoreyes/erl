@@ -1,11 +1,8 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.launchers.contextual.rig.rig_launcher import (
-    rig_experiment, process_args
-)
-from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
-
-from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
+from railrl.launchers.contextual.rig.rig_launcher import (
+    rig_experiment, process_args,
+)
 
 if __name__ == "__main__":
     variant = dict(
@@ -89,8 +86,8 @@ if __name__ == "__main__":
         renderer_kwargs=dict(
             # input_img_format='HWC',
             # output_img_format='CWH',
-            output_img_format='CHW',
-            flatten_img=True,
+            output_image_format='CHW',
+            flatten_image=True,
             # normalize_img=False,
         ),
         evaluation_goal_sampling_mode="reset_of_env",
