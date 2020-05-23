@@ -7,7 +7,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector, ObsDictPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import ConcatMlp
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic, GaussianPolicy
 from railrl.torch.sac.awr_sac import AWRSACTrainer
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
@@ -382,7 +382,7 @@ def experiment(variant):
     if buffer_policy_path:
         buffer_policy = load_local_or_remote_file(buffer_policy_path)
     else:
-        buffer_policy_class = variant.get("buffer_policy_class", policy_class)
+        buffer_policy_class = variant.get("buffer_policy_class", GaussianPolicy)
         buffer_policy = buffer_policy_class(
             obs_dim=obs_dim,
             action_dim=action_dim,

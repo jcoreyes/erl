@@ -76,7 +76,9 @@ class AWRSACTrainer(TorchTrainer):
             awr_use_mle_for_vf=False,
             vf_K=1,
             awr_sample_actions=False,
+            buffer_policy_sample_actions=False,
             awr_min_q=False,
+            brac=False,
 
             reward_transform_class=None,
             reward_transform_kwargs=None,
@@ -220,9 +222,11 @@ class AWRSACTrainer(TorchTrainer):
         self.use_reparam_update = use_reparam_update
         self.use_klac_update = use_klac_update
         self.clip_score = clip_score
+        self.buffer_policy_sample_actions = buffer_policy_sample_actions
 
         self.train_bc_on_rl_buffer = train_bc_on_rl_buffer and buffer_policy
         self.validation_qlearning = validation_qlearning
+        self.brac = brac
 
     def get_batch_from_buffer(self, replay_buffer, batch_size):
         batch = replay_buffer.random_batch(batch_size)
@@ -518,6 +522,11 @@ class AWRSACTrainer(TorchTrainer):
         new_obs_actions, log_pi = dist.rsample_and_logprob()
         policy_mle = dist.mle_estimate()
 
+        if self.brac:
+            buf_dist = self.buffer_policy(obs)
+            buf_log_pi = buf_dist.log_prob(actions)
+            rewards = rewards + buf_log_pi
+
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
             self.alpha_optimizer.zero_grad()
@@ -583,6 +592,19 @@ class AWRSACTrainer(TorchTrainer):
                 q_adv = q_new_actions
             else:
                 q_adv = qf1_new_actions
+        elif self.buffer_policy_sample_actions:
+            buf_dist = self.buffer_policy(obs)
+            u, _ = buf_dist.rsample_and_logprob()
+            qf1_buffer_actions = self.qf1(obs, u)
+            qf2_buffer_actions = self.qf2(obs, u)
+            q_buffer_actions = torch.min(
+                qf1_buffer_actions,
+                qf2_buffer_actions,
+            )
+            if self.awr_min_q:
+                q_adv = q_buffer_actions
+            else:
+                q_adv = qf1_buffer_actions
         else:
             u = actions
             if self.awr_min_q:
@@ -720,7 +742,7 @@ class AWRSACTrainer(TorchTrainer):
             policy_loss = policy_loss + self.bc_weight * train_policy_loss
 
         if self.train_bc_on_rl_buffer:
-            buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(self.replay_buffer.train_replay_buffer, self.buffer_policy)
+            buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(self.replay_buffer, self.buffer_policy)
         """
         Update networks
         """
@@ -820,11 +842,10 @@ class AWRSACTrainer(TorchTrainer):
                     "bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
                 })
             if self.train_bc_on_rl_buffer:
-                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.replay_buffer.validation_replay_buffer,
+                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.replay_buffer,
                                                                                        self.buffer_policy)
                 buffer_dist = self.buffer_policy(obs)
-
-                kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
+                # kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
 
                 self.eval_statistics.update({
                     "buffer_policy/Train Logprob Loss": ptu.get_numpy(buffer_train_logp_loss),
@@ -833,7 +854,7 @@ class AWRSACTrainer(TorchTrainer):
                     "buffer_policy/Test MSE": ptu.get_numpy(test_mse_loss),
                     "buffer_policy/train_policy_loss": ptu.get_numpy(buffer_policy_loss),
                     "buffer_policy/test_policy_loss": ptu.get_numpy(test_policy_loss),
-                    "buffer_policy/kl_div":ptu.get_numpy(kldiv.mean()),
+                    # "buffer_policy/kl_div":ptu.get_numpy(kldiv.mean()),
                 })
             if self.use_automatic_beta_tuning:
                 self.eval_statistics.update({
