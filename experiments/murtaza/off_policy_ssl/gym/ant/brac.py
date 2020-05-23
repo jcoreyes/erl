@@ -45,6 +45,7 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
             do_pretrain_rollouts=True,
             brac=True,
+            train_bc_on_rl_buffer=True,
         ),
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
@@ -93,12 +94,12 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_prefix = 'test'
+    # exp_name = 'test'
     
 
     n_seeds = 2
     mode = 'ec2'
-    exp_name = 'brac_ant_offline_online_final_v1'
+    exp_name = 'brac_ant_offline_online_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

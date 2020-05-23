@@ -22,6 +22,7 @@ if __name__ == "__main__":
         sac_bc=True,
         load_demos=True,
         pretrain_rl=True,
+        qf_kwargs=dict(hidden_sizes=[256, 256]),
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
