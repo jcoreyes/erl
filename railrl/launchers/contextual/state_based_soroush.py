@@ -81,10 +81,10 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             idxs = np.random.choice(len(self.masks), batch_size)
             goals[self.mask_key] = self.masks[idxs]
         else:
-            goals[self.mask_key] = np.zeros((batch_size, self.mask_dim))
+            goals[self.mask_key] = np.ones((batch_size, self.mask_dim))
         return goals
 
-class SequentialTaskPathCollector(ContextualPathCollector):
+class TaskPathCollector(ContextualPathCollector):
     def __init__(
             self,
             *args,
@@ -120,6 +120,52 @@ class SequentialTaskPathCollector(ContextualPathCollector):
                     start = idx * num_steps_per_task
                     end = start + num_steps_per_task
                     self.rollout_tasks[start:end] = id
+
+        self._rollout_fn = partial(
+            contextual_rollout,
+            context_keys_for_policy=self._context_keys_for_policy,
+            observation_key=self._observation_key,
+            obs_processor=obs_processor,
+            reset_postprocess_func=reset_postprocess_func,
+        )
+
+class MaskPathCollector(ContextualPathCollector):
+    def __init__(
+            self,
+            *args,
+            mask_key=None,
+            max_path_length=100,
+            masks=None,
+            rotate_freq=0.0,
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.masks = masks
+        self.rotate_freq = rotate_freq
+        self.rollout_masks = []
+
+        def obs_processor(o):
+            if len(self.rollout_masks) > 0:
+                mask = self.rollout_masks[0]
+                self.rollout_masks = self.rollout_masks[1:]
+                o[mask_key] = mask
+                self._env._rollout_context_batch[mask_key] = mask[None]
+
+            combined_obs = [o[self._observation_key]]
+            for k in self._context_keys_for_policy:
+                combined_obs.append(o[k])
+            return np.concatenate(combined_obs, axis=0)
+
+        def reset_postprocess_func():
+            rotate = (np.random.uniform() < self.rotate_freq)
+            self.rollout_masks = []
+            if rotate:
+                num_steps_per_mask = max_path_length // len(self.masks)
+                self.rollout_masks = np.zeros((max_path_length, self.masks.shape[1]))
+                for (idx, mask) in enumerate(self.masks):
+                    start = idx * num_steps_per_mask
+                    end = start + num_steps_per_mask
+                    self.rollout_masks[start:end,:] = mask
 
         self._rollout_fn = partial(
             contextual_rollout,
@@ -332,13 +378,19 @@ def td3_experiment(variant):
         **variant['td3_trainer_kwargs']
     )
 
-    def create_path_collector(env, policy, mode='expl'):
+    def create_path_collector(
+            env,
+            policy,
+            mode='expl',
+            mask_kwargs={},
+            task_kwargs={},
+    ):
         assert mode in ['expl', 'eval']
 
         if task_conditioned:
             rotate_freq = task_variant['rotate_task_freq_for_expl'] if mode == 'expl' \
                 else task_variant['rotate_task_freq_for_eval']
-            return SequentialTaskPathCollector(
+            return TaskPathCollector(
                 env,
                 policy,
                 observation_key=observation_key,
@@ -349,11 +401,25 @@ def td3_experiment(variant):
                 rotate_freq=rotate_freq,
             )
         elif mask_conditioned:
-            return ContextualPathCollector(
+            if 'rotate_freq' in mask_kwargs:
+                rotate_freq = mask_kwargs['rotate_freq']
+            else:
+                rotate_freq = mask_variant['rotate_mask_freq_for_expl'] if mode == 'expl' \
+                    else mask_variant['rotate_mask_freq_for_eval']
+            if 'masks' in mask_kwargs:
+                masks = mask_kwargs['masks']
+            else:
+                mask_distribution = eval_context_distrib if mode == 'eval' else expl_context_distrib
+                masks = mask_distribution.masks.copy()
+            return MaskPathCollector(
                 env,
                 policy,
                 observation_key=observation_key,
                 context_keys_for_policy=context_keys,
+                mask_key=mask_key,
+                max_path_length=100,
+                masks=masks,
+                rotate_freq=rotate_freq,
             )
         else:
             return ContextualPathCollector(
@@ -428,5 +494,52 @@ def td3_experiment(variant):
 
         algorithm.post_train_funcs.append(eval_video_func)
 
+    if mask_conditioned and mask_variant.get('log_mask_diagnostics', True):
+        masks = eval_context_distrib.masks.copy()
+        collectors = []
+
+        for mask in masks:
+            mask_kwargs=dict(
+                rotate_freq=1.0,
+                masks=np.array([mask]),
+            )
+            collector = create_path_collector(eval_env, policy, mode='eval', mask_kwargs=mask_kwargs)
+            collectors.append(collector)
+        log_prefixes = [
+            'mask_{}/'.format(''.join(mask.astype(int).astype(str)))
+            for mask in masks
+        ]
+
+        def get_mask_diagnostics(unused):
+            from railrl.core.logging import append_log, add_prefix, OrderedDict
+            from railrl.misc import eval_util
+            log = OrderedDict()
+            for prefix, collector in zip(log_prefixes, collectors):
+                paths = collector.collect_new_paths(
+                    max_path_length,
+                    max_path_length, #masking_eval_steps,
+                    discard_incomplete_paths=True,
+                )
+                old_path_info = eval_util.get_generic_path_information(paths)
+
+                keys_to_keep = []
+                for key in old_path_info.keys():
+                    if ('env_infos' in key) and ('final' in key) and ('Mean' in key):
+                        keys_to_keep.append(key)
+                path_info = OrderedDict()
+                for key in keys_to_keep:
+                    path_info[key] = old_path_info[key]
+
+                generic_info = add_prefix(
+                    path_info,
+                    prefix,
+                )
+                append_log(log, generic_info)
+
+            for collector in collectors:
+                collector.end_epoch(0)
+            return log
+
+        algorithm._eval_get_diag_fns.append(get_mask_diagnostics)
 
     algorithm.train()

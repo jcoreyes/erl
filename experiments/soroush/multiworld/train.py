@@ -69,6 +69,9 @@ variant = dict(
         ),
         mask_variant=dict(
             mask_conditioned=False,
+            rotate_mask_freq_for_expl=0.25,
+            rotate_mask_freq_for_eval=1.0,
+            log_mask_diagnostics=True,
         ),
     ),
     # env_id='FourObject-PickAndPlace-RandomInit-2D-v1',
@@ -117,12 +120,23 @@ env_params = {
     },
     'pg-2obj': {
         'env_kwargs.num_objects': [2],
-        'env_kwargs.object_reward_only': [
-            True,
-            False,
-        ],
         'rl_variant.algo_kwargs.num_epochs': [500],
-        'rl_variant.save_video_period': [50],
+
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.mask_idxs': [
+            [[2, 3], [4, 5], [0, 1]],
+            [[0, 1, 2, 3, 4, 5]],
+        ],
+    },
+    'pg-4obj': {
+        'env_kwargs.num_objects': [4],
+        'rl_variant.algo_kwargs.num_epochs': [1000],
+
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.mask_idxs': [
+            [[2, 3], [4, 5], [6, 7], [8, 9], [0, 1]],
+            [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
+        ],
     },
 }
 
