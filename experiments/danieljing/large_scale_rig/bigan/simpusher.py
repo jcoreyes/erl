@@ -97,7 +97,6 @@ if __name__ == "__main__":
             ),
             replay_buffer_class=OnlineVaeRelabelingBuffer,
             replay_buffer_kwargs=dict(
-                #ob_keys_to_save=['state_achieved_goal', "state_desired_goal"],
                 start_skew_epoch=10,
                 max_size=int(100000),
                 fraction_goals_rollout_goals=0.2,
@@ -126,10 +125,11 @@ if __name__ == "__main__":
             desired_goal_key='latent_desired_goal',
             vae_wrapped_env_kwargs=dict(
                 sample_from_true_prior=True,
-                #num_goals_to_presample=10000,
             ),
             algorithm='ONLINE-VAE-SAC-BERNOULLI',
-            #vae_path="/home/danieljing/large-scale-rig/bigan/bairdataset/run3/id0/gan.pkl"
+            dump_video_kwargs = dict(
+                image_format="CWH"
+            ),
         ),
         train_vae_variant=dict(
             simpusher=True,
@@ -138,12 +138,12 @@ if __name__ == "__main__":
                 x_values=(0, 500),
                 y_values=(1, 50),
             ),
-            num_epochs=5,
+            num_epochs=40,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=1000, #1000000
+                N=10000,
                 n_random_steps=50,
                 test_p=.9,
                 dataset_path=None,
@@ -167,23 +167,9 @@ if __name__ == "__main__":
                 output_size = 1
             ),
             algo_kwargs=dict(
-                # key_to_reconstruct='x_t',
-                # start_skew_epoch=5000,
-                # is_auto_encoder=False,
                 ngpu = 1,
                 lr = 0.0002,
                 generator_threshold = 3.5
-                # skew_config=dict(
-                #     method='vae_prob',
-                #     power=0,
-                # ),
-                # skew_dataset=False,
-                # priority_function_kwargs=dict(
-                #     decoder_distribution='gaussian_identity_variance',
-                #     sampling_method='importance_sampling',
-                #     num_latents_to_sample=10,
-                # ),
-                # use_parallel_dataloading=False,
             ),
 
             save_period=100,
@@ -205,10 +191,10 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(1),
-        'train_vae_variant.latent_size': [4], #[4, 8, 16, 32, 64, 128, 256],
+        'train_vae_variant.latent_size': [4, 8, 16, 32, 64, 128, 256],
         'train_vae_variant.algo_kwargs.batch_size': [128],
         'grill_variant.algo_kwargs.num_trains_per_train_loop':[4000],
-        'grill_variant.reward_params.epsilon': [0.005], #[0, 0.001, 0.0025, 0.005, 0.075],
+        'grill_variant.reward_params.epsilon': [0, 0.001, 0.0025, 0.005, 0.075],
         'grill_variant.algo_kwargs.batch_size': [128,],
         'grill_variant.exploration_noise': [0.8],
 

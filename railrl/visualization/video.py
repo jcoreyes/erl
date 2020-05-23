@@ -328,7 +328,6 @@ def dump_paths(
             imgs = [d[k] for k in keys]
             imgs = imgs + get_extra_imgs(path, i_in_path, env)
             imgs = imgs[:num_imgs]
-            import ipdb; ipdb.set_trace()
             l.append(
                 combine_images_into_grid(
                     imgs,
