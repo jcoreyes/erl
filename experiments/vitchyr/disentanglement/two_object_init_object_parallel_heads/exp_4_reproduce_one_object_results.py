@@ -82,19 +82,19 @@ if __name__ == "__main__":
         ),
         use_image_observations=True,
         env_renderer_kwargs=dict(
-            img_width=12,
-            img_height=12,
-            output_img_format='CHW',
+            width=12,
+            height=12,
+            output_image_format='CHW',
         ),
         video_renderer_kwargs=dict(
-            img_width=48,
-            img_height=48,
-            output_img_format='CHW',
+            width=48,
+            height=48,
+            output_image_format='CHW',
         ),
         debug_renderer_kwargs=dict(
-            img_width=48,
-            img_height=48,
-            output_img_format='CHW',
+            width=48,
+            height=48,
+            output_image_format='CHW',
         ),
         use_separate_encoder_for_policy=True,
         encoder_kwargs=dict(
@@ -128,14 +128,15 @@ if __name__ == "__main__":
             0.,
         ],
         'max_path_length': [
-            # 20,
-            40,
+            20,
+            # 40,
         ],
         'encoder_kwargs.hidden_sizes': [
             [],
         ],
         'env_id': [
-            'TwoObject-PickAndPlace-OnRandomObjectInit-2D-v1',
+            # 'TwoObject-PickAndPlace-OnRandomObjectInit-2D-v1',
+            'OneObject-PickAndPlace-OriginInit-2D-v1',
         ],
         'replay_buffer_kwargs.fraction_future_context': [
             0.5,
@@ -163,7 +164,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'sss'
-    exp_name = 'two-object-init-on-object-parallel_heads---exp-3--reproduce-good-results-match-net-size'
+    exp_name = 'two-object-init-on-object-parallel_heads---exp-4--reproduce-one-object-results'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):
