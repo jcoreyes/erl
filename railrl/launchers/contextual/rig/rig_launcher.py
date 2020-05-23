@@ -20,7 +20,7 @@ from railrl.envs.contextual.latent_distributions import (
     AddLatentDistribution,
     PriorDistribution,
 )
-from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.launchers.rl_exp_launcher_util import create_exploration_policy
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
@@ -111,14 +111,14 @@ def rig_experiment(
     if not renderer_kwargs:
         renderer_kwargs = {}
 
-    renderer = Renderer(init_camera=init_camera, **renderer_kwargs)
+    renderer = EnvRenderer(init_camera=init_camera, **renderer_kwargs)
 
     def contextual_env_distrib_and_reward(
             env_id, env_class, env_kwargs, goal_sampling_mode
     ):
         state_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
 
-        renderer = Renderer(init_camera=init_camera, **renderer_kwargs)
+        renderer = EnvRenderer(init_camera=init_camera, **renderer_kwargs)
         img_env = InsertImageEnv(state_env, renderer=renderer)
 
         encoded_env = EncoderWrappedEnv(
