@@ -6,7 +6,10 @@ import numpy as np
 
 from railrl.launchers.exp_launcher import rl_experiment
 
-from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
+from multiworld.envs.pygame.pick_and_place import (
+    PickAndPlaceEnv,
+    PickAndPlace1DEnv,
+)
 
 variant = dict(
     rl_variant=dict(
@@ -24,7 +27,11 @@ variant = dict(
             use_policy_saturation_cost=True,
             policy_saturation_cost_threshold=5.0,
         ),
-        twin_sac_trainer_kwargs=dict(),
+        sac_trainer_kwargs=dict(
+            soft_target_tau=1e-3,
+            target_update_period=1,
+            use_automatic_entropy_tuning=True,
+        ),
         contextual_replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_future_context=0.4,
@@ -79,7 +86,7 @@ variant = dict(
     env_kwargs=dict(
         # Environment dynamics
         action_scale=1.0,
-        ball_radius=1.,
+        ball_radius=0.75, #1.
         boundary_dist=4,
         object_radius=0.50,
         min_grab_distance=0.5,
@@ -124,8 +131,8 @@ env_params = {
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.mask_idxs': [
-            [[2, 3], [4, 5], [0, 1]],
-            [[0, 1, 2, 3, 4, 5]],
+            [[0, 1], [2, 3], [4, 5]],
+            [[2, 3, 4, 5]],
         ],
     },
     'pg-4obj': {
@@ -134,8 +141,33 @@ env_params = {
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.mask_idxs': [
-            [[2, 3], [4, 5], [6, 7], [8, 9], [0, 1]],
-            [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
+            [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]],
+            # [[2, 3, 4, 5, 6, 7, 8, 9]],
+        ],
+
+        'rl_variant.exploration_type': [
+            'gaussian_and_epsilon',
+            'ou',
+        ],
+        'rl_variant.exploration_noise': [
+            0.3,
+            0.6,
+        ],
+        'rl_variant.td3_trainer_kwargs.reward_scale': [
+            1.0,
+            10.0,
+            100.0,
+        ],
+    },
+    'pg-4obj-1d': {
+        'env_class': [PickAndPlace1DEnv],
+        'env_kwargs.num_objects': [4],
+        'rl_variant.algo_kwargs.num_epochs': [500],
+
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.mask_idxs': [
+            [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]],
+            # [[2, 3, 4, 5, 6, 7, 8, 9]],
         ],
     },
 }
@@ -145,7 +177,7 @@ def process_variant(variant):
 
     mpl = rl_variant['max_path_length']
     rl_variant['td3_trainer_kwargs']['discount'] = 1 - 1 / mpl
-    rl_variant['twin_sac_trainer_kwargs']['discount'] = 1 - 1 / mpl
+    rl_variant['sac_trainer_kwargs']['discount'] = 1 - 1 / mpl
 
     if args.debug:
         rl_variant['algo_kwargs']['num_epochs'] = 4
