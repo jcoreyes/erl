@@ -578,18 +578,24 @@ def get_video_save_func(rollout_function, env, policy, variant):
     return save_video
 
 
-def create_exploration_policy(env, policy, exploration_version='identity',
-                              **kwargs):
+def create_exploration_policy(
+        env,
+        policy,
+        exploration_version='identity',
+        repeat_prob=0.,
+        prob_random_action=0.,
+        exploration_noise=0.,
+):
     # TODO: merge with get_exploration_strategy
     if exploration_version == 'identity':
         return policy
     elif exploration_version == 'occasionally_repeat':
-        return ActionRepeatPolicy(policy, repeat_prob=kwargs['repeat_prob'])
+        return ActionRepeatPolicy(policy, repeat_prob=repeat_prob)
     elif exploration_version == 'epsilon_greedy':
         return PolicyWrappedWithExplorationStrategy(
             exploration_strategy=EpsilonGreedy(
                 action_space=env.action_space,
-                prob_random_action=kwargs['prob_random_action'],
+                prob_random_action=prob_random_action,
             ),
             policy=policy
         )
@@ -597,7 +603,7 @@ def create_exploration_policy(env, policy, exploration_version='identity',
         policy = PolicyWrappedWithExplorationStrategy(
             exploration_strategy=EpsilonGreedy(
                 action_space=env.action_space,
-                prob_random_action=kwargs['prob_random_action'],
+                prob_random_action=prob_random_action,
             ),
             policy=policy
         )
@@ -606,7 +612,7 @@ def create_exploration_policy(env, policy, exploration_version='identity',
         return PolicyWrappedWithExplorationStrategy(
             exploration_strategy=EpsilonGreedy(
                 action_space=env.action_space,
-                prob_random_action=kwargs['prob_random_action'],
+                prob_random_action=prob_random_action,
             ),
             policy=policy
         )
@@ -614,8 +620,8 @@ def create_exploration_policy(env, policy, exploration_version='identity',
         return PolicyWrappedWithExplorationStrategy(
             exploration_strategy=OUStrategy(
                 action_space=env.action_space,
-                max_sigma=kwargs['exploration_noise'],
-                min_sigma=kwargs['exploration_noise']
+                max_sigma=exploration_noise,
+                min_sigma=exploration_noise,
             ),
             policy=policy
         )

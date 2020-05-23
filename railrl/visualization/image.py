@@ -85,6 +85,7 @@ def combine_images_into_grid(
     empty_img = np.ones_like(new_imgs[0])
 
     row_imgs = []
+
     for row in range(num_rows):
         start_i = row * num_cols
         end_i = min(row * num_cols + num_cols, num_imgs)

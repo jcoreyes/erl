@@ -40,8 +40,10 @@ def full_experiment_variant_preprocess(variant):
 
 def train_vae_and_update_variant(variant):
     from railrl.core import logger
+
     grill_variant = variant['grill_variant']
     train_vae_variant = variant['train_vae_variant']
+    train_fn = train_vae_variant.get('train_fn', train_vae)
     if grill_variant.get('vae_path', None) is None:
         logger.remove_tabular_output(
             'progress.csv', relative_to_snapshot_dir=True
@@ -49,7 +51,7 @@ def train_vae_and_update_variant(variant):
         logger.add_tabular_output(
             'vae_progress.csv', relative_to_snapshot_dir=True
         )
-        vae, vae_train_data, vae_test_data = train_vae(train_vae_variant,
+        vae, vae_train_data, vae_test_data = train_fn(train_vae_variant,
                                                        return_data=True)
         if grill_variant.get('save_vae_data', False):
             grill_variant['vae_train_data'] = vae_train_data
@@ -71,7 +73,6 @@ def train_vae_and_update_variant(variant):
             )
             grill_variant['vae_train_data'] = vae_train_data
             grill_variant['vae_test_data'] = vae_test_data
-
 
 def train_vae(variant, return_data=False):
     from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
@@ -169,11 +170,11 @@ def train_vae(variant, return_data=False):
         if epoch % 50 == 0:
             logger.save_itr_params(epoch, model)
     logger.save_extra_data(model, 'vae.pkl', mode='pickle')
+
     if return_data:
         return model, train_dataset, test_dataset
+
     return model
-
-
 
 def generate_vae_dataset(variant):
     print(variant)
@@ -462,9 +463,12 @@ def get_envs(variant):
     from multiworld.core.image_env import ImageEnv
     from railrl.envs.vae_wrappers import VAEWrappedEnv, ConditionalVAEWrappedEnv
     from railrl.envs.encoder_wrappers import VQVAEWrappedEnv
+    from railrl.envs.bigan_wrapper import BiGANWrappedEnv
     from railrl.misc.asset_loader import load_local_or_remote_file
     from railrl.torch.vae.conditional_conv_vae import CVAE, ConditionalConvVAE
     from railrl.torch.vae.vq_vae import VQ_VAE
+    from railrl.torch.gan.bigan import BiGAN
+
 
     render = variant.get('render', False)
     vae_path = variant.get("vae_path", None)
@@ -556,6 +560,17 @@ def get_envs(variant):
                 )
             elif isinstance(vae, VQ_VAE):
                 vae_env = VQVAEWrappedEnv(
+                image_env,
+                vae,
+                imsize=image_env.imsize,
+                decode_goals=render,
+                render_goals=render,
+                render_rollouts=render,
+                reward_params=reward_params,
+                **variant.get('vae_wrapped_env_kwargs', {})
+                )
+            elif isinstance(vae, BiGAN):
+                vae_env = BiGANWrappedEnv(
                 image_env,
                 vae,
                 imsize=image_env.imsize,

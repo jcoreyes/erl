@@ -123,7 +123,7 @@ def her_sac_experiment(
         goal_sampling_mode=evaluation_goal_sampling_mode,
     )
     exploration_policy = create_exploration_policy(
-        policy, **exploration_policy_kwargs)
+        train_env, policy, **exploration_policy_kwargs)
     expl_path_collector = GoalConditionedPathCollector(
         train_env,
         exploration_policy,
