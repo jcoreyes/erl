@@ -69,12 +69,12 @@ if __name__ == "__main__":
             hidden_activation=F.tanh,
         ),
         renderer_kwargs=dict(
-            img_width=32,
-            img_height=32,
+            width=32,
+            height=32,
         ),
         debug_renderer_kwargs=dict(
-            img_width=16,
-            img_height=16,
+            width=16,
+            height=16,
             sweep='goal',
         ),
         debug_visualization_kwargs=dict(
