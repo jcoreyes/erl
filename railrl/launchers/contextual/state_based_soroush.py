@@ -61,6 +61,7 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             mask_dim=1,
             mask_key='mask',
             mask_idxs=None,
+            mask_format='vector',
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -69,11 +70,18 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             low=np.zeros(mask_dim),
             high=np.ones(mask_dim))
         self.mask_dim = mask_dim
-        self.mask_idxs = mask_idxs
+        self.mask_format = mask_format
+        self.mask_idxs = np.array(mask_idxs)
         if mask_idxs is not None:
             self.masks = np.zeros((len(self.mask_idxs), self.mask_dim))
             for (i, idx_list) in enumerate(self.mask_idxs):
-                self.masks[i][idx_list] = 1
+                if self.mask_format == 'vector':
+                    self.masks[i][idx_list] = 1
+                elif self.mask_format == 'matrix':
+                    row_dim = int(np.sqrt(mask_dim))
+                    self.masks[i][idx_list*row_dim + idx_list] = 1
+                else:
+                    raise NotImplementedError
 
     def sample(self, batch_size: int, use_env_goal=False):
         goals = super().sample(batch_size, use_env_goal)
@@ -175,14 +183,17 @@ class MaskPathCollector(ContextualPathCollector):
             reset_postprocess_func=reset_postprocess_func,
         )
 
-def td3_experiment(variant):
+def rl_context_experiment(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.exploration_strategies.base import (
         PolicyWrappedWithExplorationStrategy
     )
     from railrl.torch.td3.td3 import TD3 as TD3Trainer
+    from railrl.torch.sac.sac import SACTrainer
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.sac.policies import TanhGaussianPolicy
+    from railrl.torch.sac.policies import MakeDeterministic
 
     preprocess_rl_variant(variant)
     max_path_length = variant['max_path_length']
@@ -198,8 +209,20 @@ def td3_experiment(variant):
     mask_variant = variant.get('mask_variant', {})
     env = get_envs(variant)
     mask_conditioned = mask_variant.get('mask_conditioned', False)
+    mask_format = mask_variant.get('mask_format', 'vector')
+    assert mask_format in ['vector', 'matrix']
     mask_dim = env.observation_space.spaces[context_key].low.size
+    if mask_format == 'matrix':
+        mask_dim = (mask_dim * mask_dim)
     mask_key = 'mask'
+
+    if 'sac' in variant['algorithm'].lower():
+        rl_algo = 'sac'
+    elif 'td3' in variant['algorithm'].lower():
+        rl_algo = 'td3'
+    else:
+        raise NotImplementedError
+    print("RL algorithm:", rl_algo)
 
     assert not (task_conditioned and mask_conditioned)
 
@@ -234,6 +257,7 @@ def td3_experiment(variant):
                 desired_goal_keys=[desired_goal_key],
                 mask_key=mask_key,
                 mask_dim=mask_dim,
+                mask_format=mask_format,
                 mask_idxs=mask_variant.get('mask_idxs', None),
             )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
@@ -298,11 +322,6 @@ def td3_experiment(variant):
         output_size=1,
         **variant['qf_kwargs']
     )
-    policy = TanhMlpPolicy(
-        input_size=obs_dim,
-        output_size=action_dim,
-        **variant['policy_kwargs']
-    )
     target_qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
@@ -313,17 +332,31 @@ def td3_experiment(variant):
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_policy = TanhMlpPolicy(
-        input_size=obs_dim,
-        output_size=action_dim,
-        **variant['policy_kwargs']
-    )
-
-    es = get_exploration_strategy(variant, expl_env)
-    expl_policy = PolicyWrappedWithExplorationStrategy(
-        exploration_strategy=es,
-        policy=policy,
-    )
+    if rl_algo == 'td3':
+        policy = TanhMlpPolicy(
+            input_size=obs_dim,
+            output_size=action_dim,
+            **variant['policy_kwargs']
+        )
+        target_policy = TanhMlpPolicy(
+            input_size=obs_dim,
+            output_size=action_dim,
+            **variant['policy_kwargs']
+        )
+        es = get_exploration_strategy(variant, expl_env)
+        expl_policy = PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=es,
+            policy=policy,
+        )
+        eval_policy = policy
+    elif rl_algo == 'sac':
+        policy = TanhGaussianPolicy(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            **variant['policy_kwargs']
+        )
+        expl_policy = policy
+        eval_policy = MakeDeterministic(policy)
 
     def context_from_obs_dict_fn(obs_dict):
         context_dict = {
@@ -368,15 +401,26 @@ def td3_experiment(variant):
         **variant['contextual_replay_buffer_kwargs']
     )
 
-    trainer = TD3Trainer(
-        policy=policy,
-        qf1=qf1,
-        qf2=qf2,
-        target_qf1=target_qf1,
-        target_qf2=target_qf2,
-        target_policy=target_policy,
-        **variant['td3_trainer_kwargs']
-    )
+    if rl_algo == 'td3':
+        trainer = TD3Trainer(
+            policy=policy,
+            qf1=qf1,
+            qf2=qf2,
+            target_qf1=target_qf1,
+            target_qf2=target_qf2,
+            target_policy=target_policy,
+            **variant['td3_trainer_kwargs']
+        )
+    elif rl_algo == 'sac':
+        trainer = SACTrainer(
+            env=env,
+            policy=policy,
+            qf1=qf1,
+            qf2=qf2,
+            target_qf1=target_qf1,
+            target_qf2=target_qf2,
+            **variant['sac_trainer_kwargs']
+        )
 
     def create_path_collector(
             env,
@@ -430,7 +474,7 @@ def td3_experiment(variant):
             )
 
     expl_path_collector = create_path_collector(expl_env, expl_policy, mode='expl')
-    eval_path_collector = create_path_collector(eval_env, policy, mode='eval')
+    eval_path_collector = create_path_collector(eval_env, eval_policy, mode='eval')
 
     algorithm = TorchBatchRLAlgorithm(
         trainer=trainer,
@@ -476,23 +520,38 @@ def td3_experiment(variant):
                 observation_key=observation_key,
                 update_env_info_fn=delete_info,
             )
+
         img_eval_env = add_images(eval_env, eval_context_distrib)
-
-        video_path_collector = create_path_collector(img_eval_env, policy, mode='eval')
+        video_path_collector = create_path_collector(img_eval_env, eval_policy, mode='eval')
         rollout_function = video_path_collector._rollout_fn
-
         eval_video_func = get_save_video_function(
             rollout_function,
             img_eval_env,
-            policy,
-            tag="",
+            eval_policy,
+            tag="eval",
             imsize=renderer.image_shape[0],
             image_format='HWC',
             save_video_period=save_period,
             **dump_video_kwargs
         )
-
         algorithm.post_train_funcs.append(eval_video_func)
+
+        log_expl_video = variant.get('log_expl_video', True)
+        if log_expl_video:
+            img_expl_env = add_images(expl_env, expl_context_distrib)
+            video_path_collector = create_path_collector(img_expl_env, expl_policy, mode='expl')
+            rollout_function = video_path_collector._rollout_fn
+            expl_video_func = get_save_video_function(
+                rollout_function,
+                img_expl_env,
+                expl_policy,
+                tag="expl",
+                imsize=renderer.image_shape[0],
+                image_format='HWC',
+                save_video_period=save_period,
+                **dump_video_kwargs
+            )
+            algorithm.post_train_funcs.append(expl_video_func)
 
     if mask_conditioned and mask_variant.get('log_mask_diagnostics', True):
         masks = eval_context_distrib.masks.copy()
@@ -503,11 +562,11 @@ def td3_experiment(variant):
                 rotate_freq=1.0,
                 masks=np.array([mask]),
             )
-            collector = create_path_collector(eval_env, policy, mode='eval', mask_kwargs=mask_kwargs)
+            collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
             collectors.append(collector)
         log_prefixes = [
-            'mask_{}/'.format(''.join(mask.astype(int).astype(str)))
-            for mask in masks
+            'mask_{}/'.format(''.join(str(id)))
+            for (id, mask) in enumerate(masks)
         ]
 
         def get_mask_diagnostics(unused):

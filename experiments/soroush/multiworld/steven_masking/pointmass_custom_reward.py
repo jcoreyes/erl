@@ -7,7 +7,7 @@ from railrl.launchers.contextual.state_based_steven_masking import (
     masking_sac_experiment_with_variant
 )
 from railrl.launchers.launcher_util import run_experiment
-from experiments.steven.masking.reward_fns import (
+from railrl.launchers.contextual.state_based_steven_masking import (
      PickAndPlace1DEnvObjectOnlyRewardFn
 )
 

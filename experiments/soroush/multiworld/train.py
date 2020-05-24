@@ -26,11 +26,13 @@ variant = dict(
         td3_trainer_kwargs=dict(
             use_policy_saturation_cost=True,
             policy_saturation_cost_threshold=5.0,
+            reward_scale=10,
         ),
         sac_trainer_kwargs=dict(
             soft_target_tau=1e-3,
             target_update_period=1,
             use_automatic_entropy_tuning=True,
+            reward_scale=100,
         ),
         contextual_replay_buffer_kwargs=dict(
             max_size=int(1E6),
@@ -52,9 +54,9 @@ variant = dict(
             num_subgoals_per_episode=2,
         ),
         use_masks=False,
-        exploration_type='gaussian_and_epsilon',
-        exploration_noise=0.6,
-        algorithm="TD3",
+        exploration_type='ou',
+        exploration_noise=0.3,
+        algorithm="td3",
         context_based=True,
         save_video=True,
         dump_video_kwargs=dict(
@@ -76,9 +78,10 @@ variant = dict(
         ),
         mask_variant=dict(
             mask_conditioned=False,
-            rotate_mask_freq_for_expl=0.25,
+            rotate_mask_freq_for_expl=0.5,
             rotate_mask_freq_for_eval=1.0,
             log_mask_diagnostics=True,
+            mask_format='vector',
         ),
     ),
     # env_id='FourObject-PickAndPlace-RandomInit-2D-v1',
@@ -137,7 +140,7 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-        'rl_variant.algo_kwargs.num_epochs': [1000],
+        'rl_variant.algo_kwargs.num_epochs': [2000],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.mask_idxs': [
@@ -145,18 +148,14 @@ env_params = {
             # [[2, 3, 4, 5, 6, 7, 8, 9]],
         ],
 
-        'rl_variant.exploration_type': [
-            'gaussian_and_epsilon',
-            'ou',
+        'rl_variant.algorithm': [
+            "td3",
+            "sac",
         ],
-        'rl_variant.exploration_noise': [
-            0.3,
-            0.6,
-        ],
-        'rl_variant.td3_trainer_kwargs.reward_scale': [
-            1.0,
-            10.0,
-            100.0,
+
+        'rl_variant.mask_variant.mask_format': [
+            "vector",
+            "matrix",
         ],
     },
     'pg-4obj-1d': {
@@ -189,6 +188,7 @@ def process_variant(variant):
         rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
         rl_variant['dump_video_kwargs']['columns'] = 2
         rl_variant['save_video_period'] = 2
+        rl_variant['log_expl_video'] = False
         variant['imsize'] = 256
     rl_variant['renderer_kwargs']['img_width'] = variant['imsize']
     rl_variant['renderer_kwargs']['img_height'] = variant['imsize']
