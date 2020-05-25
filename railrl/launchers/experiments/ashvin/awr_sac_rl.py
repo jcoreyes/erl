@@ -41,9 +41,21 @@ import pickle
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
+        'env_id':'HalfCheetah-v2',
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'env_id':'HalfCheetah-v2'
+        'env_id':'HalfCheetah-v2',
+        'env_demo_path': dict(
+            path="demos/icml2020/mujoco/hc_action_noise_15.npy",
+            obs_dict=False,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            path="demos/icml2020/mujoco/hc_off_policy_15_demos_100.npy",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
     },
     'hopper': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
@@ -70,12 +82,34 @@ ENV_PARAMS = {
     'ant': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'env_id':'Ant-v2'
+        'env_id':'Ant-v2',
+        'env_demo_path': dict(
+            path="demos/icml2020/mujoco/ant_action_noise_15.npy",
+            obs_dict=False,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            path="demos/icml2020/mujoco/ant_off_policy_15_demos_100.npy",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
     },
     'walker': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'env_id':'Walker2d-v2'
+        'env_id':'Walker2d-v2',
+        'env_demo_path': dict(
+            path="demos/icml2020/mujoco/walker_action_noise_15.npy",
+            obs_dict=False,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            path="demos/icml2020/mujoco/walker_off_policy_15_demos_100.npy",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
     },
     'swimmer': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
@@ -411,8 +445,9 @@ def experiment(variant):
         expl_env = NormalizedBoxEnv(gym.make(env_id))
         eval_env = NormalizedBoxEnv(gym.make(env_id))
     elif env_class:
-        expl_env = NormalizedBoxEnv(env_class())
-        eval_env = NormalizedBoxEnv(env_class())
+        env_kwargs = variant.get("env_kwargs", {})
+        expl_env = NormalizedBoxEnv(env_class(**env_kwargs))
+        eval_env = NormalizedBoxEnv(env_class(**env_kwargs))
     else:
         expl_env = NormalizedBoxEnv(variant['env']())
         eval_env = NormalizedBoxEnv(variant['env']())

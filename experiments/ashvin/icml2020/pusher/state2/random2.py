@@ -11,10 +11,11 @@ from railrl.launchers.arglauncher import run_variants
 from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_leap import SawyerPushAndReachXYEnv
+from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=100,
+        num_epochs=10,
         num_eval_steps_per_epoch=1000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
@@ -105,6 +106,21 @@ if __name__ == "__main__":
         # save_pretrained_algorithm=True,
         # snapshot_mode="all",
         save_paths=True,
+        save_video=True,
+        save_video_kwargs=dict(
+            save_video_period=50,
+            pad_color=0,
+            subpad_length=1,
+            pad_length=1,
+            num_columns_per_rollout=2,
+            columns=2,
+        ),
+        renderer_kwargs=dict(
+            create_image_format='HWC',
+            output_image_format='CWH',
+            flatten_image=True,
+            init_camera=sawyer_init_camera_zoomed_in,
+        ),
 
         env_class=SawyerPushAndReachXYEnv,
         env_kwargs=dict(
