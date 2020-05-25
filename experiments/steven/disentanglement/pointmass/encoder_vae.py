@@ -99,19 +99,19 @@ if __name__ == "__main__":
         pretrain_vae=False,
         use_image_observations=True,
         env_renderer_kwargs=dict(
-            img_width=12,
-            img_height=12,
-            output_img_format='CHW',
+            width=12,
+            height=12,
+            output_image_format='CHW',
         ),
         video_renderer_kwargs=dict(
-            img_width=48,
-            img_height=48,
-            output_img_format='CHW',
+            width=48,
+            height=48,
+            output_image_format='CHW',
         ),
         debug_renderer_kwargs=dict(
-            img_width=48,
-            img_height=48,
-            output_img_format='CHW',
+            width=48,
+            height=48,
+            output_image_format='CHW',
         ),
         vae_trainer_kwargs=dict(
             loss_scale=1.0,

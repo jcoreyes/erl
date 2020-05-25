@@ -87,10 +87,10 @@ if __name__ == "__main__":
             save_period=5,
         ),
         renderer_kwargs=dict(
-            input_img_format='HWC',
-            output_img_format='CWH',
+            create_image_format='HWC',
+            output_image_format='CWH',
             init_camera=sawyer_init_camera_zoomed_in,
-            flatten_img=True,
+            flatten_image=True,
         ),
         evaluation_goal_sampling_mode="reset_of_env",
         exploration_goal_sampling_mode="vae_prior",
