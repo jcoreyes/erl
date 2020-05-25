@@ -8,26 +8,33 @@ class Point(gym.Env):
     """Superclass for all MuJoCo environments.
     """
 
-    def __init__(self):
-        self.goal = np.zeros((2,))
-        self.state = np.zeros((2,))
+    def __init__(self, n=2, action_scale=0.2):
+        self.n = n
+        self.action_scale = action_scale
+        self.goal = np.zeros((n,))
+        self.state = np.zeros((n,))
 
     @property
     def action_space(self):
-        return spaces.Box(low=-0.2*np.ones((2,)), high=0.2*np.ones((2,)))
+        return spaces.Box(
+            low=-1*np.ones((self.n,)),
+            high=1*np.ones((self.n,))
+        )
 
     @property
     def observation_space(self):
-        return spaces.Box(low=-5*np.ones((4,)), high=5*np.ones((4,)))
-
+        return spaces.Box(
+            low=-5*np.ones((2 * self.n,)),
+            high=5*np.ones((2 * self.n,))
+        )
 
     def reset(self):
-        self.state = np.zeros((2,))
-        self.goal = np.random.uniform(-5, 5, size=(2,))
+        self.state = np.zeros((self.n,))
+        self.goal = np.random.uniform(-5, 5, size=(self.n,))
         return self._get_obs()
 
     def step(self, action):
-        action = np.clip(action, -0.2, 0.2)
+        action = np.clip(action, -1, 1) * self.action_scale
         new_state = self.state + action
         new_state = np.clip(new_state, -5, 5)
         self.state = new_state

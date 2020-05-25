@@ -48,6 +48,7 @@ class BEARTrainer(TorchTrainer):
             policy_update_style=0,
             mmd_sigma=10.0,
             target_mmd_thresh=0.05,
+            online_target_mmd_thresh=None,
             num_samples_mmd_match=4,
             with_grad_penalty_v1=False,
             with_grad_penalty_v2=False,
@@ -109,6 +110,10 @@ class BEARTrainer(TorchTrainer):
         self.num_samples_mmd_match = num_samples_mmd_match
         self.policy_update_style = policy_update_style
         self.target_mmd_thresh = target_mmd_thresh
+        if online_target_mmd_thresh is not None:
+            self.online_target_mmd_thresh = online_target_mmd_thresh
+        else:
+            self.online_target_mmd_thresh = target_mmd_thresh
 
         self.discount = discount
         self.reward_scale = reward_scale
@@ -439,7 +444,7 @@ class BEARTrainer(TorchTrainer):
             # Now we can update the policy
             if self.mode == 'auto':
                 policy_loss = (-policy_loss + self.log_alpha.exp() * (
-                            mmd_loss - self.target_mmd_thresh)).mean()
+                            mmd_loss - self.online_target_mmd_thresh)).mean()
             else:
                 policy_loss = (-policy_loss + 100 * mmd_loss).mean()
         else:
