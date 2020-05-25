@@ -269,3 +269,75 @@ class SplitIntoManyHeads(nn.Module):
             )
         )
         return outputs
+
+
+class ParallelMlp(nn.Module):
+    """
+    Efficient implementation of multiple MLPs with identical architectures.
+
+           .-> mlp 0
+          /
+    input ---> mlp 1
+          \
+           '-> mlp 2
+
+    See https://discuss.pytorch.org/t/parallel-execution-of-modules-in-nn-modulelist/43940/7
+    for details
+
+    The last dimension of the output corresponds to the MLP index.
+    """
+    def __init__(
+            self,
+            num_heads,
+            input_size,
+            output_size_per_mlp,
+            hidden_sizes,
+            hidden_activation='relu',
+            output_activation='identity',
+            input_is_already_expanded=False,
+    ):
+        super().__init__()
+
+        def create_layers():
+            layers = []
+            input_dim = input_size
+            for i, hidden_size in enumerate(hidden_sizes):
+                fc = nn.Conv1d(
+                    in_channels=input_dim * num_heads,
+                    out_channels=hidden_size * num_heads,
+                    kernel_size=1,
+                    groups=num_heads,
+                )
+                layers.append(fc)
+                if isinstance(hidden_activation, str):
+                    activation = activation_from_string(hidden_activation)
+                else:
+                    activation = hidden_activation
+                layers.append(activation)
+                input_dim = hidden_size
+
+            last_fc = nn.Conv1d(
+                in_channels=input_dim * num_heads,
+                out_channels=output_size_per_mlp * num_heads,
+                kernel_size=1,
+                groups=num_heads,
+            )
+            layers.append(last_fc)
+            if output_activation != 'identity':
+                if isinstance(output_activation, str):
+                    activation = activation_from_string(output_activation)
+                else:
+                    activation = output_activation
+                layers.append(activation)
+            return layers
+
+        self.network = nn.Sequential(*create_layers())
+        self.num_heads = num_heads
+        self.input_is_already_expanded = input_is_already_expanded
+
+    def forward(self, x):
+        if not self.input_is_already_expanded:
+            x = x.repeat(1, self.num_heads).unsqueeze(-1)
+        flat = self.network(x)
+        batch_size = x.shape[0]
+        return flat.view(batch_size, -1, self.num_heads)
