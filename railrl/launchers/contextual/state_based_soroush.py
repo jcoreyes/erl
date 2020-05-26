@@ -200,10 +200,10 @@ def default_masked_reward_fn(actions, obs):
     else:
         # matrix mask
 
-        ### hack for testing H->A ###
-        if -1 in mask:
-            desired_goals = desired_goals.copy()
-            desired_goals[:,0:4] = 0
+        # ### hack for testing H->A ###
+        # if -1 in mask:
+        #     desired_goals = desired_goals.copy()
+        #     desired_goals[:,0:4] = 0
 
         mask = mask.reshape((batch_size, state_dim, state_dim))
         diff = (achieved_goals - desired_goals).reshape((batch_size, state_dim, 1))
