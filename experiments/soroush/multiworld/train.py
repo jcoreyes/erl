@@ -143,11 +143,11 @@ env_params = {
         'rl_variant.algo_kwargs.num_epochs': [500], #[2000],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
-        # 'rl_variant.mask_variant.mask_idxs': [
+        # 'rl_variant.mask_variant.idx_masks': [
         #     [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]],
         #     # [[2, 3, 4, 5, 6, 7, 8, 9]],
         # ],
-        'rl_variant.mask_variant.masks': [
+        'rl_variant.mask_variant.matrix_masks': [
             [[
                 [1, 0, -1, 0, 0, 0, 0, 0, 0, 0],
                 [0, 1, 0, -1, 0, 0, 0, 0, 0, 0],

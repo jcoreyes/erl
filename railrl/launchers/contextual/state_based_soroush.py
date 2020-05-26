@@ -58,42 +58,69 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
     def __init__(
             self,
             *args,
-            mask_dim=1,
-            mask_key='mask',
+            mask_dims=[[1]],
+            mask_keys=['mask'],
             mask_format='vector',
-            mask_idxs=None,
             masks=None,
+            idx_masks=None,
+            matrix_masks=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
-        self.mask_key = mask_key
-        self._spaces[mask_key] = Box(
-            low=np.zeros(mask_dim),
-            high=np.ones(mask_dim))
-        self.mask_dim = mask_dim
+        self.mask_keys = mask_keys
+        self.mask_dims = mask_dims
+        for mask_key, mask_dim in zip((self.mask_keys, self.mask_dims)):
+            self._spaces[mask_key] = Box(
+                low=np.zeros(mask_dim),
+                high=np.ones(mask_dim))
         self.mask_format = mask_format
-        assert (mask_idxs is not None) ^ (masks is not None)
-        if mask_idxs is not None:
-            self.mask_idxs = np.array(mask_idxs)
-            self.masks = np.zeros((len(self.mask_idxs), self.mask_dim))
-            for (i, idx_list) in enumerate(self.mask_idxs):
-                if self.mask_format == 'vector':
-                    self.masks[i][idx_list] = 1
-                elif self.mask_format == 'matrix':
-                    row_dim = int(np.sqrt(mask_dim))
-                    self.masks[i][idx_list*row_dim + idx_list] = 1
-                else:
-                    raise NotImplementedError
+        assert ((idx_masks is not None) + (matrix_masks is not None) + (masks is not None)) == 1
+
+        if masks is not None:
+            self.masks = masks
         else:
-            self.masks = np.array(masks).reshape(len(masks), -1)
+            self.masks = {}
+
+            if idx_masks is not None:
+                num_masks = len(idx_masks)
+            elif matrix_masks is not None:
+                num_masks = len(matrix_masks)
+            else:
+                raise NotImplementedError
+
+            for mask_key, mask_dim in zip((self.mask_keys, self.mask_dims)):
+                self.masks[mask_dims] = np.zeros([num_masks] + mask_dim)
+
+            if self.mask_format in ['vector', 'matrix']:
+                assert len(self.mask_keys) == 1
+                mask_key = self.mask_keys[0]
+                if idx_masks is not None:
+                    idx_masks = np.array(idx_masks)
+                    for (i, idx_list) in enumerate(idx_masks):
+                        if self.mask_format == 'vector':
+                            self.masks[mask_key][i][idx_list] = 1
+                        elif self.mask_format == 'matrix':
+                            self.masks[mask_key][i][idx_list, idx_list] = 1
+                elif matrix_masks is not None:
+                    self.masks[mask_key] = np.array(matrix_masks)
+            elif self.mask_format == 'distribution':
+                if idx_masks is not None:
+                    self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])
+                    idx_masks = np.array(idx_masks)
+                    for (i, idx_list) in enumerate(idx_masks):
+                        self.masks['mask_Sigma_inv'][i][idx_list, idx_list] = 1
+                elif matrix_masks is not None:
+                    self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])
+                    self.masks['mask_Sigma_inv'] = np.array(matrix_masks)
+            else:
+                raise NotImplementedError
 
     def sample(self, batch_size: int, use_env_goal=False):
         goals = super().sample(batch_size, use_env_goal)
-        if self.masks is not None:
-            idxs = np.random.choice(len(self.masks), batch_size)
-            goals[self.mask_key] = self.masks[idxs]
-        else:
-            goals[self.mask_key] = np.ones((batch_size, self.mask_dim))
+        num_masks = len(self.masks[self.masks.keys()[0]])
+        mask_ids = np.random.choice(num_masks, batch_size)
+        for mask_key in self.mask_keys:
+            goals[mask_key] = self.masks[mask_key][mask_ids]
         return goals
 
 class TaskPathCollector(ContextualPathCollector):
@@ -145,7 +172,6 @@ class MaskPathCollector(ContextualPathCollector):
     def __init__(
             self,
             *args,
-            mask_key=None,
             max_path_length=100,
             masks=None,
             rotate_freq=0.0,
@@ -154,14 +180,16 @@ class MaskPathCollector(ContextualPathCollector):
         super().__init__(*args, **kwargs)
         self.masks = masks
         self.rotate_freq = rotate_freq
-        self.rollout_masks = []
+        self.rollout_mask_ids = []
 
         def obs_processor(o):
-            if len(self.rollout_masks) > 0:
-                mask = self.rollout_masks[0]
-                self.rollout_masks = self.rollout_masks[1:]
-                o[mask_key] = mask
-                self._env._rollout_context_batch[mask_key] = mask[None]
+            if len(self.rollout_mask_ids) > 0:
+                mask_id = self.rollout_mask_ids[0]
+                self.rollout_mask_ids = self.rollout_mask_ids[1:]
+                for mask_key in self.masks.keys():
+                    mask = self.masks[mask_key][mask_id]
+                    o[mask_key] = mask
+                    self._env._rollout_context_batch[mask_key] = mask[None]
 
             combined_obs = [o[self._observation_key]]
             for k in self._context_keys_for_policy:
@@ -170,14 +198,15 @@ class MaskPathCollector(ContextualPathCollector):
 
         def reset_postprocess_func():
             rotate = (np.random.uniform() < self.rotate_freq)
-            self.rollout_masks = []
+            self.rollout_mask_ids = []
             if rotate:
-                num_steps_per_mask = max_path_length // len(self.masks)
-                self.rollout_masks = np.zeros((max_path_length, self.masks.shape[1]))
-                for (idx, mask) in enumerate(self.masks):
-                    start = idx * num_steps_per_mask
+                num_mask_ids = len(self.masks[self.masks.keys()[0]])
+                num_steps_per_mask = max_path_length // num_mask_ids
+                self.rollout_mask_ids = np.zeros(max_path_length)
+                for id in range(num_mask_ids):
+                    start = id * num_steps_per_mask
                     end = start + num_steps_per_mask
-                    self.rollout_masks[start:end,:] = mask
+                    self.rollout_mask_ids[start:end,:] = id
 
         self._rollout_fn = partial(
             contextual_rollout,
@@ -187,30 +216,44 @@ class MaskPathCollector(ContextualPathCollector):
             reset_postprocess_func=reset_postprocess_func,
         )
 
-def default_masked_reward_fn(actions, obs):
+def default_masked_reward_fn(actions, obs, mask_format='vector'):
     achieved_goals = obs['state_achieved_goal']
     desired_goals = obs['state_desired_goal']
-    mask = obs['mask']
 
-    batch_size, state_dim = achieved_goals.shape
-    if mask.shape[-1] == state_dim:
+    if mask_format == 'vector':
         # vector mask
+        mask = obs['mask']
         prod = (achieved_goals - desired_goals) * mask
         return -np.linalg.norm(prod, axis=-1)
-    else:
+    elif mask_format == 'matrix':
         # matrix mask
+        mask = obs['mask']
 
         # ### hack for testing H->A ###
         # if -1 in mask:
         #     desired_goals = desired_goals.copy()
         #     desired_goals[:,0:4] = 0
 
-        mask = mask.reshape((batch_size, state_dim, state_dim))
+        batch_size, state_dim = achieved_goals.shape
         diff = (achieved_goals - desired_goals).reshape((batch_size, state_dim, 1))
-        # prod = (mask @ diff).reshape((batch_size, state_dim))
-        # return -np.linalg.norm(prod, axis=-1)
         prod = (diff.transpose(0, 2, 1) @ mask @ diff).reshape((batch_size, 1))
         return -np.sqrt(prod)
+    elif mask_format == 'distribution':
+        # matrix mask
+        g = desired_goals
+        mu_w = obs['mask_mu_w']
+        mu_g = obs['mask_mu_g']
+        mu_A = obs['mask_mu_mat']
+        Sigma_inv = obs['mask_Sigma_inv']
+        mu_w_given_g = mu_w + mu_A @ (g - mu_g)
+        Sigma_w_given_g_inv = Sigma_inv
+
+        batch_size, state_dim = achieved_goals.shape
+        diff = (achieved_goals - mu_w_given_g).reshape((batch_size, state_dim, 1))
+        prod = (diff.transpose(0, 2, 1) @ Sigma_w_given_g_inv @ diff).reshape((batch_size, 1))
+        return -np.sqrt(prod)
+    else:
+        raise NotImplementedError
 
 
 def rl_context_experiment(variant):
@@ -240,11 +283,22 @@ def rl_context_experiment(variant):
     env = get_envs(variant)
     mask_conditioned = mask_variant.get('mask_conditioned', False)
     mask_format = mask_variant.get('mask_format', 'vector')
-    assert mask_format in ['vector', 'matrix']
-    mask_dim = env.observation_space.spaces[context_key].low.size
-    if mask_format == 'matrix':
-        mask_dim = (mask_dim * mask_dim)
-    mask_key = 'mask'
+    assert mask_format in ['vector', 'matrix', 'distribution']
+    goal_dim = env.observation_space.spaces[context_key].low.size
+    if mask_format == 'vector':
+        mask_keys = ['mask']
+        mask_dims = [goal_dim]
+        mask_dim_for_network = goal_dim
+    elif mask_format == 'matrix':
+        mask_keys = ['mask']
+        mask_dims = [goal_dim * goal_dim]
+        mask_dim_for_network = goal_dim
+    elif mask_format == 'distribution':
+        mask_keys = ['mask_mu_w', 'mask_mu_g', 'mask_mu_mat', 'mask_Sigma_inv']
+        mask_dims = [goal_dim, goal_dim, goal_dim * goal_dim, goal_dim * goal_dim]
+        mask_dim_for_network = goal_dim + (goal_dim * goal_dim)
+    else:
+        raise NotImplementedError
 
     if 'sac' in variant['algorithm'].lower():
         rl_algo = 'sac'
@@ -259,7 +313,7 @@ def rl_context_experiment(variant):
     if task_conditioned:
         context_keys = [context_key, task_key]
     elif mask_conditioned:
-        context_keys = [context_key, mask_key]
+        context_keys = [context_key] + mask_keys
     else:
         context_keys = [context_key]
 
@@ -285,11 +339,11 @@ def rl_context_experiment(variant):
             goal_distribution = MaskedGoalDictDistributionFromMultitaskEnv(
                 env,
                 desired_goal_keys=[desired_goal_key],
-                mask_key=mask_key,
-                mask_dim=mask_dim,
+                mask_keys=mask_keys,
+                mask_dims=mask_dims,
                 mask_format=mask_format,
-                mask_idxs=mask_variant.get('mask_idxs', None),
-                masks=mask_variant.get('masks', None),
+                idx_masks=mask_variant.get('idx_masks', None),
+                matrix_masks=mask_variant.get('matrix_masks', None),
             )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
@@ -297,8 +351,8 @@ def rl_context_experiment(variant):
                 desired_goal_key=desired_goal_key,
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
-                additional_context_keys=[mask_key],
-                reward_fn=default_masked_reward_fn,
+                additional_context_keys=mask_keys,
+                reward_fn=partial(default_masked_reward_fn, mask_format=mask_format),
             )
         else:
             goal_distribution = GoalDictDistributionFromMultitaskEnv(
@@ -341,7 +395,7 @@ def rl_context_experiment(variant):
     if task_conditioned:
         obs_dim += 1
     elif mask_conditioned:
-        obs_dim += mask_dim
+        obs_dim += mask_dim_for_network
     action_dim = expl_env.action_space.low.size
 
     qf1 = FlattenMlp(
@@ -397,7 +451,8 @@ def rl_context_experiment(variant):
         if task_conditioned:
             context_dict[task_key] = obs_dict[task_key]
         elif mask_conditioned:
-            context_dict[mask_key] = obs_dict[mask_key]
+            for mask_key in mask_keys:
+                context_dict[mask_key] = obs_dict[mask_key]
         return context_dict
 
     def concat_context_to_obs(batch):
@@ -409,9 +464,23 @@ def rl_context_experiment(variant):
             batch['observations'] = np.concatenate([obs, context, task], axis=1)
             batch['next_observations'] = np.concatenate([next_obs, context, task], axis=1)
         elif mask_conditioned:
-            mask = batch[mask_key]
-            batch['observations'] = np.concatenate([obs, context, mask], axis=1)
-            batch['next_observations'] = np.concatenate([next_obs, context, mask], axis=1)
+            if mask_format in ['vector', 'matrix']:
+                assert len(mask_keys) == 1
+                mask = batch[mask_keys[0]].reshape((len(context), -1))
+                batch['observations'] = np.concatenate([obs, context, mask], axis=1)
+                batch['next_observations'] = np.concatenate([next_obs, context, mask], axis=1)
+            elif mask_format == 'distribution':
+                g = context
+                mu_w = batch['mask_mu_w']
+                mu_g = batch['mask_mu_g']
+                mu_A = batch['mask_mu_mat']
+                Sigma_inv = batch['mask_Sigma_inv']
+                mu_w_given_g = mu_w + mu_A @ (g - mu_g)
+                Sigma_w_given_g_inv = Sigma_inv.reshape((len(context), -1))
+                batch['observations'] = np.concatenate([obs, mu_w_given_g, Sigma_w_given_g_inv], axis=1)
+                batch['next_observations'] = np.concatenate([next_obs, mu_w_given_g, Sigma_w_given_g_inv], axis=1)
+            else:
+                raise NotImplementedError
         else:
             batch['observations'] = np.concatenate([obs, context], axis=1)
             batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
@@ -492,7 +561,6 @@ def rl_context_experiment(variant):
                 policy,
                 observation_key=observation_key,
                 context_keys_for_policy=context_keys,
-                mask_key=mask_key,
                 max_path_length=100,
                 masks=masks,
                 rotate_freq=rotate_freq,
@@ -589,16 +657,20 @@ def rl_context_experiment(variant):
         masks = eval_context_distrib.masks.copy()
         collectors = []
 
-        for mask in masks:
+        num_masks = len(masks[masks.keys()[0]])
+        for mask_id in range(num_masks):
+            masks_for_eval = {}
+            for mask_key in masks.keys():
+                masks_for_eval[mask_key] = np.array([masks[mask_key][mask_id]])
             mask_kwargs=dict(
                 rotate_freq=1.0,
-                masks=np.array([mask]),
+                masks=masks_for_eval,
             )
             collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
             collectors.append(collector)
         log_prefixes = [
-            'mask_{}/'.format(''.join(str(id)))
-            for (id, mask) in enumerate(masks)
+            'mask_{}/'.format(''.join(str(mask_id)))
+            for mask_id in range(num_masks)
         ]
 
         def get_mask_diagnostics(unused):
