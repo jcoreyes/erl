@@ -98,10 +98,11 @@ if __name__ == "__main__":
         'trainer_kwargs.awr_weight': [1.0],
         'trainer_kwargs.bc_weight': [1.0, ],
         'trainer_kwargs.compute_bc': [True],
-        'trainer_kwargs.awr_use_mle_for_vf': [True, ],
+        'trainer_kwargs.awr_use_mle_for_vf': [False, ],
         'trainer_kwargs.awr_sample_actions': [False, ],
         'trainer_kwargs.awr_min_q': [True, ],
         'trainer_kwargs.q_weight_decay': [0],
+        'trainer_kwargs.mask_positive_advantage': [True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -114,7 +115,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_name = 'abm_hc_offline_online_v1'
+    exp_name = 'abm_hc_offline_online_true_params_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

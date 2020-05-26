@@ -97,6 +97,8 @@ class AWRSACTrainer(TorchTrainer):
             Z_K=10,
             clip_score=None,
             validation_qlearning=False,
+
+            mask_positive_advantage=False,
     ):
         super().__init__()
         self.env = env
@@ -227,6 +229,7 @@ class AWRSACTrainer(TorchTrainer):
         self.train_bc_on_rl_buffer = train_bc_on_rl_buffer and buffer_policy
         self.validation_qlearning = validation_qlearning
         self.brac = brac
+        self.mask_positive_advantage = mask_positive_advantage
 
     def get_batch_from_buffer(self, replay_buffer, batch_size):
         batch = replay_buffer.random_batch(batch_size)
@@ -633,6 +636,8 @@ class AWRSACTrainer(TorchTrainer):
 
         if self.normalize_over_state == "advantage":
             score = q_adv - v_pi
+            if self.mask_positive_advantage:
+                score = torch.sign(score)
         elif self.normalize_over_state == "Z":
             *_, buffer_dist = self.buffer_policy(
                 obs, reparameterize=True, return_log_prob=True,
