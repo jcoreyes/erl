@@ -607,7 +607,7 @@ def create_exploration_policy(
             ),
             policy=policy
         )
-        return ActionRepeatPolicy(policy, repeat_prob=kwargs['repeat_prob'])
+        return ActionRepeatPolicy(policy, repeat_prob=repeat_prob)
     elif exploration_version == 'epsilon_greedy':
         return PolicyWrappedWithExplorationStrategy(
             exploration_strategy=EpsilonGreedy(
