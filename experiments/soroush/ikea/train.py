@@ -25,7 +25,7 @@ variant = dict(
             use_policy_saturation_cost=True,
             policy_saturation_cost_threshold=5.0,
         ),
-        twin_sac_trainer_kwargs=dict(),
+        sac_trainer_kwargs=dict(),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_goals_rollout_goals=1.0,
@@ -107,6 +107,8 @@ variant = dict(
         control_degrees='3dpos+select+connect',
         obj_joint_type='slide',
         connector_ob_type='dist',
+
+        clip_action_on_collision=True,
 
         light_logging=True,
     ),
@@ -214,11 +216,11 @@ env_params = {
             # 'cursor_dist+cursor_sparse_dist',
 
             'next_conn_dist',
-            'nc+next_conn_dist',
+            # 'nc+next_conn_dist',
             'next_conn_dist+cursor_dist',
-            'nc+next_conn_dist+cursor_dist',
-            'next_conn_dist+cursor_dist+cursor_sparse_dist',
-            'nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
+            # 'nc+next_conn_dist+cursor_dist',
+            # 'next_conn_dist+cursor_dist+cursor_sparse_dist',
+            # 'nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
         ],
 
         'rl_variant.max_path_length': [75],
@@ -249,7 +251,7 @@ env_params = {
         # 'env_kwargs.goal_type': ['assembled'],
 
         'env_kwargs.task_type': [
-            "move2",
+            # "move2",
             "select2+move2",
             "reach2+select2+move2",
         ],
@@ -258,7 +260,7 @@ env_params = {
 
         # 'env_kwargs.select_next_obj_only': [True],
 
-        'rl_variant.algo_kwargs.num_epochs': [500],
+        'rl_variant.algo_kwargs.num_epochs': [500], #500
         'rl_variant.save_video_period': [50],  # 25
     },
     'swivel': {
@@ -281,7 +283,7 @@ def process_variant(variant):
 
     mpl = rl_variant['max_path_length']
     rl_variant['td3_trainer_kwargs']['discount'] = 1 - 1 / mpl
-    rl_variant['twin_sac_trainer_kwargs']['discount'] = 1 - 1 / mpl
+    rl_variant['sac_trainer_kwargs']['discount'] = 1 - 1 / mpl
 
     if args.debug:
         rl_variant['algo_kwargs']['num_epochs'] = 4
@@ -294,6 +296,7 @@ def process_variant(variant):
         rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
         rl_variant['dump_video_kwargs']['columns'] = 2
         rl_variant['save_video_period'] = 2
+        rl_variant['log_expl_video'] = False
         variant['imsize'] = 250
     rl_variant['renderer_kwargs']['img_width'] = variant['imsize']
     rl_variant['renderer_kwargs']['img_height'] = variant['imsize']

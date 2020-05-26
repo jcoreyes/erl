@@ -60,8 +60,9 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             *args,
             mask_dim=1,
             mask_key='mask',
-            mask_idxs=None,
             mask_format='vector',
+            mask_idxs=None,
+            masks=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -71,8 +72,9 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             high=np.ones(mask_dim))
         self.mask_dim = mask_dim
         self.mask_format = mask_format
-        self.mask_idxs = np.array(mask_idxs)
+        assert (mask_idxs is not None) ^ (masks is not None)
         if mask_idxs is not None:
+            self.mask_idxs = np.array(mask_idxs)
             self.masks = np.zeros((len(self.mask_idxs), self.mask_dim))
             for (i, idx_list) in enumerate(self.mask_idxs):
                 if self.mask_format == 'vector':
@@ -82,10 +84,12 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
                     self.masks[i][idx_list*row_dim + idx_list] = 1
                 else:
                     raise NotImplementedError
+        else:
+            self.masks = np.array(masks).reshape(len(masks), -1)
 
     def sample(self, batch_size: int, use_env_goal=False):
         goals = super().sample(batch_size, use_env_goal)
-        if self.mask_idxs is not None:
+        if self.masks is not None:
             idxs = np.random.choice(len(self.masks), batch_size)
             goals[self.mask_key] = self.masks[idxs]
         else:
@@ -183,6 +187,32 @@ class MaskPathCollector(ContextualPathCollector):
             reset_postprocess_func=reset_postprocess_func,
         )
 
+def default_masked_reward_fn(actions, obs):
+    achieved_goals = obs['state_achieved_goal']
+    desired_goals = obs['state_desired_goal']
+    mask = obs['mask']
+
+    batch_size, state_dim = achieved_goals.shape
+    if mask.shape[-1] == state_dim:
+        # vector mask
+        prod = (achieved_goals - desired_goals) * mask
+        return -np.linalg.norm(prod, axis=-1)
+    else:
+        # matrix mask
+
+        ### hack for testing H->A ###
+        if -1 in mask:
+            desired_goals = desired_goals.copy()
+            desired_goals[:,0:4] = 0
+
+        mask = mask.reshape((batch_size, state_dim, state_dim))
+        diff = (achieved_goals - desired_goals).reshape((batch_size, state_dim, 1))
+        # prod = (mask @ diff).reshape((batch_size, state_dim))
+        # return -np.linalg.norm(prod, axis=-1)
+        prod = (diff.transpose(0, 2, 1) @ mask @ diff).reshape((batch_size, 1))
+        return -np.sqrt(prod)
+
+
 def rl_context_experiment(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.exploration_strategies.base import (
@@ -259,6 +289,7 @@ def rl_context_experiment(variant):
                 mask_dim=mask_dim,
                 mask_format=mask_format,
                 mask_idxs=mask_variant.get('mask_idxs', None),
+                masks=mask_variant.get('masks', None),
             )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
@@ -267,6 +298,7 @@ def rl_context_experiment(variant):
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
                 additional_context_keys=[mask_key],
+                reward_fn=default_masked_reward_fn,
             )
         else:
             goal_distribution = GoalDictDistributionFromMultitaskEnv(

@@ -56,7 +56,7 @@ variant = dict(
         use_masks=False,
         exploration_type='ou',
         exploration_noise=0.3,
-        algorithm="td3",
+        algorithm="sac",
         context_based=True,
         save_video=True,
         dump_video_kwargs=dict(
@@ -140,23 +140,34 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-        'rl_variant.algo_kwargs.num_epochs': [2000],
+        'rl_variant.algo_kwargs.num_epochs': [500], #[2000],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
-        'rl_variant.mask_variant.mask_idxs': [
-            [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]],
-            # [[2, 3, 4, 5, 6, 7, 8, 9]],
-        ],
-
-        'rl_variant.algorithm': [
-            "td3",
-            "sac",
+        # 'rl_variant.mask_variant.mask_idxs': [
+        #     [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]],
+        #     # [[2, 3, 4, 5, 6, 7, 8, 9]],
+        # ],
+        'rl_variant.mask_variant.masks': [
+            [[
+                [1, 0, -1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1, 0, -1, 0, 0, 0, 0, 0, 0],
+                [-1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                [0, -1, 0, 1, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ]]
         ],
 
         'rl_variant.mask_variant.mask_format': [
-            "vector",
+            # "vector",
             "matrix",
         ],
+
+        'rl_variant.save_video_period': [10],
     },
     'pg-4obj-1d': {
         'env_class': [PickAndPlace1DEnv],
