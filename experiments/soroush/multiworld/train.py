@@ -146,8 +146,7 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-        'rl_variant.algo_kwargs.num_epochs': [500], #2000
-        'rl_variant.save_video_period': [25],
+        'rl_variant.algo_kwargs.num_epochs': [2000],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.idx_masks': [
@@ -158,24 +157,30 @@ env_params = {
             #     {6: 6, 7: 7},
             #     {8: 8, 9: 9},
             # ],
-            # [
-            #     {0: 0, 1: 1},
-            #     {0: -12, 1: -13},
-            #     {2: 2, 3: 3},
-            #     {0: -14, 1: -15},
-            #     {4: 4, 5: 5},
-            #     {0: -16, 1: -17},
-            #     {6: 6, 7: 7},
-            #     {0: -18, 1: -19},
-            #     {8: 8, 9: 9},
-            # ],
             [
+                {0: 0, 1: 1},
+                {2: 2, 3: 3},
+                {4: 4, 5: 5},
+                {6: 6, 7: 7},
+                {8: 8, 9: 9},
                 {0: -12, 1: -13},
                 {0: -14, 1: -15},
                 {0: -16, 1: -17},
                 {0: -18, 1: -19},
             ],
+            # [
+            #     {0: 0, 1: 1},
+            #     {0: -12, 1: -13},
+            #     {0: -14, 1: -15},
+            #     {0: -16, 1: -17},
+            #     {0: -18, 1: -19},
+            # ],
         ],
+
+        'rl_variant.mask_variant.rollout_mask_order': [
+            [0, 5, 1, 6, 2, 7, 3, 8, 4],
+        ],
+
         # 'rl_variant.mask_variant.matrix_masks': [
         #     [[
         #         [1, 0, -1, 0, 0, 0, 0, 0, 0, 0],
@@ -199,10 +204,10 @@ env_params = {
 
         'rl_variant.mask_variant.infer_masks': [True],
         'rl_variant.mask_variant.mask_inference_variant.n': [
-            5e1,
-            1e2,
+            # 5e1,
+            # 1e2,
             1e3,
-            1e5,
+            # 1e5,
         ],
     },
     'pg-4obj-1d': {

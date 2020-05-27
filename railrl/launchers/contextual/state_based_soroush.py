@@ -183,12 +183,14 @@ class MaskPathCollector(ContextualPathCollector):
             max_path_length=100,
             masks=None,
             rotate_freq=0.0,
+            rollout_mask_order=None,
             concat_context_to_obs_fn=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.masks = masks
         self.rotate_freq = rotate_freq
+        self.rollout_mask_order = rollout_mask_order
         self.rollout_mask_ids = []
         self._concat_context_to_obs_fn = concat_context_to_obs_fn
 
@@ -219,12 +221,26 @@ class MaskPathCollector(ContextualPathCollector):
             self.rollout_mask_ids = []
             if rotate:
                 num_mask_ids = len(self.masks[list(self.masks.keys())[0]])
+                mask_ids = np.arange(num_mask_ids)
+                if self.rollout_mask_order is None:
+                    pass
+                elif self.rollout_mask_order == 'random':
+                    np.random.shuffle(mask_ids)
+                elif isinstance(self.rollout_mask_order, list):
+                    assert len(self.rollout_mask_order) == len(mask_ids)
+                    assert (sorted(self.rollout_mask_order) == mask_ids).all()
+                    mask_ids = self.rollout_mask_order
+                else:
+                    raise NotImplementedError
                 num_steps_per_mask = max_path_length // num_mask_ids
                 self.rollout_mask_ids = np.zeros(max_path_length, dtype=np.int32)
-                for id in range(num_mask_ids):
-                    start = id * num_steps_per_mask
-                    end = start + num_steps_per_mask
-                    self.rollout_mask_ids[start:end] = id
+                for (i, mask_id) in enumerate(mask_ids):
+                    start = i * num_steps_per_mask
+                    if i == len(mask_ids) - 1:
+                        end = len(self.rollout_mask_ids)
+                    else:
+                        end = start + num_steps_per_mask
+                    self.rollout_mask_ids[start:end] = mask_id
 
         self._rollout_fn = partial(
             contextual_rollout,
@@ -702,6 +718,10 @@ def rl_context_experiment(variant):
             else:
                 mask_distribution = eval_context_distrib if mode == 'eval' else expl_context_distrib
                 masks = mask_distribution.masks.copy()
+            if 'rollout_mask_order' in mask_kwargs:
+                rollout_mask_order = mask_kwargs['rollout_mask_order']
+            else:
+                rollout_mask_order = mask_variant.get('rollout_mask_order', None)
             return MaskPathCollector(
                 env,
                 policy,
@@ -710,6 +730,7 @@ def rl_context_experiment(variant):
                 max_path_length=100,
                 masks=masks,
                 rotate_freq=rotate_freq,
+                rollout_mask_order=rollout_mask_order,
                 concat_context_to_obs_fn=concat_context_to_obs,
             )
         else:
@@ -812,6 +833,7 @@ def rl_context_experiment(variant):
             mask_kwargs=dict(
                 rotate_freq=1.0,
                 masks=masks_for_eval,
+                rollout_mask_order=None,
             )
             collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
             collectors.append(collector)
