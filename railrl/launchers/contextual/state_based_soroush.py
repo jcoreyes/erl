@@ -1,6 +1,7 @@
 from functools import partial
 
 import numpy as np
+from scipy import linalg
 
 from railrl.data_management.contextual_replay_buffer import (
     ContextualRelabelingReplayBuffer,
@@ -72,13 +73,16 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
         for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
             self._spaces[mask_key] = Box(
                 low=np.zeros(mask_dim),
-                high=np.ones(mask_dim))
+                high=np.ones(mask_dim),
+                dtype=np.float32,
+            )
         self.mask_format = mask_format
-        assert ((idx_masks is not None) + (matrix_masks is not None) + (masks is not None)) == 1
 
         if masks is not None:
             self.masks = masks
         else:
+            assert ((idx_masks is not None) + (matrix_masks is not None)) == 1
+
             self.masks = {}
 
             if idx_masks is not None:
@@ -108,10 +112,10 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
                     self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])
                     idx_masks = np.array(idx_masks)
                     for (i, idx_list) in enumerate(idx_masks):
-                        self.masks['mask_Sigma_inv'][i][idx_list, idx_list] = 1
+                        self.masks['mask_sigma_inv'][i][idx_list, idx_list] = 1
                 elif matrix_masks is not None:
                     self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])
-                    self.masks['mask_Sigma_inv'] = np.array(matrix_masks)
+                    self.masks['mask_sigma_inv'] = np.array(matrix_masks)
             else:
                 raise NotImplementedError
 
@@ -254,17 +258,123 @@ def default_masked_reward_fn(actions, obs, mask_format='vector'):
         mu_w = obs['mask_mu_w']
         mu_g = obs['mask_mu_g']
         mu_A = obs['mask_mu_mat']
-        Sigma_inv = obs['mask_Sigma_inv']
+        sigma_inv = obs['mask_sigma_inv']
         mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(g - mu_g, axis=-1), axis=-1)
-        Sigma_w_given_g_inv = Sigma_inv
+        sigma_w_given_g_inv = sigma_inv
 
         batch_size, state_dim = achieved_goals.shape
         diff = (achieved_goals - mu_w_given_g).reshape((batch_size, state_dim, 1))
-        prod = (diff.transpose(0, 2, 1) @ Sigma_w_given_g_inv @ diff).reshape(batch_size)
+        prod = (diff.transpose(0, 2, 1) @ sigma_w_given_g_inv @ diff).reshape(batch_size)
         return -np.sqrt(prod)
     else:
         raise NotImplementedError
 
+def get_cond_distr_params(mu, sigma, x_dim):
+    mu_x = mu[:x_dim]
+    mu_y = mu[x_dim:]
+
+    sigma_xx = sigma[:x_dim, :x_dim]
+    sigma_yy = sigma[x_dim:, x_dim:]
+    sigma_xy = sigma[:x_dim, x_dim:]
+    sigma_yx = sigma[x_dim:, :x_dim]
+
+    sigma_yy_inv = linalg.inv(sigma_yy)
+
+    mu_mat = sigma_xy @ sigma_yy_inv
+    sigma_xgy = sigma_xx - sigma_xy @ sigma_yy_inv @ sigma_yx
+
+    w, v = np.linalg.eig(sigma_xgy)
+    if np.min(sorted(w)) < 1e-6:
+        eps = 1e-6
+    else:
+        eps = 0
+    sigma_xgy_inv = linalg.inv(sigma_xgy + eps * np.identity(sigma_xgy.shape[0]))
+
+    return mu_x, mu_y, mu_mat, sigma_xgy_inv
+
+def print_matrix(matrix, format="raw", threshold=0.1, normalize=True):
+    if normalize:
+        matrix = matrix.copy() / np.max(np.abs(matrix))
+
+    assert format in ["signed", "raw"]
+
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            if format == "raw":
+                value = matrix[i][j]
+            elif format == "signed":
+                if np.abs(matrix[i][j]) > threshold:
+                    value = 1 * np.sign(matrix[i][j])
+                else:
+                    value = 0
+            if format == "signed":
+                print(int(value), end=", ")
+            else:
+                if value > 0:
+                    print("", end=" ")
+                print("{:.2f}".format(value), end=" ")
+        print()
+    print()
+
+def infer_masks(env, mask_variant):
+    mask_inference_variant = mask_variant['mask_inference_variant']
+    n = mask_inference_variant['n']
+    n = int(n)
+    obs_noise = mask_inference_variant['noise']
+    normalize_sigma_inv = mask_inference_variant['normalize_sigma_inv']
+
+    assert mask_variant['mask_format'] == 'distribution'
+    assert 'idx_masks' in mask_variant
+    idx_masks = mask_variant['idx_masks']
+    num_masks = len(idx_masks)
+    mask_keys = mask_variant['mask_keys']
+    mask_dims = mask_variant['mask_dims']
+
+    masks = {}
+    for (key, dim) in zip(mask_keys, mask_dims):
+        masks[key] = np.zeros([num_masks] + list(dim))
+
+    goal_dim = env.observation_space.spaces['state_desired_goal'].low.size
+
+    goals = np.zeros((n, goal_dim))
+    list_of_waypoints = np.zeros((num_masks, n, goal_dim))
+
+    # data collection
+    for i in range(n):
+        obs_dict = env.reset()
+        obs = obs_dict['state_observation']
+        goal = obs_dict['state_desired_goal']
+
+        for (mask_id, idx_list) in enumerate(idx_masks):
+            wp = obs.copy()
+            wp[idx_list] = goal[idx_list]
+            list_of_waypoints[mask_id][i] = wp
+
+        goals[i] = goal
+
+    # add noise to all of the data
+    list_of_waypoints += np.random.normal(0, obs_noise, list_of_waypoints.shape)
+    goals += np.random.normal(0, obs_noise, goals.shape)
+
+    for (mask_id, waypoints) in enumerate(list_of_waypoints):
+        mu = np.mean(np.concatenate((waypoints, goals), axis=1), axis=0)
+        sigma = np.cov(np.concatenate((waypoints, goals), axis=1).T)
+        mu_w, mu_g, mu_mat, sigma_inv = get_cond_distr_params(mu, sigma, x_dim=goal_dim)
+        if normalize_sigma_inv:
+            sigma_inv = sigma_inv / np.max(np.abs(sigma_inv))
+        masks['mask_mu_w'][mask_id] = mu_w
+        masks['mask_mu_g'][mask_id] = mu_g
+        masks['mask_mu_mat'][mask_id] = mu_mat
+        masks['mask_sigma_inv'][mask_id] = sigma_inv
+
+    # for mask_id in range(num_masks):
+    #     # print('mask_mu_mat')
+    #     # print_matrix(masks['mask_mu_mat'][mask_id])
+    #     print('mask_sigma_inv')
+    #     print_matrix(masks['mask_sigma_inv'][mask_id])
+    # exit()
+
+    return masks
 
 def rl_context_experiment(variant):
     import railrl.torch.pytorch_util as ptu
@@ -287,28 +397,9 @@ def rl_context_experiment(variant):
 
     task_variant = variant.get('task_variant', {})
     task_conditioned = task_variant.get('task_conditioned', False)
-    task_key = 'task_id'
 
     mask_variant = variant.get('mask_variant', {})
-    env = get_envs(variant)
     mask_conditioned = mask_variant.get('mask_conditioned', False)
-    mask_format = mask_variant.get('mask_format', 'vector')
-    assert mask_format in ['vector', 'matrix', 'distribution']
-    goal_dim = env.observation_space.spaces[context_key].low.size
-    if mask_format == 'vector':
-        mask_keys = ['mask']
-        mask_dims = [(goal_dim,)]
-        context_dim = goal_dim + goal_dim
-    elif mask_format == 'matrix':
-        mask_keys = ['mask']
-        mask_dims = [(goal_dim, goal_dim)]
-        context_dim = goal_dim + (goal_dim * goal_dim)
-    elif mask_format == 'distribution':
-        mask_keys = ['mask_mu_w', 'mask_mu_g', 'mask_mu_mat', 'mask_Sigma_inv']
-        mask_dims = [(goal_dim,), (goal_dim,), (goal_dim, goal_dim), (goal_dim, goal_dim)]
-        context_dim = goal_dim + (goal_dim * goal_dim) # mu and sigma_inv
-    else:
-        raise NotImplementedError
 
     if 'sac' in variant['algorithm'].lower():
         rl_algo = 'sac'
@@ -321,8 +412,34 @@ def rl_context_experiment(variant):
     assert not (task_conditioned and mask_conditioned)
 
     if task_conditioned:
+        task_key = 'task_id'
         context_keys = [context_key, task_key]
     elif mask_conditioned:
+        env = get_envs(variant)
+        mask_format = mask_variant.get('mask_format', 'vector')
+        assert mask_format in ['vector', 'matrix', 'distribution']
+        goal_dim = env.observation_space.spaces[context_key].low.size
+        if mask_format == 'vector':
+            mask_keys = ['mask']
+            mask_dims = [(goal_dim,)]
+            context_dim = goal_dim + goal_dim
+        elif mask_format == 'matrix':
+            mask_keys = ['mask']
+            mask_dims = [(goal_dim, goal_dim)]
+            context_dim = goal_dim + (goal_dim * goal_dim)
+        elif mask_format == 'distribution':
+            mask_keys = ['mask_mu_w', 'mask_mu_g', 'mask_mu_mat', 'mask_sigma_inv']
+            mask_dims = [(goal_dim,), (goal_dim,), (goal_dim, goal_dim), (goal_dim, goal_dim)]
+            context_dim = goal_dim + (goal_dim * goal_dim)  # mu and sigma_inv
+        else:
+            raise NotImplementedError
+
+        if mask_variant.get('infer_masks', False):
+            mask_variant['mask_keys'] = mask_keys
+            mask_variant['mask_dims'] = mask_dims
+            masks = infer_masks(env, mask_variant)
+            mask_variant['masks'] = masks
+
         context_keys = [context_key] + mask_keys
     else:
         context_keys = [context_key]
@@ -352,6 +469,7 @@ def rl_context_experiment(variant):
                 mask_keys=mask_keys,
                 mask_dims=mask_dims,
                 mask_format=mask_format,
+                masks=mask_variant.get('masks', None),
                 idx_masks=mask_variant.get('idx_masks', None),
                 matrix_masks=mask_variant.get('matrix_masks', None),
             )
@@ -400,19 +518,19 @@ def rl_context_experiment(variant):
 
     if task_conditioned:
         obs_dim = (
-                expl_env.observation_space.spaces[observation_key].low.size
-                + expl_env.observation_space.spaces[context_key].low.size
-                + 1
+            expl_env.observation_space.spaces[observation_key].low.size
+            + expl_env.observation_space.spaces[context_key].low.size
+            + 1
         )
     elif mask_conditioned:
         obs_dim = (
-                expl_env.observation_space.spaces[observation_key].low.size
-                + context_dim
+            expl_env.observation_space.spaces[observation_key].low.size
+            + context_dim
         )
     else:
         obs_dim = (
-                expl_env.observation_space.spaces[observation_key].low.size
-                + expl_env.observation_space.spaces[context_key].low.size
+            expl_env.observation_space.spaces[observation_key].low.size
+            + expl_env.observation_space.spaces[context_key].low.size
         )
 
     action_dim = expl_env.action_space.low.size
@@ -493,11 +611,11 @@ def rl_context_experiment(variant):
                 mu_w = batch['mask_mu_w']
                 mu_g = batch['mask_mu_g']
                 mu_A = batch['mask_mu_mat']
-                Sigma_inv = batch['mask_Sigma_inv']
+                sigma_inv = batch['mask_sigma_inv']
                 mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(g - mu_g, axis=-1), axis=-1)
-                Sigma_w_given_g_inv = Sigma_inv.reshape((len(context), -1))
-                batch['observations'] = np.concatenate([obs, mu_w_given_g, Sigma_w_given_g_inv], axis=1)
-                batch['next_observations'] = np.concatenate([next_obs, mu_w_given_g, Sigma_w_given_g_inv], axis=1)
+                sigma_w_given_g_inv = sigma_inv.reshape((len(context), -1))
+                batch['observations'] = np.concatenate([obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
+                batch['next_observations'] = np.concatenate([next_obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
             else:
                 raise NotImplementedError
         else:

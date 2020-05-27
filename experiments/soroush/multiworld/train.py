@@ -82,6 +82,12 @@ variant = dict(
             rotate_mask_freq_for_eval=1.0,
             log_mask_diagnostics=True,
             mask_format='vector',
+            infer_masks=False,
+            mask_inference_variant=dict(
+                n=1000,
+                noise=0.1,
+                normalize_sigma_inv=True,
+            ),
         ),
     ),
     # env_id='FourObject-PickAndPlace-RandomInit-2D-v1',
@@ -163,9 +169,17 @@ env_params = {
         # ],
 
         'rl_variant.mask_variant.mask_format': [
-            "vector",
-            "matrix",
+            # "vector",
+            # "matrix",
             "distribution",
+        ],
+
+        'rl_variant.mask_variant.infer_masks': [True],
+        'rl_variant.mask_variant.mask_inference_variant.n': [
+            5e1,
+            1e2,
+            1e3,
+            1e5,
         ],
     },
     'pg-4obj-1d': {

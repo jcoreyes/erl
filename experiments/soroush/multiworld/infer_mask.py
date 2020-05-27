@@ -100,20 +100,13 @@ def get_cond_distr(mu, sigma, y):
     sigma_xy = sigma[:x_dim, x_dim:]
     sigma_yx = sigma[x_dim:, :x_dim]
 
-    # print(sigma_xx)
-    # print(sigma_yy)
-    # print(sigma_xy)
-    # print(sigma_yx)
-    # print()
-
-    # w, v = np.linalg.eig(sigma_yy)
     sigma_yy_inv = linalg.inv(sigma_yy)
 
     mu_xgy = mu_x + sigma_xy @ sigma_yy_inv @ (y - mu_y)
     sigma_xgy = sigma_xx - sigma_xy @ sigma_yy_inv @ sigma_yx
     return mu_xgy, sigma_xgy
 
-n = 1000
+n = 50
 show_dataset = False
 states = []
 goals = []
@@ -128,7 +121,7 @@ for i in range(n):
     wp1[0:2] = obs[2:4]
 
     wp2 = obs.copy()
-    wp2[0:2] = goal[2:4]
+    # wp2[0:2] = goal[2:4]
     wp2[2:4] = goal[2:4]
     # wp2[4:6] = goal[4:6]
 
@@ -159,7 +152,7 @@ list_of_waypoints = np.array(list_of_waypoints)
 goals = np.array(goals)
 states = np.array(states)
 
-for waypoints in list_of_waypoints[:1]:
+for waypoints in list_of_waypoints[1:2]:
     for i in range(1):
         state = states[i]
         goal = goals[i]
@@ -195,15 +188,15 @@ for waypoints in list_of_waypoints[:1]:
 
         # print(sigma_w_given_g)
         if i == 0:
-            print_matrix(
-                sigma_w_given_g,
-                format="raw",
-                normalize=True,
-                threshold=0.4,
-            )
+            # print_matrix(
+            #     sigma_w_given_g,
+            #     format="raw",
+            #     normalize=True,
+            #     threshold=0.4,
+            # )
             print_matrix(
                 sigma_inv,
-                # format="raw",
+                format="raw",
                 normalize=True,
                 threshold=0.4,
             )
