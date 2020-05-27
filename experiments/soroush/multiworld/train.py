@@ -163,8 +163,8 @@ env_params = {
         # ],
 
         'rl_variant.mask_variant.mask_format': [
-            # "vector",
-            # "matrix",
+            "vector",
+            "matrix",
             "distribution",
         ],
     },

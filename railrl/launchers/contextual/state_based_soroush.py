@@ -58,7 +58,7 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
     def __init__(
             self,
             *args,
-            mask_dims=[(1)],
+            mask_dims=[(1,)],
             mask_keys=['mask'],
             mask_format='vector',
             masks=None,
@@ -90,7 +90,6 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
 
             for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
                 self.masks[mask_key] = np.zeros([num_masks] + list(mask_dim))
-                print(mask_key, self.masks[mask_key].shape)
 
             if self.mask_format in ['vector', 'matrix']:
                 assert len(self.mask_keys) == 1
@@ -415,7 +414,6 @@ def rl_context_experiment(variant):
                 expl_env.observation_space.spaces[observation_key].low.size
                 + expl_env.observation_space.spaces[context_key].low.size
         )
-
 
     action_dim = expl_env.action_space.low.size
 
