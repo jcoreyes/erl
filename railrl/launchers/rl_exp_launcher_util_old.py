@@ -1,8 +1,5 @@
-import os.path as osp
-
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
-from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector
-from railrl.torch.grill.video_gen import VideoSaveFunction
+from railrl.visualization.video import VideoSaveFunction
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer

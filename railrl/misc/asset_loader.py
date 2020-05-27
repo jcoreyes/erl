@@ -7,9 +7,12 @@ import boto3
 from railrl.launchers.config import LOCAL_LOG_DIR, AWS_S3_PATH
 import os
 
+import torch
+
 PICKLE = 'pickle'
 NUMPY = 'numpy'
 JOBLIB = 'joblib'
+TORCH = 'torch'
 
 
 def local_path_from_s3_or_local_path(filename):
@@ -52,6 +55,31 @@ def sync_down(path, check_exists=True):
     return local_path
 
 
+def sync_down_folder(path):
+    is_docker = os.path.isfile("/.dockerenv")
+    if is_docker:
+        local_path = "/tmp/%s" % (path)
+    else:
+        local_path = "%s/%s" % (LOCAL_LOG_DIR, path)
+
+    local_dir = os.path.dirname(local_path)
+    os.makedirs(local_dir, exist_ok=True)
+
+    if is_docker:
+        from doodad.ec2.autoconfig import AUTOCONFIG
+        os.environ["AWS_ACCESS_KEY_ID"] = AUTOCONFIG.aws_access_key()
+        os.environ["AWS_SECRET_ACCESS_KEY"] = AUTOCONFIG.aws_access_secret()
+
+    full_s3_path = os.path.join(AWS_S3_PATH, path)
+    bucket_name, bucket_relative_path = split_s3_full_path(full_s3_path)
+    command = "aws s3 sync s3://%s/%s %s" % (bucket_name, bucket_relative_path, local_path)
+    print(command)
+    stream = os.popen(command)
+    output = stream.read()
+    print(output)
+    return local_path
+
+
 def split_s3_full_path(s3_path):
     """
     Split "s3://foo/bar/baz" into "foo" and "bar/baz"
@@ -62,12 +90,14 @@ def split_s3_full_path(s3_path):
     return bucket_name, directory_path
 
 
-def load_local_or_remote_file(filepath, file_type=None):
+def load_local_or_remote_file(filepath, file_type=None, **kwargs):
     local_path = local_path_from_s3_or_local_path(filepath)
     if file_type is None:
         extension = local_path.split('.')[-1]
-        if extension == 'npy':
+        if extension == 'npy' or extension == 'npz':
             file_type = NUMPY
+        elif extension == "pt":
+            file_type = TORCH
         else:
             file_type = PICKLE
     else:
@@ -76,6 +106,8 @@ def load_local_or_remote_file(filepath, file_type=None):
         object = np.load(open(local_path, "rb"), allow_pickle=True)
     elif file_type == JOBLIB:
         object = joblib.load(local_path)
+    elif file_type == TORCH:
+        object = torch.load(local_path, **kwargs)
     else:
         object = pickle.load(open(local_path, "rb"))
     print("loaded", local_path)

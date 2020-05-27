@@ -455,6 +455,7 @@ class CVAE(GaussianLatentVAE):
         self.c.bias.data.uniform_(-init_w, init_w)
         self.z_mu.bias.data.uniform_(-init_w, init_w)
         self.z_var.bias.data.uniform_(-init_w, init_w)
+        self.prior_mu, self.prior_logvar = None, None
 
         self.epoch = 0
         self.decoder_distribution=decoder_distribution
@@ -474,7 +475,8 @@ class CVAE(GaussianLatentVAE):
             batch_size = len(x_t)
             x_0 = x_0.repeat(batch_size, 1)
 
-        latents = self.bn_z(self.z(self.dropout(self.encoder(x_t))))
+        latents = self.dropout(self.relu(self.bn_z(self.z(self.dropout(self.encoder(x_t))))))
+
         conditioning = self.bn_c(self.c(self.dropout(self.cond_encoder(x_0))))
         cond_latents = torch.cat([latents, conditioning], dim=1)
         mu = self.z_mu(cond_latents)
@@ -495,10 +497,20 @@ class CVAE(GaussianLatentVAE):
             mu = latent_distribution_params[0]
         return torch.cat([mu, latent_distribution_params[2]], dim=1)
 
-    def sample_prior(self, batch_size, x_0):
+    def update_prior(self, mu, logvar):
+        self.prior_mu = mu
+        self.prior_logvar = logvar
+
+    def sample_prior(self, batch_size, x_0, true_prior=True):
         if x_0.shape[0] == 1:
             x_0 = x_0.repeat(batch_size, 1)
+
         z_sample = ptu.randn(batch_size, self.latent_sizes[0])
+
+        if not true_prior:
+            stds = np.exp(0.5 * self.prior_logvar)
+            z_sample = z_sample * stds + self.prior_mu
+
         conditioning = self.bn_c(self.c(self.dropout(self.cond_encoder(x_0))))
         cond_sample = torch.cat([z_sample, conditioning], dim=1)
         return cond_sample
@@ -578,7 +590,7 @@ class DeltaCVAE(CVAE):
             hidden_init,
             reconstruction_channels,
             base_depth,
-            weight_init_gain,)
+            weight_init_gain, )
 
         conv_args, conv_kwargs, deconv_args, deconv_kwargs = \
             architecture['conv_args'], architecture['conv_kwargs'], \

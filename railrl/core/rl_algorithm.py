@@ -31,6 +31,8 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             evaluation_data_collector: DataCollector,
             replay_buffer: ReplayBuffer,
             num_epochs,
+            exploration_get_diagnostic_functions=None,
+            evaluation_get_diagnostic_functions=None,
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -43,6 +45,22 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.post_epoch_funcs = []
         self.epoch = self._start_epoch
         self.num_epochs = num_epochs
+        if exploration_get_diagnostic_functions is None:
+            exploration_get_diagnostic_functions = [
+                eval_util.get_generic_path_information,
+            ]
+            if hasattr(self.expl_env, 'get_diagnostics'):
+                exploration_get_diagnostic_functions.append(
+                    self.expl_env.get_diagnostics)
+        if evaluation_get_diagnostic_functions is None:
+            evaluation_get_diagnostic_functions = [
+                eval_util.get_generic_path_information,
+            ]
+            if hasattr(self.eval_env, 'get_diagnostics'):
+                evaluation_get_diagnostic_functions.append(
+                    self.eval_env.get_diagnostics)
+        self._eval_get_diag_fns = evaluation_get_diagnostic_functions
+        self._expl_get_diag_fns = exploration_get_diagnostic_functions
 
     def train(self):
         timer.return_global_times = True
@@ -99,21 +117,14 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         append_log(algo_log, self.expl_data_collector.get_diagnostics(),
                    prefix='expl/')
         expl_paths = self.expl_data_collector.get_epoch_paths()
-        if hasattr(self.expl_env, 'get_diagnostics'):
-            append_log(algo_log, self.expl_env.get_diagnostics(expl_paths),
-                       prefix='expl/')
-        append_log(algo_log, eval_util.get_generic_path_information(expl_paths),
-                   prefix="expl/")
+        for fn in self._expl_get_diag_fns:
+            append_log(algo_log, fn(expl_paths), prefix='expl/')
         # Eval
         append_log(algo_log, self.eval_data_collector.get_diagnostics(),
                    prefix='eval/')
         eval_paths = self.eval_data_collector.get_epoch_paths()
-        if hasattr(self.eval_env, 'get_diagnostics'):
-            append_log(algo_log, self.eval_env.get_diagnostics(eval_paths),
-                       prefix='eval/')
-        append_log(algo_log,
-                   eval_util.get_generic_path_information(eval_paths),
-                   prefix="eval/")
+        for fn in self._eval_get_diag_fns:
+            append_log(algo_log, fn(eval_paths), prefix='eval/')
 
         timer.stamp('logging')
         append_log(algo_log, _get_epoch_timings())

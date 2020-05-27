@@ -106,3 +106,18 @@ class LayerNorm(nn.Module):
         if self.center:
             output = output + self.center_param
         return output
+
+
+class Detach(nn.Module):
+    def __init__(self, wrapped_mlp):
+        super().__init__()
+        self.wrapped_mlp = wrapped_mlp
+
+    def forward(self, inputs):
+        return self.wrapped_mlp.forward(inputs).detach()
+
+    def __getattr__(self, attr_name):
+        try:
+            return super().__getattr__(attr_name)
+        except AttributeError:
+            return getattr(self.wrapped_mlp, attr_name)

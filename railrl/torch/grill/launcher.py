@@ -1,11 +1,10 @@
 import os.path as osp
 import time
 
-import cv2
 import numpy as np
 
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
-from railrl.torch.grill.video_gen import VideoSaveFunction
+from railrl.visualization.video import VideoSaveFunction
 from railrl.torch.her.her import HERTrainer
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.sac import SACTrainer
@@ -412,6 +411,7 @@ def generate_vae_dataset(variant):
                     dataset[i, :] = unormalize_image(img)
 
                 if show:
+                    import cv2
                     img = img.reshape(3, imsize, imsize).transpose()
                     img = img[::-1, :, ::-1]
                     cv2.imshow('img', img)
@@ -419,7 +419,7 @@ def generate_vae_dataset(variant):
                     # radius = input('waiting...')
             print("done making training data", filename, time.time() - now)
             np.save(filename, dataset)
-            np.save(filename[:-4] + 'labels.npy', np.array(labels))
+            # np.save(filename[:-4] + 'labels.npy', np.array(labels))
 
     info['train_labels'] = []
     info['test_labels'] = []
@@ -888,20 +888,20 @@ def grill_her_twin_sac_experiment(variant):
     )
     trainer = HERTrainer(trainer)
     eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
         env,
         MakeDeterministic(policy),
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['evaluation_goal_sampling_mode'],
     )
     expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
         env,
         policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['exploration_goal_sampling_mode'],
     )
 
     algorithm = TorchOnlineRLAlgorithm(
@@ -1268,20 +1268,20 @@ def grill_her_twin_sac_experiment_online_vae(variant):
     )
     trainer = HERTrainer(trainer)
     eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
         env,
         MakeDeterministic(policy),
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['evaluation_goal_sampling_mode'],
     )
     expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
         env,
         policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['exploration_goal_sampling_mode'],
     )
 
     algorithm = OnlineVaeAlgorithm(
@@ -1420,20 +1420,20 @@ def grill_her_td3_experiment_online_vae(variant):
     )
     trainer = HERTrainer(trainer)
     eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
         env,
         policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['evaluation_goal_sampling_mode'],
     )
     expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
         env,
         expl_policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['exploration_goal_sampling_mode'],
     )
 
     algorithm = OnlineVaeAlgorithm(
@@ -1575,20 +1575,20 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
     )
     trainer = HERTrainer(trainer)
     eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
         env,
         policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['evaluation_goal_sampling_mode'],
     )
     expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
         env,
         expl_policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['exploration_goal_sampling_mode'],
     )
 
     algorithm = OnlineVaeOffpolicyAlgorithm(
@@ -2561,7 +2561,7 @@ def get_state_experiment_video_save_function(rollout_function, env, policy, vari
     from multiworld.core.image_env import ImageEnv
     from railrl.core import logger
     from railrl.envs.vae_wrappers import temporary_mode
-    from railrl.torch.grill.video_gen import dump_video
+    from railrl.visualization.video import dump_video
     logdir = logger.get_snapshot_dir()
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)

@@ -4,7 +4,7 @@ from torchvision.utils import save_image
 
 from railrl.core import logger
 from railrl.data_management.obs_dict_replay_buffer import (
-    flatten_dict,
+    combine_dicts,
     ObsDictRelabelingBuffer
 )
 from railrl.data_management.shared_obs_dict_replay_buffer import \
@@ -137,7 +137,7 @@ class OnlineVaeRelabelingBuffer(ObsDictRelabelingBuffer):
     def add_decoded_vae_goals_to_path(self, path):
         # decoding the self-sampled vae images should be done in batch (here)
         # rather than in the env for efficiency
-        desired_goals = flatten_dict(
+        desired_goals = combine_dicts(
             path['observations'],
             [self.desired_goal_key]
         )[self.desired_goal_key]

@@ -9,7 +9,7 @@ class GaussianStrategy(RawExplorationStrategy):
     Based on the rllab implementation.
     """
     def __init__(self, action_space, max_sigma=1.0, min_sigma=None,
-                 decay_period=1000000):
+                 decay_period=1000000, **kwargs):
         assert len(action_space.shape) == 1
         self._max_sigma = max_sigma
         if min_sigma is None:

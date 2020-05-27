@@ -9,14 +9,19 @@ import argparse # TODO: migrate to argparse if necessary
 import sys
 from multiprocessing import Process, Pool
 import pdb
+import random
 
-def run_variants(experiment, vs, run_id=0):
+def run_variants(experiment, vs, process_args_fn=None, run_id=0, ):
     # preprocess
     variants = []
     for i, v in enumerate(vs):
         v["exp_id"] = i
-        v["run_id"] = run_id
-        process_variant_cmd(v)
+        v["run_id"] = i
+        process_run_args(v)
+        process_logger_args(v, run_id=run_id)
+        process_launcher_args(v)
+        if process_args_fn:
+            process_args_fn(v)
         variants.append(v)
 
     if "--variants" in sys.argv: # takes either 3-7 or 3,6,7,8,10 as next arg
@@ -41,7 +46,7 @@ def run_variants(experiment, vs, run_id=0):
     print("Running", len(variants), "variants")
 
     # run
-    parallel = variants[0]["parallel"]
+    parallel = variants[0].get("parallel", False)
     if parallel:
         parallel_run(experiment, variants, parallel)
     else:
@@ -51,24 +56,11 @@ def run_variants(experiment, vs, run_id=0):
     print("Running", len(variants), "variants")
 
 def run_variant(experiment, variant):
+    launcher_config = variant.pop("launcher_config")
     lu.run_experiment(
         experiment,
         variant=variant,
-        # run_id=variant["run_id"],
-        mode=variant["mode"],
-        exp_prefix=variant["exp_prefix"],
-        exp_id=variant["exp_id"],
-        instance_type=variant["instance_type"],
-        use_gpu=variant["use_gpu"],
-        snapshot_mode=variant["snapshot_mode"],
-        snapshot_gap=variant["snapshot_gap"],
-        base_log_dir=variant["base_log_dir"],
-        # num_exps_per_instance=variant.get("num_exps_per_instance", 1),
-        prepend_date_to_exp_prefix=False,
-        # spot_price=variant["spot_price"],
-        region=variant.get("region", "us-east-1"),
-        time_in_mins=variant.get("time_in_mins", 0),
-        ssh_host=variant.get("ssh_host", None),
+        **launcher_config,
     )
 
 def parallel_run(experiment, variants, n_p):
@@ -87,8 +79,7 @@ def parallel_run(experiment, variants, n_p):
         for pr in prs:
             pr.join()
 
-def process_variant_cmd(variant):
-    # assumes some format of arguments passed in for quick interface
+def process_run_args(variant):
     if "--sync" in sys.argv:
         variant["sync"] = True
     if "--nosync" in sys.argv:
@@ -101,19 +92,8 @@ def process_variant_cmd(variant):
                 variant["algo_kwargs"]["base_kwargs"]["render"] = True
     if "--norender" in sys.argv:
         variant["render"] = False
-
-    if "--ec2" in sys.argv:
-        variant["mode"] = "ec2"
-    if "--local" in sys.argv:
-        variant["mode"] = "local"
-    if "--localdocker" in sys.argv:
-        variant["mode"] = "local_docker"
-    if "--sss" in sys.argv:
-        variant["mode"] = "sss"
-    if "--ssh" in sys.argv:
-        variant["mode"] = "ssh"
-        i = sys.argv.index("--ssh")
-        variant["ssh_host"] = sys.argv[i+1]
+    if "--debug" in sys.argv:
+        variant["debug"] = True
 
     if "--parallel" in sys.argv:
         i = sys.argv.index("--parallel")
@@ -125,55 +105,96 @@ def process_variant_cmd(variant):
             variant["use_gpu"] = True
         else:
             variant["gpus"] = list(range(parallel))
-    else:
-        variant["parallel"] = False
 
-    variant["snapshot_mode"] = variant.get("snapshot_mode", "gap")
-    variant["snapshot_gap"] = variant.get("snapshot_gap", 20)
+
+def process_logger_args(variant, run_id=None):
+    logger_config = variant.setdefault("logger_config", dict())
+
+    logger_config["snapshot_mode"] = logger_config.get("snapshot_mode", "gap")
+    logger_config["snapshot_gap"] = logger_config.get("snapshot_gap", 100)
     if "--snapshot" in sys.argv:
-        variant["snapshot_mode"] = 'gap_and_last'
-        variant["snapshot_gap"] = 20
+        logger_config["snapshot_mode"] = 'gap_and_last'
+        logger_config["snapshot_gap"] = 20
     elif "--nosnapshot" in sys.argv:
-        variant["snapshot_mode"] = 'none'
-        variant["snapshot_gap"] = 1
-
-    if "--gpu_id" in sys.argv:
-        i = sys.argv.index("--gpu_id")
-        variant["gpu_id"] = int(sys.argv[i+1])
-        variant["use_gpu"] = True
-    if "--gpu" in sys.argv:
-        variant["use_gpu"] = True
-    if "use_gpu" in variant and variant["use_gpu"]:
-        if "instance_type" not in variant:
-            variant["instance_type"] = "g3.4xlarge"
-        if "gpu_id" not in variant:
-            variant["gpu_id"] = 0
-    if "--time" in sys.argv:
-        i = sys.argv.index("--time")
-        variant["time_in_mins"] = int(sys.argv[i+1])
+        logger_config["snapshot_mode"] = 'none'
+        logger_config["snapshot_gap"] = 1
 
     if "--run" in sys.argv:
         i = sys.argv.index("--run")
+        logger_config["run_id"] = int(sys.argv[i+1])
         variant["run_id"] = int(sys.argv[i+1])
+    else:
+        logger_config["run_id"] = run_id
 
-    if "exp_prefix" not in variant:
+
+def process_launcher_args(variant):
+    launcher_config = variant.setdefault("launcher_config", dict())
+
+    launcher_config.setdefault("gpu_id", 0)
+    launcher_config.setdefault("prepend_date_to_exp_name", False)
+    launcher_config.setdefault("region", "us-west-2")
+    launcher_config.setdefault("time_in_mins", None)
+    launcher_config.setdefault("ssh_host", None)
+    launcher_config.setdefault("slurm_config_name", None)
+    launcher_config.setdefault("unpack_variant", False)
+    launcher_config.setdefault("s3_log_prefix", "")
+
+    if "--ec2" in sys.argv:
+        launcher_config["mode"] = "ec2"
+    if "--local" in sys.argv:
+        launcher_config["mode"] = "here_no_doodad"
+    if "--localdocker" in sys.argv:
+        launcher_config["mode"] = "local_docker"
+    if "--sss" in sys.argv:
+        launcher_config["mode"] = "sss"
+    if "--singularity" in sys.argv:
+        launcher_config["mode"] = "local_singularity"
+    if "--slurm" in sys.argv:
+        launcher_config["mode"] = "slurm"
+    if "--ss" in sys.argv:
+        launcher_config["mode"] = "slurm_singularity"
+    if "--sss" in sys.argv:
+        launcher_config["mode"] = "sss"
+    if "--ssh" in sys.argv:
+        launcher_config["mode"] = "ssh"
+        i = sys.argv.index("--ssh")
+        launcher_config["ssh_host"] = sys.argv[i+1]
+
+    if "--slurmconfig" in sys.argv:
+        i = sys.argv.index("--slurmconfig")
+        launcher_config["slurm_config_name"] = sys.argv[i+1]
+    if "--lowprio" in sys.argv:
+        launcher_config["slurm_config_name"] = "gpu_lowprio"
+
+    if "--verbose" in sys.argv:
+        launcher_config["verbose"] = True
+
+    if "--gpu_id" in sys.argv:
+        i = sys.argv.index("--gpu_id")
+        launcher_config["gpu_id"] = int(sys.argv[i+1])
+        launcher_config["use_gpu"] = True
+    if "--gpu" in sys.argv:
+        launcher_config["use_gpu"] = True
+    if "use_gpu" in launcher_config and launcher_config["use_gpu"]:
+        if "instance_type" not in launcher_config:
+            launcher_config["instance_type"] = "g3.4xlarge"
+    if "--time" in sys.argv:
+        i = sys.argv.index("--time")
+        launcher_config["time_in_mins"] = int(sys.argv[i+1])
+
+    if "instance_type" not in launcher_config:
+        launcher_config["instance_type"] = "c4.xlarge"
+    if "use_gpu" not in launcher_config:
+        launcher_config["use_gpu"] = None
+
+    if "base_log_dir" not in launcher_config:
+        launcher_config["base_log_dir"] = None
+    if "--mac" in sys.argv:
+        launcher_config["base_log_dir"] = "/Users/ashvin/data/s3doodad/"
+
+    if "exp_name" not in launcher_config:
         s = "experiments/"
         n = len(s)
         assert sys.argv[0][:n] == s
-        variant["exp_prefix"] = sys.argv[0][n:-3]
+        launcher_config["exp_name"] = sys.argv[0][n:-3]
 
-    if "instance_type" not in variant:
-        variant["instance_type"] = "c4.xlarge"
-    if "use_gpu" not in variant:
-        variant["use_gpu"] = None
-
-    if "base_log_dir" not in variant:
-        variant["base_log_dir"] = None
-    if "--mac" in sys.argv:
-        variant["base_log_dir"] = "/Users/ashvin/data/s3doodad/"
-
-    # variant["spot_price"] = {
-    #     'c4.large': 0.1, 'c4.xlarge': 0.2, 'c4.2xlarge': 0.4,
-    #     'm4.large': 0.1, 'm4.xlarge': 0.2, 'm4.2xlarge': 0.4,
-    #     'c4.8xlarge': 2.0, 'c4.4xlarge': 1.0, 'g2.2xlarge': 0.5,
-    # }[variant["instance_type"]]

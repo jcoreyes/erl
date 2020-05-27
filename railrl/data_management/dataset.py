@@ -1,11 +1,9 @@
 import numpy as np
 import itertools
 import torch
-
 from railrl.data_management.images import normalize_image, unnormalize_image
 from railrl.torch.core import np_to_pytorch_batch
 import railrl.torch.pytorch_util as ptu
-
 from torch.utils import data
 from torchvision.transforms import ColorJitter, RandomResizedCrop
 from PIL import Image
@@ -185,8 +183,35 @@ class TripletReplayBufferWrapper(BatchLoader):
         )
         return np_to_pytorch_batch(batch)
 
-
 class InitialObservationNumpyDataset(data.Dataset):
+    def __init__(self, data, info=None):
+        assert data['observations'].dtype == np.uint8
+
+        self.size = data['observations'].shape[0]
+        self.traj_length = data['observations'].shape[1]
+        self.data = data
+        self.info = info
+
+        if 'env' not in self.data:
+            self.data['env'] = self.data['observations'][:, 0, :]
+
+    def __len__(self):
+        return self.size * self.traj_length
+
+    def __getitem__(self, idx):
+        traj_i = idx // self.traj_length
+        trans_i = idx % self.traj_length
+
+        env = normalize_image(self.data['env'][traj_i, :])
+        x_t = normalize_image(self.data['observations'][traj_i, trans_i, :])
+
+        data_dict = {
+            'x_t': x_t,
+            'env': env,
+        }
+        return data_dict
+
+class InitialObservationNumpyJitteringDataset(data.Dataset):
     def __init__(self, data, info=None):
         assert data['observations'].dtype == np.uint8
 

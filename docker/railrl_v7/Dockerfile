@@ -102,3 +102,5 @@ RUN pip install numpy-stl==2.7.0
 RUN pip install pyquaternion==0.9.2
 RUN pip install moviepy==0.2.3.5
 RUN pip install scikit-image
+RUN pip install tensorboard_logger
+

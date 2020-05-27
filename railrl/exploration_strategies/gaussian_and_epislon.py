@@ -10,7 +10,7 @@ class GaussianAndEpislonStrategy(RawExplorationStrategy):
     deterministic policy.
     """
     def __init__(self, action_space, epsilon, max_sigma=1.0, min_sigma=None,
-                 decay_period=1000000):
+                 decay_period=1000000, **kwargs):
         assert len(action_space.shape) == 1
         if min_sigma is None:
             min_sigma = max_sigma

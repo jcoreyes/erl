@@ -1,16 +1,9 @@
-import os.path as osp
-import time
-
-import cv2
-import numpy as np
+#import cv2
 
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.sac.policies import MakeDeterministic
-from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.vae.online_vae_algorithm import OnlineVaeAlgorithm
 
-from railrl.torch.grill.video_gen import VideoSaveFunction
+from railrl.visualization.video import VideoSaveFunction
 
 from railrl.torch.grill.common import *
 
@@ -26,13 +19,10 @@ def grill_her_td3_offpolicy_online_vae_full_experiment(variant):
     grill_her_td3_experiment_offpolicy_online_vae(variant['grill_variant'])
 
 def grill_her_td3_experiment_offpolicy_online_vae(variant):
-    import railrl.samplers.rollout_functions as rf
     import railrl.torch.pytorch_util as ptu
-    import railrl.samplers.rollout_functions as rf
     from railrl.data_management.online_vae_replay_buffer import \
         OnlineVaeRelabelingBuffer
     from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-    from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.vae.vae_trainer import ConvVAETrainer
     from railrl.torch.td3.td3 import TD3
     from railrl.exploration_strategies.base import (
@@ -41,6 +31,9 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
     from railrl.exploration_strategies.gaussian_and_epislon import \
         GaussianAndEpislonStrategy
     from railrl.torch.vae.online_vae_offpolicy_algorithm import OnlineVaeOffpolicyAlgorithm
+
+    import gc
+    gc.collect() # Ashvin: this line for a GPU memory error
 
     grill_preprocess_variant(variant)
     env = get_envs(variant)
@@ -94,12 +87,12 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
         hidden_sizes=hidden_sizes,
         # **variant['policy_kwargs']
     )
-
+    #es = get_exploration_strategy(varient, env)
     es = GaussianAndEpislonStrategy(
         action_space=env.action_space,
         max_sigma=.2,
         min_sigma=.2,  # constant sigma
-        epsilon=.3,
+        epsilon=variant.get('exploration_noise', 0.1),
     )
     expl_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -139,20 +132,20 @@ def grill_her_td3_experiment_offpolicy_online_vae(variant):
     )
     trainer = HERTrainer(trainer)
     eval_path_collector = VAEWrappedEnvPathCollector(
-        variant['evaluation_goal_sampling_mode'],
         env,
         policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['evaluation_goal_sampling_mode'],
     )
     expl_path_collector = VAEWrappedEnvPathCollector(
-        variant['exploration_goal_sampling_mode'],
         env,
         expl_policy,
         max_path_length,
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
+        goal_sampling_mode=variant['exploration_goal_sampling_mode'],
     )
 
     algorithm = OnlineVaeOffpolicyAlgorithm(
