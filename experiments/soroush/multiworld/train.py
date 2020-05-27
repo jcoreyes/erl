@@ -140,34 +140,33 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-        'rl_variant.algo_kwargs.num_epochs': [500], #[2000],
+        'rl_variant.algo_kwargs.num_epochs': [2000],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
-        # 'rl_variant.mask_variant.idx_masks': [
-        #     [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]],
-        #     # [[2, 3, 4, 5, 6, 7, 8, 9]],
-        # ],
-        'rl_variant.mask_variant.matrix_masks': [
-            [[
-                [1, 0, -1, 0, 0, 0, 0, 0, 0, 0],
-                [0, 1, 0, -1, 0, 0, 0, 0, 0, 0],
-                [-1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-                [0, -1, 0, 1, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            ]]
+        'rl_variant.mask_variant.idx_masks': [
+            [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]],
+            # [[2, 3, 4, 5, 6, 7, 8, 9]],
         ],
+        # 'rl_variant.mask_variant.matrix_masks': [
+        #     [[
+        #         [1, 0, -1, 0, 0, 0, 0, 0, 0, 0],
+        #         [0, 1, 0, -1, 0, 0, 0, 0, 0, 0],
+        #         [-1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+        #         [0, -1, 0, 1, 0, 0, 0, 0, 0, 0],
+        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #     ]]
+        # ],
 
         'rl_variant.mask_variant.mask_format': [
             # "vector",
-            "matrix",
+            # "matrix",
+            "distribution",
         ],
-
-        'rl_variant.save_video_period': [10],
     },
     'pg-4obj-1d': {
         'env_class': [PickAndPlace1DEnv],
