@@ -99,20 +99,24 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
                 assert len(self.mask_keys) == 1
                 mask_key = self.mask_keys[0]
                 if idx_masks is not None:
-                    idx_masks = np.array(idx_masks)
-                    for (i, idx_list) in enumerate(idx_masks):
-                        if self.mask_format == 'vector':
-                            self.masks[mask_key][i][idx_list] = 1
-                        elif self.mask_format == 'matrix':
-                            self.masks[mask_key][i][idx_list, idx_list] = 1
+                    for (i, idx_dict) in enumerate(idx_masks):
+                        for (k, v) in idx_dict.items():
+                            assert k == v
+                            if self.mask_format == 'vector':
+                                self.masks[mask_key][i][k] = 1
+                            elif self.mask_format == 'matrix':
+                                self.masks[mask_key][i][k, k] = 1
                 elif matrix_masks is not None:
                     self.masks[mask_key] = np.array(matrix_masks)
             elif self.mask_format == 'distribution':
                 if idx_masks is not None:
                     self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])
                     idx_masks = np.array(idx_masks)
-                    for (i, idx_list) in enumerate(idx_masks):
-                        self.masks['mask_sigma_inv'][i][idx_list, idx_list] = 1
+
+                    for (i, idx_dict) in enumerate(idx_masks):
+                        for (k, v) in idx_dict.items():
+                            assert k == v
+                            self.masks['mask_sigma_inv'][i][k, k] = 1
                 elif matrix_masks is not None:
                     self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])
                     self.masks['mask_sigma_inv'] = np.array(matrix_masks)
@@ -345,9 +349,14 @@ def infer_masks(env, mask_variant):
         obs = obs_dict['state_observation']
         goal = obs_dict['state_desired_goal']
 
-        for (mask_id, idx_list) in enumerate(idx_masks):
+        for (mask_id, idx_dict) in enumerate(idx_masks):
             wp = obs.copy()
-            wp[idx_list] = goal[idx_list]
+            for (k, v) in idx_dict.items():
+                if v >= 0:
+                    wp[k] = goal[v]
+            for (k, v) in idx_dict.items():
+                if v < 0:
+                    wp[k] = wp[-v - 10]
             list_of_waypoints[mask_id][i] = wp
 
         goals[i] = goal

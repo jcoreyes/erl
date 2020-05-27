@@ -146,12 +146,35 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-        'rl_variant.algo_kwargs.num_epochs': [2000],
+        'rl_variant.algo_kwargs.num_epochs': [500], #2000
+        'rl_variant.save_video_period': [25],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.idx_masks': [
-            [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]],
-            # [[2, 3, 4, 5, 6, 7, 8, 9]],
+            # [
+            #     {0: 0, 1: 1},
+            #     {2: 2, 3: 3},
+            #     {4: 4, 5: 5},
+            #     {6: 6, 7: 7},
+            #     {8: 8, 9: 9},
+            # ],
+            # [
+            #     {0: 0, 1: 1},
+            #     {0: -12, 1: -13},
+            #     {2: 2, 3: 3},
+            #     {0: -14, 1: -15},
+            #     {4: 4, 5: 5},
+            #     {0: -16, 1: -17},
+            #     {6: 6, 7: 7},
+            #     {0: -18, 1: -19},
+            #     {8: 8, 9: 9},
+            # ],
+            [
+                {0: -12, 1: -13},
+                {0: -14, 1: -15},
+                {0: -16, 1: -17},
+                {0: -18, 1: -19},
+            ],
         ],
         # 'rl_variant.mask_variant.matrix_masks': [
         #     [[
