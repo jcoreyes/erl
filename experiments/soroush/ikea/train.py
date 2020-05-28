@@ -25,7 +25,11 @@ variant = dict(
             use_policy_saturation_cost=True,
             policy_saturation_cost_threshold=5.0,
         ),
-        sac_trainer_kwargs=dict(),
+        sac_trainer_kwargs=dict(
+            soft_target_tau=1e-3,
+            target_update_period=1,
+            use_automatic_entropy_tuning=True,
+        ),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_goals_rollout_goals=1.0,
@@ -67,7 +71,7 @@ variant = dict(
         #     min_sigma=.2,
         #     epsilon=.3,
         # ),
-        algorithm="TD3",
+        algorithm="td3",
         context_based=True,
         save_video=True,
         dump_video_kwargs=dict(
@@ -215,7 +219,7 @@ env_params = {
             # 'cursor_dist',
             # 'cursor_dist+cursor_sparse_dist',
 
-            'next_conn_dist',
+            # 'next_conn_dist',
             # 'nc+next_conn_dist',
             'next_conn_dist+cursor_dist',
             # 'nc+next_conn_dist+cursor_dist',
@@ -257,6 +261,17 @@ env_params = {
         ],
 
         'rl_variant.td3_trainer_kwargs.reward_scale': [1000],
+        'rl_variant.sac_trainer_kwargs.reward_scale': [
+            1,
+            10,
+            100,
+            1000,
+        ],
+        'rl_variant.algorithm': [
+            # 'td3',
+            'sac',
+        ],
+
 
         # 'env_kwargs.select_next_obj_only': [True],
 

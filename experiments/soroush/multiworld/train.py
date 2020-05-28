@@ -150,24 +150,24 @@ env_params = {
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.idx_masks': [
-            # [
-            #     {0: 0, 1: 1},
-            #     {2: 2, 3: 3},
-            #     {4: 4, 5: 5},
-            #     {6: 6, 7: 7},
-            #     {8: 8, 9: 9},
-            # ],
             [
                 {0: 0, 1: 1},
                 {2: 2, 3: 3},
                 {4: 4, 5: 5},
                 {6: 6, 7: 7},
                 {8: 8, 9: 9},
-                {0: -12, 1: -13},
-                {0: -14, 1: -15},
-                {0: -16, 1: -17},
-                {0: -18, 1: -19},
             ],
+            # [
+            #     {0: 0, 1: 1},
+            #     {2: 2, 3: 3},
+            #     {4: 4, 5: 5},
+            #     {6: 6, 7: 7},
+            #     {8: 8, 9: 9},
+            #     {0: -12, 1: -13},
+            #     {0: -14, 1: -15},
+            #     {0: -16, 1: -17},
+            #     {0: -18, 1: -19},
+            # ],
             # [
             #     {0: 0, 1: 1},
             #     {0: -12, 1: -13},
@@ -178,37 +178,28 @@ env_params = {
         ],
 
         'rl_variant.mask_variant.rollout_mask_order': [
-            [0, 5, 1, 6, 2, 7, 3, 8, 4],
+            # None,
+            [1, 2, 3, 4],
+            # [0, 5, 1, 6, 2, 7, 3, 8, 4],
         ],
-
-        # 'rl_variant.mask_variant.matrix_masks': [
-        #     [[
-        #         [1, 0, -1, 0, 0, 0, 0, 0, 0, 0],
-        #         [0, 1, 0, -1, 0, 0, 0, 0, 0, 0],
-        #         [-1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-        #         [0, -1, 0, 1, 0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #     ]]
-        # ],
+        'rl_variant.mask_variant.cumulative_masks_for_rollout' : [
+            True,
+            False,
+        ],
 
         'rl_variant.mask_variant.mask_format': [
-            # "vector",
+            "vector",
             # "matrix",
-            "distribution",
+            # "distribution",
         ],
 
-        'rl_variant.mask_variant.infer_masks': [True],
-        'rl_variant.mask_variant.mask_inference_variant.n': [
-            # 5e1,
-            # 1e2,
-            1e3,
-            # 1e5,
-        ],
+        # 'rl_variant.mask_variant.infer_masks': [True],
+        # 'rl_variant.mask_variant.mask_inference_variant.n': [
+        #     # 5e1,
+        #     # 1e2,
+        #     1e3,
+        #     # 1e5,
+        # ],
     },
     'pg-4obj-1d': {
         'env_class': [PickAndPlace1DEnv],

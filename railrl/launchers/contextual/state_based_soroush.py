@@ -184,24 +184,31 @@ class MaskPathCollector(ContextualPathCollector):
             masks=None,
             rotate_freq=0.0,
             rollout_mask_order=None,
+            cumulative_masks_for_rollout=False,
             concat_context_to_obs_fn=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.masks = masks
         self.rotate_freq = rotate_freq
+        self.cumulative_masks_for_rollout = cumulative_masks_for_rollout
         self.rollout_mask_order = rollout_mask_order
         self.rollout_mask_ids = []
         self._concat_context_to_obs_fn = concat_context_to_obs_fn
+        self._curr_time = 0
 
         def obs_processor(o):
             if len(self.rollout_mask_ids) > 0:
-                mask_id = self.rollout_mask_ids[0]
-                self.rollout_mask_ids = self.rollout_mask_ids[1:]
+                if self.cumulative_masks_for_rollout:
+                    mask_ids = np.unique(self.rollout_mask_ids[:self._curr_time+1])
+                else:
+                    mask_ids = np.array([self.rollout_mask_ids[self._curr_time]])
                 for mask_key in self.masks.keys():
-                    mask = self.masks[mask_key][mask_id]
+                    mask = np.sum(self.masks[mask_key][mask_ids], axis=0)
                     o[mask_key] = mask
                     self._env._rollout_context_batch[mask_key] = mask[None]
+
+            self._curr_time += 1
 
             if self._concat_context_to_obs_fn is None:
                 combined_obs = [o[self._observation_key]]
@@ -217,8 +224,9 @@ class MaskPathCollector(ContextualPathCollector):
                 return self._concat_context_to_obs_fn(batch)['observations'][0]
 
         def reset_postprocess_func():
-            rotate = (np.random.uniform() < self.rotate_freq)
             self.rollout_mask_ids = []
+            self._curr_time = 0
+            rotate = (np.random.uniform() < self.rotate_freq)
             if rotate:
                 num_mask_ids = len(self.masks[list(self.masks.keys())[0]])
                 mask_ids = np.arange(num_mask_ids)
@@ -227,8 +235,8 @@ class MaskPathCollector(ContextualPathCollector):
                 elif self.rollout_mask_order == 'random':
                     np.random.shuffle(mask_ids)
                 elif isinstance(self.rollout_mask_order, list):
-                    assert len(self.rollout_mask_order) == len(mask_ids)
-                    assert (sorted(self.rollout_mask_order) == mask_ids).all()
+                    for mask_id in self.rollout_mask_order:
+                        assert mask_id in mask_ids
                     mask_ids = self.rollout_mask_order
                 else:
                     raise NotImplementedError
@@ -676,7 +684,7 @@ def rl_context_experiment(variant):
         )
     elif rl_algo == 'sac':
         trainer = SACTrainer(
-            env=env,
+            env=expl_env,
             policy=policy,
             qf1=qf1,
             qf2=qf2,
@@ -722,6 +730,9 @@ def rl_context_experiment(variant):
                 rollout_mask_order = mask_kwargs['rollout_mask_order']
             else:
                 rollout_mask_order = mask_variant.get('rollout_mask_order', None)
+
+            cumulative_masks_for_rollout = mask_variant.get('cumulative_masks_for_rollout', False)
+            assert (not cumulative_masks_for_rollout) or (mask_format in ['vector', 'matrix'])
             return MaskPathCollector(
                 env,
                 policy,
@@ -731,6 +742,7 @@ def rl_context_experiment(variant):
                 masks=masks,
                 rotate_freq=rotate_freq,
                 rollout_mask_order=rollout_mask_order,
+                cumulative_masks_for_rollout=cumulative_masks_for_rollout,
                 concat_context_to_obs_fn=concat_context_to_obs,
             )
         else:
