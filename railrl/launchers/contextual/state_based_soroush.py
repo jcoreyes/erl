@@ -183,7 +183,7 @@ class MaskPathCollector(ContextualPathCollector):
             max_path_length=100,
             masks=None,
             rotate_freq=0.0,
-            rollout_mask_order=None,
+            rollout_mask_order='fixed',
             cumulative_masks_for_rollout=False,
             concat_context_to_obs_fn=None,
             **kwargs
@@ -230,7 +230,7 @@ class MaskPathCollector(ContextualPathCollector):
             if rotate:
                 num_mask_ids = len(self.masks[list(self.masks.keys())[0]])
                 mask_ids = np.arange(num_mask_ids)
-                if self.rollout_mask_order is None:
+                if self.rollout_mask_order == 'fixed':
                     pass
                 elif self.rollout_mask_order == 'random':
                     np.random.shuffle(mask_ids)
@@ -240,6 +240,7 @@ class MaskPathCollector(ContextualPathCollector):
                     mask_ids = self.rollout_mask_order
                 else:
                     raise NotImplementedError
+                num_mask_ids = len(mask_ids)
                 num_steps_per_mask = max_path_length // num_mask_ids
                 self.rollout_mask_ids = np.zeros(max_path_length, dtype=np.int32)
                 for (i, mask_id) in enumerate(mask_ids):
@@ -473,6 +474,14 @@ def rl_context_experiment(variant):
             masks = infer_masks(env, mask_variant)
             mask_variant['masks'] = masks
 
+        relabel_context_key_blacklist = variant['contextual_replay_buffer_kwargs'].get('relabel_context_key_blacklist',
+                                                                                       [])
+        if not mask_variant.get('relabel_goals', True):
+            relabel_context_key_blacklist += [context_key]
+        if not mask_variant.get('relabel_masks', True):
+            relabel_context_key_blacklist += mask_keys
+        variant['contextual_replay_buffer_kwargs']['relabel_context_key_blacklist'] = relabel_context_key_blacklist
+
         context_keys = [context_key] + mask_keys
     else:
         context_keys = [context_key]
@@ -621,8 +630,15 @@ def rl_context_experiment(variant):
         if task_conditioned:
             context_dict[task_key] = obs_dict[task_key]
         elif mask_conditioned:
+            sample_masks_for_future_relabeling = mask_variant.get('sample_masks_for_future_relabeling', False)
+            if sample_masks_for_future_relabeling:
+                batch_size = obs_dict[list(obs_dict.keys())[0]].shape[0]
+                sampled_contexts = eval_context_distrib.sample(batch_size)
             for mask_key in mask_keys:
-                context_dict[mask_key] = obs_dict[mask_key]
+                if sample_masks_for_future_relabeling:
+                    context_dict[mask_key] = sampled_contexts[mask_key]
+                else:
+                    context_dict[mask_key] = obs_dict[mask_key]
         return context_dict
 
     def concat_context_to_obs(batch):
@@ -729,7 +745,10 @@ def rl_context_experiment(variant):
             if 'rollout_mask_order' in mask_kwargs:
                 rollout_mask_order = mask_kwargs['rollout_mask_order']
             else:
-                rollout_mask_order = mask_variant.get('rollout_mask_order', None)
+                if mode == 'expl':
+                    rollout_mask_order = mask_variant.get('rollout_mask_order_for_expl', 'fixed')
+                elif mode == 'eval':
+                    rollout_mask_order = mask_variant.get('rollout_mask_order_for_eval', 'fixed')
 
             cumulative_masks_for_rollout = mask_variant.get('cumulative_masks_for_rollout', False)
             assert (not cumulative_masks_for_rollout) or (mask_format in ['vector', 'matrix'])
@@ -738,7 +757,7 @@ def rl_context_experiment(variant):
                 policy,
                 observation_key=observation_key,
                 context_keys_for_policy=context_keys,
-                max_path_length=100,
+                max_path_length=max_path_length,
                 masks=masks,
                 rotate_freq=rotate_freq,
                 rollout_mask_order=rollout_mask_order,
@@ -845,7 +864,7 @@ def rl_context_experiment(variant):
             mask_kwargs=dict(
                 rotate_freq=1.0,
                 masks=masks_for_eval,
-                rollout_mask_order=None,
+                rollout_mask_order='fixed',
             )
             collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
             collectors.append(collector)

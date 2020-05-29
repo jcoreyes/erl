@@ -80,6 +80,8 @@ variant = dict(
             mask_conditioned=False,
             rotate_mask_freq_for_expl=0.5,
             rotate_mask_freq_for_eval=1.0,
+            rollout_mask_order_for_expl='fixed',
+            rollout_mask_order_for_eval='fixed',
             log_mask_diagnostics=True,
             mask_format='vector',
             infer_masks=False,
@@ -88,6 +90,8 @@ variant = dict(
                 noise=0.1,
                 normalize_sigma_inv=True,
             ),
+            relabel_goals=True,
+            relabel_masks=True,
         ),
     ),
     # env_id='FourObject-PickAndPlace-RandomInit-2D-v1',
@@ -146,17 +150,30 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-        'rl_variant.algo_kwargs.num_epochs': [2000],
+        'rl_variant.algo_kwargs.num_epochs': [1500],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.idx_masks': [
             [
-                {0: 0, 1: 1},
                 {2: 2, 3: 3},
                 {4: 4, 5: 5},
                 {6: 6, 7: 7},
                 {8: 8, 9: 9},
             ],
+            # [
+            #     {0: 0, 1: 1},
+            #     {2: 2, 3: 3},
+            #     {4: 4, 5: 5},
+            #     {6: 6, 7: 7},
+            #     {8: 8, 9: 9},
+            # ],
+            # [
+            #     {2: 2, 3: 3},
+            #     {4: 4, 5: 5},
+            #     {6: 6, 7: 7},
+            #     {8: 8, 9: 9},
+            #     {0: 0, 1: 1},
+            # ],
             # [
             #     {0: 0, 1: 1},
             #     {2: 2, 3: 3},
@@ -177,21 +194,43 @@ env_params = {
             # ],
         ],
 
-        'rl_variant.mask_variant.rollout_mask_order': [
-            # None,
-            [1, 2, 3, 4],
-            # [0, 5, 1, 6, 2, 7, 3, 8, 4],
-        ],
-        'rl_variant.mask_variant.cumulative_masks_for_rollout' : [
+        # 'rl_variant.mask_variant.rotate_mask_freq_for_expl': [
+        #     0.0,
+        #     0.5,
+        #     1.0
+        # ],
+
+        # 'rl_variant.mask_variant.relabel_goals': [
+        #     True,
+        #     # False,
+        # ],
+        # 'rl_variant.mask_variant.relabel_masks': [
+        #     # True,
+        #     False,
+        # ],
+
+        'rl_variant.mask_variant.sample_masks_for_future_relabeling': [
             True,
             False,
         ],
 
-        'rl_variant.mask_variant.mask_format': [
-            "vector",
-            # "matrix",
-            # "distribution",
-        ],
+        # 'rl_variant.mask_variant.rollout_mask_order_for_expl': [
+        #     'fixed',
+        #     'random',
+        #     # [0, 1, 2, 3],
+        #     # [0, 1, 2, 3],
+        #     # [0, 5, 1, 6, 2, 7, 3, 8, 4],
+        # ],
+        # 'rl_variant.mask_variant.cumulative_masks_for_rollout' : [
+        #     True,
+        #     False,
+        # ],
+        #
+        # 'rl_variant.mask_variant.mask_format': [
+        #     "vector",
+        #     # "matrix",
+        #     # "distribution",
+        # ],
 
         # 'rl_variant.mask_variant.infer_masks': [True],
         # 'rl_variant.mask_variant.mask_inference_variant.n': [
@@ -201,17 +240,63 @@ env_params = {
         #     # 1e5,
         # ],
     },
-    'pg-4obj-1d': {
-        'env_class': [PickAndPlace1DEnv],
-        'env_kwargs.num_objects': [4],
-        'rl_variant.algo_kwargs.num_epochs': [500],
-
-        'rl_variant.mask_variant.mask_conditioned': [True],
-        'rl_variant.mask_variant.mask_idxs': [
-            [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]],
-            # [[2, 3, 4, 5, 6, 7, 8, 9]],
-        ],
-    },
+    # 'pg-4obj': {
+    #     'env_kwargs.num_objects': [4],
+    #     'rl_variant.algo_kwargs.num_epochs': [2500],
+    #     'rl_variant.max_path_length': [200],
+    #
+    #     'rl_variant.mask_variant.mask_conditioned': [True],
+    #     'rl_variant.mask_variant.idx_masks': [
+    #         # [
+    #         #     {0: 0, 1: 1},
+    #         #     {2: 2, 3: 3},
+    #         #     {4: 4, 5: 5},
+    #         #     {6: 6, 7: 7},
+    #         #     {8: 8, 9: 9},
+    #         # ],
+    #         [
+    #             {2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9},
+    #         ],
+    #     ],
+    # },
+    # 'pg-6obj': {
+    #     'env_kwargs.num_objects': [6],
+    #     'rl_variant.algo_kwargs.num_epochs': [2500],
+    #     'rl_variant.max_path_length': [200],
+    #
+    #     'rl_variant.mask_variant.mask_conditioned': [True],
+    #     'rl_variant.mask_variant.idx_masks': [
+    #         [
+    #             {0: 0, 1: 1},
+    #             {2: 2, 3: 3},
+    #             {4: 4, 5: 5},
+    #             {6: 6, 7: 7},
+    #             {8: 8, 9: 9},
+    #             # {10: 10, 11: 11},
+    #             # {12: 12, 13: 13},
+    #         ],
+    #     ],
+    # },
+    # 'pg-8obj': {
+    #     'env_kwargs.num_objects': [8],
+    #     'rl_variant.algo_kwargs.num_epochs': [2500],
+    #     'rl_variant.max_path_length': [200],
+    #
+    #     'rl_variant.mask_variant.mask_conditioned': [True],
+    #     'rl_variant.mask_variant.idx_masks': [
+    #         [
+    #             {0: 0, 1: 1},
+    #             {2: 2, 3: 3},
+    #             {4: 4, 5: 5},
+    #             {6: 6, 7: 7},
+    #             {8: 8, 9: 9},
+    #             # {10: 10, 11: 11},
+    #             # {12: 12, 13: 13},
+    #             # {14: 14, 15: 15},
+    #             # {16: 16, 17: 17},
+    #         ],
+    #     ],
+    # },
 }
 
 def process_variant(variant):
