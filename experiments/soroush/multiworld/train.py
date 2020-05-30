@@ -72,8 +72,7 @@ variant = dict(
         ),
         save_video_period=50,
         renderer_kwargs=dict(),
-        exploration_goal_sampling_mode='random',
-        evaluation_goal_sampling_mode='random',
+        goal_sampling_mode='random',
         task_variant=dict(
             task_conditioned=False,
         ),
@@ -94,6 +93,18 @@ variant = dict(
             relabel_goals=True,
             relabel_masks=True,
             sample_masks_for_relabeling=True,
+
+            train_mask_distr=dict(
+                atomic=0.9,
+                cumul=0.0,
+                full=0.1,
+            ),
+            expl_mask_distr=dict(
+                atomic=0.6,
+                # cumul=0.1,
+                cumul_seq=0.3,
+                full=0.1,
+            ),
         ),
     ),
     # env_id='FourObject-PickAndPlace-RandomInit-2D-v1',
