@@ -78,8 +78,6 @@ variant = dict(
         ),
         mask_variant=dict(
             mask_conditioned=False,
-            rotate_mask_freq_for_expl=0.5,
-            rotate_mask_freq_for_eval=1.0,
             rollout_mask_order_for_expl='fixed',
             rollout_mask_order_for_eval='fixed',
             log_mask_diagnostics=True,
@@ -95,13 +93,12 @@ variant = dict(
             sample_masks_for_relabeling=True,
 
             train_mask_distr=dict(
-                atomic=0.9,
-                cumul=0.0,
+                atomic=0.6,
+                cumul=0.3,
                 full=0.1,
             ),
             expl_mask_distr=dict(
                 atomic=0.6,
-                # cumul=0.1,
                 cumul_seq=0.3,
                 full=0.1,
             ),
@@ -207,66 +204,31 @@ env_params = {
             # ],
         ],
 
+        'rl_variant.mask_variant.train_mask_distr': [
+            dict(
+                atomic=1.0,
+                cumul=0.0,
+                full=0.0,
+            ),
+            dict(
+                atomic=0.6,
+                cumul=0.3,
+                full=0.1,
+            ),
+        ],
 
-
-        # 'rl_variant.mask_variant.rotate_mask_freq_for_expl': [
-        #     0.0,
-        #     0.5,
-        #     1.0
-        # ],
-
-        # 'rl_variant.mask_variant.relabel_goals': [
-        #     True,
-        #     # False,
-        # ],
-        # 'rl_variant.mask_variant.relabel_masks': [
-        #     # True,
-        #     False,
-        # ],
-
-        # 'rl_variant.mask_variant.sample_masks_for_relabeling': [
-        #     True,
-        #     # False,
-        # ],
-
-        # 'rl_variant.contextual_replay_buffer_kwargs.fraction_distribution_context': [
-        #     0.0,
-        #     # 0.4,
-        # ],
-        # 'rl_variant.contextual_replay_buffer_kwargs.fraction_future_context': [
-        #     # 0.0,
-        #     0.4,
-        # ],
-        # 'rl_variant.contextual_replay_buffer_kwargs.fraction_replay_buffer_context': [
-        #     # 0.0,
-        #     0.4,
-        # ],
-
-        # 'rl_variant.mask_variant.rollout_mask_order_for_expl': [
-        #     'fixed',
-        #     'random',
-        #     # [0, 1, 2, 3],
-        #     # [0, 1, 2, 3],
-        #     # [0, 5, 1, 6, 2, 7, 3, 8, 4],
-        # ],
-        # 'rl_variant.mask_variant.cumulative_masks_for_rollout' : [
-        #     True,
-        #     False,
-        # ],
-        #
-        # 'rl_variant.mask_variant.mask_format': [
-        #     "vector",
-        #     # "matrix",
-        #     # "distribution",
-        # ],
-
-        # 'rl_variant.mask_variant.infer_masks': [True],
-        # 'rl_variant.mask_variant.mask_inference_variant.n': [
-        #     # 5e1,
-        #     # 1e2,
-        #     1e3,
-        #     # 1e5,
-        # ],
+        'rl_variant.mask_variant.expl_mask_distr': [
+            dict(
+                atomic=1.0,
+                cumul_seq=0.0,
+                full=0.0,
+            ),
+            dict(
+                atomic=0.6,
+                cumul_seq=0.3,
+                full=0.1,
+            ),
+        ],
     },
     # 'pg-4obj': {
     #     'env_kwargs.num_objects': [4],

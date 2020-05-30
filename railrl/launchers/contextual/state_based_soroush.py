@@ -83,7 +83,13 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
         for key in mask_distr:
             assert key in ['atomic', 'cumul', 'full']
             assert mask_distr[key] >= 0
-        assert np.sum(list(mask_distr.values())) == 1.0
+        for key in ['atomic', 'cumul', 'full']:
+            if key not in mask_distr:
+                mask_distr[key] = 0.0
+        if np.sum(list(mask_distr.values())) > 1:
+            raise ValueError("Invalid distribution sum: {}".format(
+                np.sum(list(mask_distr.values()))
+            ))
         self.mask_distr = mask_distr
 
         if masks is not None:
@@ -160,25 +166,39 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
         return mask_goals
 
     def sample_atomic_masks(self, batch_size):
-        atomic_masks = {}
+        sampled_masks = {}
         num_masks = len(self.masks[list(self.masks.keys())[0]])
         mask_ids = np.random.choice(num_masks, batch_size)
         for mask_key in self.mask_keys:
-            atomic_masks[mask_key] = self.masks[mask_key][mask_ids]
-        return atomic_masks
+            sampled_masks[mask_key] = self.masks[mask_key][mask_ids]
+        return sampled_masks
 
     def sample_full_masks(self, batch_size):
         assert self.mask_format in ['vector', 'matrix']
-        full_masks = {}
+        sampled_masks = {}
         num_masks = len(self.masks[list(self.masks.keys())[0]])
         mask_ids = np.arange(num_masks)
         for mask_key in self.mask_keys:
-            full_masks[mask_key] = np.sum(self.masks[mask_key][mask_ids], axis=0)
-            full_masks[mask_key] = np.repeat(full_masks[mask_key][np.newaxis, ...], batch_size, axis=0)
-        return full_masks
+            sampled_masks[mask_key] = np.repeat(
+                np.sum(
+                    self.masks[mask_key][mask_ids],
+                    axis=0
+                )[np.newaxis, ...],
+                batch_size,
+                axis=0
+            )
+        return sampled_masks
 
     def sample_cumul_masks(self, batch_size):
-        raise NotImplementedError
+        assert self.mask_format in ['vector', 'matrix']
+        sampled_masks = {}
+        num_masks = len(self.masks[list(self.masks.keys())[0]])
+        mask_idx_bitmap = np.random.choice(2, (batch_size, num_masks))
+        for mask_key in self.mask_keys:
+            sampled_masks[mask_key] = (
+                    mask_idx_bitmap @ (self.masks[mask_key].reshape((num_masks, -1)))
+            ).reshape([batch_size] + list(self._spaces[mask_key].shape))
+        return sampled_masks
 
 class TaskPathCollector(ContextualPathCollector):
     def __init__(
@@ -238,7 +258,19 @@ class MaskPathCollector(ContextualPathCollector):
     ):
         super().__init__(*args, **kwargs)
         self.mask_sampler = mask_sampler
+
+        for key in mask_distr:
+            assert key in ['atomic', 'cumul', 'full', 'atomic_seq', 'cumul_seq']
+            assert mask_distr[key] >= 0
+        for key in ['atomic', 'cumul', 'full', 'atomic_seq', 'cumul_seq']:
+            if key not in mask_distr:
+                mask_distr[key] = 0.0
+        if np.sum(list(mask_distr.values())) > 1:
+            raise ValueError("Invalid distribution sum: {}".format(
+                np.sum(list(mask_distr.values()))
+            ))
         self.mask_distr = mask_distr
+
         self.rollout_mask_order = rollout_mask_order
         self.max_path_length = max_path_length
         self.rollout_masks = []
@@ -693,7 +725,7 @@ def rl_context_experiment(variant):
         if task_conditioned:
             context_dict[task_key] = obs_dict[task_key]
         elif mask_conditioned:
-            sample_masks_for_relabeling = mask_variant.get('sample_masks_for_relabeling', False)
+            sample_masks_for_relabeling = mask_variant.get('sample_masks_for_relabeling', True)
             if sample_masks_for_relabeling:
                 batch_size = obs_dict[list(obs_dict.keys())[0]].shape[0]
                 sampled_contexts = context_distrib.sample(batch_size)
@@ -823,7 +855,7 @@ def rl_context_experiment(variant):
                 context_keys_for_policy=context_keys,
                 concat_context_to_obs_fn=concat_context_to_obs,
                 mask_sampler=context_distrib,
-                mask_distr=mask_distr,
+                mask_distr=mask_distr.copy(),
                 max_path_length=max_path_length,
                 rollout_mask_order=rollout_mask_order,
             )
@@ -915,57 +947,86 @@ def rl_context_experiment(variant):
             )
             algorithm.post_train_funcs.append(expl_video_func)
 
-    # if mask_conditioned and mask_variant.get('log_mask_diagnostics', True):
-    #     masks = eval_context_distrib.masks.copy()
-    #     collectors = []
-    #
-    #     num_masks = len(masks[list(masks.keys())[0]])
-    #     for mask_id in range(num_masks):
-    #         masks_for_eval = {}
-    #         for mask_key in masks.keys():
-    #             masks_for_eval[mask_key] = np.array([masks[mask_key][mask_id]])
-    #         mask_kwargs=dict(
-    #             rotate_freq=1.0,
-    #             masks=masks_for_eval,
-    #             rollout_mask_order='fixed',
-    #         )
-    #         collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-    #         collectors.append(collector)
-    #     log_prefixes = [
-    #         'mask_{}/'.format(''.join(str(mask_id)))
-    #         for mask_id in range(num_masks)
-    #     ]
-    #
-    #     def get_mask_diagnostics(unused):
-    #         from railrl.core.logging import append_log, add_prefix, OrderedDict
-    #         from railrl.misc import eval_util
-    #         log = OrderedDict()
-    #         for prefix, collector in zip(log_prefixes, collectors):
-    #             paths = collector.collect_new_paths(
-    #                 max_path_length,
-    #                 max_path_length, #masking_eval_steps,
-    #                 discard_incomplete_paths=True,
-    #             )
-    #             old_path_info = eval_util.get_generic_path_information(paths)
-    #
-    #             keys_to_keep = []
-    #             for key in old_path_info.keys():
-    #                 if ('env_infos' in key) and ('final' in key) and ('Mean' in key):
-    #                     keys_to_keep.append(key)
-    #             path_info = OrderedDict()
-    #             for key in keys_to_keep:
-    #                 path_info[key] = old_path_info[key]
-    #
-    #             generic_info = add_prefix(
-    #                 path_info,
-    #                 prefix,
-    #             )
-    #             append_log(log, generic_info)
-    #
-    #         for collector in collectors:
-    #             collector.end_epoch(0)
-    #         return log
-    #
-    #     algorithm._eval_get_diag_fns.append(get_mask_diagnostics)
+    if mask_conditioned and mask_variant.get('log_mask_diagnostics', True):
+        collectors = []
+
+        # atomic masks
+        masks = context_distrib.masks.copy()
+        num_masks = len(masks[list(masks.keys())[0]])
+        for mask_id in range(num_masks):
+            mask_kwargs=dict(
+                rollout_mask_order=[mask_id],
+                mask_distr=dict(
+                    atomic_seq=1.0,
+                ),
+            )
+            collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
+            collectors.append(collector)
+        log_prefixes = [
+            'mask_{}/'.format(''.join(str(mask_id)))
+            for mask_id in range(num_masks)
+        ]
+
+        # full mask
+        mask_kwargs=dict(
+            mask_distr=dict(
+                full=1.0,
+            ),
+        )
+        collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
+        collectors.append(collector)
+        log_prefixes.append('mask_full/')
+
+        # cumulative, sequential mask
+        mask_kwargs=dict(
+            mask_distr=dict(
+                cumul_seq=1.0,
+            ),
+        )
+        collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
+        collectors.append(collector)
+        log_prefixes.append('mask_cumul_seq/')
+
+        # atomic, sequential mask
+        mask_kwargs=dict(
+            mask_distr=dict(
+                atomic_seq=1.0,
+            ),
+        )
+        collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
+        collectors.append(collector)
+        log_prefixes.append('mask_atomic_seq/')
+
+        def get_mask_diagnostics(unused):
+            from railrl.core.logging import append_log, add_prefix, OrderedDict
+            from railrl.misc import eval_util
+            log = OrderedDict()
+            for prefix, collector in zip(log_prefixes, collectors):
+                paths = collector.collect_new_paths(
+                    max_path_length,
+                    max_path_length, #masking_eval_steps,
+                    discard_incomplete_paths=True,
+                )
+                old_path_info = eval_util.get_generic_path_information(paths)
+
+                keys_to_keep = []
+                for key in old_path_info.keys():
+                    if ('env_infos' in key) and ('final' in key) and ('Mean' in key):
+                        keys_to_keep.append(key)
+                path_info = OrderedDict()
+                for key in keys_to_keep:
+                    path_info[key] = old_path_info[key]
+
+                generic_info = add_prefix(
+                    path_info,
+                    prefix,
+                )
+                append_log(log, generic_info)
+
+            for collector in collectors:
+                collector.end_epoch(0)
+            return log
+
+        algorithm._eval_get_diag_fns.append(get_mask_diagnostics)
 
     algorithm.train()
