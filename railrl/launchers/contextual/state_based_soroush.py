@@ -630,12 +630,12 @@ def rl_context_experiment(variant):
         if task_conditioned:
             context_dict[task_key] = obs_dict[task_key]
         elif mask_conditioned:
-            sample_masks_for_future_relabeling = mask_variant.get('sample_masks_for_future_relabeling', False)
-            if sample_masks_for_future_relabeling:
+            sample_masks_for_relabeling = mask_variant.get('sample_masks_for_relabeling', False)
+            if sample_masks_for_relabeling:
                 batch_size = obs_dict[list(obs_dict.keys())[0]].shape[0]
                 sampled_contexts = eval_context_distrib.sample(batch_size)
             for mask_key in mask_keys:
-                if sample_masks_for_future_relabeling:
+                if sample_masks_for_relabeling:
                     context_dict[mask_key] = sampled_contexts[mask_key]
                 else:
                     context_dict[mask_key] = obs_dict[mask_key]

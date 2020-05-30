@@ -38,6 +38,7 @@ variant = dict(
             max_size=int(1E6),
             fraction_future_context=0.4,
             fraction_distribution_context=0.4,
+            fraction_replay_buffer_context=0.0,
             recompute_rewards=True,
         ),
         qf_kwargs=dict(
@@ -92,6 +93,7 @@ variant = dict(
             ),
             relabel_goals=True,
             relabel_masks=True,
+            sample_masks_for_relabeling=True,
         ),
     ),
     # env_id='FourObject-PickAndPlace-RandomInit-2D-v1',
@@ -194,6 +196,8 @@ env_params = {
             # ],
         ],
 
+
+
         # 'rl_variant.mask_variant.rotate_mask_freq_for_expl': [
         #     0.0,
         #     0.5,
@@ -209,10 +213,23 @@ env_params = {
         #     False,
         # ],
 
-        'rl_variant.mask_variant.sample_masks_for_future_relabeling': [
-            True,
-            False,
-        ],
+        # 'rl_variant.mask_variant.sample_masks_for_relabeling': [
+        #     True,
+        #     # False,
+        # ],
+
+        # 'rl_variant.contextual_replay_buffer_kwargs.fraction_distribution_context': [
+        #     0.0,
+        #     # 0.4,
+        # ],
+        # 'rl_variant.contextual_replay_buffer_kwargs.fraction_future_context': [
+        #     # 0.0,
+        #     0.4,
+        # ],
+        # 'rl_variant.contextual_replay_buffer_kwargs.fraction_replay_buffer_context': [
+        #     # 0.0,
+        #     0.4,
+        # ],
 
         # 'rl_variant.mask_variant.rollout_mask_order_for_expl': [
         #     'fixed',

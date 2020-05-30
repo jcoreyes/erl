@@ -56,6 +56,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             context_distribution: DictDistribution,
             fraction_future_context,
             fraction_distribution_context,
+            fraction_replay_buffer_context=0.0,
             post_process_batch_fn=None,
             observation_key='observation',
             save_data_in_snapshot=False,
@@ -77,8 +78,10 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         if (
             fraction_distribution_context < 0
             or fraction_future_context < 0
+            or fraction_replay_buffer_context < 0
             or (fraction_future_context
-                + fraction_distribution_context) > 1
+                + fraction_distribution_context
+                + fraction_replay_buffer_context) > 1
         ):
             raise ValueError("Invalid fractions: {} and {}".format(
                 fraction_future_context,
@@ -96,6 +99,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         self._fraction_distribution_context = (
             fraction_distribution_context
         )
+        self._fraction_replay_buffer_context = fraction_replay_buffer_context
         self._post_process_batch_fn = post_process_batch_fn
 
         self._recompute_rewards = recompute_rewards
@@ -103,10 +107,11 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
 
     def random_batch(self, batch_size):
         num_future_contexts = int(batch_size * self._fraction_future_context)
+        num_replay_buffer_contexts = int(batch_size * self._fraction_replay_buffer_context)
         num_distrib_contexts = int(
             batch_size * self._fraction_distribution_context)
         num_rollout_contexts = (
-                batch_size - num_future_contexts - num_distrib_contexts
+                batch_size - num_future_contexts - num_replay_buffer_contexts - num_distrib_contexts
         )
         indices = self._sample_indices(batch_size)
         obs_dict = self._batch_obs_dict(indices)
@@ -120,6 +125,10 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             sampled_contexts = self._context_distribution.sample(
                 num_distrib_contexts)
             contexts.append(sampled_contexts)
+
+        if num_replay_buffer_contexts > 0:
+            replay_buffer_contexts = self._get_replay_buffer_contexts(num_replay_buffer_contexts)
+            contexts.append(replay_buffer_contexts)
 
         if num_future_contexts > 0:
             start_state_indices = indices[-num_future_contexts:]
@@ -173,6 +182,11 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         if self._post_process_batch_fn:
             batch = self._post_process_batch_fn(batch)
         return batch
+
+    def _get_replay_buffer_contexts(self, batch_size):
+        indices = self._sample_indices(batch_size)
+        replay_buffer_obs_dict = self._batch_next_obs_dict(indices)
+        return self._sample_context_from_obs_dict_fn(replay_buffer_obs_dict)
 
     def _get_future_contexts(self, start_state_indices):
         future_obs_idxs = self._get_future_obs_indices(start_state_indices)
