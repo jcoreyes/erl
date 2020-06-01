@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_name = 'abm_walker_offline_online_v1'
+    exp_name = 'abm_walker_offline_online_true_params_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
