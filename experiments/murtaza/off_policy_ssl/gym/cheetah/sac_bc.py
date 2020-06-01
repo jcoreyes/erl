@@ -39,9 +39,10 @@ if __name__ == "__main__":
             terminal_transform_kwargs=dict(m=1, b=0),
             use_awr_update=False,
             use_reparam_update=True,
-            compute_bc=False,
+            bc_loss_type='mse',
+            compute_bc=True,
             rl_weight=1,
-            bc_weight=0,
+            bc_weight=1,
             use_automatic_entropy_tuning=True,
             do_pretrain_rollouts=True,
             train_bc_on_rl_buffer=True,
@@ -56,13 +57,13 @@ if __name__ == "__main__":
         path_loader_kwargs=dict(
             demo_paths=[
                 dict(
-                    path='demos/walker_action_noise_15.npy',
+                    path='demos/hc_action_noise_15.npy',
                     obs_dict=False,
                     is_demo=True,
                     train_split=.9,
                 ),
                 dict(
-                    path='demos/walker_off_policy_15_demos_100.npy',
+                    path='demos/hc_off_policy_15_demos_100.npy',
                     obs_dict=False,
                     is_demo=False,
                 ),
@@ -75,12 +76,13 @@ if __name__ == "__main__":
     search_space = {
         'trainer_kwargs.alpha':[1],
         'trainer_kwargs.q_num_pretrain2_steps':[0],
+        'trainer_kwargs.bc_loss_type': ['mse', 'mle'],
         'train_rl':[True],
         'pretrain_rl':[False],
         'load_demos':[True],
         'pretrain_policy':[False],
         'env': [
-            'walker',
+            'half-cheetah',
         ],
         'policy_class':[
           GaussianPolicy,
@@ -99,7 +101,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_name = 'sac_walker_offline_online_final_v1'
+    exp_name = 'sac_bc_hc_offline_online_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['policy_class'] == TanhGaussianPolicy:

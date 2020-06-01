@@ -22,6 +22,7 @@ if __name__ == "__main__":
         sac_bc=True,
         load_demos=True,
         pretrain_rl=True,
+        qf_kwargs=dict(hidden_sizes=[256, 256]),
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
@@ -43,7 +44,9 @@ if __name__ == "__main__":
             bc_weight=0,
             use_automatic_entropy_tuning=True,
             do_pretrain_rollouts=True,
+            train_bc_on_rl_buffer=True,
         ),
+        use_validation_buffer=True,
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
             max_log_std=0,
@@ -114,4 +117,5 @@ if __name__ == "__main__":
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
+                unpack_variant=False,
             )
