@@ -99,6 +99,8 @@ class AWRSACTrainer(TorchTrainer):
             validation_qlearning=False,
 
             mask_positive_advantage=False,
+            buffer_policy_reset_period=-1,
+            num_buffer_policy_train_steps_on_reset=100,
     ):
         super().__init__()
         self.env = env
@@ -161,6 +163,9 @@ class AWRSACTrainer(TorchTrainer):
                 lr=policy_lr,
             )
             self.optimizers[self.buffer_policy] = self.buffer_policy_optimizer
+            self.optimizer_class=optimizer_class
+            self.policy_weight_decay=policy_weight_decay
+            self.policy_lr = policy_lr
 
         self.use_automatic_beta_tuning = use_automatic_beta_tuning and buffer_policy and train_bc_on_rl_buffer
         self.beta_epsilon=beta_epsilon
@@ -230,6 +235,8 @@ class AWRSACTrainer(TorchTrainer):
         self.validation_qlearning = validation_qlearning
         self.brac = brac
         self.mask_positive_advantage = mask_positive_advantage
+        self.buffer_policy_reset_period = buffer_policy_reset_period
+        self.num_buffer_policy_train_steps_on_reset=num_buffer_policy_train_steps_on_reset
 
     def get_batch_from_buffer(self, replay_buffer, batch_size):
         batch = replay_buffer.random_batch(batch_size)
@@ -745,6 +752,28 @@ class AWRSACTrainer(TorchTrainer):
         if self.train_bc_on_rl_buffer:
             buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(
                 self.replay_buffer.train_replay_buffer, self.buffer_policy)
+        
+        def weight_reset(m):
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+                m.reset_parameters()
+        if self.buffer_policy_reset_period > 0 and self._n_train_steps_total % self.buffer_policy_reset_period:
+            # self.buffer_policy.apply(weight_reset)
+            self.buffer_policy_optimizer =  self.optimizer_class(
+                self.buffer_policy.parameters(),
+                weight_decay=self.policy_weight_decay,
+                lr=self.policy_lr,
+            )
+            self.optimizers[self.buffer_policy] = self.buffer_policy_optimizer
+            for i in range(self.num_buffer_policy_train_steps_on_reset):
+                if self.train_bc_on_rl_buffer:
+                    buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(
+                        self.replay_buffer.train_replay_buffer, self.buffer_policy)
+    
+                    self.buffer_policy_optimizer.zero_grad()
+                    buffer_policy_loss.backward(retain_graph=True)
+                    self.buffer_policy_optimizer.step()
+
+
         """
         Update networks
         """
