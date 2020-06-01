@@ -639,9 +639,7 @@ class AWRSACTrainer(TorchTrainer):
             if self.mask_positive_advantage:
                 score = torch.sign(score)
         elif self.normalize_over_state == "Z":
-            *_, buffer_dist = self.buffer_policy(
-                obs, reparameterize=True, return_log_prob=True,
-            )
+            buffer_dist = self.buffer_policy(obs)
             K = self.Z_K
             buffer_obs = []
             buffer_actions = []
@@ -701,9 +699,7 @@ class AWRSACTrainer(TorchTrainer):
 
 
         if self.use_klac_update:
-            *_, buffer_dist = self.buffer_policy(
-                obs, reparameterize=True, return_log_prob=True,
-            )
+            buffer_dist = self.buffer_policy(obs)
             K = self.klac_K
             buffer_obs = []
             buffer_actions = []
@@ -747,7 +743,8 @@ class AWRSACTrainer(TorchTrainer):
             policy_loss = policy_loss + self.bc_weight * train_policy_loss
 
         if self.train_bc_on_rl_buffer:
-            buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(self.replay_buffer, self.buffer_policy)
+            buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(
+                self.replay_buffer.train_replay_buffer, self.buffer_policy)
         """
         Update networks
         """
@@ -847,19 +844,39 @@ class AWRSACTrainer(TorchTrainer):
                     "bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
                 })
             if self.train_bc_on_rl_buffer:
-                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.replay_buffer,
-                                                                                       self.buffer_policy)
+                _, buffer_train_logp_loss, _, _ = self.run_bc_batch(
+                    self.replay_buffer.train_replay_buffer,
+                    self.buffer_policy)
+
+                buffer_test_policy_loss, buffer_test_logp_loss, buffer_test_mse_loss, _ = self.run_bc_batch(
+                    self.replay_buffer.validation_replay_buffer,
+                    self.buffer_policy)
                 buffer_dist = self.buffer_policy(obs)
-                # kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
+                kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
+
+                _, train_offline_logp_loss, _, _ = self.run_bc_batch(
+                    self.demo_train_buffer,
+                    self.buffer_policy)
+
+                _, test_offline_logp_loss, _, _ = self.run_bc_batch(
+                    self.demo_test_buffer,
+                    self.buffer_policy)
 
                 self.eval_statistics.update({
                     "buffer_policy/Train Logprob Loss": ptu.get_numpy(buffer_train_logp_loss),
-                    "buffer_policy/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
+                    "buffer_policy/Test Logprob Loss": ptu.get_numpy(buffer_test_logp_loss),
+
+                    "buffer_policy/Train Online Logprob": -1 * ptu.get_numpy(buffer_train_logp_loss),
+                    "buffer_policy/Test Online Logprob": -1 * ptu.get_numpy(buffer_test_logp_loss),
+
+                    "buffer_policy/Train Offline Logprob": -1 * ptu.get_numpy(train_offline_logp_loss),
+                    "buffer_policy/Test Offline Logprob": -1 * ptu.get_numpy(test_offline_logp_loss),
+
                     "buffer_policy/Train MSE": ptu.get_numpy(buffer_train_mse_loss),
-                    "buffer_policy/Test MSE": ptu.get_numpy(test_mse_loss),
+                    "buffer_policy/Test MSE": ptu.get_numpy(buffer_test_mse_loss),
                     "buffer_policy/train_policy_loss": ptu.get_numpy(buffer_policy_loss),
-                    "buffer_policy/test_policy_loss": ptu.get_numpy(test_policy_loss),
-                    # "buffer_policy/kl_div":ptu.get_numpy(kldiv.mean()),
+                    "buffer_policy/test_policy_loss": ptu.get_numpy(buffer_test_policy_loss),
+                    "buffer_policy/kl_div": ptu.get_numpy(kldiv.mean()),
                 })
             if self.use_automatic_beta_tuning:
                 self.eval_statistics.update({
