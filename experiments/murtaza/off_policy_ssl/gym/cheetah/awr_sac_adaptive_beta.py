@@ -75,7 +75,7 @@ if __name__ == "__main__":
         'policy_kwargs.hidden_sizes': [[256] * 4],
         'trainer_kwargs.use_automatic_entropy_tuning': [False],
         'trainer_kwargs.use_automatic_beta_tuning': [True],
-        'trainer_kwargs.awr_buffer_policy_actions': [False],
+        'trainer_kwargs.buffer_policy_sample_actions': [False],
         'trainer_kwargs.awr_use_mle_for_vf': [False],
         'trainer_kwargs.beta_epsilon': [1],
         'trainer_kwargs.q_num_pretrain2_steps': [500000],
