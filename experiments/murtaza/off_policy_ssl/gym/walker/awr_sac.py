@@ -39,7 +39,9 @@ if __name__ == "__main__":
             terminal_transform_kwargs=dict(m=1, b=0),
             pretraining_env_logging_period=100000,
             do_pretrain_rollouts=True,
+            train_bc_on_rl_buffer=True,
         ),
+        use_validation_buffer=True,
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
             max_log_std=0,
@@ -117,18 +119,18 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_prefix = 'awr_sac_offline_walker_v3'
+    # exp_name = 'awr_sac_offline_walker_v3'
     
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'awr_sac_walker_offline_online_final_v1'
+    exp_name = 'awr_sac_walker_offline_online_final_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
-                exp_prefix=exp_prefix,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=2,

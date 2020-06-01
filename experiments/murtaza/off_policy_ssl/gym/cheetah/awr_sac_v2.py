@@ -104,18 +104,18 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_prefix = 'awr_sac_offline_hc_v3'
+    # exp_name = 'awr_sac_offline_hc_v3'
     
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'awr_sac_hc_offline_online_sweep_more_params_v1'
+    exp_name = 'awr_sac_hc_offline_online_sweep_more_params_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
-                exp_prefix=exp_prefix,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=2,

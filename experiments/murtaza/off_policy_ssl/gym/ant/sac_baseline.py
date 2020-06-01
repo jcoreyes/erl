@@ -91,12 +91,12 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_prefix = 'test'
+    # exp_name = 'test'
     
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sac_ant_offline_online_final_v1'
+    exp_name = 'sac_ant_offline_online_final_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['policy_class'] == TanhGaussianPolicy:
@@ -106,7 +106,7 @@ if __name__ == "__main__":
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
-                exp_prefix=exp_prefix,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=2,
