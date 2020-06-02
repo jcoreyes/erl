@@ -24,20 +24,18 @@ variant = dict(
             use_policy_saturation_cost=True,
             policy_saturation_cost_threshold=5.0,
         ),
-        twin_sac_trainer_kwargs=dict(),
-        replay_buffer_kwargs=dict(
-            max_size=int(1E6),
-            fraction_goals_rollout_goals=1.0,
-            fraction_goals_env_goals=0.0,
-            recompute_rewards=False,
-            ob_keys_to_save=[],
+        sac_trainer_kwargs=dict(
+            soft_target_tau=1e-3,
+            target_update_period=1,
+            use_automatic_entropy_tuning=True,
+            reward_scale=100,
         ),
         contextual_replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_future_context=0.4,
             fraction_distribution_context=0.4,
+            fraction_replay_buffer_context=0.0,
             recompute_rewards=True,
-            observation_keys=[],
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -48,14 +46,9 @@ variant = dict(
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
-        use_subgoal_policy=False,
-        subgoal_policy_kwargs=dict(
-            num_subgoals_per_episode=2,
-        ),
-        use_masks=False,
-        exploration_type='gaussian_and_epsilon',
-        exploration_noise=0.6,
-        algorithm="TD3",
+        exploration_type='ou',
+        exploration_noise=0.3,
+        algorithm="sac",
         context_based=True,
         save_video=True,
         dump_video_kwargs=dict(
@@ -63,7 +56,7 @@ variant = dict(
             columns=8,
             pad_color=0,
             pad_length=0,
-            subpad_length=0,
+            subpad_length=1,
         ),
         vis_kwargs=dict(
             vis_list=dict(),
@@ -90,7 +83,7 @@ variant = dict(
         'pos_high': [.75, .4, .3],
         'pos_low': [.75, -.4, -.36],
         'reset_obj_in_hand_rate': 0.0,
-        'img_dim': 48,
+        'img_dim': 256,
         'goal_mode': 'obj_in_bowl',
         'num_obj': 0, #2
     },
@@ -107,11 +100,19 @@ env_params = {
         'env_kwargs.num_obj': [1],
         'env_kwargs.reward_type': [
             'obj_dist',
-            'hand_dist+obj_dist',
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [200],
-        'rl_variant.save_video_period': [25],  # 25
+        'rl_variant.algo_kwargs.num_epochs': [1000],
+        'rl_variant.save_video_period': [50],
+    },
+    'pb-2obj': {
+        'env_kwargs.num_obj': [2],
+        'env_kwargs.reward_type': [
+            'obj_dist',
+        ],
+
+        'rl_variant.algo_kwargs.num_epochs': [1000],
+        'rl_variant.save_video_period': [50],
     },
 }
 
@@ -120,19 +121,19 @@ def process_variant(variant):
 
     mpl = rl_variant['max_path_length']
     rl_variant['td3_trainer_kwargs']['discount'] = 1 - 1 / mpl
-    rl_variant['twin_sac_trainer_kwargs']['discount'] = 1 - 1 / mpl
+    rl_variant['sac_trainer_kwargs']['discount'] = 1 - 1 / mpl
 
     if args.debug:
         rl_variant['algo_kwargs']['num_epochs'] = 4
         rl_variant['algo_kwargs']['batch_size'] = 128
         rl_variant['contextual_replay_buffer_kwargs']['max_size'] = int(1e4)
-        rl_variant['replay_buffer_kwargs']['max_size'] = int(1e4)
         rl_variant['algo_kwargs']['num_eval_steps_per_epoch'] = 200
         rl_variant['algo_kwargs']['num_expl_steps_per_train_loop'] = 200
         rl_variant['algo_kwargs']['num_trains_per_train_loop'] = 200
         rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
         rl_variant['dump_video_kwargs']['columns'] = 2
         rl_variant['save_video_period'] = 2
+        rl_variant['log_expl_video'] = False
         variant['imsize'] = 256
     rl_variant['renderer_kwargs']['img_width'] = variant['imsize']
     rl_variant['renderer_kwargs']['img_height'] = variant['imsize']
@@ -171,7 +172,7 @@ if __name__ == "__main__":
     while '' in prefix_list: prefix_list.remove('')
     exp_prefix = '-'.join(prefix_list)
 
-    if args.mode == 'ec2' and (not args.no_gpu):
+    if args.mode == 'ec2': #and (not args.no_gpu):
         max_exps_per_instance = args.max_exps_per_instance
     else:
         max_exps_per_instance = 1

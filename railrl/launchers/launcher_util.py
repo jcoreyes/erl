@@ -294,7 +294,11 @@ def run_experiment(
     Get the mode
     """
     mode_kwargs = {}
-    if use_gpu and mode == 'ec2':
+    # if use_gpu and mode == 'ec2':
+    #     image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
+    # else:
+    #     image_id = None
+    if mode == 'ec2':
         image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
     else:
         image_id = None

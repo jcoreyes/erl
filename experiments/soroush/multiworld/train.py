@@ -16,7 +16,7 @@ variant = dict(
         do_state_exp=True,
         algo_kwargs=dict(
             num_epochs=1000,
-            batch_size=2048, #128,
+            batch_size=1024,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000, #4000,
@@ -50,11 +50,6 @@ variant = dict(
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
-        use_subgoal_policy=False,
-        subgoal_policy_kwargs=dict(
-            num_subgoals_per_episode=2,
-        ),
-        use_masks=False,
         exploration_type='ou',
         exploration_noise=0.3,
         algorithm="sac",
@@ -70,7 +65,7 @@ variant = dict(
         vis_kwargs=dict(
             vis_list=dict(),
         ),
-        save_video_period=50,
+        save_video_period=150,
         renderer_kwargs=dict(),
         goal_sampling_mode='random',
         task_variant=dict(
@@ -93,14 +88,15 @@ variant = dict(
             sample_masks_for_relabeling=True,
 
             train_mask_distr=dict(
-                atomic=0.6,
-                cumul=0.3,
-                full=0.1,
+                atomic=1.0,
+                cumul=0.0,
+                cumul_seq=0.0,
+                full=0.0,
             ),
             expl_mask_distr=dict(
-                atomic=0.6,
-                cumul_seq=0.3,
-                full=0.1,
+                atomic=1.0,
+                cumul_seq=0.0,
+                full=0.0,
             ),
         ),
     ),
@@ -160,7 +156,7 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-        'rl_variant.algo_kwargs.num_epochs': [1500],
+        'rl_variant.algo_kwargs.num_epochs': [3000],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.idx_masks': [
@@ -205,24 +201,49 @@ env_params = {
         ],
 
         'rl_variant.mask_variant.train_mask_distr': [
-            dict(
-                atomic=1.0,
-                cumul=0.0,
-                full=0.0,
-            ),
+            # dict(
+            #     atomic=1.0,
+            #     cumul=0.0,
+            #     full=0.0,
+            # ),
+            # dict(
+            #     atomic=0.6,
+            #     cumul=0.3,
+            #     full=0.1,
+            # ),
             dict(
                 atomic=0.6,
-                cumul=0.3,
+                cumul_seq=0.3,
+                cumul=0.0,
                 full=0.1,
             ),
+            # dict(
+            #     atomic=1.0,
+            #     cumul_seq=0.0,
+            #     cumul=0.0,
+            #     full=0.0,
+            # ),
+            # dict(
+            #     atomic=0.75,
+            #     cumul_seq=0.0,
+            #     cumul=0.25,
+            #     full=0.0,
+            # ),
+            # dict(
+            #     atomic=0.5,
+            #     cumul_seq=0.0,
+            #     cumul=0.5,
+            #     full=0.0,
+            # ),
         ],
 
         'rl_variant.mask_variant.expl_mask_distr': [
-            dict(
-                atomic=1.0,
-                cumul_seq=0.0,
-                full=0.0,
-            ),
+            # dict(
+            #     atomic=0.5,
+            #     atomic_seq=0.5,
+            #     cumul_seq=0.0,
+            #     full=0.0,
+            # ),
             dict(
                 atomic=0.6,
                 cumul_seq=0.3,
@@ -344,7 +365,7 @@ if __name__ == "__main__":
     while '' in prefix_list: prefix_list.remove('')
     exp_prefix = '-'.join(prefix_list)
 
-    if args.mode == 'ec2' and (not args.no_gpu):
+    if args.mode == 'ec2': #and (not args.no_gpu):
         max_exps_per_instance = args.max_exps_per_instance
     else:
         max_exps_per_instance = 1

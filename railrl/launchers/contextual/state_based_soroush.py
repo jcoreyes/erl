@@ -81,9 +81,9 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
         self.mask_format = mask_format
 
         for key in mask_distr:
-            assert key in ['atomic', 'cumul', 'full']
+            assert key in ['atomic', 'cumul', 'cumul_seq', 'full']
             assert mask_distr[key] >= 0
-        for key in ['atomic', 'cumul', 'full']:
+        for key in ['atomic', 'cumul', 'cumul_seq', 'full']:
             if key not in mask_distr:
                 mask_distr[key] = 0.0
         if np.sum(list(mask_distr.values())) > 1:
@@ -146,7 +146,8 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
     def sample_masks(self, batch_size):
         num_atomic_masks = int(batch_size * self.mask_distr['atomic'])
         num_cumul_masks = int(batch_size * self.mask_distr['cumul'])
-        num_full_masks = batch_size - num_atomic_masks - num_cumul_masks
+        num_cumul_seq_masks = int(batch_size * self.mask_distr['cumul_seq'])
+        num_full_masks = batch_size - num_atomic_masks - num_cumul_masks - num_cumul_seq_masks
 
         mask_goals = []
         if num_atomic_masks > 0:
@@ -156,7 +157,10 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             mask_goals.append(self.sample_full_masks(num_full_masks))
 
         if num_cumul_masks > 0:
-            mask_goals.append(self.sample_cumul_masks(num_cumul_masks))
+            mask_goals.append(self.sample_cumul_masks(num_cumul_masks, sequential=False))
+
+        if num_cumul_seq_masks > 0:
+            mask_goals.append(self.sample_cumul_masks(num_cumul_seq_masks, sequential=True))
 
         def concat(*x):
             return np.concatenate(x, axis=0)
@@ -189,11 +193,14 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             )
         return sampled_masks
 
-    def sample_cumul_masks(self, batch_size):
+    def sample_cumul_masks(self, batch_size, sequential=False):
         assert self.mask_format in ['vector', 'matrix']
         sampled_masks = {}
         num_masks = len(self.masks[list(self.masks.keys())[0]])
         mask_idx_bitmap = np.random.choice(2, (batch_size, num_masks))
+        if sequential:
+            mask_idx_bitmap = np.sort(mask_idx_bitmap)
+            mask_idx_bitmap = np.flip(mask_idx_bitmap, axis=1)
         for mask_key in self.mask_keys:
             sampled_masks[mask_key] = (
                     mask_idx_bitmap @ (self.masks[mask_key].reshape((num_masks, -1)))
@@ -600,7 +607,7 @@ def rl_context_experiment(variant):
         )
         reward_fn = ContextualRewardFnFromMultitaskEnv(
             env=env,
-            achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), # achieved_goal_key
+            achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
             desired_goal_key=desired_goal_key,
             achieved_goal_key=achieved_goal_key,
             additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
@@ -620,7 +627,7 @@ def rl_context_experiment(variant):
         )
         reward_fn = ContextualRewardFnFromMultitaskEnv(
             env=env,
-            achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), # achieved_goal_key
+            achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
             desired_goal_key=desired_goal_key,
             achieved_goal_key=achieved_goal_key,
             additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
@@ -634,7 +641,7 @@ def rl_context_experiment(variant):
         )
         reward_fn = ContextualRewardFnFromMultitaskEnv(
             env=env,
-            achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key), # achieved_goal_key
+            achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
             desired_goal_key=desired_goal_key,
             achieved_goal_key=achieved_goal_key,
             additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
@@ -720,7 +727,7 @@ def rl_context_experiment(variant):
 
     def context_from_obs_dict_fn(obs_dict):
         context_dict = {
-            context_key: obs_dict[observation_key],
+            context_key: obs_dict[achieved_goal_key], #observation_key
         }
         if task_conditioned:
             context_dict[task_key] = obs_dict[task_key]
@@ -772,6 +779,8 @@ def rl_context_experiment(variant):
     observation_keys = variant['contextual_replay_buffer_kwargs']['observation_keys']
     if observation_key not in observation_keys:
         observation_keys.append(observation_key)
+    if achieved_goal_key not in observation_keys:
+        observation_keys.append(achieved_goal_key)
 
     replay_buffer = ContextualRelabelingReplayBuffer(
         env=env,
