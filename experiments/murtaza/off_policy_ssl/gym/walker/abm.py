@@ -43,6 +43,7 @@ if __name__ == "__main__":
             train_bc_on_rl_buffer=True,
             buffer_policy_sample_actions=True,
         ),
+        use_validation_buffer=True,
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
             max_log_std=0,
@@ -89,12 +90,14 @@ if __name__ == "__main__":
                 ),
             ],
         ],
+        'trainer_kwargs.buffer_policy_reset_period':[1000, 10000, 100000],
+        'trainer_kwargs.num_buffer_policy_train_steps_on_reset':[10, 100, 1000],
         'trainer_kwargs.beta':[
-            .01,
-            .1,
+            # .01,
+            # .1,
             1,
-            10,
-            100,
+            # 10,
+            # 100,
         ],
         'train_rl':[True],
         'pretrain_rl':[True],
@@ -129,7 +132,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_name = 'abm_walker_offline_online_true_params_v1'
+    exp_name = 'abm_walker_offline_online_retrain_v3'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):

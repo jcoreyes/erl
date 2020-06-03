@@ -363,7 +363,7 @@ class AWRSACTrainer(TorchTrainer):
             # goals = train_data['resampled_goals']
             train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
-            self.train_from_torch(train_data)
+            self.train_from_torch(train_data, pretrain=True)
             if i%self.pretraining_logging_period == 0:
                 stats_with_prefix = add_prefix(self.eval_statistics, prefix="trainer/")
                 logger.record_dict(stats_with_prefix)
@@ -383,7 +383,7 @@ class AWRSACTrainer(TorchTrainer):
             # goals = train_data['resampled_goals']
             train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
-            self.train_from_torch(train_data)
+            self.train_from_torch(train_data, pretrain=True)
             if self.do_pretrain_rollouts and i % self.pretraining_env_logging_period == 0:
                 total_ret = self.do_rollouts()
                 print("Return at step {} : {}".format(i, total_ret/20))
@@ -512,7 +512,7 @@ class AWRSACTrainer(TorchTrainer):
             ptu.get_numpy(policy_log_std),
         ))
 
-    def train_from_torch(self, batch, train=True):
+    def train_from_torch(self, batch, train=True, pretrain=False,):
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -524,7 +524,6 @@ class AWRSACTrainer(TorchTrainer):
 
         if self.terminal_transform:
             terminals = self.terminal_transform(terminals)
-
         """
         Policy and Alpha Loss
         """
@@ -753,11 +752,8 @@ class AWRSACTrainer(TorchTrainer):
             buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(
                 self.replay_buffer.train_replay_buffer, self.buffer_policy)
         
-        def weight_reset(m):
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-                m.reset_parameters()
-        if self.buffer_policy_reset_period > 0 and self._n_train_steps_total % self.buffer_policy_reset_period:
-            # self.buffer_policy.apply(weight_reset)
+        if not pretrain and self.buffer_policy_reset_period > 0 and self._n_train_steps_total % self.buffer_policy_reset_period==0:
+            del self.buffer_policy_optimizer
             self.buffer_policy_optimizer =  self.optimizer_class(
                 self.buffer_policy.parameters(),
                 weight_decay=self.policy_weight_decay,
