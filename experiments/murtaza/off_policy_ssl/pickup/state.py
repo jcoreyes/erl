@@ -53,17 +53,17 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_prefix = 'test1'
+    # exp_name = 'test1'
 
     n_seeds = 2
     mode = 'gcp'
-    exp_prefix = 'pickup_state_td3_confirm'
+    exp_name = 'pickup_state_td3_confirm'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
                 state_td3bc_experiment,
-                exp_prefix=exp_prefix,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=3,

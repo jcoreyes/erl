@@ -216,11 +216,11 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev'
+    exp_name = 'dev'
 
     # n_seeds = 5
     # mode = 'sss'
-    # exp_prefix = 'railrl-half-cheetah-online'
+    # exp_name = 'railrl-half-cheetah-online'
 
     search_space = {
         'env': [
@@ -241,7 +241,7 @@ if __name__ == "__main__":
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
-                exp_prefix=exp_prefix,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,

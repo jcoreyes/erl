@@ -114,17 +114,17 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_prefix = 'test'
+    # exp_name = 'test'
 
     n_seeds = 6
     mode = 'ec2'
-    exp_prefix = 'pusher_multiobj_state_td3_sweep_exp_noise'
+    exp_name = 'pusher_multiobj_state_td3_sweep_exp_noise'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
                 state_td3bc_experiment,
-                exp_prefix=exp_prefix,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,
