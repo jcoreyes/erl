@@ -61,17 +61,17 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local_docker'
-    # exp_prefix = 'test'
+    # exp_name = 'test'
 
     n_seeds = 2
     mode = 'gcp'
-    exp_prefix = 'sawyer_drawer_open_ashvin_exp_v2'
+    exp_name = 'sawyer_drawer_open_ashvin_exp_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
                 her_td3_experiment,
-                exp_prefix=exp_prefix,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=2,

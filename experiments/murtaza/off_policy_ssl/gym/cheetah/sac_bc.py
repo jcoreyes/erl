@@ -1,8 +1,8 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
-from railrl.torch.sac.policies import GaussianPolicy
+from railrl.torch.sac.policies import GaussianPolicy, TanhGaussianPolicy
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 from railrl.launchers.launcher_util import run_experiment
+from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
 
 if __name__ == "__main__":
     variant = dict(
@@ -16,7 +16,7 @@ if __name__ == "__main__":
         replay_buffer_size=int(1E6),
         layer_size=256,
         num_layers=2,
-        algorithm="SAC AWR",
+        algorithm="SAC BC",
         version="normal",
         collection_mode='batch',
         sac_bc=True,
@@ -31,17 +31,21 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             beta=1,
-            use_automatic_entropy_tuning=True,
             q_num_pretrain1_steps=0,
             q_num_pretrain2_steps=100000,
             policy_weight_decay=1e-4,
             weight_loss=True,
-            bc_num_pretrain_steps=100000,
-            terminal_transform_kwargs=dict(m=1, b=0),
             pretraining_env_logging_period=100000,
+            terminal_transform_kwargs=dict(m=1, b=0),
+            use_awr_update=False,
+            use_reparam_update=True,
+            bc_loss_type='mse',
+            compute_bc=True,
+            rl_weight=1,
+            bc_weight=1,
+            use_automatic_entropy_tuning=True,
             do_pretrain_rollouts=True,
             train_bc_on_rl_buffer=True,
-            buffer_policy_sample_actions=True,
         ),
         use_validation_buffer=True,
         policy_kwargs=dict(
@@ -53,13 +57,13 @@ if __name__ == "__main__":
         path_loader_kwargs=dict(
             demo_paths=[
                 dict(
-                    path='demos/walker_action_noise_15.npy',
+                    path='demos/hc_action_noise_15.npy',
                     obs_dict=False,
                     is_demo=True,
                     train_split=.9,
                 ),
                 dict(
-                    path='demos/walker_off_policy_15_demos_100.npy',
+                    path='demos/hc_off_policy_15_demos_100.npy',
                     obs_dict=False,
                     is_demo=False,
                 ),
@@ -70,56 +74,21 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'use_weights':[True],
-        'policy_kwargs.hidden_sizes':[[256]*4],
-        'trainer_kwargs.use_automatic_entropy_tuning':[False],
-        'trainer_kwargs.alpha':[0],
-        'trainer_kwargs.weight_loss':[True],
-        'path_loader_kwargs.demo_paths':[
-            [
-                dict(
-                    path='demos/walker_action_noise_15.npy',
-                    obs_dict=False,
-                    is_demo=True,
-                    train_split=.9,
-                ),
-                dict(
-                    path='demos/walker_off_policy_15_demos_100.npy',
-                    obs_dict=False,
-                    is_demo=False,
-                ),
-            ],
-        ],
-        'trainer_kwargs.buffer_policy_reset_period':[1000, 10000, 100000],
-        'trainer_kwargs.num_buffer_policy_train_steps_on_reset':[10, 100, 1000],
-        'trainer_kwargs.beta':[
-            # .01,
-            # .1,
-            1,
-            # 10,
-            # 100,
-        ],
+        'trainer_kwargs.alpha':[1],
+        'trainer_kwargs.q_num_pretrain2_steps':[0],
+        'trainer_kwargs.bc_loss_type': ['mse', 'mle'],
         'train_rl':[True],
-        'pretrain_rl':[True],
+        'pretrain_rl':[False],
         'load_demos':[True],
         'pretrain_policy':[False],
         'env': [
-            'walker',
+            'half-cheetah',
         ],
         'policy_class':[
           GaussianPolicy,
         ],
-        'trainer_kwargs.awr_loss_type':[
-            'mle'
-        ],
-        'trainer_kwargs.reparam_weight': [0.0],
-        'trainer_kwargs.awr_weight': [1.0],
-        'trainer_kwargs.bc_weight': [1.0, ],
-        'trainer_kwargs.compute_bc': [False],
-        'trainer_kwargs.awr_use_mle_for_vf': [True, ],
-        'trainer_kwargs.awr_sample_actions': [False, ],
-        'trainer_kwargs.awr_min_q': [True, ],
         'trainer_kwargs.q_weight_decay': [0],
+        'trainer_kwargs.policy_weight_decay': [1e-4],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -132,9 +101,13 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = 'ec2'
-    exp_name = 'abm_walker_offline_online_retrain_v3'
+    exp_name = 'sac_bc_hc_offline_online_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['policy_class'] == TanhGaussianPolicy:
+            variant['policy_kwargs'] = dict(
+                hidden_sizes=[256] * 4,
+            )
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
@@ -142,9 +115,9 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=2,
-                unpack_variant=False,
                 use_gpu=True,
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
+                unpack_variant=False,
             )

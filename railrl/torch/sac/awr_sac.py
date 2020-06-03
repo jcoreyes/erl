@@ -97,6 +97,11 @@ class AWRSACTrainer(TorchTrainer):
             Z_K=10,
             clip_score=None,
             validation_qlearning=False,
+
+            mask_positive_advantage=False,
+            buffer_policy_reset_period=-1,
+            num_buffer_policy_train_steps_on_reset=100,
+            advantage_weighted_buffer_loss=True,
     ):
         super().__init__()
         self.env = env
@@ -159,6 +164,9 @@ class AWRSACTrainer(TorchTrainer):
                 lr=policy_lr,
             )
             self.optimizers[self.buffer_policy] = self.buffer_policy_optimizer
+            self.optimizer_class=optimizer_class
+            self.policy_weight_decay=policy_weight_decay
+            self.policy_lr = policy_lr
 
         self.use_automatic_beta_tuning = use_automatic_beta_tuning and buffer_policy and train_bc_on_rl_buffer
         self.beta_epsilon=beta_epsilon
@@ -227,6 +235,10 @@ class AWRSACTrainer(TorchTrainer):
         self.train_bc_on_rl_buffer = train_bc_on_rl_buffer and buffer_policy
         self.validation_qlearning = validation_qlearning
         self.brac = brac
+        self.mask_positive_advantage = mask_positive_advantage
+        self.buffer_policy_reset_period = buffer_policy_reset_period
+        self.num_buffer_policy_train_steps_on_reset=num_buffer_policy_train_steps_on_reset
+        self.advantage_weighted_buffer_loss=advantage_weighted_buffer_loss
 
     def get_batch_from_buffer(self, replay_buffer, batch_size):
         batch = replay_buffer.random_batch(batch_size)
@@ -353,7 +365,7 @@ class AWRSACTrainer(TorchTrainer):
             # goals = train_data['resampled_goals']
             train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
-            self.train_from_torch(train_data)
+            self.train_from_torch(train_data, pretrain=True)
             if i%self.pretraining_logging_period == 0:
                 stats_with_prefix = add_prefix(self.eval_statistics, prefix="trainer/")
                 logger.record_dict(stats_with_prefix)
@@ -373,7 +385,7 @@ class AWRSACTrainer(TorchTrainer):
             # goals = train_data['resampled_goals']
             train_data['observations'] = obs # torch.cat((obs, goals), dim=1)
             train_data['next_observations'] = next_obs # torch.cat((next_obs, goals), dim=1)
-            self.train_from_torch(train_data)
+            self.train_from_torch(train_data, pretrain=True)
             if self.do_pretrain_rollouts and i % self.pretraining_env_logging_period == 0:
                 total_ret = self.do_rollouts()
                 print("Return at step {} : {}".format(i, total_ret/20))
@@ -495,7 +507,7 @@ class AWRSACTrainer(TorchTrainer):
         policy_statistics = add_prefix(dist.get_diagnostics(), "validation/policy/")
         self.eval_statistics.update(policy_statistics)
 
-    def train_from_torch(self, batch, train=True):
+    def train_from_torch(self, batch, train=True, pretrain=False,):
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -507,7 +519,6 @@ class AWRSACTrainer(TorchTrainer):
 
         if self.terminal_transform:
             terminals = self.terminal_transform(terminals)
-
         """
         Policy and Alpha Loss
         """
@@ -626,10 +637,10 @@ class AWRSACTrainer(TorchTrainer):
 
         if self.normalize_over_state == "advantage":
             score = q_adv - v_pi
+            if self.mask_positive_advantage:
+                score = torch.sign(score)
         elif self.normalize_over_state == "Z":
-            *_, buffer_dist = self.buffer_policy(
-                obs, reparameterize=True, return_log_prob=True,
-            )
+            buffer_dist = self.buffer_policy(obs)
             K = self.Z_K
             buffer_obs = []
             buffer_actions = []
@@ -691,9 +702,7 @@ class AWRSACTrainer(TorchTrainer):
 
 
         if self.use_klac_update:
-            *_, buffer_dist = self.buffer_policy(
-                obs, reparameterize=True, return_log_prob=True,
-            )
+            buffer_dist = self.buffer_policy(obs)
             K = self.klac_K
             buffer_obs = []
             buffer_actions = []
@@ -735,9 +744,70 @@ class AWRSACTrainer(TorchTrainer):
         if self.compute_bc:
             train_policy_loss, train_logp_loss, train_mse_loss, _ = self.run_bc_batch(self.demo_train_buffer, self.policy)
             policy_loss = policy_loss + self.bc_weight * train_policy_loss
+        
+        
+                
+        if not pretrain and self.buffer_policy_reset_period > 0 and self._n_train_steps_total % self.buffer_policy_reset_period==0:
+            del self.buffer_policy_optimizer
+            self.buffer_policy_optimizer =  self.optimizer_class(
+                self.buffer_policy.parameters(),
+                weight_decay=self.policy_weight_decay,
+                lr=self.policy_lr,
+            )
+            self.optimizers[self.buffer_policy] = self.buffer_policy_optimizer
+            for i in range(self.num_buffer_policy_train_steps_on_reset):
+                if self.train_bc_on_rl_buffer:
+                    if self.advantage_weighted_buffer_loss:
+                        buffer_dist = self.buffer_policy(obs)
+                        buffer_u = actions
+                        buffer_new_obs_actions, _ = buffer_dist.rsample_and_logprob()
+                        buffer_policy_logpp = buffer_dist.log_prob(buffer_u)
+                        buffer_policy_logpp = buffer_policy_logpp[:, None]
+            
+                        buffer_q1_pred = self.qf1(obs, buffer_u)
+                        buffer_q2_pred = self.qf2(obs, buffer_u)
+                        buffer_q_adv = torch.min(buffer_q1_pred, buffer_q2_pred)
+
+                        buffer_v1_pi = self.qf1(obs, buffer_new_obs_actions)
+                        buffer_v2_pi = self.qf2(obs, buffer_new_obs_actions)
+                        buffer_v_pi = torch.min(buffer_v1_pi, buffer_v2_pi)
+            
+                        buffer_score = buffer_q_adv - buffer_v_pi
+                        buffer_weights = F.softmax(buffer_score / beta, dim=0)
+                        buffer_policy_loss = self.awr_weight * (-buffer_policy_logpp * len(buffer_weights)*buffer_weights.detach()).mean()
+                    else:
+                        buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(
+                        self.replay_buffer.train_replay_buffer, self.buffer_policy)
+    
+                    self.buffer_policy_optimizer.zero_grad()
+                    buffer_policy_loss.backward(retain_graph=True)
+                    self.buffer_policy_optimizer.step()
 
         if self.train_bc_on_rl_buffer:
-            buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(self.replay_buffer, self.buffer_policy)
+            if self.advantage_weighted_buffer_loss:
+                buffer_dist = self.buffer_policy(obs)
+                buffer_u = actions
+                buffer_new_obs_actions, _ = buffer_dist.rsample_and_logprob()
+                buffer_policy_logpp = buffer_dist.log_prob(buffer_u)
+                buffer_policy_logpp = buffer_policy_logpp[:, None]
+            
+                buffer_q1_pred = self.qf1(obs, buffer_u)
+                buffer_q2_pred = self.qf2(obs, buffer_u)
+                buffer_q_adv = torch.min(buffer_q1_pred, buffer_q2_pred)
+
+                buffer_v1_pi = self.qf1(obs, buffer_new_obs_actions)
+                buffer_v2_pi = self.qf2(obs, buffer_new_obs_actions)
+                buffer_v_pi = torch.min(buffer_v1_pi, buffer_v2_pi)
+            
+                buffer_score = buffer_q_adv - buffer_v_pi
+                buffer_weights = F.softmax(buffer_score / beta, dim=0)
+                buffer_policy_loss = self.awr_weight * (-buffer_policy_logpp * len(buffer_weights)*buffer_weights.detach()).mean()
+            else:
+                buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(
+                    self.replay_buffer.train_replay_buffer, self.buffer_policy)
+
+
+
         """
         Update networks
         """
@@ -837,19 +907,35 @@ class AWRSACTrainer(TorchTrainer):
                     "bc/test_policy_loss": ptu.get_numpy(test_policy_loss),
                 })
             if self.train_bc_on_rl_buffer:
-                test_policy_loss, test_logp_loss, test_mse_loss, _ = self.run_bc_batch(self.replay_buffer,
-                                                                                       self.buffer_policy)
+                _, buffer_train_logp_loss, _, _ = self.run_bc_batch(
+                    self.replay_buffer.train_replay_buffer,
+                    self.buffer_policy)
+
+                _, buffer_test_logp_loss, _, _ = self.run_bc_batch(
+                    self.replay_buffer.validation_replay_buffer,
+                    self.buffer_policy)
                 buffer_dist = self.buffer_policy(obs)
-                # kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
+                kldiv = torch.distributions.kl.kl_divergence(dist, buffer_dist)
+
+                _, train_offline_logp_loss, _, _ = self.run_bc_batch(
+                    self.demo_train_buffer,
+                    self.buffer_policy)
+
+                _, test_offline_logp_loss, _, _ = self.run_bc_batch(
+                    self.demo_test_buffer,
+                    self.buffer_policy)
 
                 self.eval_statistics.update({
-                    "buffer_policy/Train Logprob Loss": ptu.get_numpy(buffer_train_logp_loss),
-                    "buffer_policy/Test Logprob Loss": ptu.get_numpy(test_logp_loss),
-                    "buffer_policy/Train MSE": ptu.get_numpy(buffer_train_mse_loss),
-                    "buffer_policy/Test MSE": ptu.get_numpy(test_mse_loss),
+
+                    "buffer_policy/Train Online Logprob": -1 * ptu.get_numpy(buffer_train_logp_loss),
+                    "buffer_policy/Test Online Logprob": -1 * ptu.get_numpy(buffer_test_logp_loss),
+
+                    "buffer_policy/Train Offline Logprob": -1 * ptu.get_numpy(train_offline_logp_loss),
+                    "buffer_policy/Test Offline Logprob": -1 * ptu.get_numpy(test_offline_logp_loss),
+
                     "buffer_policy/train_policy_loss": ptu.get_numpy(buffer_policy_loss),
-                    "buffer_policy/test_policy_loss": ptu.get_numpy(test_policy_loss),
-                    # "buffer_policy/kl_div":ptu.get_numpy(kldiv.mean()),
+                    # "buffer_policy/test_policy_loss": ptu.get_numpy(buffer_test_policy_loss),
+                    "buffer_policy/kl_div": ptu.get_numpy(kldiv.mean()),
                 })
             if self.use_automatic_beta_tuning:
                 self.eval_statistics.update({

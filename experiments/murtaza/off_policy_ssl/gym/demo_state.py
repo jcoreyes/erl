@@ -253,11 +253,11 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_name = 'test'
 
     # n_seeds = 2
     # mode = 'ec2'
-    # exp_prefix = 'gym_demos_exps_v2'
+    # exp_name = 'gym_demos_exps_v2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         # if variant['td3_bc_trainer_kwargs']['bc_weight'] == 0 and variant['td3_bc_trainer_kwargs']['demo_beta'] != 1:
@@ -265,7 +265,7 @@ if __name__ == "__main__":
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
-                exp_prefix=exp_prefix,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=2,

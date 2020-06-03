@@ -12,6 +12,8 @@ from railrl.policies.base import Policy
 from railrl.torch.core import PyTorchModule
 from railrl.torch.networks import ConcatMlp
 import railrl.torch.pytorch_util as ptu
+from railrl.torch.networks.basic import Concat, MultiInputSequential
+from railrl.torch.networks.mlp import ParallelMlp
 
 
 class DisentangledMlpQf(PyTorchModule):
@@ -146,6 +148,135 @@ class DisentangledMlpQf(PyTorchModule):
             return total_q_value, individual_q_vals
         else:
             return total_q_value
+
+
+class ParallelDisentangledMlpQf(PyTorchModule):
+
+    def __init__(
+            self,
+            goal_encoder,
+            state_encoder,
+            post_encoder_mlp_kwargs,
+            preprocess_obs_dim,
+            action_dim,
+            vectorized=False,
+            architecture='splice',
+            detach_encoder_via_goal=False,
+            detach_encoder_via_state=False,
+    ):
+        """
+
+        :param encoder:
+        :param post_encoder_mlp_kwargs:
+        :param preprocess_obs_dim:
+        :param action_dim:
+        :param vectorized:
+        :param architecture:
+         - 'splice': give each Q function a single index into the latent goal
+         - 'many_heads': give each Q function the entire latent goal
+         - 'single_head': have one Q function that takes in entire latent goal
+         - 'huge_single_head': single head but that multiplies the hidden sizes
+             by the number of heads in `many_heads`
+         - 'single_head_match_many_heads': single head but that multiplies the
+             first hidden size by the number of heads in `many_heads`
+        """
+        super().__init__()
+        self.goal_encoder = goal_encoder
+        self.state_encoder = state_encoder
+        self.preprocess_obs_dim = preprocess_obs_dim
+        self.preprocess_goal_dim = goal_encoder.input_size
+        self.postprocess_goal_dim = goal_encoder.output_size
+        self.vectorized = vectorized
+        self._architecture = architecture
+        self._detach_encoder_via_goal = detach_encoder_via_goal
+        self._detach_encoder_via_state = detach_encoder_via_state
+
+        if architecture == 'splice':
+            qf_goal_input_size = 1
+        else:
+            qf_goal_input_size = self.postprocess_goal_dim
+        qf_input_size = (
+                state_encoder.output_size + action_dim + qf_goal_input_size
+        )
+        if architecture == 'single_head':
+            self.post_encoder_qf = ConcatMlp(
+                input_size=qf_input_size,
+                output_size=1,
+                **post_encoder_mlp_kwargs
+            )
+        elif architecture == 'huge_single_head':
+            new_qf_kwargs = post_encoder_mlp_kwargs.copy()
+            hidden_sizes = new_qf_kwargs.pop('hidden_sizes')
+            new_hidden_sizes = [
+                size * self.postprocess_goal_dim for size in hidden_sizes
+            ]
+            self.post_encoder_qf = ConcatMlp(
+                hidden_sizes=new_hidden_sizes,
+                input_size=qf_input_size,
+                output_size=1,
+                **new_qf_kwargs
+            )
+        elif architecture == 'single_head_match_many_heads':
+            new_qf_kwargs = post_encoder_mlp_kwargs.copy()
+            hidden_sizes = new_qf_kwargs.pop('hidden_sizes')
+            new_hidden_sizes = [
+                                   hidden_sizes[0] * self.postprocess_goal_dim
+                               ] + hidden_sizes[1:]
+            self.post_encoder_qf = ConcatMlp(
+                hidden_sizes=new_hidden_sizes,
+                input_size=qf_input_size,
+                output_size=1,
+                **new_qf_kwargs
+            )
+        elif architecture == 'many_heads':
+            self.post_encoder_qf = MultiInputSequential(
+                Concat(),
+                ParallelMlp(
+                    num_heads=self.postprocess_goal_dim,
+                    input_size=qf_input_size,
+                    output_size_per_mlp=1,
+                    **post_encoder_mlp_kwargs
+                ),
+            )
+        elif architecture == 'splice':
+            self.post_encoder_qf = MultiInputSequential(
+                Concat(),
+                ParallelMlp(
+                    num_heads=self.postprocess_goal_dim,
+                    input_size=qf_input_size,
+                    output_size_per_mlp=1,
+                    input_is_already_expanded=True,
+                    **post_encoder_mlp_kwargs
+                ),
+            )
+        else:
+            raise ValueError(architecture)
+
+    def forward(self, obs_and_goal, actions, return_individual_q_vals=False, **kwargs):
+        obs, goal = obs_and_goal.chunk(2, dim=1)
+
+        h_obs = self.state_encoder(obs)
+        h_obs = h_obs.detach() if self._detach_encoder_via_state else h_obs
+        h_goal = self.goal_encoder(goal)
+        h_goal = h_goal.detach() if self._detach_encoder_via_goal else h_goal
+
+        if self._architecture == 'splice':
+            h_obs_expanded = h_obs.repeat(1, self.postprocess_goal_dim).unsqueeze(-1)
+            actions = actions.repeat(1, self.postprocess_goal_dim).unsqueeze(-1)
+            expanded_inputs = torch.cat((
+                h_obs_expanded,
+                goal.unsqueeze(1),
+                actions,
+            ), dim=1)
+            individual_q_vals = self.post_encoder_qf(expanded_inputs)
+        else:
+            flat_inputs = torch.cat((h_obs, h_goal, actions), dim=1)
+            individual_q_vals = self.post_encoder_qf(flat_inputs).squeeze(1)
+
+        if self.vectorized:
+            return individual_q_vals
+        else:
+            return individual_q_vals.sum(dim=-1)
 
 
 class QfMaximizingPolicy(Policy):

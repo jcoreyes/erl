@@ -132,6 +132,11 @@ class MultivariateDiagonalNormal(TorchDistributionWrapper):
     def __repr__(self):
         return self.distribution.base_dist.__repr__()
 
+@torch.distributions.kl.register_kl(MultivariateDiagonalNormal, MultivariateDiagonalNormal)
+def _kl_mv_diag_normal_mv_diag_normal(p, q):
+    var_ratio = (p.distribution.stddev / q.distribution.stddev).pow(2)
+    t1 = ((p.mean - q.mean) / q.distribution.stddev).pow(2)
+    return 0.5 * (var_ratio + t1 - 1 - var_ratio.log())
 
 class GaussianMixture(Distribution):
     def __init__(self, normal_means, normal_stds, weights):

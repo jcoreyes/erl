@@ -196,11 +196,11 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_prefix = 'dev'
+    # exp_name = 'dev'
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sac_mujoco_envs_unnormalized_run_longer'
+    exp_name = 'sac_mujoco_envs_unnormalized_run_longer'
 
     search_space = {
         'env': [
@@ -222,7 +222,7 @@ if __name__ == "__main__":
             run_experiment(
                 experiment,
                 num_exps_per_instance=3,
-                exp_prefix=exp_prefix,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,

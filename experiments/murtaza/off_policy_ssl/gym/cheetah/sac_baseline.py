@@ -22,6 +22,7 @@ if __name__ == "__main__":
         sac_bc=True,
         load_demos=True,
         pretrain_rl=True,
+        qf_kwargs=dict(hidden_sizes=[256, 256]),
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
@@ -43,7 +44,9 @@ if __name__ == "__main__":
             bc_weight=0,
             use_automatic_entropy_tuning=True,
             do_pretrain_rollouts=True,
+            train_bc_on_rl_buffer=True,
         ),
+        use_validation_buffer=True,
         policy_kwargs=dict(
             hidden_sizes=[256]*4,
             max_log_std=0,
@@ -91,12 +94,12 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = 'local'
-    # exp_prefix = 'test'
+    # exp_name = 'test'
     
 
     n_seeds = 2
     mode = 'ec2'
-    exp_prefix = 'sac_hc_offline_online_final_v1'
+    exp_name = 'sac_hc_offline_online_final_v1'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if variant['policy_class'] == TanhGaussianPolicy:
@@ -106,7 +109,7 @@ if __name__ == "__main__":
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
-                exp_prefix=exp_prefix,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=2,
@@ -114,4 +117,5 @@ if __name__ == "__main__":
                 gcp_kwargs=dict(
                     preemptible=False,
                 ),
+                unpack_variant=False,
             )
