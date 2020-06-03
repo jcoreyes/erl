@@ -8,7 +8,8 @@ class Point(gym.Env):
     """Superclass for all MuJoCo environments.
     """
 
-    def __init__(self, n=2, action_scale=0.2):
+    def __init__(self, n=2, action_scale=0.2, fixed_goal=None):
+        self.fixed_goal = fixed_goal
         self.n = n
         self.action_scale = action_scale
         self.goal = np.zeros((n,))
@@ -30,7 +31,10 @@ class Point(gym.Env):
 
     def reset(self):
         self.state = np.zeros((self.n,))
-        self.goal = np.random.uniform(-5, 5, size=(self.n,))
+        if self.fixed_goal is None:
+            self.goal = np.random.uniform(-5, 5, size=(self.n,))
+        else:
+            self.goal = np.array(self.fixed_goal)
         return self._get_obs()
 
     def step(self, action):

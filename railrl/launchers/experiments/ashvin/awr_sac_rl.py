@@ -7,7 +7,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector, ObsDictPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import ConcatMlp
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic, GaussianPolicy
+from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.awr_sac import AWRSACTrainer
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
@@ -38,6 +38,8 @@ import os.path as osp
 from railrl.core import logger
 from railrl.misc.asset_loader import load_local_or_remote_file
 import pickle
+
+from railrl.envs.images import Renderer, InsertImageEnv, EnvRenderer
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
@@ -182,6 +184,29 @@ ENV_PARAMS = {
             train_split=0.9,
         ),
     },
+    'pen-binary-old-v0': {
+        'env_id': 'pen-binary-v0',
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/pen2_sparse.npy",
+            # path="demos/icml2020/hand/sparsity/railrl_pen-binary-v0_demos.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/pen_bc_sparse1.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse2.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse3.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse4.npy",
+            path="demos/icml2020/hand/pen_bc_sparse4.npy",
+            # path="ashvin/icml2020/hand/sparsity/bc/pen-binary1/run10/id*/video_*_*.p",
+            # sync_dir="ashvin/icml2020/hand/sparsity/bc/pen-binary1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
     'pen-sparse-v0': {
         'max_path_length': 200,
         'sparse_reward': True,
@@ -222,6 +247,27 @@ ENV_PARAMS = {
             train_split=0.9,
         ),
     },
+    'door-binary-old-v0': {
+        'env_id': 'door-binary-v0',
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/door2_sparse.npy",
+            # path="demos/icml2020/hand/sparsity/railrl_door-binary-v0_demos.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/door_bc_sparse1.npy",
+            # path="demos/icml2020/hand/door_bc_sparse3.npy",
+            path="demos/icml2020/hand/door_bc_sparse4.npy",
+            # path="ashvin/icml2020/hand/sparsity/bc/door-binary1/run10/id*/video_*_*.p",
+            # sync_dir="ashvin/icml2020/hand/sparsity/bc/door-binary1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
     'door-sparse-v0': {
         'max_path_length': 200,
         'sparse_reward': True,
@@ -255,6 +301,26 @@ ENV_PARAMS = {
             # path="demos/icml2020/hand/relocate_bc_sparse4.npy",
             path="ashvin/icml2020/hand/sparsity/bc/relocate-binary1/run10/id*/video_*_*.p",
             sync_dir="ashvin/icml2020/hand/sparsity/bc/relocate-binary1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'relocate-binary-old-v0': {
+        'env_id': 'relocate-binary-v0',
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/relocate2_sparse.npy",
+            # path="demos/icml2020/hand/sparsity/railrl_relocate-binary-v0_demos.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/relocate_bc_sparse1.npy",
+            path="demos/icml2020/hand/relocate_bc_sparse4.npy",
+            # path="ashvin/icml2020/hand/sparsity/bc/relocate-binary1/run10/id*/video_*_*.p",
+            # sync_dir="ashvin/icml2020/hand/sparsity/bc/relocate-binary1/run10",
             obs_dict=False,
             is_demo=False,
             train_split=0.9,
@@ -419,9 +485,9 @@ def experiment(variant):
     env_class = variant.get('env_class', None)
 
     if env_name in [
-        'pen-v0', 'pen-sparse-v0', 'pen-notermination-v0', 'pen-binary-v0',
-        'door-v0', 'door-sparse-v0', 'door-binary-v0',
-        'relocate-v0', 'relocate-sparse-v0', 'relocate-binary-v0',
+        'pen-v0', 'pen-sparse-v0', 'pen-notermination-v0', 'pen-binary-v0', 'pen-binary-old-v0',
+        'door-v0', 'door-sparse-v0', 'door-binary-v0', 'door-binary-old-v0',
+        'relocate-v0', 'relocate-sparse-v0', 'relocate-binary-v0', 'relocate-binary-old-v0',
         'hammer-v0', 'hammer-sparse-v0', 'hammer-binary-v0',
     ]:
         import mj_envs
@@ -452,7 +518,6 @@ def experiment(variant):
         expl_env = NormalizedBoxEnv(variant['env']())
         eval_env = NormalizedBoxEnv(variant['env']())
 
-
     # if variant.get('sparse_reward', False):
     #     expl_env = RewardWrapperEnv(expl_env, compute_hand_sparse_reward)
     #     eval_env = RewardWrapperEnv(eval_env, compute_hand_sparse_reward)
@@ -462,6 +527,7 @@ def experiment(variant):
 
     if variant.get('add_env_offpolicy_data', False):
         variant["path_loader_kwargs"]["demo_paths"].append(variant["env_offpolicy_data_path"])
+
     # else:
     #     expl_env = encoder_wrapped_env(variant)
     #     eval_env = encoder_wrapped_env(variant)
@@ -516,7 +582,7 @@ def experiment(variant):
     if buffer_policy_path:
         buffer_policy = load_local_or_remote_file(buffer_policy_path)
     else:
-        buffer_policy_class = variant.get("buffer_policy_class", GaussianPolicy)
+        buffer_policy_class = variant.get("buffer_policy_class", policy_class)
         buffer_policy = buffer_policy_class(
             obs_dim=obs_dim,
             action_dim=action_dim,
@@ -651,13 +717,20 @@ def experiment(variant):
     if variant.get("save_video", False):
         if variant.get("presampled_goals", None):
             variant['image_env_kwargs']['presampled_goals'] = load_local_or_remote_file(variant['presampled_goals']).item()
+
+        def get_img_env(env):
+            renderer = EnvRenderer(**variant["renderer_kwargs"])
+            img_env = InsertImageEnv(GymToMultiEnv(env), renderer=renderer)
+
         image_eval_env = ImageEnv(GymToMultiEnv(eval_env), **variant["image_env_kwargs"])
+        # image_eval_env = get_img_env(eval_env)
         image_eval_path_collector = ObsDictPathCollector(
             image_eval_env,
             eval_policy,
             observation_key="state_observation",
         )
         image_expl_env = ImageEnv(GymToMultiEnv(expl_env), **variant["image_env_kwargs"])
+        # image_expl_env = get_img_env(expl_env)
         image_expl_path_collector = ObsDictPathCollector(
             image_expl_env,
             expl_policy,

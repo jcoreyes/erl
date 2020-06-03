@@ -11,13 +11,13 @@ from railrl.launchers.arglauncher import run_variants
 from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_leap import SawyerPushAndReachXYEnv
-from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
+from railrl.torch.networks import Clamp
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=100,
+        num_epochs=501,
         num_eval_steps_per_epoch=1000,
-        num_trains_per_train_loop=1000,
+        num_trains_per_train_loop=4000,
         num_expl_steps_per_train_loop=1000,
         min_num_steps_before_training=1000,
         max_path_length=200,
@@ -25,6 +25,10 @@ if __name__ == "__main__":
 
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
+            fraction_goals_rollout_goals=0.2,
+            fraction_goals_env_goals=0.5,
+        ),
+        demo_replay_buffer_kwargs=dict(
             fraction_goals_rollout_goals=1.0,
             fraction_goals_env_goals=0.0,
         ),
@@ -37,11 +41,6 @@ if __name__ == "__main__":
             min_log_std=-4,
             std_architecture="shared",
             # num_gaussians=1,
-        ),
-
-        exploration_kwargs=dict(
-            strategy="ou",
-            noise=0.5,
         ),
 
         algorithm="SAC",
@@ -58,17 +57,17 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=False,
             alpha=0,
 
-            bc_num_pretrain_steps=10000,
+            bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=0,
+            q_num_pretrain2_steps=25000,
             policy_weight_decay=1e-4,
             q_weight_decay=0,
 
-            rl_weight=0.0,
+            rl_weight=1.0,
             use_awr_update=False,
-            use_reparam_update=False,
+            use_reparam_update=True,
             compute_bc=True,
-            reparam_weight=0.0,
+            reparam_weight=1.0,
             awr_weight=0.0,
             bc_weight=0.0,
 
@@ -82,9 +81,11 @@ if __name__ == "__main__":
         path_loader_kwargs=dict(
             demo_paths=[
                 dict(
-                    path="demos/icml2020/pusher/demos100.npy",
+                    path="ashvin/icml2020/pusher/state2/random2/run13/id*/video_*_vae.p",
+                    sync_dir="ashvin/icml2020/pusher/state2/random2/run13",
                     obs_dict=False, # misleading but this arg is really "unwrap_obs_dict"
                     is_demo=True,
+                    data_split=0.1,
                 ),
                 # dict(
                 #     path="demos/icml2020/hand/pen_bc5.npy",
@@ -102,26 +103,9 @@ if __name__ == "__main__":
         # ),
         load_demos=True,
         pretrain_policy=True,
-        pretrain_rl=False,
+        pretrain_rl=True,
         # save_pretrained_algorithm=True,
         # snapshot_mode="all",
-        save_paths=True,
-        save_video=False,
-        save_video_kwargs=dict(
-            save_video_period=50,
-            pad_color=0,
-            subpad_length=1,
-            pad_length=1,
-            num_columns_per_rollout=2,
-            columns=2,
-        ),
-        renderer_kwargs=dict(
-            create_image_format='HWC',
-            output_image_format='CWH',
-            flatten_image=True,
-            init_camera=sawyer_init_camera_zoomed_in,
-        ),
-
         env_class=SawyerPushAndReachXYEnv,
         env_kwargs=dict(
             hand_low=(-0.20, 0.50),
@@ -142,11 +126,33 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(10),
-        # 'num_trains_per_train_loop': [1000, 4000],
-        # 'env_kwargs.reward_type': ['puck_distance', 'hand_and_puck_distance', ],
+        'seedid': range(5),
+        # 'trainer_kwargs.beta': [0.001, 0.01, 0.1, ],
+        'num_trains_per_train_loop': [4000],
+        'env_kwargs.reward_type': ['puck_distance', ],
         'policy_kwargs.min_log_std': [-6, ],
-        'replay_buffer_kwargs.fraction_goals_rollout_goals': [0.5],
+        # 'trainer_kwargs.bc_weight': [0, 1],
+        'trainer_kwargs.bc_loss_type': ["mle"],
+        'trainer_kwargs.awr_loss_type': ["mle"],
+        'seedid': range(3),
+        'trainer_kwargs.beta': [0.01, 0.1, 0.3, ],
+        'trainer_kwargs.reparam_weight': [0.0, ],
+        'trainer_kwargs.awr_weight': [1.0],
+        'trainer_kwargs.bc_weight': [0.0, ],
+        'policy_kwargs.std_architecture': ["values", ],
+        'trainer_kwargs.clip_score': [2, ],
+
+        # 'trainer_kwargs.compute_bc': [True, ],
+        'trainer_kwargs.awr_use_mle_for_vf': [True, ],
+        'trainer_kwargs.awr_sample_actions': [False, ],
+        'trainer_kwargs.awr_min_q': [True, ],
+
+        'trainer_kwargs.q_weight_decay': [0, ],
+
+        'trainer_kwargs.reward_transform_kwargs': [None, ],
+        'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0), ],
+        'qf_kwargs.output_activation': [Clamp(max=0)],
+        'trainer_kwargs.train_bc_on_rl_buffer':[True],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

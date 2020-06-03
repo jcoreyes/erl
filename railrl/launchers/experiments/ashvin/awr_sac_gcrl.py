@@ -175,12 +175,28 @@ def experiment(variant):
         output_size=1,
         hidden_sizes=[M, M],
     )
+
     policy_class = variant.get("policy_class", TanhGaussianPolicy)
-    policy = policy_class(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        **variant['policy_kwargs'],
-    )
+    policy_kwargs = variant['policy_kwargs']
+    policy_path = variant.get("policy_path", False)
+    if policy_path:
+        policy = load_local_or_remote_file(policy_path)
+    else:
+        policy = policy_class(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            **policy_kwargs,
+        )
+    buffer_policy_path = variant.get("buffer_policy_path", False)
+    if buffer_policy_path:
+        buffer_policy = load_local_or_remote_file(buffer_policy_path)
+    else:
+        buffer_policy_class = variant.get("buffer_policy_class", policy_class)
+        buffer_policy = buffer_policy_class(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            **variant.get("buffer_policy_kwargs", policy_kwargs),
+        )
 
     expl_policy = policy
     exploration_kwargs =  variant.get('exploration_kwargs', {})
@@ -222,6 +238,7 @@ def experiment(variant):
         qf2=qf2,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
+        buffer_policy=buffer_policy,
         **variant['trainer_kwargs']
     )
     if variant['collection_mode'] == 'online':
@@ -254,7 +271,7 @@ def experiment(variant):
         )
         expl_path_collector = GoalConditionedPathCollector(
             expl_env,
-            policy,
+            expl_policy,
             observation_key=observation_key,
             desired_goal_key=desired_goal_key,
             render=render,
