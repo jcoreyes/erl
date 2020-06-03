@@ -42,7 +42,8 @@ if __name__ == "__main__":
             do_pretrain_rollouts=True,
             buffer_policy_sample_actions=True,
             train_bc_on_rl_buffer=True,
-            buffer_policy_reset_period=10000, 
+            buffer_policy_reset_period=10000,
+            advantage_weighted_buffer_loss=True,
         ),
         use_validation_buffer=True,
         policy_kwargs=dict(
@@ -112,14 +113,14 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
 
-    # n_seeds = 1
-    # mode = 'local'
-    # exp_name = 'test'
+    n_seeds = 1
+    mode = 'local'
+    exp_name = 'test'
     
 
-    n_seeds = 2
-    mode = 'ec2'
-    exp_name = 'abm_hc_offline_online_retrain_v4'
+    # n_seeds = 2
+    # mode = 'ec2'
+    # exp_name = 'abm_hc_offline_online_retrain_v4'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
