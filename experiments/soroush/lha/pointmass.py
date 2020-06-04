@@ -1,15 +1,11 @@
-from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
-import argparse
-import math
-import numpy as np
-
-from railrl.launchers.exp_launcher import rl_experiment
-
-from multiworld.envs.pygame.pick_and_place import (
-    PickAndPlaceEnv,
-    PickAndPlace1DEnv,
+from railrl.misc.exp_util import (
+    run_experiment,
+    parse_args,
+    preprocess_args,
 )
+from railrl.launchers.exp_launcher import rl_experiment
+from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
 
 variant = dict(
     rl_variant=dict(
@@ -156,7 +152,7 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-        'rl_variant.algo_kwargs.num_epochs': [3000],
+        'rl_variant.algo_kwargs.num_epochs': [15],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.idx_masks': [
@@ -166,38 +162,6 @@ env_params = {
                 {6: 6, 7: 7},
                 {8: 8, 9: 9},
             ],
-            # [
-            #     {0: 0, 1: 1},
-            #     {2: 2, 3: 3},
-            #     {4: 4, 5: 5},
-            #     {6: 6, 7: 7},
-            #     {8: 8, 9: 9},
-            # ],
-            # [
-            #     {2: 2, 3: 3},
-            #     {4: 4, 5: 5},
-            #     {6: 6, 7: 7},
-            #     {8: 8, 9: 9},
-            #     {0: 0, 1: 1},
-            # ],
-            # [
-            #     {0: 0, 1: 1},
-            #     {2: 2, 3: 3},
-            #     {4: 4, 5: 5},
-            #     {6: 6, 7: 7},
-            #     {8: 8, 9: 9},
-            #     {0: -12, 1: -13},
-            #     {0: -14, 1: -15},
-            #     {0: -16, 1: -17},
-            #     {0: -18, 1: -19},
-            # ],
-            # [
-            #     {0: 0, 1: 1},
-            #     {0: -12, 1: -13},
-            #     {0: -14, 1: -15},
-            #     {0: -16, 1: -17},
-            #     {0: -18, 1: -19},
-            # ],
         ],
 
         'rl_variant.mask_variant.train_mask_distr': [
@@ -251,63 +215,6 @@ env_params = {
             ),
         ],
     },
-    # 'pg-4obj': {
-    #     'env_kwargs.num_objects': [4],
-    #     'rl_variant.algo_kwargs.num_epochs': [2500],
-    #     'rl_variant.max_path_length': [200],
-    #
-    #     'rl_variant.mask_variant.mask_conditioned': [True],
-    #     'rl_variant.mask_variant.idx_masks': [
-    #         # [
-    #         #     {0: 0, 1: 1},
-    #         #     {2: 2, 3: 3},
-    #         #     {4: 4, 5: 5},
-    #         #     {6: 6, 7: 7},
-    #         #     {8: 8, 9: 9},
-    #         # ],
-    #         [
-    #             {2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9},
-    #         ],
-    #     ],
-    # },
-    # 'pg-6obj': {
-    #     'env_kwargs.num_objects': [6],
-    #     'rl_variant.algo_kwargs.num_epochs': [2500],
-    #     'rl_variant.max_path_length': [200],
-    #
-    #     'rl_variant.mask_variant.mask_conditioned': [True],
-    #     'rl_variant.mask_variant.idx_masks': [
-    #         [
-    #             {0: 0, 1: 1},
-    #             {2: 2, 3: 3},
-    #             {4: 4, 5: 5},
-    #             {6: 6, 7: 7},
-    #             {8: 8, 9: 9},
-    #             # {10: 10, 11: 11},
-    #             # {12: 12, 13: 13},
-    #         ],
-    #     ],
-    # },
-    # 'pg-8obj': {
-    #     'env_kwargs.num_objects': [8],
-    #     'rl_variant.algo_kwargs.num_epochs': [2500],
-    #     'rl_variant.max_path_length': [200],
-    #
-    #     'rl_variant.mask_variant.mask_conditioned': [True],
-    #     'rl_variant.mask_variant.idx_masks': [
-    #         [
-    #             {0: 0, 1: 1},
-    #             {2: 2, 3: 3},
-    #             {4: 4, 5: 5},
-    #             {6: 6, 7: 7},
-    #             {8: 8, 9: 9},
-    #             # {10: 10, 11: 11},
-    #             # {12: 12, 13: 13},
-    #             # {14: 14, 15: 15},
-    #             # {16: 16, 17: 17},
-    #         ],
-    #     ],
-    # },
 }
 
 def process_variant(variant):
@@ -336,63 +243,19 @@ def process_variant(variant):
         rl_variant['save_video'] = False
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='block-2obj'),
-    parser.add_argument('--mode', type=str, default='local')
-    parser.add_argument('--label', type=str, default='')
-    parser.add_argument('--num_seeds', type=int, default=1)
-    parser.add_argument('--max_exps_per_instance', type=int, default=2)
-    parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--first_variant_only', action='store_true')
-    parser.add_argument('--no_video',  action='store_true')
-    parser.add_argument('--dry_run', action='store_true')
-    parser.add_argument('--no_gpu', action='store_true')
-    parser.add_argument('--gpu_id', type=int, default=0)
-    args = parser.parse_args()
-
-    if args.mode == 'local' and args.label == '':
-        args.label = 'local'
-
-    variant['exp_label'] = args.label
-
+    args = parse_args()
+    args.mem_per_exp = 7.0
+    preprocess_args(args)
     search_space = env_params[args.env]
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-
-    prefix_list = ['train', 'state', args.label]
-    while None in prefix_list: prefix_list.remove(None)
-    while '' in prefix_list: prefix_list.remove('')
-    exp_prefix = '-'.join(prefix_list)
-
-    if args.mode == 'ec2': #and (not args.no_gpu):
-        max_exps_per_instance = args.max_exps_per_instance
-    else:
-        max_exps_per_instance = 1
-
-    num_exps_for_instances = np.ones(int(math.ceil(args.num_seeds / max_exps_per_instance)), dtype=np.int32) \
-                             * max_exps_per_instance
-    num_exps_for_instances[-1] -= (np.sum(num_exps_for_instances) - args.num_seeds)
-
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters(print_info=False)):
         process_variant(variant)
-        for num_exps in num_exps_for_instances:
-            run_experiment(
-                rl_experiment,
-                exp_folder=args.env,
-                exp_prefix=exp_prefix,
-                exp_id=exp_id,
-                mode=args.mode,
-                variant=variant,
-                use_gpu=(not args.no_gpu),
-                gpu_id=args.gpu_id,
-
-                num_exps_per_instance=int(num_exps),
-
-                snapshot_gap=50,
-                snapshot_mode="none", #'gap_and_last',
-            )
-
-            if args.first_variant_only:
-                exit()
+        run_experiment(
+            exp_function=rl_experiment,
+            variant=variant,
+            args=args,
+            exp_id=exp_id,
+        )
 

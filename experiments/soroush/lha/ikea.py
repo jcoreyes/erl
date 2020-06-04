@@ -1,13 +1,11 @@
-from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
-import argparse
-import math
-
+from railrl.misc.exp_util import (
+    run_experiment,
+    parse_args,
+    preprocess_args,
+)
 from railrl.launchers.exp_launcher import rl_experiment
-
 from furniture.env.furniture_multiworld import FurnitureMultiworld
-
-from multiworld.envs.mujoco.cameras import *
 
 variant = dict(
     rl_variant=dict(
@@ -29,6 +27,7 @@ variant = dict(
             soft_target_tau=1e-3,
             target_update_period=1,
             use_automatic_entropy_tuning=True,
+            reward_scale=100,
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1E6),
@@ -261,12 +260,6 @@ env_params = {
         ],
 
         'rl_variant.td3_trainer_kwargs.reward_scale': [1000],
-        'rl_variant.sac_trainer_kwargs.reward_scale': [
-            1,
-            10,
-            100,
-            1000,
-        ],
         'rl_variant.algorithm': [
             # 'td3',
             'sac',
@@ -320,63 +313,19 @@ def process_variant(variant):
         rl_variant['save_video'] = False
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='block-2obj'),
-    parser.add_argument('--mode', type=str, default='local')
-    parser.add_argument('--label', type=str, default='')
-    parser.add_argument('--num_seeds', type=int, default=1)
-    parser.add_argument('--max_exps_per_instance', type=int, default=2)
-    parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--first_variant_only', action='store_true')
-    parser.add_argument('--no_video',  action='store_true')
-    parser.add_argument('--dry_run', action='store_true')
-    parser.add_argument('--no_gpu', action='store_true')
-    parser.add_argument('--gpu_id', type=int, default=0)
-    args = parser.parse_args()
-
-    if args.mode == 'local' and args.label == '':
-        args.label = 'local'
-
-    variant['exp_label'] = args.label
-
+    args = parse_args()
+    args.mem_per_exp = 7.0
+    preprocess_args(args)
     search_space = env_params[args.env]
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-
-    prefix_list = ['train', 'state', args.label]
-    while None in prefix_list: prefix_list.remove(None)
-    while '' in prefix_list: prefix_list.remove('')
-    exp_prefix = '-'.join(prefix_list)
-
-    if args.mode == 'ec2' and (not args.no_gpu):
-        max_exps_per_instance = args.max_exps_per_instance
-    else:
-        max_exps_per_instance = 1
-
-    num_exps_for_instances = np.ones(int(math.ceil(args.num_seeds / max_exps_per_instance)), dtype=np.int32) \
-                             * max_exps_per_instance
-    num_exps_for_instances[-1] -= (np.sum(num_exps_for_instances) - args.num_seeds)
-
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters(print_info=False)):
         process_variant(variant)
-        for num_exps in num_exps_for_instances:
-            run_experiment(
-                rl_experiment,
-                exp_folder=args.env,
-                exp_prefix=exp_prefix,
-                exp_id=exp_id,
-                mode=args.mode,
-                variant=variant,
-                use_gpu=(not args.no_gpu),
-                gpu_id=args.gpu_id,
-
-                num_exps_per_instance=int(num_exps),
-
-                snapshot_gap=50,
-                snapshot_mode="none", #'gap_and_last',
-            )
-
-            if args.first_variant_only:
-                exit()
+        run_experiment(
+            exp_function=rl_experiment,
+            variant=variant,
+            args=args,
+            exp_id=exp_id,
+        )
 

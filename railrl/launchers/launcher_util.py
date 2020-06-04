@@ -90,6 +90,7 @@ def run_experiment(
         verbose=False,
         trial_dir_suffix=None,
         num_exps_per_instance=1,
+        interactive_docker=False,
         # sss settings
         time_in_mins=None,
         # ssh settings
@@ -327,6 +328,7 @@ def run_experiment(
             image=docker_image,
             gpu=use_gpu,
         )
+        dmode.set_nvidia_docker_for_gpu_value(True)
     elif mode == 'ssh':
         if ssh_host == None:
             ssh_dict = config.SSH_HOSTS[config.SSH_DEFAULT_HOST]
@@ -343,6 +345,8 @@ def run_experiment(
             gpu=use_gpu,
             tmp_dir=config.SSH_TMP_DIR,
         )
+        if ssh_host in ['newton1', 'newton3', 'newton4', 'newton6', 'newton7', 'claude', 'ada', 'grace']:
+            dmode.set_nvidia_docker_for_gpu_value(True)
     elif mode == 'local_singularity':
         dmode = doodad.mode.LocalSingularity(
             image=singularity_image,
@@ -446,12 +450,14 @@ def run_experiment(
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
+        dmode.set_interactive_docker_value(interactive_docker)
     elif mode == 'ssh':
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         if exp_prefix is not None:
             base_log_dir_for_script = osp.join(base_log_dir_for_script, exp_folder)
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
+        dmode.set_interactive_docker_value(interactive_docker)
     elif mode in ['local_singularity', 'slurm_singularity', 'sss']:
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
