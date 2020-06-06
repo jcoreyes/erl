@@ -74,7 +74,7 @@ variant = dict(
         'action_scale': .06,
         'action_repeat': 10, #5
         'timestep': 1./120, #1./240
-        'solver_iterations': 150,
+        'solver_iterations': 150, #150
         'max_force': 1000,
 
         'gui': False,
@@ -98,6 +98,19 @@ env_params = {
         'env_kwargs.num_obj': [1],
         'env_kwargs.reward_type': [
             'obj_dist',
+        ],
+
+        'env_kwargs.solver_iterations': [
+            150,
+            500,
+        ],
+        'env_kwargs.use_rotated_gripper': [
+            True,
+            False,
+        ],
+        'env_kwargs.use_wide_gripper': [
+            True,
+            False,
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [1000],
@@ -142,7 +155,10 @@ def process_variant(variant):
 
 if __name__ == "__main__":
     args = parse_args()
-    args.mem_per_exp = 7.0
+    args.mem_per_exp = 5.0
+    mount_blacklist = [
+        'MountLocal@/home/soroush/research/furniture',
+    ]
     preprocess_args(args)
     search_space = env_params[args.env]
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -155,5 +171,6 @@ if __name__ == "__main__":
             variant=variant,
             args=args,
             exp_id=exp_id,
+            mount_blacklist=mount_blacklist,
         )
 

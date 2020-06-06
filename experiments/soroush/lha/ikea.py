@@ -315,6 +315,10 @@ def process_variant(variant):
 if __name__ == "__main__":
     args = parse_args()
     args.mem_per_exp = 7.0
+    mount_blacklist = [
+        'MountLocal@/home/soroush/research/bullet-manipulation',
+        'MountLocal@/home/soroush/research/bullet-assets',
+    ]
     preprocess_args(args)
     search_space = env_params[args.env]
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -327,5 +331,6 @@ if __name__ == "__main__":
             variant=variant,
             args=args,
             exp_id=exp_id,
+            mount_blacklist=mount_blacklist,
         )
 

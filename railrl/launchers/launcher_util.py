@@ -80,6 +80,8 @@ def run_experiment(
         snapshot_gap=1,
         base_log_dir=None,
         local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
+        interactive_docker=False,
+        mount_blacklist=None,
         # local settings
         skip_wait=False,
         # ec2 settings
@@ -90,7 +92,6 @@ def run_experiment(
         verbose=False,
         trial_dir_suffix=None,
         num_exps_per_instance=1,
-        interactive_docker=False,
         # sss settings
         time_in_mins=None,
         # ssh settings
@@ -428,6 +429,7 @@ def run_experiment(
         sync_interval=sync_interval,
         local_input_dir_to_mount_point_dict=local_input_dir_to_mount_point_dict,
         exp_folder=exp_folder,
+        mount_blacklist=mount_blacklist,
     )
 
     """
@@ -442,6 +444,7 @@ def run_experiment(
         # The snapshot dir needs to be specified for S3 because S3 will
         # automatically create the experiment director and sub-directory.
         snapshot_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
+        dmode.set_interactive_docker_value(True)
     elif mode == 'local':
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
@@ -502,6 +505,7 @@ def create_mounts(
         sync_interval=180,
         local_input_dir_to_mount_point_dict=None,
         exp_folder=None,
+        mount_blacklist=None,
 ):
     if mode == 'sss':
         code_mounts = SSS_CODE_MOUNTS
@@ -575,6 +579,10 @@ def create_mounts(
     else:
         raise NotImplementedError("Mode not supported: {}".format(mode))
     mounts.append(output_mount)
+
+    if mount_blacklist is not None:
+        mounts = [m for m in mounts if str(m) not in mount_blacklist]
+
     return mounts
 
 

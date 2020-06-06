@@ -11,13 +11,13 @@ def parse_args():
     parser.add_argument('--label', type=str, default='')
     parser.add_argument('--num_seeds', type=int, default=1)
     parser.add_argument('--no_gpu', action='store_true')
-    parser.add_argument('--gpu_id', type=int, default=None)
+    parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument('--interactive_ssh', action='store_true')
     parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--first_variant_only', action='store_true')
-    parser.add_argument('--max_exps_per_instance', type=int, default=2)
+    parser.add_argument('--first_variant', action='store_true')
+    parser.add_argument('--max_exps_per_instance', type=int, default=None)
     parser.add_argument('--no_video',  action='store_true')
-    parser.add_argument('--threshold_for_free_gpu', type=float, default=0.15)
+    parser.add_argument('--threshold_for_free_gpu', type=float, default=0.05)
     parser.add_argument('--dry_run', action='store_true')
     parser.add_argument('--mem_per_exp', type=float, default=12.0)
     parser.add_argument('--machines_and_gpus', type=str, default=None)
@@ -45,6 +45,7 @@ def run_experiment(
         args,
         exp_id,
         # exp_type,
+        mount_blacklist=None,
 ):
     snapshot_gap = 50 #update_snapshot_gap_and_save_period(variant)
 
@@ -62,20 +63,31 @@ def run_experiment(
             snapshot_gap=snapshot_gap,
             snapshot_mode='none', #'gap_and_last',
 
+            mount_blacklist=mount_blacklist,
+
             **run_experiment_kwargs
         )
 
-    if args.first_variant_only:
+    if args.first_variant:
         exit()
 
 def preprocess_args(args):
     # assert not (args.debug and args.mode == 'ec2')
 
+    if args.max_exps_per_instance is None:
+        if args.mode == 'ec2':
+            args.max_exps_per_instance = 2
+        elif args.mode in ['newton1', 'newton3', 'newton4', 'newton6', 'newton7',
+                           'ada', 'alan', 'grace', 'claude', 'lab']:
+            args.max_exps_per_instance = 5
+        else:
+            args.max_exps_per_instance = 1
+
     if args.mode == 'local' and args.label == '':
         args.label = 'local'
     elif args.mode == 'check_lab':
         args.threshold_for_free_gpu = 0.70
-        args.first_variant_only = True
+        args.first_variant = True
         args.debug = True
         args.no_video = True
 
@@ -92,7 +104,7 @@ def preprocess_args(args):
             'newton7',
             'grace',
             'claude',
-        ]  #'newton2', 'newton5',
+        ]  #'newton2', 'newton5', # 'newton4',
         free_machines_info = query_machines(args=args, machines=machines)
         free_machines_and_gpus = []
 
@@ -157,20 +169,22 @@ def preprocess_args(args):
         print('avail exps:', len(free_machines_and_gpus))
         args.free_machines_and_gpus = iter(free_machines_and_gpus)
 
+    if len(args.exp_partition) > 0:
+        args.dry_run = True
+
     if args.dry_run:
         free_machines_and_gpus = list(args.free_machines_and_gpus)
         from random import shuffle
         # shuffle(free_machines_and_gpus)
-        if len(args.exp_partition) > 0:
-            i = 0
-            for p in args.exp_partition:
-                print()
-                print('\'' + str(free_machines_and_gpus[i:i+p]) + '\'')
-                i = i + p
-            if i < len(free_machines_and_gpus):
-                print()
-                print('\'' + str(free_machines_and_gpus[i:]) + '\'')
+        i = 0
+        for p in args.exp_partition:
             print()
+            print('\'' + str(free_machines_and_gpus[i:i+p]) + '\'')
+            i = i + p
+        if i < len(free_machines_and_gpus):
+            print()
+            print('\'' + str(free_machines_and_gpus[i:]) + '\'')
+        print()
         exit()
 
 def get_instance_kwargs(args, num_exps, variant):
@@ -272,15 +286,15 @@ def update_snapshot_gap_and_save_period(variant):
 def query_machines(machines=None, args=None):
     if machines is None:
         machines = [
-            'ada', # TESLA V100
-            'alan',  # TESLA P100
-            'newton1', # Titan X (pascal)
-            'newton3', # Titan X (pascal)
-            'newton4', # Titan X (pascal)
-            'newton6', # Titan Xp
-            'newton7', # Titan Xp
-            'grace', # GeForce GTX 1080 Ti
-            'claude', # GeForce GTX 1080 Ti
+            # 'ada', # TESLA V100
+            # 'alan',  # TESLA P100
+            # 'newton1', # Titan X (pascal)
+            # 'newton3', # Titan X (pascal)
+            'newton4',  # Titan X (pascal)
+            # 'newton6', # Titan Xp
+            # 'newton7', # Titan Xp
+            # 'grace', # GeForce GTX 1080 Ti
+            # 'claude', # GeForce GTX 1080 Ti
         ]
 
         # ['newton2', # Titan X (pascal),
@@ -291,7 +305,7 @@ def query_machines(machines=None, args=None):
     if args is not None:
         threshold_for_free_gpu = args.threshold_for_free_gpu
     else:
-        threshold_for_free_gpu = 0.15
+        threshold_for_free_gpu = 0.05
 
     for machine in machines:
         cmd = 'ssh {} \'free -m\' 2>&1'.format(machine)

@@ -83,14 +83,18 @@ variant = dict(
             relabel_masks=True,
             sample_masks_for_relabeling=True,
 
+            context_post_process_mode=None,
+            context_post_process_frac=0.5,
+
             train_mask_distr=dict(
                 atomic=1.0,
+                subset=0.0,
                 cumul=0.0,
-                cumul_seq=0.0,
                 full=0.0,
             ),
             expl_mask_distr=dict(
-                atomic=1.0,
+                atomic=0.5,
+                atomic_seq=0.5,
                 cumul_seq=0.0,
                 full=0.0,
             ),
@@ -152,7 +156,7 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-        'rl_variant.algo_kwargs.num_epochs': [15],
+        'rl_variant.algo_kwargs.num_epochs': [3000],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.idx_masks': [
@@ -168,50 +172,37 @@ env_params = {
             # dict(
             #     atomic=1.0,
             #     cumul=0.0,
+            #     subset=0.0,
             #     full=0.0,
-            # ),
-            # dict(
-            #     atomic=0.6,
-            #     cumul=0.3,
-            #     full=0.1,
             # ),
             dict(
-                atomic=0.6,
-                cumul_seq=0.3,
+                atomic=0.5,
                 cumul=0.0,
-                full=0.1,
+                subset=0.5,
+                full=0.0,
             ),
             # dict(
-            #     atomic=1.0,
-            #     cumul_seq=0.0,
-            #     cumul=0.0,
-            #     full=0.0,
-            # ),
-            # dict(
-            #     atomic=0.75,
-            #     cumul_seq=0.0,
-            #     cumul=0.25,
-            #     full=0.0,
-            # ),
-            # dict(
             #     atomic=0.5,
-            #     cumul_seq=0.0,
             #     cumul=0.5,
+            #     subset=0.0,
             #     full=0.0,
             # ),
         ],
 
+        # 'rl_variant.mask_variant.context_post_process_mode': [
+        #     'prev_subtasks_solved',
+        #     'dilute_prev_subtasks_uniform',
+        #     'dilute_prev_subtasks_fixed',
+        #     'atomic_to_corresp_cumul',
+        #     None,
+        # ],
+
         'rl_variant.mask_variant.expl_mask_distr': [
-            # dict(
-            #     atomic=0.5,
-            #     atomic_seq=0.5,
-            #     cumul_seq=0.0,
-            #     full=0.0,
-            # ),
             dict(
-                atomic=0.6,
-                cumul_seq=0.3,
-                full=0.1,
+                atomic=0.5,
+                atomic_seq=0.5,
+                cumul_seq=0.0,
+                full=0.0,
             ),
         ],
     },
@@ -244,7 +235,12 @@ def process_variant(variant):
 
 if __name__ == "__main__":
     args = parse_args()
-    args.mem_per_exp = 7.0
+    args.mem_per_exp = 6.0
+    mount_blacklist = [
+        'MountLocal@/home/soroush/research/furniture',
+        'MountLocal@/home/soroush/research/bullet-manipulation',
+        'MountLocal@/home/soroush/research/bullet-assets',
+    ]
     preprocess_args(args)
     search_space = env_params[args.env]
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -257,5 +253,6 @@ if __name__ == "__main__":
             variant=variant,
             args=args,
             exp_id=exp_id,
+            mount_blacklist=mount_blacklist,
         )
 
