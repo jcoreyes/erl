@@ -42,7 +42,8 @@ class LatentBlockDataset(Dataset):
     def __init__(self, file_path, train=True, transform=None, test_p=0.9):
         print('Loading latent block data')
         self.all_data = np.load(file_path, allow_pickle=True)
-        data = np.load(file_path, allow_pickle=True).reshape(-1, 12, 12)
+        data = np.load(file_path, allow_pickle=True)
+        #data = data.reshape(-1, latent_len, latent_len)
         print('Done loading latent block data')
         
         n = int(data.shape[0] * test_p)

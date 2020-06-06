@@ -39,6 +39,7 @@ from railrl.misc.asset_loader import load_local_or_remote_file
 import pickle
 
 ENV_PARAMS = {
+
     'half-cheetah': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
@@ -280,6 +281,7 @@ def experiment(variant):
         resume(variant)
         return
 
+    import ipdb; ipdb.set_trace()
     if 'env' in variant:
         env_params = ENV_PARAMS[variant['env']]
         variant.update(env_params)
@@ -303,9 +305,9 @@ def experiment(variant):
 
         if variant.get('add_env_offpolicy_data', False):
             variant["path_loader_kwargs"]["demo_paths"].append(variant["env_offpolicy_data_path"])
-    else:
-        expl_env = encoder_wrapped_env(variant)
-        eval_env = encoder_wrapped_env(variant)
+    # else:
+    #     expl_env = encoder_wrapped_env(variant)
+    #     eval_env = encoder_wrapped_env(variant)
 
     path_loader_kwargs = variant.get("path_loader_kwargs", {})
     stack_obs = path_loader_kwargs.get("stack_obs", 1)
