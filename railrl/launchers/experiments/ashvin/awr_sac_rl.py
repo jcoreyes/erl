@@ -1,4 +1,4 @@
-import gym
+import gym, roboverse
 from railrl.data_management.awr_env_replay_buffer import AWREnvReplayBuffer
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
@@ -107,6 +107,12 @@ ENV_PARAMS = {
         'max_path_length': 200,
         # 'num_epochs': 1000,
     },
+    'SawyerRigGrasp-v0': {
+        'env_id': 'SawyerRigGrasp-v0',
+        # 'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 50,
+        # 'num_epochs': 1000,
+    },
 
     'pen-sparse-v0': {
         'env_id': 'pen-v0',
@@ -127,6 +133,8 @@ ENV_PARAMS = {
             train_split=0.9,
         ),
     },
+
+
     'door-sparse-v0': {
         'env_id': 'door-v0',
         'max_path_length': 200,
@@ -281,7 +289,6 @@ def experiment(variant):
         resume(variant)
         return
 
-    import ipdb; ipdb.set_trace()
     if 'env' in variant:
         env_params = ENV_PARAMS[variant['env']]
         variant.update(env_params)
@@ -290,8 +297,12 @@ def experiment(variant):
             if env_params['env_id'] in ['pen-v0', 'pen-sparse-v0', 'door-v0', 'relocate-v0', 'hammer-v0',
                                         'pen-sparse-v0', 'door-sparse-v0', 'relocate-sparse-v0', 'hammer-sparse-v0']:
                 import mj_envs
-            expl_env = gym.make(env_params['env_id'])
-            eval_env = gym.make(env_params['env_id'])
+            if env_params['env_id'] in ['SawyerRigGrasp-v0']:
+                expl_env = roboverse.make(env_params['env_id'])
+                eval_env = roboverse.make(env_params['env_id'])
+            else:
+                expl_env = gym.make(env_params['env_id'])
+                eval_env = gym.make(env_params['env_id'])
         else:
             expl_env = NormalizedBoxEnv(variant['env_class']())
             eval_env = NormalizedBoxEnv(variant['env_class']())
