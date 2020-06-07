@@ -175,27 +175,31 @@ env_params = {
             #     subset=0.0,
             #     full=0.0,
             # ),
-            dict(
-                atomic=0.5,
-                cumul=0.0,
-                subset=0.5,
-                full=0.0,
-            ),
             # dict(
             #     atomic=0.5,
-            #     cumul=0.5,
-            #     subset=0.0,
+            #     cumul=0.0,
+            #     subset=0.5,
             #     full=0.0,
             # ),
+            dict(
+                atomic=0.5,
+                cumul=0.5,
+                subset=0.0,
+                full=0.0,
+            ),
         ],
 
-        # 'rl_variant.mask_variant.context_post_process_mode': [
-        #     'prev_subtasks_solved',
-        #     'dilute_prev_subtasks_uniform',
-        #     'dilute_prev_subtasks_fixed',
-        #     'atomic_to_corresp_cumul',
-        #     None,
-        # ],
+        # 'rl_variant.qf_kwargs.hidden_sizes': [[400, 400, 300, 300]],
+        # 'rl_variant.vf_kwargs.hidden_sizes': [[400, 400, 300, 300]],
+        # 'rl_variant.policy_kwargs.hidden_sizes': [[400, 400, 300, 300]],
+
+        'rl_variant.mask_variant.context_post_process_mode': [
+            # 'prev_subtasks_solved',
+            # 'dilute_prev_subtasks_uniform',
+            # 'dilute_prev_subtasks_fixed',
+            # 'atomic_to_corresp_cumul',
+            None,
+        ],
 
         'rl_variant.mask_variant.expl_mask_distr': [
             dict(
@@ -254,5 +258,6 @@ if __name__ == "__main__":
             args=args,
             exp_id=exp_id,
             mount_blacklist=mount_blacklist,
+            snapshot_mode='gap_and_last',
         )
 

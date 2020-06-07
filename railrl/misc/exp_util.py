@@ -46,8 +46,9 @@ def run_experiment(
         exp_id,
         # exp_type,
         mount_blacklist=None,
+        snapshot_mode="none",
 ):
-    snapshot_gap = 50 #update_snapshot_gap_and_save_period(variant)
+    snapshot_gap = update_snapshot_gap_and_save_period(variant)
 
     # exp_prefix = get_exp_prefix(args, variant)
     exp_prefix = args.label
@@ -61,7 +62,7 @@ def run_experiment(
             exp_prefix=exp_prefix,
             exp_id=exp_id,
             snapshot_gap=snapshot_gap,
-            snapshot_mode='none', #'gap_and_last',
+            snapshot_mode=snapshot_mode,
 
             mount_blacklist=mount_blacklist,
 
@@ -277,24 +278,24 @@ def update_snapshot_gap_and_save_period(variant):
     if 'snapshot_gap' not in rl_variant:
         rl_variant['snapshot_gap'] = int(math.ceil(rl_variant['algo_kwargs']['base_kwargs']['num_epochs'] / 10))
 
-    if 'save_period' not in rl_variant['vis_kwargs']:
-        rl_variant['vis_kwargs']['save_period'] = \
-            int(math.ceil(rl_variant['algo_kwargs']['base_kwargs']['num_epochs'] / 10))
+    # if 'save_period' not in rl_variant['vis_kwargs']:
+    #     rl_variant['vis_kwargs']['save_period'] = \
+    #         int(math.ceil(rl_variant['algo_kwargs']['base_kwargs']['num_epochs'] / 10))
 
     return rl_variant['snapshot_gap']
 
 def query_machines(machines=None, args=None):
     if machines is None:
         machines = [
-            # 'ada', # TESLA V100
-            # 'alan',  # TESLA P100
-            # 'newton1', # Titan X (pascal)
-            # 'newton3', # Titan X (pascal)
+            'ada', # TESLA V100
+            'alan',  # TESLA P100
+            'newton1', # Titan X (pascal)
+            'newton3', # Titan X (pascal)
             'newton4',  # Titan X (pascal)
-            # 'newton6', # Titan Xp
-            # 'newton7', # Titan Xp
-            # 'grace', # GeForce GTX 1080 Ti
-            # 'claude', # GeForce GTX 1080 Ti
+            'newton6', # Titan Xp
+            'newton7', # Titan Xp
+            'grace', # GeForce GTX 1080 Ti
+            'claude', # GeForce GTX 1080 Ti
         ]
 
         # ['newton2', # Titan X (pascal),
