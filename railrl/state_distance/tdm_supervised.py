@@ -1,7 +1,6 @@
 from collections import OrderedDict
 
 import numpy as np
-import torch
 
 import railrl.torch.pytorch_util as ptu
 from railrl.core import logger
@@ -11,7 +10,7 @@ import torch.optim as optim
 import torch.nn as nn
 
 from railrl.torch.core import np_to_pytorch_batch
-from railrl.torch.modules import HuberLoss
+from railrl.torch.networks.experimental import HuberLoss
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
 

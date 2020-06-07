@@ -12,7 +12,7 @@ from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.torch.her.her_exploration_td3 import HerExplorationTd3
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 
 
 def her_td3_experiment(variant):
@@ -49,18 +49,18 @@ def her_td3_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
     num_ensemble_qs = variant.get("num_ensemble_qs", 0)
-    ensemble_qs = [FlattenMlp(
+    ensemble_qs = [ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']

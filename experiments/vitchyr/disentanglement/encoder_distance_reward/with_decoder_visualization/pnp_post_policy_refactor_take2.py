@@ -73,21 +73,26 @@ if __name__ == "__main__":
             hidden_sizes=[64, 64],
             hidden_activation=F.leaky_relu,
         ),
-        renderer_kwargs=dict(
-            img_width=32,
-            img_height=32,
+        env_renderer_kwargs=dict(
+            width=32,
+            height=32,
+            output_image_format='CHW',
+        ),
+        video_renderer_kwargs=dict(
+            width=32,
+            height=32,
+            output_image_format='CHW',
         ),
         debug_renderer_kwargs=dict(
-            img_width=16,
-            img_height=16,
-            sweep='goal',
+            width=16,
+            height=16,
+            output_image_format='CHW',
         ),
+        save_debug_video=False,
+        use_image_observations=False,
     )
 
     search_space = {
-        'use_target_encoder_for_reward': [
-            False,
-        ],
         'encoder_reward_scale': [
             1.,
         ],
@@ -126,7 +131,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'ec2'
-    exp_name = 'pnp-1obj-state-obs-encoder-reward-post-policy-refactor-pi-uses-state'
+    # exp_name = 'pnp-1obj-state-obs-encoder-reward-post-policy-refactor-pi-uses-state-take2'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):

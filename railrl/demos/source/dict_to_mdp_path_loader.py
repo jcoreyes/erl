@@ -10,11 +10,15 @@ import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 
-from railrl.misc.asset_loader import load_local_or_remote_file
+from railrl.misc.asset_loader import (
+    load_local_or_remote_file, sync_down_folder, get_absolute_path
+)
 
 import random
 from railrl.torch.core import np_to_pytorch_batch
 from railrl.data_management.path_builder import PathBuilder
+
+from railrl.launchers.config import LOCAL_LOG_DIR, AWS_S3_PATH
 
 # import matplotlib
 # matplotlib.use('TkAgg')
@@ -23,6 +27,7 @@ from railrl.data_management.path_builder import PathBuilder
 from railrl.core import logger
 
 import glob
+
 
 class DictToMDPPathLoader:
     """
@@ -107,7 +112,7 @@ class DictToMDPPathLoader:
                     next_ob,
                 )
 
-            reward = np.array([reward])
+            reward = np.array([reward]).flatten()
             rewards.append(reward)
             terminal = np.array([terminal]).reshape((1, ))
             path_builder.add_all(
@@ -133,9 +138,18 @@ class DictToMDPPathLoader:
     # Parameterize which demo is being tested (and all jitter variants)
     # If is_demo is False, we only add the demos to the
     # replay buffer, and not to the demo_test or demo_train buffers
-    def load_demo_path(self, path, is_demo, obs_dict, train_split=None, data_split=None):
+    def load_demo_path(self, path, is_demo, obs_dict, train_split=None, data_split=None, sync_dir=None):
         print("loading off-policy path", path)
-        data = list(load_local_or_remote_file(path))
+
+        if sync_dir is not None:
+            sync_down_folder(sync_dir)
+            paths = glob.glob(get_absolute_path(path))
+        else:
+            paths = [path]
+
+        data = []
+        for filename in paths:
+            data.extend(list(load_local_or_remote_file(filename)))
         # if not is_demo:
             # data = [data]
         # random.shuffle(data)

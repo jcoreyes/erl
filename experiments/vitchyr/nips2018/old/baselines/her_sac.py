@@ -6,7 +6,7 @@ from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv, SawyerXYZEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.her.her_sac import HerSac
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy
 
 
@@ -17,12 +17,12 @@ def experiment(variant):
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     goal_dim = env.goal_dim
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    vf = FlattenMlp(
+    vf = ConcatMlp(
         input_size=obs_dim + goal_dim,
         output_size=1,
         **variant['vf_kwargs']

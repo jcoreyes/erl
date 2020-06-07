@@ -17,7 +17,7 @@ def td3_experiment(variant):
     from railrl.torch.grill.launcher import get_state_experiment_video_save_function
     from railrl.torch.her.her_td3 import HerTd3
     from railrl.torch.td3.td3 import TD3
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     from railrl.data_management.obs_dict_replay_buffer import (
         ObsDictReplayBuffer
     )
@@ -69,12 +69,12 @@ def td3_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -84,12 +84,12 @@ def td3_experiment(variant):
         output_size=action_dim,
         **variant['policy_kwargs']
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -170,7 +170,7 @@ def her_td3_experiment(variant):
     from railrl.launchers.launcher_util import setup_logger
     from railrl.samplers.data_collector import GoalConditionedPathCollector
     from railrl.torch.her.her import HERTrainer
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     from railrl.torch.td3.td3 import TD3
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
     import railrl.samplers.rollout_functions as rf
@@ -196,22 +196,22 @@ def her_td3_experiment(variant):
     obs_dim = expl_env.observation_space.spaces['observation'].low.size
     goal_dim = expl_env.observation_space.spaces['desired_goal'].low.size
     action_dim = expl_env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']

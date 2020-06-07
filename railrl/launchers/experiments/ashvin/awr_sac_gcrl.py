@@ -2,7 +2,7 @@ from railrl.envs.wrappers import StackObservationEnv, RewardWrapperEnv
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.torch.sac.awr_sac import AWRSACTrainer
 from railrl.torch.torch_rl_algorithm import (
@@ -14,6 +14,12 @@ from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.visualization.video import save_paths
 
 import torch
+from railrl.visualization.video import save_paths, VideoSaveFunction, RIGVideoSaveFunction
+from railrl.envs.images import Renderer, InsertImageEnv, EnvRenderer
+from railrl.launchers.contextual.util import (
+    get_save_video_function,
+    get_gym_env,
+)
 
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -29,6 +35,19 @@ from railrl.data_management.obs_dict_replay_buffer import \
 from railrl.data_management.wrappers.concat_to_obs_wrapper import \
         ConcatToObsWrapper
 from railrl.envs.reward_mask_wrapper import DiscreteDistribution, RewardMaskWrapper
+
+from functools import partial
+import railrl.samplers.rollout_functions as rf
+
+from railrl.envs.contextual import ContextualEnv
+
+from railrl.envs.contextual.goal_conditioned import (
+    GoalDictDistributionFromMultitaskEnv,
+    ContextualRewardFnFromMultitaskEnv,
+    AddImageDistribution,
+    GoalConditionedDiagnosticsToContextualDiagnostics,
+    IndexIntoAchievedGoal,
+)
 
 def compute_hand_sparse_reward(next_obs, reward, done, info):
     return info['goal_achieved'] - 1
@@ -54,9 +73,9 @@ def process_args(variant):
         variant['num_trains_per_train_loop'] = 10
         variant['min_num_steps_before_training'] = 100
         variant['min_num_steps_before_training'] = 100
-        variant['trainer_kwargs']['bc_num_pretrain_steps'] = 10
-        variant['trainer_kwargs']['q_num_pretrain1_steps'] = 10
-        variant['trainer_kwargs']['q_num_pretrain2_steps'] = 10
+        variant['trainer_kwargs']['bc_num_pretrain_steps'] = min(10, variant['trainer_kwargs'].get('bc_num_pretrain_steps', 0))
+        variant['trainer_kwargs']['q_num_pretrain1_steps'] = min(10, variant['trainer_kwargs'].get('q_num_pretrain1_steps', 0))
+        variant['trainer_kwargs']['q_num_pretrain2_steps'] = min(10, variant['trainer_kwargs'].get('q_num_pretrain2_steps', 0))
 
 def experiment(variant):
     render = variant.get("render", False)
@@ -136,22 +155,22 @@ def experiment(variant):
     )
 
     M = variant['layer_size']
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
@@ -257,6 +276,61 @@ def experiment(variant):
         )
     algorithm.to(ptu.device)
 
+    if variant.get("save_video", False):
+        renderer_kwargs = variant.get("renderer_kwargs", {})
+        save_video_kwargs = variant.get("save_video_kwargs", {})
+
+        def get_video_func(
+            env,
+            policy,
+            tag,
+        ):
+            renderer = EnvRenderer(**renderer_kwargs)
+            state_goal_distribution = GoalDictDistributionFromMultitaskEnv(
+                env,
+                desired_goal_keys=[desired_goal_key],
+            )
+            image_goal_distribution = AddImageDistribution(
+                env=env,
+                base_distribution=state_goal_distribution,
+                image_goal_key='image_desired_goal',
+                renderer=renderer,
+            )
+            img_env = InsertImageEnv(env, renderer=renderer)
+            rollout_function = partial(
+                rf.multitask_rollout,
+                max_path_length=variant['max_path_length'],
+                observation_key=observation_key,
+                desired_goal_key=desired_goal_key,
+                return_dict_obs=True,
+            )
+            reward_fn = ContextualRewardFnFromMultitaskEnv(
+                env=env,
+                achieved_goal_from_observation=IndexIntoAchievedGoal(observation_key),
+                desired_goal_key=desired_goal_key,
+                achieved_goal_key="state_achieved_goal",
+            )
+            contextual_env = ContextualEnv(
+                img_env,
+                context_distribution=image_goal_distribution,
+                reward_fn=reward_fn,
+                observation_key=observation_key,
+            )
+            video_func = get_save_video_function(
+                rollout_function,
+                contextual_env,
+                policy,
+                tag=tag,
+                imsize=renderer.width,
+                image_format='CWH',
+                **save_video_kwargs
+            )
+            return video_func
+        expl_video_func = get_video_func(expl_env, expl_policy, "expl")
+        eval_video_func = get_video_func(eval_env, MakeDeterministic(policy), "eval")
+        algorithm.post_train_funcs.append(eval_video_func)
+        algorithm.post_train_funcs.append(expl_video_func)
+
     if variant.get('save_paths', False):
         algorithm.post_train_funcs.append(save_paths)
 
@@ -270,7 +344,12 @@ def experiment(variant):
         )
         path_loader.load_demos()
     if variant.get('pretrain_policy', False):
-        trainer.pretrain_policy_with_bc()
+        trainer.pretrain_policy_with_bc(
+            policy,
+            demo_train_buffer,
+            demo_test_buffer,
+            trainer.bc_num_pretrain_steps,
+        )
     if variant.get('pretrain_rl', False):
         trainer.pretrain_q_with_bc_data()
 

@@ -240,3 +240,6 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         self.vae.eval()
         samples = self.vae.sample_prior(batch_size, cont)
         return samples
+
+
+

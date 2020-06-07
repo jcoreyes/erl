@@ -12,7 +12,7 @@ from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.variant_generator import VariantGenerator
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SoftActorCritic
 
@@ -138,13 +138,13 @@ def experiment(variant):
     )
 
     M = variant['layer_size']
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M, M],
         # **variant['qf_kwargs']
     )
-    vf = FlattenMlp(
+    vf = ConcatMlp(
         input_size=obs_dim,
         output_size=1,
         hidden_sizes=[M, M],

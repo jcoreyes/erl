@@ -58,9 +58,20 @@ AWR_CONFIGS = {
         "weight_clip": 20,
         "td_lambda": 0.95,
         "temp": 1.0,
-        "offpolicy_data_kwargs": dict(
-            demo_path="/home/ashvin/data/s3doodad/demos/icml2020/mujoco/ant.npy",
-        )
+        "load_offpolicy_data": True,
+        "offpolicy_data_sources": [
+            dict(
+                path="demos/icml2020/mujoco/ant_action_noise_15.npy",
+                obs_dict=False,
+                is_demo=True,
+            ),
+            dict(
+                path="demos/icml2020/mujoco/ant_off_policy_15_demos_100.npy",
+                obs_dict=False,
+                is_demo=False,
+                train_split=0.9,
+            ),
+        ],
     },
 
     "HalfCheetah-v2":
@@ -87,9 +98,20 @@ AWR_CONFIGS = {
         "weight_clip": 20,
         "td_lambda": 0.95,
         "temp": 1.0,
-        "offpolicy_data_kwargs": dict(
-            demo_path="/home/ashvin/data/s3doodad/demos/icml2020/mujoco/half-cheetah.npy",
-        )
+        "load_offpolicy_data": True,
+        "offpolicy_data_sources": [
+            dict(
+                path="demos/icml2020/mujoco/hc_action_noise_15.npy",
+                obs_dict=False,
+                is_demo=True,
+            ),
+            dict(
+                path="demos/icml2020/mujoco/hc_off_policy_15_demos_100.npy",
+                obs_dict=False,
+                is_demo=False,
+                train_split=0.9,
+            ),
+        ],
     },
 
     "Hopper-v2":
@@ -194,6 +216,20 @@ AWR_CONFIGS = {
         "weight_clip": 20,
         "td_lambda": 0.95,
         "temp": 1.0,
+        "load_offpolicy_data": True,
+        "offpolicy_data_sources": [
+            dict(
+                path="demos/icml2020/mujoco/walker_action_noise_15.npy",
+                obs_dict=False,
+                is_demo=True,
+            ),
+            dict(
+                path="demos/icml2020/mujoco/walker_off_policy_15_demos_100.npy",
+                obs_dict=False,
+                is_demo=False,
+                train_split=0.9,
+            ),
+        ],
     },
 
     "rlbench":

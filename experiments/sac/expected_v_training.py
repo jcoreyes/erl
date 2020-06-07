@@ -9,7 +9,7 @@ from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.sac.expected_sac import ExpectedSAC
 from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 import railrl.misc.hyperparameter as hyp
 
@@ -31,12 +31,12 @@ def experiment(variant):
         # hidden_size=100,
     # )
     net_size = variant['net_size']
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         hidden_sizes=[net_size, net_size],
         input_size=obs_dim + action_dim,
         output_size=1,
     )
-    vf = FlattenMlp(
+    vf = ConcatMlp(
         hidden_sizes=[net_size, net_size],
         input_size=obs_dim,
         output_size=1,

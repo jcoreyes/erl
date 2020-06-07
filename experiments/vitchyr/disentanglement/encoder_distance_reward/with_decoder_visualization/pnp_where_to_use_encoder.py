@@ -69,12 +69,12 @@ if __name__ == "__main__":
             hidden_activation=F.tanh,
         ),
         renderer_kwargs=dict(
-            img_width=32,
-            img_height=32,
+            width=32,
+            height=32,
         ),
         debug_renderer_kwargs=dict(
-            img_width=16,
-            img_height=16,
+            width=16,
+            height=16,
             sweep='goal',
         ),
     )
@@ -124,9 +124,9 @@ if __name__ == "__main__":
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    n_seeds = 2
+    n_seeds = 1
     mode = 'ec2'
-    exp_name = 'pnp-1obj-sweep-where-to-use-encoder-ec2-c5-one-seeds-take2'
+    exp_name = 'pnp-1obj-sweep-where-to-use-encoder-ec2-c5-one-seeds-take4'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for seed in range(n_seeds):

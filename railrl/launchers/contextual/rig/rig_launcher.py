@@ -20,13 +20,13 @@ from railrl.envs.contextual.latent_distributions import (
     AddLatentDistribution,
     PriorDistribution,
 )
-from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.launchers.rl_exp_launcher_util import create_exploration_policy
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
 from railrl.visualization.video import dump_video, VideoSaveFunction, RIGVideoSaveFunction
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SACTrainer
@@ -111,14 +111,14 @@ def rig_experiment(
     if not renderer_kwargs:
         renderer_kwargs = {}
 
-    Renderer(init_camera=init_camera, **renderer_kwargs)
+    renderer = EnvRenderer(init_camera=init_camera, **renderer_kwargs)
 
     def contextual_env_distrib_and_reward(
             env_id, env_class, env_kwargs, goal_sampling_mode
     ):
         state_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
 
-        renderer = Renderer(init_camera=init_camera, **renderer_kwargs)
+        renderer = EnvRenderer(init_camera=init_camera, **renderer_kwargs)
         img_env = InsertImageEnv(state_env, renderer=renderer)
 
         encoded_env = EncoderWrappedEnv(
@@ -190,7 +190,7 @@ def rig_experiment(
     action_dim = expl_env.action_space.low.size
 
     def create_qf():
-        return FlattenMlp(
+        return ConcatMlp(
             input_size=obs_dim + action_dim,
             output_size=1,
             **qf_kwargs
@@ -241,7 +241,7 @@ def rig_experiment(
         context_keys_for_policy=[context_key, ],
     )
     exploration_policy = create_exploration_policy(
-        policy, **exploration_policy_kwargs)
+        expl_env, policy, **exploration_policy_kwargs)
     expl_path_collector = ContextualPathCollector(
         expl_env,
         exploration_policy,
@@ -273,6 +273,7 @@ def rig_experiment(
             unnormalize=True,
             # max_path_length=200,
             imsize=48,
+            image_format=renderer.output_image_format,
             **save_video_kwargs
         )
         algorithm.post_train_funcs.append(expl_video_func)
@@ -290,6 +291,7 @@ def rig_experiment(
             unnormalize=True,
             # max_path_length=200,
             imsize=48,
+            image_format=renderer.output_image_format,
             **save_video_kwargs
         )
         algorithm.post_train_funcs.append(eval_video_func)

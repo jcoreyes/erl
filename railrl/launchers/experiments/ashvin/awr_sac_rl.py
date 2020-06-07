@@ -6,14 +6,15 @@ from railrl.envs.wrappers import NormalizedBoxEnv, StackObservationEnv, RewardWr
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector, ObsDictPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
-from railrl.torch.networks import FlattenMlp
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+from railrl.torch.networks import ConcatMlp
+from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic, GaussianPolicy
 from railrl.torch.sac.awr_sac import AWRSACTrainer
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )
 
+from railrl.demos.source.hdf5_path_loader import HDF5PathLoader
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.visualization.video import save_paths, VideoSaveFunction
 
@@ -41,9 +42,21 @@ import pickle
 ENV_PARAMS = {
 
     'half-cheetah': {  # 6 DoF
+        'env_id':'HalfCheetah-v2',
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'env_id':'HalfCheetah-v2'
+        'env_id':'HalfCheetah-v2',
+        'env_demo_path': dict(
+            path="demos/icml2020/mujoco/hc_action_noise_15.npy",
+            obs_dict=False,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            path="demos/icml2020/mujoco/hc_off_policy_15_demos_100.npy",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
     },
     'hopper': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
@@ -70,12 +83,34 @@ ENV_PARAMS = {
     'ant': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'env_id':'Ant-v2'
+        'env_id':'Ant-v2',
+        'env_demo_path': dict(
+            path="demos/icml2020/mujoco/ant_action_noise_15.npy",
+            obs_dict=False,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            path="demos/icml2020/mujoco/ant_off_policy_15_demos_100.npy",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
     },
     'walker': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
-        'env_id':'Walker2d-v2'
+        'env_id':'Walker2d-v2',
+        'env_demo_path': dict(
+            path="demos/icml2020/mujoco/walker_action_noise_15.npy",
+            obs_dict=False,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            path="demos/icml2020/mujoco/walker_off_policy_15_demos_100.npy",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
     },
     'swimmer': {  # 6 DoF
         'num_expl_steps_per_train_loop': 1000,
@@ -114,8 +149,7 @@ ENV_PARAMS = {
         # 'num_epochs': 1000,
     },
 
-    'pen-sparse-v0': {
-        'env_id': 'pen-v0',
+    'pen-notermination-v0': {
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
@@ -134,44 +168,141 @@ ENV_PARAMS = {
         ),
     },
 
-
-    'door-sparse-v0': {
-        'env_id': 'door-v0',
+    'pen-binary-v0': {
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
-            path="demos/icml2020/hand/door2_sparse.npy",
+            # path="demos/icml2020/hand/pen2_sparse.npy",
+            path="demos/icml2020/hand/sparsity/railrl_pen-binary-v0_demos.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/pen_bc_sparse1.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse2.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse3.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse4.npy",
+            # path="demos/icml2020/hand/sparsity/bc/pen_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/pen-binary1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/pen-binary1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'pen-sparse-v0': {
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/sparsity/railrl_pen-sparse-v0_demos.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/pen_bc_sparse1.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse2.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse3.npy",
+            # path="demos/icml2020/hand/pen_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/pen-sparse1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/pen-sparse1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'door-binary-v0': {
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            # path="demos/icml2020/hand/door2_sparse.npy",
+            path="demos/icml2020/hand/sparsity/railrl_door-binary-v0_demos.npy",
             obs_dict=True,
             is_demo=True,
         ),
         'env_offpolicy_data_path': dict(
             # path="demos/icml2020/hand/door_bc_sparse1.npy",
             # path="demos/icml2020/hand/door_bc_sparse3.npy",
-            path="demos/icml2020/hand/door_bc_sparse4.npy",
+            # path="demos/icml2020/hand/door_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/door-binary1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/door-binary1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'door-sparse-v0': {
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/sparsity/railrl_door-sparse-v0_demos.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/door_bc_sparse1.npy",
+            # path="demos/icml2020/hand/door_bc_sparse3.npy",
+            # path="demos/icml2020/hand/door_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/door-sparse1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/door-sparse1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+    'relocate-binary-v0': {
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            # path="demos/icml2020/hand/relocate2_sparse.npy",
+            path="demos/icml2020/hand/sparsity/railrl_relocate-binary-v0_demos.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            # path="demos/icml2020/hand/relocate_bc_sparse1.npy",
+            # path="demos/icml2020/hand/relocate_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/relocate-binary1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/relocate-binary1/run10",
             obs_dict=False,
             is_demo=False,
             train_split=0.9,
         ),
     },
     'relocate-sparse-v0': {
-        'env_id': 'relocate-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
-            path="demos/icml2020/hand/relocate2_sparse.npy",
+            path="demos/icml2020/hand/sparsity/railrl_relocate-sparse-v0_demos.npy",
             obs_dict=True,
             is_demo=True,
         ),
         'env_offpolicy_data_path': dict(
             # path="demos/icml2020/hand/relocate_bc_sparse1.npy",
-            path="demos/icml2020/hand/relocate_bc_sparse4.npy",
+            # path="demos/icml2020/hand/relocate_bc_sparse4.npy",
+            path="ashvin/icml2020/hand/sparsity/bc/relocate-sparse1/run10/id*/video_*_*.p",
+            sync_dir="ashvin/icml2020/hand/sparsity/bc/relocate-sparse1/run10",
+            obs_dict=False,
+            is_demo=False,
+            train_split=0.9,
+        ),
+    },
+
+    'hammer-binary-v0': {
+        'max_path_length': 200,
+        'sparse_reward': True,
+        'env_demo_path': dict(
+            path="demos/icml2020/hand/hammer2_sparse.npy",
+            obs_dict=True,
+            is_demo=True,
+        ),
+        'env_offpolicy_data_path': dict(
+            path="demos/icml2020/hand/hammer_bc_sparse1.npy",
             obs_dict=False,
             is_demo=False,
             train_split=0.9,
         ),
     },
     'hammer-sparse-v0': {
-        'env_id': 'hammer-v0',
         'max_path_length': 200,
         'sparse_reward': True,
         'env_demo_path': dict(
@@ -279,20 +410,57 @@ def process_args(variant):
         variant['num_expl_steps_per_train_loop'] = 100
         variant['num_trains_per_train_loop'] = 10
         variant['min_num_steps_before_training'] = 100
-        variant['min_num_steps_before_training'] = 100
-        variant['trainer_kwargs']['bc_num_pretrain_steps'] = 10
-        variant['trainer_kwargs']['q_num_pretrain1_steps'] = 10
-        variant['trainer_kwargs']['q_num_pretrain2_steps'] = 10
+        variant['trainer_kwargs']['bc_num_pretrain_steps'] = min(10, variant['trainer_kwargs'].get('bc_num_pretrain_steps', 0))
+        variant['trainer_kwargs']['q_num_pretrain1_steps'] = min(10, variant['trainer_kwargs'].get('q_num_pretrain1_steps', 0))
+        variant['trainer_kwargs']['q_num_pretrain2_steps'] = min(10, variant['trainer_kwargs'].get('q_num_pretrain2_steps', 0))
 
 def experiment(variant):
     if variant.get("pretrained_algorithm_path", False):
         resume(variant)
         return
 
-    if 'env' in variant:
-        env_params = ENV_PARAMS[variant['env']]
-        variant.update(env_params)
+    # if 'env' in variant:
+    env_params = ENV_PARAMS.get(variant.get('env'), {})
+    variant.update(env_params)
+    env_name = variant.get("env", None)
+    env_id = variant.get('env_id', None)
+    env_class = variant.get('env_class', None)
 
+    if env_name in [
+        'pen-v0', 'pen-sparse-v0', 'pen-notermination-v0', 'pen-binary-v0',
+        'door-v0', 'door-sparse-v0', 'door-binary-v0',
+        'relocate-v0', 'relocate-sparse-v0', 'relocate-binary-v0',
+        'hammer-v0', 'hammer-sparse-v0', 'hammer-binary-v0',
+    ]:
+        import mj_envs
+        expl_env = gym.make(env_params.get('env_id', env_name))
+        eval_env = gym.make(env_params.get('env_id', env_name))
+    elif env_name in [ # D4RL envs
+        "maze2d-open-v0", "maze2d-umaze-v0", "maze2d-medium-v0", "maze2d-large-v0",
+        "maze2d-open-dense-v0", "maze2d-umaze-dense-v0", "maze2d-medium-dense-v0", "maze2d-large-dense-v0",
+        "antmaze-umaze-v0", "antmaze-umaze-diverse-v0", "antmaze-medium-diverse-v0",
+        "antmaze-medium-play-v0", "antmaze-large-diverse-v0", "antmaze-large-play-v0",
+        "pen-human-v0", "pen-cloned-v0", "pen-expert-v0", "hammer-human-v0", "hammer-cloned-v0", "hammer-expert-v0",
+        "door-human-v0", "door-cloned-v0", "door-expert-v0", "relocate-human-v0", "relocate-cloned-v0", "relocate-expert-v0",
+        "halfcheetah-random-v0", "halfcheetah-medium-v0", "halfcheetah-expert-v0", "halfcheetah-mixed-v0", "halfcheetah-medium-expert-v0",
+        "walker2d-random-v0", "walker2d-medium-v0", "walker2d-expert-v0", "walker2d-mixed-v0", "walker2d-medium-expert-v0",
+        "hopper-random-v0", "hopper-medium-v0", "hopper-expert-v0", "hopper-mixed-v0", "hopper-medium-expert-v0"
+    ]:
+        import d4rl
+        expl_env = gym.make(env_name)
+        eval_env = gym.make(env_name)
+    elif env_id:
+        expl_env = NormalizedBoxEnv(gym.make(env_id))
+        eval_env = NormalizedBoxEnv(gym.make(env_id))
+    elif env_class:
+        env_kwargs = variant.get("env_kwargs", {})
+        expl_env = NormalizedBoxEnv(env_class(**env_kwargs))
+        eval_env = NormalizedBoxEnv(env_class(**env_kwargs))
+    else:
+        expl_env = NormalizedBoxEnv(variant['env']())
+        eval_env = NormalizedBoxEnv(variant['env']())
+
+<<<<<<< HEAD
         if 'env_id' in env_params:
             if env_params['env_id'] in ['pen-v0', 'pen-sparse-v0', 'door-v0', 'relocate-v0', 'hammer-v0',
                                         'pen-sparse-v0', 'door-sparse-v0', 'relocate-sparse-v0', 'hammer-sparse-v0']:
@@ -306,16 +474,23 @@ def experiment(variant):
         else:
             expl_env = NormalizedBoxEnv(variant['env_class']())
             eval_env = NormalizedBoxEnv(variant['env_class']())
+=======
+>>>>>>> 98a1afcb2bb14e17680444d859e27c69653954e2
 
-        if variant.get('sparse_reward', False):
-            expl_env = RewardWrapperEnv(expl_env, compute_hand_sparse_reward)
-            eval_env = RewardWrapperEnv(eval_env, compute_hand_sparse_reward)
+    # if variant.get('sparse_reward', False):
+    #     expl_env = RewardWrapperEnv(expl_env, compute_hand_sparse_reward)
+    #     eval_env = RewardWrapperEnv(eval_env, compute_hand_sparse_reward)
 
-        if variant.get('add_env_demos', False):
-            variant["path_loader_kwargs"]["demo_paths"].append(variant["env_demo_path"])
+    if variant.get('add_env_demos', False):
+        variant["path_loader_kwargs"]["demo_paths"].append(variant["env_demo_path"])
 
+<<<<<<< HEAD
         if variant.get('add_env_offpolicy_data', False):
             variant["path_loader_kwargs"]["demo_paths"].append(variant["env_offpolicy_data_path"])
+=======
+    if variant.get('add_env_offpolicy_data', False):
+        variant["path_loader_kwargs"]["demo_paths"].append(variant["env_offpolicy_data_path"])
+>>>>>>> 98a1afcb2bb14e17680444d859e27c69653954e2
     # else:
     #     expl_env = encoder_wrapped_env(variant)
     #     eval_env = encoder_wrapped_env(variant)
@@ -334,22 +509,22 @@ def experiment(variant):
         env_info_sizes = dict()
 
     qf_kwargs = variant.get("qf_kwargs", {})
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **qf_kwargs
@@ -370,7 +545,7 @@ def experiment(variant):
     if buffer_policy_path:
         buffer_policy = load_local_or_remote_file(buffer_policy_path)
     else:
-        buffer_policy_class = variant.get("buffer_policy_class", policy_class)
+        buffer_policy_class = variant.get("buffer_policy_class", GaussianPolicy)
         buffer_policy = buffer_policy_class(
             obs_dim=obs_dim,
             action_dim=action_dim,
@@ -535,6 +710,15 @@ def experiment(variant):
             **path_loader_kwargs
         )
         path_loader.load_demos()
+    if variant.get('load_env_dataset_demos', False):
+        path_loader_class = variant.get('path_loader_class', HDF5PathLoader)
+        path_loader = path_loader_class(trainer,
+            replay_buffer=replay_buffer,
+            demo_train_buffer=demo_train_buffer,
+            demo_test_buffer=demo_test_buffer,
+            **path_loader_kwargs
+        )
+        path_loader.load_demos(expl_env.get_dataset())
     if variant.get('save_initial_buffers', False):
         buffers = dict(
             replay_buffer=replay_buffer,

@@ -5,7 +5,6 @@ import pickle
 from railrl.core import logger
 from railrl.misc.asset_loader import load_local_or_remote_file
 from railrl.core import logger
-from railrl.envs.wrappers import RewardWrapperEnv
 
 from mjrl.utils.gym_env import GymEnv
 from mjrl.policies.gaussian_mlp import MLP
@@ -24,24 +23,36 @@ import time as timer
 import pickle
 import argparse
 
+ENV_ID_TO_ENV_CLASS = {
+    'pen-v0': 'pen',
+    'pen-notermination-v0': 'pen',
+    'pen-sparse-v0': 'pen',
+    'pen-binary-v0': 'pen',
+    'door-v0': 'door',
+    'door-sparse-v0': 'door',
+    'door-binary-v0': 'door',
+    'relocate-v0': 'relocate',
+    'relocate-sparse-v0': 'relocate',
+    'relocate-binary-v0': 'relocate',
+    'hammer-v0': 'hammer',
+    'hammer-sparse-v0': 'hammer',
+    'hammer-binary-v0': 'hammer',
+}
+
 ENV_PARAMS = {
-    'pen-v0': {
-        'env_id': 'pen-v0',
+    'pen': {
         'max_path_length': 100,
         'demo_file': 'demos/icml2020/dapg/pen-v0_demos.pickle',
     },
-    'door-v0': {
-        'env_id': 'door-v0',
+    'door': {
         'max_path_length': 200,
         'demo_file': 'demos/icml2020/dapg/door-v0_demos.pickle',
     },
-    'relocate-v0': {
-        'env_id': 'relocate-v0',
+    'relocate': {
         'max_path_length': 200,
         'demo_file': 'demos/icml2020/dapg/relocate-v0_demos.pickle',
     },
-    'hammer-v0': {
-        'env_id': 'hammer-v0',
+    'hammer': {
         'max_path_length': 200,
         'demo_file': 'demos/icml2020/dapg/hammer-v0_demos.pickle',
 
@@ -70,9 +81,6 @@ default_job_data = dict(
     sparse_reward=False,
 )
 
-def compute_hand_sparse_reward(next_obs, reward, done, info):
-    return info['goal_achieved'] - 1
-
 def experiment(variant):
     """
     This is a job script for running NPG/DAPG on hand tasks and other gym envs.
@@ -84,7 +92,7 @@ def experiment(variant):
     job_data = default_job_data.copy()
     job_data.update(variant)
 
-    env_params = ENV_PARAMS[variant['env']]
+    env_params = ENV_PARAMS[variant['env_class']]
     job_data.update(env_params)
 
     assert 'algorithm' in job_data.keys()
@@ -98,9 +106,7 @@ def experiment(variant):
 
     seed = int(job_data['seedid'])
 
-    e = GymEnv(job_data['env'])
-    if job_data['sparse_reward']:
-        e = RewardWrapperEnv(e, compute_hand_sparse_reward)
+    e = GymEnv(job_data['env_id'])
     policy = MLP(e.spec, hidden_sizes=job_data['policy_size'], seed=seed)
     baseline = MLPBaseline(e.spec, reg_coef=1e-3, batch_size=job_data['vf_batch_size'],
                            epochs=job_data['vf_epochs'], learn_rate=job_data['vf_learn_rate'])
@@ -164,8 +170,9 @@ def experiment(variant):
                 evaluation_rollouts=job_data['eval_rollouts'])
     print("time taken = %f" % (timer.time()-ts))
 
-
-
+def process_args(variant):
+    env_class = ENV_ID_TO_ENV_CLASS[variant['env_id']]
+    variant["env_class"] = env_class
 
 
 

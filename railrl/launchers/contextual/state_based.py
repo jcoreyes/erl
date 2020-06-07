@@ -17,7 +17,7 @@ from railrl.envs.contextual.goal_conditioned import (
     GoalConditionedDiagnosticsToContextualDiagnostics,
     IndexIntoAchievedGoal,
 )
-from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.launchers.contextual.util import (
     get_save_video_function,
     get_gym_env,
@@ -26,7 +26,7 @@ from railrl.launchers.rl_exp_launcher_util import create_exploration_policy
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SACTrainer
@@ -108,7 +108,7 @@ def goal_conditioned_sac_experiment(
     action_dim = expl_env.action_space.low.size
 
     def create_qf():
-        return FlattenMlp(
+        return ConcatMlp(
             input_size=obs_dim + action_dim,
             output_size=1,
             **qf_kwargs
@@ -158,7 +158,7 @@ def goal_conditioned_sac_experiment(
         context_keys_for_policy=[context_key],
     )
     exploration_policy = create_exploration_policy(
-        policy, **exploration_policy_kwargs)
+        policy=policy, env=expl_env, **exploration_policy_kwargs)
     expl_path_collector = ContextualPathCollector(
         expl_env,
         exploration_policy,
@@ -185,7 +185,7 @@ def goal_conditioned_sac_experiment(
             observation_key=observation_key,
             context_keys_for_policy=[context_key],
         )
-        renderer = Renderer(**renderer_kwargs)
+        renderer = EnvRenderer(**renderer_kwargs)
 
         def add_images(env, state_distribution):
             state_env = env.env
@@ -210,8 +210,8 @@ def goal_conditioned_sac_experiment(
             img_eval_env,
             MakeDeterministic(policy),
             tag="eval",
-            imsize=renderer.image_shape[0],
-            image_format='CWH',
+            imsize=renderer.width,
+            image_format=renderer.output_image_format,
             **save_video_kwargs
         )
         expl_video_func = get_save_video_function(
@@ -219,8 +219,8 @@ def goal_conditioned_sac_experiment(
             img_expl_env,
             exploration_policy,
             tag="train",
-            imsize=renderer.image_shape[0],
-            image_format='CWH',
+            imsize=renderer.width,
+            image_format=renderer.output_image_format,
             **save_video_kwargs
         )
 

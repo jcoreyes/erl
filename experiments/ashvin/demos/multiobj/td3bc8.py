@@ -28,7 +28,7 @@ def her_td3_experiment(variant):
     from railrl.exploration_strategies.ou_strategy import OUStrategy
     from railrl.torch.grill.launcher import get_video_save_func
     from railrl.demos.her_td3bc import HerTD3BC
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     from railrl.data_management.obs_dict_replay_buffer import (
         ObsDictRelabelingBuffer
     )
@@ -88,12 +88,12 @@ def her_td3_experiment(variant):
         )
     else:
         raise Exception("Invalid type: " + exploration_type)
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']

@@ -16,6 +16,7 @@ def run_variants(experiment, vs, process_args_fn=None, run_id=0, ):
     variants = []
     for i, v in enumerate(vs):
         v["exp_id"] = i
+        v["run_id"] = i
         process_run_args(v)
         process_logger_args(v, run_id=run_id)
         process_launcher_args(v)
@@ -121,6 +122,7 @@ def process_logger_args(variant, run_id=None):
     if "--run" in sys.argv:
         i = sys.argv.index("--run")
         logger_config["run_id"] = int(sys.argv[i+1])
+        variant["run_id"] = int(sys.argv[i+1])
     else:
         logger_config["run_id"] = run_id
 

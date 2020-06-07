@@ -79,7 +79,7 @@ class AddImageDistribution(DictDistribution):
             goal = ppp.treemap(lambda x: x[i], contexts, atomic_type=np.ndarray)
             env_state = self._env.get_env_state()
             self._env.set_to_goal(goal)
-            img_goal = self._renderer.create_image(self._env)
+            img_goal = self._renderer(self._env)
             self._env.set_env_state(env_state)
             images.append(img_goal)
 
@@ -145,14 +145,12 @@ class IndexIntoAchievedGoal(object):
         return observations[self._key]
 
 
-class PixelDistance(ContextualRewardFn):
+class L2Distance(ContextualRewardFn):
     def __init__(
             self,
-            env: MultitaskEnv,
             achieved_goal_from_observation: Callable[[Observation], Goal],
             desired_goal_key='desired_goal',
     ):
-        self._env = env
         self._desired_goal_key = desired_goal_key
         self._achieved_goal_from_observation = achieved_goal_from_observation
 
@@ -161,6 +159,32 @@ class PixelDistance(ContextualRewardFn):
         achieved = self._achieved_goal_from_observation(next_states)
         desired = contexts[self._desired_goal_key]
         return np.linalg.norm(achieved - desired, axis=-1)
+
+
+class NegativeL2Distance(ContextualRewardFn):
+    def __init__(
+            self,
+            achieved_goal_from_observation: Callable[[Observation], Goal],
+            desired_goal_key='desired_goal',
+    ):
+        self._desired_goal_key = desired_goal_key
+        self._achieved_goal_from_observation = achieved_goal_from_observation
+
+    def __call__(self, states, actions, next_states, contexts):
+        del states
+        achieved = self._achieved_goal_from_observation(next_states)
+        desired = contexts[self._desired_goal_key]
+        return - np.linalg.norm(achieved - desired, axis=-1)
+
+
+class ThresholdDistanceReward(ContextualRewardFn):
+    def __init__(self, distance_fn: ContextualRewardFn, threshold):
+        self._distance_fn = distance_fn
+        self._distance_threshold = threshold
+
+    def __call__(self, states, actions, next_states, contexts):
+        distance = self._distance_fn(states, actions, next_states, contexts)
+        return -(distance > self._distance_threshold).astype(np.float32)
 
 
 class GoalConditionedDiagnosticsToContextualDiagnostics(ContextualDiagnosticsFn):

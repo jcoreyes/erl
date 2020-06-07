@@ -1,31 +1,17 @@
-import gym
-import numpy as np
-
-from railrl.torch.dqn.double_dqn import DoubleDQN
-
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.dqn.dqn import DQN
-from railrl.torch.networks import Mlp, CNN, CNNPolicy, MergedCNN
-from torch import nn as nn
-from railrl.torch.modules import HuberLoss
+from railrl.torch.networks import CNN, MergedCNN
+from railrl.torch.networks.experimental import HuberLoss
 from railrl.envs.wrappers import ImageMujocoEnv
-from railrl.torch.ddpg.ddpg import DDPG
-from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.torch.sac.policies import TanhCNNGaussianPolicy
-from railrl.exploration_strategies.base import \
-    PolicyWrappedWithExplorationStrategy
 
 from railrl.torch.sac.sac import SoftActorCritic
-from railrl.launchers.launcher_util import setup_logger
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 import railrl.images.camera as camera
-import torch
+
 
 def experiment(variant):
     imsize = variant['imsize']

@@ -6,7 +6,7 @@ from torch import nn
 from torch.nn import functional as F
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy, MlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy, MlpPolicy
 from railrl.torch.networks import CNN, TwoHeadDCNN, DCNN
 from railrl.torch.vae.vae_base import compute_bernoulli_log_prob, compute_gaussian_log_prob, GaussianLatentVAE
 from railrl.torch.vae.conv_vae import ConvVAE
@@ -290,7 +290,7 @@ class VQ_VAE(nn.Module):
 
         if self.representation_size == 0:
             self.representation_size = quantized[0].flatten().shape[0]
-        
+
         x_recon = self._decoder(quantized)
         recon_error = F.mse_loss(x_recon, inputs)
         return vq_loss, quantized, x_recon, perplexity, recon_error
@@ -318,15 +318,15 @@ class VQ_VAE(nn.Module):
         e_indices = self.latent_to_square(e_indices)
         input_shape = e_indices.shape + (self.embedding_dim,)
         e_indices = e_indices.reshape(-1).unsqueeze(1)
-        
+
         min_encodings = torch.zeros(e_indices.shape[0], self.num_embeddings, device=e_indices.device)
         min_encodings.scatter_(1, e_indices, 1)
-        
+
         e_weights = self._vq_vae._embedding.weight
         quantized = torch.matmul(
             min_encodings, e_weights).view(input_shape)
-        
-        z_q = torch.matmul(min_encodings, e_weights).view(input_shape) 
+
+        z_q = torch.matmul(min_encodings, e_weights).view(input_shape)
         z_q = z_q.permute(0, 3, 1, 2).contiguous()
         return z_q
 
@@ -356,17 +356,17 @@ class VQ_VAE(nn.Module):
     # def generate_samples(self, e_indices):
     #     input_shape = e_indices.shape + (self.representation_size,)
     #     e_indices = e_indices.reshape(-1).unsqueeze(1)#, input_shape[1]*input_shape[2])
-        
+
     #     min_encodings = torch.zeros(e_indices.shape[0], self.num_embeddings, device=e_indices.device)
     #     min_encodings.scatter_(1, e_indices, 1)
-        
+
     #     e_weights = self._vq_vae._embedding.weight
     #     quantized = torch.matmul(
     #         min_encodings, e_weights).view(input_shape)
-        
-    #     z_q = torch.matmul(min_encodings, e_weights).view(input_shape) 
+
+    #     z_q = torch.matmul(min_encodings, e_weights).view(input_shape)
     #     z_q = z_q.permute(0, 3, 1, 2).contiguous()
-     
+
     #     x_recon = self._decoder(z_q)
     #     return x_recon
 
