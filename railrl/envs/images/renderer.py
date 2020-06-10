@@ -17,6 +17,8 @@ class Renderer(object):
             flatten_img=False,
             input_img_format='HWC',
             output_img_format='HWC',
+            get_image_func_name=None,
+            get_image_func_kwargs=dict(),
     ):
         """Render an image."""
         if input_img_format not in VALID_IMG_FORMATS:
@@ -50,15 +52,35 @@ class Renderer(object):
             'C': self._num_channels,
         }
 
+        self._get_image_func_name = get_image_func_name
+        self._get_image_func_kwargs = get_image_func_kwargs
+
+
     def create_image(self, env):
         if not self._camera_is_initialized and self._init_camera is not None:
             env.initialize_camera(self._init_camera)
             self._camera_is_initialized = True
 
-        image_obs = env.get_image(
-            width=self._img_width,
-            height=self._img_height,
-        )
+        if self._get_image_func_name is not None:
+            get_image_func = getattr(env, self._get_image_func_name)
+            image_obs = get_image_func(
+                **self._get_image_func_kwargs
+            )
+        else:
+            image_obs = env.get_image(
+                width=self._img_width,
+                height=self._img_height,
+            )
+
+        if isinstance(image_obs, list):
+            return [self.process_image(img) for img in image_obs]
+        else:
+            return self.process_image(image_obs)
+
+    def process_image(self, image_obs):
+        if image_obs is None:
+            return None
+
         if self._grayscale:
             image_obs = Image.fromarray(image_obs).convert('L')
             image_obs = np.array(image_obs)

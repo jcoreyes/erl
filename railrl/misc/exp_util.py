@@ -269,33 +269,22 @@ def update_snapshot_gap_and_save_period(variant):
     if 'algo_kwargs' not in rl_variant:
         return 0
 
-    if 'vae_variant' in variant:
-        if 'snapshot_gap' not in variant['vae_variant']:
+    snapshot_gap = int(math.ceil(rl_variant['algo_kwargs']['num_epochs'] / 10))
 
-            variant['vae_variant']['snapshot_gap'] = \
-                int(math.ceil(variant['vae_variant']['num_epochs'] / 10))
-
-    if 'snapshot_gap' not in rl_variant:
-        rl_variant['snapshot_gap'] = int(math.ceil(rl_variant['algo_kwargs']['base_kwargs']['num_epochs'] / 10))
-
-    # if 'save_period' not in rl_variant['vis_kwargs']:
-    #     rl_variant['vis_kwargs']['save_period'] = \
-    #         int(math.ceil(rl_variant['algo_kwargs']['base_kwargs']['num_epochs'] / 10))
-
-    return rl_variant['snapshot_gap']
+    return snapshot_gap
 
 def query_machines(machines=None, args=None):
     if machines is None:
         machines = [
-            'ada', # TESLA V100
-            'alan',  # TESLA P100
-            'newton1', # Titan X (pascal)
-            'newton3', # Titan X (pascal)
+            # 'ada', # TESLA V100
+            # 'alan',  # TESLA P100
+            # 'newton1', # Titan X (pascal)
+            # 'newton3', # Titan X (pascal)
             'newton4',  # Titan X (pascal)
-            'newton6', # Titan Xp
-            'newton7', # Titan Xp
+            # 'newton6', # Titan Xp
+            # 'newton7', # Titan Xp
             'grace', # GeForce GTX 1080 Ti
-            'claude', # GeForce GTX 1080 Ti
+            # 'claude', # GeForce GTX 1080 Ti
         ]
 
         # ['newton2', # Titan X (pascal),
@@ -334,6 +323,8 @@ def query_machines(machines=None, args=None):
             used, total = int(used[:-4]), int(total[:-4])
             free_mem = total - used
             if used / total <= threshold_for_free_gpu:
+                if machine == 'newton4' and gpu_id == 2: ### this gpu is broken ###
+                    continue
                 if machine == 'newton5':
                     gpu_ids.append((gpu_id + 1) % 4)
                 else:

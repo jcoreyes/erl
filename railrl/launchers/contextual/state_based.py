@@ -15,7 +15,7 @@ from railrl.envs.contextual.goal_conditioned import (
     GoalConditionedDiagnosticsToContextualDiagnostics,
     IndexIntoAchievedGoal,
 )
-from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.envs.images import Renderer, InsertImageEnv, InsertImagesEnv
 from railrl.launchers.contextual.util import (
     get_save_video_function,
 )
@@ -330,6 +330,7 @@ class MaskPathCollector(ContextualPathCollector):
             rollout_mask_order='fixed',
             concat_context_to_obs_fn=None,
             dilute_prev_subtasks=False,
+            prev_subtasks_solved=True,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -353,6 +354,7 @@ class MaskPathCollector(ContextualPathCollector):
         self._concat_context_to_obs_fn = concat_context_to_obs_fn
 
         self._dilute_prev_subtasks = dilute_prev_subtasks
+        self._prev_subtasks_solved = prev_subtasks_solved
 
         def obs_processor(o):
             if len(self.rollout_masks) > 0:
@@ -361,6 +363,16 @@ class MaskPathCollector(ContextualPathCollector):
                 for k in mask_dict:
                     o[k] = mask_dict[k]
                     self._env._rollout_context_batch[k] = mask_dict[k][None]
+
+                # hack: set previous objects goals to states
+                if self._prev_subtasks_solved:
+                    indices = np.argwhere(mask_dict['mask'] == 1)[:-2].reshape(-1)
+                    if len(indices) > 0:
+                        self._env._rollout_context_batch['state_desired_goal'][0][indices] = o[self._observation_key][indices]
+                        new_goal = {
+                            'state_desired_goal': self._env._rollout_context_batch['state_desired_goal'][0]
+                        }
+                        self._env.env.set_goal(new_goal)
 
             if self._concat_context_to_obs_fn is None:
                 combined_obs = [o[self._observation_key]]
@@ -754,51 +766,79 @@ def rl_context_experiment(variant):
 
     action_dim = env.action_space.low.size
 
-    qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    target_qf1 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    target_qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    if rl_algo == 'td3':
-        policy = TanhMlpPolicy(
-            input_size=obs_dim,
-            output_size=action_dim,
-            **variant['policy_kwargs']
+    from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+    import joblib
+    import os.path as osp
+    if 'ckpt' in variant:
+        if 'ckpt_epoch' in variant:
+            epoch = variant['ckpt_epoch']
+            filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'itr_%d.pkl' % epoch))
+        else:
+            filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'params.pkl'))
+        print("Loading ckpt from", filename)
+        data = joblib.load(filename)
+        qf1 = data['trainer/qf1']
+        qf2 = data['trainer/qf2']
+        target_qf1 = data['trainer/target_qf1']
+        target_qf2 = data['trainer/target_qf2']
+        policy = data['trainer/policy']
+        eval_policy = data['evaluation/policy']
+        expl_policy = data['exploration/policy']
+    else:
+        qf1 = FlattenMlp(
+            input_size=obs_dim + action_dim,
+            output_size=1,
+            **variant['qf_kwargs']
         )
-        target_policy = TanhMlpPolicy(
-            input_size=obs_dim,
-            output_size=action_dim,
-            **variant['policy_kwargs']
+        qf2 = FlattenMlp(
+            input_size=obs_dim + action_dim,
+            output_size=1,
+            **variant['qf_kwargs']
         )
-        es = get_exploration_strategy(variant, env)
-        expl_policy = PolicyWrappedWithExplorationStrategy(
-            exploration_strategy=es,
-            policy=policy,
+        target_qf1 = FlattenMlp(
+            input_size=obs_dim + action_dim,
+            output_size=1,
+            **variant['qf_kwargs']
         )
-        eval_policy = policy
-    elif rl_algo == 'sac':
-        policy = TanhGaussianPolicy(
-            obs_dim=obs_dim,
-            action_dim=action_dim,
-            **variant['policy_kwargs']
+        target_qf2 = FlattenMlp(
+            input_size=obs_dim + action_dim,
+            output_size=1,
+            **variant['qf_kwargs']
         )
-        expl_policy = policy
-        eval_policy = MakeDeterministic(policy)
+        if rl_algo == 'td3':
+            policy = TanhMlpPolicy(
+                input_size=obs_dim,
+                output_size=action_dim,
+                **variant['policy_kwargs']
+            )
+            target_policy = TanhMlpPolicy(
+                input_size=obs_dim,
+                output_size=action_dim,
+                **variant['policy_kwargs']
+            )
+            es = get_exploration_strategy(variant, env)
+            expl_policy = PolicyWrappedWithExplorationStrategy(
+                exploration_strategy=es,
+                policy=policy,
+            )
+            eval_policy = policy
+        elif rl_algo == 'sac':
+            policy = TanhGaussianPolicy(
+                obs_dim=obs_dim,
+                action_dim=action_dim,
+                **variant['policy_kwargs']
+            )
+            expl_policy = policy
+            eval_policy = MakeDeterministic(policy)
+
+    if variant.get('use_sampling_policy', False):
+        from railrl.policies.simple import SamplingPolicy
+        eval_policy = SamplingPolicy(
+            action_space=env.action_space,
+            qf=qf1,
+            base_policy=eval_policy,
+            num_samples=100000,
+        )
 
     def context_from_obs_dict_fn(obs_dict):
         context_dict = {
@@ -987,6 +1027,7 @@ def rl_context_experiment(variant):
                 elif mode == 'eval':
                     mask_distr = dict(
                         cumul_seq=1.0,
+                        # atomic_seq=1.0,
                     )
                 else:
                     raise NotImplementedError
@@ -996,6 +1037,8 @@ def rl_context_experiment(variant):
                 dilute_prev_subtasks = True
             else:
                 dilute_prev_subtasks = False
+
+            prev_subtasks_solved = mask_variant.get('prev_subtasks_solved', False)
 
 
             return MaskPathCollector(
@@ -1009,6 +1052,7 @@ def rl_context_experiment(variant):
                 max_path_length=max_path_length,
                 rollout_mask_order=rollout_mask_order,
                 dilute_prev_subtasks=dilute_prev_subtasks,
+                prev_subtasks_solved=prev_subtasks_solved,
             )
         else:
             return ContextualPathCollector(
@@ -1041,12 +1085,6 @@ def rl_context_experiment(variant):
         dump_video_kwargs = variant.get("dump_video_kwargs", dict())
         dump_video_kwargs['horizon'] = max_path_length
 
-        # rollout_function = partial(
-        #     rf.contextual_rollout,
-        #     max_path_length=max_path_length,
-        #     observation_key=observation_key,
-        #     context_keys_for_policy=context_keys,
-        # )
         renderer = Renderer(**variant.get('renderer_kwargs', {}))
 
         def add_images(env, state_distribution):
@@ -1057,8 +1095,10 @@ def rl_context_experiment(variant):
                 image_goal_key='image_desired_goal',
                 renderer=renderer,
             )
-            img_env = InsertImageEnv(state_env, renderer=renderer)
-            return ContextualEnv(
+            img_env = InsertImagesEnv(state_env, renderers={
+                'image_observation' : renderer,
+            })
+            context_env = ContextualEnv(
                 img_env,
                 context_distribution=image_goal_distribution,
                 reward_fn=reward_fn,
@@ -1066,15 +1106,88 @@ def rl_context_experiment(variant):
                 update_env_info_fn=delete_info,
             )
 
+            ### Logging the V fucntion heatmap ###
+            obj_ids = []
+            image_names = []
+            for obj_id in [None, 1, 2, 3, 4]:
+                image_name = 'image_v_{}'.format(obj_id) if obj_id else 'image_v'
+                if image_name in dump_video_kwargs.get('keys_to_show', []):
+                    obj_ids.append(obj_id)
+                    image_names.append(image_name)
+            image_names = tuple(image_names)
+            def get_state():
+                if context_env._last_obs is None:
+                    return None
+                return context_env._last_obs['state_observation']
+            def get_goal():
+                if context_env._last_obs is None:
+                    return None
+                return context_env._last_obs['state_desired_goal']
+            def get_mask():
+                if context_env._last_obs is None:
+                    return None
+                return context_env._last_obs['mask']
+            renderer_image_v = Renderer(
+                get_image_func_name='get_image_v',
+                get_image_func_kwargs=dict(
+                    agent=eval_policy,
+                    qf=qf1,
+                    get_state_func=get_state,
+                    get_goal_func=get_goal,
+                    get_mask_func=get_mask,
+                    obj_ids=obj_ids,
+                    imsize=variant['renderer_kwargs']['img_width'],
+                ),
+                **variant.get('renderer_kwargs', {})
+            )
+            img_env.append_renderers({
+                image_names: renderer_image_v,
+            })
+
+            return context_env
+
         img_eval_env = add_images(env, context_distrib)
-        video_path_collector = create_path_collector(img_eval_env, eval_policy, mode='eval')
+
+        video_path_collector = create_path_collector(
+            img_eval_env,
+            eval_policy,
+            mode='eval',
+            mask_kwargs=dict(
+                mask_distr=dict(
+                    cumul_seq=1.0
+                ),
+            ),
+        )
         rollout_function = video_path_collector._rollout_fn
         eval_video_func = get_save_video_function(
             rollout_function,
             img_eval_env,
             eval_policy,
-            tag="eval",
-            imsize=renderer.image_shape[0],
+            tag="eval_cumul",
+            imsize=variant['renderer_kwargs']['img_width'],
+            image_format='HWC',
+            save_video_period=save_period,
+            **dump_video_kwargs
+        )
+        algorithm.post_train_funcs.append(eval_video_func)
+
+        video_path_collector = create_path_collector(
+            img_eval_env,
+            eval_policy,
+            mode='eval',
+            mask_kwargs=dict(
+                mask_distr=dict(
+                    atomic_seq=1.0
+                ),
+            ),
+        )
+        rollout_function = video_path_collector._rollout_fn
+        eval_video_func = get_save_video_function(
+            rollout_function,
+            img_eval_env,
+            eval_policy,
+            tag="eval_atomic",
+            imsize=variant['renderer_kwargs']['img_width'],
             image_format='HWC',
             save_video_period=save_period,
             **dump_video_kwargs
@@ -1091,7 +1204,7 @@ def rl_context_experiment(variant):
                 img_expl_env,
                 expl_policy,
                 tag="expl",
-                imsize=renderer.image_shape[0],
+                imsize=variant['renderer_kwargs']['img_width'],
                 image_format='HWC',
                 save_video_period=save_period,
                 **dump_video_kwargs

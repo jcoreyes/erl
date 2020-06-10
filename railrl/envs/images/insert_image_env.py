@@ -38,10 +38,17 @@ class InsertImagesEnv(gym.Wrapper):
                 img_space = Box(0, 1, renderer.image_shape, dtype=np.float32)
             else:
                 img_space = Box(0, 255, renderer.image_shape, dtype=np.uint8)
-            spaces[image_key] = img_space
+            if isinstance(image_key, tuple):
+                for k in image_key:
+                    spaces[k] = img_space
+            else:
+                spaces[image_key] = img_space
         self.renderers = renderers
         self.observation_space = Dict(spaces)
         self.action_space = self.env.action_space
+
+    def append_renderers(self, new_renderers):
+        self.renderers.update(new_renderers)
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
@@ -55,7 +62,12 @@ class InsertImagesEnv(gym.Wrapper):
 
     def _update_obs(self, obs):
         for image_key, renderer in self.renderers.items():
-            obs[image_key] = renderer.create_image(self.env)
+            if isinstance(image_key, tuple):
+                images = renderer.create_image(self.env)
+                for (i, k) in enumerate(image_key):
+                    obs[k] = images[i]
+            else:
+                obs[image_key] = renderer.create_image(self.env)
 
 
 class InsertImageEnv(InsertImagesEnv):

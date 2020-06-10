@@ -79,6 +79,8 @@ class ContextualEnv(gym.Wrapper):
     def _compute_reward(self, state, action, next_state):
         """Do reshaping for reward_fn, which is implemented for batches."""
         # TODO: don't assume these things are just vectors
+        state = {k: state[k] for k in state if state[k] is not None}
+        next_state = {k: next_state[k] for k in next_state if next_state[k] is not None}
         states = batchify(state)
         actions = batchify(action)
         next_states = batchify(next_state)

@@ -474,4 +474,3 @@ class TanhCNNGaussianPolicy(CNN, TorchStochasticPolicy):
         tanh_normal = TanhNormal(mean, std)
         return tanh_normal
 
-

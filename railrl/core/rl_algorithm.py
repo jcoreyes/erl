@@ -9,6 +9,8 @@ from railrl.misc import eval_util
 from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.samplers.data_collector import DataCollector
 
+import os
+import psutil
 
 def _get_epoch_timings():
     times_itrs = timer.get_times()
@@ -33,6 +35,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             num_epochs,
             exploration_get_diagnostic_functions=None,
             evaluation_get_diagnostic_functions=None,
+            do_training=True,
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -61,6 +64,8 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                     self.eval_env.get_diagnostics)
         self._eval_get_diag_fns = evaluation_get_diagnostic_functions
         self._expl_get_diag_fns = exploration_get_diagnostic_functions
+
+        self.do_training = do_training
 
     def train(self):
         timer.return_global_times = True
@@ -129,6 +134,10 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         timer.stamp('logging')
         append_log(algo_log, _get_epoch_timings())
         algo_log['epoch'] = self.epoch
+
+        process = psutil.Process(os.getpid())
+        algo_log['RAM Usage (Mb)'] = int(process.memory_info().rss / 1000000)
+
         return algo_log
 
     @abc.abstractmethod
