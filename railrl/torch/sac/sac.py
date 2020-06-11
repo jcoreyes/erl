@@ -11,6 +11,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 from railrl.core.logging import add_prefix
+from railrl.core.timer import timer
 
 SACLosses = namedtuple(
     'SACLosses',
@@ -92,6 +93,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         self.eval_statistics = OrderedDict()
 
     def train_from_torch(self, batch):
+        timer.start_timer('sac training', unique=False)
         losses, stats = self.compute_loss(
             batch,
             skip_statistics=not self._need_to_update_eval_statistics,
@@ -123,6 +125,7 @@ class SACTrainer(TorchTrainer, LossFunction):
             self.eval_statistics = stats
             # Compute statistics using only one batch per epoch
             self._need_to_update_eval_statistics = False
+        timer.stop_timer('sac training')
 
     def try_update_target_networks(self):
         if self._n_train_steps_total % self.target_update_period == 0:

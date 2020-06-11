@@ -66,8 +66,9 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         timer.return_global_times = True
         for _ in range(self.num_epochs):
             self._begin_epoch()
+            timer.start_timer('saving')
             logger.save_itr_params(self.epoch, self._get_snapshot())
-            timer.stamp('saving')
+            timer.stop_timer('saving')
             log_dict, _ = self._train()
             logger.record_dict(log_dict)
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
@@ -109,6 +110,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         return snapshot
 
     def _get_diagnostics(self):
+        timer.start_timer('logging', unique=False)
         algo_log = OrderedDict()
         append_log(algo_log, self.replay_buffer.get_diagnostics(),
                    prefix='replay_buffer/')
@@ -126,9 +128,9 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         for fn in self._eval_get_diag_fns:
             append_log(algo_log, fn(eval_paths), prefix='evaluation/')
 
-        timer.stamp('logging')
         append_log(algo_log, _get_epoch_timings())
         algo_log['epoch'] = self.epoch
+        timer.stop_timer('logging')
         return algo_log
 
     @abc.abstractmethod
