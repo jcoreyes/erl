@@ -191,8 +191,6 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         eval_statistics = OrderedDict()
         if not skip_statistics:
-            policy_loss = (log_pi - q_new_actions).mean()
-
             eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
             eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
