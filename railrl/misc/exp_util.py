@@ -100,9 +100,9 @@ def preprocess_args(args):
             'alan',
             'newton1',
             'newton3',
-            'newton4',
-            'newton6',
-            'newton7',
+            # 'newton4',
+            # 'newton6',
+            # 'newton7',
             'grace',
             'claude',
         ]  #'newton2', 'newton5', # 'newton4',
@@ -276,15 +276,15 @@ def update_snapshot_gap_and_save_period(variant):
 def query_machines(machines=None, args=None):
     if machines is None:
         machines = [
-            # 'ada', # TESLA V100
-            # 'alan',  # TESLA P100
-            # 'newton1', # Titan X (pascal)
-            # 'newton3', # Titan X (pascal)
-            'newton4',  # Titan X (pascal)
+            'ada', # TESLA V100
+            'alan',  # TESLA P100
+            'newton1', # Titan X (pascal)
+            'newton3', # Titan X (pascal)
+            # 'newton4',  # Titan X (pascal)
             # 'newton6', # Titan Xp
             # 'newton7', # Titan Xp
             # 'grace', # GeForce GTX 1080 Ti
-            # 'claude', # GeForce GTX 1080 Ti
+            'claude', # GeForce GTX 1080 Ti
         ]
 
         # ['newton2', # Titan X (pascal),

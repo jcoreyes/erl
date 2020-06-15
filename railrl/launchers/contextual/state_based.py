@@ -69,6 +69,7 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             idx_masks=None,
             matrix_masks=None,
             mask_distr=None,
+            max_subtasks_to_focus_on=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -81,6 +82,8 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
                 dtype=np.float32,
             )
         self.mask_format = mask_format
+
+        self.max_subtasks_to_focus_on = max_subtasks_to_focus_on
 
         for key in mask_distr:
             assert key in ['atomic', 'cumul', 'subset', 'full']
@@ -151,7 +154,11 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             self.cumul_masks[mask_key] = np.zeros([num_atomic_masks] + list(mask_dim))
 
         for i in range(1, num_atomic_masks + 1):
-            mask_idx_bitmap = np.array([1] * (i) + [0] * (num_atomic_masks - i))
+            mask_idx_bitmap = np.zeros(num_atomic_masks)
+            if self.max_subtasks_to_focus_on is None:
+                mask_idx_bitmap[0:i] = 1
+            else:
+                mask_idx_bitmap[max(0, i - self.max_subtasks_to_focus_on):i] = 1
             for mask_key in self.mask_keys:
                 self.cumul_masks[mask_key][i - 1] = (
                         mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
@@ -331,6 +338,7 @@ class MaskPathCollector(ContextualPathCollector):
             concat_context_to_obs_fn=None,
             dilute_prev_subtasks=False,
             prev_subtasks_solved=True,
+            max_subtasks_to_focus_on=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -355,6 +363,7 @@ class MaskPathCollector(ContextualPathCollector):
 
         self._dilute_prev_subtasks = dilute_prev_subtasks
         self._prev_subtasks_solved = prev_subtasks_solved
+        self._max_subtasks_to_focus_on = max_subtasks_to_focus_on
 
         def obs_processor(o):
             if len(self.rollout_masks) > 0:
@@ -430,7 +439,12 @@ class MaskPathCollector(ContextualPathCollector):
                         if rollout_type == 'atomic_seq':
                             atomic_mask_ids_for_rollout_mask = mask_ids[i:i+1]
                         elif rollout_type == 'cumul_seq':
-                            atomic_mask_ids_for_rollout_mask = mask_ids[0:i+1]
+                            if self._max_subtasks_to_focus_on is not None:
+                                start_idx = max(0, i + 1 - self._max_subtasks_to_focus_on)
+                                end_idx = i + 1
+                                atomic_mask_ids_for_rollout_mask = mask_ids[start_idx:end_idx]
+                            else:
+                                atomic_mask_ids_for_rollout_mask = mask_ids[0:i + 1]
                         else:
                             raise NotImplementedError
                         atomic_mask_weights = np.ones(len(atomic_mask_ids_for_rollout_mask))
@@ -494,6 +508,12 @@ def default_masked_reward_fn(actions, obs, mask_format='vector'):
         return -np.sqrt(prod)
     else:
         raise NotImplementedError
+
+def action_penalty_masked_reward_fn(actions, obs, mask_format='vector'):
+    orig_reward = default_masked_reward_fn(actions, obs, mask_format=mask_format)
+    action_reward = -np.linalg.norm(actions[:,:2], axis=1) * 0.1
+    reward = orig_reward + action_reward
+    return reward
 
 def get_cond_distr_params(mu, sigma, x_dim):
     mu_x = mu[:x_dim]
@@ -707,11 +727,13 @@ def rl_context_experiment(variant):
             mask_keys=mask_keys,
             mask_dims=mask_dims,
             mask_format=mask_format,
+            max_subtasks_to_focus_on=mask_variant.get('max_subtasks_to_focus_on', None),
             masks=mask_variant.get('masks', None),
             idx_masks=mask_variant.get('idx_masks', None),
             matrix_masks=mask_variant.get('matrix_masks', None),
             mask_distr=mask_variant.get('train_mask_distr', None),
         )
+        reward_fn = mask_variant.get('reward_fn', default_masked_reward_fn)
         reward_fn = ContextualRewardFnFromMultitaskEnv(
             env=env,
             achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
@@ -719,7 +741,7 @@ def rl_context_experiment(variant):
             achieved_goal_key=achieved_goal_key,
             additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
             additional_context_keys=mask_keys,
-            reward_fn=partial(default_masked_reward_fn, mask_format=mask_format),
+            reward_fn=partial(reward_fn, mask_format=mask_format),
         )
     else:
         context_distrib = GoalDictDistributionFromMultitaskEnv(
@@ -1053,6 +1075,7 @@ def rl_context_experiment(variant):
                 rollout_mask_order=rollout_mask_order,
                 dilute_prev_subtasks=dilute_prev_subtasks,
                 prev_subtasks_solved=prev_subtasks_solved,
+                max_subtasks_to_focus_on=mask_variant.get('max_subtasks_to_focus_on', None),
             )
         else:
             return ContextualPathCollector(

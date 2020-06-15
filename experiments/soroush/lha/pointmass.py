@@ -7,6 +7,11 @@ from railrl.misc.exp_util import (
 from railrl.launchers.exp_launcher import rl_experiment
 from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
 
+from railrl.launchers.contextual.state_based import (
+    default_masked_reward_fn,
+    action_penalty_masked_reward_fn,
+)
+
 variant = dict(
     rl_variant=dict(
         do_state_exp=True,
@@ -83,6 +88,9 @@ variant = dict(
             context_post_process_mode=None,
             context_post_process_frac=0.5,
 
+            max_subtasks_to_focus_on=None,
+            reward_fn=default_masked_reward_fn,
+
             train_mask_distr=dict(
                 atomic=1.0,
                 subset=0.0,
@@ -155,6 +163,9 @@ env_params = {
         'env_kwargs.num_objects': [4],
         'rl_variant.algo_kwargs.num_epochs': [6000],
 
+        # 'rl_variant.mask_variant.max_subtasks_to_focus_on': [2],
+        'rl_variant.mask_variant.reward_fn': [action_penalty_masked_reward_fn],
+
         'rl_variant.mask_variant.idx_masks': [
             [
                 {2: 2, 3: 3},
@@ -165,18 +176,6 @@ env_params = {
         ],
 
         'rl_variant.mask_variant.train_mask_distr': [
-            # dict(
-            #     atomic=1.0,
-            #     cumul=0.0,
-            #     subset=0.0,
-            #     full=0.0,
-            # ),
-            # dict(
-            #     atomic=0.5,
-            #     cumul=0.0,
-            #     subset=0.5,
-            #     full=0.0,
-            # ),
             dict(
                 atomic=0.5,
                 cumul=0.5,
@@ -192,6 +191,12 @@ env_params = {
                 cumul_seq=0.0,
                 full=0.0,
             ),
+            # dict(
+            #     atomic=0.3,
+            #     atomic_seq=0.3,
+            #     cumul_seq=0.4,
+            #     full=0.0,
+            # ),
         ],
 
         # 'rl_variant.save_video_period': [4],
@@ -259,7 +264,7 @@ def process_variant(variant):
 
 if __name__ == "__main__":
     args = parse_args()
-    args.mem_per_exp = 4.0
+    args.mem_per_exp = 3.5
     mount_blacklist = [
         'MountLocal@/home/soroush/research/furniture',
         'MountLocal@/home/soroush/research/bullet-manipulation',
