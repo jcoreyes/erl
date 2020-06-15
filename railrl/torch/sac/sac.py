@@ -182,8 +182,6 @@ class SACTrainer(TorchTrainer, LossFunction):
         Save some statistics for eval
         """
         if update_eval_statistics:
-            policy_loss = (log_pi - q_new_actions).mean()
-
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(

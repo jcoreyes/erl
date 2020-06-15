@@ -837,7 +837,7 @@ def rl_context_experiment(variant):
             action_space=env.action_space,
             qf=qf1,
             base_policy=eval_policy,
-            num_samples=100000,
+            num_samples=10000,
         )
 
     def context_from_obs_dict_fn(obs_dict):
@@ -1107,14 +1107,6 @@ def rl_context_experiment(variant):
             )
 
             ### Logging the V fucntion heatmap ###
-            obj_ids = []
-            image_names = []
-            for obj_id in [None, 1, 2, 3, 4]:
-                image_name = 'image_v_{}'.format(obj_id) if obj_id else 'image_v'
-                if image_name in dump_video_kwargs.get('keys_to_show', []):
-                    obj_ids.append(obj_id)
-                    image_names.append(image_name)
-            image_names = tuple(image_names)
             def get_state():
                 if context_env._last_obs is None:
                     return None
@@ -1127,10 +1119,20 @@ def rl_context_experiment(variant):
                 if context_env._last_obs is None:
                     return None
                 return context_env._last_obs['mask']
+
+            ### v function visualization ###
+            obj_ids = []
+            image_names = []
+            for obj_id in [None, 0, 1, 2, 3, 4]:
+                image_name = 'image_v_{}'.format(obj_id) if (obj_id is not None) else 'image_v'
+                if image_name in dump_video_kwargs.get('keys_to_show', []):
+                    obj_ids.append(obj_id)
+                    image_names.append(image_name)
+            image_names = tuple(image_names)
             renderer_image_v = Renderer(
                 get_image_func_name='get_image_v',
                 get_image_func_kwargs=dict(
-                    agent=eval_policy,
+                    policy=eval_policy,
                     qf=qf1,
                     get_state_func=get_state,
                     get_goal_func=get_goal,
@@ -1142,6 +1144,31 @@ def rl_context_experiment(variant):
             )
             img_env.append_renderers({
                 image_names: renderer_image_v,
+            })
+
+            ### policy visualization ###
+            obj_ids = []
+            image_names = []
+            for obj_id in [None, 0, 1, 2, 3, 4]:
+                image_name = 'image_pi_{}'.format(obj_id) if (obj_id is not None) else 'image_pi'
+                if image_name in dump_video_kwargs.get('keys_to_show', []):
+                    obj_ids.append(obj_id)
+                    image_names.append(image_name)
+            image_names = tuple(image_names)
+            renderer_image_pi = Renderer(
+                get_image_func_name='get_image_pi',
+                get_image_func_kwargs=dict(
+                    policy=eval_policy,
+                    get_state_func=get_state,
+                    get_goal_func=get_goal,
+                    get_mask_func=get_mask,
+                    obj_ids=obj_ids,
+                    imsize=variant['renderer_kwargs']['img_width'],
+                ),
+                **variant.get('renderer_kwargs', {})
+            )
+            img_env.append_renderers({
+                image_names: renderer_image_pi,
             })
 
             return context_env
@@ -1164,6 +1191,29 @@ def rl_context_experiment(variant):
             img_eval_env,
             eval_policy,
             tag="eval_cumul",
+            imsize=variant['renderer_kwargs']['img_width'],
+            image_format='HWC',
+            save_video_period=save_period,
+            **dump_video_kwargs
+        )
+        algorithm.post_train_funcs.append(eval_video_func)
+
+        video_path_collector = create_path_collector(
+            img_eval_env,
+            eval_policy,
+            mode='eval',
+            mask_kwargs=dict(
+                mask_distr=dict(
+                    full=1.0
+                ),
+            ),
+        )
+        rollout_function = video_path_collector._rollout_fn
+        eval_video_func = get_save_video_function(
+            rollout_function,
+            img_eval_env,
+            eval_policy,
+            tag="eval_full",
             imsize=variant['renderer_kwargs']['img_width'],
             image_format='HWC',
             save_video_period=save_period,

@@ -54,5 +54,10 @@ class SamplingPolicy(Policy):
         return actions[best_idx, :], {}
 
     def get_actions(self, observations):
+        # batch_size = observations.shape[0]
+        # actions = np.zeros((batch_size, len(self.action_space.low)))
+        # for i in range(batch_size):
+        #     actions[i] = self.get_action(observations[i])[0]
+        # return actions
         return self.base_policy.get_actions(observations)
 

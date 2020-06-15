@@ -283,7 +283,7 @@ def query_machines(machines=None, args=None):
             'newton4',  # Titan X (pascal)
             # 'newton6', # Titan Xp
             # 'newton7', # Titan Xp
-            'grace', # GeForce GTX 1080 Ti
+            # 'grace', # GeForce GTX 1080 Ti
             # 'claude', # GeForce GTX 1080 Ti
         ]
 

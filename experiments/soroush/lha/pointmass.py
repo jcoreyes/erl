@@ -65,7 +65,7 @@ variant = dict(
             task_conditioned=False,
         ),
         mask_variant=dict(
-            mask_conditioned=False,
+            mask_conditioned=True,
             rollout_mask_order_for_expl='fixed',
             rollout_mask_order_for_eval='fixed',
             log_mask_diagnostics=True,
@@ -153,9 +153,8 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-        # 'rl_variant.algo_kwargs.num_epochs': [3000],
+        'rl_variant.algo_kwargs.num_epochs': [6000],
 
-        'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.idx_masks': [
             [
                 {2: 2, 3: 3},
@@ -186,23 +185,6 @@ env_params = {
             ),
         ],
 
-        # 'rl_variant.qf_kwargs.hidden_sizes': [[400, 400, 300, 300]],
-        # 'rl_variant.vf_kwargs.hidden_sizes': [[400, 400, 300, 300]],
-        # 'rl_variant.policy_kwargs.hidden_sizes': [[400, 400, 300, 300]],
-
-        # 'rl_variant.algo_kwargs.num_trains_per_train_loop': [
-        #     2000,
-        #     4000,
-        # ],
-
-        'rl_variant.mask_variant.context_post_process_mode': [
-            # 'prev_subtasks_solved',
-            # 'dilute_prev_subtasks_uniform',
-            # 'dilute_prev_subtasks_fixed',
-            # 'atomic_to_corresp_cumul',
-            None,
-        ],
-
         'rl_variant.mask_variant.expl_mask_distr': [
             dict(
                 atomic=0.5,
@@ -212,37 +194,41 @@ env_params = {
             ),
         ],
 
+        # 'rl_variant.save_video_period': [4],
 
-        'rl_variant.ckpt': [
-            '/home/soroush/data/local/pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_58_id000--s75821',
-            '/home/soroush/data/local/pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_59_id000--s96595',
-            '/home/soroush/data/local/pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_58_id000--s16595',
-        ],
 
-        'rl_variant.algo_kwargs.do_training': [False],
-
-        'rl_variant.dump_video_kwargs.keys_to_show': [[
-            'image_v',
-            'image_v_1',
-            'image_v_2',
-            'image_v_3',
-            'image_v_4',
-        ]],
-
-        'rl_variant.use_sampling_policy': [
-            False,
-            True,
-        ],
-        'rl_variant.mask_variant.prev_subtasks_solved': [
-            True,
-            False,
-        ],
-
-        'rl_variant.log_expl_video': [False],
-
-        'rl_variant.algo_kwargs.num_epochs': [3],
-        'rl_variant.save_video_period': [2],
-
+        # 'rl_variant.ckpt': [
+        #     'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_58_id000--s75821',
+        #     'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_59_id000--s96595',
+        #     'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_58_id000--s16595',
+        # ],
+        # 'rl_variant.algo_kwargs.do_training': [False],
+        # 'rl_variant.use_sampling_policy': [
+        #     False,
+        #     # True,
+        # ],
+        # 'rl_variant.mask_variant.prev_subtasks_solved': [
+        #     # True,
+        #     False,
+        # ],
+        # 'rl_variant.dump_video_kwargs.keys_to_show': [[
+        #     # 'image_v',
+        #     # 'image_v_1',
+        #     # 'image_v_2',
+        #     # 'image_v_3',
+        #     # 'image_v_4',
+        #
+        #     'image_pi',
+        #     'image_pi_0',
+        #     # 'image_pi_1',
+        #     # 'image_pi_2',
+        #     # 'image_pi_3',
+        #     # 'image_pi_4',
+        # ]],
+        # 'rl_variant.log_expl_video': [False],
+        # 'rl_variant.algo_kwargs.num_epochs': [3],
+        # 'rl_variant.save_video_period': [1],
+        # 'rl_variant.dump_video_kwargs.columns': [4],
     },
 }
 
@@ -273,7 +259,7 @@ def process_variant(variant):
 
 if __name__ == "__main__":
     args = parse_args()
-    args.mem_per_exp = 5.0
+    args.mem_per_exp = 4.0
     mount_blacklist = [
         'MountLocal@/home/soroush/research/furniture',
         'MountLocal@/home/soroush/research/bullet-manipulation',

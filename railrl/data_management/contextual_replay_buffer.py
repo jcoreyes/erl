@@ -207,9 +207,21 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             possible_future_obs_idxs = self._idx_to_future_obs_idx[i]
             # This is generally faster than random.choice. Makes you wonder what
             # random.choice is doing
-            num_options = len(possible_future_obs_idxs)
-            next_obs_i = int(np.random.randint(0, num_options))
-            future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
+            # num_options = len(possible_future_obs_idxs)
+            # next_obs_i = int(np.random.randint(0, num_options))
+            # future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
+            lb, ub = possible_future_obs_idxs
+            if ub > lb:
+                next_obs_i = int(np.random.randint(lb, ub))
+            else:
+                pre_wrap_range = self.max_size - lb
+                post_wrap_range = ub
+                ratio = pre_wrap_range / (pre_wrap_range + post_wrap_range)
+                if np.random.uniform(0, 1) <= ratio:
+                    next_obs_i = int(np.random.randint(lb, self.max_size))
+                else:
+                    next_obs_i = int(np.random.randint(0, ub))
+            future_obs_idxs.append(next_obs_i)
         future_obs_idxs = np.array(future_obs_idxs)
         return future_obs_idxs
 
