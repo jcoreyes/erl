@@ -74,7 +74,7 @@ variant = dict(
         'action_scale': .06,
         'action_repeat': 10, #5
         'timestep': 1./120, #1./240
-        'solver_iterations': 150, #150
+        'solver_iterations': 500, #150
         'max_force': 1000,
 
         'gui': False,
@@ -84,6 +84,8 @@ variant = dict(
         'reset_obj_in_hand_rate': 0.0,
         'goal_mode': 'obj_in_bowl',
         'num_obj': 0, #2
+
+        'use_wide_gripper': True,
     },
     imsize=400,
 )
@@ -100,21 +102,14 @@ env_params = {
             'obj_dist',
         ],
 
-        'env_kwargs.solver_iterations': [
-            150,
-            500,
-        ],
         'env_kwargs.use_rotated_gripper': [
             True,
             False,
         ],
-        'env_kwargs.use_wide_gripper': [
-            True,
-            False,
-        ],
 
-        'rl_variant.algo_kwargs.num_epochs': [1000],
-        'rl_variant.save_video_period': [50],
+        'rl_variant.algo_kwargs.num_epochs': [1500],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [10],
+        'rl_variant.save_video_period': [150],
     },
     'pb-2obj': {
         'env_kwargs.num_obj': [2],
@@ -122,8 +117,14 @@ env_params = {
             'obj_dist',
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [1000],
-        'rl_variant.save_video_period': [50],
+        'env_kwargs.use_rotated_gripper': [
+            True,
+            False,
+        ],
+
+        'rl_variant.algo_kwargs.num_epochs': [3000],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [10],
+        'rl_variant.save_video_period': [150],
     },
 }
 
@@ -172,5 +173,6 @@ if __name__ == "__main__":
             args=args,
             exp_id=exp_id,
             mount_blacklist=mount_blacklist,
+            snapshot_mode='gap_and_last',
         )
 

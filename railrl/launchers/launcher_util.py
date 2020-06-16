@@ -340,11 +340,15 @@ def run_experiment(
             hostname=ssh_dict['hostname'],
             identity_file=config.SSH_PRIVATE_KEY
         )
+        docker_name = '-'.join([exp_prefix, str(seed)])
+        if exp_folder is not None:
+            docker_name = '-'.join([exp_folder, docker_name])
         dmode = doodad.mode.SSHDocker(
             credentials=credentials,
             image=docker_image,
             gpu=use_gpu,
             tmp_dir=config.SSH_TMP_DIR,
+            docker_name=docker_name,
         )
         if ssh_host in ['newton1', 'newton3', 'newton4', 'newton6', 'newton7', 'claude', 'ada', 'grace']:
             dmode.set_nvidia_docker_for_gpu_value(True)

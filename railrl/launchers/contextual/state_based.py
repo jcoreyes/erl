@@ -449,7 +449,7 @@ class MaskPathCollector(ContextualPathCollector):
                             raise NotImplementedError
                         atomic_mask_weights = np.ones(len(atomic_mask_ids_for_rollout_mask))
                         if self._dilute_prev_subtasks:
-                            atomic_mask_weights[:-1] = 0.5
+                            atomic_mask_weights[:-1] = 0.15
                         mask[k] = np.sum(
                             atomic_masks[k][atomic_mask_ids_for_rollout_mask] * atomic_mask_weights[:, np.newaxis],
                             axis=0
@@ -511,7 +511,7 @@ def default_masked_reward_fn(actions, obs, mask_format='vector'):
 
 def action_penalty_masked_reward_fn(actions, obs, mask_format='vector'):
     orig_reward = default_masked_reward_fn(actions, obs, mask_format=mask_format)
-    action_reward = -np.linalg.norm(actions[:,:2], axis=1) * 0.1
+    action_reward = -np.linalg.norm(actions[:,:2], axis=1) * 0.15
     reward = orig_reward + action_reward
     return reward
 
@@ -922,7 +922,7 @@ def rl_context_experiment(variant):
                     pp_context_dict['mask'][indices][:, prev_obj_indices] = \
                         np.random.uniform(size=(len(indices), len(prev_obj_indices)))
                 elif mode == 'dilute_prev_subtasks_fixed':
-                    pp_context_dict['mask'][indices][:, prev_obj_indices] = 0.5
+                    pp_context_dict['mask'][indices][:, prev_obj_indices] = 0.15
             indices_to_relabel = np.concatenate(list(cumul_mask_to_indices.values()))
             orig_masks = obs_dict['mask'][indices_to_relabel]
             atomic_mask_to_subindices = context_distrib.get_atomic_mask_to_indices(orig_masks)
@@ -1152,21 +1152,22 @@ def rl_context_experiment(variant):
                     obj_ids.append(obj_id)
                     image_names.append(image_name)
             image_names = tuple(image_names)
-            renderer_image_v = Renderer(
-                get_image_func_name='get_image_v',
-                get_image_func_kwargs=dict(
-                    policy=eval_policy,
-                    qf=qf1,
-                    get_state_func=get_state,
-                    get_goal_func=get_goal,
-                    get_mask_func=get_mask,
-                    obj_ids=obj_ids,
-                    imsize=variant['renderer_kwargs']['img_width'],
-                ),
-                **variant.get('renderer_kwargs', {})
-            )
-            img_env.append_renderers({
-                image_names: renderer_image_v,
+            if len(image_names) > 0:
+                renderer_image_v = Renderer(
+                    get_image_func_name='get_image_v',
+                    get_image_func_kwargs=dict(
+                        policy=eval_policy,
+                        qf=qf1,
+                        get_state_func=get_state,
+                        get_goal_func=get_goal,
+                        get_mask_func=get_mask,
+                        obj_ids=obj_ids,
+                        imsize=variant['renderer_kwargs']['img_width'],
+                    ),
+                    **variant.get('renderer_kwargs', {})
+                )
+                img_env.append_renderers({
+                    image_names: renderer_image_v,
             })
 
             ### policy visualization ###
@@ -1178,21 +1179,22 @@ def rl_context_experiment(variant):
                     obj_ids.append(obj_id)
                     image_names.append(image_name)
             image_names = tuple(image_names)
-            renderer_image_pi = Renderer(
-                get_image_func_name='get_image_pi',
-                get_image_func_kwargs=dict(
-                    policy=eval_policy,
-                    get_state_func=get_state,
-                    get_goal_func=get_goal,
-                    get_mask_func=get_mask,
-                    obj_ids=obj_ids,
-                    imsize=variant['renderer_kwargs']['img_width'],
-                ),
-                **variant.get('renderer_kwargs', {})
-            )
-            img_env.append_renderers({
-                image_names: renderer_image_pi,
-            })
+            if len(image_names) > 0:
+                renderer_image_pi = Renderer(
+                    get_image_func_name='get_image_pi',
+                    get_image_func_kwargs=dict(
+                        policy=eval_policy,
+                        get_state_func=get_state,
+                        get_goal_func=get_goal,
+                        get_mask_func=get_mask,
+                        obj_ids=obj_ids,
+                        imsize=variant['renderer_kwargs']['img_width'],
+                    ),
+                    **variant.get('renderer_kwargs', {})
+                )
+                img_env.append_renderers({
+                    image_names: renderer_image_pi,
+                })
 
             return context_env
 
@@ -1213,7 +1215,7 @@ def rl_context_experiment(variant):
             rollout_function,
             img_eval_env,
             eval_policy,
-            tag="eval_cumul",
+            tag="eval_cumul" if mask_conditioned else "eval",
             imsize=variant['renderer_kwargs']['img_width'],
             image_format='HWC',
             save_video_period=save_period,
@@ -1221,51 +1223,52 @@ def rl_context_experiment(variant):
         )
         algorithm.post_train_funcs.append(eval_video_func)
 
-        video_path_collector = create_path_collector(
-            img_eval_env,
-            eval_policy,
-            mode='eval',
-            mask_kwargs=dict(
-                mask_distr=dict(
-                    full=1.0
+        if mask_conditioned:
+            video_path_collector = create_path_collector(
+                img_eval_env,
+                eval_policy,
+                mode='eval',
+                mask_kwargs=dict(
+                    mask_distr=dict(
+                        full=1.0
+                    ),
                 ),
-            ),
-        )
-        rollout_function = video_path_collector._rollout_fn
-        eval_video_func = get_save_video_function(
-            rollout_function,
-            img_eval_env,
-            eval_policy,
-            tag="eval_full",
-            imsize=variant['renderer_kwargs']['img_width'],
-            image_format='HWC',
-            save_video_period=save_period,
-            **dump_video_kwargs
-        )
-        algorithm.post_train_funcs.append(eval_video_func)
+            )
+            rollout_function = video_path_collector._rollout_fn
+            eval_video_func = get_save_video_function(
+                rollout_function,
+                img_eval_env,
+                eval_policy,
+                tag="eval_full",
+                imsize=variant['renderer_kwargs']['img_width'],
+                image_format='HWC',
+                save_video_period=save_period,
+                **dump_video_kwargs
+            )
+            algorithm.post_train_funcs.append(eval_video_func)
 
-        video_path_collector = create_path_collector(
-            img_eval_env,
-            eval_policy,
-            mode='eval',
-            mask_kwargs=dict(
-                mask_distr=dict(
-                    atomic_seq=1.0
+            video_path_collector = create_path_collector(
+                img_eval_env,
+                eval_policy,
+                mode='eval',
+                mask_kwargs=dict(
+                    mask_distr=dict(
+                        atomic_seq=1.0
+                    ),
                 ),
-            ),
-        )
-        rollout_function = video_path_collector._rollout_fn
-        eval_video_func = get_save_video_function(
-            rollout_function,
-            img_eval_env,
-            eval_policy,
-            tag="eval_atomic",
-            imsize=variant['renderer_kwargs']['img_width'],
-            image_format='HWC',
-            save_video_period=save_period,
-            **dump_video_kwargs
-        )
-        algorithm.post_train_funcs.append(eval_video_func)
+            )
+            rollout_function = video_path_collector._rollout_fn
+            eval_video_func = get_save_video_function(
+                rollout_function,
+                img_eval_env,
+                eval_policy,
+                tag="eval_atomic",
+                imsize=variant['renderer_kwargs']['img_width'],
+                image_format='HWC',
+                save_video_period=save_period,
+                **dump_video_kwargs
+            )
+            algorithm.post_train_funcs.append(eval_video_func)
 
         log_expl_video = variant.get('log_expl_video', True)
         if log_expl_video:

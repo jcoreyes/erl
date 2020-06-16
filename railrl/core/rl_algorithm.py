@@ -36,6 +36,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             exploration_get_diagnostic_functions=None,
             evaluation_get_diagnostic_functions=None,
             do_training=True,
+            eval_epoch_freq=1,
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -66,6 +67,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self._expl_get_diag_fns = exploration_get_diagnostic_functions
 
         self.do_training = do_training
+        self.eval_epoch_freq = eval_epoch_freq
 
     def train(self):
         timer.return_global_times = True
@@ -111,6 +113,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             snapshot['evaluation/' + k] = v
         for k, v in self.replay_buffer.get_snapshot().items():
             snapshot['replay_buffer/' + k] = v
+        snapshot['epoch'] = self.epoch
         return snapshot
 
     def _get_diagnostics(self):
@@ -125,11 +128,18 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         for fn in self._expl_get_diag_fns:
             append_log(algo_log, fn(expl_paths), prefix='expl/')
         # Eval
-        append_log(algo_log, self.eval_data_collector.get_diagnostics(),
-                   prefix='eval/')
-        eval_paths = self.eval_data_collector.get_epoch_paths()
-        for fn in self._eval_get_diag_fns:
-            append_log(algo_log, fn(eval_paths), prefix='eval/')
+        if self.epoch % self.eval_epoch_freq == 0:
+            self._prev_eval_log = OrderedDict()
+            eval_diag = self.eval_data_collector.get_diagnostics()
+            self._prev_eval_log.update(eval_diag)
+            append_log(algo_log, eval_diag, prefix='eval/')
+            eval_paths = self.eval_data_collector.get_epoch_paths()
+            for fn in self._eval_get_diag_fns:
+                addl_diag = fn(eval_paths)
+                self._prev_eval_log.update(addl_diag)
+                append_log(algo_log, addl_diag, prefix='eval/')
+        else:
+            append_log(algo_log, self._prev_eval_log, prefix='eval/')
 
         timer.stamp('logging')
         append_log(algo_log, _get_epoch_timings())

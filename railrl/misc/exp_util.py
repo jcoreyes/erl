@@ -100,9 +100,9 @@ def preprocess_args(args):
             'alan',
             'newton1',
             'newton3',
-            # 'newton4',
-            # 'newton6',
-            # 'newton7',
+            'newton4',
+            'newton6',
+            'newton7',
             'grace',
             'claude',
         ]  #'newton2', 'newton5', # 'newton4',
@@ -280,10 +280,10 @@ def query_machines(machines=None, args=None):
             'alan',  # TESLA P100
             'newton1', # Titan X (pascal)
             'newton3', # Titan X (pascal)
-            # 'newton4',  # Titan X (pascal)
-            # 'newton6', # Titan Xp
-            # 'newton7', # Titan Xp
-            # 'grace', # GeForce GTX 1080 Ti
+            'newton4',  # Titan X (pascal)
+            'newton6', # Titan Xp
+            'newton7', # Titan Xp
+            'grace', # GeForce GTX 1080 Ti
             'claude', # GeForce GTX 1080 Ti
         ]
 
@@ -323,8 +323,8 @@ def query_machines(machines=None, args=None):
             used, total = int(used[:-4]), int(total[:-4])
             free_mem = total - used
             if used / total <= threshold_for_free_gpu:
-                if machine == 'newton4' and gpu_id == 2: ### this gpu is broken ###
-                    continue
+                # if machine == 'newton4' and gpu_id == 2: ### this gpu is broken ###
+                #     continue
                 if machine == 'newton5':
                     gpu_ids.append((gpu_id + 1) % 4)
                 else:
