@@ -17,8 +17,9 @@ make sure you run from vqvae directory
 current_dir = sys.path.append(os.getcwd())
 pixelcnn_dir = sys.path.append(os.getcwd()+ '/pixelcnn')
 
-from railrl.torch.vae.timestep_pixelcnn import GatedPixelCNN
+from railrl.torch.vae.initial_state_pixelcnn import GatedPixelCNN
 import railrl.torch.vae.pixelcnn_utils
+from railrl.torch.vae.vq_vae import CVQVAE, VQ_VAE
 
 """
 Hyperparameters
@@ -26,7 +27,7 @@ Hyperparameters
 import argparse 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--datapath", type=str)
+parser.add_argument("--filepath", type=str)
 parser.add_argument("--vaepath", type=str)
 parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--epochs", type=int, default=100)
@@ -57,46 +58,20 @@ def load_vae(vae_file):
     vae = pickle.load(open(local_path, "rb"))
     # vae = torch.load(local_path, map_location='cpu')
     print("loaded", local_path)
-    vae.to("cpu")
+    vae.to("cuda")
     return vae
 
 """
 data loaders
 """
-
+all_data = np.load(args.filepath, allow_pickle=True)
 vqvae = load_vae(args.vaepath)
-new_path = "/home/ashvin/tmp/perfect_demos_test.npy"
 
-#Uncomment if new path
-data = pickle.load(open(args.datapath, "rb"))
-#data = pkl.load(args.datapath, allow_pickle=True)
-#data = data.item()
-
-num_traj = len(data)
-traj_len = data[0]["observations"].shape[0]
-all_data = []
-for i in range(num_traj):
-    img = ptu.from_numpy(data[i]["observations"].reshape(-1, 3, 48, 48) / 255.0)
-    obs = ptu.get_numpy(vqvae.encode(img, cont=False))
-    #cond = np.arange(traj_len).reshape(-1, 1) / (traj_len - 1)
-    cond = np.arange(traj_len).reshape(-1, 1) >= 45
-    cond_obs = np.concatenate([obs, cond], axis=1)
-    all_data.append(cond_obs)
-
-np.save(new_path, np.concatenate(all_data, axis=0))
-
-
-
-
-#BELOW IS FOR HOT ENCODING CONDITIONING (MODEL IS NO LONGER SET UP FOR THIS)
-# for i in range(num_traj):
-#     img = ptu.from_numpy(data["observations"][i].reshape(-1, 3, 48, 48) / 255.0)
-#     obs = ptu.get_numpy(vqvae.encode(img, cont=False))
-#     cond = np.arange(traj_len).astype('int64').reshape(-1, 1)
-#     cond_obs = np.concatenate([obs, cond], axis=1)
-#     all_data.append(cond_obs)
-
-# np.save(new_path, np.concatenate(all_data, axis=0))
+if isinstance(vqvae, CVQVAE):
+    cond_size = vqvae.num_embeddings
+    #cond_size = 1
+else:
+    cond_size = 1
 
 
 
@@ -115,8 +90,6 @@ def ind_to_cont(e_indices):
     z_q = z_q.permute(0, 3, 1, 2).contiguous()
     return z_q
 
-#all_data_cont = ind_to_cont(torch.LongTensor(all_data.reshape(-1, 12, 12)))
-#tree = neighbors.KDTree(all_data, metric="chebyshev")
 
 def get_closest_stats(latents):
     #latents = ind_to_cont(latents)
@@ -132,8 +105,6 @@ def get_closest_stats(latents):
                 smallest_dist = dist
                 index = j
 
-
-        #dist, index = tree.query(latents[i].cpu())
         all_dists.append(smallest_dist)
         all_index.append(index)
     all_dists = np.array(all_dists)
@@ -146,7 +117,7 @@ def get_closest_stats(latents):
 
 
 if args.dataset == 'LATENT_BLOCK':
-    _, _, train_loader, test_loader, _ = railrl.torch.vae.pixelcnn_utils.load_data_and_data_loaders(new_path, 'LATENT_BLOCK', args.batch_size)
+    _, _, train_loader, test_loader, _ = railrl.torch.vae.pixelcnn_utils.load_data_and_data_loaders(args.filepath, 'LATENT_BLOCK', args.batch_size)
 else:
     train_loader = torch.utils.data.DataLoader(
         eval('datasets.'+args.dataset)(
@@ -163,27 +134,30 @@ else:
         num_workers=args.num_workers, pin_memory=True
     )
 
-model = GatedPixelCNN(args.n_embeddings, args.img_dim**2, args.n_layers, 50).to(device)
+model = GatedPixelCNN(args.n_embeddings, args.img_dim**2, args.n_layers, n_classes=vqvae.latent_sizes[1]).to(device)
 criterion = nn.CrossEntropyLoss().cuda()
 opt = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
-
 
 """
 train, test, and log
 """
 
-def train():
+def cond_train():
     train_loss = []
     for batch_idx, x in enumerate(train_loader):
         start_time = time.time()
         
         #x = (x[:, 0]).cuda()
         x = x.cuda()
-        cond = x[:,144:].flatten().float().reshape(-1, 1)
-        x = x[:,:144].reshape(-1, 12, 12).long()
+        ind_size = vqvae.latent_sizes[0] // vqvae.embedding_dim
+        cont_x = vqvae.conditioned_discrete_to_cont(x)
+        cond = cont_x[:, vqvae.embedding_dim:].reshape(x.shape[0], -1)
+        #cond = x[:, ind_size:].reshape(-1, 12, 12)
+        x = x[:, :ind_size].reshape(-1, 12, 12)
+        
 
         # Train PixelCNN with images
-        logits = model(x,cond)
+        logits = model(x, cond)
         logits = logits.permute(0, 2, 3, 1).contiguous()
 
         loss = criterion(
@@ -206,15 +180,18 @@ def train():
             ))
 
 
-def test():
+def cond_test():
     start_time = time.time()
     val_loss = []
     with torch.no_grad():
         for batch_idx, x in enumerate(test_loader):
         #x = (x[:, 0]).cuda()
+
             x = x.cuda()
-            cond = x[:,144:].flatten().float().reshape(-1, 1)
-            x = x[:,:144].reshape(-1, 12, 12).long()
+            ind_size = vqvae.latent_sizes[0] // vqvae.embedding_dim
+            cont_x = vqvae.conditioned_discrete_to_cont(x)
+            cond = cont_x[:, vqvae.embedding_dim:].reshape(x.shape[0], -1)
+            x = x[:, :ind_size].reshape(-1, 12, 12)
 
             logits = model(x, cond)
             logits = logits.permute(0, 2, 3, 1).contiguous()
@@ -231,41 +208,63 @@ def test():
     ))
     return np.asarray(val_loss).mean(0)
 
+def generate_cond_samples(epoch, batch_size=64):
+    ind_size1 = vqvae.latent_sizes[0] // vqvae.embedding_dim
+    ind_size = vqvae.discrete_size // 2
+    assert ind_size1 == ind_size
+    data_points = ptu.from_numpy(all_data[np.random.choice(all_data.shape[0], size=(8,))]).long().cuda()
 
-def generate_samples(epoch, batch_size=64):
-    print("Make sure sampling timestep is right!")
-    timesteps = ptu.from_numpy(np.array([0, 0, 0, 0, 1, 1, 1, 1])).cuda().reshape(-1, 1, 1)
-    #timesteps = ptu.from_numpy(np.array([0, 10, 15, 25, 35, 40, 50, 60])).cuda().reshape(-1, 1, 1) / 74
-    all_samples = []
+    envs = data_points[:, ind_size:]
+    samples = []
+
     for i in range(8):
-        e_indices = model.generate(label=timesteps[i], 
-            shape=(args.img_dim, args.img_dim), batch_size=8).reshape(-1, args.img_dim**2)
+        env_latent = data_points[i].reshape(1, -1)
 
-        samples = vqvae.decode(e_indices.cpu(), cont=False)
+        cont_x = vqvae.conditioned_discrete_to_cont(env_latent)
+        cond = cont_x[:, vqvae.embedding_dim:].reshape(1, -1)
+
+        # cont = vqvae.conditioned_discrete_to_cont(env_latent)
+        # cont_cond = cont[:, vqvae.latent_sizes[0]:].reshape(1, -1).cuda()
+        cond_latent = env_latent[:, ind_size:]
+
+        env_image = vqvae.decode(env_latent, cont=False)
+        samples.append(env_image)
+
+        e_indices = model.generate(shape=(args.img_dim, args.img_dim),
+                batch_size=7, cond=cond.repeat(7, 1)).reshape(-1, args.img_dim**2)
+
+        latents = torch.cat([e_indices, cond_latent.repeat(7, 1)], dim=1)
+        samples.append(vqvae.decode(latents, cont=False))
         
-        vqvae.pixel_cnn.cpu()
-        print(vqvae.logprob(samples).mean())
-        vqvae.pixel_cnn.cuda()
 
-        all_samples.append(samples)
+        # for j in range(7):
+        #     # e_indices = model.generate(shape=(args.img_dim, args.img_dim),
+        #     #     batch_size=1, cond=cond_latent.cuda()).reshape(-1, args.img_dim**2).cpu()
+        #     e_indices = model.generate(shape=(args.img_dim, args.img_dim),
+        #         batch_size=1, cond=cond).reshape(-1, args.img_dim**2)
+        #     #latent = torch.cat([e_indices, cond_latent], dim=1)
 
-    all_samples = torch.cat(all_samples, dim=0)
+        #     latent = torch.cat([e_indices, cond_latent], dim=1)
+        #     samples.append(vqvae.decode(latent, cont=False))
 
-    save_dir = "/home/ashvin/data/sasha/pixelcnn/vqvae_samples/sample{0}.png".format(epoch)
+    samples = torch.cat(samples, dim=0)
+
+    save_dir = "/home/ashvin/data/sasha/pixelcnn/vqvae_samples/cond_sample{0}.png".format(epoch)
 
     save_image(
-        all_samples.data.view(batch_size, 3, 48, 48).transpose(2, 3),
+        samples.data.view(batch_size, 3, 48, 48).transpose(2, 3),
         save_dir
     )
-
 
 BEST_LOSS = 999
 LAST_SAVED = -1
 for epoch in range(1, args.epochs):
     vqvae.set_pixel_cnn(model)
     print("\nEpoch {}:".format(epoch))
-    train()
-    cur_loss = test()
+
+
+    cond_train()
+    cur_loss = cond_test()
 
     if args.save or cur_loss <= BEST_LOSS:
         BEST_LOSS = cur_loss
@@ -276,4 +275,4 @@ for epoch in range(1, args.epochs):
     else:
         print("Not saving model! Last saved: {}".format(LAST_SAVED))
     if args.gen_samples:
-        generate_samples(epoch)
+        generate_cond_samples(epoch)

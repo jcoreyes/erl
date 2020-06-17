@@ -73,7 +73,6 @@ class EncoderWrappedEnv(ProxyEnv, ):
 
 
 class VQVAEWrappedEnv(VAEWrappedEnv):
-
     def __init__(
         self,
         wrapped_env,
@@ -115,7 +114,6 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
             presampled_goals,
             )
 
-        self.num_keys = self.vae.num_embeddings
         self.representation_size = self.vae.representation_size
 
         latent_space = Box(

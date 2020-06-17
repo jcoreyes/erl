@@ -23,6 +23,7 @@ from multiworld.core.image_env import ImageEnv
 from multiworld.core.gym_to_multi_env import GymToMultiEnv
 
 from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
+from railrl.envs.encoder_wrappers import VQVAEWrappedEnv
 from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
 
 import torch
@@ -415,11 +416,11 @@ def process_args(variant):
         variant['trainer_kwargs']['q_num_pretrain2_steps'] = min(10, variant['trainer_kwargs'].get('q_num_pretrain2_steps', 0))
 
 def experiment(variant):
+
+    # if 'env' in variant:
     if variant.get("pretrained_algorithm_path", False):
         resume(variant)
         return
-
-    # if 'env' in variant:
     env_params = ENV_PARAMS.get(variant.get('env'), {})
     variant.update(env_params)
     env_name = variant.get("env", None)
@@ -452,6 +453,25 @@ def experiment(variant):
     elif env_id:
         expl_env = NormalizedBoxEnv(gym.make(env_id))
         eval_env = NormalizedBoxEnv(gym.make(env_id))
+
+        # print("CHANGE BUFFER TO 1 MIL AGAIN!!!")
+        # from railrl.envs.images import InsertImageEnv, EnvRenderer
+        # renderer = EnvRenderer(init_camera=None, **{})
+        # expl_env = InsertImageEnv(gym.make(env_id), renderer=renderer)
+        # eval_env = InsertImageEnv(gym.make(env_id), renderer=renderer)
+
+        # expl_env = VQVAEWrappedEnv(
+        #     expl_env,
+        #     model,
+        #     dict(image_observation="latent_observation",),)
+
+        # eval_env = VQVAEWrappedEnv(
+        #     eval_env,
+        #     model,
+        #     dict(image_observation="latent_observation",),)
+
+        # expl_env = NormalizedBoxEnv(expl_env)
+        # eval_env = NormalizedBoxEnv(eval_env)
     elif env_class:
         env_kwargs = variant.get("env_kwargs", {})
         expl_env = NormalizedBoxEnv(env_class(**env_kwargs))
@@ -460,22 +480,29 @@ def experiment(variant):
         expl_env = NormalizedBoxEnv(variant['env']())
         eval_env = NormalizedBoxEnv(variant['env']())
 
-<<<<<<< HEAD
         if 'env_id' in env_params:
             if env_params['env_id'] in ['pen-v0', 'pen-sparse-v0', 'door-v0', 'relocate-v0', 'hammer-v0',
                                         'pen-sparse-v0', 'door-sparse-v0', 'relocate-sparse-v0', 'hammer-sparse-v0']:
                 import mj_envs
-            if env_params['env_id'] in ['SawyerRigGrasp-v0']:
-                expl_env = roboverse.make(env_params['env_id'])
-                eval_env = roboverse.make(env_params['env_id'])
+            # if env_params['env_id'] in ['SawyerRigGrasp-v0']:
+            #     expl_env = InsertImageEnv(roboverse.make(env_params['env_id']))
+            #     eval_env = InsertImageEnv(roboverse.make(env_params['env_id']))
+            #     expl_env = EncoderWrappedEnv(
+            #         expl_env,
+            #         model,
+            #         dict(image_observation="latent_observation",),)
+
+            #     eval_env = EncoderWrappedEnv(
+            #         eval_env,
+            #         model,
+            #         dict(image_observation="latent_observation",),)
+
             else:
                 expl_env = gym.make(env_params['env_id'])
                 eval_env = gym.make(env_params['env_id'])
         else:
             expl_env = NormalizedBoxEnv(variant['env_class']())
             eval_env = NormalizedBoxEnv(variant['env_class']())
-=======
->>>>>>> 98a1afcb2bb14e17680444d859e27c69653954e2
 
     # if variant.get('sparse_reward', False):
     #     expl_env = RewardWrapperEnv(expl_env, compute_hand_sparse_reward)
@@ -483,14 +510,8 @@ def experiment(variant):
 
     if variant.get('add_env_demos', False):
         variant["path_loader_kwargs"]["demo_paths"].append(variant["env_demo_path"])
-
-<<<<<<< HEAD
-        if variant.get('add_env_offpolicy_data', False):
-            variant["path_loader_kwargs"]["demo_paths"].append(variant["env_offpolicy_data_path"])
-=======
     if variant.get('add_env_offpolicy_data', False):
         variant["path_loader_kwargs"]["demo_paths"].append(variant["env_offpolicy_data_path"])
->>>>>>> 98a1afcb2bb14e17680444d859e27c69653954e2
     # else:
     #     expl_env = encoder_wrapped_env(variant)
     #     eval_env = encoder_wrapped_env(variant)
@@ -503,6 +524,7 @@ def experiment(variant):
 
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
+
     if hasattr(expl_env, 'info_sizes'):
         env_info_sizes = expl_env.info_sizes
     else:

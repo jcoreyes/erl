@@ -2,20 +2,20 @@
 AWR + SAC from demo experiment
 """
 
-from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader, EncoderDictToMDPPathLoader
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment, process_args
 
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
-
+from roboverse.envs.sawyer_rig_vae import SawyerRigVaeEnv
 from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
 from railrl.torch.networks import Clamp
 
 if __name__ == "__main__":
     variant = dict(
         save_video=True,
-        num_epochs=151,
+        num_epochs=501,
         num_eval_steps_per_epoch=1000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
@@ -32,6 +32,7 @@ if __name__ == "__main__":
             recompute_reward=False,
             non_presampled_goal_img_is_garbage=True, # do not set_to_goal
         ),
+
         dump_video_kwargs=dict(
             save_video_period=25,
             exploration_goal_image_key="image_observation",
@@ -68,7 +69,7 @@ if __name__ == "__main__":
 
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=0, #25000
+            q_num_pretrain2_steps=25000, #25000
             policy_weight_decay=1e-4,
             q_weight_decay=0,
             bc_loss_type="mse",
@@ -95,12 +96,16 @@ if __name__ == "__main__":
         ),
 
 
-        path_loader_class=DictToMDPPathLoader,
+        path_loader_class=EncoderDictToMDPPathLoader,
         path_loader_kwargs=dict(
-            obs_key="observations",
+            model_path="/home/ashvin/data/sasha/pixelcnn/vqvae.pkl",
+            env=SawyerRigVaeEnv,
+            #model_path="/home/ashvin/data/sasha/pybullet-testing/vqvae/run10/id0/vae.pkl",
+            #recompute_reward=True,
+            obs_key="image_observations",
             demo_paths=[
                 dict(
-                    path="/home/ashvin/data/sasha/demos/awr_demos.pkl",
+                    path="/home/ashvin/data/sasha/demos/image_demos_48.pkl",
                     obs_dict=False,
                     is_demo=True,
                 ),
@@ -113,7 +118,8 @@ if __name__ == "__main__":
         pretrain_policy=True,
         pretrain_rl=True,
 
-        env="SawyerRigGrasp-v0",
+        env='SawyerRigVae-v0',
+        env_id='SawyerRigVae-v0',
 
     )
 
@@ -147,4 +153,4 @@ if __name__ == "__main__":
     variants = []
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
-    run_variants(experiment, variants, process_args, run_id=50)
+    run_variants(experiment, variants, process_args, run_id=52)

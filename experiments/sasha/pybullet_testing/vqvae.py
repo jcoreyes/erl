@@ -7,7 +7,7 @@ from railrl.launchers.arglauncher import run_variants
 from railrl.torch.vae.vq_vae import VQ_VAE
 from railrl.torch.vae.vq_vae_trainer import VQ_VAETrainer
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
-from roboverse.envs.sawyer_rig_grasp_v0 import SawyerRigGraspV0Env
+from roboverse.envs.sawyer_rig_grasp_v1 import SawyerRigGraspV1Env
 
 if __name__ == "__main__":
     x_var = 0.2
@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     variant = dict(
         imsize=48,
-        env_class=SawyerRigGraspV0Env,
+        env_class=SawyerRigGraspV1Env,
         env_kwargs=dict(
             obs_img_dim=48,
         ),
@@ -66,7 +66,7 @@ if __name__ == "__main__":
             vae_class=VQ_VAE,
             vae_trainer_class=VQ_VAETrainer,
             vae_path=None,
-            embedding_dim=64,
+            embedding_dim=3,
             beta=10.0 / 128,
             beta_schedule_kwargs=dict(
                 x_values=(0, 500),
@@ -85,7 +85,7 @@ if __name__ == "__main__":
                 random_rollout_data_set_to_goal=False,
                 conditional_vae_dataset=True,
                 save_trajectories=True,
-                dataset_path="/home/ashvin/data/sasha/demos/zoomed_in_noisy_demos_48.npy",
+                dataset_path="/home/ashvin/data/sasha/demos/alt_encoder_images.npy",
                 enviorment_dataset=False,
                 use_cached=False,
                 tag="contextual1",
@@ -109,9 +109,9 @@ if __name__ == "__main__":
             save_period=25,
         ),
         renderer_kwargs=dict(
-            input_img_format='HWC',
-            output_img_format='CWH',
-            flatten_img=True,
+            #input_img_format='HWC',
+            #output_img_format='CWH',
+            #flatten_img=True,
         ),
         evaluation_goal_sampling_mode="reset_of_env",
         exploration_goal_sampling_mode="vae_prior",
@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
     search_space = {
         "seed": range(1),
-
+        'train_vae_kwargs.embedding_dim': [3, 2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -133,4 +133,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(rig_experiment, variants, process_args, run_id=2)
+    run_variants(rig_experiment, variants, process_args, run_id=10)
