@@ -96,15 +96,15 @@ def preprocess_args(args):
         args.label = 'check-machines-' + strftime('%H-%M', localtime())
 
         machines = [
-            'ada',
-            'alan',
-            'newton1',
-            'newton3',
-            'newton4',
-            'newton6',
-            'newton7',
+            # 'ada',
+            # 'alan',
+            # 'newton1',
+            # 'newton3',
+            # 'newton4',
+            # 'newton6',
+            # 'newton7',
             'grace',
-            'claude',
+            # 'claude',
         ]  #'newton2', 'newton5', # 'newton4',
         free_machines_info = query_machines(args=args, machines=machines)
         free_machines_and_gpus = []
@@ -126,16 +126,22 @@ def preprocess_args(args):
             free_machines_info = query_machines(args=args)
             free_machines_and_gpus_and_counts = []
 
+            free_machines_and_gpu_ids = []
             for machine in free_machines_info:
-                max_exps = int(free_machines_info[machine]['mem'] / args.mem_per_exp)
-                num_exps_so_far = 0
                 for gpu_id in free_machines_info[machine]['gpu_ids']:
-                    num_new_exps = min(max_exps - num_exps_so_far, args.max_exps_per_instance)
-                    if num_new_exps == 0:
-                        break
-                    free_machines_and_gpus_and_counts.append([machine, gpu_id, num_new_exps])
-                    num_exps_so_far += num_new_exps
-            random.shuffle(free_machines_and_gpus_and_counts)
+                    free_machines_and_gpu_ids.append([machine, gpu_id])
+
+            random.shuffle(free_machines_and_gpu_ids)
+
+            num_exps_for_machine = {m: 0 for m in free_machines_info.keys()}
+            for (machine, gpu_id) in free_machines_and_gpu_ids:
+                max_exps = int(free_machines_info[machine]['mem'] / args.mem_per_exp)
+                num_exps_so_far = num_exps_for_machine[machine]
+                num_new_exps = min(max_exps - num_exps_so_far, args.max_exps_per_instance)
+                if num_new_exps == 0:
+                    continue
+                free_machines_and_gpus_and_counts.append([machine, gpu_id, num_new_exps])
+                num_exps_for_machine[machine] += num_new_exps
 
             free_machines_and_gpus = []
             for (machine, gpu_id, count) in free_machines_and_gpus_and_counts:
@@ -276,15 +282,15 @@ def update_snapshot_gap_and_save_period(variant):
 def query_machines(machines=None, args=None):
     if machines is None:
         machines = [
-            'ada', # TESLA V100
-            'alan',  # TESLA P100
-            'newton1', # Titan X (pascal)
-            'newton3', # Titan X (pascal)
-            'newton4',  # Titan X (pascal)
+            # 'ada', # TESLA V100
+            # 'alan',  # TESLA P100
+            # 'newton1', # Titan X (pascal)
+            # 'newton3', # Titan X (pascal)
+            # 'newton4',  # Titan X (pascal)
             'newton6', # Titan Xp
-            'newton7', # Titan Xp
-            'grace', # GeForce GTX 1080 Ti
-            'claude', # GeForce GTX 1080 Ti
+            # 'newton7', # Titan Xp
+            # 'grace', # GeForce GTX 1080 Ti
+            # 'claude', # GeForce GTX 1080 Ti
         ]
 
         # ['newton2', # Titan X (pascal),

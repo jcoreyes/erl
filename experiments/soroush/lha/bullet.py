@@ -103,13 +103,13 @@ env_params = {
         ],
 
         'env_kwargs.use_rotated_gripper': [
-            True,
+            # True,
             False,
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [1500],
+        'rl_variant.algo_kwargs.num_epochs': [1000],
         'rl_variant.algo_kwargs.eval_epoch_freq': [10],
-        'rl_variant.save_video_period': [150],
+        'rl_variant.save_video_period': [100],
     },
     'pb-2obj': {
         'env_kwargs.num_obj': [2],

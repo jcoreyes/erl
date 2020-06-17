@@ -89,6 +89,7 @@ variant = dict(
             context_post_process_frac=0.5,
 
             max_subtasks_to_focus_on=None,
+            prev_subtask_weight=1.0,
             reward_fn=default_masked_reward_fn,
 
             train_mask_distr=dict(
@@ -165,7 +166,8 @@ env_params = {
 
         # 'rl_variant.mask_variant.max_subtasks_to_focus_on': [2],
         # 'rl_variant.mask_variant.reward_fn': [action_penalty_masked_reward_fn],
-        'rl_variant.mask_variant.context_post_process_mode': ['dilute_prev_subtasks_fixed'],
+
+        'rl_variant.mask_variant.prev_subtask_weight': [0.15],
 
         'rl_variant.mask_variant.idx_masks': [
             [

@@ -70,6 +70,7 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             matrix_masks=None,
             mask_distr=None,
             max_subtasks_to_focus_on=None,
+            prev_subtask_weight=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -83,7 +84,12 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             )
         self.mask_format = mask_format
 
-        self.max_subtasks_to_focus_on = max_subtasks_to_focus_on
+        self._max_subtasks_to_focus_on = max_subtasks_to_focus_on
+        if self._max_subtasks_to_focus_on is not None:
+            assert isinstance(self._max_subtasks_to_focus_on, int)
+        self._prev_subtask_weight = prev_subtask_weight
+        if self._prev_subtask_weight is not None:
+            assert isinstance(self._prev_subtask_weight, float)
 
         for key in mask_distr:
             assert key in ['atomic', 'cumul', 'subset', 'full']
@@ -155,10 +161,15 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
 
         for i in range(1, num_atomic_masks + 1):
             mask_idx_bitmap = np.zeros(num_atomic_masks)
-            if self.max_subtasks_to_focus_on is None:
-                mask_idx_bitmap[0:i] = 1
+            if self._max_subtasks_to_focus_on is None:
+                start_idx = 0
+                end_idx = i
             else:
-                mask_idx_bitmap[max(0, i - self.max_subtasks_to_focus_on):i] = 1
+                start_idx = max(0, i - self._max_subtasks_to_focus_on)
+                end_idx = i
+            mask_idx_bitmap[start_idx:end_idx] = 1
+            if self._prev_subtask_weight is not None:
+                mask_idx_bitmap[start_idx:end_idx - 1] = self._prev_subtask_weight
             for mask_key in self.mask_keys:
                 self.cumul_masks[mask_key][i - 1] = (
                         mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
@@ -336,7 +347,7 @@ class MaskPathCollector(ContextualPathCollector):
             max_path_length=100,
             rollout_mask_order='fixed',
             concat_context_to_obs_fn=None,
-            dilute_prev_subtasks=False,
+            prev_subtask_weight=False,
             prev_subtasks_solved=True,
             max_subtasks_to_focus_on=None,
             **kwargs
@@ -361,7 +372,7 @@ class MaskPathCollector(ContextualPathCollector):
         self.rollout_masks = []
         self._concat_context_to_obs_fn = concat_context_to_obs_fn
 
-        self._dilute_prev_subtasks = dilute_prev_subtasks
+        self._prev_subtask_weight = prev_subtask_weight
         self._prev_subtasks_solved = prev_subtasks_solved
         self._max_subtasks_to_focus_on = max_subtasks_to_focus_on
 
@@ -448,13 +459,13 @@ class MaskPathCollector(ContextualPathCollector):
                         else:
                             raise NotImplementedError
                         atomic_mask_weights = np.ones(len(atomic_mask_ids_for_rollout_mask))
-                        if self._dilute_prev_subtasks:
-                            atomic_mask_weights[:-1] = 0.15
+                        if self._prev_subtask_weight is not None:
+                            assert isinstance(self._prev_subtask_weight, float)
+                            atomic_mask_weights[:-1] = self._prev_subtask_weight
                         mask[k] = np.sum(
                             atomic_masks[k][atomic_mask_ids_for_rollout_mask] * atomic_mask_weights[:, np.newaxis],
                             axis=0
                         )
-
                     num_steps = num_steps_per_mask
                     if i == len(mask_ids) - 1:
                         num_steps = self.max_path_length - len(self.rollout_masks)
@@ -728,6 +739,7 @@ def rl_context_experiment(variant):
             mask_dims=mask_dims,
             mask_format=mask_format,
             max_subtasks_to_focus_on=mask_variant.get('max_subtasks_to_focus_on', None),
+            prev_subtask_weight=mask_variant.get('prev_subtask_weight', None),
             masks=mask_variant.get('masks', None),
             idx_masks=mask_variant.get('idx_masks', None),
             matrix_masks=mask_variant.get('matrix_masks', None),
@@ -922,7 +934,7 @@ def rl_context_experiment(variant):
                     pp_context_dict['mask'][indices][:, prev_obj_indices] = \
                         np.random.uniform(size=(len(indices), len(prev_obj_indices)))
                 elif mode == 'dilute_prev_subtasks_fixed':
-                    pp_context_dict['mask'][indices][:, prev_obj_indices] = 0.15
+                    pp_context_dict['mask'][indices][:, prev_obj_indices] = 0.5
             indices_to_relabel = np.concatenate(list(cumul_mask_to_indices.values()))
             orig_masks = obs_dict['mask'][indices_to_relabel]
             atomic_mask_to_subindices = context_distrib.get_atomic_mask_to_indices(orig_masks)
@@ -1054,14 +1066,13 @@ def rl_context_experiment(variant):
                 else:
                     raise NotImplementedError
 
+            prev_subtask_weight = mask_variant.get('prev_subtask_weight', None)
+            prev_subtasks_solved = mask_variant.get('prev_subtasks_solved', False)
+            max_subtasks_to_focus_on = mask_variant.get('max_subtasks_to_focus_on', None)
+
             mode = mask_variant.get('context_post_process_mode', None)
             if mode in ['dilute_prev_subtasks_uniform', 'dilute_prev_subtasks_fixed']:
-                dilute_prev_subtasks = True
-            else:
-                dilute_prev_subtasks = False
-
-            prev_subtasks_solved = mask_variant.get('prev_subtasks_solved', False)
-
+                prev_subtask_weight = 0.5
 
             return MaskPathCollector(
                 env,
@@ -1073,9 +1084,9 @@ def rl_context_experiment(variant):
                 mask_distr=mask_distr.copy(),
                 max_path_length=max_path_length,
                 rollout_mask_order=rollout_mask_order,
-                dilute_prev_subtasks=dilute_prev_subtasks,
+                prev_subtask_weight=prev_subtask_weight,
                 prev_subtasks_solved=prev_subtasks_solved,
-                max_subtasks_to_focus_on=mask_variant.get('max_subtasks_to_focus_on', None),
+                max_subtasks_to_focus_on=max_subtasks_to_focus_on,
             )
         else:
             return ContextualPathCollector(
