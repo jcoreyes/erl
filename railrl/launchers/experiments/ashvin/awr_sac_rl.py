@@ -1,4 +1,5 @@
-import gym, roboverse
+import gym
+# import roboverse
 from railrl.data_management.awr_env_replay_buffer import AWREnvReplayBuffer
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
