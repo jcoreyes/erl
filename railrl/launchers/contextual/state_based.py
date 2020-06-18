@@ -1059,10 +1059,7 @@ def rl_context_experiment(variant):
                 if mode == 'expl':
                     mask_distr = mask_variant['expl_mask_distr']
                 elif mode == 'eval':
-                    mask_distr = dict(
-                        cumul_seq=1.0,
-                        # atomic_seq=1.0,
-                    )
+                    mask_distr = mask_variant['eval_mask_distr']
                 else:
                     raise NotImplementedError
 
@@ -1211,22 +1208,13 @@ def rl_context_experiment(variant):
 
         img_eval_env = add_images(env, context_distrib)
 
-        video_path_collector = create_path_collector(
-            img_eval_env,
-            eval_policy,
-            mode='eval',
-            mask_kwargs=dict(
-                mask_distr=dict(
-                    cumul_seq=1.0
-                ),
-            ),
-        )
+        video_path_collector = create_path_collector(img_eval_env, eval_policy, mode='eval')
         rollout_function = video_path_collector._rollout_fn
         eval_video_func = get_save_video_function(
             rollout_function,
             img_eval_env,
             eval_policy,
-            tag="eval_cumul" if mask_conditioned else "eval",
+            tag="eval",
             imsize=variant['renderer_kwargs']['img_width'],
             image_format='HWC',
             save_video_period=save_period,
@@ -1234,52 +1222,89 @@ def rl_context_experiment(variant):
         )
         algorithm.post_train_funcs.append(eval_video_func)
 
+        # additional eval videos for mask conditioned case
         if mask_conditioned:
-            video_path_collector = create_path_collector(
-                img_eval_env,
-                eval_policy,
-                mode='eval',
-                mask_kwargs=dict(
-                    mask_distr=dict(
-                        full=1.0
-                    ),
-                ),
-            )
-            rollout_function = video_path_collector._rollout_fn
-            eval_video_func = get_save_video_function(
-                rollout_function,
-                img_eval_env,
-                eval_policy,
-                tag="eval_full",
-                imsize=variant['renderer_kwargs']['img_width'],
-                image_format='HWC',
-                save_video_period=save_period,
-                **dump_video_kwargs
-            )
-            algorithm.post_train_funcs.append(eval_video_func)
+            default_list = [
+                'atomic',
+                'atomic_seq',
+                'cumul_seq',
+                'full',
+            ]
+            eval_rollouts_for_videos = mask_variant.get('eval_rollouts_for_videos', default_list)
+            for key in eval_rollouts_for_videos:
+                assert key in default_list
 
-            video_path_collector = create_path_collector(
-                img_eval_env,
-                eval_policy,
-                mode='eval',
-                mask_kwargs=dict(
-                    mask_distr=dict(
-                        atomic_seq=1.0
+            if 'cumul_seq' in eval_rollouts_for_videos:
+                video_path_collector = create_path_collector(
+                    img_eval_env,
+                    eval_policy,
+                    mode='eval',
+                    mask_kwargs=dict(
+                        mask_distr=dict(
+                            cumul_seq=1.0
+                        ),
                     ),
-                ),
-            )
-            rollout_function = video_path_collector._rollout_fn
-            eval_video_func = get_save_video_function(
-                rollout_function,
-                img_eval_env,
-                eval_policy,
-                tag="eval_atomic",
-                imsize=variant['renderer_kwargs']['img_width'],
-                image_format='HWC',
-                save_video_period=save_period,
-                **dump_video_kwargs
-            )
-            algorithm.post_train_funcs.append(eval_video_func)
+                )
+                rollout_function = video_path_collector._rollout_fn
+                eval_video_func = get_save_video_function(
+                    rollout_function,
+                    img_eval_env,
+                    eval_policy,
+                    tag="eval_cumul" if mask_conditioned else "eval",
+                    imsize=variant['renderer_kwargs']['img_width'],
+                    image_format='HWC',
+                    save_video_period=save_period,
+                    **dump_video_kwargs
+                )
+                algorithm.post_train_funcs.append(eval_video_func)
+
+            if 'full' in eval_rollouts_for_videos:
+                video_path_collector = create_path_collector(
+                    img_eval_env,
+                    eval_policy,
+                    mode='eval',
+                    mask_kwargs=dict(
+                        mask_distr=dict(
+                            full=1.0
+                        ),
+                    ),
+                )
+                rollout_function = video_path_collector._rollout_fn
+                eval_video_func = get_save_video_function(
+                    rollout_function,
+                    img_eval_env,
+                    eval_policy,
+                    tag="eval_full",
+                    imsize=variant['renderer_kwargs']['img_width'],
+                    image_format='HWC',
+                    save_video_period=save_period,
+                    **dump_video_kwargs
+                )
+                algorithm.post_train_funcs.append(eval_video_func)
+
+            if 'atomic_seq' in eval_rollouts_for_videos:
+                video_path_collector = create_path_collector(
+                    img_eval_env,
+                    eval_policy,
+                    mode='eval',
+                    mask_kwargs=dict(
+                        mask_distr=dict(
+                            atomic_seq=1.0
+                        ),
+                    ),
+                )
+                rollout_function = video_path_collector._rollout_fn
+                eval_video_func = get_save_video_function(
+                    rollout_function,
+                    img_eval_env,
+                    eval_policy,
+                    tag="eval_atomic",
+                    imsize=variant['renderer_kwargs']['img_width'],
+                    image_format='HWC',
+                    save_video_period=save_period,
+                    **dump_video_kwargs
+                )
+                algorithm.post_train_funcs.append(eval_video_func)
 
         log_expl_video = variant.get('log_expl_video', True)
         if log_expl_video:
@@ -1300,53 +1325,68 @@ def rl_context_experiment(variant):
 
     if mask_conditioned and mask_variant.get('log_mask_diagnostics', True):
         collectors = []
+        log_prefixes = []
+
+        default_list = [
+            'atomic',
+            'atomic_seq',
+            'cumul_seq',
+            'full',
+        ]
+        eval_rollouts_to_log = mask_variant.get('eval_rollouts_to_log', default_list)
+        for key in eval_rollouts_to_log:
+            assert key in default_list
 
         # atomic masks
-        masks = context_distrib.masks.copy()
-        num_masks = len(masks[list(masks.keys())[0]])
-        for mask_id in range(num_masks):
+        if 'atomic' in eval_rollouts_to_log:
+            masks = context_distrib.masks.copy()
+            num_masks = len(masks[list(masks.keys())[0]])
+            for mask_id in range(num_masks):
+                mask_kwargs=dict(
+                    rollout_mask_order=[mask_id],
+                    mask_distr=dict(
+                        atomic_seq=1.0,
+                    ),
+                )
+                collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
+                collectors.append(collector)
+            log_prefixes += [
+                'mask_{}/'.format(''.join(str(mask_id)))
+                for mask_id in range(num_masks)
+            ]
+
+        # full mask
+        if 'full' in eval_rollouts_to_log:
             mask_kwargs=dict(
-                rollout_mask_order=[mask_id],
+                mask_distr=dict(
+                    full=1.0,
+                ),
+            )
+            collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
+            collectors.append(collector)
+            log_prefixes.append('mask_full/')
+
+        # cumulative, sequential mask
+        if 'cumul_seq' in eval_rollouts_to_log:
+            mask_kwargs=dict(
+                mask_distr=dict(
+                    cumul_seq=1.0,
+                ),
+            )
+            collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
+            collectors.append(collector)
+            log_prefixes.append('mask_cumul_seq/')
+
+        # atomic, sequential mask
+        if 'atomic_seq' in eval_rollouts_to_log:
+            mask_kwargs=dict(
                 mask_distr=dict(
                     atomic_seq=1.0,
                 ),
             )
             collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
             collectors.append(collector)
-        log_prefixes = [
-            'mask_{}/'.format(''.join(str(mask_id)))
-            for mask_id in range(num_masks)
-        ]
-
-        # full mask
-        mask_kwargs=dict(
-            mask_distr=dict(
-                full=1.0,
-            ),
-        )
-        collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-        collectors.append(collector)
-        log_prefixes.append('mask_full/')
-
-        # cumulative, sequential mask
-        mask_kwargs=dict(
-            mask_distr=dict(
-                cumul_seq=1.0,
-            ),
-        )
-        collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-        collectors.append(collector)
-        log_prefixes.append('mask_cumul_seq/')
-
-        # atomic, sequential mask
-        mask_kwargs=dict(
-            mask_distr=dict(
-                atomic_seq=1.0,
-            ),
-        )
-        collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-        collectors.append(collector)
-        log_prefixes.append('mask_atomic_seq/')
+            log_prefixes.append('mask_atomic_seq/')
 
         def get_mask_diagnostics(unused):
             from railrl.core.logging import append_log, add_prefix, OrderedDict

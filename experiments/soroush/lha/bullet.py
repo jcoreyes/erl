@@ -7,6 +7,11 @@ from railrl.misc.exp_util import (
 from railrl.launchers.exp_launcher import rl_experiment
 from roboverse.envs.goal_conditioned.sawyer_lift import SawyerLiftEnvGC
 
+from railrl.launchers.contextual.state_based import (
+    default_masked_reward_fn,
+    action_penalty_masked_reward_fn,
+)
+
 variant = dict(
     rl_variant=dict(
         do_state_exp=True,
@@ -67,6 +72,48 @@ variant = dict(
         ),
         mask_variant=dict(
             mask_conditioned=False,
+            rollout_mask_order_for_expl='fixed',
+            rollout_mask_order_for_eval='fixed',
+            log_mask_diagnostics=True,
+            mask_format='vector',
+            infer_masks=False,
+            mask_inference_variant=dict(
+                n=1000,
+                noise=0.1,
+                normalize_sigma_inv=True,
+            ),
+            relabel_goals=True,
+            relabel_masks=True,
+            sample_masks_for_relabeling=True,
+
+            context_post_process_mode=None,
+            context_post_process_frac=0.5,
+
+            max_subtasks_to_focus_on=None,
+            prev_subtask_weight=1.0,
+            reward_fn=default_masked_reward_fn,
+
+            train_mask_distr=dict(
+                atomic=1.0,
+                subset=0.0,
+                cumul=0.0,
+                full=0.0,
+            ),
+            expl_mask_distr=dict(
+                atomic=0.5,
+                atomic_seq=0.5,
+                cumul_seq=0.0,
+                full=0.0,
+            ),
+            eval_mask_distr=dict(
+                atomic=0.0,
+                atomic_seq=1.0,
+                cumul_seq=0.0,
+                full=0.0,
+            ),
+
+            eval_rollouts_to_log=['atomic'],
+            eval_rollouts_for_videos=[],
         ),
     ),
     env_class=SawyerLiftEnvGC,
@@ -85,7 +132,10 @@ variant = dict(
         'goal_mode': 'obj_in_bowl',
         'num_obj': 0, #2
 
+        'reward_type': 'obj_dist',
+
         'use_wide_gripper': True,
+        'use_rotated_gripper': True,
     },
     imsize=400,
 )
@@ -98,9 +148,6 @@ env_params = {
     },
     'pb-1obj': {
         'env_kwargs.num_obj': [1],
-        'env_kwargs.reward_type': [
-            'obj_dist',
-        ],
 
         'env_kwargs.use_rotated_gripper': [
             # True,
@@ -113,13 +160,13 @@ env_params = {
     },
     'pb-2obj': {
         'env_kwargs.num_obj': [2],
-        'env_kwargs.reward_type': [
-            'obj_dist',
-        ],
 
-        'env_kwargs.use_rotated_gripper': [
-            True,
-            False,
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.idx_masks': [
+            [
+                {2: 2, 3: 3},
+                {4: 4, 5: 5},
+            ],
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [3000],

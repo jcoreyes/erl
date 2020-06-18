@@ -104,6 +104,12 @@ variant = dict(
                 cumul_seq=0.0,
                 full=0.0,
             ),
+            eval_mask_distr=dict(
+                atomic=0.0,
+                atomic_seq=1.0,
+                cumul_seq=0.0,
+                full=0.0,
+            ),
         ),
     ),
     # env_id='FourObject-PickAndPlace-RandomInit-2D-v1',
@@ -162,13 +168,6 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-        'rl_variant.algo_kwargs.num_epochs': [6000],
-
-        # 'rl_variant.mask_variant.max_subtasks_to_focus_on': [2],
-        # 'rl_variant.mask_variant.reward_fn': [action_penalty_masked_reward_fn],
-
-        'rl_variant.mask_variant.prev_subtask_weight': [0.15],
-
         'rl_variant.mask_variant.idx_masks': [
             [
                 {2: 2, 3: 3},
@@ -178,11 +177,24 @@ env_params = {
             ],
         ],
 
+        'rl_variant.algo_kwargs.num_epochs': [6000],
+
+        # 'rl_variant.mask_variant.max_subtasks_to_focus_on': [2],
+        # 'rl_variant.mask_variant.reward_fn': [action_penalty_masked_reward_fn],
+        # 'rl_variant.mask_variant.prev_subtask_weight': [0.15],
+        'rl_variant.mask_variant.rollout_mask_order_for_expl': ['random'],
+
         'rl_variant.mask_variant.train_mask_distr': [
+            # dict(
+            #     atomic=0.5,
+            #     cumul=0.5,
+            #     subset=0.0,
+            #     full=0.0,
+            # ),
             dict(
                 atomic=0.5,
-                cumul=0.5,
-                subset=0.0,
+                cumul=0.0,
+                subset=0.5,
                 full=0.0,
             ),
         ],
@@ -202,13 +214,15 @@ env_params = {
             # ),
         ],
 
-        # 'rl_variant.save_video_period': [4],
-
 
         # 'rl_variant.ckpt': [
-        #     'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_58_id000--s75821',
-        #     'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_59_id000--s96595',
-        #     'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_58_id000--s16595',
+        #     # 'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_58_id000--s75821',
+        #     # 'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_59_id000--s96595',
+        #     # 'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_58_id000--s16595',
+        #
+        #     # 'pg-4obj/06-16-prev-subtask-weight-0.15/06-16-prev-subtask-weight-0.15_2020_06_17_06_24_56_id000--s67647',
+        #
+        #     'pg-4obj/06-17-local/06-17-local_2020_06_17_17_29_47_id000--s41383'
         # ],
         # 'rl_variant.algo_kwargs.do_training': [False],
         # 'rl_variant.use_sampling_policy': [

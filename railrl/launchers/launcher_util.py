@@ -441,6 +441,7 @@ def run_experiment(
     """
     launch_locally = None
     target = config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH
+    gpu_id_for_python_cmd = None
     if mode == 'ec2':
         # Ignored since I'm setting the snapshot dir directly
         base_log_dir_for_script = None
@@ -465,6 +466,9 @@ def run_experiment(
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
         dmode.set_interactive_docker_value(interactive_docker)
+        # set the gpu id in CUDA_VISIBLE_DEVICES tag when calling python, not inside python script
+        run_experiment_kwargs['gpu_id'] = 0
+        gpu_id_for_python_cmd = gpu_id
     elif mode in ['local_singularity', 'slurm_singularity', 'sss']:
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
@@ -500,6 +504,7 @@ def run_experiment(
         target_mount=target_mount,
         verbose=verbose,
         launch_locally=launch_locally,
+        gpu_id=gpu_id_for_python_cmd,
     )
 
 
