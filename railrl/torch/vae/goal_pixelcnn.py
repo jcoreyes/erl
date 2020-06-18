@@ -63,9 +63,41 @@ def load_vae(vae_file):
 """
 data loaders
 """
-all_data = np.load(args.filepath, allow_pickle=True)
 
 vqvae = load_vae(args.vaepath)
+new_path = "/home/ashvin/Desktop/cond_demos.npy"
+
+data = np.load("/home/ashvin/data/sasha/demos/zoomed_in_noisy_demos_48.npy", allow_pickle=True)
+data = data.item()
+#data["observations"] = data["observations"][:10]
+
+num_traj = data["observations"].shape[0]
+traj_len = data["observations"].shape[1]
+all_data = []
+for i in range(num_traj):
+    img = ptu.from_numpy(data["observations"][i].reshape(-1, 3, 48, 48) / 255.0)
+    obs = ptu.get_numpy(vqvae.encode(img, cont=False))
+    cond = np.arange(traj_len).reshape(-1, 1) / (traj_len - 1)
+    cond_obs = np.concatenate([obs, cond], axis=1)
+    all_data.append(cond_obs)
+
+np.save(new_path, np.concatenate(all_data, axis=0))
+
+# data = np.load("/home/ashvin/data/sasha/demos/zoomed_in_noisy_demos_48.npy", allow_pickle=True)
+# data = data.item()
+
+# num_traj = data["observations"].shape[0]
+# traj_len = data["observations"].shape[1]
+# all_data = []
+# for i in range(num_traj):
+#     img = ptu.from_numpy(data["observations"][i].reshape(-1, 3, 48, 48) / 255.0)
+#     obs = ptu.get_numpy(vqvae.encode(img, cont=False))
+#     cond = np.arange(traj_len).astype('int64').reshape(-1, 1)
+#     cond_obs = np.concatenate([obs, cond], axis=1)
+#     all_data.append(cond_obs)
+
+# np.save(new_path, np.concatenate(all_data, axis=0))
+
 
 
 def ind_to_cont(e_indices):
@@ -114,7 +146,7 @@ def get_closest_stats(latents):
 
 
 if args.dataset == 'LATENT_BLOCK':
-    _, _, train_loader, test_loader, _ = railrl.torch.vae.pixelcnn_utils.load_data_and_data_loaders(args.filepath, 'LATENT_BLOCK', args.batch_size)
+    _, _, train_loader, test_loader, _ = railrl.torch.vae.pixelcnn_utils.load_data_and_data_loaders(new_path, 'LATENT_BLOCK', args.batch_size)
 else:
     train_loader = torch.utils.data.DataLoader(
         eval('datasets.'+args.dataset)(
@@ -131,7 +163,7 @@ else:
         num_workers=args.num_workers, pin_memory=True
     )
 
-model = GatedPixelCNN(args.n_embeddings, args.img_dim**2, args.n_layers).to(device)
+model = GatedPixelCNN(args.n_embeddings, args.img_dim**2, args.n_layers, 50).to(device)
 criterion = nn.CrossEntropyLoss().cuda()
 opt = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
@@ -146,15 +178,17 @@ def train():
         start_time = time.time()
         
         #x = (x[:, 0]).cuda()
-        x = x.cuda().reshape(-1, 12, 12)
+        x = x.cuda()
+        cond = x[:,144:].flatten().float().reshape(-1, 1)
+        x = x[:,:144].reshape(-1, 12, 12).long()
 
         # Train PixelCNN with images
-        logits = model(x)
+        logits = model(x,cond)
         logits = logits.permute(0, 2, 3, 1).contiguous()
 
         loss = criterion(
             logits.view(-1, args.n_embeddings),
-            x.view(-1)
+            x.contiguous().view(-1)
         )
 
         opt.zero_grad()
@@ -178,12 +212,15 @@ def test():
     with torch.no_grad():
         for batch_idx, x in enumerate(test_loader):
         #x = (x[:, 0]).cuda()
-            x = x.cuda().reshape(-1, 12, 12)
-            logits = model(x)
+            x = x.cuda()
+            cond = x[:,144:].flatten().float().reshape(-1, 1)
+            x = x[:,:144].reshape(-1, 12, 12).long()
+
+            logits = model(x, cond)
             logits = logits.permute(0, 2, 3, 1).contiguous()
             loss = criterion(
                 logits.view(-1, args.n_embeddings),
-                x.view(-1)
+                x.contiguous().view(-1)
             )
             
             val_loss.append(loss.item())
@@ -196,13 +233,20 @@ def test():
 
 
 def generate_samples(epoch, batch_size=64):
-    e_indices = model.generate(shape=(args.img_dim, args.img_dim), batch_size=batch_size).reshape(-1, args.img_dim**2)
-    samples = vqvae.decode(e_indices.cpu())
+    timesteps = ptu.from_numpy(np.array([0, 10, 15, 25, 35, 40, 45, 49])).cuda().reshape(-1, 1, 1) / 49
+    all_samples = []
+    for i in range(8):
+        e_indices = model.generate(label=timesteps[i], 
+            shape=(args.img_dim, args.img_dim), batch_size=8).reshape(-1, args.img_dim**2)
+        samples = vqvae.decode(e_indices.cpu())
+        all_samples.append(samples)
+
+    all_samples = torch.cat(all_samples, dim=0)
 
     save_dir = "/home/ashvin/data/sasha/pixelcnn/vqvae_samples/sample{0}.png".format(epoch)
 
     save_image(
-        samples.data.view(batch_size, 3, 48, 48).transpose(2, 3),
+        all_samples.data.view(batch_size, 3, 48, 48).transpose(2, 3),
         save_dir
     )
 
