@@ -80,6 +80,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         spaces['latent_desired_goal'] = latent_space
         spaces['latent_achieved_goal'] = latent_space
         self.observation_space = Dict(spaces)
+
         self._presampled_goals = presampled_goals
 
         if num_goals_to_presample > 0:

@@ -207,7 +207,6 @@ def generate_vae_dataset(variant):
     enviorment_dataset = variant.get('enviorment_dataset', False)
     save_trajectories = variant.get('save_trajectories', False)
     save_trajectories = save_trajectories or use_linear_dynamics or conditional_vae_dataset
-
     tag = variant.get('tag', '')
 
     assert N % n_random_steps == 0, "Fix N/horizon or dataset generation will fail"
@@ -322,6 +321,7 @@ def generate_vae_dataset(variant):
                     env.step(u)
                 elif oracle_dataset_using_set_to_goal:
                     print(i)
+                    
                     goal = env.sample_goal()
                     env.set_to_goal(goal)
                     obs = env._get_obs()

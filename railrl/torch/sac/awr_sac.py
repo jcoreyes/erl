@@ -621,7 +621,6 @@ class AWRSACTrainer(TorchTrainer):
         else:
             policy_logpp = dist.log_prob(u)
             policy_logpp = policy_logpp[:, None]
-            # policy_logpp = policy_logpp.sum(dim=1, keepdim=True)
 
         if self.use_automatic_beta_tuning:
             buffer_dist = self.buffer_policy(obs)

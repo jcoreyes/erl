@@ -51,6 +51,7 @@ class VAETrainer(TorchTrainer, LossFunction):
             self.vae_visualization_config = {}
 
     def train_from_torch(self, batch):
+        timer.start_timer('vae training', unique=False)
         losses, stats = self.compute_loss(
             batch,
             skip_statistics=not self._need_to_update_eval_statistics,
@@ -63,6 +64,7 @@ class VAETrainer(TorchTrainer, LossFunction):
             self.eval_statistics = stats
             self._need_to_update_eval_statistics = False
             self.example_obs_batch = batch['raw_next_observations']
+        timer.stop_timer('vae training')
 
     def kl_divergence(self, z_mu, logvar):
         return - 0.5 * torch.sum(

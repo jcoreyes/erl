@@ -6,9 +6,18 @@ from railrl.envs.images import Renderer
 
 class EnvRenderer(Renderer):
     # TODO: switch to env.render interface
-    def __init__(self, init_camera=None, create_image_format='HWC', **kwargs):
+    def __init__(
+            self,
+            init_camera=None,
+            normalize_image=True,  # most gym envs output uint8
+            create_image_format='HWC',
+            **kwargs
+    ):
         """Render an image."""
-        super().__init__(create_image_format=create_image_format, **kwargs)
+        super().__init__(
+            normalize_image=normalize_image,
+            create_image_format=create_image_format,
+            **kwargs)
         self._init_camera = init_camera
         self._camera_is_initialized = False
 

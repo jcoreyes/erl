@@ -125,7 +125,6 @@ def rig_experiment(
             img_env,
             model,
             dict(image_observation="latent_observation", ),
-            # dict(image_desired_goal="latent_desired_goal", ),
         )
         if goal_sampling_mode == "vae_prior":
             latent_goal_distribution = PriorDistribution(

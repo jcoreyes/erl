@@ -117,11 +117,11 @@ imsize84_default_architecture=dict(
         ),
         conv_kwargs=dict(
             hidden_sizes=[],
-            batch_norm_conv=True,
-            batch_norm_fc=True,
+            conv_normalization_type="batch",
+            fc_normalization_type="batch",
         ),
         deconv_args=dict(
-            hidden_sizes=[],
+            hidden_sizes=[150, 300, 500],
 
             deconv_input_width=2,
             deconv_input_height=2,
@@ -136,8 +136,8 @@ imsize84_default_architecture=dict(
             strides=[3,3],
         ),
         deconv_kwargs=dict(
-            batch_norm_deconv=True,
-            batch_norm_fc=True,
+            deconv_normalization_type="batch",
+            fc_normalization_type="batch",
         )
     )
 

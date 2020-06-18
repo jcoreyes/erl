@@ -278,6 +278,8 @@ class VQ_VAE(nn.Module):
                                 num_residual_layers,
                                 num_residual_hiddens)
         self.representation_size = 0
+        self.discrete_size = 0
+        self.square_size = 0
 
     def compute_loss(self, inputs):
         inputs = inputs.view(-1,
@@ -290,6 +292,8 @@ class VQ_VAE(nn.Module):
 
         if self.representation_size == 0:
             self.representation_size = quantized[0].flatten().shape[0]
+            self.discrete_size = self.representation_size // self.embedding_dim
+            self.square_size = int(self.discrete_size ** 0.5)
 
         x_recon = self._decoder(quantized)
         recon_error = F.mse_loss(x_recon, inputs)
@@ -297,10 +301,10 @@ class VQ_VAE(nn.Module):
 
 
     def latent_to_square(self, latents):
-        squared_len = int(latents.shape[1] ** 0.5)
-        return latents.reshape(-1, squared_len, squared_len)
+        root_len = int(latents.shape[1] ** 0.5)
+        return latents.reshape(-1, root_len, root_len)
 
-    def encode(self, inputs, cont=False):
+    def encode(self, inputs, cont=True):
         inputs = inputs.view(-1,
                             self.input_channels,
                             self.imsize,
@@ -343,10 +347,11 @@ class VQ_VAE(nn.Module):
     #     _, quantized, _, _ = self._vq_vae(z)
     #     return quantized
 
-    def decode(self, latents, cont=False):
+    def decode(self, latents, cont=True):
         z_q = None
         if cont:
-            squared_len = int((latents.shape[1] / self.embedding_dim) ** 0.5)
+            squared_len = int(self.discrete_size ** 0.5)
+            #squared_len = int((latents.shape[1] / self.embedding_dim) ** 0.5)
             z_q = latents.reshape(-1, self.embedding_dim, squared_len, squared_len)
         else:
             z_q = self.discrete_to_cont(latents)
@@ -378,9 +383,234 @@ class VQ_VAE(nn.Module):
         return ptu.get_numpy(torch.norm(s_q - g_q, dim=1))
 
     def sample_prior(self, batch_size, cont=True):
-        e_indices = self.pixel_cnn.generate(shape=(12, 12), batch_size=batch_size)
+        root_len = int(self.representation_size**0.5)
+        e_indices = self.pixel_cnn.generate(shape=(root_len, root_len), batch_size=batch_size)
         e_indices = e_indices.reshape(batch_size, -1)
         if cont:
             return self.discrete_to_cont(e_indices)
         return e_indices
 
+    # def logprob(self, e_indices, cont=True):
+    #     batch_size = images.shape[0]
+    #     # e_indices = self.encode(images, cont=False)
+    #     cond = ptu.from_numpy(np.ones((images.shape[0], 1)))
+    #     logits = self.pixel_cnn(e_indices, cond)
+    #     logits = logits.permute(0, 2, 3, 1).contiguous()
+    #     criterion = nn.CrossEntropyLoss(reduction='none').cuda()
+
+    #     logprob = - criterion(
+    #         logits.view(-1, self.num_embeddings),
+    #         e_indices.contiguous().view(-1))
+
+    #     logprob = logprob.reshape(batch_size, -1).mean(dim=1)
+
+
+
+    #     # logprob = - criterion(
+    #     #     logits.view(batch_size, -1, self.num_embeddings),
+    #     #     e_indices.contiguous().view(batch_size, -1))
+    #     return logprob
+
+    def logprob(self, images, cont=True):
+        batch_size = images.shape[0]
+        root_len = int((self.representation_size // self.embedding_dim)**0.5)
+        e_indices = self.encode(images, cont=False)
+        e_indices = e_indices.reshape(batch_size, root_len, root_len)
+        cond = ptu.from_numpy(np.ones((images.shape[0], 1)))
+        logits = self.pixel_cnn(e_indices, cond)
+        logits = logits.permute(0, 2, 3, 1).contiguous()
+        criterion = nn.CrossEntropyLoss(reduction='none')#.cuda()
+
+        logprob = - criterion(
+            logits.view(-1, self.num_embeddings),
+            e_indices.contiguous().view(-1))
+
+        logprob = logprob.reshape(batch_size, -1).mean(dim=1)
+
+        return logprob
+
+
+class CVQVAE(nn.Module):
+    def __init__(
+        self,
+        embedding_dim,
+        input_channels=3,
+        num_hiddens=128,
+        num_residual_layers=3,
+        num_residual_hiddens=64,
+        num_embeddings=512,
+        commitment_cost=0.25,
+        decoder_output_activation=None, #IGNORED FOR NOW
+        architecture=None, #IGNORED FOR NOW
+        imsize=48,
+        decay=0):
+        super(CVQVAE, self).__init__()
+        self.imsize = imsize
+        self.embedding_dim = embedding_dim
+        self.pixel_cnn = None
+        self.input_channels = input_channels
+        self.imlength = imsize * imsize * input_channels
+        self.num_embeddings = num_embeddings
+        self._encoder = Encoder(input_channels * 2, num_hiddens,
+                                num_residual_layers,
+                                num_residual_hiddens)
+
+        self.cond_encoder = Encoder(input_channels, num_hiddens,
+                                    num_residual_layers,
+                                    num_residual_hiddens)
+        self._pre_vq_conv = nn.Conv2d(in_channels=num_hiddens,
+                                      out_channels=self.embedding_dim,
+                                      kernel_size=1,
+                                      stride=1)
+
+        self.cond_pre_vq_conv = nn.Conv2d(in_channels=num_hiddens,
+                                      out_channels=self.embedding_dim,
+                                      kernel_size=1,
+                                      stride=1)
+        if decay > 0.0:
+            self._vq_vae = VectorQuantizerEMA(num_embeddings, self.embedding_dim,
+                                              commitment_cost, decay)
+            self.cond_vq_vae = VectorQuantizerEMA(num_embeddings, self.embedding_dim,
+                                              commitment_cost, decay)
+        else:
+            self._vq_vae = VectorQuantizer(num_embeddings, self.embedding_dim,
+                                           commitment_cost)
+
+            self.cond_vq_vae = VectorQuantizer(num_embeddings, self.embedding_dim,
+                                              commitment_cost)
+
+        self._decoder = Decoder(self.embedding_dim * 2,
+                                num_hiddens,
+                                num_residual_layers,
+                                num_residual_hiddens)
+
+        self.cond_decoder = Decoder(self.embedding_dim,
+                                    num_hiddens,
+                                    num_residual_layers,
+                                    num_residual_hiddens)
+
+        self.representation_size = 0
+        self.latent_sizes = []
+        self.discrete_size = 0
+        self.root_len = 0
+
+    def compute_loss(self, obs, cond):
+        obs = obs.view(-1,
+                        self.input_channels,
+                        self.imsize,
+                        self.imsize)
+
+        cond = cond.view(-1,
+                        self.input_channels,
+                        self.imsize,
+                        self.imsize)
+
+        inputs = torch.cat([obs, cond], dim=1)
+        
+        z = self._encoder(inputs)
+        z = self._pre_vq_conv(z)
+        z_cond = self.cond_encoder(cond)
+        z_cond = self.cond_pre_vq_conv(z_cond)
+
+        vq_loss, quantized, perplexity, _ = self._vq_vae(z)
+        cond_vq_loss, cond_quantized, cond_perplexity, _ = self.cond_vq_vae(z_cond)
+        cat_quantized = torch.cat([quantized, cond_quantized], dim=1)
+
+        if self.representation_size == 0:
+            z_size = quantized[0].flatten().shape[0]
+            z_cond_size = cond_quantized[0].flatten().shape[0]
+            self.latent_sizes = [z_size, z_cond_size]
+            self.representation_size = z_size + z_cond_size
+            self.discrete_size = self.representation_size // self.embedding_dim
+            self.root_len = int((self.discrete_size // 2) ** 0.5)
+        
+        cond_recon = self.cond_decoder(cond_quantized)
+        x_recon = self._decoder(cat_quantized)
+        vq_losses = [vq_loss, cond_vq_loss]
+        perplexities = [perplexity, cond_perplexity]
+        recons = [x_recon, cond_recon]
+        errors = [F.mse_loss(x_recon, obs), F.mse_loss(cond_recon, cond)]
+        return vq_losses, perplexities, recons, errors
+
+
+    def latent_to_square(self, latents):
+        # length = latents.shape[1] // 2
+        # squared_len = int((length) ** 0.5)
+        latents = latents.reshape(-1, 2, self.root_len, self.root_len)
+        return latents[:, 0], latents[:, 1]
+
+    def encode(self, obs, cond, cont=True):
+        obs = obs.view(-1,
+                        self.input_channels,
+                        self.imsize,
+                        self.imsize)
+
+        cond = cond.view(-1,
+                        self.input_channels,
+                        self.imsize,
+                        self.imsize)
+
+        inputs = torch.cat([obs, cond], dim=1)
+        z = self._encoder(inputs)
+        z = self._pre_vq_conv(z)
+
+        z_cond = self.cond_encoder(cond)
+        z_cond = self.cond_pre_vq_conv(z_cond)
+
+        _, quantized, _, encodings = self._vq_vae(z)
+        _, cond_quantized, _, cond_encodings = self.cond_vq_vae(z_cond)
+
+        if cont:
+            z, z_c = quantized, cond_quantized
+        else:
+            z, z_c = encodings, cond_encodings
+        
+
+        z = z.reshape(obs.shape[0], -1)
+        z_c = z_c.reshape(cond.shape[0], -1)
+        z_cond = torch.cat([z, z_c], dim=1)
+        return z_cond
+
+
+    def conditioned_discrete_to_cont(self, e_indices):
+        z_ind, cond_ind = self.latent_to_square(e_indices)
+        z = self.discrete_to_cont(z_ind, self._vq_vae._embedding.weight)
+        z_cond = self.discrete_to_cont(cond_ind, self.cond_vq_vae._embedding.weight)
+        cat_quantized = torch.cat([z, z_cond], dim=1)
+        return cat_quantized
+
+
+    def discrete_to_cont(self, e_indices, e_weights):
+        input_shape = e_indices.shape + (self.embedding_dim,)
+        e_indices = e_indices.reshape(-1).unsqueeze(1)
+        
+        min_encodings = torch.zeros(e_indices.shape[0], self.num_embeddings, device=e_indices.device)
+        min_encodings.scatter_(1, e_indices, 1)
+        
+        quantized = torch.matmul(
+            min_encodings, e_weights).view(input_shape)
+        
+        z_q = torch.matmul(min_encodings, e_weights).view(input_shape) 
+        z_q = z_q.permute(0, 3, 1, 2).contiguous()
+        return z_q
+
+    def set_pixel_cnn(self, pixel_cnn):
+        self.pixel_cnn = pixel_cnn
+
+    def decode(self, latents, cont=True):
+        if cont:
+            length = latents.shape[1] / (2 * self.embedding_dim)
+            squared_len = int(length ** 0.5)
+            z = latents.reshape(-1, 2 * self.embedding_dim, self.root_len, self.root_len)
+        else:
+            z = self.conditioned_discrete_to_cont(latents)
+        return self._decoder(z)
+
+
+    # def sample_prior(self, batch_size, cont=True):
+    #     size = self.latent_sizes[0]**0.5
+    #     e_indices = self.pixel_cnn.generate(shape=(size, size), batch_size=batch_size)
+    #     e_indices = e_indices.reshape(batch_size, -1)
+    #     if cont:
+    #         return self.discrete_to_cont(e_indices)
+    #     return e_indices

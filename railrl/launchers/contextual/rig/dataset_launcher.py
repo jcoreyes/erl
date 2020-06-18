@@ -1,8 +1,6 @@
-
-
-
 import time
 import numpy as np
+from torch.utils import data
 
 def generate_vae_dataset(
         env_kwargs,
@@ -17,6 +15,7 @@ def generate_vae_dataset(
         num_channels=3,
         show=False,
         dataset_path=None,
+        save_dataset_path=None,
         oracle_dataset_using_set_to_goal=False,
         random_rollout_data=False,
         random_rollout_data_set_to_goal=True,
@@ -176,6 +175,8 @@ def generate_vae_dataset(
                     # radius = input('waiting...')
             print("done making training data", filename, time.time() - now)
             np.save(filename, dataset)
+            if save_dataset_path is not None:
+                np.save(save_dataset_path, dataset)
             #np.save(filename[:-4] + 'labels.npy', np.array(labels))
 
     info['train_labels'] = []
