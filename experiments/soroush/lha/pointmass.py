@@ -177,80 +177,82 @@ env_params = {
             ],
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [6000],
+        # 'rl_variant.algo_kwargs.num_epochs': [6000],
+        #
+        # # 'rl_variant.mask_variant.max_subtasks_to_focus_on': [2],
+        # # 'rl_variant.mask_variant.reward_fn': [action_penalty_masked_reward_fn],
+        # # 'rl_variant.mask_variant.prev_subtask_weight': [0.15],
+        # 'rl_variant.mask_variant.rollout_mask_order_for_expl': ['random'],
+        #
+        # 'rl_variant.mask_variant.train_mask_distr': [
+        #     # dict(
+        #     #     atomic=0.5,
+        #     #     cumul=0.5,
+        #     #     subset=0.0,
+        #     #     full=0.0,
+        #     # ),
+        #     dict(
+        #         atomic=0.5,
+        #         cumul=0.0,
+        #         subset=0.5,
+        #         full=0.0,
+        #     ),
+        # ],
+        #
+        # 'rl_variant.mask_variant.expl_mask_distr': [
+        #     dict(
+        #         atomic=0.5,
+        #         atomic_seq=0.5,
+        #         cumul_seq=0.0,
+        #         full=0.0,
+        #     ),
+        #     # dict(
+        #     #     atomic=0.3,
+        #     #     atomic_seq=0.3,
+        #     #     cumul_seq=0.4,
+        #     #     full=0.0,
+        #     # ),
+        # ],
 
-        # 'rl_variant.mask_variant.max_subtasks_to_focus_on': [2],
-        # 'rl_variant.mask_variant.reward_fn': [action_penalty_masked_reward_fn],
-        # 'rl_variant.mask_variant.prev_subtask_weight': [0.15],
-        'rl_variant.mask_variant.rollout_mask_order_for_expl': ['random'],
 
-        'rl_variant.mask_variant.train_mask_distr': [
-            # dict(
-            #     atomic=0.5,
-            #     cumul=0.5,
-            #     subset=0.0,
-            #     full=0.0,
-            # ),
-            dict(
-                atomic=0.5,
-                cumul=0.0,
-                subset=0.5,
-                full=0.0,
-            ),
+        'rl_variant.ckpt': [
+            # 'pg-4obj/06-14-cumul-baseline/06-14-cumul-baseline_2020_06_15_03_57_59_id000--s14978', #gpu_id=2
+
+            # 'pg-4obj/06-14-cumul-expl/06-14-cumul-expl_2020_06_15_03_59_35_id000--s52092', #gpu_id=1
+
+            # 'pg-4obj/06-14-cumul-2-obj-focus/06-14-cumul-2-obj-focus_2020_06_15_04_00_48_id000--s26618', #gpu_id=0
+
+            'pg-4obj/06-17-random-subtask-order/06-17-random-subtask-order_2020_06_17_17_17_59_id000--s18007', #gpu_id=5
+
+
         ],
-
-        'rl_variant.mask_variant.expl_mask_distr': [
-            dict(
-                atomic=0.5,
-                atomic_seq=0.5,
-                cumul_seq=0.0,
-                full=0.0,
-            ),
-            # dict(
-            #     atomic=0.3,
-            #     atomic_seq=0.3,
-            #     cumul_seq=0.4,
-            #     full=0.0,
-            # ),
+        'rl_variant.algo_kwargs.do_training': [False],
+        'rl_variant.use_sampling_policy': [
+            False,
+            # True,
         ],
+        'rl_variant.mask_variant.prev_subtasks_solved': [
+            # True,
+            False,
+        ],
+        'rl_variant.dump_video_kwargs.keys_to_show': [[
+            # 'image_v',
+            # 'image_v_1',
+            # 'image_v_2',
+            # 'image_v_3',
+            # 'image_v_4',
 
-
-        # 'rl_variant.ckpt': [
-        #     # 'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_58_id000--s75821',
-        #     # 'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_59_id000--s96595',
-        #     # 'pg-4obj/06-06-larger-nupo/06-06-larger-nupo_2020_06_07_03_24_58_id000--s16595',
-        #
-        #     # 'pg-4obj/06-16-prev-subtask-weight-0.15/06-16-prev-subtask-weight-0.15_2020_06_17_06_24_56_id000--s67647',
-        #
-        #     'pg-4obj/06-17-local/06-17-local_2020_06_17_17_29_47_id000--s41383'
-        # ],
-        # 'rl_variant.algo_kwargs.do_training': [False],
-        # 'rl_variant.use_sampling_policy': [
-        #     False,
-        #     # True,
-        # ],
-        # 'rl_variant.mask_variant.prev_subtasks_solved': [
-        #     # True,
-        #     False,
-        # ],
-        # 'rl_variant.dump_video_kwargs.keys_to_show': [[
-        #     # 'image_v',
-        #     # 'image_v_1',
-        #     # 'image_v_2',
-        #     # 'image_v_3',
-        #     # 'image_v_4',
-        #
-        #     'image_pi',
-        #     'image_pi_0',
-        #     # 'image_pi_1',
-        #     # 'image_pi_2',
-        #     # 'image_pi_3',
-        #     # 'image_pi_4',
-        # ]],
-        # 'rl_variant.log_expl_video': [False],
-        # 'rl_variant.algo_kwargs.num_epochs': [3],
-        # 'rl_variant.save_video_period': [1],
-        # 'rl_variant.dump_video_kwargs.columns': [4],
+            'image_pi',
+            'image_pi_0',
+            # 'image_pi_1',
+            # 'image_pi_2',
+            # 'image_pi_3',
+            # 'image_pi_4',
+        ]],
+        'rl_variant.log_expl_video': [False],
+        'rl_variant.algo_kwargs.num_epochs': [3],
+        'rl_variant.save_video_period': [1],
+        'rl_variant.dump_video_kwargs.columns': [4],
     },
 }
 
