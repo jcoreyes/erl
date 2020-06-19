@@ -110,14 +110,6 @@ class TD3(TorchTrainer):
         """
         Update Networks
         """
-        self.qf1_optimizer.zero_grad()
-        qf1_loss.backward()
-        self.qf1_optimizer.step()
-
-        self.qf2_optimizer.zero_grad()
-        qf2_loss.backward()
-        self.qf2_optimizer.step()
-
         policy_actions = policy_loss = None
         if self._n_train_steps_total % self.policy_and_target_update_period == 0:
             policy_actions = self.policy(obs)
@@ -129,6 +121,16 @@ class TD3(TorchTrainer):
             self.policy_optimizer.step()
 
             ptu.soft_update_from_to(self.policy, self.target_policy, self.tau)
+
+        self.qf1_optimizer.zero_grad()
+        qf1_loss.backward()
+        self.qf1_optimizer.step()
+
+        self.qf2_optimizer.zero_grad()
+        qf2_loss.backward()
+        self.qf2_optimizer.step()
+
+        if self._n_train_steps_total % self.policy_and_target_update_period == 0:
             ptu.soft_update_from_to(self.qf1, self.target_qf1, self.tau)
             ptu.soft_update_from_to(self.qf2, self.target_qf2, self.tau)
 

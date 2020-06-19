@@ -106,6 +106,10 @@ class SACTrainer(TorchTrainer, LossFunction):
             losses.alpha_loss.backward()
             self.alpha_optimizer.step()
 
+        self.policy_optimizer.zero_grad()
+        losses.policy_loss.backward()
+        self.policy_optimizer.step()
+
         self.qf1_optimizer.zero_grad()
         losses.qf1_loss.backward()
         self.qf1_optimizer.step()
@@ -113,10 +117,6 @@ class SACTrainer(TorchTrainer, LossFunction):
         self.qf2_optimizer.zero_grad()
         losses.qf2_loss.backward()
         self.qf2_optimizer.step()
-
-        self.policy_optimizer.zero_grad()
-        losses.policy_loss.backward()
-        self.policy_optimizer.step()
 
         self._n_train_steps_total += 1
 
