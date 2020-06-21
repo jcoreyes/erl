@@ -32,6 +32,8 @@ class VPGTrainer(TorchTrainer, LossFunction):
             policy_lr=1e-3,
             vf_lr=1e-3,
             optimizer_class=optim.Adam,
+
+            vf_iters_per_step=80,
     ):
         super().__init__()
         self.env = env
@@ -40,6 +42,7 @@ class VPGTrainer(TorchTrainer, LossFunction):
         self.replay_buffer = replay_buffer
 
         self.vf_criterion = nn.MSELoss()
+        self.vf_iters_per_step = vf_iters_per_step
 
         self.policy_optimizer = optimizer_class(
             self.policy.parameters(),
@@ -69,19 +72,32 @@ class VPGTrainer(TorchTrainer, LossFunction):
         losses.policy_loss.backward()
         self.policy_optimizer.step()
 
-        # self.qf1_optimizer.zero_grad()
-        # losses.qf1_loss.backward()
-        # self.qf1_optimizer.step()
+        obs = batch['observations']
+        returns = batch['returns'][:, 0]
 
-        # self.qf2_optimizer.zero_grad()
-        # losses.qf2_loss.backward()
-        # self.qf2_optimizer.step()
+        for _ in range(self.vf_iters_per_step):
+            v = self.vf(obs)[:, 0]
+            v_error = (v - returns) ** 2
+            vf_loss = v_error.mean()
+
+            self.vf_optimizer.zero_grad()
+            vf_loss.backward()
+            self.vf_optimizer.step()
 
         self._n_train_steps_total += 1
         if self._need_to_update_eval_statistics:
             self.eval_statistics = stats
             # Compute statistics using only one batch per epoch
             self._need_to_update_eval_statistics = False
+
+            stats["VF Loss"] = np.mean(ptu.get_numpy(
+                vf_loss
+            ))
+            stats.update(create_stats_ordered_dict(
+                "VF",
+                ptu.get_numpy(v),
+            ))
+
         timer.stop_timer('pg training')
 
         self.replay_buffer.empty_buffer()
@@ -108,8 +124,9 @@ class VPGTrainer(TorchTrainer, LossFunction):
 
         dist = self.policy.forward(obs,)
         log_probs = dist.log_prob(actions)
-        log_probs_times_returns = log_probs * returns
-        policy_loss = -log_probs_times_returns.mean()
+        advantage = returns - self.vf(obs)[:, 0]
+        J = log_probs * advantage
+        policy_loss = -J.mean()
 
         """
         Save some statistics for eval

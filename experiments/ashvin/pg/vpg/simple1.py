@@ -15,7 +15,7 @@ from railrl.data_management.env_replay_buffer import VPGEnvReplayBuffer
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=1001,
+        num_epochs=10001,
         num_eval_steps_per_epoch=1000,
         num_trains_per_train_loop=1,
         num_expl_steps_per_train_loop=1000,
@@ -55,6 +55,7 @@ if __name__ == "__main__":
             discount=0.99,
             policy_lr=3E-4,
             vf_lr=3E-4,
+            vf_iters_per_step=80,
             # reward_scale=1,
             # beta=1,
             # use_automatic_entropy_tuning=False,
@@ -99,9 +100,10 @@ if __name__ == "__main__":
         add_env_demos=False,
         add_env_offpolicy_data=False,
 
-        # logger_variant=dict(
-        #     tensorboard=True,
-        # ),
+        logger_config=dict(
+            snapshot_mode="gap",
+            snapshot_gap=1000,
+        ),
         load_demos=False,
         pretrain_policy=False,
         pretrain_rl=False,
@@ -110,9 +112,9 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(5),
-        'env': ['pendulum', 'inv-double-pendulum'],
-        # 'trainer_kwargs.beta': [0.01, 0.1, 1, ],
+        'seedid': range(3),
+        'env': ['pendulum', 'inv-double-pendulum', 'half-cheetah', 'ant', 'hopper', 'walker', ],
+        'trainer_kwargs.vf_iters_per_step': [100, 1000],
         # 'num_trains_per_train_loop': [4000],
         # 'env_kwargs.reward_type': ['puck_distance', ],
         # 'policy_kwargs.min_log_std': [-6, ],
