@@ -89,6 +89,16 @@ class ContextualEnv(gym.Wrapper):
             self._rollout_context_batch,
         )[0]
 
+    def compute_reward(self, state, action, next_state):
+        """Do reshaping for reward_fn, which is implemented for batches."""
+        # TODO: don't assume these things are just vectors
+        return self._reward_fn(
+            state,
+            action,
+            next_state,
+            next_state,
+        )[0]
+
     def _update_obs(self, obs):
         for k in self._context_keys:
             obs[k] = self._rollout_context_batch[k][0]

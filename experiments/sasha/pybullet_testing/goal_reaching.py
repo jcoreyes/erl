@@ -35,7 +35,7 @@ if __name__ == "__main__":
             save_video_period=25,
             exploration_goal_image_key="decoded_goal_image",
             evaluation_goal_image_key="decoded_goal_image",
-            rows=3,
+            #rows=3,
             columns=6,
             image_format="CWH",
         ),
@@ -105,10 +105,10 @@ if __name__ == "__main__":
         ),
         vae_wrapped_env_kwargs=dict(
             goal_sampling_mode='presampled',
-            presampled_goals_path='/home/ashvin/data/sasha/demos/presampled_goals_small.pkl'
+            presampled_goals_path='/home/ashvin/data/sasha/demos/presampled_goals.pkl'
         ),
 
-        vae_path="/home/ashvin/data/sasha/pybullet-testing/vqvae/run10/id0/vae.pkl",
+        pretrained_vae_path="/home/ashvin/data/sasha/pybullet-testing/vqvae/run10/id0/vae.pkl",
         path_loader_class=EncoderDictToMDPPathLoader,
         path_loader_kwargs=dict(
             recompute_reward=True,

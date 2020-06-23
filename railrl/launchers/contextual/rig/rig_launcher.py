@@ -47,26 +47,37 @@ from railrl.launchers.contextual.rig.model_train_launcher import train_vae
 
 class RewardFn:
     def __init__(self,
-            observation_key,
-            desired_goal_key,
+            env,
+            obs_type='latent',
             reward_type='dense',
             epsilon=1.0
-        ):
-
-        self.observation_key = observation_key
-        self.desired_goal_key = desired_goal_key
+            ):
+        if obs_type == 'latent':
+            self.observation_key = 'latent_observation'
+            self.desired_goal_key = 'latent_desired_goal'
+        elif obs_type == 'state':
+            self.observation_key = 'state_observation'
+            self.desired_goal_key = 'state_desired_goal'
+        self.env = env
         self.reward_type = reward_type
         self.epsilon = epsilon
 
+    def process(self, obs):
+        if len(obs.shape) == 1:
+            return obs.reshape(1, -1)
+        return obs
+
     def __call__(self, states, actions, next_states, contexts):
-        s = next_states[self.observation_key]
-        c = contexts[self.desired_goal_key]
+        s = self.process(next_states[self.observation_key])
+        c = self.process(contexts[self.desired_goal_key])
         
         if self.reward_type == 'dense':
             reward = -np.linalg.norm(s - c, axis=1)
         elif self.reward_type == 'sparse':
             success = np.linalg.norm(s - c, axis=1) < self.epsilon
             reward = success - 1
+        elif self.reward_type == 'wrapped_env':
+            reward = self.env.compute_reward(states, actions, next_states, contexts)
         else:
             raise ValueError(self.reward_type)
         return reward
@@ -181,14 +192,12 @@ def rig_experiment(
                 desired_goal_key,
                 model,
             )
-            #state_goal_env.get_contextual_diagnostics
             diagnostics = state_goal_env.get_contextual_diagnostics
         else:
             error
 
         reward_fn = RewardFn(
-            observation_key=observation_key,
-            desired_goal_key=desired_goal_key,
+            encoded_env,
             **reward_kwargs
         )
 

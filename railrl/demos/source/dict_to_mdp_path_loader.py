@@ -5,7 +5,7 @@ import torch
 import torch.optim as optim
 from torch import nn as nn
 import torch.nn.functional as F
-
+import copy
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchTrainer
@@ -257,6 +257,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         print("ASSUMING FINAL STATE IS GOAL")
 
     def preprocess(self, observation):
+        observation = copy.deepcopy(observation)
         images = np.stack([observation[i]['image_observation'] for i in range(len(observation))])
         
         if self.normalize:
@@ -268,6 +269,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             observation[i]["latent_observation"] = latents[i]
             observation[i]["latent_achieved_goal"] = latents[i]
             observation[i]["latent_desired_goal"] = latents[-1]
+            del observation[i]['image_observation']
 
         return observation
 
@@ -304,7 +306,8 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             env_info = path["env_infos"][i]
 
             if self.recompute_reward:
-                reward = self.env.compute_reward(action, path["next_observations"][i])
+                #reward = self.env.compute_rewards(action, path["next_observations"][i])
+                reward = self.env.compute_reward(ob, action, next_ob)
 
             reward = np.array([reward]).flatten()
             rewards.append(reward)
