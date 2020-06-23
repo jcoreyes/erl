@@ -213,7 +213,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             model_path=None,
             env=None,
             demo_paths=[], # list of dicts
-            normalize=True,
+            normalize=False,
             demo_train_split=0.9,
             demo_data_split=1,
             add_demos_to_replay_buffer=True,
@@ -254,17 +254,27 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         self.normalize = normalize
         self.env = env
 
-    def encode(self, observation):
-        observation["latent_achieved_goal"] = 
-        observation["latent_desired_goal"] = 
+        print("ASSUMING FINAL STATE IS GOAL")
+
+    def preprocess(self, observation):
+        images = np.stack([observation[i]['image_observation'] for i in range(len(observation))])
+        
+        if self.normalize:
+            images = images / 255.0
+
+        latents = ptu.get_numpy(self.model.encode(ptu.from_numpy(images)))
+
+        for i in range(len(observation)):
+            observation[i]["latent_observation"] = latents[i]
+            observation[i]["latent_achieved_goal"] = latents[i]
+            observation[i]["latent_desired_goal"] = latents[-1]
+
+        return observation
+
+    def encode(self, obs):
         if self.normalize:
             return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs) / 255.0))
         return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs)))
-
-    # def encode(self, obs):
-    #     if self.normalize:
-    #         return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs) / 255.0))
-    #     return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs)))
 
 
     def load_path(self, path, replay_buffer, obs_dict=None):
@@ -275,15 +285,16 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         H = min(len(path["observations"]), len(path["actions"]))
         print("actions", np.min(path["actions"]), np.max(path["actions"]))
 
-        traj_obs = self.encode(path["observations"])
-        next_traj_obs = self.encode(path["next_observations"])
-        #traj_obs = self.env._encode(path["observations"])
-        #next_traj_obs = self.env._encode(path["next_observations"])
+        if obs_dict:
+            traj_obs = self.preprocess(path["observations"])
+            next_traj_obs = self.preprocess(path["next_observations"])
+        else:
+            traj_obs = self.env.encode(path["observations"])
+            next_traj_obs = self.env.encode(path["next_observations"])
 
         for i in range(H):
             ob = traj_obs[i]
             next_ob = next_traj_obs[i]
-            next_img = path["next_observations"][i]
             action = path["actions"][i]
             reward = path["rewards"][i]
             terminal = path["terminals"][i]
@@ -293,7 +304,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             env_info = path["env_infos"][i]
 
             if self.recompute_reward:
-                reward = self.env.compute_reward(action, next_img)
+                reward = self.env.compute_reward(action, path["next_observations"][i])
 
             reward = np.array([reward]).flatten()
             rewards.append(reward)

@@ -318,6 +318,22 @@ class VQ_VAE(nn.Module):
 
         return encodings.reshape(inputs.shape[0], -1)
 
+
+    def encode_one_np(self, inputs, cont=True):
+        return ptu.get_numpy(self.encode(ptu.from_numpy(inputs), cont=cont))[0]
+
+
+    def encode_np(self, inputs, cont=True):
+        return ptu.get_numpy(self.encode(ptu.from_numpy(inputs), cont=cont))
+
+    def decode_one_np(self, inputs, cont=True):
+        return np.clip(ptu.get_numpy(self.decode(ptu.from_numpy(inputs).reshape(1, -1), cont=cont))[0], 0, 1)
+
+
+    def decode_np(self, inputs, cont=True):
+        return np.clip(ptu.get_numpy(self.decode(ptu.from_numpy(inputs), cont=cont)), 0, 1)
+
+
     def discrete_to_cont(self, e_indices):
         e_indices = self.latent_to_square(e_indices)
         input_shape = e_indices.shape + (self.embedding_dim,)
@@ -350,8 +366,8 @@ class VQ_VAE(nn.Module):
     def decode(self, latents, cont=True):
         z_q = None
         if cont:
-            squared_len = int(self.discrete_size ** 0.5)
-            #squared_len = int((latents.shape[1] / self.embedding_dim) ** 0.5)
+            #squared_len = int(self.discrete_size ** 0.5)
+            squared_len = int((latents.shape[1] / self.embedding_dim) ** 0.5)
             z_q = latents.reshape(-1, self.embedding_dim, squared_len, squared_len)
         else:
             z_q = self.discrete_to_cont(latents)
@@ -534,8 +550,6 @@ class CVQVAE(nn.Module):
 
 
     def latent_to_square(self, latents):
-        # length = latents.shape[1] // 2
-        # squared_len = int((length) ** 0.5)
         latents = latents.reshape(-1, 2, self.root_len, self.root_len)
         return latents[:, 0], latents[:, 1]
 
@@ -599,8 +613,6 @@ class CVQVAE(nn.Module):
 
     def decode(self, latents, cont=True):
         if cont:
-            length = latents.shape[1] / (2 * self.embedding_dim)
-            squared_len = int(length ** 0.5)
             z = latents.reshape(-1, 2 * self.embedding_dim, self.root_len, self.root_len)
         else:
             z = self.conditioned_discrete_to_cont(latents)

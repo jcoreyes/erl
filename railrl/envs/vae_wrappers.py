@@ -6,6 +6,7 @@ import torch
 
 # import cv2
 import numpy as np
+import pickle
 from gym import Env
 from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
@@ -33,8 +34,9 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         render_rollouts=False,
         reward_params=None,
         goal_sampling_mode="vae_prior",
+        presampled_goals_path=None,
         num_goals_to_presample=0,
-        imsize=84,
+        imsize=48,
         obs_size=None,
         norm_order=2,
         epsilon=20,
@@ -85,6 +87,8 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
 
         if num_goals_to_presample > 0:
             self._presampled_goals = self.wrapped_env.sample_goals(num_goals_to_presample)
+        if presampled_goals_path is not None:
+            self._presampled_goals = load_local_or_remote_file(presampled_goals_path)
 
         if self._presampled_goals is None:
             self.num_goals_presampled = 0
@@ -104,6 +108,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
 
 
     def reset(self):
+
         self.vae.eval()
         obs = self.wrapped_env.reset()
         self._initial_obs = obs
@@ -172,6 +177,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         # print(self._goal_sampling_mode)
         # if self._goal_sampling_mode == "reset_of_env":
         # TODO: make mode a parameter you pass in
+
         if self._goal_sampling_mode == 'custom_goal_sampler':
             return self.custom_goal_sampler(batch_size)
         elif self._goal_sampling_mode == 'presampled':

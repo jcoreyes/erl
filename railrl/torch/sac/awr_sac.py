@@ -460,6 +460,7 @@ class AWRSACTrainer(TorchTrainer):
             alpha_loss = 0
             alpha = self.alpha
 
+
         q1_pred = self.qf1(obs, actions)
         q2_pred = self.qf2(obs, actions)
         # Make sure policy accounts for squashing functions like tanh correctly!
@@ -481,6 +482,7 @@ class AWRSACTrainer(TorchTrainer):
             qf1_new_actions,
             qf2_new_actions,
         )
+
 
         policy_loss = (log_pi - q_new_actions).mean()
 
@@ -529,6 +531,7 @@ class AWRSACTrainer(TorchTrainer):
         """
         Policy and Alpha Loss
         """
+                
         dist = self.policy(obs)
         new_obs_actions, log_pi = dist.rsample_and_logprob()
         policy_mle = dist.mle_estimate()
@@ -574,6 +577,7 @@ class AWRSACTrainer(TorchTrainer):
             qf1_new_actions,
             qf2_new_actions,
         )
+
 
         # Advantage-weighted regression
         if self.awr_use_mle_for_vf:

@@ -39,6 +39,7 @@ class VideoSaveFunction:
         self.dump_video_kwargs = variant.get("dump_video_kwargs", dict())
         if 'imsize' not in self.dump_video_kwargs:
             self.dump_video_kwargs['imsize'] = env.imsize
+
         self.dump_video_kwargs.setdefault("rows", 2)
         # self.dump_video_kwargs.setdefault("columns", 5)
         self.dump_video_kwargs.setdefault("columns", 1)

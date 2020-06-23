@@ -109,6 +109,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         return snapshot
 
     def _get_diagnostics(self):
+
         algo_log = OrderedDict()
         append_log(algo_log, self.replay_buffer.get_diagnostics(),
                    prefix='replay_buffer/')
