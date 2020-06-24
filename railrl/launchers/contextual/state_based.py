@@ -34,6 +34,7 @@ from railrl.samplers.rollout_functions import contextual_rollout
 from railrl import pythonplusplus as ppp
 from collections import OrderedDict
 import copy
+import torch
 
 class TaskGoalDictDistributionFromMultitaskEnv(
         GoalDictDistributionFromMultitaskEnv):
@@ -350,6 +351,7 @@ class MaskPathCollector(ContextualPathCollector):
             prev_subtask_weight=False,
             prev_subtasks_solved=True,
             max_subtasks_to_focus_on=None,
+            max_subtasks_per_rollout=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -375,6 +377,7 @@ class MaskPathCollector(ContextualPathCollector):
         self._prev_subtask_weight = prev_subtask_weight
         self._prev_subtasks_solved = prev_subtasks_solved
         self._max_subtasks_to_focus_on = max_subtasks_to_focus_on
+        self._max_subtasks_per_rollout = max_subtasks_per_rollout
 
         def obs_processor(o):
             if len(self.rollout_masks) > 0:
@@ -442,6 +445,10 @@ class MaskPathCollector(ContextualPathCollector):
                     mask_ids = self.rollout_mask_order
                 else:
                     raise NotImplementedError
+
+                if self._max_subtasks_per_rollout is not None:
+                    mask_ids = mask_ids[:self._max_subtasks_per_rollout]
+
                 num_steps_per_mask = self.max_path_length // len(mask_ids)
 
                 for i in range(len(mask_ids)):
@@ -804,13 +811,15 @@ def rl_context_experiment(variant):
     import joblib
     import os.path as osp
     if 'ckpt' in variant:
-        if 'ckpt_epoch' in variant:
+        ckpt_epoch = variant.get('ckpt_epoch', None)
+        if ckpt_epoch is not None:
             epoch = variant['ckpt_epoch']
             filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'itr_%d.pkl' % epoch))
         else:
             filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'params.pkl'))
         print("Loading ckpt from", filename)
-        data = joblib.load(filename)
+        # data = joblib.load(filename)
+        data = torch.load(filename, map_location='cuda:1')
         qf1 = data['trainer/qf1']
         qf2 = data['trainer/qf2']
         target_qf1 = data['trainer/target_qf1']
@@ -1066,6 +1075,7 @@ def rl_context_experiment(variant):
             prev_subtask_weight = mask_variant.get('prev_subtask_weight', None)
             prev_subtasks_solved = mask_variant.get('prev_subtasks_solved', False)
             max_subtasks_to_focus_on = mask_variant.get('max_subtasks_to_focus_on', None)
+            max_subtasks_per_rollout = mask_variant.get('max_subtasks_per_rollout', None)
 
             mode = mask_variant.get('context_post_process_mode', None)
             if mode in ['dilute_prev_subtasks_uniform', 'dilute_prev_subtasks_fixed']:
@@ -1084,6 +1094,7 @@ def rl_context_experiment(variant):
                 prev_subtask_weight=prev_subtask_weight,
                 prev_subtasks_solved=prev_subtasks_solved,
                 max_subtasks_to_focus_on=max_subtasks_to_focus_on,
+                max_subtasks_per_rollout=max_subtasks_per_rollout,
             )
         else:
             return ContextualPathCollector(
@@ -1208,19 +1219,20 @@ def rl_context_experiment(variant):
 
         img_eval_env = add_images(env, context_distrib)
 
-        video_path_collector = create_path_collector(img_eval_env, eval_policy, mode='eval')
-        rollout_function = video_path_collector._rollout_fn
-        eval_video_func = get_save_video_function(
-            rollout_function,
-            img_eval_env,
-            eval_policy,
-            tag="eval",
-            imsize=variant['renderer_kwargs']['img_width'],
-            image_format='HWC',
-            save_video_period=save_period,
-            **dump_video_kwargs
-        )
-        algorithm.post_train_funcs.append(eval_video_func)
+        if variant.get('log_eval_video', True):
+            video_path_collector = create_path_collector(img_eval_env, eval_policy, mode='eval')
+            rollout_function = video_path_collector._rollout_fn
+            eval_video_func = get_save_video_function(
+                rollout_function,
+                img_eval_env,
+                eval_policy,
+                tag="eval",
+                imsize=variant['renderer_kwargs']['img_width'],
+                image_format='HWC',
+                save_video_period=save_period,
+                **dump_video_kwargs
+            )
+            algorithm.post_train_funcs.append(eval_video_func)
 
         # additional eval videos for mask conditioned case
         if mask_conditioned:
@@ -1306,8 +1318,7 @@ def rl_context_experiment(variant):
                 )
                 algorithm.post_train_funcs.append(eval_video_func)
 
-        log_expl_video = variant.get('log_expl_video', True)
-        if log_expl_video:
+        if variant.get('log_expl_video', True):
             img_expl_env = add_images(env, context_distrib)
             video_path_collector = create_path_collector(img_expl_env, expl_policy, mode='expl')
             rollout_function = video_path_collector._rollout_fn
@@ -1369,6 +1380,7 @@ def rl_context_experiment(variant):
         # cumulative, sequential mask
         if 'cumul_seq' in eval_rollouts_to_log:
             mask_kwargs=dict(
+                rollout_mask_order='fixed',
                 mask_distr=dict(
                     cumul_seq=1.0,
                 ),
@@ -1380,6 +1392,7 @@ def rl_context_experiment(variant):
         # atomic, sequential mask
         if 'atomic_seq' in eval_rollouts_to_log:
             mask_kwargs=dict(
+                rollout_mask_order='fixed',
                 mask_distr=dict(
                     atomic_seq=1.0,
                 ),

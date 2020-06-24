@@ -5,7 +5,7 @@ from railrl.misc.exp_util import (
     preprocess_args,
 )
 from railrl.launchers.exp_launcher import rl_experiment
-from roboverse.envs.goal_conditioned.sawyer_lift import SawyerLiftEnvGC
+from roboverse.envs.goal_conditioned.sawyer_lift_gc import SawyerLiftEnvGC
 
 from railrl.launchers.contextual.state_based import (
     default_masked_reward_fn,
@@ -57,7 +57,7 @@ variant = dict(
         save_video=True,
         dump_video_kwargs=dict(
             rows=1,
-            columns=8,
+            columns=6,
             pad_color=0,
             pad_length=0,
             subpad_length=1,
@@ -71,8 +71,8 @@ variant = dict(
             task_conditioned=False,
         ),
         mask_variant=dict(
-            mask_conditioned=False,
-            rollout_mask_order_for_expl='fixed',
+            mask_conditioned=True,
+            rollout_mask_order_for_expl='random',
             rollout_mask_order_for_eval='fixed',
             log_mask_diagnostics=True,
             mask_format='vector',
@@ -90,7 +90,8 @@ variant = dict(
             context_post_process_frac=0.5,
 
             max_subtasks_to_focus_on=None,
-            prev_subtask_weight=1.0,
+            max_subtasks_per_rollout=None,
+            prev_subtask_weight=0.25,
             reward_fn=default_masked_reward_fn,
 
             train_mask_distr=dict(
@@ -112,7 +113,7 @@ variant = dict(
                 full=0.0,
             ),
 
-            eval_rollouts_to_log=['atomic'],
+            eval_rollouts_to_log=['atomic', 'atomic_seq', 'cumul_seq'],
             eval_rollouts_for_videos=[],
         ),
     ),
@@ -134,8 +135,17 @@ variant = dict(
 
         'reward_type': 'obj_dist',
 
-        'use_wide_gripper': True,
-        'use_rotated_gripper': True,
+        'use_rotated_gripper': True,  # False
+        'use_wide_gripper': False,  # False
+        'soft_clip': True,
+        'obj_urdf': 'spam_long',
+        'max_joint_velocity': 1.0,
+
+        # 'use_rotated_gripper': True,  # False
+        # 'use_wide_gripper': True,  # False
+        # 'soft_clip': True,
+        # 'obj_urdf': 'spam',
+        # 'max_joint_velocity': None,
     },
     imsize=400,
 )
@@ -160,8 +170,9 @@ env_params = {
     },
     'pb-2obj': {
         'env_kwargs.num_obj': [2],
+        # 'env_kwargs.reset_obj_in_hand_rate': [0.25],
+        # 'env_kwargs.goal_mode': ['uniform_and_obj_in_bowl'],
 
-        'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.idx_masks': [
             [
                 {2: 2, 3: 3},
@@ -170,8 +181,27 @@ env_params = {
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [3000],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [10],
-        'rl_variant.save_video_period': [150],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [20],
+        'rl_variant.save_video_period': [200],
+    },
+    'pb-4obj': {
+        'env_kwargs.num_obj': [4],
+        # 'rl_variant.max_path_length': [250],
+
+        'rl_variant.mask_variant.idx_masks': [
+            [
+                {2: 2, 3: 3},
+                {4: 4, 5: 5},
+                {6: 6, 7: 7},
+                {8: 8, 9: 9},
+            ],
+        ],
+
+        'rl_variant.mask_variant.max_subtasks_per_rollout': [2],
+
+        'rl_variant.algo_kwargs.num_epochs': [6000],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [20],
+        'rl_variant.save_video_period': [200],
     },
 }
 
