@@ -203,7 +203,7 @@ class DictToMDPPathLoader:
         return batch
 
 class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
-    
+
     def __init__(
             self,
             trainer,
@@ -229,7 +229,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             obs_key=None,
             load_terminals=True,
             **kwargs
-    ):  
+    ):
         super().__init__(trainer,
             replay_buffer,
             demo_train_buffer,
@@ -255,8 +255,8 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         self.env = env
 
     def encode(self, observation):
-        observation["latent_achieved_goal"] = 
-        observation["latent_desired_goal"] = 
+        # observation["latent_achieved_goal"] =
+        # observation["latent_desired_goal"] =
         if self.normalize:
             return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs) / 255.0))
         return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs)))
