@@ -28,6 +28,7 @@ from railrl.launchers.contextual.util import (
     get_save_video_function,
     get_gym_env,
 )
+from railrl.launchers.experiments.disentanglement.util import train_ae
 from railrl.launchers.experiments.disentanglement.debug import (
     DebugTrainer,
     DebugEnvRenderer,
@@ -57,6 +58,7 @@ from railrl.torch.networks import (
     Flatten,
     ConcatTuple,
     ConcatMultiHeadedMlp,
+    Reshape,
 )
 from railrl.torch.networks.mlp import MultiHeadedMlp, Mlp
 from railrl.torch.networks.stochastic.distribution_generator import TanhGaussian
@@ -215,6 +217,9 @@ def encoder_goal_conditioned_sac_experiment(
         train_encoder_as_vae=False,
         vae_trainer_kwargs=None,
         decoder_kwargs=None,
+        mlp_for_image_decoder=False,
+        pretrain_vae=False,
+        pretrain_vae_kwargs=None,
 ):
     if reward_config is None:
         reward_config = {}
@@ -511,30 +516,42 @@ def encoder_goal_conditioned_sac_experiment(
         # VAE training
         def make_decoder():
             if use_image_observations:
-                dcnn_in_channels, dcnn_in_height, dcnn_in_width = (
-                    encoder_net._modules['0'].output_shape
-                )
-                dcnn_input_size = (
-                    dcnn_in_channels * dcnn_in_width * dcnn_in_height
-                )
                 img_num_channels, img_height, img_width = env_renderer.image_chw
-                decoder_cnn_kwargs = invert_encoder_params(
-                    encoder_cnn_kwargs,
-                    img_num_channels,
-                )
-                dcnn = BasicDCNN(
-                    input_width=dcnn_in_width,
-                    input_height=dcnn_in_height,
-                    input_channels=dcnn_in_channels,
-                    **decoder_cnn_kwargs
-                )
-                mlp = Mlp(
-                    input_size=latent_dim,
-                    output_size=dcnn_input_size,
-                    **decoder_kwargs
-                )
-                dec = nn.Sequential(mlp, dcnn)
-                dec.input_size = latent_dim
+                if not mlp_for_image_decoder:
+                    dcnn_in_channels, dcnn_in_height, dcnn_in_width = (
+                        encoder_net._modules['0'].output_shape
+                    )
+                    dcnn_input_size = (
+                        dcnn_in_channels * dcnn_in_width * dcnn_in_height
+                    )
+                    decoder_cnn_kwargs = invert_encoder_params(
+                        encoder_cnn_kwargs,
+                        img_num_channels,
+                    )
+                    dcnn = BasicDCNN(
+                        input_width=dcnn_in_width,
+                        input_height=dcnn_in_height,
+                        input_channels=dcnn_in_channels,
+                        **decoder_cnn_kwargs
+                    )
+                    mlp = Mlp(
+                        input_size=latent_dim,
+                        output_size=dcnn_input_size,
+                        **decoder_kwargs
+                    )
+                    dec = nn.Sequential(mlp, dcnn)
+                    dec.input_size = latent_dim
+                else:
+                    dec = nn.Sequential(
+                        Mlp(
+                            input_size=latent_dim,
+                            output_size=img_num_channels * img_height * img_width,
+                            **decoder_kwargs
+                        ),
+                        Reshape(img_num_channels, img_height, img_width)
+                    )
+                    dec .input_size = latent_dim
+                    dec.output_size = img_num_channels * img_height * img_width
                 return dec
             else:
                 return Mlp(
@@ -551,6 +568,14 @@ def encoder_goal_conditioned_sac_experiment(
             **vae_trainer_kwargs
         )
 
+        if pretrain_vae:
+            goal_key = (
+                img_desired_goal_key if use_image_observations
+                else state_desired_goal_key
+            )
+            vae.to(ptu.device)
+            train_ae(vae_trainer, expl_context_distrib,
+                      **pretrain_vae_kwargs, goal_key=goal_key)
         trainers = OrderedDict()
         trainers['vae_trainer'] = vae_trainer
         trainers['disentangled_trainer'] = disentangled_trainer
