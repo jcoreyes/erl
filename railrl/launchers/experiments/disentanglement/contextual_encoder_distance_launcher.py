@@ -58,6 +58,7 @@ from railrl.torch.networks import (
     Flatten,
     ConcatTuple,
     ConcatMultiHeadedMlp,
+    Detach,
     Reshape,
 )
 from railrl.torch.networks.mlp import MultiHeadedMlp, Mlp
@@ -217,6 +218,7 @@ def encoder_goal_conditioned_sac_experiment(
         train_encoder_as_vae=False,
         vae_trainer_kwargs=None,
         decoder_kwargs=None,
+        encoder_backprop_settings="rl_n_vae",
         mlp_for_image_decoder=False,
         pretrain_vae=False,
         pretrain_vae_kwargs=None,
@@ -247,6 +249,13 @@ def encoder_goal_conditioned_sac_experiment(
     latent_desired_goal_key = 'latent_desired_goal'
     state_desired_goal_key = 'state_desired_goal'
     img_desired_goal_key = 'image_desired_goal'
+
+    backprop_rl_into_encoder = False
+    backprop_vae_into_encoder = False
+    if 'rl' in encoder_backprop_settings:
+        backprop_rl_into_encoder = True
+    if 'vae' in encoder_backprop_settings:
+        backprop_vae_into_encoder = True
 
     if use_image_observations:
         env_renderer = EnvRenderer(**env_renderer_kwargs)
@@ -386,6 +395,8 @@ def encoder_goal_conditioned_sac_experiment(
     action_dim = expl_env.action_space.low.size
 
     def make_qf(goal_encoder):
+        if not backprop_rl_into_encoder:
+            goal_encoder = Detach(goal_encoder)
         if qf_state_encoder_is_goal_encoder:
             state_encoder = goal_encoder
         else:
@@ -426,8 +437,11 @@ def encoder_goal_conditioned_sac_experiment(
             detach_encoder_via_state=False,
         )
     else:
+        policy_obs_encoder = mu_encoder_net 
+        if not backprop_rl_into_encoder:
+            policy_obs_encoder = Detach(policy_obs_encoder)
         policy_encoder_net = EncodeObsAndGoal(
-            mu_encoder_net,
+            policy_obs_encoder,
             encoder_input_dim,
             **policy_using_encoder_settings
         )
@@ -508,6 +522,8 @@ def encoder_goal_conditioned_sac_experiment(
     )
 
     if train_encoder_as_vae:
+        assert backprop_vae_into_encoder, \
+            "No point in training the vae if not backpropagating into encoder"
         if vae_trainer_kwargs is None:
             vae_trainer_kwargs = {}
         if decoder_kwargs is None:
