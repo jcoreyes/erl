@@ -7,7 +7,7 @@ from railrl.misc.exp_util import (
 from railrl.launchers.exp_launcher import rl_experiment
 from roboverse.envs.goal_conditioned.sawyer_lift_gc import SawyerLiftEnvGC
 
-from railrl.launchers.contextual.state_based import (
+from railrl.envs.contextual.mask_conditioned import (
     default_masked_reward_fn,
     action_penalty_masked_reward_fn,
 )
@@ -27,12 +27,14 @@ variant = dict(
         td3_trainer_kwargs=dict(
             use_policy_saturation_cost=True,
             policy_saturation_cost_threshold=5.0,
+            discount=0.99,
         ),
         sac_trainer_kwargs=dict(
             soft_target_tau=1e-3,
             target_update_period=1,
             use_automatic_entropy_tuning=True,
             reward_scale=100,
+            discount=0.99,
         ),
         contextual_replay_buffer_kwargs=dict(
             max_size=int(1E6),
@@ -79,7 +81,7 @@ variant = dict(
             infer_masks=False,
             mask_inference_variant=dict(
                 n=1000,
-                noise=0.1,
+                noise=0.01,
                 normalize_sigma_inv=True,
             ),
             relabel_goals=True,
@@ -135,15 +137,21 @@ variant = dict(
 
         'reward_type': 'obj_dist',
 
-        'use_rotated_gripper': True,  # False
-        'use_wide_gripper': False,  # False
-        'soft_clip': True,
-        'obj_urdf': 'spam_long',
-        'max_joint_velocity': 1.0,
-
         # 'use_rotated_gripper': True,  # False
-        # 'use_wide_gripper': True,  # False
+        # 'use_wide_gripper': False,  # False
         # 'soft_clip': True,
+        # 'obj_urdf': 'spam_long',
+        # 'max_joint_velocity': 1.0,
+
+        'use_rotated_gripper': True,  # False
+        'use_wide_gripper': True,  # False
+        'soft_clip': True,
+        'obj_urdf': 'spam',
+        'max_joint_velocity': None,
+
+        # 'use_rotated_gripper': False,  # False
+        # 'use_wide_gripper': False,  # False
+        # 'soft_clip': False,
         # 'obj_urdf': 'spam',
         # 'max_joint_velocity': None,
     },
@@ -173,6 +181,8 @@ env_params = {
         # 'env_kwargs.reset_obj_in_hand_rate': [0.25],
         # 'env_kwargs.goal_mode': ['uniform_and_obj_in_bowl'],
 
+        'env_kwargs.use_wide_gripper': [True],
+
         'rl_variant.mask_variant.idx_masks': [
             [
                 {2: 2, 3: 3},
@@ -186,7 +196,7 @@ env_params = {
     },
     'pb-4obj': {
         'env_kwargs.num_obj': [4],
-        # 'rl_variant.max_path_length': [250],
+        # 'rl_variant.max_path_length': [200],
 
         'rl_variant.mask_variant.idx_masks': [
             [
@@ -197,7 +207,12 @@ env_params = {
             ],
         ],
 
-        'rl_variant.mask_variant.max_subtasks_per_rollout': [2],
+        'rl_variant.mask_variant.mask_format': ['distribution'],
+        'rl_variant.mask_variant.infer_masks': [True],
+        'rl_variant.mask_variant.mask_inference_variant.n': [50],
+        'rl_variant.mask_variant.eval_rollouts_to_log': [['atomic', 'atomic_seq']],
+
+        # 'rl_variant.mask_variant.max_subtasks_per_rollout': [2],
 
         'rl_variant.algo_kwargs.num_epochs': [6000],
         'rl_variant.algo_kwargs.eval_epoch_freq': [20],
@@ -207,10 +222,6 @@ env_params = {
 
 def process_variant(variant):
     rl_variant = variant['rl_variant']
-
-    mpl = rl_variant['max_path_length']
-    rl_variant['td3_trainer_kwargs']['discount'] = 1 - 1 / mpl
-    rl_variant['sac_trainer_kwargs']['discount'] = 1 - 1 / mpl
 
     if args.debug:
         rl_variant['algo_kwargs']['num_epochs'] = 4

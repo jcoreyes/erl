@@ -98,12 +98,12 @@ def preprocess_args(args):
         machines = [
             # 'ada',
             # 'alan',
-            # 'newton1',
+            'newton1',
             # 'newton3',
             # 'newton4',
             # 'newton6',
             # 'newton7',
-            'grace',
+            # 'grace',
             # 'claude',
         ]  #'newton2', 'newton5', # 'newton4',
         free_machines_info = query_machines(args=args, machines=machines)

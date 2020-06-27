@@ -167,6 +167,13 @@ env_params = {
         ],
     },
     'pg-4obj': {
+        'rl_variant.algo_kwargs.batch_size': [128],
+
+
+        # 'rl_variant.qf_kwargs.hidden_sizes': [[256, 256]],
+        # 'rl_variant.vf_kwargs.hidden_sizes': [[256, 256]],
+        # 'rl_variant.policy_kwargs.hidden_sizes': [[256, 256]],
+
         'env_kwargs.num_objects': [4],
         'rl_variant.mask_variant.idx_masks': [
             [
