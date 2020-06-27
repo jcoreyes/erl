@@ -477,6 +477,7 @@ def rl_context_experiment(variant):
             prev_subtasks_solved = mask_variant.get('prev_subtasks_solved', False)
             max_subtasks_to_focus_on = mask_variant.get('max_subtasks_to_focus_on', None)
             max_subtasks_per_rollout = mask_variant.get('max_subtasks_per_rollout', None)
+            mask_groups = mask_variant.get('mask_groups', None)
 
             mode = mask_variant.get('context_post_process_mode', None)
             if mode in ['dilute_prev_subtasks_uniform', 'dilute_prev_subtasks_fixed']:
@@ -490,6 +491,7 @@ def rl_context_experiment(variant):
                 concat_context_to_obs_fn=concat_context_to_obs,
                 mask_sampler=context_distrib,
                 mask_distr=mask_distr.copy(),
+                mask_groups=mask_groups,
                 max_path_length=max_path_length,
                 rollout_mask_order=rollout_mask_order,
                 prev_subtask_weight=prev_subtask_weight,
@@ -752,7 +754,8 @@ def rl_context_experiment(variant):
         # atomic masks
         if 'atomic' in eval_rollouts_to_log:
             masks = context_distrib.masks.copy()
-            num_masks = len(masks[list(masks.keys())[0]])
+            # num_masks = len(masks[list(masks.keys())[0]])
+            num_masks = len(eval_path_collector.mask_groups)
             for mask_id in range(num_masks):
                 mask_kwargs=dict(
                     rollout_mask_order=[mask_id],

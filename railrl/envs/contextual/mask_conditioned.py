@@ -110,50 +110,6 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
         self.cumul_masks = None
         self.subset_masks = None
 
-    def create_cumul_masks(self):
-        assert self.mask_format in ['vector', 'matrix']
-        num_atomic_masks = len(self.masks[list(self.masks.keys())[0]])
-
-        self.cumul_masks = {}
-        for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
-            self.cumul_masks[mask_key] = np.zeros([num_atomic_masks] + list(mask_dim))
-
-        for i in range(1, num_atomic_masks + 1):
-            mask_idx_bitmap = np.zeros(num_atomic_masks)
-            if self._max_subtasks_to_focus_on is None:
-                start_idx = 0
-                end_idx = i
-            else:
-                start_idx = max(0, i - self._max_subtasks_to_focus_on)
-                end_idx = i
-            mask_idx_bitmap[start_idx:end_idx] = 1
-            if self._prev_subtask_weight is not None:
-                mask_idx_bitmap[start_idx:end_idx - 1] = self._prev_subtask_weight
-            for mask_key in self.mask_keys:
-                self.cumul_masks[mask_key][i - 1] = (
-                        mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
-                ).reshape(list(self._spaces[mask_key].shape))
-
-    def create_subset_masks(self):
-        assert self.mask_format in ['vector', 'matrix']
-        num_atomic_masks = len(self.masks[list(self.masks.keys())[0]])
-
-        self.subset_masks = {}
-        for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
-            self.subset_masks[mask_key] = np.zeros([2 ** num_atomic_masks - 1] + list(mask_dim))
-
-        def bin_array(num, m):
-            """https://stackoverflow.com/questions/22227595/convert-integer-to-binary-array-with-suitable-padding"""
-            """Convert a positive integer num into an m-bit bit vector"""
-            return np.array(list(np.binary_repr(num).zfill(m))).astype(np.int8)
-
-        for i in range(1, 2 ** num_atomic_masks):
-            mask_idx_bitmap = bin_array(i, num_atomic_masks)
-            for mask_key in self.mask_keys:
-                self.subset_masks[mask_key][i - 1] = (
-                        mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
-                ).reshape(list(self._spaces[mask_key].shape))
-
     def sample(self, batch_size: int, use_env_goal=False):
         goals = super().sample(batch_size, use_env_goal)
         mask_goals = self.sample_masks(batch_size)
@@ -236,6 +192,50 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             sampled_masks[mask_key] = self.subset_masks[mask_key][mask_ids]
         return sampled_masks
 
+    def create_cumul_masks(self):
+        assert self.mask_format in ['vector', 'matrix']
+        num_atomic_masks = len(self.masks[list(self.masks.keys())[0]])
+
+        self.cumul_masks = {}
+        for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
+            self.cumul_masks[mask_key] = np.zeros([num_atomic_masks] + list(mask_dim))
+
+        for i in range(1, num_atomic_masks + 1):
+            mask_idx_bitmap = np.zeros(num_atomic_masks)
+            if self._max_subtasks_to_focus_on is None:
+                start_idx = 0
+                end_idx = i
+            else:
+                start_idx = max(0, i - self._max_subtasks_to_focus_on)
+                end_idx = i
+            mask_idx_bitmap[start_idx:end_idx] = 1
+            if self._prev_subtask_weight is not None:
+                mask_idx_bitmap[start_idx:end_idx - 1] = self._prev_subtask_weight
+            for mask_key in self.mask_keys:
+                self.cumul_masks[mask_key][i - 1] = (
+                        mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
+                ).reshape(list(self._spaces[mask_key].shape))
+
+    def create_subset_masks(self):
+        assert self.mask_format in ['vector', 'matrix']
+        num_atomic_masks = len(self.masks[list(self.masks.keys())[0]])
+
+        self.subset_masks = {}
+        for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
+            self.subset_masks[mask_key] = np.zeros([2 ** num_atomic_masks - 1] + list(mask_dim))
+
+        def bin_array(num, m):
+            """https://stackoverflow.com/questions/22227595/convert-integer-to-binary-array-with-suitable-padding"""
+            """Convert a positive integer num into an m-bit bit vector"""
+            return np.array(list(np.binary_repr(num).zfill(m))).astype(np.int8)
+
+        for i in range(1, 2 ** num_atomic_masks):
+            mask_idx_bitmap = bin_array(i, num_atomic_masks)
+            for mask_key in self.mask_keys:
+                self.subset_masks[mask_key][i - 1] = (
+                        mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
+                ).reshape(list(self._spaces[mask_key].shape))
+
     def get_cumul_mask_to_indices(self, masks):
         assert self.mask_format in ['vector']
         if self.cumul_masks is None:
@@ -258,6 +258,7 @@ class MaskPathCollector(ContextualPathCollector):
             *args,
             mask_sampler=None,
             mask_distr=None,
+            mask_groups=None,
             max_path_length=100,
             rollout_mask_order='fixed',
             concat_context_to_obs_fn=None,
@@ -281,6 +282,11 @@ class MaskPathCollector(ContextualPathCollector):
                 np.sum(list(mask_distr.values()))
             ))
         self.mask_distr = mask_distr
+        self.mask_groups = mask_groups
+        if self.mask_groups is None:
+            atomic_masks = self.mask_sampler.masks
+            self.mask_groups = np.arange(len(atomic_masks[list(atomic_masks.keys())[0]])).reshape(-1, 1)
+        self.mask_groups = np.array(self.mask_groups)
 
         self.rollout_mask_order = rollout_mask_order
         self.max_path_length = max_path_length
@@ -335,39 +341,37 @@ class MaskPathCollector(ContextualPathCollector):
             probs = list(self.mask_distr.values())
             rollout_type = np.random.choice(rollout_types, 1, replace=True, p=probs)[0]
 
-            if rollout_type in ['atomic', 'full']:
-                if rollout_type == 'atomic':
-                    mask = unbatchify(self.mask_sampler.sample_atomic_masks(1))
-                elif rollout_type == 'full':
-                    mask = unbatchify(self.mask_sampler.sample_full_masks(1))
-                else:
-                    raise NotImplementedError
+            if rollout_type == 'full':
+                mask = unbatchify(self.mask_sampler.sample_full_masks(1))
                 for _ in range(self.max_path_length):
                     self.rollout_masks.append(mask)
-            elif rollout_type in ['atomic_seq', 'cumul_seq']:
+            else:
                 atomic_masks = self.mask_sampler.masks
+                mask_groups = self.mask_groups.copy()
 
-                mask_ids = np.arange(len(atomic_masks[list(atomic_masks.keys())[0]]))
                 if self.rollout_mask_order == 'fixed':
                     pass
                 elif self.rollout_mask_order == 'random':
-                    np.random.shuffle(mask_ids)
+                    np.random.shuffle(mask_groups)
                 elif isinstance(self.rollout_mask_order, list):
-                    for mask_id in self.rollout_mask_order:
-                        assert mask_id in mask_ids
-                    mask_ids = self.rollout_mask_order
+                    mask_groups = mask_groups[self.rollout_mask_order]
                 else:
                     raise NotImplementedError
 
                 if self._max_subtasks_per_rollout is not None:
-                    mask_ids = mask_ids[:self._max_subtasks_per_rollout]
+                    mask_groups = mask_groups[:self._max_subtasks_per_rollout]
+
+                if rollout_type == 'atomic':
+                    mask_groups = mask_groups[0:1]
+
+                mask_ids = mask_groups.reshape(-1)
 
                 num_steps_per_mask = self.max_path_length // len(mask_ids)
 
                 for i in range(len(mask_ids)):
                     mask = {}
                     for k in atomic_masks.keys():
-                        if rollout_type == 'atomic_seq':
+                        if rollout_type in ['atomic_seq', 'atomic']:
                             mask[k] = atomic_masks[k][mask_ids[i]]
                         elif rollout_type == 'cumul_seq':
                             if self._max_subtasks_to_focus_on is not None:
@@ -391,8 +395,6 @@ class MaskPathCollector(ContextualPathCollector):
                     if i == len(mask_ids) - 1:
                         num_steps = self.max_path_length - len(self.rollout_masks)
                     self.rollout_masks += num_steps*[mask]
-            else:
-                raise NotImplementedError
 
         self._rollout_fn = partial(
             contextual_rollout,
@@ -498,8 +500,7 @@ def infer_masks(env, mask_variant):
     from tqdm import tqdm
 
     mask_inference_variant = mask_variant['mask_inference_variant']
-    n = mask_inference_variant['n']
-    n = int(n)
+    n = int(mask_inference_variant['n'])
     obs_noise = mask_inference_variant['noise']
     normalize_sigma_inv = mask_inference_variant['normalize_sigma_inv']
 

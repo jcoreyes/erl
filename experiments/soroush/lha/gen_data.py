@@ -212,14 +212,14 @@ def plot_Gaussian(mu, Sigma, list_of_dims=[[0, 1], [2, 3], [0, 2], [1, 3]], pt1=
 
     plt.show()
 
-num_sets = 50
+num_sets = 100
 list_of_waypoints, goals, states = gen_dataset(
-    num_obj=4,
+    num_obj=2,
     n=num_sets,
     render=False,
-    hand_to_obj=False,
+    hand_to_obj=True,
     obj_and_hand_to_air=False,
-    obj_to_goal=True,
+    obj_to_goal=False,
     obj_and_hand_to_goal=False,
     cumulative=False,
     randomize_objs=False,
@@ -245,8 +245,8 @@ for i in range(num_subtasks):
         plot_Gaussian(
             mu_w_given_g, sigma_w_given_g,
             pt1=goal, pt2=state,
-            # list_of_dims=[[0, 1], [2, 3], [0, 2], [1, 3]],
-            list_of_dims=[[2, 3], [4, 5], [2, 4], [3, 5]],
+            list_of_dims=[[0, 1], [2, 3], [0, 2], [1, 3]],
+            # list_of_dims=[[2, 3], [4, 5], [2, 4], [3, 5]],
         )
 
         w, v = np.linalg.eig(sigma_w_given_g)
