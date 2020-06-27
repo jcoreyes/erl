@@ -100,9 +100,13 @@ def rl_context_experiment(variant):
             raise NotImplementedError
 
         if mask_variant.get('infer_masks', False):
+            env_kwargs = copy.deepcopy(variant['env_kwargs'])
+            env_kwargs['lite_reset'] = True
+            infer_masks_env = variant["env_class"](**env_kwargs)
+
             mask_variant['mask_keys'] = mask_keys
             mask_variant['mask_dims'] = mask_dims
-            masks = infer_masks(env, mask_variant)
+            masks = infer_masks(infer_masks_env, mask_variant)
             mask_variant['masks'] = masks
 
         relabel_context_key_blacklist = variant['contextual_replay_buffer_kwargs'].get('relabel_context_key_blacklist',
@@ -203,10 +207,11 @@ def rl_context_experiment(variant):
 
     action_dim = env.action_space.low.size
 
-    from railrl.misc.asset_loader import local_path_from_s3_or_local_path
-    import joblib
-    import os.path as osp
     if 'ckpt' in variant:
+        from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+        import joblib
+        import os.path as osp
+
         ckpt_epoch = variant.get('ckpt_epoch', None)
         if ckpt_epoch is not None:
             epoch = variant['ckpt_epoch']

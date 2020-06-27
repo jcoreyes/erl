@@ -495,6 +495,8 @@ def print_matrix(matrix, format="raw", threshold=0.1, normalize=True):
     print()
 
 def infer_masks(env, mask_variant):
+    from tqdm import tqdm
+
     mask_inference_variant = mask_variant['mask_inference_variant']
     n = mask_inference_variant['n']
     n = int(n)
@@ -521,7 +523,7 @@ def infer_masks(env, mask_variant):
     print("Generating dataset...")
 
     # data collection
-    for i in range(n):
+    for i in tqdm(range(n)):
         obs_dict = env.reset()
         obs = obs_dict['state_achieved_goal']
         goal = obs_dict['state_desired_goal']

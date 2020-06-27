@@ -198,23 +198,33 @@ env_params = {
         'env_kwargs.num_obj': [4],
         # 'rl_variant.max_path_length': [200],
 
-        'rl_variant.mask_variant.idx_masks': [
+        'rl_variant.mask_variant.idx_masks': [[
             [
                 {2: 2, 3: 3},
-                {4: 4, 5: 5},
-                {6: 6, 7: 7},
-                {8: 8, 9: 9},
+                {0: -12, 1: -13},
             ],
-        ],
+            [
+                {4: 4, 5: 5},
+                {0: -14, 1: -15},
+            ],
+            [
+                {6: 6, 7: 7},
+                {0: -16, 1: -17},
+            ],
+            [
+                {8: 8, 9: 9},
+                {0: -18, 1: -19},
+            ],
+        ]],
 
         'rl_variant.mask_variant.mask_format': ['distribution'],
         'rl_variant.mask_variant.infer_masks': [True],
-        'rl_variant.mask_variant.mask_inference_variant.n': [50],
+        'rl_variant.mask_variant.mask_inference_variant.n': [1000],
         'rl_variant.mask_variant.eval_rollouts_to_log': [['atomic', 'atomic_seq']],
 
         # 'rl_variant.mask_variant.max_subtasks_per_rollout': [2],
 
-        'rl_variant.algo_kwargs.num_epochs': [6000],
+        'rl_variant.algo_kwargs.num_epochs': [5000],
         'rl_variant.algo_kwargs.eval_epoch_freq': [20],
         'rl_variant.save_video_period': [200],
     },
