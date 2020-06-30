@@ -14,8 +14,8 @@ from railrl.envs.contextual.mask_conditioned import (
     MaskedGoalDictDistributionFromMultitaskEnv,
     MaskPathCollector,
     default_masked_reward_fn,
-    infer_masks,
 )
+from railrl.envs.contextual.mask_inference import infer_masks
 
 from railrl.envs.contextual.task_conditioned import (
     TaskGoalDictDistributionFromMultitaskEnv,
