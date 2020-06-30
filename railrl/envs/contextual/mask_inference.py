@@ -49,24 +49,13 @@ def print_matrix(matrix, format="raw", threshold=0.1, normalize=True):
         print()
     print()
 
-def infer_masks(env, mask_variant):
+def infer_masks(env, idx_masks, mask_inference_variant):
     from tqdm import tqdm
 
-    mask_inference_variant = mask_variant['mask_inference_variant']
-    n = int(mask_inference_variant['n'])
-    obs_noise = mask_inference_variant['noise']
-    normalize_sigma_inv = mask_inference_variant['normalize_sigma_inv']
-
-    assert mask_variant['mask_format'] == 'distribution'
-    assert 'idx_masks' in mask_variant
-    idx_masks = mask_variant['idx_masks']
+    n = int(mask_inference_variant.get('n', 50))
+    obs_noise = mask_inference_variant.get('noise', 0.01)
+    normalize_sigma_inv = mask_inference_variant.get('normalize_sigma_inv', True)
     num_masks = len(idx_masks)
-    mask_keys = mask_variant['mask_keys']
-    mask_dims = mask_variant['mask_dims']
-
-    masks = {}
-    for (key, dim) in zip(mask_keys, mask_dims):
-        masks[key] = np.zeros([num_masks] + list(dim))
 
     goal_dim = env.observation_space.spaces['state_desired_goal'].low.size
 
@@ -100,6 +89,7 @@ def infer_masks(env, mask_variant):
     list_of_waypoints += np.random.normal(0, obs_noise, list_of_waypoints.shape)
     goals += np.random.normal(0, obs_noise, goals.shape)
 
+    masks = {}
     for (mask_id, waypoints) in enumerate(list_of_waypoints):
         mu = np.mean(np.concatenate((waypoints, goals), axis=1), axis=0)
         sigma = np.cov(np.concatenate((waypoints, goals), axis=1).T)
