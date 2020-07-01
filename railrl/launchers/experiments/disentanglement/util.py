@@ -182,10 +182,10 @@ def add_heatmap_img_to_o_dict(env, agent, observation_key, full_o, v_function):
 
 def train_ae(ae_trainer, training_distrib, num_epochs=100,
              num_batches_per_epoch=500, batch_size=512,
-             goal_key='image_desired_goal'):
+             goal_key='image_desired_goal', rl_csv_fname='progress.csv'):
     from railrl.core import logger
 
-    logger.remove_tabular_output('progress.csv',
+    logger.remove_tabular_output(rl_csv_fname,
                                  relative_to_snapshot_dir=True)
     logger.add_tabular_output('ae_progress.csv',
                               relative_to_snapshot_dir=True)
@@ -207,6 +207,6 @@ def train_ae(ae_trainer, training_distrib, num_epochs=100,
         logger.dump_tabular(with_prefix=True, with_timestamp=False)
         ae_trainer.end_epoch(epoch)
 
-    logger.add_tabular_output('progress.csv', relative_to_snapshot_dir=True)
+    logger.add_tabular_output(rl_csv_fname, relative_to_snapshot_dir=True)
     logger.remove_tabular_output('ae_progress.csv',
                                  relative_to_snapshot_dir=True)

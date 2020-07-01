@@ -163,6 +163,7 @@ class ParallelDisentangledMlpQf(PyTorchModule):
             architecture='splice',
             detach_encoder_via_goal=False,
             detach_encoder_via_state=False,
+            num_heads=None,
     ):
         """
 
@@ -229,10 +230,11 @@ class ParallelDisentangledMlpQf(PyTorchModule):
                 **new_qf_kwargs
             )
         elif architecture == 'many_heads':
+            num_heads = num_heads or self.postprocess_goal_dim
             self.post_encoder_qf = MultiInputSequential(
                 Concat(),
                 ParallelMlp(
-                    num_heads=self.postprocess_goal_dim,
+                    num_heads=num_heads,
                     input_size=qf_input_size,
                     output_size_per_mlp=1,
                     **post_encoder_mlp_kwargs

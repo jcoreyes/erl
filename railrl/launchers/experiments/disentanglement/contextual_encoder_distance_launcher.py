@@ -1,10 +1,13 @@
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
+import copy
 import numpy as np
 from functools import partial
 from torch import nn
 
 import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
+from railrl.core import logger
+from railrl.core.logging import append_log
 from railrl.core.distribution import DictDistribution
 from railrl.data_management.contextual_replay_buffer import (
     ContextualRelabelingReplayBuffer,
@@ -170,6 +173,40 @@ def invert_encoder_mlp_params(encoder_kwargs):
     return reverse_params
 
 
+def recursive_dict_update(orig_dict, differences):
+    new_dict = orig_dict.copy()
+    for key, val in differences.items():
+        if (
+            key in orig_dict and
+            isinstance(orig_dict[key], dict) and
+            isinstance(differences[key], dict)
+        ):
+            new_dict[key] = recursive_dict_update(new_dict[key],
+                                                  differences[key])
+        else:
+            new_dict[key] = copy.deepcopy(differences[key])
+    return new_dict
+
+def transfer_encoder_goal_conditioned_sac_experiment(train_variant, transfer_variant=None):
+    rl_csv_fname = 'progress.csv'
+    retrain_rl_csv_fname = 'retrain_progress.csv'
+    train_results = encoder_goal_conditioned_sac_experiment(
+        **train_variant,
+        rl_csv_fname=rl_csv_fname)
+    logger.remove_tabular_output(rl_csv_fname, relative_to_snapshot_dir=True)
+    logger.add_tabular_output(retrain_rl_csv_fname,
+                              relative_to_snapshot_dir=True)
+    if not transfer_variant:
+        transfer_variant = {}
+
+    transfer_variant = recursive_dict_update(train_variant, transfer_variant)
+    print('Starting transfer exp')
+    encoder_goal_conditioned_sac_experiment(**transfer_variant,
+                                            is_retraining_from_scratch=True,
+                                            train_results=train_results,
+                                            rl_csv_fname=retrain_rl_csv_fname)
+
+
 def encoder_goal_conditioned_sac_experiment(
         max_path_length,
         qf_kwargs,
@@ -222,6 +259,11 @@ def encoder_goal_conditioned_sac_experiment(
         mlp_for_image_decoder=False,
         pretrain_vae=False,
         pretrain_vae_kwargs=None,
+
+        # Should only be set by transfer_encoder_goal_conditioned_sac_experiment
+        is_retraining_from_scratch=False,
+        train_results=None,
+        rl_csv_fname='progress.csv',
 ):
     if reward_config is None:
         reward_config = {}
@@ -243,6 +285,10 @@ def encoder_goal_conditioned_sac_experiment(
         video_renderer_kwargs = {}
     if debug_renderer_kwargs is None:
         debug_renderer_kwargs = {}
+
+    assert (
+        is_retraining_from_scratch != (train_results is None)
+    )
 
     img_observation_key = 'image_observation'
     state_observation_key = 'state_observation'
@@ -356,6 +402,9 @@ def encoder_goal_conditioned_sac_experiment(
             return enc
 
     encoder_net = create_encoder()
+    if train_results:
+        print("Using transfer encoder")
+        encoder_net = train_results.encoder_net
     mu_encoder_net = EncoderMuFromEncoderDistribution(encoder_net)
     target_encoder_net = create_encoder()
     mu_target_encoder_net = EncoderMuFromEncoderDistribution(target_encoder_net)
@@ -401,6 +450,7 @@ def encoder_goal_conditioned_sac_experiment(
             state_encoder = goal_encoder
         else:
             state_encoder = EncoderMuFromEncoderDistribution(create_encoder())
+            raise RuntimeError("State encoder must be goal encoder for resuming exps")
         if use_parallel_qf:
             return ParallelDisentangledMlpQf(
                 goal_encoder=goal_encoder,
@@ -437,7 +487,7 @@ def encoder_goal_conditioned_sac_experiment(
             detach_encoder_via_state=False,
         )
     else:
-        policy_obs_encoder = mu_encoder_net 
+        policy_obs_encoder = mu_encoder_net
         if not backprop_rl_into_encoder:
             policy_obs_encoder = Detach(policy_obs_encoder)
         policy_encoder_net = EncodeObsAndGoal(
@@ -591,7 +641,8 @@ def encoder_goal_conditioned_sac_experiment(
             )
             vae.to(ptu.device)
             train_ae(vae_trainer, expl_context_distrib,
-                      **pretrain_vae_kwargs, goal_key=goal_key)
+                      **pretrain_vae_kwargs, goal_key=goal_key,
+                     rl_csv_fname=rl_csv_fname)
         trainers = OrderedDict()
         trainers['vae_trainer'] = vae_trainer
         trainers['disentangled_trainer'] = disentangled_trainer
@@ -885,7 +936,11 @@ def encoder_goal_conditioned_sac_experiment(
             observation_key_for_rl,
         ))
     algorithm.train()
-
+    train_results = dict(
+        encoder_net=encoder_net,
+    )
+    TrainResults = namedtuple('TrainResults', sorted(train_results))
+    return TrainResults(**train_results)
 
 def create_save_h_vs_state_distance_fn(
         save_period, initial_save_period, encoder, encoder_input_key):
