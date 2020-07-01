@@ -178,10 +178,7 @@ env_params = {
     },
     'pb-2obj': {
         'env_kwargs.num_obj': [2],
-        # 'env_kwargs.reset_obj_in_hand_rate': [0.25],
         # 'env_kwargs.goal_mode': ['uniform_and_obj_in_bowl'],
-
-        'env_kwargs.use_wide_gripper': [True],
 
         'rl_variant.mask_variant.idx_masks': [
             [
@@ -190,7 +187,7 @@ env_params = {
             ],
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [3000],
+        'rl_variant.algo_kwargs.num_epochs': [4000],
         'rl_variant.algo_kwargs.eval_epoch_freq': [20],
         'rl_variant.save_video_period': [200],
     },
@@ -204,12 +201,6 @@ env_params = {
             {6: 6, 7: 7},
             {8: 8, 9: 9},
         ]],
-
-        'rl_variant.algo_kwargs.batch_size': [512],
-        'rl_variant.algo_kwargs.num_trains_per_train_loop': [
-            1000,
-            4000,
-        ],
 
         # 'rl_variant.mask_variant.idx_masks': [[
         #     {0: -12, 1: -13},

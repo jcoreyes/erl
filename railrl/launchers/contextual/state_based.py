@@ -124,72 +124,83 @@ def rl_context_experiment(variant):
     else:
         context_keys = [context_key]
 
-    env = get_envs(variant)
-    env.goal_sampling_mode = variant.get("goal_sampling_mode", None)
-    if task_conditioned:
-        context_distrib = TaskGoalDictDistributionFromMultitaskEnv(
-            env,
-            desired_goal_keys=[desired_goal_key],
-            task_key=task_key,
-            task_ids=task_variant['task_ids']
-        )
-        reward_fn = ContextualRewardFnFromMultitaskEnv(
-            env=env,
-            achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
+    def contextual_env_distrib_and_reward(mode='expl'):
+        assert mode in ['expl', 'eval']
+        env = get_envs(variant)
+
+        if mode == 'expl':
+            env.goal_sampling_mode = variant.get("expl_goal_sampling_mode", None)
+        elif mode == 'eval':
+            env.goal_sampling_mode = variant.get("eval_goal_sampling_mode", None)
+
+        if task_conditioned:
+            context_distrib = TaskGoalDictDistributionFromMultitaskEnv(
+                env,
+                desired_goal_keys=[desired_goal_key],
+                task_key=task_key,
+                task_ids=task_variant['task_ids']
+            )
+            reward_fn = ContextualRewardFnFromMultitaskEnv(
+                env=env,
+                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
+                desired_goal_key=desired_goal_key,
+                achieved_goal_key=achieved_goal_key,
+                additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
+                additional_context_keys=[task_key],
+            )
+        elif mask_conditioned:
+            context_distrib = MaskedGoalDictDistributionFromMultitaskEnv(
+                env,
+                desired_goal_keys=[desired_goal_key],
+                mask_keys=mask_keys,
+                mask_dims=mask_dims,
+                mask_format=mask_format,
+                max_subtasks_to_focus_on=mask_variant.get('max_subtasks_to_focus_on', None),
+                prev_subtask_weight=mask_variant.get('prev_subtask_weight', None),
+                masks=mask_variant.get('masks', None),
+                idx_masks=mask_variant.get('idx_masks', None),
+                matrix_masks=mask_variant.get('matrix_masks', None),
+                mask_distr=mask_variant.get('train_mask_distr', None),
+            )
+            reward_fn = mask_variant.get('reward_fn', default_masked_reward_fn)
+            reward_fn = ContextualRewardFnFromMultitaskEnv(
+                env=env,
+                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
+                desired_goal_key=desired_goal_key,
+                achieved_goal_key=achieved_goal_key,
+                additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
+                additional_context_keys=mask_keys,
+                reward_fn=partial(reward_fn, mask_format=mask_format),
+            )
+        else:
+            context_distrib = GoalDictDistributionFromMultitaskEnv(
+                env,
+                desired_goal_keys=[desired_goal_key],
+            )
+            reward_fn = ContextualRewardFnFromMultitaskEnv(
+                env=env,
+                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
+                desired_goal_key=desired_goal_key,
+                achieved_goal_key=achieved_goal_key,
+                additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
+            )
+        diag_fn = GoalConditionedDiagnosticsToContextualDiagnostics(
+            env.goal_conditioned_diagnostics,
             desired_goal_key=desired_goal_key,
-            achieved_goal_key=achieved_goal_key,
-            additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
-            additional_context_keys=[task_key],
+            observation_key=observation_key,
         )
-    elif mask_conditioned:
-        context_distrib = MaskedGoalDictDistributionFromMultitaskEnv(
+        env = ContextualEnv(
             env,
-            desired_goal_keys=[desired_goal_key],
-            mask_keys=mask_keys,
-            mask_dims=mask_dims,
-            mask_format=mask_format,
-            max_subtasks_to_focus_on=mask_variant.get('max_subtasks_to_focus_on', None),
-            prev_subtask_weight=mask_variant.get('prev_subtask_weight', None),
-            masks=mask_variant.get('masks', None),
-            idx_masks=mask_variant.get('idx_masks', None),
-            matrix_masks=mask_variant.get('matrix_masks', None),
-            mask_distr=mask_variant.get('train_mask_distr', None),
+            context_distribution=context_distrib,
+            reward_fn=reward_fn,
+            observation_key=observation_key,
+            contextual_diagnostics_fns=[diag_fn],
+            # update_env_info_fn=delete_info,
         )
-        reward_fn = mask_variant.get('reward_fn', default_masked_reward_fn)
-        reward_fn = ContextualRewardFnFromMultitaskEnv(
-            env=env,
-            achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
-            desired_goal_key=desired_goal_key,
-            achieved_goal_key=achieved_goal_key,
-            additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
-            additional_context_keys=mask_keys,
-            reward_fn=partial(reward_fn, mask_format=mask_format),
-        )
-    else:
-        context_distrib = GoalDictDistributionFromMultitaskEnv(
-            env,
-            desired_goal_keys=[desired_goal_key],
-        )
-        reward_fn = ContextualRewardFnFromMultitaskEnv(
-            env=env,
-            achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
-            desired_goal_key=desired_goal_key,
-            achieved_goal_key=achieved_goal_key,
-            additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
-        )
-    diag_fn = GoalConditionedDiagnosticsToContextualDiagnostics(
-        env.goal_conditioned_diagnostics,
-        desired_goal_key=desired_goal_key,
-        observation_key=observation_key,
-    )
-    env = ContextualEnv(
-        env,
-        context_distribution=context_distrib,
-        reward_fn=reward_fn,
-        observation_key=observation_key,
-        contextual_diagnostics_fns=[diag_fn],
-        # update_env_info_fn=delete_info,
-    )
+        return env, context_distrib, reward_fn
+
+    env, context_distrib, reward_fn = contextual_env_distrib_and_reward(mode='expl')
+    eval_env, eval_context_distrib, _ = contextual_env_distrib_and_reward(mode='eval')
 
     if task_conditioned:
         obs_dim = (
@@ -492,7 +503,7 @@ def rl_context_experiment(variant):
                 observation_key=observation_key,
                 context_keys_for_policy=context_keys,
                 concat_context_to_obs_fn=concat_context_to_obs,
-                mask_sampler=context_distrib,
+                mask_sampler=(context_distrib if mode=='expl' else eval_context_distrib),
                 mask_distr=mask_distr.copy(),
                 mask_groups=mask_groups,
                 max_path_length=max_path_length,
@@ -511,12 +522,12 @@ def rl_context_experiment(variant):
             )
 
     expl_path_collector = create_path_collector(env, expl_policy, mode='expl')
-    eval_path_collector = create_path_collector(env, eval_policy, mode='eval')
+    eval_path_collector = create_path_collector(eval_env, eval_policy, mode='eval')
 
     algorithm = TorchBatchRLAlgorithm(
         trainer=trainer,
         exploration_env=env,
-        evaluation_env=env,
+        evaluation_env=eval_env,
         exploration_data_collector=expl_path_collector,
         evaluation_data_collector=eval_path_collector,
         replay_buffer=replay_buffer,
@@ -525,8 +536,6 @@ def rl_context_experiment(variant):
     )
 
     algorithm.to(ptu.device)
-    # if not variant.get("do_state_exp", False):
-    #     env.vae.to(ptu.device)
 
     if variant.get("save_video", True):
         save_period = variant.get('save_video_period', 50)
@@ -623,7 +632,7 @@ def rl_context_experiment(variant):
 
             return context_env
 
-        img_eval_env = add_images(env, context_distrib)
+        img_eval_env = add_images(eval_env, eval_context_distrib)
 
         if variant.get('log_eval_video', True):
             video_path_collector = create_path_collector(img_eval_env, eval_policy, mode='eval')
@@ -756,7 +765,7 @@ def rl_context_experiment(variant):
 
         # atomic masks
         if 'atomic' in eval_rollouts_to_log:
-            masks = context_distrib.masks.copy()
+            # masks = eval_context_distrib.masks.copy()
             # num_masks = len(masks[list(masks.keys())[0]])
             num_masks = len(eval_path_collector.mask_groups)
             for mask_id in range(num_masks):
@@ -766,7 +775,7 @@ def rl_context_experiment(variant):
                         atomic_seq=1.0,
                     ),
                 )
-                collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
+                collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
                 collectors.append(collector)
             log_prefixes += [
                 'mask_{}/'.format(''.join(str(mask_id)))
@@ -780,7 +789,7 @@ def rl_context_experiment(variant):
                     full=1.0,
                 ),
             )
-            collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
+            collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
             collectors.append(collector)
             log_prefixes.append('mask_full/')
 
@@ -792,7 +801,7 @@ def rl_context_experiment(variant):
                     cumul_seq=1.0,
                 ),
             )
-            collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
+            collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
             collectors.append(collector)
             log_prefixes.append('mask_cumul_seq/')
 
@@ -804,7 +813,7 @@ def rl_context_experiment(variant):
                     atomic_seq=1.0,
                 ),
             )
-            collector = create_path_collector(env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
+            collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
             collectors.append(collector)
             log_prefixes.append('mask_atomic_seq/')
 
