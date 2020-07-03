@@ -22,6 +22,7 @@ variant = dict(
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000, #4000,
             min_num_steps_before_training=1000,
+            eval_epoch_freq=20,
         ),
         max_path_length=100,
         td3_trainer_kwargs=dict(
@@ -54,6 +55,8 @@ variant = dict(
         ),
         exploration_type='ou',
         exploration_noise=0.3,
+        expl_goal_sampling_mode='ground',
+        eval_goal_sampling_mode='obj_in_bowl',
         algorithm="sac",
         context_based=True,
         save_video=True,
@@ -67,7 +70,7 @@ variant = dict(
         vis_kwargs=dict(
             vis_list=dict(),
         ),
-        save_video_period=50,
+        save_video_period=200,
         renderer_kwargs=dict(),
         task_variant=dict(
             task_conditioned=False,
@@ -82,6 +85,7 @@ variant = dict(
             mask_inference_variant=dict(
                 n=1000,
                 noise=0.01,
+                max_cond_num=1e2,
                 normalize_sigma_inv=True,
             ),
             relabel_goals=True,
@@ -95,6 +99,7 @@ variant = dict(
             max_subtasks_per_rollout=None,
             prev_subtask_weight=0.25,
             reward_fn=default_masked_reward_fn,
+            use_g_for_mean=True,
 
             train_mask_distr=dict(
                 atomic=1.0,
@@ -132,7 +137,9 @@ variant = dict(
         'pos_high': [.75, .4, .3],
         'pos_low': [.75, -.4, -.36],
         'reset_obj_in_hand_rate': 0.0,
-        'goal_mode': 'obj_in_bowl',
+        'goal_sampling_mode': 'ground',
+        'random_init_bowl_pos': True,
+        'sliding_bowl': False,
         'num_obj': 0, #2
 
         'reward_type': 'obj_dist',
@@ -166,20 +173,30 @@ env_params = {
     },
     'pb-1obj': {
         'env_kwargs.num_obj': [1],
+        'env_kwargs.sliding_bowl': [True],
 
-        'env_kwargs.use_rotated_gripper': [
+        'rl_variant.mask_variant.idx_masks': [
+            [
+                {2: -14, 3: -13},
+            ],
+        ],
+
+        'rl_variant.mask_variant.mask_conditioned': [
             # True,
             False,
         ],
+        'rl_variant.mask_variant.mask_format': ['distribution'],
+        'rl_variant.mask_variant.infer_masks': [True],
+        'rl_variant.mask_variant.mask_inference_variant.n': [
+            50,
+            # 1000,
+        ],
 
-        'rl_variant.algo_kwargs.num_epochs': [1000],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [10],
-        'rl_variant.save_video_period': [100],
+        'rl_variant.algo_kwargs.num_epochs': [2000],
     },
     'pb-2obj': {
         'env_kwargs.num_obj': [2],
-        # 'env_kwargs.goal_mode': ['uniform_and_obj_in_bowl'],
-
+        
         'rl_variant.mask_variant.idx_masks': [
             [
                 {2: 2, 3: 3},
@@ -187,9 +204,14 @@ env_params = {
             ],
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [4000],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [20],
-        'rl_variant.save_video_period': [200],
+        'rl_variant.mask_variant.mask_format': ['distribution'],
+        'rl_variant.mask_variant.infer_masks': [True],
+        'rl_variant.mask_variant.mask_inference_variant.n': [
+            50,
+            # 1000,
+        ],
+
+        'rl_variant.algo_kwargs.num_epochs': [2500],
     },
     'pb-4obj': {
         'env_kwargs.num_obj': [4],
@@ -227,8 +249,6 @@ env_params = {
         # 'rl_variant.mask_variant.max_subtasks_per_rollout': [2],
 
         'rl_variant.algo_kwargs.num_epochs': [5000],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [20],
-        'rl_variant.save_video_period': [200],
     },
 }
 
@@ -245,7 +265,7 @@ def process_variant(variant):
         rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
         rl_variant['dump_video_kwargs']['columns'] = 2
         rl_variant['save_video_period'] = 2
-        rl_variant['log_expl_video'] = False
+        # rl_variant['log_expl_video'] = False
         variant['imsize'] = 256
     rl_variant['renderer_kwargs']['img_width'] = variant['imsize']
     rl_variant['renderer_kwargs']['img_height'] = variant['imsize']

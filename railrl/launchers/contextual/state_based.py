@@ -129,9 +129,11 @@ def rl_context_experiment(variant):
         env = get_envs(variant)
 
         if mode == 'expl':
-            env.goal_sampling_mode = variant.get("expl_goal_sampling_mode", None)
+            goal_sampling_mode = variant.get("expl_goal_sampling_mode", None)
         elif mode == 'eval':
-            env.goal_sampling_mode = variant.get("eval_goal_sampling_mode", None)
+            goal_sampling_mode = variant.get("eval_goal_sampling_mode", None)
+        if goal_sampling_mode is not None:
+            env.goal_sampling_mode = goal_sampling_mode
 
         if task_conditioned:
             context_distrib = TaskGoalDictDistributionFromMultitaskEnv(
@@ -170,7 +172,7 @@ def rl_context_experiment(variant):
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
                 additional_context_keys=mask_keys,
-                reward_fn=partial(reward_fn, mask_format=mask_format),
+                reward_fn=partial(reward_fn, mask_format=mask_format, use_g_for_mean=mask_variant['use_g_for_mean']),
             )
         else:
             context_distrib = GoalDictDistributionFromMultitaskEnv(
@@ -395,7 +397,10 @@ def rl_context_experiment(variant):
                 mu_g = batch['mask_mu_g']
                 mu_A = batch['mask_mu_mat']
                 sigma_inv = batch['mask_sigma_inv']
-                mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(g - mu_g, axis=-1), axis=-1)
+                if mask_variant['use_g_for_mean']:
+                    mu_w_given_g = g
+                else:
+                    mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(g - mu_g, axis=-1), axis=-1)
                 sigma_w_given_g_inv = sigma_inv.reshape((len(context), -1))
                 batch['observations'] = np.concatenate([obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
                 batch['next_observations'] = np.concatenate([next_obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
