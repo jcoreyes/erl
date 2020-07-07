@@ -89,7 +89,11 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
                             elif self.mask_format == 'matrix':
                                 self.masks[mask_key][i][k, k] = 1
                 elif matrix_masks is not None:
-                    self.masks[mask_key] = np.array(matrix_masks)
+                    if self.mask_format == 'vector':
+                        for mask_id in range(num_masks):
+                            self.masks[mask_key][mask_id] = np.diag(matrix_masks[mask_id])
+                    else:
+                        self.masks[mask_key] = np.array(matrix_masks)
             elif self.mask_format == 'distribution':
                 if idx_masks is not None:
                     self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])

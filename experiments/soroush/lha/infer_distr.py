@@ -266,18 +266,38 @@ def print_matrix(matrix, format="signed", threshold=0.1, normalize=False, precis
         print()
     print()
 
-def plot_Gaussian(mu, Sigma, list_of_dims=[[0, 1], [2, 3], [0, 2], [1, 3]], pt1=None, pt2=None):
-    fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+def plot_Gaussian(
+        mu,
+        Sigma=None,
+        Sigma_inv=None,
+        list_of_dims=[[0, 1], [2, 3], [0, 2], [1, 3]],
+        pt1=None,
+        pt2=None
+):
+    num_subplots = len(list_of_dims)
+    if num_subplots == 1:
+        fig, axs = plt.subplots(1, 1, figsize=(6, 6))
+    else:
+        fig, axs = plt.subplots(2, num_subplots // 2, figsize=(10, 10))
     x, y = np.mgrid[-0.5:0.5:.01, -0.5:0.5:.01]
     pos = np.dstack((x, y))
+
+    assert (Sigma is not None) ^ (Sigma_inv is not None)
+    if Sigma is None:
+        Sigma = linalg.inv(Sigma_inv)
+
     for i in range(len(list_of_dims)):
         dims = list_of_dims[i]
         rv = multivariate_normal(mu[dims], Sigma[dims][:,dims])
 
-        plt_idx1 = i // 2
-        plt_idx2 = i % 2
-        axs[plt_idx1, plt_idx2].contourf(x, y, rv.logpdf(pos))
-        axs[plt_idx1, plt_idx2].set_title(str(dims))
+        if num_subplots == 1:
+            axs.contourf(x, y, rv.logpdf(pos))
+            axs.set_title(str(dims))
+        else:
+            plt_idx1 = i // 2
+            plt_idx2 = i % 2
+            axs[plt_idx1, plt_idx2].contourf(x, y, rv.logpdf(pos))
+            axs[plt_idx1, plt_idx2].set_title(str(dims))
 
         if pt1 is not None:
             axs[plt_idx1, plt_idx2].scatter([pt1[dims][0]], [pt1[dims][1]])
@@ -294,6 +314,23 @@ vis_distr = True
 obs_noise = 0.01
 correlated_noise = False
 cond_num = 1e2
+
+plot_Gaussian(
+    mu=np.array([0, 0, 0]),
+    Sigma_inv=np.array([
+        [0.56, 0.0, -0.44],
+        [0.0, 1.0, 0.0],
+        [-0.44, 0.0, 0.57],
+    ]),
+    # Sigma_inv=np.array([
+    #     [1.0, 0.0, -0.999],
+    #     [0.0, 1.0, 0.0],
+    #     [-0.999, 0.0, 1.0],
+    # ]),
+    list_of_dims=[[0, 1], [1, 2], [0, 2], [0, 2]],
+    pt1=None, pt2=None
+)
+exit()
 
 if not use_cached_data:
     ### generate and save the data
@@ -407,7 +444,8 @@ for i in [0, 1]: #range(num_subtasks)
             else:
                 list_of_dims = [[2, 3], [4, 5], [2, 4], [3, 5]]
             plot_Gaussian(
-                mu_w_given_g, sigma_w_given_g,
+                mu_w_given_g,
+                Sigma_inv=sigma_w_given_g,
                 pt1=goal, #pt2=state,
                 list_of_dims=list_of_dims,
             )

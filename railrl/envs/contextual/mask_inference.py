@@ -68,7 +68,6 @@ def gen_data(env, idx_masks, n, other_dims_random=True):
         obs_dict = env.reset()
         obs = obs_dict['state_achieved_goal']
         goal = obs_dict['state_desired_goal']
-
         for (mask_id, idx_dict) in enumerate(idx_masks):
             wp = obs.copy()
             dims = []

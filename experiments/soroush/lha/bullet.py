@@ -55,7 +55,7 @@ variant = dict(
         ),
         exploration_type='ou',
         exploration_noise=0.3,
-        expl_goal_sampling_mode='ground',
+        expl_goal_sampling_mode='50p_ground__50p_obj_in_bowl',
         eval_goal_sampling_mode='obj_in_bowl',
         algorithm="sac",
         context_based=True,
@@ -138,29 +138,17 @@ variant = dict(
         'pos_low': [.75, -.4, -.36],
         'reset_obj_in_hand_rate': 0.0,
         'goal_sampling_mode': 'ground',
-        'random_init_bowl_pos': True,
+        'random_init_bowl_pos': False,
         'sliding_bowl': False,
         'num_obj': 0, #2
 
         'reward_type': 'obj_dist',
-
-        # 'use_rotated_gripper': True,  # False
-        # 'use_wide_gripper': False,  # False
-        # 'soft_clip': True,
-        # 'obj_urdf': 'spam_long',
-        # 'max_joint_velocity': 1.0,
 
         'use_rotated_gripper': True,  # False
         'use_wide_gripper': True,  # False
         'soft_clip': True,
         'obj_urdf': 'spam',
         'max_joint_velocity': None,
-
-        # 'use_rotated_gripper': False,  # False
-        # 'use_wide_gripper': False,  # False
-        # 'soft_clip': False,
-        # 'obj_urdf': 'spam',
-        # 'max_joint_velocity': None,
     },
     imsize=400,
 )
@@ -174,48 +162,165 @@ env_params = {
     'pb-1obj': {
         'env_kwargs.num_obj': [1],
         'env_kwargs.sliding_bowl': [True],
+        'env_kwargs.heavy_bowl': [True],
+        'env_kwargs.random_init_bowl_pos': [True],
 
-        'rl_variant.mask_variant.idx_masks': [
-            [
-                {2: -14, 3: -13},
-            ],
+        # 'rl_variant.mask_variant.idx_masks': [
+        #     [
+        #         {2: -14, 3: -13},
+        #     ],
+        # ],
+
+        'rl_variant.mask_variant.matrix_masks': [
+            [[
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0],
+                [0, 0, 1, 0, -1],
+                [0, 0, 0, 1, 0],
+                [0, 0, -1, 0, 1],
+            ]],
+            # [[
+            #     [0, 0, 0, 0, 0],
+            #     [0, 0, 0, 0, 0],
+            #     [0, 0, 1, 0, 0],
+            #     [0, 0, 0, 1, 0],
+            #     [0, 0, 0, 0, 1],
+            # ]],
         ],
 
-        'rl_variant.mask_variant.mask_conditioned': [
-            # True,
-            False,
-        ],
-        'rl_variant.mask_variant.mask_format': ['distribution'],
-        'rl_variant.mask_variant.infer_masks': [True],
-        'rl_variant.mask_variant.mask_inference_variant.n': [
-            50,
-            # 1000,
+        'rl_variant.mask_variant.mask_format': [
+            # 'distribution',
+            'matrix',
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [2000],
+        # 'rl_variant.mask_variant.mask_conditioned': [
+        #     # True,
+        #     False,
+        # ],
+        # 'rl_variant.mask_variant.mask_format': ['distribution'],
+        # 'rl_variant.mask_variant.infer_masks': [True],
+        # 'rl_variant.mask_variant.mask_inference_variant.n': [
+        #     # 50,
+        #     1000,
+        # ],
+
+        'rl_variant.algo_kwargs.num_epochs': [2500],
     },
     'pb-2obj': {
         'env_kwargs.num_obj': [2],
         
-        'rl_variant.mask_variant.idx_masks': [
-            [
-                {2: 2, 3: 3},
-                {4: 4, 5: 5},
+        # 'rl_variant.mask_variant.idx_masks': [
+        #     [
+        #         {2: 2, 3: 3},
+        #         {4: 4, 5: 5},
+        #     ],
+        # ],
+        'rl_variant.mask_variant.matrix_masks': [
+            [[
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0],
             ],
+            [
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 0, 1],
+            ]],
+
+            # [[
+            #     [0.01, 0, 0, 0, 0, 0],
+            #     [0, 0.01, 0, 0, 0, 0],
+            #     [0, 0, 0.99, 0, 0, 0],
+            #     [0, 0, 0, 1.00, 0, 0],
+            #     [0, 0, 0, 0, 0.01, 0],
+            #     [0, 0, 0, 0, 0, 0.01],
+            # ],
+            # [
+            #     [0.01, 0, 0, 0, 0, 0],
+            #     [0, 0.01, 0, 0, 0, 0],
+            #     [0, 0, 0.01, 0, 0, 0],
+            #     [0, 0, 0, 0.01, 0, 0],
+            #     [0, 0, 0, 0, 0.98, 0],
+            #     [0, 0, 0, 0, 0, 1.00],
+            # ]],
         ],
 
-        'rl_variant.mask_variant.mask_format': ['distribution'],
-        'rl_variant.mask_variant.infer_masks': [True],
-        'rl_variant.mask_variant.mask_inference_variant.n': [
-            50,
-            # 1000,
+        'rl_variant.mask_variant.mask_format': [
+            # 'distribution',
+            'matrix',
+            # 'vector',
         ],
+        # 'rl_variant.mask_variant.infer_masks': [True],
+        # 'rl_variant.mask_variant.mask_inference_variant.n': [
+        #     # 50,
+        #     1000,
+        # ],
 
         'rl_variant.algo_kwargs.num_epochs': [2500],
     },
+    'pb-3obj': {
+        'env_kwargs.num_obj': [3],
+        'env_kwargs.sliding_bowl': [True],
+        'env_kwargs.random_init_bowl_pos': [True],
+
+        # 'rl_variant.mask_variant.idx_masks': [
+        #     [
+        #         {2: -14, 3: -13},
+        #     ],
+        # ],
+
+        'rl_variant.mask_variant.matrix_masks': [
+            # [[
+            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            #     [0, 0, 1, 0, 0, 0, 0, 0, -1],
+            #     [0, 0, 0, 1, 0, 0, 0, 0, 0],
+            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            #     [0, 0, -1, 0, 0, 0, 0, 0, 1],
+            # ]],
+            [[
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 1],
+            ]],
+        ],
+
+        'rl_variant.mask_variant.mask_format': [
+            # 'distribution',
+            'matrix',
+        ],
+
+        # 'rl_variant.mask_variant.mask_conditioned': [
+        #     # True,
+        #     False,
+        # ],
+        # 'rl_variant.mask_variant.mask_format': ['distribution'],
+        # 'rl_variant.mask_variant.infer_masks': [True],
+        # 'rl_variant.mask_variant.mask_inference_variant.n': [
+        #     # 50,
+        #     1000,
+        # ],
+
+        'rl_variant.algo_kwargs.num_epochs': [6000],
+    },
     'pb-4obj': {
         'env_kwargs.num_obj': [4],
-        'rl_variant.max_path_length': [200],
+        # 'rl_variant.max_path_length': [200],
 
         'rl_variant.mask_variant.idx_masks': [[
             {2: 2, 3: 3},
@@ -237,8 +342,12 @@ env_params = {
         # 'rl_variant.mask_variant.mask_groups': [[
         #     [0, 1], [2, 3], [4, 5], [6, 7],
         # ]],
-        #
-        # 'rl_variant.mask_variant.mask_conditioned': [False],
+
+        'rl_variant.mask_variant.mask_conditioned': [
+            # True,
+            False,
+        ],
+
         # 'rl_variant.mask_variant.mask_format': ['distribution'],
         # 'rl_variant.mask_variant.infer_masks': [True],
         # 'rl_variant.mask_variant.mask_inference_variant.n': [
@@ -246,9 +355,7 @@ env_params = {
         #     1000,
         # ],
 
-        # 'rl_variant.mask_variant.max_subtasks_per_rollout': [2],
-
-        'rl_variant.algo_kwargs.num_epochs': [5000],
+        'rl_variant.algo_kwargs.num_epochs': [6000],
     },
 }
 
