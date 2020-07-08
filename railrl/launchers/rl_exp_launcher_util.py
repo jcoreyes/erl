@@ -9,7 +9,6 @@ from railrl.envs.reward_mask_wrapper import DiscreteDistribution, RewardMaskWrap
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 
 def td3_experiment(variant):
@@ -17,9 +16,6 @@ def td3_experiment(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
-    from railrl.exploration_strategies.base import (
-        PolicyWrappedWithExplorationStrategy
-    )
 
     from railrl.torch.td3.td3 import TD3 as TD3Trainer
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
@@ -29,7 +25,6 @@ def td3_experiment(variant):
     env = get_envs(variant)
     expl_env = env
     eval_env = env
-    es = get_exploration_strategy(variant, env)
 
     if variant.get("use_masks", False):
         mask_wrapper_kwargs = variant.get("mask_wrapper_kwargs", dict())
@@ -106,9 +101,10 @@ def td3_experiment(variant):
         )
 
 
-    expl_policy = PolicyWrappedWithExplorationStrategy(
-        exploration_strategy=es,
-        policy=policy,
+    expl_policy = create_exploration_policy(
+        env, policy,
+        exploration_version=variant['exploration_type'],
+        exploration_noise=variant['exploration_noise'],
     )
     replay_buffer = ObsDictRelabelingBuffer(
         env=env,
@@ -581,7 +577,12 @@ def get_video_save_func(rollout_function, env, policy, variant):
 
 def create_exploration_policy(env, policy, exploration_version='identity',
                               **kwargs):
-    # TODO: merge with get_exploration_strategy
+    from railrl.exploration_strategies.ou_strategy import OUStrategy
+    from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
+    from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+    from railrl.exploration_strategies.gaussian_and_epislon import \
+        GaussianAndEpislonStrategy
+
     if exploration_version == 'identity':
         return policy
     elif exploration_version == 'occasionally_repeat':
@@ -592,6 +593,33 @@ def create_exploration_policy(env, policy, exploration_version='identity',
                 action_space=env.action_space,
                 max_sigma=kwargs['exploration_noise'],
                 min_sigma=kwargs['exploration_noise']
+            ),
+            policy=policy
+        )
+    elif exploration_version == 'epsilon':
+        return PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=EpsilonGreedy(
+                action_space=env.action_space,
+                prob_random_action=kwargs['exploration_noise']
+            ),
+            policy=policy
+        )
+    elif exploration_version == 'gaussian':
+        return PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=GaussianStrategy(
+                action_space=env.action_space,
+                max_sigma=kwargs['exploration_noise'],
+                min_sigma=kwargs['exploration_noise']
+            ),
+            policy=policy
+        )
+    elif exploration_version == 'gaussian_and_epsilon':
+        return PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=GaussianAndEpislonStrategy(
+                action_space=env.action_space,
+                max_sigma=kwargs['exploration_noise'],
+                min_sigma=kwargs['exploration_noise'],
+                epsilon = 0.3
             ),
             policy=policy
         )

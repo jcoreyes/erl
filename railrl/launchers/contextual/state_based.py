@@ -32,7 +32,7 @@ from railrl.samplers.data_collector.contextual_path_collector import (
 from railrl.launchers.rl_exp_launcher_util import (
     preprocess_rl_variant,
     get_envs,
-    get_exploration_strategy,
+    create_exploration_policy,
 )
 
 import copy
@@ -276,10 +276,10 @@ def rl_context_experiment(variant):
                 output_size=action_dim,
                 **variant['policy_kwargs']
             )
-            es = get_exploration_strategy(variant, env)
-            expl_policy = PolicyWrappedWithExplorationStrategy(
-                exploration_strategy=es,
-                policy=policy,
+            expl_policy = create_exploration_policy(
+                env, policy,
+                exploration_version=variant['exploration_type'],
+                exploration_noise=variant['exploration_noise'],
             )
             eval_policy = policy
         elif rl_algo == 'sac':
