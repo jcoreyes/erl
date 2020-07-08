@@ -528,8 +528,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
     from multiworld.core.image_env import ImageEnv
     from railrl.core import logger
     from railrl.envs.vae_wrappers import temporary_mode
-    # from railrl.visualization.video import dump_video
-    from railrl.torch.grill.video_gen import dump_video
+    from railrl.visualization.video import dump_video
     logdir = logger.get_snapshot_dir()
     save_period = variant.get('save_video_period', 50)
     do_state_exp = variant.get("do_state_exp", False)

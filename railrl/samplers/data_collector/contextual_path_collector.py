@@ -16,6 +16,7 @@ class ContextualPathCollector(MdpPathCollector):
             context_keys_for_policy='context',
             render=False,
             render_kwargs=None,
+            **kwargs
     ):
         rollout_fn = partial(
             contextual_rollout,
@@ -25,6 +26,7 @@ class ContextualPathCollector(MdpPathCollector):
         super().__init__(
             env, policy, max_num_epoch_paths_saved, render, render_kwargs,
             rollout_fn=rollout_fn,
+            **kwargs
         )
         self._observation_key = observation_key
         self._context_keys_for_policy = context_keys_for_policy

@@ -18,6 +18,7 @@ class MdpPathCollector(PathCollector):
             render=False,
             render_kwargs=None,
             rollout_fn=rollout,
+            save_env_in_snapshot=True,
     ):
         if render_kwargs is None:
             render_kwargs = {}
@@ -31,6 +32,8 @@ class MdpPathCollector(PathCollector):
 
         self._num_steps_total = 0
         self._num_paths_total = 0
+
+        self._save_env_in_snapshot = save_env_in_snapshot
 
     def collect_new_paths(
             self,
@@ -86,10 +89,12 @@ class MdpPathCollector(PathCollector):
         return stats
 
     def get_snapshot(self):
-        return dict(
-            # env=self._env,
+        snapshot_dict = dict(
             policy=self._policy,
         )
+        if self._save_env_in_snapshot:
+            snapshot_dict['env'] = self._env
+        return snapshot_dict
 
 
 class GoalConditionedPathCollector(MdpPathCollector):

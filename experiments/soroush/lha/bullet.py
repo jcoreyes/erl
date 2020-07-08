@@ -59,6 +59,7 @@ variant = dict(
         eval_goal_sampling_mode='obj_in_bowl',
         algorithm="sac",
         context_based=True,
+        save_env_in_snapshot=False,
         save_video=True,
         dump_video_kwargs=dict(
             rows=1,
