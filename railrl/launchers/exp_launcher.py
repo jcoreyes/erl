@@ -8,7 +8,7 @@ from railrl.launchers.rl_exp_launcher_util import (
     twin_sac_experiment,
 )
 
-from railrl.launchers.contextual.state_based import rl_context_experiment
+from railrl.launchers.contextual.state_based_v2 import rl_context_experiment
 
 def rl_experiment(variant):
     experiment_variant_preprocess(variant)

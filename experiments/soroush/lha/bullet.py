@@ -329,8 +329,8 @@ env_params = {
         # ]],
 
         'rl_variant.mask_variant.mask_conditioned': [
-            # True,
-            False,
+            True,
+            # False,
         ],
 
         # 'rl_variant.mask_variant.mask_format': ['distribution'],
@@ -390,8 +390,8 @@ def process_variant(variant):
         rl_variant['save_video_period'] = 2
         # rl_variant['log_expl_video'] = False
         variant['imsize'] = 256
-    rl_variant['renderer_kwargs']['img_width'] = variant['imsize']
-    rl_variant['renderer_kwargs']['img_height'] = variant['imsize']
+    rl_variant['renderer_kwargs']['width'] = variant['imsize']
+    rl_variant['renderer_kwargs']['height'] = variant['imsize']
     variant['env_kwargs']['img_dim'] = variant['imsize']
 
     if args.no_video:

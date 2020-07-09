@@ -520,7 +520,7 @@ def preprocess_rl_variant(variant):
     if variant.get("do_state_exp", False):
         variant['observation_key'] = 'state_observation'
         variant['desired_goal_key'] = 'state_desired_goal'
-        variant['achieved_goal_key'] = 'state_acheived_goal'
+        variant['achieved_goal_key'] = 'state_achieved_goal'
 
 
 def get_video_save_func(rollout_function, env, policy, variant):

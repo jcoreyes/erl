@@ -21,7 +21,7 @@ from railrl.envs.contextual.task_conditioned import (
     TaskGoalDictDistributionFromMultitaskEnv,
     TaskPathCollector,
 )
-from railrl.envs.images import Renderer, InsertImagesEnv
+from railrl.envs.images import EnvRenderer, InsertImagesEnv
 from railrl.launchers.contextual.util import (
     get_save_video_function,
 )
@@ -48,7 +48,7 @@ def rl_context_experiment(variant):
     from railrl.torch.td3.td3 import TD3 as TD3Trainer
     from railrl.torch.sac.sac import SACTrainer
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
     from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.sac.policies import MakeDeterministic
 
@@ -245,22 +245,22 @@ def rl_context_experiment(variant):
         eval_policy = data['evaluation/policy']
         expl_policy = data['exploration/policy']
     else:
-        qf1 = FlattenMlp(
+        qf1 = ConcatMlp(
             input_size=obs_dim + action_dim,
             output_size=1,
             **variant['qf_kwargs']
         )
-        qf2 = FlattenMlp(
+        qf2 = ConcatMlp(
             input_size=obs_dim + action_dim,
             output_size=1,
             **variant['qf_kwargs']
         )
-        target_qf1 = FlattenMlp(
+        target_qf1 = ConcatMlp(
             input_size=obs_dim + action_dim,
             output_size=1,
             **variant['qf_kwargs']
         )
-        target_qf2 = FlattenMlp(
+        target_qf2 = ConcatMlp(
             input_size=obs_dim + action_dim,
             output_size=1,
             **variant['qf_kwargs']
@@ -552,7 +552,7 @@ def rl_context_experiment(variant):
         dump_video_kwargs = variant.get("dump_video_kwargs", dict())
         dump_video_kwargs['horizon'] = max_path_length
 
-        renderer = Renderer(**variant.get('renderer_kwargs', {}))
+        renderer = EnvRenderer(**variant.get('renderer_kwargs', {}))
 
         def add_images(env, state_distribution):
             state_env = env.env
@@ -572,74 +572,6 @@ def rl_context_experiment(variant):
                 observation_key=observation_key,
                 update_env_info_fn=delete_info,
             )
-
-            ### Logging the V fucntion heatmap ###
-            def get_state():
-                if context_env._last_obs is None:
-                    return None
-                return context_env._last_obs['state_observation']
-            def get_goal():
-                if context_env._last_obs is None:
-                    return None
-                return context_env._last_obs['state_desired_goal']
-            def get_mask():
-                if context_env._last_obs is None:
-                    return None
-                return context_env._last_obs['mask']
-
-            ### v function visualization ###
-            obj_ids = []
-            image_names = []
-            for obj_id in [None, 0, 1, 2, 3, 4]:
-                image_name = 'image_v_{}'.format(obj_id) if (obj_id is not None) else 'image_v'
-                if image_name in dump_video_kwargs.get('keys_to_show', []):
-                    obj_ids.append(obj_id)
-                    image_names.append(image_name)
-            image_names = tuple(image_names)
-            if len(image_names) > 0:
-                renderer_image_v = Renderer(
-                    get_image_func_name='get_image_v',
-                    get_image_func_kwargs=dict(
-                        policy=eval_policy,
-                        qf=qf1,
-                        get_state_func=get_state,
-                        get_goal_func=get_goal,
-                        get_mask_func=get_mask,
-                        obj_ids=obj_ids,
-                        imsize=variant['renderer_kwargs']['img_width'],
-                    ),
-                    **variant.get('renderer_kwargs', {})
-                )
-                img_env.append_renderers({
-                    image_names: renderer_image_v,
-            })
-
-            ### policy visualization ###
-            obj_ids = []
-            image_names = []
-            for obj_id in [None, 0, 1, 2, 3, 4]:
-                image_name = 'image_pi_{}'.format(obj_id) if (obj_id is not None) else 'image_pi'
-                if image_name in dump_video_kwargs.get('keys_to_show', []):
-                    obj_ids.append(obj_id)
-                    image_names.append(image_name)
-            image_names = tuple(image_names)
-            if len(image_names) > 0:
-                renderer_image_pi = Renderer(
-                    get_image_func_name='get_image_pi',
-                    get_image_func_kwargs=dict(
-                        policy=eval_policy,
-                        get_state_func=get_state,
-                        get_goal_func=get_goal,
-                        get_mask_func=get_mask,
-                        obj_ids=obj_ids,
-                        imsize=variant['renderer_kwargs']['img_width'],
-                    ),
-                    **variant.get('renderer_kwargs', {})
-                )
-                img_env.append_renderers({
-                    image_names: renderer_image_pi,
-                })
-
             return context_env
 
         img_eval_env = add_images(eval_env, eval_context_distrib)
@@ -652,7 +584,7 @@ def rl_context_experiment(variant):
                 img_eval_env,
                 eval_policy,
                 tag="eval",
-                imsize=variant['renderer_kwargs']['img_width'],
+                imsize=variant['renderer_kwargs']['width'],
                 image_format='HWC',
                 save_video_period=save_period,
                 **dump_video_kwargs
@@ -688,7 +620,7 @@ def rl_context_experiment(variant):
                     img_eval_env,
                     eval_policy,
                     tag="eval_cumul" if mask_conditioned else "eval",
-                    imsize=variant['renderer_kwargs']['img_width'],
+                    imsize=variant['renderer_kwargs']['width'],
                     image_format='HWC',
                     save_video_period=save_period,
                     **dump_video_kwargs
@@ -712,7 +644,7 @@ def rl_context_experiment(variant):
                     img_eval_env,
                     eval_policy,
                     tag="eval_full",
-                    imsize=variant['renderer_kwargs']['img_width'],
+                    imsize=variant['renderer_kwargs']['width'],
                     image_format='HWC',
                     save_video_period=save_period,
                     **dump_video_kwargs
@@ -736,7 +668,7 @@ def rl_context_experiment(variant):
                     img_eval_env,
                     eval_policy,
                     tag="eval_atomic",
-                    imsize=variant['renderer_kwargs']['img_width'],
+                    imsize=variant['renderer_kwargs']['width'],
                     image_format='HWC',
                     save_video_period=save_period,
                     **dump_video_kwargs
@@ -752,7 +684,7 @@ def rl_context_experiment(variant):
                 img_expl_env,
                 expl_policy,
                 tag="expl",
-                imsize=variant['renderer_kwargs']['img_width'],
+                imsize=variant['renderer_kwargs']['width'],
                 image_format='HWC',
                 save_video_period=save_period,
                 **dump_video_kwargs
