@@ -64,6 +64,7 @@ def load_vae(vae_file):
 data loaders
 """
 all_data = np.load(args.filepath, allow_pickle=True)
+
 vqvae = load_vae(args.vaepath)
 
 
@@ -145,7 +146,7 @@ def train():
         start_time = time.time()
         
         #x = (x[:, 0]).cuda()
-        x = x.cuda()
+        x = x.cuda().reshape(-1, 12, 12)
 
         # Train PixelCNN with images
         logits = model(x)
@@ -177,7 +178,7 @@ def test():
     with torch.no_grad():
         for batch_idx, x in enumerate(test_loader):
         #x = (x[:, 0]).cuda()
-            x = x.cuda()
+            x = x.cuda().reshape(-1, 12, 12)
             logits = model(x)
             logits = logits.permute(0, 2, 3, 1).contiguous()
             loss = criterion(
@@ -196,23 +197,14 @@ def test():
 
 def generate_samples(epoch, batch_size=64):
     e_indices = model.generate(shape=(args.img_dim, args.img_dim), batch_size=batch_size).reshape(-1, args.img_dim**2)
-    #closest_index = get_closest_stats(e_indices)
     samples = vqvae.decode(e_indices.cpu())
-    #closest = vqvae.decode(closest_index.cpu())
 
-    save_dir1 = "/home/ashvin/data/sasha/pixelcnn/vqvae_samples/sample{0}.png".format(epoch)
-    #save_dir2 = "/home/ashvin/data/sasha/pixelcnn/vqvae_samples/closest{0}.png".format(epoch)
+    save_dir = "/home/ashvin/data/sasha/pixelcnn/vqvae_samples/sample{0}.png".format(epoch)
 
     save_image(
         samples.data.view(batch_size, 3, 48, 48).transpose(2, 3),
-        save_dir1
+        save_dir
     )
-
-
-    # save_image(
-    #     closest.data.view(batch_size, 3, 48, 48).transpose(2, 3),
-    #     save_dir2
-    # )
 
 
 BEST_LOSS = 999
@@ -227,12 +219,8 @@ for epoch in range(1, args.epochs):
         BEST_LOSS = cur_loss
         LAST_SAVED = epoch
         print("Saving model")
-        torch.save(model.state_dict(), '/home/ashvin/data/sasha/pixelcnn/pixelcnn.pt')
-        torch.save(vqvae.state_dict(), '/home/ashvin/data/sasha/pixelcnn/vqvae.pt')
         pickle.dump(model, open('/home/ashvin/data/sasha/pixelcnn/pixelcnn.pkl', "wb"))
         pickle.dump(vqvae, open('/home/ashvin/data/sasha/pixelcnn/vqvae.pkl', "wb"))
-            #torch.save(model.state_dict(), 'results/{}_pixelcnn.pt'.format(args.dataset))
-            #orch.save(model.state_dict(), 'results/{}_pixelcnn.pt'.format(args.dataset))
     else:
         print("Not saving model! Last saved: {}".format(LAST_SAVED))
     if args.gen_samples:

@@ -56,17 +56,25 @@ def make_image_fit_into_hwc_format(
 def combine_images_into_grid(
         imgs, imwidth, imheight,
         max_num_cols=5,
-        pad_length=1, pad_color=255,
-        subpad_length=1, subpad_color=255,
-        unnormalize=True,
-        image_format='CWH',
+        pad_length=1,
+        pad_color=0,
+        subpad_length=1,
+        subpad_color=127,
+        unnormalize=False,
+        image_format=None,
+        image_formats=None,
 ):
+    if image_formats is None and image_format is None:
+        raise RuntimeError(
+            "either image_format or image_formats must be provided")
+    if image_formats is None:
+        image_formats = [image_format for _ in imgs]
     num_imgs = len(imgs)
     num_cols = min(max_num_cols, num_imgs)
     num_rows = int(math.ceil(num_imgs / num_cols))
 
     new_imgs = []
-    for img in imgs:
+    for img, image_format in zip(imgs, image_formats):
         img = make_image_fit_into_hwc_format(
             img, imwidth, imheight, image_format)
         if unnormalize:
@@ -77,6 +85,7 @@ def combine_images_into_grid(
     empty_img = np.ones_like(new_imgs[0])
 
     row_imgs = []
+
     for row in range(num_rows):
         start_i = row * num_cols
         end_i = min(row * num_cols + num_cols, num_imgs)

@@ -1,10 +1,13 @@
-from functools import partial
-
+from collections import OrderedDict, namedtuple
+import copy
 import numpy as np
+from functools import partial
 from torch import nn
 
 import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
+from railrl.core import logger
+from railrl.core.logging import append_log
 from railrl.core.distribution import DictDistribution
 from railrl.data_management.contextual_replay_buffer import (
     ContextualRelabelingReplayBuffer,
@@ -23,18 +26,20 @@ from railrl.envs.contextual.goal_conditioned import (
     ContextualRewardFnFromMultitaskEnv,
     IndexIntoAchievedGoal,
 )
-from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.launchers.contextual.util import (
     get_save_video_function,
     get_gym_env,
 )
+from railrl.launchers.experiments.disentanglement.util import train_ae
 from railrl.launchers.experiments.disentanglement.debug import (
-    JointTrainer,
     DebugTrainer,
-    DebugRenderer,
+    DebugEnvRenderer,
     InsertDebugImagesEnv,
     create_visualize_representation,
 )
+from railrl.torch.networks.dcnn import BasicDCNN
+from railrl.torch.vae.vae_torch_trainer import VAETrainer
 from railrl.policies.action_repeat import ActionRepeatPolicy
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
@@ -46,17 +51,26 @@ from railrl.torch.disentanglement.encoder_wrapped_env import (
 from railrl.torch.disentanglement.networks import (
     DisentangledMlpQf,
     EncodeObsAndGoal,
+    VAE,
+    EncoderMuFromEncoderDistribution,
+    ParallelDisentangledMlpQf,
 )
-from railrl.torch.modules import Concat
-from railrl.torch.networks import FlattenMlp, BasicCNN, Flatten
+from railrl.torch.disentanglement.trainer import DisentangedTrainer
+from railrl.torch.networks import (
+    BasicCNN,
+    Flatten,
+    ConcatTuple,
+    ConcatMultiHeadedMlp,
+    Detach,
+    Reshape,
+)
 from railrl.torch.networks.mlp import MultiHeadedMlp, Mlp
 from railrl.torch.networks.stochastic.distribution_generator import TanhGaussian
 from railrl.torch.sac.policies import (
     MakeDeterministic,
     PolicyFromDistributionGenerator,
 )
-from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm, JointTrainer
 
 
 def create_exploration_policy(policy, exploration_version='identity', **kwargs):
@@ -74,25 +88,18 @@ class EncoderRewardFnFromMultitaskEnv(ContextualRewardFn):
             encoder: Encoder,
             next_state_encoder_input_key,
             context_key,
-            vectorize=False,
             reward_scale=1.,
     ):
         self._encoder = encoder
-        self._vectorize = vectorize
         self._next_state_key = next_state_encoder_input_key
         self._context_key = context_key
         self._reward_scale = reward_scale
 
     def __call__(self, states, actions, next_states, contexts):
-        if self._context_key not in contexts:
-            import ipdb
-            ipdb.set_trace()
         z_s = self._encoder.encode(next_states[self._next_state_key])
         z_g = contexts[self._context_key]
-        if self._vectorize:
-            rewards = - np.abs(z_s - z_g)
-        else:
-            rewards = - np.linalg.norm(z_s - z_g, axis=1, ord=1)
+
+        rewards = - np.abs(z_s - z_g)
         return self._reward_scale * rewards
 
 
@@ -143,6 +150,63 @@ class ReEncoderAchievedStateFn(SampleContextFromObsDictFn):
         return context
 
 
+def invert_encoder_params(encoder_cnn_kwargs, num_channels_in_output_image):
+    reverse_params = encoder_cnn_kwargs.copy()
+    n_channels = (
+            encoder_cnn_kwargs['n_channels'][:-1][::-1]
+            + [num_channels_in_output_image]
+    )
+    reverse_params.update(dict(
+        kernel_sizes=encoder_cnn_kwargs['kernel_sizes'][::-1],
+        n_channels=n_channels,
+        strides=encoder_cnn_kwargs['strides'][::-1],
+        paddings=encoder_cnn_kwargs['paddings'][::-1],
+    ))
+    return reverse_params
+
+
+def invert_encoder_mlp_params(encoder_kwargs):
+    reverse_params = encoder_kwargs.copy()
+    reverse_params.update(dict(
+        hidden_sizes=encoder_kwargs['hidden_sizes'][::-1],
+    ))
+    return reverse_params
+
+
+def recursive_dict_update(orig_dict, differences):
+    new_dict = orig_dict.copy()
+    for key, val in differences.items():
+        if (
+            key in orig_dict and
+            isinstance(orig_dict[key], dict) and
+            isinstance(differences[key], dict)
+        ):
+            new_dict[key] = recursive_dict_update(new_dict[key],
+                                                  differences[key])
+        else:
+            new_dict[key] = copy.deepcopy(differences[key])
+    return new_dict
+
+def transfer_encoder_goal_conditioned_sac_experiment(train_variant, transfer_variant=None):
+    rl_csv_fname = 'progress.csv'
+    retrain_rl_csv_fname = 'retrain_progress.csv'
+    train_results = encoder_goal_conditioned_sac_experiment(
+        **train_variant,
+        rl_csv_fname=rl_csv_fname)
+    logger.remove_tabular_output(rl_csv_fname, relative_to_snapshot_dir=True)
+    logger.add_tabular_output(retrain_rl_csv_fname,
+                              relative_to_snapshot_dir=True)
+    if not transfer_variant:
+        transfer_variant = {}
+
+    transfer_variant = recursive_dict_update(train_variant, transfer_variant)
+    print('Starting transfer exp')
+    encoder_goal_conditioned_sac_experiment(**transfer_variant,
+                                            is_retraining_from_scratch=True,
+                                            train_results=train_results,
+                                            rl_csv_fname=retrain_rl_csv_fname)
+
+
 def encoder_goal_conditioned_sac_experiment(
         max_path_length,
         qf_kwargs,
@@ -152,11 +216,13 @@ def encoder_goal_conditioned_sac_experiment(
         policy_kwargs,
         # Encoder parameters
         disentangled_qf_kwargs,
+        use_parallel_qf=False,
         encoder_kwargs=None,
         encoder_cnn_kwargs=None,
-        vectorized_reward=None,
-        encoder_reward_scale=1.,
-        skip_encoder_mlp=False,
+        qf_state_encoder_is_goal_encoder=False,
+        reward_type='encoder_distance',
+        reward_config=None,
+        latent_dim=8,
         # Policy params
         policy_using_encoder_settings=None,
         use_separate_encoder_for_policy=True,
@@ -169,7 +235,6 @@ def encoder_goal_conditioned_sac_experiment(
         evaluation_goal_sampling_mode=None,
         exploration_goal_sampling_mode=None,
         num_presampled_goals=5000,
-        reward_type='encoder_distance',
         # Image env parameters
         use_image_observations=False,
         env_renderer_kwargs=None,
@@ -179,11 +244,29 @@ def encoder_goal_conditioned_sac_experiment(
         save_video_kwargs=None,
         video_renderer_kwargs=None,
         # Debugging parameters
+        visualize_representation=True,
         distance_scatterplot_save_period=0,
         distance_scatterplot_initial_save_period=0,
         debug_renderer_kwargs=None,
         debug_visualization_kwargs=None,
+        use_debug_trainer=False,
+
+        # vae stuff
+        train_encoder_as_vae=False,
+        vae_trainer_kwargs=None,
+        decoder_kwargs=None,
+        encoder_backprop_settings="rl_n_vae",
+        mlp_for_image_decoder=False,
+        pretrain_vae=False,
+        pretrain_vae_kwargs=None,
+
+        # Should only be set by transfer_encoder_goal_conditioned_sac_experiment
+        is_retraining_from_scratch=False,
+        train_results=None,
+        rl_csv_fname='progress.csv',
 ):
+    if reward_config is None:
+        reward_config = {}
     if encoder_cnn_kwargs is None:
         encoder_cnn_kwargs = {}
     if policy_using_encoder_settings is None:
@@ -203,15 +286,25 @@ def encoder_goal_conditioned_sac_experiment(
     if debug_renderer_kwargs is None:
         debug_renderer_kwargs = {}
 
+    assert (
+        is_retraining_from_scratch != (train_results is None)
+    )
+
     img_observation_key = 'image_observation'
     state_observation_key = 'state_observation'
-    latent_observation_key = 'latent_observation'
     latent_desired_goal_key = 'latent_desired_goal'
     state_desired_goal_key = 'state_desired_goal'
     img_desired_goal_key = 'image_desired_goal'
 
+    backprop_rl_into_encoder = False
+    backprop_vae_into_encoder = False
+    if 'rl' in encoder_backprop_settings:
+        backprop_rl_into_encoder = True
+    if 'vae' in encoder_backprop_settings:
+        backprop_vae_into_encoder = True
+
     if use_image_observations:
-        renderer = Renderer(**env_renderer_kwargs)
+        env_renderer = EnvRenderer(**env_renderer_kwargs)
 
     def setup_env(state_env, encoder, reward_fn):
         goal_distribution = GoalDictDistributionFromMultitaskEnv(
@@ -223,9 +316,11 @@ def encoder_goal_conditioned_sac_experiment(
                 env=state_env,
                 base_distribution=goal_distribution,
                 image_goal_key=img_desired_goal_key,
-                renderer=renderer,
+                renderer=env_renderer,
             )
-            base_env = InsertImageEnv(state_env, renderer=renderer)
+            base_env = InsertImageEnv(state_env, renderer=env_renderer)
+            goal_distribution = PresampledDistribution(
+                goal_distribution, num_presampled_goals)
             goal_distribution = EncodedGoalDictDistribution(
                 goal_distribution,
                 encoder=encoder,
@@ -233,8 +328,6 @@ def encoder_goal_conditioned_sac_experiment(
                 encoder_input_key=img_desired_goal_key,
                 encoder_output_key=latent_desired_goal_key,
             )
-            goal_distribution = PresampledDistribution(
-                    goal_distribution, num_presampled_goals)
         else:
             base_env = state_env
             goal_distribution = EncodedGoalDictDistribution(
@@ -274,7 +367,7 @@ def encoder_goal_conditioned_sac_experiment(
         observation_key_for_rl = img_observation_key
 
         def create_encoder():
-            img_num_channels, img_height, img_width = renderer.image_chw
+            img_num_channels, img_height, img_width = env_renderer.image_chw
             cnn = BasicCNN(
                 input_width=img_width,
                 input_height=img_height,
@@ -282,14 +375,13 @@ def encoder_goal_conditioned_sac_experiment(
                 **encoder_cnn_kwargs
             )
             cnn_output_size = np.prod(cnn.output_shape)
-            if skip_encoder_mlp:
-                enc = nn.Sequential(cnn, Flatten())
-                enc.output_size = cnn_output_size
-            else:
-                mlp = Mlp(input_size=cnn_output_size, **encoder_kwargs)
-                enc = nn.Sequential(cnn, Flatten(), mlp)
-                enc.output_size = mlp.output_size
+            mlp = MultiHeadedMlp(
+                input_size=cnn_output_size,
+                output_sizes=[latent_dim, latent_dim],
+                **encoder_kwargs)
+            enc = nn.Sequential(cnn, Flatten(), mlp)
             enc.input_size = img_width * img_height * img_num_channels
+            enc.output_size = latent_dim
             return enc
     else:
         context_keys_to_save = [state_desired_goal_key, latent_desired_goal_key]
@@ -300,29 +392,40 @@ def encoder_goal_conditioned_sac_experiment(
             in_dim = (
                 state_expl_env.observation_space.spaces[state_observation_key].low.size
             )
-            return FlattenMlp(input_size=in_dim, **encoder_kwargs)
+            enc = ConcatMultiHeadedMlp(
+                input_size=in_dim,
+                output_sizes=[latent_dim, latent_dim],
+                **encoder_kwargs
+            )
+            enc.input_size = in_dim
+            enc.output_size = latent_dim
+            return enc
 
     encoder_net = create_encoder()
+    if train_results:
+        print("Using transfer encoder")
+        encoder_net = train_results.encoder_net
+    mu_encoder_net = EncoderMuFromEncoderDistribution(encoder_net)
     target_encoder_net = create_encoder()
+    mu_target_encoder_net = EncoderMuFromEncoderDistribution(target_encoder_net)
     encoder_input_dim = encoder_net.input_size
 
-    encoder = EncoderFromNetwork(encoder_net)
+    encoder = EncoderFromNetwork(mu_encoder_net)
     encoder.to(ptu.device)
     if reward_type == 'encoder_distance':
         reward_fn = EncoderRewardFnFromMultitaskEnv(
             encoder=encoder,
             next_state_encoder_input_key=observation_key_for_rl,
             context_key=latent_desired_goal_key,
-            vectorize=vectorized_reward,
+            **reward_config,
         )
     elif reward_type == 'target_encoder_distance':
-        target_encoder = EncoderFromNetwork(target_encoder_net)
+        target_encoder = EncoderFromNetwork(mu_target_encoder_net)
         reward_fn = EncoderRewardFnFromMultitaskEnv(
             encoder=target_encoder,
             next_state_encoder_input_key=observation_key_for_rl,
             context_key=latent_desired_goal_key,
-            reward_scale=encoder_reward_scale,
-            vectorize=vectorized_reward,
+            **reward_config,
         )
     elif reward_type == 'state_distance':
         reward_fn = ContextualRewardFnFromMultitaskEnv(
@@ -340,24 +443,41 @@ def encoder_goal_conditioned_sac_experiment(
 
     action_dim = expl_env.action_space.low.size
 
-    def make_qf(enc):
-        return DisentangledMlpQf(
-            encoder=enc,
-            preprocess_obs_dim=encoder_input_dim,
-            action_dim=action_dim,
-            qf_kwargs=qf_kwargs,
-            vectorized=vectorized_reward,
-            **disentangled_qf_kwargs
-        )
-    qf1 = make_qf(encoder_net)
-    qf2 = make_qf(encoder_net)
-    target_qf1 = make_qf(target_encoder_net)
-    target_qf2 = make_qf(target_encoder_net)
-    if use_image_observations and not qf1.encode_state:
-        raise ValueError("That doesn't make sense.")
+    def make_qf(goal_encoder):
+        if not backprop_rl_into_encoder:
+            goal_encoder = Detach(goal_encoder)
+        if qf_state_encoder_is_goal_encoder:
+            state_encoder = goal_encoder
+        else:
+            state_encoder = EncoderMuFromEncoderDistribution(create_encoder())
+            raise RuntimeError("State encoder must be goal encoder for resuming exps")
+        if use_parallel_qf:
+            return ParallelDisentangledMlpQf(
+                goal_encoder=goal_encoder,
+                state_encoder=state_encoder,
+                preprocess_obs_dim=encoder_input_dim,
+                action_dim=action_dim,
+                post_encoder_mlp_kwargs=qf_kwargs,
+                vectorized=True,
+                **disentangled_qf_kwargs
+            )
+        else:
+            return DisentangledMlpQf(
+                goal_encoder=goal_encoder,
+                state_encoder=state_encoder,
+                preprocess_obs_dim=encoder_input_dim,
+                action_dim=action_dim,
+                qf_kwargs=qf_kwargs,
+                vectorized=True,
+                **disentangled_qf_kwargs
+            )
+    qf1 = make_qf(mu_encoder_net)
+    qf2 = make_qf(mu_encoder_net)
+    target_qf1 = make_qf(mu_target_encoder_net)
+    target_qf2 = make_qf(mu_target_encoder_net)
 
     if use_separate_encoder_for_policy:
-        policy_encoder = create_encoder()
+        policy_encoder = EncoderMuFromEncoderDistribution(create_encoder())
         policy_encoder_net = EncodeObsAndGoal(
             policy_encoder,
             encoder_input_dim,
@@ -367,14 +487,17 @@ def encoder_goal_conditioned_sac_experiment(
             detach_encoder_via_state=False,
         )
     else:
+        policy_obs_encoder = mu_encoder_net
+        if not backprop_rl_into_encoder:
+            policy_obs_encoder = Detach(policy_obs_encoder)
         policy_encoder_net = EncodeObsAndGoal(
-            encoder_net,
+            policy_obs_encoder,
             encoder_input_dim,
             **policy_using_encoder_settings
         )
     obs_processor = nn.Sequential(
         policy_encoder_net,
-        Concat(),
+        ConcatTuple(),
         MultiHeadedMlp(
             input_size=policy_encoder_net.output_size,
             output_sizes=[action_dim, action_dim],
@@ -391,6 +514,7 @@ def encoder_goal_conditioned_sac_experiment(
         context = batch[context_key_for_rl]
         batch['observations'] = np.concatenate([obs, context], axis=1)
         batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
+        batch['raw_next_observations'] = next_obs
         return batch
 
     if use_image_observations:
@@ -408,6 +532,7 @@ def encoder_goal_conditioned_sac_experiment(
                 keys_to_keep=[state_desired_goal_key, img_desired_goal_key],
             ),
         )
+        ob_keys_to_save_in_buffer = [state_observation_key, img_observation_key]
     else:
         sample_context_from_observation = compose(
             RemapKeyFn({
@@ -420,21 +545,23 @@ def encoder_goal_conditioned_sac_experiment(
                 keys_to_keep=[state_desired_goal_key],
             ),
         )
+        ob_keys_to_save_in_buffer = [state_observation_key]
 
-    encoder_output_dim = encoder_net.output_size
+    encoder_output_dim = mu_encoder_net.output_size
     replay_buffer = ContextualRelabelingReplayBuffer(
         env=eval_env,
         context_keys=context_keys_to_save,
         context_distribution=expl_context_distrib,
         sample_context_from_obs_dict_fn=sample_context_from_observation,
-        observation_keys=[state_observation_key, img_observation_key],
+        observation_keys=ob_keys_to_save_in_buffer,
         observation_key=observation_key_for_rl,
         reward_fn=reward_fn,
         post_process_batch_fn=concat_context_to_obs,
-        reward_dim=encoder_output_dim if vectorized_reward else 1,
+        reward_dim=encoder_output_dim,
         **replay_buffer_kwargs
     )
-    trainer = SACTrainer(
+
+    disentangled_trainer = DisentangedTrainer(
         env=expl_env,
         policy=policy,
         qf1=qf1,
@@ -443,13 +570,93 @@ def encoder_goal_conditioned_sac_experiment(
         target_qf2=target_qf2,
         **sac_trainer_kwargs
     )
-    if not use_image_observations:
+
+    if train_encoder_as_vae:
+        assert backprop_vae_into_encoder, \
+            "No point in training the vae if not backpropagating into encoder"
+        if vae_trainer_kwargs is None:
+            vae_trainer_kwargs = {}
+        if decoder_kwargs is None:
+            decoder_kwargs = invert_encoder_mlp_params(encoder_kwargs)
+
+        # VAE training
+        def make_decoder():
+            if use_image_observations:
+                img_num_channels, img_height, img_width = env_renderer.image_chw
+                if not mlp_for_image_decoder:
+                    dcnn_in_channels, dcnn_in_height, dcnn_in_width = (
+                        encoder_net._modules['0'].output_shape
+                    )
+                    dcnn_input_size = (
+                        dcnn_in_channels * dcnn_in_width * dcnn_in_height
+                    )
+                    decoder_cnn_kwargs = invert_encoder_params(
+                        encoder_cnn_kwargs,
+                        img_num_channels,
+                    )
+                    dcnn = BasicDCNN(
+                        input_width=dcnn_in_width,
+                        input_height=dcnn_in_height,
+                        input_channels=dcnn_in_channels,
+                        **decoder_cnn_kwargs
+                    )
+                    mlp = Mlp(
+                        input_size=latent_dim,
+                        output_size=dcnn_input_size,
+                        **decoder_kwargs
+                    )
+                    dec = nn.Sequential(mlp, dcnn)
+                    dec.input_size = latent_dim
+                else:
+                    dec = nn.Sequential(
+                        Mlp(
+                            input_size=latent_dim,
+                            output_size=img_num_channels * img_height * img_width,
+                            **decoder_kwargs
+                        ),
+                        Reshape(img_num_channels, img_height, img_width)
+                    )
+                    dec .input_size = latent_dim
+                    dec.output_size = img_num_channels * img_height * img_width
+                return dec
+            else:
+                return Mlp(
+                    input_size=latent_dim,
+                    output_size=encoder_input_dim,
+                    **decoder_kwargs
+                )
+
+        decoder_net = make_decoder()
+        vae = VAE(encoder_net, decoder_net)
+
+        vae_trainer = VAETrainer(
+            vae=vae,
+            **vae_trainer_kwargs
+        )
+
+        if pretrain_vae:
+            goal_key = (
+                img_desired_goal_key if use_image_observations
+                else state_desired_goal_key
+            )
+            vae.to(ptu.device)
+            train_ae(vae_trainer, expl_context_distrib,
+                      **pretrain_vae_kwargs, goal_key=goal_key,
+                     rl_csv_fname=rl_csv_fname)
+        trainers = OrderedDict()
+        trainers['vae_trainer'] = vae_trainer
+        trainers['disentangled_trainer'] = disentangled_trainer
+        trainer = JointTrainer(trainers)
+    else:
+        trainer = disentangled_trainer
+
+    if not use_image_observations and use_debug_trainer:
         # TODO: implement this for images
         debug_trainer = DebugTrainer(
             observation_space=expl_env.observation_space.spaces[
                 state_observation_key
             ],
-            encoder=encoder_net,
+            encoder=mu_encoder_net,
             encoder_output_dim=encoder_output_dim,
         )
         trainer = JointTrainer([trainer, debug_trainer])
@@ -481,7 +688,7 @@ def encoder_goal_conditioned_sac_experiment(
     )
     algorithm.to(ptu.device)
 
-    video_renderer = Renderer(**video_renderer_kwargs)
+    video_renderer = EnvRenderer(**video_renderer_kwargs)
     if save_video:
         rollout_function = partial(
             rf.contextual_rollout,
@@ -492,18 +699,18 @@ def encoder_goal_conditioned_sac_experiment(
         if save_debug_video and not use_image_observations:
             # TODO: add visualization for image-based envs
             obj1_sweep_renderers = {
-                'sweep_obj1_%d' % i: DebugRenderer(
+                'sweep_obj1_%d' % i: DebugEnvRenderer(
                     encoder, i, **debug_renderer_kwargs)
                 for i in range(encoder_output_dim)
             }
             obj0_sweep_renderers = {
-                'sweep_obj0_%d' % i: DebugRenderer(
+                'sweep_obj0_%d' % i: DebugEnvRenderer(
                     encoder, i, **debug_renderer_kwargs)
                 for i in range(encoder_output_dim)
 
             }
 
-            debugger_one = DebugRenderer(encoder, 0, **debug_renderer_kwargs)
+            debugger_one = DebugEnvRenderer(encoder, 0, **debug_renderer_kwargs)
 
             low = eval_env.env.observation_space[state_observation_key].low.min()
             high = eval_env.env.observation_space[state_observation_key].high.max()
@@ -514,9 +721,8 @@ def encoder_goal_conditioned_sac_experiment(
             def create_shared_data_creator(obj_index):
                 def compute_shared_data(raw_obs, env):
                     state = raw_obs[observation_key_for_rl]
-                    # obs = state[:2]
-                    # goal = state[2:]
-                    obs, goal = np.array_split(state, 2, axis=1)
+                    obs = state[:2]
+                    goal = state[2:]
                     if obj_index == 0:
                         new_states = np.concatenate(
                             [
@@ -586,13 +792,18 @@ def encoder_goal_conditioned_sac_experiment(
                     path['full_observations'][index_in_path][key]
                     for key in obj0_sweep_renderers
                 ]
+            img_formats = [video_renderer.output_image_format]
+            for r in obj1_sweep_renderers.values():
+                img_formats.append(r.output_image_format)
+            for r in obj0_sweep_renderers.values():
+                img_formats.append(r.output_image_format)
             eval_video_func = get_save_video_function(
                 rollout_function,
                 img_eval_env,
                 MakeDeterministic(policy),
                 tag="eval",
-                imsize=video_renderer.image_shape[0],
-                image_format='CWH',
+                imsize=video_renderer.image_chw[1],
+                image_formats=img_formats,
                 get_extra_imgs=get_extra_imgs,
                 **save_video_kwargs
             )
@@ -601,19 +812,28 @@ def encoder_goal_conditioned_sac_experiment(
                 img_expl_env,
                 exploration_policy,
                 tag="train",
-                imsize=video_renderer.image_shape[0],
-                image_format='CWH',
+                imsize=video_renderer.image_chw[1],
+                image_formats=img_formats,
                 get_extra_imgs=get_extra_imgs,
                 **save_video_kwargs
             )
         else:
+            video_renderer = EnvRenderer(**video_renderer_kwargs)
+
             def add_images(env, base_distribution):
-                video_renderer = Renderer(**video_renderer_kwargs)
-                video_env = InsertImageEnv(
-                    env, renderer=video_renderer, image_key='video_observation')
                 if use_image_observations:
+                    video_env = InsertImageEnv(
+                        env,
+                        renderer=video_renderer,
+                        image_key='video_observation',
+                    )
                     image_goal_distribution = base_distribution
                 else:
+                    video_env = InsertImageEnv(
+                        env,
+                        renderer=video_renderer,
+                        image_key='image_observation',
+                    )
                     state_env = env.env
                     image_goal_distribution = AddImageDistribution(
                         env=state_env,
@@ -632,16 +852,31 @@ def encoder_goal_conditioned_sac_experiment(
             img_eval_env = add_images(eval_env, eval_context_distrib)
             img_expl_env = add_images(expl_env, expl_context_distrib)
 
+            if use_image_observations:
+                keys_to_show = [
+                    'image_desired_goal',
+                    'image_observation',
+                    'video_observation',
+                ]
+                image_formats = [
+                    env_renderer.output_image_format,
+                    env_renderer.output_image_format,
+                    video_renderer.output_image_format,
+                ]
+            else:
+                keys_to_show = ['image_desired_goal', 'image_observation']
+                image_formats = [
+                    video_renderer.output_image_format,
+                    video_renderer.output_image_format,
+                ]
             eval_video_func = get_save_video_function(
                 rollout_function,
                 img_eval_env,
                 MakeDeterministic(policy),
                 tag="eval",
-                imsize=video_renderer.image_shape[0],
-                image_format='CWH',
-                keys_to_show=[
-                    'image_desired_goal', 'image_observation', 'video_observation'
-                ],
+                imsize=video_renderer.image_chw[1],
+                keys_to_show=keys_to_show,
+                image_formats=image_formats,
                 **save_video_kwargs
             )
             expl_video_func = get_save_video_function(
@@ -649,51 +884,49 @@ def encoder_goal_conditioned_sac_experiment(
                 img_expl_env,
                 exploration_policy,
                 tag="train",
-                imsize=video_renderer.image_shape[0],
-                image_format='CWH',
-                keys_to_show=[
-                    'image_desired_goal', 'image_observation', 'video_observation'
-                ],
+                imsize=video_renderer.image_chw[1],
+                keys_to_show=keys_to_show,
+                image_formats=image_formats,
                 **save_video_kwargs
             )
 
         algorithm.post_train_funcs.append(eval_video_func)
         algorithm.post_train_funcs.append(expl_video_func)
-    if use_image_observations:
-        def state_to_encoder_input(state):
-            goal_dict = {
-                'state_desired_goal': state,
-            }
-            env_state = state_eval_env.get_env_state()
-            state_eval_env.set_to_goal(goal_dict)
-            start_img = renderer.create_image(state_eval_env)
-            state_eval_env.set_env_state(env_state)
-            return start_img
-        visualize_representation = create_visualize_representation(
-            encoder, True, eval_env, video_renderer,
-            state_to_encoder_input=state_to_encoder_input,
-            env_renderer=renderer,
-            **debug_visualization_kwargs
-        )
-        algorithm.post_train_funcs.append(visualize_representation)
-        visualize_representation = create_visualize_representation(
-            encoder, False, eval_env, video_renderer,
-            state_to_encoder_input=state_to_encoder_input,
-            env_renderer=renderer,
-            **debug_visualization_kwargs
-        )
-        algorithm.post_train_funcs.append(visualize_representation)
-    else:
-        visualize_representation = create_visualize_representation(
-            encoder, True, eval_env, video_renderer,
-            **debug_visualization_kwargs
-        )
-        algorithm.post_train_funcs.append(visualize_representation)
-        visualize_representation = create_visualize_representation(
-            encoder, False, eval_env, video_renderer,
-            **debug_visualization_kwargs
-        )
-        algorithm.post_train_funcs.append(visualize_representation)
+    if visualize_representation:
+        from multiworld.envs.pygame import PickAndPlaceEnv
+        if not isinstance(state_eval_env, PickAndPlaceEnv):
+            raise NotImplementedError()
+        num_objects = (
+            state_eval_env.observation_space[state_observation_key].low.size
+        ) // 2
+        state_space = state_eval_env.observation_space['state_observation']
+        start_states = np.vstack([state_space.sample() for _ in range(6)])
+        if use_image_observations:
+            def state_to_encoder_input(state):
+                goal_dict = {
+                    'state_desired_goal': state,
+                }
+                env_state = state_eval_env.get_env_state()
+                state_eval_env.set_to_goal(goal_dict)
+                start_img = env_renderer(state_eval_env)
+                state_eval_env.set_env_state(env_state)
+                return start_img
+            for i in range(num_objects):
+                visualize_representation = create_visualize_representation(
+                    encoder, i, eval_env, video_renderer,
+                    state_to_encoder_input=state_to_encoder_input,
+                    env_renderer=env_renderer,
+                    start_states=start_states,
+                    **debug_visualization_kwargs
+                )
+                algorithm.post_train_funcs.append(visualize_representation)
+        else:
+            for i in range(num_objects):
+                visualize_representation = create_visualize_representation(
+                    encoder, i, eval_env, video_renderer,
+                    **debug_visualization_kwargs
+                )
+                algorithm.post_train_funcs.append(visualize_representation)
 
     if distance_scatterplot_save_period > 0:
         algorithm.post_train_funcs.append(create_save_h_vs_state_distance_fn(
@@ -703,7 +936,11 @@ def encoder_goal_conditioned_sac_experiment(
             observation_key_for_rl,
         ))
     algorithm.train()
-
+    train_results = dict(
+        encoder_net=encoder_net,
+    )
+    TrainResults = namedtuple('TrainResults', sorted(train_results))
+    return TrainResults(**train_results)
 
 def create_save_h_vs_state_distance_fn(
         save_period, initial_save_period, encoder, encoder_input_key):

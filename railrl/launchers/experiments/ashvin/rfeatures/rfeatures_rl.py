@@ -6,7 +6,7 @@ from railrl.exploration_strategies.gaussian_and_epislon import \
     GaussianAndEpislonStrategy
 from railrl.samplers.data_collector import GoalConditionedPathCollector
 from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy, CNNPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy, CNNPolicy
 # from railrl.torch.td3.td3 import TD3
 from railrl.demos.td3_bc import TD3BCTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
@@ -109,25 +109,25 @@ def encoder_wrapped_td3bc_experiment(variant):
     obs_dim = expl_env.observation_space.spaces[observation_key].low.size
     goal_dim = expl_env.observation_space.spaces[desired_goal_key].low.size
     action_dim = expl_env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
         # output_activation=TorchMaxClamp(0.0),
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
         # output_activation=TorchMaxClamp(0.0),
         **variant['qf_kwargs']
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
         # output_activation=TorchMaxClamp(0.0),
         **variant['qf_kwargs']
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + goal_dim + action_dim,
         output_size=1,
         # output_activation=TorchMaxClamp(0.0),

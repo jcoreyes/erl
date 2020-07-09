@@ -10,14 +10,9 @@ from railrl.torch.dqn.double_dqn import DoubleDQN
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.dqn.dqn import DQN
-from railrl.torch.networks import Mlp, CNN
-from torch import nn as nn
-from railrl.torch.modules import HuberLoss
-from railrl.envs.wrappers import DiscretizeEnv, ImageMujocoEnv, NormalizedBoxEnv
-from railrl.torch.ddpg.ddpg import DDPG
-from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
-from railrl.envs.mujoco.pusher2d import Pusher2DEnv
+from railrl.torch.networks import Mlp
+from railrl.torch.networks.experimental import HuberLoss
+from railrl.envs.wrappers import DiscretizeEnv
 
 from railrl.launchers.launcher_util import setup_logger
 

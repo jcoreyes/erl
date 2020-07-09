@@ -1,12 +1,13 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.contextual.rig.rig_launcher import (
-    rig_experiment, process_args
-)
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
-
-from railrl.torch.vae.conv_vae import imsize48_default_architecture, imsize48_default_architecture_with_more_hidden_layers
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
+
+import railrl.misc.hyperparameter as hyp
+from railrl.launchers.arglauncher import run_variants
+from railrl.launchers.contextual.rig.rig_launcher import (
+    rig_experiment, process_args,
+)
+from railrl.torch.vae.conv_vae import (
+    imsize48_default_architecture_with_more_hidden_layers
+)
 
 if __name__ == "__main__":
     variant = dict(
@@ -91,9 +92,9 @@ if __name__ == "__main__":
             save_period=5,
         ),
         renderer_kwargs=dict(
-            input_img_format='HWC',
-            output_img_format='CWH',
-            flatten_img=True,
+            create_image_format='HWC',
+            output_image_format='CWH',
+            flatten_image=True,
         ),
         init_camera=sawyer_init_camera_zoomed_in,
         evaluation_goal_sampling_mode="reset_of_env",

@@ -19,13 +19,13 @@ from railrl.envs.contextual.goal_conditioned import (
     AddImageDistribution,
     IndexIntoAchievedGoal,
 )
-from railrl.envs.images import Renderer, InsertImageEnv
+from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.launchers.rl_exp_launcher_util import create_exploration_policy
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector,
 )
 from railrl.visualization.video import dump_video
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SACTrainer
@@ -315,7 +315,7 @@ def masking_sac_experiment(
     action_dim = expl_env.action_space.low.size
 
     def create_qf():
-        return FlattenMlp(
+        return ConcatMlp(
             input_size=obs_dim + action_dim,
             output_size=1,
             **qf_kwargs
@@ -425,7 +425,7 @@ def masking_sac_experiment(
             obs_processor=lambda o: np.hstack(
                 (o[observation_key], o[context_key], np.ones(mask_dim)))
         )
-        renderer = Renderer(**renderer_kwargs)
+        renderer = EnvRenderer(**renderer_kwargs)
 
         def add_images(env, state_distribution):
             state_env = env.env

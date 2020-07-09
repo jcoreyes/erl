@@ -1,5 +1,7 @@
 from os import path as osp
 
+from gym.wrappers import TimeLimit
+
 from railrl.core import logger
 from railrl.visualization.video import dump_video
 
@@ -30,7 +32,12 @@ def get_save_video_function(
     return save_video
 
 
-def get_gym_env(env_id, env_class=None, env_kwargs=None):
+def get_gym_env(
+        env_id,
+        env_class=None,
+        env_kwargs=None,
+        unwrap_timed_envs=False,
+):
     if env_kwargs is None:
         env_kwargs = {}
 
@@ -42,4 +49,6 @@ def get_gym_env(env_id, env_class=None, env_kwargs=None):
         env = gym.make(env_id)
     else:
         env = env_class(**env_kwargs)
+    if isinstance(env, TimeLimit) and unwrap_timed_envs:
+        env = env.env
     return env

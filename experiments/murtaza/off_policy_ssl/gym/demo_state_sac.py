@@ -6,7 +6,7 @@ from railrl.envs.wrappers import NormalizedBoxEnv
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
-from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import ConcatMlp
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.sac.awr_sac import AWRSACTrainer
 from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy, GaussianPolicy
@@ -77,22 +77,22 @@ def experiment(variant):
     action_dim = eval_env.action_space.low.size
     N = variant['num_layers']
     M = variant['layer_size']
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M]*N,
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M] * N,
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M] * N,
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[M] * N,
@@ -291,17 +291,17 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'test'
+    exp_name = 'test'
 
     # n_seeds = 2
     # mode = 'ec2'
-    # exp_prefix = 'bc_hc_gym_v4'
+    # exp_name = 'bc_hc_gym_v4'
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
             run_experiment(
                 experiment,
-                exp_prefix=exp_prefix,
+                exp_name=exp_name,
                 mode=mode,
                 variant=variant,
                 num_exps_per_instance=1,

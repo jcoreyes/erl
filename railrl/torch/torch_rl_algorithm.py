@@ -1,12 +1,15 @@
 import abc
 from collections import OrderedDict
-from typing import Iterable
+from typing import Iterable,MutableMapping
 from torch import nn as nn
 
 from railrl.core.batch_rl_algorithm import BatchRLAlgorithm
 from railrl.core.online_rl_algorithm import OnlineRLAlgorithm
 from railrl.core.trainer import Trainer
 from railrl.torch.core import np_to_pytorch_batch
+
+
+OrderedDictType = MutableMapping
 
 
 class TorchOnlineRLAlgorithm(OnlineRLAlgorithm):
@@ -51,3 +54,74 @@ class TorchTrainer(Trainer, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def networks(self) -> Iterable[nn.Module]:
         pass
+
+
+class JointTrainer(TorchTrainer):
+    """
+    Combine multiple trainers.
+
+    Usage:
+    ```
+    trainer1 = ...
+    trainer2 = ...
+
+    trainers = OrderedDict([
+        ('sac', sac_trainer),
+        ('vae', vae_trainer),
+    ])
+
+    joint_trainer = JointTrainer
+
+    algorithm = RLAlgorithm(trainer=joint_trainer, ...)
+    algorithm.train()
+    ```
+
+    And then in the logs, the output will be of the fomr:
+
+    ```
+    trainer/sac/...
+    trainer/vae/...
+    ```
+    """
+    def __init__(self, trainers: OrderedDictType[str, TorchTrainer]):
+        super().__init__()
+        if len(trainers) == 0:
+            raise ValueError("Need at least one trainer")
+        self._trainers = trainers
+
+    def train_from_torch(self, batch):
+        # TODO: support different trainers having different data batches
+        for trainer in self._trainers.values():
+            trainer.train_from_torch(batch)
+
+    @property
+    def networks(self):
+        for trainer in self._trainers.values():
+            for net in trainer.networks:
+                yield net
+
+    def end_epoch(self, epoch):
+        for trainer in self._trainers.values():
+            trainer.end_epoch(epoch)
+
+    def get_snapshot(self):
+        snapshot = {}
+        for trainer_name, trainer in self._trainers.items():
+            for k, v in trainer.get_snapshot().items():
+                if trainer_name:
+                    new_k = '{}/{}'.format(trainer_name, k)
+                    snapshot[new_k] = v
+                else:
+                    snapshot[k] = v
+        return snapshot
+
+    def get_diagnostics(self):
+        stats = {}
+        for trainer_name, trainer in self._trainers.items():
+            for k, v in trainer.get_diagnostics().items():
+                if trainer_name:
+                    new_k = '{}/{}'.format(trainer_name, k)
+                    stats[new_k] = v
+                else:
+                    stats[k] = v
+        return stats

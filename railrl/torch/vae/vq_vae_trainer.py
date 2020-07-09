@@ -45,19 +45,19 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
         self.model.eval()
         loss = self.compute_loss(batch, epoch, True)
 
-    def encode_dataset(self, dataset, epoch):
+    def encode_dataset(self, dataset):
         encoding_list = []
-        save_dir = osp.join(self.log_dir, 'dataset_latents.npy' % epoch)
+        save_dir = osp.join(self.log_dir, 'dataset_latents.npy')
         for i in range(len(dataset)):
             obs = dataset.random_batch(self.batch_size)["x_t"]
-            encodings = self.model.encode(obs)
+            encodings = self.model.encode(obs, cont=False)
             encoding_list.append(encodings)
         encodings = ptu.get_numpy(torch.cat(encoding_list))
         np.save(save_dir, encodings)
 
     def train_epoch(self, epoch, dataset, batches=100):
-        if epoch % 100 == 0 and epoch > 0:
-            self.encode_dataset(dataset, epoch)
+        if epoch % 50 == 0 and epoch > 0:
+           self.encode_dataset(dataset)
 
         start_time = time.time()
         for b in range(batches):
@@ -73,7 +73,7 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
     def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
-        obs = batch["x_t"]
+        obs = batch[self.key_to_reconstruct]
         vq_loss, quantized, data_recon, perplexity, recon_error = self.model.compute_loss(obs)
         loss = vq_loss + recon_error
 
@@ -89,22 +89,79 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
 
     def dump_samples(self, epoch):
         return
-        # self.model.eval()
-        # batch, _ = self.eval_data["test/last_batch"]
-        # sample = self.model.sample_prior(64)
-        # sample = self.model.decode(sample, batch[self.key_to_reconstruct])[0].cpu()
-        # save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
-        # save_image(
-        #     sample.data.view(64, 3, self.imsize, self.imsize).transpose(2, 3),
-        #     save_dir
-        # )
 
-        # x0 = batch["x_0"]
-        # x0_img = x0[:64].narrow(start=0, length=self.imlength // 2, dim=1).contiguous().view(
-        #     -1,
-        #     3,
-        #     self.imsize,
-        #     self.imsize
-        # ).transpose(2, 3)
-        # save_dir = osp.join(self.log_dir, 'x0_%d.png' % epoch)
-        # save_image(x0_img.data.cpu(), save_dir)
+class CVQVAETrainer(VQ_VAETrainer):
+
+    def encode_dataset(self, dataset):
+        encoding_list = []
+        save_dir = osp.join(self.log_dir, 'dataset_latents.npy')
+        for i in range(len(dataset)):
+            batch = dataset.random_batch(self.batch_size)
+            encodings = self.model.encode(batch["x_t"], batch["env"], cont=False)
+            encoding_list.append(encodings)
+        encodings = ptu.get_numpy(torch.cat(encoding_list))
+        np.save(save_dir, encodings)
+
+    def test_epoch(self, epoch, dataset, batches=10):
+        start_time = time.time()
+        for b in range(batches):
+            self.test_batch(epoch, dataset.random_batch(self.batch_size))
+        self.eval_statistics["test/epoch_duration"].append(time.time() - start_time)
+
+    def compute_loss(self, batch, epoch=-1, test=False):
+        prefix = "test/" if test else "train/"
+        beta = float(self.beta_schedule.get_value(epoch))
+        obs, cond = batch["x_t"], batch["env"]
+        vq_losses, perplexities, recons, errors = self.model.compute_loss(obs, cond)
+        loss = sum(vq_losses) + sum(errors)
+
+        self.eval_statistics['epoch'] = epoch
+        self.eval_statistics[prefix + "losses"].append(loss.item())
+        self.eval_statistics[prefix + "Obs Recon Error"].append(errors[0].item())
+        self.eval_statistics[prefix + "Cond Obs Recon Error"].append(errors[1].item())
+        self.eval_statistics[prefix + "VQ Loss"].append(vq_losses[0].item())
+        self.eval_statistics[prefix + "Perplexity"].append(perplexities[0].item())
+        self.eval_statistics[prefix + "Cond VQ Loss"].append(vq_losses[1].item())
+        self.eval_statistics[prefix + "Cond Perplexity"].append(perplexities[1].item())
+        self.eval_data[prefix + "last_batch"] = (batch, recons[0], recons[1])
+
+        return loss
+
+    def dump_reconstructions(self, epoch):
+        batch, reconstructions, env_reconstructions = self.eval_data["test/last_batch"]
+        obs = batch["x_t"]
+        env = batch["env"]
+        n = min(obs.size(0), 8)
+        comparison = torch.cat([
+            env[:n].narrow(start=0, length=self.imlength, dim=1)
+                .contiguous().view(
+                -1,
+                3,
+                self.imsize,
+                self.imsize
+            ).transpose(2, 3),
+            obs[:n].narrow(start=0, length=self.imlength, dim=1)
+                .contiguous().view(
+                -1,
+                3,
+                self.imsize,
+                self.imsize
+            ).transpose(2, 3),
+            reconstructions.view(
+                self.batch_size,
+                3,
+                self.imsize,
+                self.imsize,
+            )[:n].transpose(2, 3),
+            env_reconstructions.view(
+                self.batch_size,
+                3,
+                self.imsize,
+                self.imsize,
+            )[:n].transpose(2, 3)
+        ])
+        save_dir = osp.join(self.log_dir, 'r%d.png' % epoch)
+        save_image(comparison.data.cpu(), save_dir, nrow=n)
+
+    def dump_samples(self, epoch):
+        return

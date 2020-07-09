@@ -1,8 +1,10 @@
+from collections import OrderedDict
 from os import path as osp
 
 import numpy as np
 from multiworld.core.image_env import ImageEnv
 from railrl.core import logger
+from railrl.core.logging import append_log
 from railrl.data_management.images import normalize_image
 from railrl.envs.vae_wrappers import VAEWrappedEnv
 from railrl.torch import pytorch_util as ptu
@@ -176,3 +178,35 @@ def add_heatmap_img_to_o_dict(env, agent, observation_key, full_o, v_function):
             imsize=env.imsize, vmin=vmin, vmax=vmax
         )
     )
+
+
+def train_ae(ae_trainer, training_distrib, num_epochs=100,
+             num_batches_per_epoch=500, batch_size=512,
+             goal_key='image_desired_goal', rl_csv_fname='progress.csv'):
+    from railrl.core import logger
+
+    logger.remove_tabular_output(rl_csv_fname,
+                                 relative_to_snapshot_dir=True)
+    logger.add_tabular_output('ae_progress.csv',
+                              relative_to_snapshot_dir=True)
+
+    for epoch in range(num_epochs):
+        for batch_num in range(num_batches_per_epoch):
+            goals = ptu.from_numpy(
+                training_distrib.sample(batch_size)[goal_key]
+            )
+            batch =  dict(
+                raw_next_observations=goals,
+            )
+            ae_trainer.train_from_torch(batch)
+        log = OrderedDict()
+        log['epoch'] = epoch
+        append_log(log, ae_trainer.eval_statistics,
+                   prefix='ae/')
+        logger.record_dict(log)
+        logger.dump_tabular(with_prefix=True, with_timestamp=False)
+        ae_trainer.end_epoch(epoch)
+
+    logger.add_tabular_output(rl_csv_fname, relative_to_snapshot_dir=True)
+    logger.remove_tabular_output('ae_progress.csv',
+                                 relative_to_snapshot_dir=True)

@@ -7,7 +7,7 @@ from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule, eval_np
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.modules import LayerNorm
+from railrl.torch.networks.experimental import LayerNorm
 from railrl.torch.pytorch_util import activation_from_string
 
 
@@ -103,46 +103,39 @@ class MultiHeadedMlp(Mlp):
             layer_norm=layer_norm,
             layer_norm_kwargs=layer_norm_kwargs,
         )
-        if output_activations is None:
-            output_activations = ['identity' for _ in output_sizes]
-        else:
-            if len(output_activations) != len(output_sizes):
-                raise ValueError("output_activation and output_sizes must have "
-                                 "the same length")
-
-        self._output_narrow_params = []
-        self._output_activations = []
-        for output_activation in output_activations:
-            if isinstance(output_activation, str):
-                output_activation = activation_from_string(output_activation)
-            self._output_activations.append(output_activation)
-        start_idx = 0
-        for output_size in output_sizes:
-            self._output_narrow_params.append((start_idx, output_size))
-            start_idx = start_idx + output_size
+        self._splitter = SplitIntoManyHeads(
+            output_sizes,
+            output_activations,
+        )
 
     def forward(self, input):
         flat_outputs = super().forward(input)
-        pre_activation_outputs = tuple(
-            flat_outputs.narrow(1, start, length)
-            for start, length in self._output_narrow_params
-        )
-        outputs = tuple(
-            activation(x)
-            for activation, x in zip(
-                self._output_activations, pre_activation_outputs
-            )
-        )
-        return outputs
+        return self._splitter(flat_outputs)
 
 
-class FlattenMlp(Mlp):
+class ConcatMultiHeadedMlp(MultiHeadedMlp):
     """
-    Flatten inputs along dim 1 and then pass through MLP.
+    Concatenate inputs along dimension and then pass through MultiHeadedMlp.
     """
+    def __init__(self, *args, dim=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dim = dim
 
     def forward(self, *inputs, **kwargs):
-        flat_inputs = torch.cat(inputs, dim=1)
+        flat_inputs = torch.cat(inputs, dim=self.dim)
+        return super().forward(flat_inputs, **kwargs)
+
+
+class ConcatMlp(Mlp):
+    """
+    Concatenate inputs along dimension and then pass through MLP.
+    """
+    def __init__(self, *args, dim=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dim = dim
+
+    def forward(self, *inputs, **kwargs):
+        flat_inputs = torch.cat(inputs, dim=self.dim)
         return super().forward(flat_inputs, **kwargs)
 
 
@@ -182,7 +175,7 @@ class TanhMlpPolicy(MlpPolicy):
         super().__init__(*args, output_activation=torch.tanh, **kwargs)
 
 
-class MlpQf(FlattenMlp):
+class MlpQf(ConcatMlp):
     def __init__(
             self,
             *args,
@@ -230,3 +223,121 @@ class MlpGoalQfWithObsProcessor(Mlp):
             h_g = h_g.detach()
         flat_inputs = torch.cat((h_s, h_g, actions), dim=1)
         return super().forward(flat_inputs, **kwargs)
+
+
+class SplitIntoManyHeads(nn.Module):
+    """
+           .-> head 0
+          /
+    input ---> head 1
+          \
+           '-> head 2
+    """
+    def __init__(
+            self,
+            output_sizes,
+            output_activations=None,
+    ):
+        super().__init__()
+        if output_activations is None:
+            output_activations = ['identity' for _ in output_sizes]
+        else:
+            if len(output_activations) != len(output_sizes):
+                raise ValueError("output_activation and output_sizes must have "
+                                 "the same length")
+
+        self._output_narrow_params = []
+        self._output_activations = []
+        for output_activation in output_activations:
+            if isinstance(output_activation, str):
+                output_activation = activation_from_string(output_activation)
+            self._output_activations.append(output_activation)
+        start_idx = 0
+        for output_size in output_sizes:
+            self._output_narrow_params.append((start_idx, output_size))
+            start_idx = start_idx + output_size
+
+    def forward(self, flat_outputs):
+        pre_activation_outputs = tuple(
+            flat_outputs.narrow(1, start, length)
+            for start, length in self._output_narrow_params
+        )
+        outputs = tuple(
+            activation(x)
+            for activation, x in zip(
+                self._output_activations, pre_activation_outputs
+            )
+        )
+        return outputs
+
+
+class ParallelMlp(nn.Module):
+    """
+    Efficient implementation of multiple MLPs with identical architectures.
+
+           .-> mlp 0
+          /
+    input ---> mlp 1
+          \
+           '-> mlp 2
+
+    See https://discuss.pytorch.org/t/parallel-execution-of-modules-in-nn-modulelist/43940/7
+    for details
+
+    The last dimension of the output corresponds to the MLP index.
+    """
+    def __init__(
+            self,
+            num_heads,
+            input_size,
+            output_size_per_mlp,
+            hidden_sizes,
+            hidden_activation='relu',
+            output_activation='identity',
+            input_is_already_expanded=False,
+    ):
+        super().__init__()
+
+        def create_layers():
+            layers = []
+            input_dim = input_size
+            for i, hidden_size in enumerate(hidden_sizes):
+                fc = nn.Conv1d(
+                    in_channels=input_dim * num_heads,
+                    out_channels=hidden_size * num_heads,
+                    kernel_size=1,
+                    groups=num_heads,
+                )
+                layers.append(fc)
+                if isinstance(hidden_activation, str):
+                    activation = activation_from_string(hidden_activation)
+                else:
+                    activation = hidden_activation
+                layers.append(activation)
+                input_dim = hidden_size
+
+            last_fc = nn.Conv1d(
+                in_channels=input_dim * num_heads,
+                out_channels=output_size_per_mlp * num_heads,
+                kernel_size=1,
+                groups=num_heads,
+            )
+            layers.append(last_fc)
+            if output_activation != 'identity':
+                if isinstance(output_activation, str):
+                    activation = activation_from_string(output_activation)
+                else:
+                    activation = output_activation
+                layers.append(activation)
+            return layers
+
+        self.network = nn.Sequential(*create_layers())
+        self.num_heads = num_heads
+        self.input_is_already_expanded = input_is_already_expanded
+
+    def forward(self, x):
+        if not self.input_is_already_expanded:
+            x = x.repeat(1, self.num_heads).unsqueeze(-1)
+        flat = self.network(x)
+        batch_size = x.shape[0]
+        return flat.view(batch_size, -1, self.num_heads)

@@ -336,7 +336,7 @@ class MaskPathCollector(ContextualPathCollector):
                 d[k] = d[k][0]
             return d
 
-        def reset_postprocess_func():
+        def reset_callback(env, agent, o):
             self.rollout_masks = []
 
             rollout_types = list(self.mask_distr.keys())
@@ -403,7 +403,7 @@ class MaskPathCollector(ContextualPathCollector):
             context_keys_for_policy=self._context_keys_for_policy,
             observation_key=self._observation_key,
             obs_processor=obs_processor,
-            reset_postprocess_func=reset_postprocess_func,
+            reset_callback=reset_callback,
         )
 
 def default_masked_reward_fn(actions, obs, mask_format='vector', use_g_for_mean=True):

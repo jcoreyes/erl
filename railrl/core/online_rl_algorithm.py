@@ -65,33 +65,37 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.expl_data_collector.end_epoch(-1)
 
         num_trains_per_expl_step = self.num_trains_per_train_loop // self.num_expl_steps_per_train_loop
+        timer.start_timer('evaluation sampling')
         self.eval_data_collector.collect_new_paths(
             self.max_path_length,
             self.num_eval_steps_per_epoch,
             discard_incomplete_paths=True,
         )
-        timer.stamp('evaluation sampling')
+        timer.stop_timer('evaluation sampling')
 
         for _ in range(self.num_train_loops_per_epoch):
             for _ in range(self.num_expl_steps_per_train_loop):
+                timer.start_timer('exploration sampling', unique=False)
                 self.expl_data_collector.collect_new_steps(
                     self.max_path_length,
                     1,  # num steps
                     discard_incomplete_paths=False,
                 )
-                timer.stamp('exploration sampling', unique=False)
+                timer.stop_timer('exploration sampling')
 
+                timer.start_timer('training', unique=False)
                 self.training_mode(True)
                 for _ in range(num_trains_per_expl_step):
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)
                     self.trainer.train(train_data)
-                timer.stamp('training', unique=False)
+                timer.stop_timer('training')
                 self.training_mode(False)
 
+        timer.start_timer('replay buffer data storing', unique=False)
         new_expl_paths = self.expl_data_collector.get_epoch_paths()
         self.replay_buffer.add_paths(new_expl_paths)
-        timer.stamp('data storing', unique=False)
+        timer.stop_timer('replay buffer data storing')
 
         log_stats = self._get_diagnostics()
 

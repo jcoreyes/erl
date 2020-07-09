@@ -1,5 +1,5 @@
 from collections import OrderedDict
-
+import pickle
 import numpy as np
 import torch
 import torch.optim as optim
@@ -10,11 +10,15 @@ import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 
-from railrl.misc.asset_loader import load_local_or_remote_file
+from railrl.misc.asset_loader import (
+    load_local_or_remote_file, sync_down_folder, get_absolute_path
+)
 
 import random
 from railrl.torch.core import np_to_pytorch_batch
 from railrl.data_management.path_builder import PathBuilder
+
+from railrl.launchers.config import LOCAL_LOG_DIR, AWS_S3_PATH
 
 # import matplotlib
 # matplotlib.use('TkAgg')
@@ -23,6 +27,17 @@ from railrl.data_management.path_builder import PathBuilder
 from railrl.core import logger
 
 import glob
+
+def load_encoder(encoder_file):
+    if encoder_file[0] == "/":
+        local_path = encoder_file
+    else:
+        local_path = sync_down(encoder_file)
+    encoder = pickle.load(open(local_path, "rb"))
+    print("loaded", local_path)
+    encoder.to("cuda")
+    return encoder
+
 
 class DictToMDPPathLoader:
     """
@@ -107,7 +122,7 @@ class DictToMDPPathLoader:
                     next_ob,
                 )
 
-            reward = np.array([reward])
+            reward = np.array([reward]).flatten()
             rewards.append(reward)
             terminal = np.array([terminal]).reshape((1, ))
             path_builder.add_all(
@@ -123,9 +138,8 @@ class DictToMDPPathLoader:
         path = path_builder.get_all_stacked()
         replay_buffer.add_path(path)
         print("path sum rewards", sum(rewards), len(rewards))
-        # self.env.initialize(zs)
 
-    def load_demos(self, ):
+    def load_demos(self):
         # Off policy
         for demo_path in self.demo_paths:
             self.load_demo_path(**demo_path)
@@ -133,9 +147,20 @@ class DictToMDPPathLoader:
     # Parameterize which demo is being tested (and all jitter variants)
     # If is_demo is False, we only add the demos to the
     # replay buffer, and not to the demo_test or demo_train buffers
-    def load_demo_path(self, path, is_demo, obs_dict, train_split=None, data_split=None):
+    def load_demo_path(self, path, is_demo, obs_dict, train_split=None, data_split=None, sync_dir=None):
         print("loading off-policy path", path)
-        data = list(load_local_or_remote_file(path))
+
+        if sync_dir is not None:
+            sync_down_folder(sync_dir)
+            paths = glob.glob(get_absolute_path(path))
+        else:
+            paths = [path]
+
+        data = []
+
+        for filename in paths:
+            data.extend(list(load_local_or_remote_file(filename)))
+
         # if not is_demo:
             # data = [data]
         # random.shuffle(data)
@@ -176,4 +201,116 @@ class DictToMDPPathLoader:
         #     goals
         # ), dim=1)
         return batch
+
+class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
+
+    def __init__(
+            self,
+            trainer,
+            replay_buffer,
+            demo_train_buffer,
+            demo_test_buffer,
+            model_path=None,
+            env=None,
+            demo_paths=[], # list of dicts
+            normalize=True,
+            demo_train_split=0.9,
+            demo_data_split=1,
+            add_demos_to_replay_buffer=True,
+            bc_num_pretrain_steps=0,
+            bc_batch_size=64,
+            bc_weight=1.0,
+            rl_weight=1.0,
+            q_num_pretrain_steps=0,
+            weight_decay=0,
+            eval_policy=None,
+            recompute_reward=False,
+            env_info_key=None,
+            obs_key=None,
+            load_terminals=True,
+            **kwargs
+    ):
+        super().__init__(trainer,
+            replay_buffer,
+            demo_train_buffer,
+            demo_test_buffer,
+            demo_paths,
+            demo_train_split,
+            demo_data_split,
+            add_demos_to_replay_buffer,
+            bc_num_pretrain_steps,
+            bc_batch_size,
+            bc_weight,
+            rl_weight,
+            q_num_pretrain_steps,
+            weight_decay,
+            eval_policy,
+            recompute_reward,
+            env_info_key,
+            obs_key,
+            load_terminals,
+            **kwargs)
+        self.model = load_encoder(model_path)
+        self.normalize = normalize
+        self.env = env
+
+    def encode(self, observation):
+        # observation["latent_achieved_goal"] =
+        # observation["latent_desired_goal"] =
+        if self.normalize:
+            return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs) / 255.0))
+        return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs)))
+
+    # def encode(self, obs):
+    #     if self.normalize:
+    #         return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs) / 255.0))
+    #     return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs)))
+
+
+    def load_path(self, path, replay_buffer, obs_dict=None):
+        rewards = []
+        path_builder = PathBuilder()
+
+        print("loading path, length", len(path["observations"]), len(path["actions"]))
+        H = min(len(path["observations"]), len(path["actions"]))
+        print("actions", np.min(path["actions"]), np.max(path["actions"]))
+
+        traj_obs = self.encode(path["observations"])
+        next_traj_obs = self.encode(path["next_observations"])
+        #traj_obs = self.env._encode(path["observations"])
+        #next_traj_obs = self.env._encode(path["next_observations"])
+
+        for i in range(H):
+            ob = traj_obs[i]
+            next_ob = next_traj_obs[i]
+            next_img = path["next_observations"][i]
+            action = path["actions"][i]
+            reward = path["rewards"][i]
+            terminal = path["terminals"][i]
+            if not self.load_terminals:
+                terminal = np.zeros(terminal.shape)
+            agent_info = path["agent_infos"][i]
+            env_info = path["env_infos"][i]
+
+            if self.recompute_reward:
+                reward = self.env.compute_reward(action, next_img)
+
+            reward = np.array([reward]).flatten()
+            rewards.append(reward)
+            terminal = np.array([terminal]).reshape((1, ))
+            path_builder.add_all(
+                observations=ob,
+                actions=action,
+                rewards=reward,
+                next_observations=next_ob,
+                terminals=terminal,
+                agent_infos=agent_info,
+                env_infos=env_info,
+            )
+        self.demo_trajectory_rewards.append(rewards)
+        path = path_builder.get_all_stacked()
+        replay_buffer.add_path(path)
+        print("path sum rewards", sum(rewards), len(rewards))
+
+
 

@@ -1,5 +1,6 @@
 import os.path as osp
 
+from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.policies.action_repeat import ActionRepeatPolicy
 from railrl.samplers.data_collector import VAEWrappedEnvPathCollector
 from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector
@@ -9,6 +10,7 @@ from railrl.envs.reward_mask_wrapper import DiscreteDistribution, RewardMaskWrap
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 
 def td3_experiment(variant):
@@ -16,15 +18,19 @@ def td3_experiment(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
+    from railrl.exploration_strategies.base import (
+        PolicyWrappedWithExplorationStrategy
+    )
 
     from railrl.torch.td3.td3 import TD3 as TD3Trainer
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
-    from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-    preprocess_rl_variant(variant)
+    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
+    # preprocess_rl_variant(variant)
     env = get_envs(variant)
     expl_env = env
     eval_env = env
+    es = get_exploration_strategy(variant, env)
 
     if variant.get("use_masks", False):
         mask_wrapper_kwargs = variant.get("mask_wrapper_kwargs", dict())
@@ -50,12 +56,12 @@ def td3_experiment(variant):
     )
 
     action_dim = env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -65,12 +71,12 @@ def td3_experiment(variant):
         output_size=action_dim,
         **variant['policy_kwargs']
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -101,11 +107,11 @@ def td3_experiment(variant):
         )
 
 
-    expl_policy = create_exploration_policy(
-        env, policy,
-        exploration_version=variant['exploration_type'],
-        exploration_noise=variant['exploration_noise'],
+    expl_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
     )
+
     replay_buffer = ObsDictRelabelingBuffer(
         env=env,
         observation_key=observation_key,
@@ -172,17 +178,15 @@ def td3_experiment(variant):
         **variant['algo_kwargs']
     )
 
-    # vis_variant = variant.get('vis_kwargs', {})
-    # vis_list = vis_variant.get('vis_list', [])
+    vis_variant = variant.get('vis_kwargs', {})
+    vis_list = vis_variant.get('vis_list', [])
     if variant.get("save_video", True):
         if variant.get("do_state_exp", False):
-            from functools import partial
-            rollout_function = partial(
+            rollout_function = rf.create_rollout_function(
                 rf.multitask_rollout,
                 max_path_length=max_path_length,
                 observation_key=observation_key,
                 desired_goal_key=desired_goal_key,
-                return_dict_obs=True,
                 # use_masks=variant.get("use_masks", False),
                 # full_mask=True,
                 # vis_list=vis_list,
@@ -210,7 +214,7 @@ def twin_sac_experiment(variant):
     import railrl.torch.pytorch_util as ptu
     from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
-    from railrl.torch.networks import FlattenMlp
+    from railrl.torch.networks import ConcatMlp
     from railrl.torch.sac.policies import TanhGaussianPolicy
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
     from railrl.torch.sac.policies import MakeDeterministic
@@ -227,22 +231,22 @@ def twin_sac_experiment(variant):
             + env.observation_space.spaces[desired_goal_key].low.size
     )
     action_dim = env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -473,36 +477,35 @@ def get_exploration_strategy(variant, env):
     from railrl.exploration_strategies.noop import NoopStrategy
 
     exploration_type = variant['exploration_type']
-    exploration_noise = variant.get('exploration_noise', 0.1)
-
-    # es_kwargs = variant.get('es_kwargs', {})
+    # exploration_noise = variant.get('exploration_noise', 0.1)
+    es_kwargs = variant.get('es_kwargs', {})
     if exploration_type == 'ou':
         es = OUStrategy(
             action_space=env.action_space,
-            max_sigma=exploration_noise,
-            min_sigma=exploration_noise,  # Constant sigma
-            # **es_kwargs
+            # max_sigma=exploration_noise,
+            # min_sigma=exploration_noise,  # Constant sigma
+            **es_kwargs
         )
     elif exploration_type == 'gaussian':
         es = GaussianStrategy(
             action_space=env.action_space,
-            max_sigma=exploration_noise,
-            min_sigma=exploration_noise,  # Constant sigma
-            # **es_kwargs
+            # max_sigma=exploration_noise,
+            # min_sigma=exploration_noise,  # Constant sigma
+            **es_kwargs
         )
     elif exploration_type == 'epsilon':
         es = EpsilonGreedy(
             action_space=env.action_space,
-            prob_random_action=exploration_noise,
-            # **es_kwargs
+            # prob_random_action=exploration_noise,
+            **es_kwargs
         )
     elif exploration_type == 'gaussian_and_epsilon':
         es = GaussianAndEpislonStrategy(
             action_space=env.action_space,
-            max_sigma=exploration_noise,
-            min_sigma=exploration_noise,  # Constant sigma
-            epsilon=0.3,
-            # **es_kwargs
+            # max_sigma=exploration_noise,
+            # min_sigma=exploration_noise,  # Constant sigma
+            # epsilon=exploration_noise,
+            **es_kwargs
         )
     elif exploration_type == 'noop':
         es = NoopStrategy(
@@ -517,7 +520,7 @@ def preprocess_rl_variant(variant):
     if variant.get("do_state_exp", False):
         variant['observation_key'] = 'state_observation'
         variant['desired_goal_key'] = 'state_desired_goal'
-        variant['achieved_goal_key'] = 'state_achieved_goal'
+        variant['achieved_goal_key'] = 'state_acheived_goal'
 
 
 def get_video_save_func(rollout_function, env, policy, variant):
@@ -543,7 +546,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
         )
 
         def save_video(algo, epoch):
-            if epoch % save_period == 0 or epoch >= algo.num_epochs - 1:
+            if epoch % save_period == 0 or epoch == algo.num_epochs:
                 filename = osp.join(logdir,
                                     'video_{epoch}_env.mp4'.format(epoch=epoch))
                 dump_video(image_env, policy, filename, rollout_function,
@@ -553,7 +556,7 @@ def get_video_save_func(rollout_function, env, policy, variant):
         dump_video_kwargs['imsize'] = env.imsize
 
         def save_video(algo, epoch):
-            if epoch % save_period == 0 or epoch >= algo.num_epochs - 1:
+            if epoch % save_period == 0 or epoch == algo.num_epochs:
                 filename = osp.join(logdir,
                                     'video_{epoch}_env.mp4'.format(epoch=epoch))
                 temporary_mode(
@@ -575,51 +578,50 @@ def get_video_save_func(rollout_function, env, policy, variant):
     return save_video
 
 
-def create_exploration_policy(env, policy, exploration_version='identity',
-                              **kwargs):
-    from railrl.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-    from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-    from railrl.exploration_strategies.gaussian_and_epislon import \
-        GaussianAndEpislonStrategy
-
+def create_exploration_policy(
+        env,
+        policy,
+        exploration_version='identity',
+        repeat_prob=0.,
+        prob_random_action=0.,
+        exploration_noise=0.,
+):
+    # TODO: merge with get_exploration_strategy
     if exploration_version == 'identity':
         return policy
     elif exploration_version == 'occasionally_repeat':
-        return ActionRepeatPolicy(policy, **kwargs)
+        return ActionRepeatPolicy(policy, repeat_prob=repeat_prob)
+    elif exploration_version == 'epsilon_greedy':
+        return PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=EpsilonGreedy(
+                action_space=env.action_space,
+                prob_random_action=prob_random_action,
+            ),
+            policy=policy
+        )
+    elif exploration_version == 'epsilon_greedy_and_occasionally_repeat':
+        policy = PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=EpsilonGreedy(
+                action_space=env.action_space,
+                prob_random_action=prob_random_action,
+            ),
+            policy=policy
+        )
+        return ActionRepeatPolicy(policy, repeat_prob=repeat_prob)
+    elif exploration_version == 'epsilon_greedy':
+        return PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=EpsilonGreedy(
+                action_space=env.action_space,
+                prob_random_action=prob_random_action,
+            ),
+            policy=policy
+        )
     elif exploration_version == 'ou':
         return PolicyWrappedWithExplorationStrategy(
             exploration_strategy=OUStrategy(
                 action_space=env.action_space,
-                max_sigma=kwargs['exploration_noise'],
-                min_sigma=kwargs['exploration_noise']
-            ),
-            policy=policy
-        )
-    elif exploration_version == 'epsilon':
-        return PolicyWrappedWithExplorationStrategy(
-            exploration_strategy=EpsilonGreedy(
-                action_space=env.action_space,
-                prob_random_action=kwargs['exploration_noise']
-            ),
-            policy=policy
-        )
-    elif exploration_version == 'gaussian':
-        return PolicyWrappedWithExplorationStrategy(
-            exploration_strategy=GaussianStrategy(
-                action_space=env.action_space,
-                max_sigma=kwargs['exploration_noise'],
-                min_sigma=kwargs['exploration_noise']
-            ),
-            policy=policy
-        )
-    elif exploration_version == 'gaussian_and_epsilon':
-        return PolicyWrappedWithExplorationStrategy(
-            exploration_strategy=GaussianAndEpislonStrategy(
-                action_space=env.action_space,
-                max_sigma=kwargs['exploration_noise'],
-                min_sigma=kwargs['exploration_noise'],
-                epsilon = 0.3
+                max_sigma=exploration_noise,
+                min_sigma=exploration_noise,
             ),
             policy=policy
         )

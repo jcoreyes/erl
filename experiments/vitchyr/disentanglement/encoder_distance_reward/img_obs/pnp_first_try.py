@@ -85,19 +85,19 @@ if __name__ == "__main__":
             hidden_activation=F.tanh,
         ),
         env_renderer_kwargs=dict(
-            img_width=12,
-            img_height=12,
-            output_img_format='CHW',
+            width=12,
+            height=12,
+            output_image_format='CHW',
         ),
         video_renderer_kwargs=dict(
-            img_width=12,
-            img_height=12,
-            output_img_format='CHW',
+            width=12,
+            height=12,
+            output_image_format='CHW',
         ),
         debug_renderer_kwargs=dict(
-            img_width=12,
-            img_height=12,
-            output_img_format='CHW',
+            width=12,
+            height=12,
+            output_image_format='CHW',
         ),
     )
 

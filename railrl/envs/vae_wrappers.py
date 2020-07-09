@@ -80,6 +80,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         spaces['latent_desired_goal'] = latent_space
         spaces['latent_achieved_goal'] = latent_space
         self.observation_space = Dict(spaces)
+
         self._presampled_goals = presampled_goals
 
         if num_goals_to_presample > 0:
@@ -168,7 +169,8 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
     """
     def sample_goals(self, batch_size):
         self.vae.eval()
-
+        # print(self._goal_sampling_mode)
+        # if self._goal_sampling_mode == "reset_of_env":
         # TODO: make mode a parameter you pass in
         if self._goal_sampling_mode == 'custom_goal_sampler':
             return self.custom_goal_sampler(batch_size)

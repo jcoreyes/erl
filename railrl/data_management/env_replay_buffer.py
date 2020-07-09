@@ -91,6 +91,21 @@ class VPGEnvReplayBuffer(EnvReplayBuffer):
         )
         return batch
 
+    def random_batch(self, batch_size):
+        indices = slice(0, self._top) # np.random.randint(0, self._size, batch_size)
+        batch = dict(
+            observations=self._observations[indices],
+            actions=self._actions[indices],
+            rewards=self._rewards[indices],
+            terminals=self._terminals[indices],
+            next_observations=self._next_obs[indices],
+            returns = self._returns[0:self._top],
+        )
+        for key in self._env_info_keys:
+            assert key not in batch.keys()
+            batch[key] = self._env_infos[key][indices]
+        return batch
+
     def empty_buffer(self):
         self._observations = np.zeros(self._observations.shape)
         self._next_obs = np.zeros(self._next_obs.shape)

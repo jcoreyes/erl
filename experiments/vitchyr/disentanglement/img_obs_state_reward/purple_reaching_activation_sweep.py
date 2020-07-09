@@ -54,14 +54,14 @@ if __name__ == "__main__":
             ),
         ),
         env_renderer_kwargs=dict(
-            img_width=8,
-            img_height=8,
-            output_img_format='CHW',
+            width=8,
+            height=8,
+            output_image_format='CHW',
         ),
         video_renderer_kwargs=dict(
-            img_width=48,
-            img_height=48,
-            output_img_format='CHW',
+            width=48,
+            height=48,
+            output_image_format='CHW',
         ),
         reward_type='state_distance',
     )

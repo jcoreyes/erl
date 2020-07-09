@@ -12,7 +12,7 @@ from railrl.state_distance.tdm_networks import TdmPolicy, \
 from railrl.state_distance.tdm_td3 import TdmTd3
 from railrl.torch.ddpg.ddpg import DDPG
 from railrl.torch.her.her_td3 import HerTd3
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 from railrl.torch.td3.td3 import TD3
 import railrl.torch.pytorch_util as ptu
 
@@ -42,12 +42,12 @@ def td3_experiment(variant):
         raise Exception("Invalid type: " + exploration_type)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -103,12 +103,12 @@ def her_td3_experiment(variant):
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     goal_dim = env.goal_space.low.size
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim + goal_dim,
         output_size=1,
         **variant['qf_kwargs']
@@ -225,7 +225,7 @@ def ddpg_experiment(variant):
         raise Exception("Invalid type: " + exploration_type)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[400, 300],

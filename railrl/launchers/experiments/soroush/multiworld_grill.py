@@ -26,7 +26,7 @@ from railrl.misc.asset_loader import local_path_from_s3_or_local_path
 from railrl.misc.ml_util import PiecewiseLinearSchedule
 from railrl.visualization.video import dump_video
 from railrl.torch.her.her_td3 import HerTd3
-from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
 from railrl.torch.vae.conv_vae import ConvVAE
 from railrl.torch.vae.vae_trainer import ConvVAETrainer
 
@@ -250,12 +250,12 @@ def grill_her_td3_experiment(variant):
     )
     action_dim = env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
@@ -378,17 +378,17 @@ def grill_her_twin_sac_experiment(variant):
     )
     action_dim = env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
-    qf1 = FlattenMlp(
+    qf1 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    qf2 = FlattenMlp(
+    qf2 = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    vf = FlattenMlp(
+    vf = ConcatMlp(
         input_size=obs_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
@@ -511,12 +511,12 @@ def grill_her_sac_experiment(variant):
     )
     action_dim = env.action_space.low.size
     hidden_sizes = variant.get('hidden_sizes', [400, 300])
-    qf = FlattenMlp(
+    qf = ConcatMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
     )
-    vf = FlattenMlp(
+    vf = ConcatMlp(
         input_size=obs_dim,
         output_size=1,
         hidden_sizes=hidden_sizes,
