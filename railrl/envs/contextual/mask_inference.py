@@ -27,7 +27,7 @@ def get_cond_distr_params(mu, sigma, x_dim, max_cond_num):
 
     return mu_x, mu_y, mu_mat, sigma_xgy_inv
 
-def print_matrix(matrix, format="raw", threshold=0.1, normalize=True):
+def print_matrix(matrix, format="raw", threshold=0.1, normalize=True, precision=5):
     if normalize:
         matrix = matrix.copy() / np.max(np.abs(matrix))
 
@@ -47,7 +47,10 @@ def print_matrix(matrix, format="raw", threshold=0.1, normalize=True):
             else:
                 if value > 0:
                     print("", end=" ")
-                print("{:.2f}".format(value), end=" ")
+                if precision == 2:
+                    print("{:.2f}".format(value), end=" ")
+                elif precision == 5:
+                    print("{:.5f}".format(value), end=" ")
         print()
     print()
 
@@ -97,6 +100,7 @@ def infer_masks(env, idx_masks, mask_inference_variant):
     obs_noise = mask_inference_variant['noise']
     max_cond_num = mask_inference_variant['max_cond_num']
     normalize_sigma_inv = mask_inference_variant.get('normalize_sigma_inv', True)
+    sigma_inv_entry_threshold = mask_inference_variant.get('sigma_inv_entry_threshold', None)
     other_dims_random = mask_inference_variant.get('other_dims_random', True)
 
     list_of_waypoints, goals = gen_data(env, idx_masks, n, other_dims_random)
@@ -119,8 +123,16 @@ def infer_masks(env, idx_masks, mask_inference_variant):
             x_dim=goals.shape[1],
             max_cond_num=max_cond_num
         )
+
         if normalize_sigma_inv:
             sigma_inv = sigma_inv / np.max(np.abs(sigma_inv))
+
+        if sigma_inv_entry_threshold is not None:
+            for i in range(len(sigma_inv)):
+                for j in range(len(sigma_inv)):
+                    if sigma_inv[i][j] / np.max(np.abs(sigma_inv)) <= sigma_inv_entry_threshold:
+                        sigma_inv[i][j] = 0.0
+
         masks['mask_mu_w'].append(mu_w)
         masks['mask_mu_g'].append(mu_g)
         masks['mask_mu_mat'].append(mu_mat)
@@ -133,7 +145,7 @@ def infer_masks(env, idx_masks, mask_inference_variant):
         # print('mask_mu_mat')
         # print_matrix(masks['mask_mu_mat'][mask_id])
         print('mask_sigma_inv for mask_id={}'.format(mask_id))
-        print_matrix(masks['mask_sigma_inv'][mask_id])
+        print_matrix(masks['mask_sigma_inv'][mask_id], precision=5)
     # exit()
 
     return masks

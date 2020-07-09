@@ -48,7 +48,9 @@ def run_experiment(
         mount_blacklist=None,
         snapshot_mode="none",
 ):
-    snapshot_gap = update_snapshot_gap_and_save_period(variant)
+    snapshot_gap = variant.get('snapshot_gap', None)
+    if snapshot_gap is None:
+        snapshot_gap = update_snapshot_gap_and_save_period(variant)
 
     # exp_prefix = get_exp_prefix(args, variant)
     exp_prefix = args.label
