@@ -32,7 +32,7 @@ from railrl.samplers.data_collector.contextual_path_collector import (
 from railrl.launchers.rl_exp_launcher_util import (
     preprocess_rl_variant,
     get_envs,
-    get_exploration_strategy,
+    create_exploration_policy,
 )
 
 import copy
@@ -276,10 +276,10 @@ def rl_context_experiment(variant):
                 output_size=action_dim,
                 **variant['policy_kwargs']
             )
-            es = get_exploration_strategy(variant, env)
-            expl_policy = PolicyWrappedWithExplorationStrategy(
-                exploration_strategy=es,
-                policy=policy,
+            expl_policy = create_exploration_policy(
+                env, policy,
+                exploration_version=variant['exploration_type'],
+                exploration_noise=variant['exploration_noise'],
             )
             eval_policy = policy
         elif rl_algo == 'sac':
@@ -458,6 +458,8 @@ def rl_context_experiment(variant):
     ):
         assert mode in ['expl', 'eval']
 
+        save_env_in_snapshot = variant.get('save_env_in_snapshot', True)
+
         if task_conditioned:
             rotate_freq = task_variant['rotate_task_freq_for_expl'] if mode == 'expl' \
                 else task_variant['rotate_task_freq_for_eval']
@@ -466,6 +468,7 @@ def rl_context_experiment(variant):
                 policy,
                 observation_key=observation_key,
                 context_keys_for_policy=context_keys,
+                save_env_in_snapshot=save_env_in_snapshot,
                 task_key=task_key,
                 max_path_length=max_path_length,
                 task_ids=task_variant['task_ids'],
@@ -508,6 +511,7 @@ def rl_context_experiment(variant):
                 observation_key=observation_key,
                 context_keys_for_policy=context_keys,
                 concat_context_to_obs_fn=concat_context_to_obs,
+                save_env_in_snapshot=save_env_in_snapshot,
                 mask_sampler=(context_distrib if mode=='expl' else eval_context_distrib),
                 mask_distr=mask_distr.copy(),
                 mask_groups=mask_groups,
@@ -524,6 +528,7 @@ def rl_context_experiment(variant):
                 policy,
                 observation_key=observation_key,
                 context_keys_for_policy=context_keys,
+                save_env_in_snapshot=save_env_in_snapshot,
             )
 
     expl_path_collector = create_path_collector(env, expl_policy, mode='expl')

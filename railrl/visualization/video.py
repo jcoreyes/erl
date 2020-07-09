@@ -202,11 +202,7 @@ def dump_video(
     if get_extra_imgs is None:
         get_extra_imgs = get_generic_env_imgs
     num_channels = 1 if grayscale else 3
-    keys_to_show = keys_to_show or [
-        'image_desired_goal',
-        'image_observation',
-        'image_v',
-    ]
+    keys_to_show = keys_to_show or ['image_desired_goal', 'image_observation']
     frames = []
     N = rows * columns
     for i in range(N):

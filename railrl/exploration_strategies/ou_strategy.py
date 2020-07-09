@@ -23,7 +23,6 @@ class OUStrategy(RawExplorationStrategy):
             max_sigma=0.3,
             min_sigma=None,
             decay_period=100000,
-            **kwargs
     ):
         if min_sigma is None:
             min_sigma = max_sigma

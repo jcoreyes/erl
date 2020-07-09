@@ -59,6 +59,7 @@ variant = dict(
         eval_goal_sampling_mode='obj_in_bowl',
         algorithm="sac",
         context_based=True,
+        save_env_in_snapshot=False,
         save_video=True,
         dump_video_kwargs=dict(
             rows=1,
@@ -407,7 +408,7 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters(print_info=False)):
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters(verbose=False)):
         process_variant(variant)
         run_experiment(
             exp_function=rl_experiment,

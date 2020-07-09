@@ -322,7 +322,7 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters(print_info=False)):
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters(verbose=False)):
         process_variant(variant)
         run_experiment(
             exp_function=rl_experiment,
