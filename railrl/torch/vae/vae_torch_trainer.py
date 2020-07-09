@@ -142,6 +142,7 @@ class VAETrainer(TorchTrainer, LossFunction):
             imheight=example_obs_batch_np.shape[3],
             max_num_cols=len(top_row_example),
             image_format='CWH',
+            unnormalize=True,
         )
 
         logdir = logger.get_snapshot_dir()
@@ -156,6 +157,7 @@ class VAETrainer(TorchTrainer, LossFunction):
             imwidth=example_obs_batch_np.shape[2],
             imheight=example_obs_batch_np.shape[3],
             image_format='CWH',
+            unnormalize=True,
         )
         cv2.imwrite(
             osp.join(logdir, '{}_vae_samples.png'.format(epoch)),
