@@ -28,13 +28,3 @@ class HERTrainer(TorchTrainer):
 
     def get_snapshot(self):
         return self._base_trainer.get_snapshot()
-
-class MaskedHERTrainer(HERTrainer):
-    def train_from_torch(self, batch):
-        obs = batch['observations']
-        next_obs = batch['next_observations']
-        goals = batch['resampled_goals']
-        masks = batch['resampled_masks']
-        batch['observations'] = torch.cat((obs, goals, masks), dim=1)
-        batch['next_observations'] = torch.cat((next_obs, goals, masks), dim=1)
-        self._base_trainer.train_from_torch(batch)
