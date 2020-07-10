@@ -67,9 +67,10 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
             timer.stop_timer('replay buffer data storing')
 
             timer.start_timer('training', unique=False)
-            for _ in range(self.num_trains_per_train_loop):
-                train_data = self.replay_buffer.random_batch(self.batch_size)
-                self.trainer.train(train_data)
+            if self._do_training:
+                for _ in range(self.num_trains_per_train_loop):
+                    train_data = self.replay_buffer.random_batch(self.batch_size)
+                    self.trainer.train(train_data)
             timer.stop_timer('training')
         log_stats = self._get_diagnostics()
         return log_stats, False

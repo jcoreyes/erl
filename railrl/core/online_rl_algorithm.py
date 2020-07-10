@@ -85,10 +85,11 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
                 timer.start_timer('training', unique=False)
                 self.training_mode(True)
-                for _ in range(num_trains_per_expl_step):
-                    train_data = self.replay_buffer.random_batch(
-                        self.batch_size)
-                    self.trainer.train(train_data)
+                if self._do_training:
+                    for _ in range(num_trains_per_expl_step):
+                        train_data = self.replay_buffer.random_batch(
+                            self.batch_size)
+                        self.trainer.train(train_data)
                 timer.stop_timer('training')
                 self.training_mode(False)
 
