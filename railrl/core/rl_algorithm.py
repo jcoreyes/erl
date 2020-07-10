@@ -33,7 +33,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             num_epochs,
             exploration_get_diagnostic_functions=None,
             evaluation_get_diagnostic_functions=None,
-            do_training=True,
+            eval_only=True,
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -63,7 +63,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self._eval_get_diag_fns = evaluation_get_diagnostic_functions
         self._expl_get_diag_fns = exploration_get_diagnostic_functions
 
-        self._do_training = do_training
+        self._eval_only = eval_only
 
     def train(self):
         timer.return_global_times = True

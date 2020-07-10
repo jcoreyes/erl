@@ -73,30 +73,30 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         )
         timer.stop_timer('evaluation sampling')
 
-        for _ in range(self.num_train_loops_per_epoch):
-            for _ in range(self.num_expl_steps_per_train_loop):
-                timer.start_timer('exploration sampling', unique=False)
-                self.expl_data_collector.collect_new_steps(
-                    self.max_path_length,
-                    1,  # num steps
-                    discard_incomplete_paths=False,
-                )
-                timer.stop_timer('exploration sampling')
+        if not self._eval_only:
+            for _ in range(self.num_train_loops_per_epoch):
+                for _ in range(self.num_expl_steps_per_train_loop):
+                    timer.start_timer('exploration sampling', unique=False)
+                    self.expl_data_collector.collect_new_steps(
+                        self.max_path_length,
+                        1,  # num steps
+                        discard_incomplete_paths=False,
+                    )
+                    timer.stop_timer('exploration sampling')
 
-                timer.start_timer('training', unique=False)
-                self.training_mode(True)
-                if self._do_training:
+                    timer.start_timer('training', unique=False)
+                    self.training_mode(True)
                     for _ in range(num_trains_per_expl_step):
                         train_data = self.replay_buffer.random_batch(
                             self.batch_size)
                         self.trainer.train(train_data)
-                timer.stop_timer('training')
-                self.training_mode(False)
+                    timer.stop_timer('training')
+                    self.training_mode(False)
 
-        timer.start_timer('replay buffer data storing', unique=False)
-        new_expl_paths = self.expl_data_collector.get_epoch_paths()
-        self.replay_buffer.add_paths(new_expl_paths)
-        timer.stop_timer('replay buffer data storing')
+            timer.start_timer('replay buffer data storing', unique=False)
+            new_expl_paths = self.expl_data_collector.get_epoch_paths()
+            self.replay_buffer.add_paths(new_expl_paths)
+            timer.stop_timer('replay buffer data storing')
 
         log_stats = self._get_diagnostics()
 

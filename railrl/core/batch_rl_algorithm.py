@@ -53,24 +53,24 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
         )
         timer.stop_timer('evaluation sampling')
 
-        for _ in range(self.num_train_loops_per_epoch):
-            timer.start_timer('exploration sampling', unique=False)
-            new_expl_paths = self.expl_data_collector.collect_new_paths(
-                self.max_path_length,
-                self.num_expl_steps_per_train_loop,
-                discard_incomplete_paths=False,
-            )
-            timer.stop_timer('exploration sampling')
+        if not self._eval_only:
+            for _ in range(self.num_train_loops_per_epoch):
+                timer.start_timer('exploration sampling', unique=False)
+                new_expl_paths = self.expl_data_collector.collect_new_paths(
+                    self.max_path_length,
+                    self.num_expl_steps_per_train_loop,
+                    discard_incomplete_paths=False,
+                )
+                timer.stop_timer('exploration sampling')
 
-            timer.start_timer('replay buffer data storing', unique=False)
-            self.replay_buffer.add_paths(new_expl_paths)
-            timer.stop_timer('replay buffer data storing')
+                timer.start_timer('replay buffer data storing', unique=False)
+                self.replay_buffer.add_paths(new_expl_paths)
+                timer.stop_timer('replay buffer data storing')
 
-            timer.start_timer('training', unique=False)
-            if self._do_training:
+                timer.start_timer('training', unique=False)
                 for _ in range(self.num_trains_per_train_loop):
                     train_data = self.replay_buffer.random_batch(self.batch_size)
                     self.trainer.train(train_data)
-            timer.stop_timer('training')
+                timer.stop_timer('training')
         log_stats = self._get_diagnostics()
         return log_stats, False
