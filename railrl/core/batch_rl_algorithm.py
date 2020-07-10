@@ -46,11 +46,12 @@ class BatchRLAlgorithm(BaseRLAlgorithm):
             self.expl_data_collector.end_epoch(-1)
 
         timer.start_timer('evaluation sampling')
-        self.eval_data_collector.collect_new_paths(
-            self.max_path_length,
-            self.num_eval_steps_per_epoch,
-            discard_incomplete_paths=True,
-        )
+        if self.epoch % self._eval_epoch_freq == 0:
+            self.eval_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_eval_steps_per_epoch,
+                discard_incomplete_paths=True,
+            )
         timer.stop_timer('evaluation sampling')
 
         for _ in range(self.num_train_loops_per_epoch):

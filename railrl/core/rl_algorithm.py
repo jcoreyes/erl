@@ -125,11 +125,18 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         for fn in self._expl_get_diag_fns:
             append_log(algo_log, fn(expl_paths), prefix='exploration/')
         # Eval
-        append_log(algo_log, self.eval_data_collector.get_diagnostics(),
-                   prefix='evaluation/')
-        eval_paths = self.eval_data_collector.get_epoch_paths()
-        for fn in self._eval_get_diag_fns:
-            append_log(algo_log, fn(eval_paths), prefix='evaluation/')
+        if self.epoch % self._eval_epoch_freq == 0:
+            self._prev_eval_log = OrderedDict()
+            eval_diag = self.eval_data_collector.get_diagnostics()
+            self._prev_eval_log.update(eval_diag)
+            append_log(algo_log, eval_diag, prefix='evaluation/')
+            eval_paths = self.eval_data_collector.get_epoch_paths()
+            for fn in self._eval_get_diag_fns:
+                addl_diag = fn(eval_paths)
+                self._prev_eval_log.update(addl_diag)
+                append_log(algo_log, addl_diag, prefix='evaluation/')
+        else:
+            append_log(algo_log, self._prev_eval_log, prefix='evaluation/')
 
         append_log(algo_log, _get_epoch_timings())
         algo_log['epoch'] = self.epoch
