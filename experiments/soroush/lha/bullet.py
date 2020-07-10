@@ -26,8 +26,6 @@ variant = dict(
         ),
         max_path_length=100,
         td3_trainer_kwargs=dict(
-            use_policy_saturation_cost=True,
-            policy_saturation_cost_threshold=5.0,
             discount=0.99,
         ),
         sac_trainer_kwargs=dict(
@@ -154,7 +152,12 @@ variant = dict(
         'max_joint_velocity': None,
     },
     imsize=400,
-    snapshot_gap=50,
+    # snapshot_gap=50,
+
+    logger_config=dict(
+        snapshot_gap=50,
+        snapshot_mode='gap_and_last',
+    ),
 )
 
 env_params = {
@@ -412,12 +415,13 @@ if __name__ == "__main__":
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters(verbose=False)):
         process_variant(variant)
+        variant['exp_id'] = exp_id
         run_experiment(
             exp_function=rl_experiment,
             variant=variant,
             args=args,
-            exp_id=exp_id,
-            mount_blacklist=mount_blacklist,
-            snapshot_mode='gap_and_last',
+            # exp_id=exp_id,
+            # mount_blacklist=mount_blacklist,
+            # snapshot_mode='gap_and_last',
         )
 

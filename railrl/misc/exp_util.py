@@ -43,10 +43,10 @@ def run_experiment(
         exp_function,
         variant,
         args,
-        exp_id,
+        # exp_id,
         # exp_type,
-        mount_blacklist=None,
-        snapshot_mode="none",
+        # mount_blacklist=None,
+        # snapshot_mode="none",
 ):
     snapshot_gap = variant.get('snapshot_gap', None)
     if snapshot_gap is None:
@@ -60,13 +60,16 @@ def run_experiment(
         exp_launcher_function(
             exp_function,
             variant=variant,
-            exp_folder=args.env,
-            exp_prefix=exp_prefix,
-            exp_id=exp_id,
-            snapshot_gap=snapshot_gap,
-            snapshot_mode=snapshot_mode,
+            # exp_folder=args.env,
+            # exp_prefix=exp_prefix,
+            base_log_dir=args.env,
+            exp_name=exp_prefix,
+            # exp_id=exp_id,
+            # snapshot_gap=snapshot_gap,
+            # snapshot_mode=snapshot_mode,
+            # mount_blacklist=mount_blacklist,
 
-            mount_blacklist=mount_blacklist,
+            unpack_variant=False,
 
             **run_experiment_kwargs
         )
@@ -217,10 +220,10 @@ def get_instance_kwargs(args, num_exps, variant):
         ssh_host = None
         gpu_id = args.gpu_id
 
-    if mode == 'local_docker':
-        interactive_docker = True
-    else:
-        interactive_docker = args.interactive_ssh
+    # if mode == 'local_docker':
+    #     interactive_docker = True
+    # else:
+    #     interactive_docker = args.interactive_ssh
 
     instance_kwargs = dict(
         mode=mode,
@@ -228,7 +231,7 @@ def get_instance_kwargs(args, num_exps, variant):
         use_gpu=(not args.no_gpu),
         gpu_id=gpu_id,
         num_exps_per_instance=int(num_exps),
-        interactive_docker=interactive_docker,
+        # interactive_docker=interactive_docker,
     )
 
     variant['instance_kwargs'] = instance_kwargs
