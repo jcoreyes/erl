@@ -3,10 +3,12 @@ import abc
 from torch import nn
 
 from railrl.torch.distributions import (
+    Bernoulli,
     Beta,
     Distribution,
-    GaussianMixture,
-    GaussianMixtureFull,
+    Independent,
+    GaussianMixture as GaussianMixtureDistribution,
+    GaussianMixtureFull as GaussianMixtureFullDistribution,
     MultivariateDiagonalNormal,
     TanhNormal,
 )
@@ -49,16 +51,35 @@ class Gaussian(ModuleToDistributionGenerator):
             mean, std, reinterpreted_batch_ndims=self.reinterpreted_batch_ndims)
 
 
+class BernoulliGenerator(ModuleToDistributionGenerator):
+    def forward(self, *input):
+        probs = super().forward(*input)
+        return Bernoulli(probs)
+
+
+class IndependentGenerator(ModuleToDistributionGenerator):
+    def __init__(self, *args, reinterpreted_batch_ndims=1):
+        super().__init__(*args)
+        self.reinterpreted_batch_ndims = reinterpreted_batch_ndims
+
+    def forward(self, *input):
+        distribution = super().forward(*input)
+        return Independent(
+            distribution,
+            reinterpreted_batch_ndims=self.reinterpreted_batch_ndims,
+        )
+
+
 class GaussianMixture(ModuleToDistributionGenerator):
     def forward(self, *input):
         mixture_means, mixture_stds, weights = super().forward(*input)
-        return GaussianMixture(mixture_means, mixture_stds, weights)
+        return GaussianMixtureDistribution(mixture_means, mixture_stds, weights)
 
 
 class GaussianMixtureFull(ModuleToDistributionGenerator):
     def forward(self, *input):
         mixture_means, mixture_stds, weights = super().forward(*input)
-        return GaussianMixtureFull(mixture_means, mixture_stds, weights)
+        return GaussianMixtureFullDistribution(mixture_means, mixture_stds, weights)
 
 
 class TanhGaussian(ModuleToDistributionGenerator):
