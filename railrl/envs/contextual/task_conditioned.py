@@ -28,8 +28,8 @@ class TaskGoalDictDistributionFromMultitaskEnv(
             high=np.ones(1))
         self.task_ids = np.array(task_ids)
 
-    def sample(self, batch_size: int, use_env_goal=False):
-        goals = super().sample(batch_size, use_env_goal)
+    def sample(self, batch_size: int):
+        goals = super().sample(batch_size)
         idxs = np.random.choice(len(self.task_ids), batch_size)
         goals[self.task_key] = self.task_ids[idxs].reshape(-1, 1)
         return goals

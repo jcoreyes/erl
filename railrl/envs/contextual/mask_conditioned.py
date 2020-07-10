@@ -112,8 +112,8 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
         self.cumul_masks = None
         self.subset_masks = None
 
-    def sample(self, batch_size: int, use_env_goal=False):
-        goals = super().sample(batch_size, use_env_goal)
+    def sample(self, batch_size: int):
+        goals = super().sample(batch_size)
         mask_goals = self.sample_masks(batch_size)
         goals.update(mask_goals)
         return goals

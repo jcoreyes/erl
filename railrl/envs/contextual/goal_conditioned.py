@@ -38,8 +38,12 @@ class GoalDictDistributionFromMultitaskEnv(DictDistribution):
             for k in self._desired_goal_keys
         }
 
-    def sample(self, batch_size: int, use_env_goal=False):
-        if use_env_goal:
+        self._sample_mode = 'distr'
+
+    def sample(self, batch_size: int):
+        assert self._sample_mode in ['distr', 'rollout']
+
+        if self._sample_mode == 'rollout':
             return {
                 k: np.tile(self._env.get_goal()[k], batch_size).reshape(batch_size, -1)
                 for k in self._desired_goal_keys
@@ -49,6 +53,13 @@ class GoalDictDistributionFromMultitaskEnv(DictDistribution):
                 k: self._env.sample_goals(batch_size)[k]
                 for k in self._desired_goal_keys
             }
+
+    def get_sample_mode(self):
+        return self._sample_mode
+
+    def set_sample_mode(self, mode: str):
+        assert self._sample_mode in ['distr', 'rollout']
+        self._sample_mode = mode
 
     @property
     def spaces(self):
@@ -73,13 +84,20 @@ class AddImageDistribution(DictDistribution):
         self._renderer = renderer
         self._suppress_warning = _suppress_warning
 
-    def sample(self, batch_size: int, use_env_goal=False):
+        self._sample_mode = 'distr'
+
+    def sample(self, batch_size: int):
         if batch_size > 1 and not self._suppress_warning:
             warnings.warn(
                 "Sampling many goals is slow. Consider using "
                 "PresampledImageAndStateDistribution"
             )
-        contexts = self._base_distribution.sample(batch_size, use_env_goal)
+
+        prev_sample_mode = self._base_distribution.get_sample_mode()
+        self._base_distribution.set_sample_mode(self._sample_mode)
+        contexts = self._base_distribution.sample(batch_size)
+        self._base_distribution.set_sample_mode(prev_sample_mode)
+
         images = []
         for i in range(batch_size):
             goal = ppp.treemap(lambda x: x[i], contexts, atomic_type=np.ndarray)
@@ -91,6 +109,12 @@ class AddImageDistribution(DictDistribution):
 
         contexts[self._image_goal_key] = np.array(images)
         return contexts
+
+    def get_sample_mode(self):
+        return self._sample_mode
+
+    def set_sample_mode(self, mode):
+        self._sample_mode = mode
 
     @property
     def spaces(self):
