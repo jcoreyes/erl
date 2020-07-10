@@ -125,23 +125,23 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         append_log(algo_log, self.trainer.get_diagnostics(), prefix='trainer/')
         # Exploration
         append_log(algo_log, self.expl_data_collector.get_diagnostics(),
-                   prefix='expl/')
+                   prefix='exploration/')
         expl_paths = self.expl_data_collector.get_epoch_paths()
         for fn in self._expl_get_diag_fns:
-            append_log(algo_log, fn(expl_paths), prefix='expl/')
+            append_log(algo_log, fn(expl_paths), prefix='exploration/')
         # Eval
         if self.epoch % self.eval_epoch_freq == 0:
             self._prev_eval_log = OrderedDict()
             eval_diag = self.eval_data_collector.get_diagnostics()
             self._prev_eval_log.update(eval_diag)
-            append_log(algo_log, eval_diag, prefix='eval/')
+            append_log(algo_log, eval_diag, prefix='evaluation/')
             eval_paths = self.eval_data_collector.get_epoch_paths()
             for fn in self._eval_get_diag_fns:
                 addl_diag = fn(eval_paths)
                 self._prev_eval_log.update(addl_diag)
-                append_log(algo_log, addl_diag, prefix='eval/')
+                append_log(algo_log, addl_diag, prefix='evaluation/')
         else:
-            append_log(algo_log, self._prev_eval_log, prefix='eval/')
+            append_log(algo_log, self._prev_eval_log, prefix='evaluation/')
 
         append_log(algo_log, _get_epoch_timings())
         algo_log['epoch'] = self.epoch
