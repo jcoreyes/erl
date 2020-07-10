@@ -167,20 +167,20 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
 
         if not self._recompute_rewards:
             assert (num_distrib_contexts == 0) and (num_future_contexts == 0)
-            new_rewards = self._rewards[indices]
+            rewards = self._rewards[indices]
         else:
-            new_rewards = self._reward_fn(
+            rewards = self._reward_fn(
                 obs_dict,
                 actions,
                 next_obs_dict,
                 new_contexts,
             )
-        if len(new_rewards.shape) == 1:
-            new_rewards = new_rewards.reshape(-1, 1)
+        if len(rewards.shape) == 1:
+            rewards = rewards.reshape(-1, 1)
         batch = {
             'observations': obs_dict[self.observation_key],
             'actions': actions,
-            'rewards': new_rewards,
+            'rewards': rewards,
             'terminals': self._terminals[indices],
             'next_observations': next_obs_dict[self.observation_key],
             'indices': np.array(indices).reshape(-1, 1),
