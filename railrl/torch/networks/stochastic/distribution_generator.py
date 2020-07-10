@@ -33,10 +33,20 @@ class Beta(ModuleToDistributionGenerator):
 
 
 class Gaussian(ModuleToDistributionGenerator):
+    def __init__(self, module, std=None, reinterpreted_batch_ndims=1):
+        super().__init__(module)
+        self.std = std
+        self.reinterpreted_batch_ndims = reinterpreted_batch_ndims
+
     def forward(self, *input):
-        mean, log_std = super().forward(*input)
-        std = log_std.exp()
-        return MultivariateDiagonalNormal(mean, std)
+        if self.std:
+            mean = super().forward(*input)
+            std = self.std
+        else:
+            mean, log_std = super().forward(*input)
+            std = log_std.exp()
+        return MultivariateDiagonalNormal(
+            mean, std, reinterpreted_batch_ndims=self.reinterpreted_batch_ndims)
 
 
 class GaussianMixture(ModuleToDistributionGenerator):
