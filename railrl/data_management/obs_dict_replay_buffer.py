@@ -303,16 +303,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
                 new_next_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = \
                     env_goals[goal_key]
         if num_future_goals > 0:
-            future_obs_idxs = []
-            for i in indices[-num_future_goals:]:
-                assert NotImplementedError
-                possible_future_obs_idxs = self._idx_to_future_obs_idx[i]
-                # This is generally faster than random.choice. Makes you wonder what
-                # random.choice is doing
-                num_options = len(possible_future_obs_idxs)
-                next_obs_i = int(np.random.randint(0, num_options))
-                future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
-            future_obs_idxs = np.array(future_obs_idxs)
+            future_obs_idxs = self._get_future_obs_indices(indices[-num_future_goals:])
             for goal_key in self.goal_keys:
                 achieved_k = goal_key.replace('desired', 'achieved')
                 new_obs_dict[goal_key][-num_future_goals:] = (
@@ -355,6 +346,25 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
             'indices': np.array(indices).reshape(-1, 1),
         }
         return batch
+
+    def _get_future_obs_indices(self, start_state_indices):
+        future_obs_idxs = []
+        for i in start_state_indices:
+            possible_future_obs_idxs = self._idx_to_future_obs_idx[i]
+            lb, ub = possible_future_obs_idxs
+            if ub > lb:
+                next_obs_i = int(np.random.randint(lb, ub))
+            else:
+                pre_wrap_range = self.max_size - lb
+                post_wrap_range = ub
+                ratio = pre_wrap_range / (pre_wrap_range + post_wrap_range)
+                if np.random.uniform(0, 1) <= ratio:
+                    next_obs_i = int(np.random.randint(lb, self.max_size))
+                else:
+                    next_obs_i = int(np.random.randint(0, ub))
+            future_obs_idxs.append(next_obs_i)
+        future_obs_idxs = np.array(future_obs_idxs)
+        return future_obs_idxs
 
 
 def combine_dicts(dicts, keys):

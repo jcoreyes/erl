@@ -201,23 +201,4 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         future_obs_dict = self._batch_next_obs_dict(future_obs_idxs)
         return self._sample_context_from_obs_dict_fn(future_obs_dict)
 
-    def _get_future_obs_indices(self, start_state_indices):
-        future_obs_idxs = []
-        for i in start_state_indices:
-            possible_future_obs_idxs = self._idx_to_future_obs_idx[i]
-            lb, ub = possible_future_obs_idxs
-            if ub > lb:
-                next_obs_i = int(np.random.randint(lb, ub))
-            else:
-                pre_wrap_range = self.max_size - lb
-                post_wrap_range = ub
-                ratio = pre_wrap_range / (pre_wrap_range + post_wrap_range)
-                if np.random.uniform(0, 1) <= ratio:
-                    next_obs_i = int(np.random.randint(lb, self.max_size))
-                else:
-                    next_obs_i = int(np.random.randint(0, ub))
-            future_obs_idxs.append(next_obs_i)
-        future_obs_idxs = np.array(future_obs_idxs)
-        return future_obs_idxs
-
 
