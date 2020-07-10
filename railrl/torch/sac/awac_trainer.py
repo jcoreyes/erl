@@ -51,8 +51,6 @@ class AWACTrainer(TorchTrainer):
             q_num_pretrain1_steps=0,
             q_num_pretrain2_steps=0,
             bc_batch_size=128,
-            bc_loss_type="mle",
-            awr_loss_type="mle",
             save_bc_policies=0,
             alpha=1.0,
 
@@ -66,11 +64,8 @@ class AWACTrainer(TorchTrainer):
             rl_weight=1.0,
             use_awr_update=True,
             use_reparam_update=False,
-            use_klac_update=False,
             reparam_weight=1.0,
             awr_weight=1.0,
-            klac_weight=1.0,
-            klac_K=10,
             post_pretrain_hyperparams=None,
             post_bc_pretrain_hyperparams=None,
 
@@ -196,8 +191,6 @@ class AWACTrainer(TorchTrainer):
         self.q_num_pretrain1_steps = q_num_pretrain1_steps
         self.q_num_pretrain2_steps = q_num_pretrain2_steps
         self.bc_batch_size = bc_batch_size
-        self.bc_loss_type = bc_loss_type
-        self.awr_loss_type = awr_loss_type
         self.rl_weight = rl_weight
         self.bc_weight = bc_weight
         self.save_bc_policies = save_bc_policies
@@ -210,8 +203,6 @@ class AWACTrainer(TorchTrainer):
 
         self.reparam_weight = reparam_weight
         self.awr_weight = awr_weight
-        self.klac_weight = klac_weight
-        self.klac_K = klac_K
         self.post_pretrain_hyperparams = post_pretrain_hyperparams
         self.post_bc_pretrain_hyperparams = post_bc_pretrain_hyperparams
         self.update_policy = True
@@ -229,7 +220,6 @@ class AWACTrainer(TorchTrainer):
         self.reward_transform = self.reward_transform_class(**self.reward_transform_kwargs)
         self.terminal_transform = self.terminal_transform_class(**self.terminal_transform_kwargs)
         self.use_reparam_update = use_reparam_update
-        self.use_klac_update = use_klac_update
         self.clip_score = clip_score
         self.buffer_policy_sample_actions = buffer_policy_sample_actions
 
@@ -263,14 +253,7 @@ class AWACTrainer(TorchTrainer):
 
         policy_logpp = dist.log_prob(u, )
         logp_loss = -policy_logpp.mean()
-
-        # T = 0
-        if self.bc_loss_type == "mle":
-            policy_loss = logp_loss
-        elif self.bc_loss_type == "mse":
-            policy_loss = mse_loss
-        else:
-            error
+        policy_loss = logp_loss
 
         return policy_loss, logp_loss, mse_loss, stats
 
@@ -617,11 +600,8 @@ class AWACTrainer(TorchTrainer):
             else:
                 q_adv = q1_pred
 
-        if self.awr_loss_type == "mse":
-            policy_logpp = -(policy_mle - actions) ** 2
-        else:
-            policy_logpp = dist.log_prob(u)
-            policy_logpp = policy_logpp[:, None]
+        policy_logpp = dist.log_prob(u)
+        policy_logpp = policy_logpp[:, None]
 
         if self.use_automatic_beta_tuning:
             buffer_dist = self.buffer_policy(obs)
@@ -699,38 +679,6 @@ class AWACTrainer(TorchTrainer):
                 error
 
         policy_loss = alpha * log_pi.mean()
-
-
-        if self.use_klac_update:
-            buffer_dist = self.buffer_policy(obs)
-            K = self.klac_K
-            buffer_obs = []
-            buffer_actions = []
-            log_bs = []
-            log_pis = []
-            for i in range(K):
-                u = buffer_dist.sample()
-                log_b = buffer_dist.log_prob(u)
-                log_pi = dist.log_prob(u)
-                buffer_obs.append(obs)
-                buffer_actions.append(u)
-                log_bs.append(log_b)
-                log_pis.append(log_pi)
-            buffer_obs = torch.cat(buffer_obs, 0)
-            buffer_actions = torch.cat(buffer_actions, 0)
-            p_buffer = torch.exp(torch.cat(log_bs, 0).sum(dim=1, ))
-            log_pi = torch.cat(log_pis, 0)
-            log_pi = log_pi.sum(dim=1, )
-            q1_b = self.qf1(buffer_obs, buffer_actions)
-            q2_b = self.qf2(buffer_obs, buffer_actions)
-            q_b = torch.min(q1_b, q2_b)
-            q_b = torch.reshape(q_b, (-1, K))
-            q_max = q_b.max(dim=1)[0][:, None]
-            q_normalized = q_b - q_max
-            q_weights_b = F.softmax(q_normalized / beta, dim=1).flatten() * K
-            # klac_loss = (-log_pi * q_weights_b.detach() / p_buffer.detach()).mean()
-            klac_loss = (-log_pi * q_weights_b.detach()).mean()
-            policy_loss = policy_loss + self.klac_weight * klac_loss
 
         if self.use_awr_update and self.weight_loss:
             policy_loss = policy_loss + self.awr_weight * (-policy_logpp * len(weights)*weights.detach()).mean()
@@ -942,18 +890,6 @@ class AWACTrainer(TorchTrainer):
                     "adaptive_beta/beta":ptu.get_numpy(beta.mean()),
                     "adaptive_beta/beta loss": ptu.get_numpy(beta_loss.mean()),
                 })
-            if self.use_klac_update:
-                self.eval_statistics.update({
-                    "klac/loss": ptu.get_numpy(klac_loss.mean()),
-                })
-                self.eval_statistics.update(create_stats_ordered_dict(
-                    'klac/weights',
-                    ptu.get_numpy(q_weights_b),
-                ))
-                self.eval_statistics.update(create_stats_ordered_dict(
-                    'klac/p_buffer',
-                    ptu.get_numpy(p_buffer),
-                ))
 
             if self.validation_qlearning:
                 train_data = self.replay_buffer.validation_replay_buffer.random_batch(self.bc_batch_size)
