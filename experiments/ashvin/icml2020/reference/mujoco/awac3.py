@@ -14,7 +14,7 @@ from railrl.torch.networks import Clamp
 
 if __name__ == "__main__":
     variant = dict(
-        num_epochs=500,
+        num_epochs=501,
         num_eval_steps_per_epoch=1000,
         num_trains_per_train_loop=1000,
         num_expl_steps_per_train_loop=1000,
@@ -85,12 +85,14 @@ if __name__ == "__main__":
         'trainer_kwargs.use_automatic_entropy_tuning':[False],
         'trainer_kwargs.alpha':[0],
         'trainer_kwargs.weight_loss':[True],
-        'trainer_kwargs.q_num_pretrain2_steps':[25000],
+        # 'trainer_kwargs.q_num_pretrain2_steps':[25000],
         'trainer_kwargs.beta':[
             # .01,
-            .1,
-            1,
-            10,
+            # .1,
+            2,
+            3,
+            5,
+            # 10,
             # 100,
         ],
         'train_rl':[True],
