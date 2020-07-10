@@ -585,7 +585,7 @@ def rl_context_experiment(variant):
                 eval_policy,
                 tag="eval",
                 imsize=variant['renderer_kwargs']['width'],
-                image_format='HWC',
+                image_format='CHW',
                 save_video_period=save_period,
                 **dump_video_kwargs
             )
@@ -685,7 +685,7 @@ def rl_context_experiment(variant):
                 expl_policy,
                 tag="expl",
                 imsize=variant['renderer_kwargs']['width'],
-                image_format='HWC',
+                image_format='CHW',
                 save_video_period=save_period,
                 **dump_video_kwargs
             )
