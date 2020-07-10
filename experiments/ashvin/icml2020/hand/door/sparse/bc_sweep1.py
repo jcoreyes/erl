@@ -3,13 +3,12 @@ AWR + SAC from demo experiment
 """
 
 from railrl.demos.source.dict_to_mdp_stacked_path_loader import DictToMDPStackedPathLoader
-from railrl.demos.source.mdp_path_loader import MDPPathLoader
-from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
+from railrl.launchers.experiments.awac.awac_rl import experiment
 
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
 
-from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
+from railrl.torch.sac.policies import GaussianMixturePolicy
 
 if __name__ == "__main__":
     variant = dict(

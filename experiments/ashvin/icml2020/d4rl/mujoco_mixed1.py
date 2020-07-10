@@ -3,13 +3,12 @@ AWR + SAC from demo experiment
 """
 
 from railrl.demos.source.hdf5_path_loader import HDF5PathLoader
-from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment, process_args
+from railrl.launchers.experiments.awac.awac_rl import experiment, process_args
 
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
 
-from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
-from railrl.torch.networks import Clamp
+from railrl.torch.sac.policies import GaussianPolicy
 
 if __name__ == "__main__":
     variant = dict(

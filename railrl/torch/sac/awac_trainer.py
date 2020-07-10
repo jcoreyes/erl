@@ -16,7 +16,8 @@ import torch.nn.functional as F
 from railrl.torch.networks import LinearTransform
 import time
 
-class AWRSACTrainer(TorchTrainer):
+
+class AWACTrainer(TorchTrainer):
     def __init__(
             self,
             env,

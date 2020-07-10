@@ -9,7 +9,7 @@ from railrl.samplers.data_collector import MdpPathCollector, ObsDictPathCollecto
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
-from railrl.torch.sac.awr_sac import AWRSACTrainer
+from railrl.torch.sac.awac_trainer import AWACTrainer
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
@@ -707,7 +707,7 @@ def experiment(variant):
         )
         replay_buffer = SplitReplayBuffer(train_replay_buffer, validation_replay_buffer, 0.9)
 
-    trainer_class = variant.get("trainer_class", AWRSACTrainer)
+    trainer_class = variant.get("trainer_class", AWACTrainer)
     trainer = trainer_class(
         env=eval_env,
         policy=policy,
