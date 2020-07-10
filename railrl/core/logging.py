@@ -373,6 +373,7 @@ def setup_logger(
     :param log_dir:
     :return:
     """
+    logger.reset()
     variant = variant or {}
     unique_id = unique_id or str(uuid.uuid4())
 
@@ -463,6 +464,7 @@ def create_log_dir(
         seed=0,
         variant=None,
         trial_dir_suffix=None,
+        add_time_suffix=True,
         include_exp_name_sub_dir=True,
         run_id=None,
 ):
@@ -482,7 +484,7 @@ def create_log_dir(
         else:
             trial_name = "run{}/id{}".format(run_id, exp_id)
     else:
-        trial_name = create_trial_name(exp_name, exp_id=exp_id, seed=seed)
+        trial_name = create_trial_name(exp_name, exp_id=exp_id, seed=seed, add_time_suffix=add_time_suffix)
     if trial_dir_suffix is not None:
         trial_name = "{}-{}".format(trial_name, trial_dir_suffix)
     if include_exp_name_sub_dir:
@@ -495,7 +497,7 @@ def create_log_dir(
     return log_dir
 
 
-def create_trial_name(exp_name, exp_id=0, seed=0):
+def create_trial_name(exp_name, exp_id=0, seed=0, add_time_suffix=True):
     """
     Create a semi-unique experiment name that has a timestamp
     :param exp_name:
@@ -504,7 +506,10 @@ def create_trial_name(exp_name, exp_id=0, seed=0):
     """
     now = datetime.datetime.now(dateutil.tz.tzlocal())
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
-    return "%s_%s_id%03d--s%d" % (exp_name, timestamp, exp_id, seed)
+    if add_time_suffix:
+        return "%s_%s_id%03d--s%d" % (exp_name, timestamp, exp_id, seed)
+    else:
+        return "%s_id%03d--s%d" % (exp_name, exp_id, seed)
 
 
 logger = Logger()
