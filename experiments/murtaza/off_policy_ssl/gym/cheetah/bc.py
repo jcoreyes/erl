@@ -1,6 +1,6 @@
 from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
 from railrl.torch.sac.policies import GaussianPolicy
-from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
+from railrl.launchers.experiments.awac.awac_rl import experiment
 from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
 

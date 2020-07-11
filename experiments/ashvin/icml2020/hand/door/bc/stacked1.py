@@ -3,7 +3,7 @@ AWR + SAC from demo experiment
 """
 
 from railrl.demos.source.dict_to_mdp_stacked_path_loader import DictToMDPStackedPathLoader
-from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
+from railrl.launchers.experiments.awac.awac_rl import experiment
 
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.arglauncher import run_variants
