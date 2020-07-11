@@ -43,16 +43,20 @@ class GoalDictDistributionFromMultitaskEnv(DictDistribution):
     def sample(self, batch_size: int):
         assert self._sample_mode in ['distr', 'rollout']
 
-        if self._sample_mode == 'rollout':
-            return {
-                k: np.tile(self._env.get_goal()[k], batch_size).reshape(batch_size, -1)
-                for k in self._desired_goal_keys
-            }
-        else:
-            return {
-                k: self._env.sample_goals(batch_size)[k]
-                for k in self._desired_goal_keys
-            }
+        # if self._sample_mode == 'rollout':
+        #     return {
+        #         k: np.tile(self._env.get_goal()[k], batch_size).reshape(batch_size, -1)
+        #         for k in self._desired_goal_keys
+        #     }
+        # else:
+        #     return {
+        #         k: self._env.sample_goals(batch_size)[k]
+        #         for k in self._desired_goal_keys
+        #     }
+        return {
+            k: self._env.sample_goals(batch_size)[k]
+            for k in self._desired_goal_keys
+        }
 
     def get_sample_mode(self):
         return self._sample_mode

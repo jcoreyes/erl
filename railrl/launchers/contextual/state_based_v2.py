@@ -197,7 +197,7 @@ def rl_context_experiment(variant):
             reward_fn=reward_fn,
             observation_key=observation_key,
             contextual_diagnostics_fns=[diag_fn],
-            # update_env_info_fn=delete_info,
+            update_env_info_fn=delete_info,
         )
         return env, context_distrib, reward_fn
 
@@ -769,7 +769,8 @@ def rl_context_experiment(variant):
                     max_path_length, #masking_eval_steps,
                     discard_incomplete_paths=True,
                 )
-                old_path_info = eval_util.get_generic_path_information(paths)
+                # old_path_info = eval_util.get_generic_path_information(paths)
+                old_path_info = eval_env.get_diagnostics(paths)
 
                 keys_to_keep = []
                 for key in old_path_info.keys():

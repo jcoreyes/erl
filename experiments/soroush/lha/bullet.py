@@ -317,7 +317,11 @@ env_params = {
             {8: 8, 9: 9},
         ]],
 
-        'rl_variant.mask_variant.eval_rollouts_to_log': [[]],
+        # 'rl_variant.mask_variant.eval_rollouts_to_log': [['atomic_seq']],
+
+        'env_kwargs.sliding_bowl': [True],
+        'env_kwargs.heavy_bowl': [True],
+        'env_kwargs.random_init_bowl_pos': [True],
 
         # 'rl_variant.mask_variant.idx_masks': [[
         #     {0: -12, 1: -13},
