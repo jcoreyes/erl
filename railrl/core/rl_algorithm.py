@@ -130,6 +130,13 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
         append_log(algo_log, _get_epoch_timings())
         algo_log['epoch'] = self.epoch
+        try:
+            import os
+            import psutil
+            process = psutil.Process(os.getpid())
+            algo_log['RAM Usage (Mb)'] = int(process.memory_info().rss / 1000000)
+        except ImportError:
+            pass
         timer.stop_timer('logging')
         return algo_log
 
