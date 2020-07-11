@@ -1,4 +1,5 @@
 import os
+import time
 from typing import NamedTuple
 import random
 
@@ -68,6 +69,7 @@ def run_experiment(
         wrap_fn_with_auto_setup=True,
         unpack_variant=True,
         base_log_dir=None,
+        prepend_date_to_exp_name=True,
         **kwargs
 ):
     if base_log_dir is None:
@@ -75,6 +77,8 @@ def run_experiment(
     if wrap_fn_with_auto_setup:
         method_call = AutoSetup(method_call, unpack_variant=unpack_variant)
     if mode == 'here_no_doodad':
+        if prepend_date_to_exp_name:
+            exp_name = time.strftime("%y-%m-%d") + "-" + exp_name
         setup_experiment(
             variant=variant,
             exp_name=exp_name,
@@ -96,6 +100,7 @@ def run_experiment(
             variant=variant,
             use_gpu=use_gpu,
             gpu_id=gpu_id,
+            prepend_date_to_exp_name=prepend_date_to_exp_name,
             **kwargs
         )
 

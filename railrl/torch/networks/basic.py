@@ -47,6 +47,16 @@ class Flatten(nn.Module):
         return inputs.view(inputs.size(0), -1)
 
 
+class Map(nn.Module):
+    """Apply a module to each input."""
+    def __init__(self, module):
+        super().__init__()
+        self.module = module
+
+    def forward(self, inputs):
+        return tuple(self.module(x) for x in inputs)
+
+
 class Reshape(nn.Module):
     def __init__(self, *output_shape):
         super().__init__()

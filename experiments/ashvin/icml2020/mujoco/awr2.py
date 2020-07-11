@@ -20,7 +20,7 @@ from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import ConcatMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
-from railrl.torch.sac.awr_sac import AWRSACTrainer
+from railrl.torch.sac.awac_trainer import AWACTrainer
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
@@ -127,7 +127,7 @@ def experiment(variant):
         variant['replay_buffer_size'],
         expl_env,
     )
-    trainer = AWRSACTrainer(
+    trainer = AWACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
