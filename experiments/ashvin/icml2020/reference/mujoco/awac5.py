@@ -81,7 +81,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'trainer_kwargs.beta':[2, ],
+        'trainer_kwargs.beta':[1, 3],
         'train_rl':[True],
         'pretrain_rl':[True],
         'pretrain_policy':[False],
