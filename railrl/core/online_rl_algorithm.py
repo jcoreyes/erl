@@ -66,11 +66,12 @@ class OnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
         num_trains_per_expl_step = self.num_trains_per_train_loop // self.num_expl_steps_per_train_loop
         timer.start_timer('evaluation sampling')
-        self.eval_data_collector.collect_new_paths(
-            self.max_path_length,
-            self.num_eval_steps_per_epoch,
-            discard_incomplete_paths=True,
-        )
+        if self.epoch % self._eval_epoch_freq == 0:
+            self.eval_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_eval_steps_per_epoch,
+                discard_incomplete_paths=True,
+            )
         timer.stop_timer('evaluation sampling')
 
         if not self._eval_only:
