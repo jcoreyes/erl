@@ -73,9 +73,7 @@ class AddImageDistribution(DictDistribution):
                 "Sampling many goals is slow. Consider using "
                 "PresampledImageAndStateDistribution"
             )
-
         contexts = self._base_distribution.sample(batch_size)
-
         images = []
         for i in range(batch_size):
             goal = ppp.treemap(lambda x: x[i], contexts, atomic_type=np.ndarray)
