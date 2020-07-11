@@ -161,6 +161,19 @@ variant = dict(
 )
 
 env_params = {
+    'pb-reach': {
+        'env_kwargs.num_obj': [0],
+        # 'env_kwargs.sliding_bowl': [True],
+        # 'env_kwargs.heavy_bowl': [False],
+        # 'env_kwargs.random_init_bowl_pos': [True],
+        'rl_variant.mask_variant.mask_conditioned': [False],
+        'rl_variant.algo_kwargs.num_epochs': [50],
+
+        'rl_variant.save_video_period': [5],
+        'rl_variant.dump_video_kwargs.columns': [3],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [1],
+
+    },
     'pb-1obj': {
         'env_kwargs.num_obj': [1],
         'env_kwargs.sliding_bowl': [True],
