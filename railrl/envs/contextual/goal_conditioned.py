@@ -67,8 +67,6 @@ class AddImageDistribution(DictDistribution):
         self._renderer = renderer
         self._suppress_warning = _suppress_warning
 
-        self._sample_mode = 'distr'
-
     def sample(self, batch_size: int):
         if batch_size > 1 and not self._suppress_warning:
             warnings.warn(
@@ -89,12 +87,6 @@ class AddImageDistribution(DictDistribution):
 
         contexts[self._image_goal_key] = np.array(images)
         return contexts
-
-    def get_sample_mode(self):
-        return self._sample_mode
-
-    def set_sample_mode(self, mode):
-        self._sample_mode = mode
 
     @property
     def spaces(self):
