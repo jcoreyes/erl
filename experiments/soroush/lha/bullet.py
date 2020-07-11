@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.misc.exp_util import (
+from exp_util import (
     run_experiment,
     parse_args,
     preprocess_args,
