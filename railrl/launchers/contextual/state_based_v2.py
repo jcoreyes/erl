@@ -291,15 +291,6 @@ def rl_context_experiment(variant):
             expl_policy = policy
             eval_policy = MakeDeterministic(policy)
 
-    if variant.get('use_sampling_policy', False):
-        from railrl.policies.simple import SamplingPolicy
-        eval_policy = SamplingPolicy(
-            action_space=env.action_space,
-            qf=qf1,
-            base_policy=eval_policy,
-            num_samples=10000,
-        )
-
     def context_from_obs_dict_fn(obs_dict):
         context_dict = {
             context_key: obs_dict[achieved_goal_key], #observation_key
