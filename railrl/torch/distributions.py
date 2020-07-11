@@ -6,7 +6,8 @@ from torch.distributions import Categorical, OneHotCategorical, kl_divergence
 from torch.distributions import Normal as TorchNormal
 from torch.distributions import Beta as TorchBeta
 from torch.distributions import Distribution as TorchDistribution
-from torch.distributions import Independent
+from torch.distributions import Bernoulli as TorchBernoulli
+from torch.distributions import Independent as TorchIndependent
 from railrl.misc.eval_util import create_stats_ordered_dict
 import railrl.torch.pytorch_util as ptu
 import numpy as np
@@ -113,6 +114,21 @@ class Delta(Distribution):
     @property
     def entropy(self):
         return 0
+
+
+class Bernoulli(Distribution, TorchBernoulli):
+    def get_diagnostics(self):
+        stats = OrderedDict()
+        stats.update(create_stats_ordered_dict(
+            'probability',
+            ptu.get_numpy(self.probs),
+        ))
+        return stats
+
+
+class Independent(Distribution, TorchIndependent):
+    def get_diagnostics(self):
+        return self.base_dist.get_diagnostics()
 
 
 class Beta(Distribution, TorchBeta):

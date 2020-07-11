@@ -9,8 +9,6 @@ from railrl.misc import eval_util
 from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.samplers.data_collector import DataCollector
 
-import os
-import psutil
 
 def _get_epoch_timings():
     times_itrs = timer.get_times()
@@ -35,8 +33,8 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             num_epochs,
             exploration_get_diagnostic_functions=None,
             evaluation_get_diagnostic_functions=None,
-            do_training=True,
             eval_epoch_freq=1,
+            eval_only=False,
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -66,8 +64,8 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self._eval_get_diag_fns = evaluation_get_diagnostic_functions
         self._expl_get_diag_fns = exploration_get_diagnostic_functions
 
-        self.do_training = do_training
-        self.eval_epoch_freq = eval_epoch_freq
+        self._eval_epoch_freq = eval_epoch_freq
+        self._eval_only = eval_only
 
     def train(self):
         timer.return_global_times = True
@@ -114,7 +112,6 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             snapshot['evaluation/' + k] = v
         for k, v in self.replay_buffer.get_snapshot().items():
             snapshot['replay_buffer/' + k] = v
-        snapshot['epoch'] = self.epoch
         return snapshot
 
     def _get_diagnostics(self):
@@ -130,7 +127,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         for fn in self._expl_get_diag_fns:
             append_log(algo_log, fn(expl_paths), prefix='exploration/')
         # Eval
-        if self.epoch % self.eval_epoch_freq == 0:
+        if self.epoch % self._eval_epoch_freq == 0:
             self._prev_eval_log = OrderedDict()
             eval_diag = self.eval_data_collector.get_diagnostics()
             self._prev_eval_log.update(eval_diag)
@@ -145,8 +142,13 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
         append_log(algo_log, _get_epoch_timings())
         algo_log['epoch'] = self.epoch
-        process = psutil.Process(os.getpid())
-        algo_log['RAM Usage (Mb)'] = int(process.memory_info().rss / 1000000)
+        try:
+            import os
+            import psutil
+            process = psutil.Process(os.getpid())
+            algo_log['RAM Usage (Mb)'] = int(process.memory_info().rss / 1000000)
+        except ImportError:
+            pass
         timer.stop_timer('logging')
         return algo_log
 
