@@ -25,9 +25,6 @@ if __name__ == "__main__":
         algorithm="AWAC",
         version="normal",
         collection_mode='batch',
-        sac_bc=True,
-        load_demos=True,
-        pretrain_rl=True,
 
         policy_class=GaussianPolicy,
         policy_kwargs=dict(
@@ -50,12 +47,9 @@ if __name__ == "__main__":
             alpha=0,
             use_automatic_entropy_tuning=False,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=25000,
+            q_num_pretrain2_steps=50000,
             policy_weight_decay=1e-4,
-            weight_loss=True,
-            pretraining_env_logging_period=100000,
             terminal_transform_kwargs=dict(m=1, b=0),
-            do_pretrain_rollouts=True,
             train_bc_on_rl_buffer=True,
             buffer_policy_sample_actions=False,
 
@@ -68,34 +62,28 @@ if __name__ == "__main__":
             awr_min_q=True,
         ),
         path_loader_kwargs=dict(
-            demo_paths=[
+            demo_paths=[  # these can be loaded in awac_rl.py per env
                 # dict(
                 #     path='demos/ant_action_noise_15.npy',
                 #     obs_dict=False,
                 #     is_demo=True,
                 #     train_split=.9,
                 # ),
-                # dict(
-                #     path='demos/ant_off_policy_15_demos_100.npy',
-                #     obs_dict=False,
-                #     is_demo=False,
-                # ),
             ],
         ),
         path_loader_class=DictToMDPPathLoader,
-        weight_update_period=10000,
 
+        pretrain_rl=True,
         use_validation_buffer=True,
         add_env_demos=True,
         add_env_offpolicy_data=True,
+        load_demos=True,
     )
 
     search_space = {
-        'trainer_kwargs.weight_loss':[True],
-        'trainer_kwargs.beta':[2, 3, 5, ],
+        'trainer_kwargs.beta':[2, ],
         'train_rl':[True],
         'pretrain_rl':[True],
-        'load_demos':[True],
         'pretrain_policy':[False],
         'env_id': ['HalfCheetah-v2', 'Ant-v2', 'Walker2d-v2', ],
         'seedid': range(5),
