@@ -1,6 +1,6 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.sac.policies import TanhGaussianPolicy, GaussianPolicy
-from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
+from railrl.torch.sac.policies import GaussianPolicy
+from railrl.launchers.experiments.awac.awac_rl import experiment
 
 from railrl.launchers.launcher_util import run_experiment
 

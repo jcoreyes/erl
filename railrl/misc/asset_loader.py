@@ -61,28 +61,6 @@ def sync_down_folder(path):
         local_path = "/tmp/%s" % (path)
     else:
         local_path = "%s/%s" % (LOCAL_LOG_DIR, path)
-    local_dir = os.path.dirname(local_path)
-    os.makedirs(local_dir, exist_ok=True)
-    if is_docker:
-        from doodad.ec2.autoconfig import AUTOCONFIG
-        os.environ["AWS_ACCESS_KEY_ID"] = AUTOCONFIG.aws_access_key()
-        os.environ["AWS_SECRET_ACCESS_KEY"] = AUTOCONFIG.aws_access_secret()
-    full_s3_path = os.path.join(AWS_S3_PATH, path)
-    bucket_name, bucket_relative_path = split_s3_full_path(full_s3_path)
-    command = "aws s3 sync s3://%s/%s %s" % (bucket_name, bucket_relative_path, local_path)
-    print(command)
-    stream = os.popen(command)
-    output = stream.read()
-    print(output)
-    return local_path
-
-
-def sync_down_folder(path):
-    is_docker = os.path.isfile("/.dockerenv")
-    if is_docker:
-        local_path = "/tmp/%s" % (path)
-    else:
-        local_path = "%s/%s" % (LOCAL_LOG_DIR, path)
 
     local_dir = os.path.dirname(local_path)
     os.makedirs(local_dir, exist_ok=True)
