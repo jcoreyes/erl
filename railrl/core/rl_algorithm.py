@@ -34,6 +34,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             exploration_get_diagnostic_functions=None,
             evaluation_get_diagnostic_functions=None,
             eval_epoch_freq=1,
+            eval_only=False,
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
@@ -64,6 +65,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self._expl_get_diag_fns = exploration_get_diagnostic_functions
 
         self._eval_epoch_freq = eval_epoch_freq
+        self._eval_only = eval_only
 
     def train(self):
         timer.return_global_times = True
@@ -140,6 +142,13 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
         append_log(algo_log, _get_epoch_timings())
         algo_log['epoch'] = self.epoch
+        try:
+            import os
+            import psutil
+            process = psutil.Process(os.getpid())
+            algo_log['RAM Usage (Mb)'] = int(process.memory_info().rss / 1000000)
+        except ImportError:
+            pass
         timer.stop_timer('logging')
         return algo_log
 
