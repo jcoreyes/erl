@@ -58,13 +58,14 @@ class AWACTrainer(TorchTrainer):
 
             weight_loss=True,
             compute_bc=True,
+            use_awr_update=True,
+            use_reparam_update=False,
 
             bc_weight=0.0,
             rl_weight=1.0,
-            use_awr_update=True,
-            use_reparam_update=False,
             reparam_weight=1.0,
             awr_weight=1.0,
+
             post_pretrain_hyperparams=None,
             post_bc_pretrain_hyperparams=None,
 
@@ -366,21 +367,10 @@ class AWACTrainer(TorchTrainer):
 
     def set_algorithm_weights(
         self,
-        # bc_weight,
-        # rl_weight,
-        # use_awr_update,
-        # use_reparam_update,
-        # reparam_weight,
-        # awr_weight,
         **kwargs
     ):
         for key in kwargs:
             self.__dict__[key] = kwargs[key]
-        # self.bc_weight = bc_weight
-        # self.rl_weight = rl_weight
-        # self.use_awr_update = use_awr_update
-        # self.use_reparam_update = use_reparam_update
-        # self.awr_weight = awr_weight
 
     def test_from_torch(self, batch):
         rewards = batch['rewards']
