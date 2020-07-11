@@ -49,6 +49,7 @@ if __name__ == "__main__":
             q_num_pretrain1_steps=0,
             q_num_pretrain2_steps=50000,
             policy_weight_decay=1e-4,
+            terminal_transform_kwargs=dict(m=1, b=0),
             train_bc_on_rl_buffer=True,
             buffer_policy_sample_actions=False,
 
@@ -80,7 +81,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'trainer_kwargs.beta':[2, ],
+        'trainer_kwargs.beta':[1, 3],
         'train_rl':[True],
         'pretrain_rl':[True],
         'pretrain_policy':[False],
