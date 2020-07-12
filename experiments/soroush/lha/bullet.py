@@ -152,7 +152,6 @@ variant = dict(
         'max_joint_velocity': None,
     },
     imsize=400,
-    # snapshot_gap=50,
 
     logger_config=dict(
         snapshot_gap=50,
@@ -439,8 +438,7 @@ if __name__ == "__main__":
             exp_function=rl_experiment,
             variant=variant,
             args=args,
-            # exp_id=exp_id,
-            # mount_blacklist=mount_blacklist,
-            # snapshot_mode='gap_and_last',
+            exp_id=exp_id,
+            mount_blacklist=mount_blacklist,
         )
 
