@@ -260,11 +260,11 @@ env_params = {
         ],
         'rl_variant.mask_variant.infer_masks': [True],
         'rl_variant.mask_variant.mask_inference_variant.sigma_inv_entry_threshold': [
-            # 0.10,
-            None,
+            0.10,
+            # None,
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [2500],
+        'rl_variant.algo_kwargs.num_epochs': [1500],
     },
     'pb-3obj': {
         'env_kwargs.num_obj': [3],
