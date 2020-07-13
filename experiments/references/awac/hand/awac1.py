@@ -35,7 +35,6 @@ if __name__ == "__main__":
             output_activation=Clamp(max=0), # rewards are <= 0
         ),
 
-        algorithm="SAC",
         version="normal",
         collection_mode='batch',
         trainer_kwargs=dict(
