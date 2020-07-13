@@ -323,12 +323,6 @@ class BasicCNN(PyTorchModule):
         self.output_shape = test_mat.shape[1:]  # ignore batch dim
 
     def forward(self, conv_input):
-        conv_input = conv_input.view(
-            -1,
-            self.input_channels,
-            self.input_height,
-            self.input_width,
-        )
         return self.apply_forward_conv(conv_input)
 
     def apply_forward_conv(self, h):
