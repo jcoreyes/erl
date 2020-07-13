@@ -7,6 +7,7 @@ import numpy as np
 
 import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
+from railrl.core.distribution import DictDistribution
 from railrl.data_management.contextual_replay_buffer import (
     ContextualRelabelingReplayBuffer,
     RemapKeyFn,
@@ -58,20 +59,19 @@ def one_hot_mask(mask_length, mask_idx):
     mask[mask_idx] = 1
     return mask
 
-
-class MaskedGoalDictDistributionFromMultitaskEnv(
-        GoalDictDistributionFromMultitaskEnv):
+class MaskedGoalDictDistribution(DictDistribution):
     def __init__(
             self,
-            *args,
+            dict_distribution: DictDistribution,
             mask_dim=3,
             mask_key='masked_desired_goal',
             distribution_type='random_bit_masks',
             static_mask=None,
-            **kwargs
     ):
-        super().__init__(*args, **kwargs)
         self.mask_key = mask_key
+        self._dict_distribution = dict_distribution
+        self._spaces = dict_distribution.spaces
+
         self._spaces[mask_key] = Box(
             low=np.zeros(mask_dim),
             high=np.ones(mask_dim))
@@ -91,7 +91,7 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
 
 
     def sample(self, batch_size: int):
-        goals = super().sample(batch_size)
+        goals = self._dict_distribution.sample(batch_size)
         if self.distribution_type == 'static_mask':
             goals[self.mask_key] = np.tile(self.static_mask, (batch_size, 1))
         elif self.distribution_type == 'one_hot_masks':
@@ -104,6 +104,10 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
         else:
             raise RuntimeError('Invalid distribution type')
         return goals
+
+    @property
+    def spaces(self):
+        return self._spaces
 
 
 def generate_revolving_masks(num_masks_to_generate, mask_length,
@@ -156,9 +160,9 @@ class RotatingMaskingPathCollector(ContextualPathCollector):
             self.rollout_masks = self.rollout_masks[1:]
             o[mask_key] = mask
 
-            combined_obs = [o[self._observation_key]]
+            combined_obs = [o[self._observation_key].flatten()]
             for k in self._context_keys_for_policy:
-                combined_obs.append(o[k])
+                combined_obs.append(o[k].flatten())
             return np.concatenate(combined_obs, axis=0)
 
         self._rollout_fn = partial(
@@ -246,9 +250,12 @@ def masking_sac_experiment(
         if not do_masking:
             assert env_mask_distribution_type == 'static_mask'
 
-        goal_distribution = MaskedGoalDictDistributionFromMultitaskEnv(
+        goal_distribution = GoalDictDistributionFromMultitaskEnv(
             env,
             desired_goal_keys=[desired_goal_key],
+        )
+        goal_distribution = MaskedGoalDictDistribution(
+            goal_distribution,
             mask_key=mask_key,
             mask_dim=mask_dim,
             distribution_type=env_mask_distribution_type,
@@ -298,9 +305,12 @@ def masking_sac_experiment(
     )
 
     # Distribution for relabeling
-    relabel_context_distrib = MaskedGoalDictDistributionFromMultitaskEnv(
+    relabel_context_distrib = GoalDictDistributionFromMultitaskEnv(
         env,
         desired_goal_keys=[desired_goal_key],
+    )
+    relabel_context_distrib = MaskedGoalDictDistribution(
+        relabel_context_distrib,
         mask_key=mask_key,
         mask_dim=mask_dim,
         distribution_type=mask_distribution,
