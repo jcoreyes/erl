@@ -40,7 +40,7 @@ variant = dict(
             fraction_future_context=0.4,
             fraction_distribution_context=0.4,
             fraction_replay_buffer_context=0.0,
-            recompute_rewards=True,
+            # recompute_rewards=True,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -139,8 +139,8 @@ variant = dict(
         'reset_obj_in_hand_rate': 0.0,
         'goal_sampling_mode': 'ground',
         'random_init_bowl_pos': False,
-        'sliding_bowl': False,
-        'heavy_bowl': False,
+        'bowl_pos_in_goal': False,
+        'bowl_type': 'fixed',
         'bowl_bounds': [-0.40, 0.40],
 
         'reward_type': 'obj_dist',
@@ -177,9 +177,14 @@ env_params = {
     },
     'pb-1obj': {
         'env_kwargs.num_obj': [1],
-        'env_kwargs.sliding_bowl': [True],
-        'env_kwargs.heavy_bowl': [True],
+        'env_kwargs.bowl_type': [
+            'fixed',
+            # 'heavy',
+        ],
+        'env_kwargs.bowl_pos_in_goal': [True],
         'env_kwargs.random_init_bowl_pos': [True],
+
+        'rl_variant.expl_goal_sampling_mode': ['obj_in_bowl'],
 
         # 'rl_variant.mask_variant.idx_masks': [
         #     [
@@ -202,9 +207,16 @@ env_params = {
             #     [0, 0, 0, 1, 0],
             #     [0, 0, 0, 0, 1],
             # ]],
+            # [[
+            #     [0, 0, 0, 0, 0],
+            #     [0, 0, 0, 0, 0],
+            #     [0, 0, 1, 0, -1],
+            #     [0, 0, 0, 0.2, 0],
+            #     [0, 0, -1, 0, 1],
+            # ]],
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [2500],
+        'rl_variant.algo_kwargs.num_epochs': [1500],
     },
     'pb-2obj': {
         'env_kwargs.num_obj': [2],
