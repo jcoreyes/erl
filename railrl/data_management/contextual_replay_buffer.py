@@ -61,9 +61,6 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             observation_key='observation',
             save_data_in_snapshot=False,
             internal_keys=None,
-            recompute_rewards=True,
-            relabel_context_key_blacklist=None,
-            post_process_context_fn=None,
             **kwargs
     ):
         ob_keys_to_save = observation_keys + context_keys
@@ -130,10 +127,6 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             return new_batch
         self._post_process_batch_fn = composed_post_process_batch_fn
 
-        self._recompute_rewards = recompute_rewards
-        self._relabel_context_key_blacklist = relabel_context_key_blacklist
-        self._post_process_context_fn = post_process_context_fn
-
     def random_batch(self, batch_size):
         num_future_contexts = int(batch_size * self._fraction_future_context)
         num_replay_buffer_contexts = int(batch_size * self._fraction_replay_buffer_context)
@@ -182,16 +175,6 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         new_contexts = ppp.treemap(concat, *tuple(contexts),
                                    atomic_type=np.ndarray)
 
-        if self._relabel_context_key_blacklist is not None:
-            for k in self._relabel_context_key_blacklist:
-                new_contexts[k] = next_obs_dict[k][:]
-
-        if self._post_process_context_fn is not None:
-            new_contexts = self._post_process_context_fn(
-                next_obs_dict,
-                new_contexts,
-            )
-
         batch = {
             'observations': obs_dict[self.observation_key],
             'actions': actions,
@@ -202,12 +185,12 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             **new_contexts
             # 'contexts': new_contexts,
         }
-        batch = self._post_process_batch_fn(
+        new_batch = self._post_process_batch_fn(
             batch,
             self,
             obs_dict, next_obs_dict, new_contexts
         )
-        return batch
+        return new_batch
 
     def _get_replay_buffer_contexts(self, batch_size):
         indices = self._sample_indices(batch_size)
