@@ -365,10 +365,10 @@ def rl_context_experiment(variant):
 
         return pp_context_dict
 
-    if mask_conditioned:
-        variant['contextual_replay_buffer_kwargs']['post_process_context_fn'] = post_process_mask_fn
+    # if mask_conditioned:
+    #     variant['contextual_replay_buffer_kwargs']['post_process_batch_fn'] = post_process_mask_fn
 
-    def concat_context_to_obs(batch):
+    def concat_context_to_obs(batch, replay_buffer=None, obs_dict=None, next_obs_dict=None, new_contexts=None):
         obs = batch['observations']
         next_obs = batch['next_observations']
         context = batch[context_key]
@@ -377,6 +377,10 @@ def rl_context_experiment(variant):
             batch['observations'] = np.concatenate([obs, context, task], axis=1)
             batch['next_observations'] = np.concatenate([next_obs, context, task], axis=1)
         elif mask_conditioned:
+            if obs_dict is not None and new_contexts is not None:
+                updated_contexts = post_process_mask_fn(obs_dict, new_contexts)
+                batch.update(updated_contexts)
+
             if mask_format in ['vector', 'matrix']:
                 assert len(mask_keys) == 1
                 mask = batch[mask_keys[0]].reshape((len(context), -1))
