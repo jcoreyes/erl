@@ -307,30 +307,13 @@ def plot_Gaussian(
 
     plt.show()
 
-num_sets = 1000
-num_obj = 2
+num_sets = 25
+num_obj = 1
 use_cached_data = True
-vis_distr = True
+vis_distr = False
 obs_noise = 0.01
 correlated_noise = False
 cond_num = 1e2
-
-plot_Gaussian(
-    mu=np.array([0, 0, 0]),
-    Sigma_inv=np.array([
-        [0.56, 0.0, -0.44],
-        [0.0, 1.0, 0.0],
-        [-0.44, 0.0, 0.57],
-    ]),
-    # Sigma_inv=np.array([
-    #     [1.0, 0.0, -0.999],
-    #     [0.0, 1.0, 0.0],
-    #     [-0.999, 0.0, 1.0],
-    # ]),
-    list_of_dims=[[0, 1], [1, 2], [0, 2], [0, 2]],
-    pt1=None, pt2=None
-)
-exit()
 
 if not use_cached_data:
     ### generate and save the data
@@ -369,6 +352,7 @@ else:
     states = states[indices]
 
 num_subtasks = list_of_waypoints.shape[1]
+print("num subtasks:", num_subtasks)
 
 ### Add noise to waypoints ###
 if correlated_noise:
@@ -382,7 +366,7 @@ else:
     goals += np.random.normal(0, obs_noise, goals.shape)
     states += np.random.normal(0, obs_noise, states.shape)
 
-for i in [0, 1]: #range(num_subtasks)
+for i in [0]: #range(num_subtasks)
     waypoints = list_of_waypoints[:,i,:]
 
     mu = np.mean(np.concatenate((waypoints, goals), axis=1), axis=0)
