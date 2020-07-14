@@ -11,7 +11,7 @@ from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 
 from railrl.misc.asset_loader import (
-    load_local_or_remote_file, sync_down_folder, get_absolute_path
+    load_local_or_remote_file, sync_down_folder, get_absolute_path, sync_down
 )
 
 import random
@@ -29,14 +29,16 @@ from railrl.core import logger
 import glob
 
 def load_encoder(encoder_file):
-    if encoder_file[0] == "/":
-        local_path = encoder_file
-    else:
-        local_path = sync_down(encoder_file)
-    encoder = pickle.load(open(local_path, "rb"))
-    print("loaded", local_path)
-    encoder.to("cuda")
+    encoder = load_local_or_remote_file(encoder_file)
     return encoder
+    # if encoder_file[0] == "/":
+    #     local_path = encoder_file
+    # else:
+    #     local_path = sync_down(encoder_file)
+    # encoder = pickle.load(open(local_path, "rb"))
+    # print("loaded", local_path)
+    # encoder.to("cuda")
+    # return encoder
 
 
 class DictToMDPPathLoader:
@@ -307,7 +309,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
 
             if self.recompute_reward:
                 #reward = self.env.compute_rewards(action, path["next_observations"][i])
-                reward = self.env.compute_reward(ob, action, next_ob)
+                reward = self.env._compute_reward(ob, action, next_ob, context=next_ob)
 
             reward = np.array([reward]).flatten()
             rewards.append(reward)

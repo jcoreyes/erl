@@ -1,68 +1,27 @@
-"""
-AWR + SAC from demo experiment
-"""
-
+import railrl.misc.hyperparameter as hyp
 from railrl.demos.source.dict_to_mdp_path_loader import EncoderDictToMDPPathLoader
-from railrl.launchers.experiments.ashvin.awr_sac_gcrl import experiment, process_args
+from railrl.launchers.experiments.ashvin.awr_sac_gcrl import awac_rig_experiment
+from railrl.launchers.launcher_util import run_experiment
+from railrl.launchers.arglauncher import run_variants
+from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
 from roboverse.envs.sawyer_rig_gr_v0 import SawyerRigGRV0Env
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
-
-from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
 
 if __name__ == "__main__":
     variant = dict(
-        save_video=True,
-        num_epochs=1001,
-        num_eval_steps_per_epoch=1000,
-        num_trains_per_train_loop=1000,
-        num_expl_steps_per_train_loop=1000,
-        min_num_steps_before_training=4000,
-        max_path_length=75,
-        batch_size=1024,
-
-        image_env_kwargs=dict(
-            imsize=48,
-            init_camera=None, # the environment initializes the camera already
-            transpose=True,
-            normalize=True,
-            recompute_reward=False,
-            non_presampled_goal_img_is_garbage=True, # do not set_to_goal
-        ),
-
-        dump_video_kwargs=dict(
-            save_video_period=25,
-            exploration_goal_image_key="decoded_goal_image",
-            evaluation_goal_image_key="decoded_goal_image",
-            rows=3,
-            columns=6,
-            image_format="CWH",
-        ),
-
-        replay_buffer_kwargs=dict(
-            max_size=int(1E6),
-            ob_keys_to_save=['state_observation', 'state_achieved_goal', "state_desired_goal"],
-            fraction_goals_rollout_goals=0.2,
-            fraction_goals_env_goals=0.5,
-        ),
-        demo_replay_buffer_kwargs=dict(
-            fraction_goals_rollout_goals=1.0,
-            fraction_goals_env_goals=0.0,
-        ),
-
-        layer_size=256,
+        env_class=SawyerRigGRV0Env,
         policy_class=GaussianPolicy,
         policy_kwargs=dict(
             hidden_sizes=[256, 256, 256, 256],
             max_log_std=0,
-            min_log_std=-4,
-            std_architecture="shared",
+            min_log_std=-6,
+            std_architecture="values",
         ),
 
-        algorithm="SAC",
-        version="normal",
-        collection_mode='batch',
+        qf_kwargs=dict(
+            hidden_sizes=[256, 256],
+        ),
+
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
@@ -91,35 +50,63 @@ if __name__ == "__main__":
             reward_transform_kwargs=None,
             terminal_transform_kwargs=None,
         ),
-        num_exps_per_instance=1,
-        
-        reward_params=dict(
-            type="latent_sparse",
+
+        max_path_length=75,
+        algo_kwargs=dict(
+            batch_size=1024,
+            num_epochs=501,
+            num_eval_steps_per_epoch=1000,
+            num_expl_steps_per_train_loop=1000,
+            num_trains_per_train_loop=1000,
+            min_num_steps_before_training=4000,
+        ),
+        replay_buffer_kwargs=dict(
+            fraction_future_context=0.2,
+            fraction_distribution_context=0.5,
+            max_size=int(1e6),
+        ),
+        demo_replay_buffer_kwargs=dict(
+            fraction_future_context=0.0,
+            fraction_distribution_context=0.0,
+        ),
+        reward_kwargs=dict(
+            #reward_type='wrapped_env',
+            reward_type='sparse',
+            obs_type='latent',
             epsilon=3.0,
         ),
-        renderer_kwargs=dict(
-            create_image_format='HWC',
-            output_image_format='CWH',
-            flatten_image=True,
+        obs_keys_to_save=['state_observation'],
+        context_keys_to_save=['state_desired_goal'],
+        observation_key='latent_observation',
+        desired_goal_key='latent_desired_goal',
+        save_video=True,
+        save_video_kwargs=dict(
+            save_video_period=25,
+            pad_color=0,
         ),
-        vae_wrapped_env_kwargs=dict(
-            goal_sampling_mode='presampled',
-            presampled_goals_path='/doodad/logs/presampled_goals_fixed_goal.pkl'
-        ),
+        pretrained_vae_path="vae.pkl",
+        presampled_goals_path="presampled_goals.pkl",
 
-        vae_path="/doodad/logs/vae.pkl",
         path_loader_class=EncoderDictToMDPPathLoader,
         path_loader_kwargs=dict(
             recompute_reward=True,
             demo_paths=[
                 dict(
-                    path="/doodad/logs/goal_reaching_demos_fixed_goal.pkl",
+                    path="goal_reaching_demos_fixed_goal.pkl",
                     obs_dict=True,
                     is_demo=True,
                     #data_split=0.1,
                 ),
             ],
         ),
+
+        renderer_kwargs=dict(
+            create_image_format='HWC',
+            output_image_format='CWH',
+            flatten_image=True,
+        ),
+
+
         add_env_demos=False,
         add_env_offpolicy_data=False,
 
@@ -127,24 +114,60 @@ if __name__ == "__main__":
         pretrain_policy=True,
         pretrain_rl=True,
 
-        env_class=SawyerRigGRV0Env,
-        goal_sampling_mode='presampled',
-        env_kwargs=dict(),
-        observation_key="latent_observation",
-        desired_goal_key="latent_desired_goal",
-        achieved_goal_key="latent_achieved_goal",
+        evaluation_goal_sampling_mode="presampled",
+        exploration_goal_sampling_mode="presampled",
+
+        launcher_config=dict(
+            unpack_variant=True,
+        ),
 
 
-        region='us-west-2',
+        train_vae_kwargs=dict(
+            vae_path=None,
+            representation_size=4,
+            beta=10.0 / 128,
+            beta_schedule_kwargs=dict(
+                x_values=(0, 500),
+                y_values=(1  / 128.0, 50  / 128.0),
+            ),
+            num_epochs=501,
+            dump_skew_debug_plots=False,
+            decoder_activation='sigmoid',
+            generate_vae_dataset_kwargs=dict(
+                test_p=.9,
+                N=10000,
+                oracle_dataset=False,
+                oracle_dataset_using_set_to_goal=False,
+                non_presampled_goal_img_is_garbage=False,
+                random_rollout_data=True,
+                random_rollout_data_set_to_goal=True,
+                conditional_vae_dataset=False,
+                save_trajectories=False,
+                enviorment_dataset=False,
+                use_cached=False,
+                vae_dataset_specific_kwargs=dict(
+                ),
+                show=False,
+            ),
+            vae_kwargs=dict(
+                input_channels=3,
+            ),
+            algo_kwargs=dict(
+                do_scatterplot=False,
+                use_linear_dynamics=False,
+                is_auto_encoder=False,
+                batch_size=128,
+                lr=1e-3,
+            ),
+            save_period=5,
+        ),
     )
 
     search_space = {
-        'seedid': range(1),
-        'trainer_kwargs.beta': [0.8],
-        'policy_kwargs.min_log_std': [-6],
-        'reward_params.type': ["latent_sparse", "wrapped_env"]
+        "seed": range(1),
+        'trainer_kwargs.beta': [0.5, 0.8, 1],
+        'policy_kwargs.min_log_std': [-6, -4,],
     }
-
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
@@ -153,4 +176,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(experiment, variants, process_args, run_id=1)
+    run_variants(awac_rig_experiment, variants, run_id=0)

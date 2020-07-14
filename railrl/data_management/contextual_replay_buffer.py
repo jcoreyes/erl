@@ -26,10 +26,8 @@ class RemapKeyFn(SampleContextFromObsDictFn):
         self._context_to_input_key = context_to_input_key
 
     def __call__(self, obs: dict) -> Any:
-        return {
-            k: obs[v]
-            for k, v in self._context_to_input_key.items()
-        }
+        new_obs = {k: obs[v] for k, v in self._context_to_input_key.items()}
+        return new_obs
 
 
 class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
@@ -144,6 +142,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             next_obs_dict,
             new_contexts,
         )
+        
         if len(new_rewards.shape) == 1:
             new_rewards = new_rewards.reshape(-1, 1)
         batch = {

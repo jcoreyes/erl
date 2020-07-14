@@ -93,6 +93,7 @@ def train_vae(variant, return_data=False):
     representation_size = variant.get("representation_size",
         variant.get("latent_sizes", variant.get("embedding_dim", None)))
     use_linear_dynamics = variant.get('use_linear_dynamics', False)
+    variant['algo_kwargs']['num_epochs'] = variant['num_epochs']
     generate_vae_dataset_fctn = variant.get('generate_vae_data_fctn',
                                             generate_vae_dataset)
     variant['generate_vae_dataset_kwargs']['use_linear_dynamics'] = use_linear_dynamics
@@ -133,12 +134,16 @@ def train_vae(variant, return_data=False):
         model = AutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
     elif variant.get('use_spatial_auto_encoder', False):
         model = SpatialAutoEncoder(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+    elif variant.get('only_kwargs', False):
+        vae_class = variant.get('vae_class', ConvVAE)
+        model = vae_class(**variant['vae_kwargs'])
     else:
         vae_class = variant.get('vae_class', ConvVAE)
         if use_linear_dynamics:
             model = vae_class(representation_size, decoder_output_activation=decoder_activation, action_dim=action_dim,**variant['vae_kwargs'])
         else:
             model = vae_class(representation_size, decoder_output_activation=decoder_activation,**variant['vae_kwargs'])
+
     model.to(ptu.device)
 
     vae_trainer_class = variant.get('vae_trainer_class', ConvVAETrainer)
@@ -176,8 +181,37 @@ def train_vae(variant, return_data=False):
 
     return model
 
+def concatenate_datasets(data_list):
+        prefix = '/home/ashvin/data/pusher_pucks/'
+        obs, envs, actions, dataset = [], [], [], {}
+        for path in data_list:
+            curr_data = load_local_or_remote_file(prefix + path)
+            curr_data = curr_data.item()
+            n_random_steps = curr_data['observations'].shape[1]
+            imlength = curr_data['observations'].shape[2]
+            action_dim = curr_data['actions'].shape[2]
+            curr_data['env'] = np.repeat(curr_data['env'], n_random_steps, axis=0)
+            curr_data['observations'] = curr_data['observations'].reshape(-1, 1, imlength)
+            curr_data['actions'] = curr_data['actions'].reshape(-1, 1, action_dim)
+            obs.append(curr_data['observations'])
+            envs.append(curr_data['env'])
+            actions.append(curr_data['actions'])
+        dataset['observations'] = np.concatenate(obs, axis=0)
+        dataset['env'] = np.concatenate(envs, axis=0)
+        dataset['actions'] = np.concatenate(actions, axis=0)
+        return dataset
+
+def format_flat_dataset(dataset):
+    num_samples = dataset['observations'].shape[0]
+    imlength = dataset['observations'].shape[1]
+    traj_len = num_samples // dataset['env'].shape[0]
+    dataset['observations'] = dataset['observations'].reshape(num_samples, 1, imlength)
+    dataset['env'] = np.repeat(dataset['env'], traj_len, axis=0)
+    return dataset
+
 def generate_vae_dataset(variant):
     print(variant)
+    from tqdm import tqdm
     env_class = variant.get('env_class', None)
     env_kwargs = variant.get('env_kwargs',None)
     env_id = variant.get('env_id', None)
@@ -190,6 +224,7 @@ def generate_vae_dataset(variant):
     show = variant.get('show', False)
     init_camera = variant.get('init_camera', None)
     dataset_path = variant.get('dataset_path', None)
+    augment_data = variant.get('augment_data', False)
     oracle_dataset_using_set_to_goal = variant.get('oracle_dataset_using_set_to_goal', False)
     random_rollout_data = variant.get('random_rollout_data', False)
     random_rollout_data_set_to_goal = variant.get('random_rollout_data_set_to_goal', True)
@@ -217,15 +252,31 @@ def generate_vae_dataset(variant):
     from railrl.data_management.dataset  import (
         TrajectoryDataset, ImageObservationDataset, InitialObservationDataset,
         EnvironmentDataset, ConditionalDynamicsDataset, InitialObservationNumpyDataset,
-        InfiniteBatchLoader,
+        InfiniteBatchLoader, InitialObservationNumpyJitteringDataset
     )
-
     info = {}
+    use_test_dataset = False
     if dataset_path is not None:
-        dataset = load_local_or_remote_file(dataset_path)
-        dataset = dataset.item()
-        N = dataset['observations'].shape[0] * dataset['observations'].shape[1]
-        n_random_steps = dataset['observations'].shape[1]
+        if type(dataset_path) == str:
+            dataset = load_local_or_remote_file(dataset_path)
+            dataset = dataset.item()
+            N = dataset['observations'].shape[0] * dataset['observations'].shape[1]
+            n_random_steps = dataset['observations'].shape[1]
+        if isinstance(dataset_path, list):
+            dataset = concatenate_datasets(dataset_path)
+            N = dataset['observations'].shape[0] * dataset['observations'].shape[1]
+            n_random_steps = dataset['observations'].shape[1]
+        if isinstance(dataset_path, dict):
+            dataset = load_local_or_remote_file(dataset_path['train'])
+            dataset = dataset.item()
+            test_dataset = load_local_or_remote_file(dataset_path['test'])
+            test_dataset = test_dataset.item()
+            dataset = format_flat_dataset(dataset)
+            test_dataset = format_flat_dataset(test_dataset)
+
+            N = dataset['observations'].shape[0] * dataset['observations'].shape[1]
+            n_random_steps = dataset['observations'].shape[1]
+            use_test_dataset = True
     else:
         if env_kwargs is None:
             env_kwargs = {}
@@ -248,7 +299,6 @@ def generate_vae_dataset(variant):
             print("loaded data from saved file", filename)
         else:
             now = time.time()
-
             if env_id is not None:
                 import gym
                 import multiworld
@@ -292,7 +342,7 @@ def generate_vae_dataset(variant):
             else:
                 dataset = np.zeros((N, imsize * imsize * num_channels), dtype=np.uint8)
             labels = []
-            for i in range(N):
+            for i in tqdm(range(N)):
                 if random_and_oracle_policy_data:
                     num_random_steps = int(N*random_and_oracle_policy_data_split)
                     if i < num_random_steps:
@@ -420,22 +470,39 @@ def generate_vae_dataset(variant):
         np.random.shuffle(indices)
         train_i, test_i = indices[:n], indices[n:]
 
+        if augment_data:
+            dataset_class = InitialObservationNumpyJitteringDataset
+        else:
+            dataset_class = InitialObservationNumpyDataset
+
         if 'env' in dataset:
-            train_dataset = InitialObservationNumpyDataset({
+            train_dataset = dataset_class({
                 'observations': dataset['observations'][train_i, :, :],
                 'env': dataset['env'][train_i, :]
             })
-            test_dataset = InitialObservationNumpyDataset({
-                'observations': dataset['observations'][test_i, :, :],
-                'env': dataset['env'][test_i, :]
-            })
+            if use_test_dataset:
+                test_dataset = dataset_class({
+                    'observations': test_dataset['observations'],
+                    'env': test_dataset['env']
+                })
+            else:
+                test_dataset = dataset_class({
+                    'observations': dataset['observations'][test_i, :, :],
+                    'env': dataset['env'][test_i, :]
+                })
         else:
-            train_dataset = InitialObservationNumpyDataset({
+            train_dataset = dataset_class({
                 'observations': dataset['observations'][train_i, :, :],
             })
-            test_dataset = InitialObservationNumpyDataset({
-                'observations': dataset['observations'][test_i, :, :],
-            })
+
+            if use_test_dataset:
+                test_dataset = dataset_class({
+                    'observations': test_dataset['observations'],
+                })
+            else:
+                test_dataset = dataset_class({
+                    'observations': dataset['observations'][test_i, :, :],
+                })
 
         train_batch_loader_kwargs = variant.get(
             'train_batch_loader_kwargs',

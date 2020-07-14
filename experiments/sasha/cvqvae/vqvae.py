@@ -11,8 +11,8 @@ from railrl.torch.grill.cvae_experiments import (
 from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
-from railrl.torch.vae.vq_vae import CVQVAE
-from railrl.torch.vae.vq_vae_trainer import CVQVAETrainer
+from railrl.torch.vae.vq_vae import VQ_VAE
+from railrl.torch.vae.vq_vae_trainer import VQ_VAETrainer
 from railrl.data_management.online_conditional_vae_replay_buffer import \
         OnlineConditionalVaeRelabelingBuffer
 
@@ -129,7 +129,11 @@ if __name__ == "__main__":
                     ),
         train_vae_variant=dict(
             beta=1,
-            num_epochs=500,
+            beta_schedule_kwargs=dict(
+                x_values=(0, 250),
+                y_values=(1, 100),
+            ),
+            num_epochs=501,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
@@ -137,9 +141,14 @@ if __name__ == "__main__":
                 N=1000,
                 n_random_steps=2,
                 test_p=.9,
-                #dataset_path='/home/ashvin/Desktop/two_obj_pusher.npy',
-                #dataset_path='/home/ashvin/Desktop/sim_puck_data.npy',
-                dataset_path='/home/ashvin/data/sasha/demos/33_objects.npy',
+                # dataset_path=['lego_green.npy', 'puck_gold.npy', 'puck_white.npy', 'bear.npy', 'puck_black.npy', 'star.npy',
+                # 'cat.npy', 'lego_yellow.npy', 'puck_purple1.npy', 'dog.npy', 'puck_purple.npy', 'towel_purple.npy', 'puck_blue1.npy',
+                # 'puck_red1.npy', 'towel_red.npy', 'lego_blue.npy', 'puck_blue.npy','puck_red.npy',
+                # 'puck_green.npy', 'jeans.npy', 'lego_red.npy', 'towel_brown.npy'],
+                #dataset_path='/home/ashvin/data/pusher_pucks/all_data_flat.npy',
+                #dataset_path='/home/ashvin/data/sasha/demos/zoomed_in_noisy_demos_84.npy',
+                dataset_path={'train': '/home/ashvin/data/sasha/spacemouse/recon_data/train.npy',
+                            'test': '/home/ashvin/data/sasha/spacemouse/recon_data/test.npy'},
                 augment_data=False,
                 use_cached=False,
                 show=False,
@@ -153,16 +162,21 @@ if __name__ == "__main__":
                 enviorment_dataset=False,
                 tag="ccrig_tuning_orig_network",
             ),
-            vae_trainer_class=CVQVAETrainer,
-            vae_class=CVQVAE,
+            vae_trainer_class=VQ_VAETrainer,
+            vae_class=VQ_VAE,
             vae_kwargs=dict(
                 input_channels=3,
                 imsize=84,
-                decay=0.99,
-                num_embeddings=1024,
+                decay=0.0,
+                num_embeddings=256,
+                num_hiddens=256,
+                root_len=15,
+                num_residual_layers=4,
+                num_residual_hiddens=128,
             ),
 
             algo_kwargs=dict(
+                key_to_reconstruct='x_t',
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
                 batch_size=128,
@@ -208,4 +222,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=22)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=12)

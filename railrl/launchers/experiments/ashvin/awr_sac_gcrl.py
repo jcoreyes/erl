@@ -183,6 +183,7 @@ def experiment(variant):
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = variant.get('achieved_goal_key', 'latent_achieved_goal')
+    
     obs_dim = (
             env.observation_space.spaces[observation_key].low.size
             + env.observation_space.spaces[desired_goal_key].low.size
@@ -452,9 +453,9 @@ def awac_rig_experiment(
         reward_kwargs=None,
         observation_key='latent_observation',
         desired_goal_key='latent_desired_goal',
+        state_observation_key='state_observation',
         state_goal_key='state_desired_goal',
         image_goal_key='image_desired_goal',
-        keys_to_save=[],
 
         path_loader_class=MDPPathLoader,
         demo_replay_buffer_kwargs=None,
@@ -480,7 +481,7 @@ def awac_rig_experiment(
         save_video=True,
         save_video_kwargs=None,
         renderer_kwargs=None,
-        imsize=48,
+        imsize=84,
         pretrained_vae_path="",
         presampled_goals_path="",
         init_camera=None,
@@ -596,7 +597,17 @@ def awac_rig_experiment(
             + expl_env.observation_space.spaces[context_key].low.size
     )
     action_dim = expl_env.action_space.low.size
-    obs_keys = keys_to_save + [observation_key]
+    
+    state_rewards = reward_kwargs.get('reward_type', 'dense') == 'wrapped_env'
+    if state_rewards:
+        mapper = RemapKeyFn({context_key: observation_key, state_goal_key: state_observation_key})
+        obs_keys = [state_observation_key, observation_key]
+        cont_keys = [state_goal_key, context_key]
+    else:
+        mapper = RemapKeyFn({context_key: observation_key})
+        obs_keys = [observation_key]
+        cont_keys = [context_key]
+    
     #Replay Buffer
     def concat_context_to_obs(batch):
         obs = batch['observations']
@@ -607,11 +618,11 @@ def awac_rig_experiment(
         return batch
     replay_buffer = ContextualRelabelingReplayBuffer(
         env=eval_env,
-        context_keys=[context_key],
+        context_keys=cont_keys,
         observation_keys=obs_keys,
         observation_key=observation_key,
         context_distribution=expl_context_distrib,
-        sample_context_from_obs_dict_fn=RemapKeyFn({context_key: observation_key}),
+        sample_context_from_obs_dict_fn=mapper,
         reward_fn=eval_reward,
         post_process_batch_fn=concat_context_to_obs,
         **replay_buffer_kwargs
@@ -619,22 +630,22 @@ def awac_rig_experiment(
     replay_buffer_kwargs.update(demo_replay_buffer_kwargs)
     demo_train_buffer = ContextualRelabelingReplayBuffer(
         env=eval_env,
-        context_keys=[context_key],
+        context_keys=cont_keys,
         observation_keys=obs_keys,
         observation_key=observation_key,
         context_distribution=expl_context_distrib,
-        sample_context_from_obs_dict_fn=RemapKeyFn({context_key: observation_key}),
+        sample_context_from_obs_dict_fn=mapper,
         reward_fn=eval_reward,
         post_process_batch_fn=concat_context_to_obs,
         **replay_buffer_kwargs
     )
     demo_test_buffer = ContextualRelabelingReplayBuffer(
         env=eval_env,
-        context_keys=[context_key],
+        context_keys=cont_keys,
         observation_keys=obs_keys,
         observation_key=observation_key,
         context_distribution=expl_context_distrib,
-        sample_context_from_obs_dict_fn=RemapKeyFn({context_key: observation_key}),
+        sample_context_from_obs_dict_fn=mapper,
         reward_fn=eval_reward,
         post_process_batch_fn=concat_context_to_obs,
         **replay_buffer_kwargs
@@ -702,17 +713,23 @@ def awac_rig_experiment(
 
     #Video Saving
     if save_video:
+        # video_func = VideoSaveFunction(
+        #     eval_env,
+        #     variant,
+        #     expl_path_collector,
+        #     eval_path_collector,
+        # )
+
         expl_video_func = RIGVideoSaveFunction(
             model,
             expl_path_collector,
             "train",
             decode_goal_image_key="image_decoded_goal",
             reconstruction_key="image_reconstruction",
-            rows=2,
-            columns=5,
+            rows=2, #2
+            columns=5, #5
             unnormalize=True,
-            # max_path_length=200,
-            imsize=48,
+            imsize=imsize,
             image_format=renderer.output_image_format,
             **save_video_kwargs
         )
@@ -726,11 +743,10 @@ def awac_rig_experiment(
             decode_goal_image_key="image_decoded_goal",
             reconstruction_key="image_reconstruction",
             num_imgs=4,
-            rows=2,
-            columns=5,
+            rows=2, #2
+            columns=5, #5
             unnormalize=True,
-            # max_path_length=200,
-            imsize=48,
+            imsize=imsize,
             image_format=renderer.output_image_format,
             **save_video_kwargs
         )

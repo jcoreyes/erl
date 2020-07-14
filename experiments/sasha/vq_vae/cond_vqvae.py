@@ -27,7 +27,7 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         online_vae_exploration=False,
-        imsize=84,
+        imsize=48,
         init_camera=sawyer_init_camera_zoomed_in,
         env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
@@ -50,7 +50,7 @@ if __name__ == "__main__":
             object_high=(x_high - 0.01, y_high - 0.01, 0.02),
             #use_textures=True,
             init_camera=sawyer_init_camera_zoomed_in,
-            cylinder_radius=0.05,
+            cylinder_radius=0.075,
         ),
 
         grill_variant=dict(
@@ -128,19 +128,16 @@ if __name__ == "__main__":
             #vae_path="/home/ashvin/data/sasha/vq-vae/sim-vq-vae/run23/id0/itr_100.pkl"
                     ),
         train_vae_variant=dict(
-            beta=1,
+            beta=10,
             num_epochs=500,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=1000,
-                n_random_steps=2,
+                N=100000,
+                n_random_steps=50,
                 test_p=.9,
-                #dataset_path='/home/ashvin/Desktop/two_obj_pusher.npy',
-                #dataset_path='/home/ashvin/Desktop/sim_puck_data.npy',
-                dataset_path='/home/ashvin/data/sasha/demos/33_objects.npy',
-                augment_data=False,
+                dataset_path="/home/ashvin/Desktop/sim_puck_data.npy",
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -157,15 +154,12 @@ if __name__ == "__main__":
             vae_class=CVQVAE,
             vae_kwargs=dict(
                 input_channels=3,
-                imsize=84,
-                decay=0.99,
-                num_embeddings=1024,
             ),
 
             algo_kwargs=dict(
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
-                batch_size=128,
+                batch_size=256,
                 lr=1e-3, #1E-4
                 skew_config=dict(
                     method='vae_prob',
@@ -181,7 +175,7 @@ if __name__ == "__main__":
                 use_parallel_dataloading=False,
             ),
 
-            save_period=10,
+            save_period=25,
         ),
         region='us-west-1',
 
@@ -208,4 +202,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=22)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=4)

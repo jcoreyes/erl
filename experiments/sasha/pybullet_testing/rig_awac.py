@@ -4,12 +4,12 @@ from railrl.launchers.experiments.ashvin.awr_sac_gcrl import awac_rig_experiment
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
-from roboverse.envs.sawyer_rig_gr_v0 import SawyerRigGRV0Env
+from roboverse.envs.sawyer_rig_multiobj_v0 import SawyerRigMultiobjV0
 
 
 if __name__ == "__main__":
     variant = dict(
-        env_class=SawyerRigGRV0Env,
+        env_class=SawyerRigMultiobjV0,
         policy_class=GaussianPolicy,
         policy_kwargs=dict(
             hidden_sizes=[256, 256, 256, 256],
@@ -51,14 +51,14 @@ if __name__ == "__main__":
             terminal_transform_kwargs=None,
         ),
 
-        max_path_length=75,
+        max_path_length=1,
         algo_kwargs=dict(
-            batch_size=1024,
+            batch_size=5,
             num_epochs=501,
-            num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000,
-            min_num_steps_before_training=4000,
+            num_eval_steps_per_epoch=10,
+            num_expl_steps_per_train_loop=10,
+            num_trains_per_train_loop=10,
+            min_num_steps_before_training=10,
         ),
         replay_buffer_kwargs=dict(
             fraction_future_context=0.2,
@@ -70,13 +70,12 @@ if __name__ == "__main__":
             fraction_distribution_context=0.0,
         ),
         reward_kwargs=dict(
-            #reward_type='wrapped_env',
-            reward_type='sparse',
+            reward_type='wrapped_env',
+            #reward_type='sparse',
             obs_type='latent',
-            epsilon=3.0,
+            epsilon=2.0,
         ),
 
-        keys_to_save=['state_desired_goal','state_observation'],
         observation_key='latent_observation',
         desired_goal_key='latent_desired_goal',
         save_video=True,
@@ -84,15 +83,18 @@ if __name__ == "__main__":
             save_video_period=25,
             pad_color=0,
         ),
-        pretrained_vae_path="/home/ashvin/data/sasha/pybullet-testing/vqvae/run10/id0/vae.pkl",
-        presampled_goals_path="/home/ashvin/data/sasha/demos/presampled_goals.pkl",
+        pretrained_vae_path="sasha/cvqvae/vqvae/run11/id0/itr_400.pkl",
+        #pretrained_vae_path="/home/ashvin/data/sasha/cvqvae/vqvae/run11/id0/itr_400.pkl",
+        presampled_goals_path="sasha/cvqvae/vqvae/run11/id0/multiobj_goals.pkl",
+        #presampled_goals_path="/home/ashvin/data/sasha/demos/multiobj_goals.pkl",
 
         path_loader_class=EncoderDictToMDPPathLoader,
         path_loader_kwargs=dict(
             recompute_reward=True,
             demo_paths=[
                 dict(
-                    path="/home/ashvin/data/sasha/demos/goal_reaching_demos_fixed_goal.pkl",
+                    path='sasha/cvqvae/vqvae/run11/id0/train.pkl',
+                    #path='/home/ashvin/data/sasha/spacemouse/demo_data/train.pkl',
                     obs_dict=True,
                     is_demo=True,
                     data_split=0.1,
@@ -104,6 +106,8 @@ if __name__ == "__main__":
             create_image_format='HWC',
             output_image_format='CWH',
             flatten_image=True,
+            width=84,
+            height=84,
         ),
 
 
@@ -165,7 +169,7 @@ if __name__ == "__main__":
 
     search_space = {
         "seed": range(1),
-        'trainer_kwargs.beta': [0.8],
+        'trainer_kwargs.beta': [0.5],
         'policy_kwargs.min_log_std': [-6],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -176,4 +180,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(awac_rig_experiment, variants, run_id=0)
+    run_variants(awac_rig_experiment, variants, run_id=3)

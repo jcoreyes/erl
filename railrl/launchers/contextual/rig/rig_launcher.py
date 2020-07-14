@@ -68,8 +68,8 @@ class RewardFn:
         return obs
 
     def __call__(self, states, actions, next_states, contexts):
-        s = self.process(next_states[self.observation_key])
-        c = self.process(contexts[self.desired_goal_key])
+        s = next_states[self.observation_key]
+        c = contexts[self.desired_goal_key]
         
         if self.reward_type == 'dense':
             reward = -np.linalg.norm(s - c, axis=1)

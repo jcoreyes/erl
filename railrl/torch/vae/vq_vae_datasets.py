@@ -1,6 +1,7 @@
 import sys
 sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 import cv2
+import pickle
 import numpy as np
 from torch.utils.data import Dataset
 
@@ -41,28 +42,27 @@ class LatentBlockDataset(Dataset):
 
     def __init__(self, file_path, train=True, transform=None, test_p=0.9):
         print('Loading latent block data')
-        self.all_data = np.load(file_path, allow_pickle=True)
+        #self.all_data = np.load(file_path, allow_pickle=True)
         data = np.load(file_path, allow_pickle=True)
         #data = data.reshape(-1, latent_len, latent_len)
         print('Done loading latent block data')
-        
         n = int(data.shape[0] * test_p)
         self.data = data[:n] if train else data[n:]
         self.transform = transform
 
-    def get_closest_stats(self, latents):
-        from scipy import spatial
-        tree = spatial.KDTree(self.all_data)
-        all_dists = []
+    # def get_closest_stats(self, latents):
+    #     from scipy import spatial
+    #     tree = spatial.KDTree(self.all_data)
+    #     all_dists = []
 
-        for i in range(latents.shape[0]):
-            dist, index = tree.query(latents[i])
-            all_dists.append(dist)
-        all_dists = np.array(all_dists)
-        print("Mean:", all_dists.mean())
-        print("Std:", all_dists.std())
-        print("Min:", all_dists.min())
-        print("Max:", all_dists.mean())
+    #     for i in range(latents.shape[0]):
+    #         dist, index = tree.query(latents[i])
+    #         all_dists.append(dist)
+    #     all_dists = np.array(all_dists)
+    #     print("Mean:", all_dists.mean())
+    #     print("Std:", all_dists.std())
+    #     print("Min:", all_dists.min())
+    #     print("Max:", all_dists.mean())
 
 
 
@@ -74,3 +74,46 @@ class LatentBlockDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
+
+
+
+
+class ConditionalLatentBlockDataset(Dataset):
+    """
+    Loads latent block dataset 
+    """
+
+    def __init__(self, file_path, train=True, transform=None, test_p=0.9):
+        print('Loading latent block data')
+        data = np.load(file_path, allow_pickle=True)
+        data = data.item()
+
+        if train:
+            self.data = data['train']
+        else:
+            self.data = data['test']
+        
+        self.size = self.data.shape[0]
+        self.traj_length = self.data.shape[1]
+        print('Done loading latent block data')
+        self.transform = transform
+
+
+
+    def __getitem__(self, idx):
+
+        traj_i = idx // self.traj_length
+        trans_i = idx % self.traj_length
+        cond_i = np.random.randint(0, self.traj_length)
+
+        obs = self.data[traj_i, trans_i, :]
+        cond = self.data[traj_i, cond_i, :]
+
+
+        img = np.concatenate([obs, cond], axis=0)
+        if self.transform is not None:
+            img = self.transform(img)
+        return img
+    
+    def __len__(self):
+        return self.size * self.traj_length

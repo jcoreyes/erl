@@ -327,7 +327,7 @@ class ConditionalConvVAE(GaussianLatentVAE):
             raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
 
 
-class CVAE(GaussianLatentVAE):
+class CVAE0(GaussianLatentVAE):
     def __init__(
             self,
             latent_sizes,
@@ -487,6 +487,231 @@ class CVAE(GaussianLatentVAE):
             logvar = self.z_var(cond_latents)
         else:
             logvar = self.log_min_variance + torch.abs(self.z_var(cond_latents))
+
+        return (mu, logvar, conditioning)
+
+    def reparameterize(self, latent_distribution_params):
+        if self.training:
+            mu = self.rsample((latent_distribution_params[0], latent_distribution_params[1]))
+        else:
+            mu = latent_distribution_params[0]
+        return torch.cat([mu, latent_distribution_params[2]], dim=1)
+
+    def update_prior(self, mu, logvar):
+        self.prior_mu = mu
+        self.prior_logvar = logvar
+
+    def sample_prior(self, batch_size, x_0, true_prior=True):
+        if x_0.shape[0] == 1:
+            x_0 = x_0.repeat(batch_size, 1)
+
+        z_sample = ptu.randn(batch_size, self.latent_sizes[0])
+
+        if not true_prior:
+            stds = np.exp(0.5 * self.prior_logvar)
+            z_sample = z_sample * stds + self.prior_mu
+
+        conditioning = self.bn_c(self.c(self.dropout(self.cond_encoder(x_0))))
+        cond_sample = torch.cat([z_sample, conditioning], dim=1)
+        return cond_sample
+
+
+    def kl_divergence(self, latent_distribution_params):
+        mu, logvar = latent_distribution_params[0], latent_distribution_params[1]
+        return - 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
+
+    def get_encoding_from_latent_distribution_params(self, latent_distribution_params):
+        return torch.cat([latent_distribution_params[0],latent_distribution_params[2]], dim=1).cpu()
+
+
+    def decode(self, latents):
+        decoded = self.decoder(latents).view(-1, self.imlength)
+        if self.decoder_distribution == 'bernoulli':
+            return decoded, [decoded]
+        elif self.decoder_distribution == 'gaussian_identity_variance':
+            return torch.clamp(decoded, 0, 1), [torch.clamp(decoded, 0, 1), torch.ones_like(decoded)]
+        else:
+            raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
+
+    def logprob(self, inputs, obs_distribution_params, mean=True):
+        if self.decoder_distribution == 'bernoulli':
+            inputs = inputs.narrow(start=0, length=self.imlength,
+                dim=1).contiguous().view(-1, self.imlength)
+            if mean:
+                log_prob = compute_bernoulli_log_prob(inputs, obs_distribution_params[0]) * self.imlength
+            else:
+                log_prob = -1 * F.binary_cross_entropy(inputs, obs_distribution_params[0]) * self.imlength
+                return 1/0 #NOT SURE ABOVE IS ROW WISE MEAN, MAKE SURE THIS IS CORRECT AND DOES SAME AS BELOW CASE
+            return log_prob
+        if self.decoder_distribution == 'gaussian_identity_variance':
+            inputs = inputs.narrow(start=0, length=self.imlength, dim=1).contiguous().view(-1, self.imlength)
+            if mean:
+                log_prob = -1*F.mse_loss(inputs, obs_distribution_params[0], reduction='elementwise_mean')
+            else:
+                log_prob = -1*F.mse_loss(inputs, obs_distribution_params[0], reduction='none').mean(dim=1, keepdim=True)
+            return log_prob
+        else:
+            raise NotImplementedError('Distribution {} not supported'.format(self.decoder_distribution))
+
+class CVAE(GaussianLatentVAE):
+    def __init__(
+            self,
+            latent_sizes,
+            architecture,
+            encoder_class=CNN,
+            decoder_class=DCNN,
+            decoder_output_activation=identity,
+            decoder_distribution='bernoulli',
+            num_labels = 0,
+            input_channels=1,
+            imsize=48,
+            init_w=1e-3,
+            min_variance=1e-3,
+            add_labels_to_latents=False,
+            hidden_init=nn.init.xavier_uniform_,
+            reconstruction_channels=3,
+            base_depth=32,
+            weight_init_gain=1.0,
+    ):
+        """
+        :param representation_size:
+        :param conv_args:
+        must be a dictionary specifying the following:
+            kernel_sizes
+            n_channels
+            strides
+        :param conv_kwargs:
+        a dictionary specifying the following:
+            hidden_sizes
+            batch_norm
+        :param deconv_args:
+        must be a dictionary specifying the following:
+            hidden_sizes
+            deconv_input_width
+            deconv_input_height
+            deconv_input_channels
+            deconv_output_kernel_size
+            deconv_output_strides
+            deconv_output_channels
+            kernel_sizes
+            n_channels
+            strides
+        :param deconv_kwargs:
+            batch_norm
+        :param encoder_class:
+        :param decoder_class:
+        :param decoder_output_activation:
+        :param decoder_distribution:
+        :param input_channels:
+        :param imsize:
+        :param init_w:
+        :param min_variance:
+        :param hidden_init:
+        """
+        representation_size = latent_sizes[0] + latent_sizes[1]
+        super().__init__(representation_size)
+        self.latent_sizes = latent_sizes
+        if min_variance is None:
+            self.log_min_variance = None
+        else:
+            self.log_min_variance = float(np.log(min_variance))
+        self.gain = weight_init_gain
+        self.relu = torch.nn.ELU()
+        self.dropout = torch.nn.Dropout(0.5)
+        self.input_channels = input_channels
+        self.imsize = imsize
+        self.imlength = self.imsize*self.imsize*self.input_channels
+        self.hidden_init = hidden_init
+        self.init_w = init_w
+        self.architecture = architecture
+        self.reconstruction_channels = reconstruction_channels
+        self.decoder_output_activation = decoder_output_activation
+
+        conv_args, conv_kwargs, deconv_args, deconv_kwargs = \
+            architecture['conv_args'], architecture['conv_kwargs'], \
+            architecture['deconv_args'], architecture['deconv_kwargs']
+        conv_output_size=deconv_args['deconv_input_width']*\
+                         deconv_args['deconv_input_height']*\
+                         deconv_args['deconv_input_channels']
+
+        self.cond_encoder=encoder_class(
+            **conv_args,
+            paddings=np.zeros(len(conv_args['kernel_sizes']), dtype=np.int64),
+            input_height=self.imsize,
+            input_width=self.imsize,
+            input_channels=self.input_channels,
+            output_size=conv_output_size,
+            init_w=init_w,
+            hidden_init=hidden_init,
+            **conv_kwargs)
+
+        self.encoder=encoder_class(
+            **conv_args,
+            paddings=np.zeros(len(conv_args['kernel_sizes']), dtype=np.int64),
+            input_height=self.imsize,
+            input_width=self.imsize,
+            input_channels=self.input_channels*2,
+            output_size=conv_output_size,
+            init_w=init_w,
+            hidden_init=hidden_init,
+            **conv_kwargs)
+
+        self.decoder = decoder_class(
+            **deconv_args,
+            fc_input_size=self.representation_size,
+            init_w=init_w,
+            output_activation=decoder_output_activation,
+            paddings=np.zeros(len(deconv_args['kernel_sizes']), dtype=np.int64),
+            hidden_init=hidden_init,
+            **deconv_kwargs)
+
+        self.c = nn.Linear(self.encoder.output_size, latent_sizes[1])        
+        self.z_mu = nn.Linear(self.encoder.output_size, latent_sizes[0])
+        self.z_var = nn.Linear(self.encoder.output_size, latent_sizes[0])
+        self.bn_c = nn.BatchNorm1d(latent_sizes[1])
+
+        nn.init.xavier_uniform_(self.c.weight, gain=self.gain)
+        nn.init.xavier_uniform_(self.z_mu.weight, gain=self.gain)
+        nn.init.xavier_uniform_(self.z_var.weight, gain=self.gain)
+
+        self.c.bias.data.uniform_(-init_w, init_w)
+        self.z_mu.bias.data.uniform_(-init_w, init_w)
+        self.z_var.bias.data.uniform_(-init_w, init_w)
+        self.prior_mu, self.prior_logvar = None, None
+
+        self.epoch = 0
+        self.decoder_distribution=decoder_distribution
+
+    def forward(self, x_t, x_0):
+        """
+        :param input:
+        :return: reconstructed input, obs_distribution_params, latent_distribution_params
+        """
+        latent_distribution_params = self.encode(x_t, x_0)
+        latents = self.reparameterize(latent_distribution_params)
+        obs_recononstruction, obs_distribution_params = self.decode(latents)
+        return obs_recononstruction, obs_distribution_params, latent_distribution_params
+
+    def encode(self, x_t, x_0, distrib=True):
+        batch_size = len(x_t)
+        if x_0.shape[0] == 1:
+            x_0 = x_0.repeat(batch_size, 1)
+        x_pos = x_t.reshape(-1, self.input_channels, self.imsize, self.imsize)
+        x_obj = x_0.reshape(-1, self.input_channels, self.imsize, self.imsize)
+        
+        comb_obs = torch.cat([x_pos, x_obj], dim=1).reshape(batch_size, -1)
+
+        z = self.dropout(self.encoder(comb_obs))
+        mu = self.z_mu(z)
+
+        conditioning = self.bn_c(self.c(self.dropout(self.cond_encoder(x_0))))
+
+        if not distrib: return torch.cat([mu, conditioning], dim=1)
+
+        if self.log_min_variance is None:
+            logvar = self.z_var(z)
+        else:
+            logvar = self.log_min_variance + torch.abs(self.z_var(z))
 
         return (mu, logvar, conditioning)
 

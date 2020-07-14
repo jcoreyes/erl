@@ -162,6 +162,7 @@ if __name__ == "__main__":
             ),
 
             algo_kwargs=dict(
+                key_to_reconstruct='x_t',
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
                 batch_size=256,
@@ -197,7 +198,7 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(1),
-        'train_vae_variant.representation_size': [2,],
+        'train_vae_variant.representation_size': [64,],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -207,8 +208,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-<<<<<<< HEAD
     run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=23)
-=======
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=23)
->>>>>>> parent of 595cfb8... Unstage experiments

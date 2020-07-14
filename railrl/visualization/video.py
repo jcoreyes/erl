@@ -320,6 +320,7 @@ def dump_paths(
     W = imwidth  # imsize
 
     rows = min(rows, int(len(paths) / columns))
+
     N = rows * columns
     for i in range(N):
         start = time.time()
@@ -355,7 +356,7 @@ def dump_paths(
             print(i, time.time() - start)
 
     outputdata = reshape_for_video(frames, N, rows, columns, num_channels)
-    skvideo.io.vwrite(filename, outputdata)
+    skvideo.io.vwrite(filename, frames)
     print("Saved video to ", filename)
 
     print("Pickle?", dump_pickle)

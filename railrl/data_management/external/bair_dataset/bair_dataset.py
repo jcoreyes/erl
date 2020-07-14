@@ -53,14 +53,16 @@ class BAIRDataset(data.Dataset):
             self.n_files = n_train_files
             for i in range(self.n_files):
                 suffix = 'train{:0>2d}.npz'.format(i)
-                filename = sync_down_folder(BAIR_DATASET_LOCATION) + "/" + suffix
+                filename = BAIR_DATASET_LOCATION + "/" + suffix
+                #filename = sync_down_folder(BAIR_DATASET_LOCATION) + "/" + suffix
                 data = np.load(filename)
                 images = data['images']
                 self.train_data[i] = images
         else:
             self.n_files = 1
             suffix = "test.npz"
-            filename = sync_down_folder(BAIR_DATASET_LOCATION) + "/" + suffix
+            filename = BAIR_DATASET_LOCATION + "/" + suffix
+            #filename = sync_down_folder(BAIR_DATASET_LOCATION) + "/" + suffix
             data = np.load(filename)
             images = data['images']
             self.test_data[0] = images

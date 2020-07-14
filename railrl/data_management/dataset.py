@@ -201,7 +201,6 @@ class InitialObservationNumpyDataset(data.Dataset):
     def __getitem__(self, idx):
         traj_i = idx // self.traj_length
         trans_i = idx % self.traj_length
-
         env = normalize_image(self.data['env'][traj_i, :])
         x_t = normalize_image(self.data['observations'][traj_i, trans_i, :])
 
@@ -220,8 +219,8 @@ class InitialObservationNumpyJitteringDataset(data.Dataset):
         self.data = data
         self.info = info
 
-        self.jitter = ColorJitter((0.5,1.5), (0.9,1.1), (0.9,1.1), (-0.1,0.1))
-        self.crop = RandomResizedCrop((48, 48), (0.9, 0.9), (1, 1))
+        self.jitter = ColorJitter((0.75,1.25), (0.9,1.1), (0.9,1.1), (-0.1,0.1))
+        #self.crop = RandomResizedCrop((48, 48), (0.9, 0.9), (1, 1))
         # RandomResizedCrop((int(sqrt(self.imlength)), int(sqrt(self.imlength))), (0.9, 0.9), (1, 1))
 
         if 'env' not in self.data:
@@ -239,13 +238,13 @@ class InitialObservationNumpyJitteringDataset(data.Dataset):
 
         # upsampling gives bad images so random resizing params set to 1 for now
         # crop = self.crop.get_params(c, (0.9, 0.9), (1, 1))
-        crop = self.crop.get_params(c, (1, 1), (1, 1))
+        #crop = self.crop.get_params(c, (1, 1), (1, 1))
 
-        # jitter = self.jitter.get_params((0.5,1.5), (0.9,1.1), (0.9,1.1), (-0.1,0.1))
-        jitter = self.jitter.get_params(0.5, 0.1, 0.1, 0.1)
+        jitter = self.jitter.get_params((0.75,1.25), (0.9,1.1), (0.9,1.1), (-0.1,0.1))
+        #jitter = self.jitter.get_params(0.5, 0.1, 0.1, 0.1)
 
-        x = jitter(F.resized_crop(x, crop[0], crop[1], crop[2], crop[3], (48, 48), Image.BICUBIC))
-        c = jitter(F.resized_crop(c, crop[0], crop[1], crop[2], crop[3], (48, 48), Image.BICUBIC))
+        x, c = jitter(x), jitter(c)
+        #c = jitter(F.resized_crop(c, crop[0], crop[1], crop[2], crop[3], (48, 48), Image.BICUBIC))
         x_t = normalize_image(np.array(x).flatten()).squeeze()
         env = normalize_image(np.array(c).flatten()).squeeze()
 

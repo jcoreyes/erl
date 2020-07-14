@@ -30,7 +30,6 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
     def train_batch(self, epoch, batch):
         self.model.train()
         self.optimizer.zero_grad()
-
         loss = self.compute_loss(batch, epoch, False)
 
         self.optimizer.zero_grad()
@@ -45,23 +44,37 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
         self.model.eval()
         loss = self.compute_loss(batch, epoch, True)
 
+    # def encode_dataset(self, dataset):
+    #     encoding_list = []
+    #     save_dir = osp.join(self.log_dir, 'dataset_latents.npy')
+    #     for i in range(len(dataset)):
+    #         obs = dataset.random_batch(self.batch_size)["x_t"]
+    #         encodings = self.model.encode(obs, cont=False)
+    #         encoding_list.append(encodings)
+    #     encodings = ptu.get_numpy(torch.cat(encoding_list))
+    #     np.save(save_dir, encodings)
+
     def encode_dataset(self, dataset):
         encoding_list = []
         save_dir = osp.join(self.log_dir, 'dataset_latents.npy')
         for i in range(len(dataset)):
-            obs = dataset.random_batch(self.batch_size)["x_t"]
-            encodings = self.model.encode(obs, cont=False)
+            batch = dataset.random_batch(self.batch_size)
+            obs, cond = batch["x_t"], batch["env"]
+            z_delta = self.model.encode(obs, cont=False)
+            z_cond = self.model.encode(cond, cont=False)
+            encodings = torch.cat([z_delta, z_cond], dim=1)
             encoding_list.append(encodings)
         encodings = ptu.get_numpy(torch.cat(encoding_list))
         np.save(save_dir, encodings)
 
     def train_epoch(self, epoch, dataset, batches=100):
-        if epoch % 50 == 0 and epoch > 0:
-           self.encode_dataset(dataset)
-
+        # if epoch % 100 == 0 and epoch > 0:
+        #    self.encode_dataset(dataset)
         start_time = time.time()
         for b in range(batches):
-            self.train_batch(epoch, dataset.random_batch(self.batch_size))
+            batch = dataset.random_batch(self.batch_size)
+
+            self.train_batch(epoch, batch)
         self.eval_statistics["train/epoch_duration"].append(time.time() - start_time)
 
     def test_epoch(self, epoch, dataset, batches=10):
@@ -69,6 +82,28 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
         for b in range(batches):
             self.test_batch(epoch, dataset.random_batch(self.batch_size))
         self.eval_statistics["test/epoch_duration"].append(time.time() - start_time)
+
+    # def compute_loss(self, batch, epoch=-1, test=False):
+    #     prefix = "test/" if test else "train/"
+    #     beta = float(self.beta_schedule.get_value(epoch))
+    #     vq_loss_1, quantized_1, data_recon_1, perplexity_1, recon_error_1 = self.model.compute_loss(batch['env'])
+    #     vq_loss_2, quantized_2, data_recon_2, perplexity_2, recon_error_2 = self.model.compute_loss(batch['x_t'])
+        
+    #     dist_1 = F.mse(quantized_1.detach() - quantized_2, reduction='sum')
+    #     dist_2 = F.mse(quantized_1 - quantized_2.detach(), reduction='sum')
+    #     dist = dist_1 + dist_2
+    #     loss = vq_loss_1 + vq_loss_2 + recon_error + dist
+
+    #     self.eval_statistics['epoch'] = epoch
+    #     self.eval_statistics[prefix + "losses"].append(loss.item())
+    #     self.eval_statistics[prefix + "Recon Error"].append(recon_error_2.item())
+    #     self.eval_statistics[prefix + "Recon Error"].append(recon_error_2.item())
+    #     self.eval_statistics[prefix + "VQ Loss"].append(vq_loss_2.item())
+    #     self.eval_statistics[prefix + "Env Distance"].append(dist.item())
+    #     self.eval_statistics[prefix + "Perplexity"].append(perplexity_2.item())
+    #     self.eval_data[prefix + "last_batch"] = (batch['x_t'], data_recon_2)
+
+    #     return loss
 
     def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
@@ -82,8 +117,7 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
         self.eval_statistics[prefix + "Recon Error"].append(recon_error.item())
         self.eval_statistics[prefix + "VQ Loss"].append(vq_loss.item())
         self.eval_statistics[prefix + "Perplexity"].append(perplexity.item())
-
-        self.eval_data[prefix + "last_batch"] = (obs, data_recon)
+        self.eval_data[prefix + "last_batch"] = (obs, data_recon.detach())
 
         return loss
 
@@ -111,12 +145,13 @@ class CVQVAETrainer(VQ_VAETrainer):
     def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
-        obs, cond = batch["x_t"], batch["env"]
-        vq_losses, perplexities, recons, errors = self.model.compute_loss(obs, cond)
-        loss = sum(vq_losses) + sum(errors)
-
+        vq_losses, perplexities, recons, errors = self.model.compute_loss(batch["x_t"], batch["env"])
+        loss = sum(errors) + sum(vq_losses)
+        #loss = sum(errors) + beta * kle
         self.eval_statistics['epoch'] = epoch
+        #self.eval_statistics['beta'] = beta
         self.eval_statistics[prefix + "losses"].append(loss.item())
+        #self.eval_statistics[prefix + "kle"].append(kle.item())
         self.eval_statistics[prefix + "Obs Recon Error"].append(errors[0].item())
         self.eval_statistics[prefix + "Cond Obs Recon Error"].append(errors[1].item())
         self.eval_statistics[prefix + "VQ Loss"].append(vq_losses[0].item())
@@ -127,7 +162,65 @@ class CVQVAETrainer(VQ_VAETrainer):
 
         return loss
 
+    def dump_mixed_latents(self, epoch):
+        n = 8
+        batch, reconstructions, env_reconstructions = self.eval_data["test/last_batch"]
+        x_t, env = batch["x_t"][:n], batch["env"][:n]
+        z_comb = self.model.encode(x_t, env)
+        z_pos = z_comb[:, :self.model.latent_sizes[0]]
+        z_obj = z_comb[:, self.model.latent_sizes[0]:]
+        grid = []
+        for i in range(n):
+            for j in range(n):
+                if i + j == 0:
+                    grid.append(ptu.zeros(1, self.input_channels, self.imsize, self.imsize))
+                elif i == 0:
+                    #grid.append(self.model.decode(torch.cat([z_pos[j], z_obj[i]], dim=1)))
+                    grid.append(x_t[j].reshape(1, self.input_channels, self.imsize, self.imsize))
+                elif j == 0:
+                    #grid.append(self.model.decode(torch.cat([z_pos[j], z_obj[i]], dim=1)))
+                    grid.append(env[i].reshape(1, self.input_channels, self.imsize, self.imsize))
+                else:
+                    z, z_c = z_pos[j].reshape(1, -1), z_obj[i].reshape(1, -1)
+                    grid.append(self.model.decode(torch.cat([z, z_c], dim=1)))
+        samples = torch.cat(grid)
+        save_dir = osp.join(self.log_dir, 'mixed_latents_%d.png' % epoch)
+        save_image(samples.data.cpu().transpose(2, 3), save_dir, nrow=n)
+    
+    def dump_samples(self, epoch):
+        return
+    # def dump_samples(self, epoch):
+    #     self.model.eval()
+    #     batch, reconstructions, env_reconstructions = self.eval_data["test/last_batch"]
+    #     #self.dump_distances(batch, epoch)
+    #     env = batch["env"]
+    #     n = min(env.size(0), 8)
+
+    #     all_imgs = [
+    #         env[:n].narrow(start=0, length=self.imlength, dim=1)
+    #             .contiguous().view(
+    #             -1,
+    #             self.input_channels,
+    #             self.imsize,
+    #             self.imsize
+    #         ).transpose(2, 3)]
+
+    #     for i in range(7):
+    #         latent = self.model.sample_prior(self.batch_size, env)
+    #         samples = self.model.decode(latent)
+    #         all_imgs.extend([
+    #             samples.view(
+    #                 self.batch_size,
+    #                 self.input_channels,
+    #                 self.imsize,
+    #                 self.imsize,
+    #             )[:n].transpose(2, 3)])
+    #     comparison = torch.cat(all_imgs)
+    #     save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
+    #     save_image(comparison.data.cpu(), save_dir, nrow=8)
+
     def dump_reconstructions(self, epoch):
+        self.dump_mixed_latents(epoch)
         batch, reconstructions, env_reconstructions = self.eval_data["test/last_batch"]
         obs = batch["x_t"]
         env = batch["env"]
@@ -163,5 +256,114 @@ class CVQVAETrainer(VQ_VAETrainer):
         save_dir = osp.join(self.log_dir, 'r%d.png' % epoch)
         save_image(comparison.data.cpu(), save_dir, nrow=n)
 
+
+
+class CVAETrainer(VQ_VAETrainer):
+
+    def compute_loss(self, batch, epoch=-1, test=False):
+        prefix = "test/" if test else "train/"
+        beta = float(self.beta_schedule.get_value(epoch))
+        recon, error, kle = self.model.compute_loss(batch["x_t"], batch["env"])
+        loss = error + beta * kle
+        self.eval_statistics['epoch'] = epoch
+        self.eval_statistics['beta'] = beta
+        self.eval_statistics[prefix + "losses"].append(loss.item())
+        self.eval_statistics[prefix + "kle"].append(kle.item())
+        self.eval_statistics[prefix + "Obs Recon Error"].append(error.item())
+        #self.eval_statistics[prefix + "Cond Obs Recon Error"].append(errors[1].item())
+        self.eval_data[prefix + "last_batch"] = (batch, recon)
+
+        return loss
+
+    def dump_mixed_latents(self, epoch):
+        n = 8
+        batch, reconstructions, env_reconstructions = self.eval_data["test/last_batch"]
+        x_t, env = batch["x_t"][:n], batch["env"][:n]
+        z_comb = self.model.encode(x_t, env)
+        z_pos = z_comb[:, :self.model.latent_sizes[0]]
+        z_obj = z_comb[:, self.model.latent_sizes[0]:]
+        grid = []
+        for i in range(n):
+            for j in range(n):
+                if i + j == 0:
+                    grid.append(ptu.zeros(1, self.input_channels, self.imsize, self.imsize))
+                elif i == 0:
+                    #grid.append(self.model.decode(torch.cat([z_pos[j], z_obj[i]], dim=1)))
+                    grid.append(x_t[j].reshape(1, self.input_channels, self.imsize, self.imsize))
+                elif j == 0:
+                    #grid.append(self.model.decode(torch.cat([z_pos[j], z_obj[i]], dim=1)))
+                    grid.append(env[i].reshape(1, self.input_channels, self.imsize, self.imsize))
+                else:
+                    z, z_c = z_pos[j].reshape(1, -1), z_obj[i].reshape(1, -1)
+                    grid.append(self.model.decode(torch.cat([z, z_c], dim=1)))
+        samples = torch.cat(grid)
+        save_dir = osp.join(self.log_dir, 'mixed_latents_%d.png' % epoch)
+        save_image(samples.data.cpu().transpose(2, 3), save_dir, nrow=n)
+    
+
     def dump_samples(self, epoch):
-        return
+        self.model.eval()
+        batch, reconstructions = self.eval_data["test/last_batch"]
+        #self.dump_distances(batch, epoch)
+        env = batch["env"]
+        n = min(env.size(0), 8)
+
+        all_imgs = [
+            env[:n].narrow(start=0, length=self.imlength, dim=1)
+                .contiguous().view(
+                -1,
+                self.input_channels,
+                self.imsize,
+                self.imsize
+            ).transpose(2, 3)]
+
+        for i in range(7):
+            latent = self.model.sample_prior(self.batch_size, env)
+            samples = self.model.decode(latent)
+            all_imgs.extend([
+                samples.view(
+                    self.batch_size,
+                    self.input_channels,
+                    self.imsize,
+                    self.imsize,
+                )[:n].transpose(2, 3)])
+        comparison = torch.cat(all_imgs)
+        save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
+        save_image(comparison.data.cpu(), save_dir, nrow=8)
+
+    def dump_reconstructions(self, epoch):
+        #self.dump_mixed_latents(epoch)
+        batch, reconstructions = self.eval_data["test/last_batch"]
+        obs = batch["x_t"]
+        env = batch["env"]
+        n = min(obs.size(0), 8)
+        comparison = torch.cat([
+            # env[:n].narrow(start=0, length=self.imlength, dim=1)
+            #     .contiguous().view(
+            #     -1,
+            #     3,
+            #     self.imsize,
+            #     self.imsize
+            # ).transpose(2, 3),
+            obs[:n].narrow(start=0, length=self.imlength, dim=1)
+                .contiguous().view(
+                -1,
+                3,
+                self.imsize,
+                self.imsize
+            ).transpose(2, 3),
+            reconstructions.view(
+                self.batch_size,
+                3,
+                self.imsize,
+                self.imsize,
+            )[:n].transpose(2, 3),
+            # env_reconstructions.view(
+            #     self.batch_size,
+            #     3,
+            #     self.imsize,
+            #     self.imsize,
+            # )[:n].transpose(2, 3)
+        ])
+        save_dir = osp.join(self.log_dir, 'r%d.png' % epoch)
+        save_image(comparison.data.cpu(), save_dir, nrow=n)

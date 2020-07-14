@@ -11,8 +11,8 @@ from railrl.torch.grill.cvae_experiments import (
 from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
-from railrl.torch.vae.vq_vae import CVQVAE
-from railrl.torch.vae.vq_vae_trainer import CVQVAETrainer
+from railrl.torch.vae.conditional_conv_vae import DeltaCVAE
+from railrl.torch.vae.conditional_vae_trainer import DeltaCVAETrainer
 from railrl.data_management.online_conditional_vae_replay_buffer import \
         OnlineConditionalVaeRelabelingBuffer
 
@@ -27,17 +27,19 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         online_vae_exploration=False,
-        imsize=84,
+        imsize=48,
         init_camera=sawyer_init_camera_zoomed_in,
         env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
-            num_objects=1,
+            num_objects=2,
             object_meshes=None,
-            fixed_start=True,
-            preload_obj_dict=
-            [{'color1': [1, 1, 1],
-            'color2': [1, 1, 1]}],
-            num_scene_objects=[1],
+            fixed_start=False,
+            randomize_goals=True,
+            goal_moves_one_object=False,
+            # preload_obj_dict=
+            # [{'color1': [1, 1, 1],
+            # 'color2': [1, 1, 1]}],
+            num_scene_objects=[2],
             maxlen=0.1,
             action_repeat=1,
             puck_goal_low=(x_low + 0.01, y_low + 0.01),
@@ -48,7 +50,7 @@ if __name__ == "__main__":
             mocap_high=(x_high - 2*t, y_high, 0.5),
             object_low=(x_low + 0.01, y_low + 0.01, 0.02),
             object_high=(x_high - 0.01, y_high - 0.01, 0.02),
-            #use_textures=True,
+            use_textures=True,
             init_camera=sawyer_init_camera_zoomed_in,
             cylinder_radius=0.05,
         ),
@@ -128,19 +130,20 @@ if __name__ == "__main__":
             #vae_path="/home/ashvin/data/sasha/vq-vae/sim-vq-vae/run23/id0/itr_100.pkl"
                     ),
         train_vae_variant=dict(
-            beta=1,
+            beta=10,
+            beta_schedule_kwargs=dict(
+                x_values=(0, 500),
+                y_values=(1, 50),
+            ),
             num_epochs=500,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
-                N=1000,
+                N=10000,
                 n_random_steps=2,
                 test_p=.9,
-                #dataset_path='/home/ashvin/Desktop/two_obj_pusher.npy',
-                #dataset_path='/home/ashvin/Desktop/sim_puck_data.npy',
-                dataset_path='/home/ashvin/data/sasha/demos/33_objects.npy',
-                augment_data=False,
+                dataset_path="/home/ashvin/Desktop/two_obj_pusher.npy",
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -151,27 +154,26 @@ if __name__ == "__main__":
                 conditional_vae_dataset=True,
                 save_trajectories=False,
                 enviorment_dataset=False,
-                tag="ccrig_tuning_orig_network",
+                tag="cvqvae_data_fixed",
             ),
-            vae_trainer_class=CVQVAETrainer,
-            vae_class=CVQVAE,
+            vae_trainer_class=DeltaCVAETrainer,
+            vae_class=DeltaCVAE,
             vae_kwargs=dict(
                 input_channels=3,
-                imsize=84,
-                decay=0.99,
-                num_embeddings=1024,
+                architecture=imsize48_default_architecture_with_more_hidden_layers,
+                decoder_distribution='gaussian_identity_variance',
             ),
 
             algo_kwargs=dict(
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
                 batch_size=128,
-                lr=1e-3, #1E-4
+                lr=1e-3,
                 skew_config=dict(
                     method='vae_prob',
                     power=0,
                 ),
-                weight_decay=0.0,
+                #weight_decay=0.0,
                 skew_dataset=False,
                 priority_function_kwargs=dict(
                     decoder_distribution='gaussian_identity_variance',
@@ -181,7 +183,7 @@ if __name__ == "__main__":
                 use_parallel_dataloading=False,
             ),
 
-            save_period=10,
+            save_period=25,
         ),
         region='us-west-1',
 
@@ -198,7 +200,7 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(1),
-        'train_vae_variant.embedding_dim': [3,],
+        'train_vae_variant.latent_sizes': [(12, 6)],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -208,4 +210,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=22)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)

@@ -11,8 +11,8 @@ from railrl.torch.grill.cvae_experiments import (
 from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
-from railrl.torch.vae.vq_vae import CVQVAE
-from railrl.torch.vae.vq_vae_trainer import CVQVAETrainer
+from railrl.torch.vae.vq_vae import CVAE
+from railrl.torch.vae.vq_vae_trainer import CVAETrainer
 from railrl.data_management.online_conditional_vae_replay_buffer import \
         OnlineConditionalVaeRelabelingBuffer
 
@@ -129,6 +129,10 @@ if __name__ == "__main__":
                     ),
         train_vae_variant=dict(
             beta=1,
+            beta_schedule_kwargs=dict(
+                x_values=(0, 500),
+                y_values=(1, 50),
+            ),
             num_epochs=500,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
@@ -137,9 +141,8 @@ if __name__ == "__main__":
                 N=1000,
                 n_random_steps=2,
                 test_p=.9,
-                #dataset_path='/home/ashvin/Desktop/two_obj_pusher.npy',
-                #dataset_path='/home/ashvin/Desktop/sim_puck_data.npy',
-                dataset_path='/home/ashvin/data/sasha/demos/33_objects.npy',
+                dataset_path={'train': '/home/ashvin/data/sasha/spacemouse/recon_data/train.npy',
+                            'test': '/home/ashvin/data/sasha/spacemouse/recon_data/test.npy'},
                 augment_data=False,
                 use_cached=False,
                 show=False,
@@ -153,13 +156,11 @@ if __name__ == "__main__":
                 enviorment_dataset=False,
                 tag="ccrig_tuning_orig_network",
             ),
-            vae_trainer_class=CVQVAETrainer,
-            vae_class=CVQVAE,
+            vae_trainer_class=CVAETrainer,
+            vae_class=CVAE,
             vae_kwargs=dict(
                 input_channels=3,
                 imsize=84,
-                decay=0.99,
-                num_embeddings=1024,
             ),
 
             algo_kwargs=dict(

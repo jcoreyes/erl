@@ -418,6 +418,7 @@ def process_args(variant):
 def experiment(variant):
 
     # if 'env' in variant:
+    #variant['path_loader_kwargs']['model_path'] = variant['pretrained_vae_path']
     if variant.get("pretrained_algorithm_path", False):
         resume(variant)
         return
@@ -456,6 +457,7 @@ def experiment(variant):
 
         # print("CHANGE BUFFER TO 1 MIL AGAIN!!!")
         # from railrl.envs.images import InsertImageEnv, EnvRenderer
+        # model = load_local_or_remote_file(variant['pretrained_vae_path'])
         # renderer = EnvRenderer(init_camera=None, **{})
         # expl_env = InsertImageEnv(gym.make(env_id), renderer=renderer)
         # eval_env = InsertImageEnv(gym.make(env_id), renderer=renderer)

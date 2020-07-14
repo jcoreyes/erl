@@ -50,6 +50,7 @@ class ConditionalConvVAETrainer(ConvVAETrainer):
 
         return loss
 
+
     def dump_reconstructions(self, epoch):
         batch, reconstructions = self.eval_data["test/last_batch"]
         obs = batch["x_t"]
@@ -128,6 +129,8 @@ class CVAETrainer(ConditionalConvVAETrainer):
             priority_function_kwargs=None,
             start_skew_epoch=0,
             weight_decay=0.001,
+            key_to_reconstruct='x_t',
+            num_epochs=500,
     ):
         super().__init__(
             model,
@@ -152,6 +155,8 @@ class CVAETrainer(ConditionalConvVAETrainer):
             priority_function_kwargs,
             start_skew_epoch,
             weight_decay,
+            key_to_reconstruct,
+            num_epochs
         )
         self.optimizer = optim.Adam(self.model.parameters(),
             lr=self.lr,
@@ -330,14 +335,14 @@ class DeltaCVAETrainer(ConditionalConvVAETrainer):
     def compute_loss(self, batch, epoch, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
-        context_weight = float(self.context_schedule.get_value(epoch))
+        #context_weight = float(self.context_schedule.get_value(epoch))
         x_t, env = self.model(batch["x_t"], batch["env"])
         reconstructions, obs_distribution_params, latent_distribution_params = x_t
         env_reconstructions, env_distribution_params = env
         log_prob = self.model.logprob(batch["x_t"], obs_distribution_params)
         env_log_prob = self.model.logprob(batch["env"], env_distribution_params)
         kle = self.model.kl_divergence(latent_distribution_params)
-        loss = -1 * (log_prob + context_weight * env_log_prob) + beta * kle
+        loss = -1 * (log_prob + env_log_prob) + beta * kle
 
         self.eval_statistics['epoch'] = epoch
         self.eval_statistics['beta'] = beta
@@ -354,7 +359,32 @@ class DeltaCVAETrainer(ConditionalConvVAETrainer):
 
         return loss
 
+    def dump_mixed_latents(self, epoch):
+        n = 8
+        batch, reconstructions, env_reconstructions = self.eval_data["test/last_batch"]
+        x_t, env = batch["x_t"][:n], batch["env"][:n]
+        z_pos, logvar, z_obj = self.model.encode(x_t, env)
+
+        grid = []
+        for i in range(n):
+            for j in range(n):
+                if i + j == 0:
+                    grid.append(ptu.zeros(1, self.input_channels, self.imsize, self.imsize))
+                elif i == 0:
+                    grid.append(x_t[j].reshape(1, self.input_channels, self.imsize, self.imsize))
+                elif j == 0:
+                    grid.append(env[i].reshape(1, self.input_channels, self.imsize, self.imsize))
+                else:
+                    pos, obj = z_pos[j].reshape(1, -1), z_obj[i].reshape(1, -1)
+                    img = self.model.decode(torch.cat([pos, obj], dim=1))[0]
+                    grid.append(img.reshape(1, self.input_channels, self.imsize, self.imsize))
+        samples = torch.cat(grid)
+        save_dir = osp.join(self.log_dir, 'mixed_latents_%d.png' % epoch)
+        save_image(samples.data.cpu().transpose(2, 3), save_dir, nrow=n)
+
     def dump_reconstructions(self, epoch):
+        self.dump_mixed_latents(epoch)
+
         batch, reconstructions, env_reconstructions = self.eval_data["test/last_batch"]
         obs = batch["x_t"]
         env = batch["env"]

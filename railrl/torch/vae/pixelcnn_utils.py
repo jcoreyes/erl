@@ -4,7 +4,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 import time
 import os
-from railrl.torch.vae.vq_vae_datasets import BlockDataset, LatentBlockDataset
+from railrl.torch.vae.vq_vae_datasets import BlockDataset, LatentBlockDataset, ConditionalLatentBlockDataset
 import numpy as np
 
 
@@ -53,6 +53,14 @@ def load_latent_block(filepath):
                        transform=None)
     return train, val
 
+def load_cond_latent_block(filepath):
+    train = ConditionalLatentBlockDataset(filepath, train=True,
+                         transform=None)
+
+    val = ConditionalLatentBlockDataset(filepath, train=False,
+                       transform=None)
+    return train, val
+
 
 def data_loaders(train_data, val_data, batch_size):
 
@@ -82,6 +90,13 @@ def load_data_and_data_loaders(filepath, dataset, batch_size):
         x_train_var = np.var(training_data.data / 255.0)
     elif dataset == 'LATENT_BLOCK':
         training_data, validation_data = load_latent_block(filepath)
+        training_loader, validation_loader = data_loaders(
+            training_data, validation_data, batch_size)
+
+        x_train_var = np.var(training_data.data)
+
+    elif dataset == 'COND_LATENT_BLOCK':
+        training_data, validation_data = load_cond_latent_block(filepath)
         training_loader, validation_loader = data_loaders(
             training_data, validation_data, batch_size)
 
