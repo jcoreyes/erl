@@ -101,7 +101,34 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             fraction_distribution_context
         )
         self._fraction_replay_buffer_context = fraction_replay_buffer_context
-        self._post_process_batch_fn = post_process_batch_fn
+
+        def composed_post_process_batch_fn(batch, replay_buffer, obs_dict, next_obs_dict, new_contexts):
+            new_batch = batch
+            if post_process_batch_fn:
+                import inspect
+                func_args = inspect.getargspec(post_process_batch_fn).args
+                num_args = len(func_args)
+                if num_args == 1:
+                    new_batch = post_process_batch_fn(new_batch)
+                elif num_args == 5:
+                    new_batch = post_process_batch_fn(
+                        new_batch,
+                        replay_buffer,
+                        obs_dict, next_obs_dict, new_contexts
+                    )
+                else:
+                    raise ValueError("Invalid post_process_batch_fn")
+            if self._reward_fn:
+                new_batch['rewards'] = self._reward_fn(
+                    obs_dict,
+                    new_batch['actions'],
+                    next_obs_dict,
+                    new_contexts,
+                )
+            if len(new_batch['rewards'].shape) == 1:
+                new_batch['rewards'] = new_batch['rewards'].reshape(-1, 1)
+            return new_batch
+        self._post_process_batch_fn = composed_post_process_batch_fn
 
         self._recompute_rewards = recompute_rewards
         self._relabel_context_key_blacklist = relabel_context_key_blacklist
@@ -165,30 +192,21 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
                 new_contexts,
             )
 
-        if not self._recompute_rewards:
-            assert (num_distrib_contexts == 0) and (num_future_contexts == 0)
-            rewards = self._rewards[indices]
-        else:
-            rewards = self._reward_fn(
-                obs_dict,
-                actions,
-                next_obs_dict,
-                new_contexts,
-            )
-        if len(rewards.shape) == 1:
-            rewards = rewards.reshape(-1, 1)
         batch = {
             'observations': obs_dict[self.observation_key],
             'actions': actions,
-            'rewards': rewards,
+            'rewards': self._rewards[indices],
             'terminals': self._terminals[indices],
             'next_observations': next_obs_dict[self.observation_key],
             'indices': np.array(indices).reshape(-1, 1),
             **new_contexts
             # 'contexts': new_contexts,
         }
-        if self._post_process_batch_fn:
-            batch = self._post_process_batch_fn(batch)
+        batch = self._post_process_batch_fn(
+            batch,
+            self,
+            obs_dict, next_obs_dict, new_contexts
+        )
         return batch
 
     def _get_replay_buffer_contexts(self, batch_size):
