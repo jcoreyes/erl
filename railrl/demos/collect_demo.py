@@ -158,7 +158,7 @@ def collect_one_rollout_mdp(env, expert, horizon=200, render=False, pause=0,  th
     )
     ret = 0
     for i in range(horizon):
-        a, _ = expert.get_action(o)
+        a, valid, _, _ = expert.get_action(o)
 
         traj["observations"].append(o)
 
