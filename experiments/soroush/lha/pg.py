@@ -152,7 +152,7 @@ variant = dict(
         goal_samplers=None,
         goal_sampling_mode='random',
         num_presampled_goals=10000,
-        object_reward_only=True,
+        object_reward_only=False,
 
         init_position_strategy='random',
     ),
