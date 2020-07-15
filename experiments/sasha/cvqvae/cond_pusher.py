@@ -139,7 +139,9 @@ if __name__ == "__main__":
                 test_p=.9,
                 #dataset_path='/home/ashvin/Desktop/two_obj_pusher.npy',
                 #dataset_path='/home/ashvin/Desktop/sim_puck_data.npy',
-                dataset_path='/home/ashvin/data/sasha/demos/33_objects.npy',
+                #dataset_path='/home/ashvin/data/sasha/demos/33_objects.npy',
+                dataset_path={'train': '/home/ashvin/data/sasha/spacemouse/recon_data/train.npy',
+                            'test': '/home/ashvin/data/sasha/spacemouse/recon_data/test.npy'},
                 augment_data=False,
                 use_cached=False,
                 show=False,
@@ -158,8 +160,8 @@ if __name__ == "__main__":
             vae_kwargs=dict(
                 input_channels=3,
                 imsize=84,
-                decay=0.99,
-                num_embeddings=1024,
+                decay=0.0,
+                num_embeddings=512,
             ),
 
             algo_kwargs=dict(
@@ -208,4 +210,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=22)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=23)

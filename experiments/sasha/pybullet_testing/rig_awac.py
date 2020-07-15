@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=0, #25000
+            q_num_pretrain2_steps=25000, #25000
             policy_weight_decay=1e-4,
             q_weight_decay=0,
 
@@ -51,19 +51,19 @@ if __name__ == "__main__":
             terminal_transform_kwargs=None,
         ),
 
-        max_path_length=1,
+        max_path_length=50,
         algo_kwargs=dict(
-            batch_size=5,
+            batch_size=1024,
             num_epochs=501,
-            num_eval_steps_per_epoch=10,
-            num_expl_steps_per_train_loop=10,
-            num_trains_per_train_loop=10,
-            min_num_steps_before_training=10,
+            num_eval_steps_per_epoch=1000,
+            num_expl_steps_per_train_loop=1000,
+            num_trains_per_train_loop=1000,
+            min_num_steps_before_training=4000,
         ),
         replay_buffer_kwargs=dict(
             fraction_future_context=0.2,
             fraction_distribution_context=0.5,
-            max_size=int(1e6),
+            max_size=int(1e5),
         ),
         demo_replay_buffer_kwargs=dict(
             fraction_future_context=0.0,
@@ -83,21 +83,21 @@ if __name__ == "__main__":
             save_video_period=25,
             pad_color=0,
         ),
-        pretrained_vae_path="sasha/cvqvae/vqvae/run11/id0/itr_400.pkl",
-        #pretrained_vae_path="/home/ashvin/data/sasha/cvqvae/vqvae/run11/id0/itr_400.pkl",
-        presampled_goals_path="sasha/cvqvae/vqvae/run11/id0/multiobj_goals.pkl",
-        #presampled_goals_path="/home/ashvin/data/sasha/demos/multiobj_goals.pkl",
+        #pretrained_vae_path="sasha/cvqvae/vqvae/run11/id0/itr_400.pkl",
+        pretrained_vae_path="/home/ashvin/data/sasha/cvqvae/vqvae/run12/id0/itr_200.pkl",
+        #presampled_goals_path="sasha/cvqvae/vqvae/run11/id0/multiobj_goals.pkl",
+        presampled_goals_path="/home/ashvin/data/sasha/demos/multiobj_goals.pkl",
 
         path_loader_class=EncoderDictToMDPPathLoader,
         path_loader_kwargs=dict(
             recompute_reward=True,
             demo_paths=[
                 dict(
-                    path='sasha/cvqvae/vqvae/run11/id0/train.pkl',
-                    #path='/home/ashvin/data/sasha/spacemouse/demo_data/train.pkl',
+                    #path='sasha/cvqvae/vqvae/run11/id0/train.pkl',
+                    path='/home/ashvin/data/sasha/spacemouse/demo_data/train.pkl',
                     obs_dict=True,
                     is_demo=True,
-                    data_split=0.1,
+                    #data_split=0.1,
                 ),
             ],
         ),
@@ -130,10 +130,6 @@ if __name__ == "__main__":
             vae_path=None,
             representation_size=4,
             beta=10.0 / 128,
-            beta_schedule_kwargs=dict(
-                x_values=(0, 500),
-                y_values=(1  / 128.0, 50  / 128.0),
-            ),
             num_epochs=501,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',

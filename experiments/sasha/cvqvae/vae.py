@@ -11,8 +11,8 @@ from railrl.torch.grill.cvae_experiments import (
 from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
-from railrl.torch.vae.vq_vae import CVAE, VAE
-from railrl.torch.vae.vq_vae_trainer import CVAETrainer, VAETrainer
+from railrl.torch.vae.vq_vae import VAE
+from railrl.torch.vae.vq_vae_trainer import VAETrainer
 from railrl.data_management.online_conditional_vae_replay_buffer import \
         OnlineConditionalVaeRelabelingBuffer
 
@@ -156,11 +156,14 @@ if __name__ == "__main__":
                 enviorment_dataset=False,
                 tag="ccrig_tuning_orig_network",
             ),
-            vae_trainer_class=CVAETrainer,
-            vae_class=CVAE,
+            vae_trainer_class=VAETrainer,
+            vae_class=VAE,
             vae_kwargs=dict(
                 input_channels=3,
                 imsize=84,
+                num_hiddens=256,
+                num_residual_layers=4,
+                num_residual_hiddens=128,
             ),
 
             algo_kwargs=dict(
@@ -199,7 +202,7 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(1),
-        'train_vae_variant.embedding_dim': [3,],
+        'train_vae_variant.representation_size': [50,],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -209,4 +212,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=22)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)

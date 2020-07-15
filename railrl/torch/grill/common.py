@@ -271,7 +271,7 @@ def generate_vae_dataset(variant):
             dataset = dataset.item()
             test_dataset = load_local_or_remote_file(dataset_path['test'])
             test_dataset = test_dataset.item()
-            dataset = format_flat_dataset(dataset)
+            #dataset = format_flat_dataset(dataset)
             test_dataset = format_flat_dataset(test_dataset)
 
             N = dataset['observations'].shape[0] * dataset['observations'].shape[1]
@@ -480,6 +480,7 @@ def generate_vae_dataset(variant):
                 'observations': dataset['observations'][train_i, :, :],
                 'env': dataset['env'][train_i, :]
             })
+
             if use_test_dataset:
                 test_dataset = dataset_class({
                     'observations': test_dataset['observations'],

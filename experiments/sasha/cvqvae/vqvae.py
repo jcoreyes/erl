@@ -168,11 +168,10 @@ if __name__ == "__main__":
                 input_channels=3,
                 imsize=84,
                 decay=0.0,
-                num_embeddings=256,
-                num_hiddens=256,
-                root_len=15,
-                num_residual_layers=4,
-                num_residual_hiddens=128,
+                num_embeddings=1024,
+                num_hiddens=128,
+                num_residual_layers=3,
+                num_residual_hiddens=64,
             ),
 
             algo_kwargs=dict(

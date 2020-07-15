@@ -111,12 +111,12 @@ def split_s3_full_path(s3_path):
     directory_path = '/'.join(directories)
     return bucket_name, directory_path
 
-import io
-class CPU_Unpickler(pickle.Unpickler):
-    def find_class(self, module, name):
-        if module == 'torch.storage' and name == '_load_from_bytes':
-            return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
-        else: return super().find_class(module, name)
+# import io
+# class CPU_Unpickler(pickle.Unpickler):
+#     def find_class(self, module, name):
+#         if module == 'torch.storage' and name == '_load_from_bytes':
+#             return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
+#         else: return super().find_class(module, name)
 
 def load_local_or_remote_file(filepath, file_type=None, **kwargs):
     local_path = local_path_from_s3_or_local_path(filepath)
@@ -137,10 +137,9 @@ def load_local_or_remote_file(filepath, file_type=None, **kwargs):
     elif file_type == TORCH:
         object = torch.load(local_path, **kwargs)
     else:
-        #object = torch.load(local_path, map_location=torch.device('cpu'), **kwargs)
-        f = open(local_path, 'rb')
-        object = CPU_Unpickler(f).load()
-        #object = pickle.load(open(local_path, "rb"))
+        #f = open(local_path, 'rb')
+        #object = CPU_Unpickler(f).load()
+        object = pickle.load(open(local_path, "rb"))
     print("loaded", local_path)
     return object
 

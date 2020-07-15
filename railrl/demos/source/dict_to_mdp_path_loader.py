@@ -31,14 +31,6 @@ import glob
 def load_encoder(encoder_file):
     encoder = load_local_or_remote_file(encoder_file)
     return encoder
-    # if encoder_file[0] == "/":
-    #     local_path = encoder_file
-    # else:
-    #     local_path = sync_down(encoder_file)
-    # encoder = pickle.load(open(local_path, "rb"))
-    # print("loaded", local_path)
-    # encoder.to("cuda")
-    # return encoder
 
 
 class DictToMDPPathLoader:

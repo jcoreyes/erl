@@ -713,12 +713,6 @@ def awac_rig_experiment(
 
     #Video Saving
     if save_video:
-        # video_func = VideoSaveFunction(
-        #     eval_env,
-        #     variant,
-        #     expl_path_collector,
-        #     eval_path_collector,
-        # )
 
         expl_video_func = RIGVideoSaveFunction(
             model,
@@ -726,8 +720,8 @@ def awac_rig_experiment(
             "train",
             decode_goal_image_key="image_decoded_goal",
             reconstruction_key="image_reconstruction",
-            rows=2, #2
-            columns=5, #5
+            rows=2,
+            columns=5,
             unnormalize=True,
             imsize=imsize,
             image_format=renderer.output_image_format,
@@ -743,8 +737,8 @@ def awac_rig_experiment(
             decode_goal_image_key="image_decoded_goal",
             reconstruction_key="image_reconstruction",
             num_imgs=4,
-            rows=2, #2
-            columns=5, #5
+            rows=2,
+            columns=5,
             unnormalize=True,
             imsize=imsize,
             image_format=renderer.output_image_format,

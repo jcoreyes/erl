@@ -35,7 +35,7 @@ if __name__ == "__main__":
             #context_keys=['state_desired_goal','image_desired_goal'],
             fraction_future_context=0.2,
             fraction_distribution_context=0.5,
-            max_size=int(1e6),
+            max_size=int(1e5),
         ),
         reward_kwargs=dict(
             reward_type='sparse',
