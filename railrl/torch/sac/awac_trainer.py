@@ -556,7 +556,6 @@ class AWACTrainer(TorchTrainer):
                 q_adv = q1_pred
 
         policy_logpp = dist.log_prob(u)
-        policy_logpp = policy_logpp[:, None]
 
         if self.use_automatic_beta_tuning:
             buffer_dist = self.buffer_policy(obs)
@@ -632,6 +631,7 @@ class AWACTrainer(TorchTrainer):
                 weights = score
             else:
                 error
+        weights = weights[:, 0]
 
         policy_loss = alpha * log_pi.mean()
 

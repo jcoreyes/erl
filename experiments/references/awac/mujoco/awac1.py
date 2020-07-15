@@ -49,7 +49,7 @@ if __name__ == "__main__":
             q_num_pretrain1_steps=0,
             q_num_pretrain2_steps=50000,
             policy_weight_decay=1e-4,
-            train_bc_on_rl_buffer=True,
+            train_bc_on_rl_buffer=False,
             buffer_policy_sample_actions=False,
 
             reparam_weight=0.0,

@@ -241,7 +241,7 @@ class BasicCNN(PyTorchModule):
             n_channels,
             strides,
             paddings,
-            conv_normalization_type='none',
+            normalization_type='none',
             hidden_init=None,
             hidden_activation='relu',
             output_activation=identity,
@@ -254,7 +254,7 @@ class BasicCNN(PyTorchModule):
                len(n_channels) == \
                len(strides) == \
                len(paddings)
-        assert conv_normalization_type in {'none', 'batch', 'layer'}
+        assert normalization_type in {'none', 'batch', 'layer'}
         assert pool_type in {'none', 'max2d'}
         if pool_type == 'max2d':
             assert len(pool_sizes) == len(pool_strides) == len(pool_paddings)
@@ -267,7 +267,7 @@ class BasicCNN(PyTorchModule):
         if isinstance(hidden_activation, str):
             hidden_activation = activation_from_string(hidden_activation)
         self.hidden_activation = hidden_activation
-        self.conv_normalization_type = conv_normalization_type
+        self.normalization_type = normalization_type
         self.conv_input_length = self.input_width * self.input_height * self.input_channels
         self.pool_type = pool_type
 
@@ -312,9 +312,9 @@ class BasicCNN(PyTorchModule):
         # find output dim of conv_layers by trial and add norm conv layers
         for i, conv_layer in enumerate(self.conv_layers):
             test_mat = conv_layer(test_mat)
-            if self.conv_normalization_type == 'batch':
+            if self.normalization_type == 'batch':
                 self.conv_norm_layers.append(nn.BatchNorm2d(test_mat.shape[1]))
-            if self.conv_normalization_type == 'layer':
+            if self.normalization_type == 'layer':
                 self.conv_norm_layers.append(nn.LayerNorm(test_mat.shape[1:]))
             if self.pool_type != 'none':
                 if self.pool_layers[i]:
@@ -328,7 +328,7 @@ class BasicCNN(PyTorchModule):
     def apply_forward_conv(self, h):
         for i, layer in enumerate(self.conv_layers):
             h = layer(h)
-            if self.conv_normalization_type != 'none':
+            if self.normalization_type != 'none':
                 h = self.conv_norm_layers[i](h)
             if self.pool_type != 'none':
                 if self.pool_layers[i]:

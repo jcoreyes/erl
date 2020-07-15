@@ -8,11 +8,11 @@ from torch.distributions import Beta as TorchBeta
 from torch.distributions import Distribution as TorchDistribution
 from torch.distributions import Bernoulli as TorchBernoulli
 from torch.distributions import Independent as TorchIndependent
+from torch.distributions.utils import _sum_rightmost
 from railrl.misc.eval_util import create_stats_ordered_dict
 import railrl.torch.pytorch_util as ptu
 import numpy as np
 from collections import OrderedDict
-
 
 class Distribution(TorchDistribution):
     def sample_and_logprob(self):
@@ -168,14 +168,6 @@ class MultivariateDiagonalNormal(TorchDistributionWrapper):
             'std',
             ptu.get_numpy(self.distribution.stddev),
         ))
-        stats.update(create_stats_ordered_dict(
-            'log_std',
-            ptu.get_numpy(torch.log(self.distribution.stddev)),
-        ))
-        stats.update(create_stats_ordered_dict(
-            'entropy',
-            ptu.get_numpy(self.entropy()),
-        ))
         return stats
 
     def __repr__(self):
@@ -187,6 +179,14 @@ class MultivariateDiagonalNormal(TorchDistributionWrapper):
 def _kl_mv_diag_normal_mv_diag_normal(p, q):
     return kl_divergence(p.distribution, q.distribution)
 
+# Independent RV KL handling - https://github.com/pytorch/pytorch/issues/13545
+
+@torch.distributions.kl.register_kl(TorchIndependent, TorchIndependent)
+def _kl_independent_independent(p, q):
+    if p.reinterpreted_batch_ndims != q.reinterpreted_batch_ndims:
+        raise NotImplementedError
+    result = kl_divergence(p.base_dist, q.base_dist)
+    return _sum_rightmost(result, p.reinterpreted_batch_ndims)
 
 class GaussianMixture(Distribution):
     def __init__(self, normal_means, normal_stds, weights):
