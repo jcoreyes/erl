@@ -211,7 +211,8 @@ def dump_video(
 
         l = []
         for i_in_path, d in enumerate(path['full_observations']):
-            imgs_to_stack = [d[k] for k in keys_to_show]
+            imgs_to_stack = [d.get(k, None) for k in keys_to_show]
+            imgs_to_stack = [img for img in imgs_to_stack if img is not None]
             imgs_to_stack += get_extra_imgs(path, i_in_path, env)
             l.append(
                 combine_images_into_grid(
@@ -268,11 +269,13 @@ def reshape_for_video(frames, N, rows, columns, num_channels):
 
 
 def get_generic_env_imgs(path, i_in_path, env):
-    x_0 = path['full_observations'][0]['image_observation']
-    d = path['full_observations'][i_in_path]
     is_vae_env = isinstance(env, VAEWrappedEnv)
     is_conditional_vae_env = isinstance(env, ConditionalVAEWrappedEnv)
     imgs = []
+    if not is_conditional_vae_env or not is_vae_env:
+        return imgs
+    x_0 = path['full_observations'][0]['image_observation']
+    d = path['full_observations'][i_in_path]
     if is_conditional_vae_env:
         imgs.append(
             np.clip(env._reconstruct_img(d['image_observation'], x_0), 0, 1)

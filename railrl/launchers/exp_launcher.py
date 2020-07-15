@@ -7,20 +7,23 @@ from railrl.launchers.rl_exp_launcher_util import (
     td3_experiment,
     twin_sac_experiment,
 )
-from railrl.launchers.rl_exp_launcher_util_old import (
-    tdm_td3_experiment,
-    tdm_twin_sac_experiment,
-)
+
+from railrl.launchers.contextual.state_based_v2 import rl_context_experiment
 
 def rl_experiment(variant):
     experiment_variant_preprocess(variant)
     rl_variant = variant['rl_variant']
     if not variant['rl_variant'].get('do_state_exp', False):
         train_vae_and_update_variant(variant)
-    if 'sac' in rl_variant['algorithm'].lower():
-        twin_sac_experiment(rl_variant)
+    if rl_variant.get('context_based', False):
+        print("Using contexts")
+        rl_context_experiment(rl_variant)
     else:
-        td3_experiment(rl_variant)
+        print("NOT using contexts")
+        if 'sac' in rl_variant['algorithm'].lower():
+            twin_sac_experiment(rl_variant)
+        else:
+            td3_experiment(rl_variant)
 
     # TODO: add online VAE exps, tdm exps, other baseline exps
 

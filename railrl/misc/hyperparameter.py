@@ -181,7 +181,7 @@ class DeterministicHyperparameterSweeper(Sweeper):
             for tuple_list in itertools.product(*named_hyperparameters)
         ]
 
-    def iterate_hyperparameters(self):
+    def iterate_hyperparameters(self, verbose=True):
         """
         Iterate over the hyperparameters in a grid-manner.
 
@@ -193,6 +193,7 @@ class DeterministicHyperparameterSweeper(Sweeper):
                 hyperparameters,
                 copy.deepcopy(self._default_kwargs),
                 ignore_duplicate_keys_in_second_dict=True,
+                print_info=verbose
             )
             for hyperparameters in self._hyperparameters_dicts
         ]

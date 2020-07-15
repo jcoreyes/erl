@@ -37,3 +37,4 @@ reset.p
 gitignore/
 build/
 dist/
+Pyro_NS_URI
