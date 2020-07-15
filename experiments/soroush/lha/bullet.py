@@ -178,8 +178,8 @@ env_params = {
     'pb-1obj': {
         'env_kwargs.num_obj': [1],
         'env_kwargs.bowl_type': [
-            'fixed',
-            # 'heavy',
+            # 'fixed',
+            'heavy',
         ],
         'env_kwargs.bowl_pos_in_goal': [True],
         'env_kwargs.random_init_bowl_pos': [True],
@@ -193,13 +193,13 @@ env_params = {
         # ],
 
         'rl_variant.mask_variant.matrix_masks': [
-            [[
-                [0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0],
-                [0, 0, 1, 0, -1],
-                [0, 0, 0, 1, 0],
-                [0, 0, -1, 0, 1],
-            ]],
+            # [[
+            #     [0, 0, 0, 0, 0],
+            #     [0, 0, 0, 0, 0],
+            #     [0, 0, 1, 0, -1],
+            #     [0, 0, 0, 1, 0],
+            #     [0, 0, -1, 0, 1],
+            # ]],
             # [[
             #     [0, 0, 0, 0, 0],
             #     [0, 0, 0, 0, 0],
@@ -207,13 +207,13 @@ env_params = {
             #     [0, 0, 0, 1, 0],
             #     [0, 0, 0, 0, 1],
             # ]],
-            # [[
-            #     [0, 0, 0, 0, 0],
-            #     [0, 0, 0, 0, 0],
-            #     [0, 0, 1, 0, -1],
-            #     [0, 0, 0, 0.2, 0],
-            #     [0, 0, -1, 0, 1],
-            # ]],
+            [[
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0],
+                [0, 0, 1, 0, -1],
+                [0, 0, 0, 0.2, 0],
+                [0, 0, -1, 0, 1],
+            ]],
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [1500],
@@ -423,7 +423,7 @@ def process_variant(variant):
         rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
         rl_variant['dump_video_kwargs']['columns'] = 2
         rl_variant['save_video_period'] = 2
-        # rl_variant['log_expl_video'] = False
+        rl_variant['log_expl_video'] = False
         variant['imsize'] = 256
     rl_variant['renderer_kwargs']['width'] = variant['imsize']
     rl_variant['renderer_kwargs']['height'] = variant['imsize']

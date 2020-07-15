@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.misc.exp_util import (
+from exp_util import (
     run_experiment,
     parse_args,
     preprocess_args,
@@ -7,7 +7,7 @@ from railrl.misc.exp_util import (
 from railrl.launchers.exp_launcher import rl_experiment
 from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
 
-from railrl.launchers.contextual.state_based import (
+from railrl.envs.contextual.mask_conditioned import (
     default_masked_reward_fn,
     action_penalty_masked_reward_fn,
 )
@@ -17,16 +17,16 @@ variant = dict(
         do_state_exp=True,
         algo_kwargs=dict(
             num_epochs=1000,
-            batch_size=1024,
+            batch_size=2048,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000, #4000,
             min_num_steps_before_training=1000,
+            eval_epoch_freq=1,
         ),
         max_path_length=100,
         td3_trainer_kwargs=dict(
-            use_policy_saturation_cost=True,
-            policy_saturation_cost_threshold=5.0,
+            discount=0.99,
             reward_scale=10,
         ),
         sac_trainer_kwargs=dict(
@@ -34,13 +34,14 @@ variant = dict(
             target_update_period=1,
             use_automatic_entropy_tuning=True,
             reward_scale=100,
+            discount=0.99,
         ),
         contextual_replay_buffer_kwargs=dict(
             max_size=int(1E6),
             fraction_future_context=0.4,
             fraction_distribution_context=0.4,
             fraction_replay_buffer_context=0.0,
-            recompute_rewards=True,
+            # recompute_rewards=True,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -53,8 +54,11 @@ variant = dict(
         ),
         exploration_type='ou',
         exploration_noise=0.3,
+        expl_goal_sampling_mode='random',
+        eval_goal_sampling_mode='random',
         algorithm="sac",
         context_based=True,
+        save_env_in_snapshot=False,
         save_video=True,
         dump_video_kwargs=dict(
             rows=1,
@@ -63,23 +67,27 @@ variant = dict(
             pad_length=0,
             subpad_length=1,
         ),
+        vis_kwargs=dict(
+            vis_list=dict(),
+        ),
         save_video_period=150,
         renderer_kwargs=dict(),
-        goal_sampling_mode='random',
         task_variant=dict(
             task_conditioned=False,
         ),
         mask_variant=dict(
             mask_conditioned=True,
-            rollout_mask_order_for_expl='fixed',
+            rollout_mask_order_for_expl='random',
             rollout_mask_order_for_eval='fixed',
             log_mask_diagnostics=True,
-            mask_format='vector',
+            mask_format='matrix',
             infer_masks=False,
             mask_inference_variant=dict(
-                n=1000,
-                noise=0.1,
+                n=100,
+                noise=0.01,
+                max_cond_num=1e2,
                 normalize_sigma_inv=True,
+                sigma_inv_entry_threshold=0.10,
             ),
             relabel_goals=True,
             relabel_masks=True,
@@ -89,8 +97,10 @@ variant = dict(
             context_post_process_frac=0.5,
 
             max_subtasks_to_focus_on=None,
-            prev_subtask_weight=1.0,
+            max_subtasks_per_rollout=None,
+            prev_subtask_weight=0.25,
             reward_fn=default_masked_reward_fn,
+            use_g_for_mean=True,
 
             train_mask_distr=dict(
                 atomic=1.0,
@@ -110,6 +120,9 @@ variant = dict(
                 cumul_seq=0.0,
                 full=0.0,
             ),
+
+            eval_rollouts_to_log=['atomic', 'atomic_seq'],
+            eval_rollouts_for_videos=[],
         ),
     ),
     # env_id='FourObject-PickAndPlace-RandomInit-2D-v1',
@@ -144,6 +157,11 @@ variant = dict(
         init_position_strategy='random',
     ),
     imsize=256,
+
+    logger_config=dict(
+        snapshot_gap=50,
+        snapshot_mode='gap_and_last',
+    ),
 )
 
 env_params = {
@@ -167,13 +185,6 @@ env_params = {
         ],
     },
     'pg-4obj': {
-        'rl_variant.algo_kwargs.batch_size': [128],
-
-
-        # 'rl_variant.qf_kwargs.hidden_sizes': [[256, 256]],
-        # 'rl_variant.vf_kwargs.hidden_sizes': [[256, 256]],
-        # 'rl_variant.policy_kwargs.hidden_sizes': [[256, 256]],
-
         'env_kwargs.num_objects': [4],
         'rl_variant.mask_variant.idx_masks': [
             [
@@ -184,112 +195,12 @@ env_params = {
             ],
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [6000],
-
-        # 'rl_variant.mask_variant.max_subtasks_to_focus_on': [2],
-        # 'rl_variant.mask_variant.reward_fn': [action_penalty_masked_reward_fn],
-        'rl_variant.mask_variant.prev_subtask_weight': [0.15],
-        'rl_variant.mask_variant.rollout_mask_order_for_expl': ['random'],
-
-        'rl_variant.mask_variant.train_mask_distr': [
-            # dict(
-            #     atomic=0.5,
-            #     cumul=0.5,
-            #     subset=0.0,
-            #     full=0.0,
-            # ),
-            dict(
-                atomic=0.5,
-                cumul=0.0,
-                subset=0.5,
-                full=0.0,
-            ),
-        ],
-
-        'rl_variant.mask_variant.expl_mask_distr': [
-            dict(
-                atomic=0.5,
-                atomic_seq=0.5,
-                cumul_seq=0.0,
-                full=0.0,
-            ),
-            # dict(
-            #     atomic=0.3,
-            #     atomic_seq=0.3,
-            #     cumul_seq=0.4,
-            #     full=0.0,
-            # ),
-        ],
-
-
-        # 'rl_variant.ckpt': [
-        #     # ### action penalty exps, gpu_id=2, launched
-        #     # 'pg-4obj/06-14-action-penalty/06-14-action-penalty_2020_06_15_04_02_25_id000--s22857',
-        #     # 'pg-4obj/06-14-action-penalty/06-14-action-penalty_2020_06_15_04_02_25_id000--s60974',
-        #     # 'pg-4obj/06-14-action-penalty/06-14-action-penalty_2020_06_15_04_02_25_id000--s90119',
-        #
-        #     # ### cumul baseline, gpu_id=2
-        #     # 'pg-4obj/06-14-cumul-baseline/06-14-cumul-baseline_2020_06_15_03_57_59_id000--s14978',
-        #     # 'pg-4obj/06-14-cumul-baseline/06-14-cumul-baseline_2020_06_15_03_57_59_id000--s2709',
-        #     # 'pg-4obj/06-14-cumul-baseline/06-14-cumul-baseline_2020_06_15_03_57_59_id000--s6870',
-        #
-        #     # ### cumul-expl, gpu_id=1
-        #     # 'pg-4obj/06-14-cumul-expl/06-14-cumul-expl_2020_06_15_03_59_35_id000--s52092',
-        #     # 'pg-4obj/06-14-cumul-expl/06-14-cumul-expl_2020_06_15_03_59_35_id000--s65026',
-        #     # 'pg-4obj/06-14-cumul-expl/06-14-cumul-expl_2020_06_15_03_59_35_id000--s94815',
-        #
-        #     ### cumul-2-obj-focus, gpu_id=0
-        #     'pg-4obj/06-14-cumul-2-obj-focus/06-14-cumul-2-obj-focus_2020_06_15_04_00_48_id000--s26618',
-        #     'pg-4obj/06-14-cumul-2-obj-focus/06-14-cumul-2-obj-focus_2020_06_15_04_00_48_id000--s64121',
-        #     'pg-4obj/06-14-cumul-2-obj-focus/06-14-cumul-2-obj-focus_2020_06_15_04_00_48_id000--s98946',
-        #
-        #     # ### prev-subtask-weight-0.15, gpu_id=1
-        #     # 'pg-4obj/06-16-prev-subtask-weight-0.15/06-16-prev-subtask-weight-0.15_2020_06_17_06_24_57_id000--s33827',
-        #     # 'pg-4obj/06-16-prev-subtask-weight-0.15/06-16-prev-subtask-weight-0.15_2020_06_17_06_24_59_id000--s50007',
-        #     # 'pg-4obj/06-16-prev-subtask-weight-0.15/06-16-prev-subtask-weight-0.15_2020_06_17_06_24_56_id000--s67647',
-        # ],
-        # 'rl_variant.ckpt_epoch': [
-        #     # 3000,
-        #     6000,
-        # ],
-        #
-        # 'rl_variant.algo_kwargs.do_training': [False],
-        # 'rl_variant.use_sampling_policy': [
-        #     False,
-        #     # True,
-        # ],
-        # 'rl_variant.mask_variant.prev_subtasks_solved': [
-        #     # True,
-        #     False,
-        # ],
-        # 'rl_variant.dump_video_kwargs.keys_to_show': [[
-        #     # 'image_v',
-        #     # 'image_v_1',
-        #     # 'image_v_2',
-        #     # 'image_v_3',
-        #     # 'image_v_4',
-        #
-        #     'image_pi',
-        #     'image_pi_0',
-        #     # 'image_pi_1',
-        #     # 'image_pi_2',
-        #     # 'image_pi_3',
-        #     # 'image_pi_4',
-        # ]],
-        # 'rl_variant.log_expl_video': [False],
-        # 'rl_variant.log_eval_video': [False],
-        # 'rl_variant.algo_kwargs.num_epochs': [3],
-        # 'rl_variant.save_video_period': [1],
-        # 'rl_variant.dump_video_kwargs.columns': [4],
+        'rl_variant.algo_kwargs.num_epochs': [4000],
     },
 }
 
 def process_variant(variant):
     rl_variant = variant['rl_variant']
-
-    mpl = rl_variant['max_path_length']
-    rl_variant['td3_trainer_kwargs']['discount'] = 1 - 1 / mpl
-    rl_variant['sac_trainer_kwargs']['discount'] = 1 - 1 / mpl
 
     if args.debug:
         rl_variant['algo_kwargs']['num_epochs'] = 4
@@ -303,8 +214,8 @@ def process_variant(variant):
         rl_variant['save_video_period'] = 2
         rl_variant['log_expl_video'] = False
         variant['imsize'] = 256
-    rl_variant['renderer_kwargs']['img_width'] = variant['imsize']
-    rl_variant['renderer_kwargs']['img_height'] = variant['imsize']
+    rl_variant['renderer_kwargs']['width'] = variant['imsize']
+    rl_variant['renderer_kwargs']['height'] = variant['imsize']
 
     if args.no_video:
         rl_variant['save_video'] = False
@@ -315,7 +226,6 @@ if __name__ == "__main__":
     mount_blacklist = [
         'MountLocal@/home/soroush/research/furniture',
         'MountLocal@/home/soroush/research/bullet-manipulation',
-        'MountLocal@/home/soroush/research/bullet-assets',
     ]
     preprocess_args(args)
     search_space = env_params[args.env]
@@ -324,12 +234,12 @@ if __name__ == "__main__":
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters(verbose=False)):
         process_variant(variant)
+        variant['exp_id'] = exp_id
         run_experiment(
             exp_function=rl_experiment,
             variant=variant,
             args=args,
             exp_id=exp_id,
             mount_blacklist=mount_blacklist,
-            snapshot_mode='gap_and_last',
         )
 
