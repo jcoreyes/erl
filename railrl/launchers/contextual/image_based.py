@@ -272,7 +272,7 @@ def image_based_goal_conditioned_sac_experiment(
             env_renderer.image_shape,
         )
 
-        def concat_context_to_obs(batch):
+        def concat_context_to_obs(batch, *args, **kwargs):
             obs = batch['observations']
             next_obs = batch['next_observations']
             context = batch[img_desired_goal_key]
@@ -287,7 +287,7 @@ def image_based_goal_conditioned_sac_experiment(
                 [next_obs_aug, next_context_aug], axis=1)
             return batch
     else:
-        def concat_context_to_obs(batch):
+        def concat_context_to_obs(batch, *args, **kwargs):
             obs = batch['observations']
             next_obs = batch['next_observations']
             context = batch[img_desired_goal_key]

@@ -102,19 +102,11 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         def composed_post_process_batch_fn(batch, replay_buffer, obs_dict, next_obs_dict, new_contexts):
             new_batch = batch
             if post_process_batch_fn:
-                import inspect
-                func_args = inspect.getargspec(post_process_batch_fn).args
-                num_args = len(func_args)
-                if num_args == 1:
-                    new_batch = post_process_batch_fn(new_batch)
-                elif num_args == 5:
-                    new_batch = post_process_batch_fn(
-                        new_batch,
-                        replay_buffer,
-                        obs_dict, next_obs_dict, new_contexts
-                    )
-                else:
-                    raise ValueError("Invalid post_process_batch_fn")
+                new_batch = post_process_batch_fn(
+                    new_batch,
+                    replay_buffer,
+                    obs_dict, next_obs_dict, new_contexts
+                )
             if self._reward_fn:
                 new_batch['rewards'] = self._reward_fn(
                     obs_dict,

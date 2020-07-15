@@ -449,7 +449,7 @@ def encoder_goal_conditioned_sac_experiment(
         TanhGaussian(obs_processor)
     )
 
-    def concat_context_to_obs(batch):
+    def concat_context_to_obs(batch, *args, **kwargs):
         obs = batch['observations']
         next_obs = batch['next_observations']
         obs = obs.reshape(len(obs), -1)

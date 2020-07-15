@@ -352,7 +352,7 @@ def masking_sac_experiment(
             context_key: achieved_goal,
         }
 
-    def concat_context_to_obs(batch):
+    def concat_context_to_obs(batch, *args, **kwargs):
         obs = batch['observations']
         next_obs = batch['next_observations']
 
