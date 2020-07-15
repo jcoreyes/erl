@@ -168,14 +168,6 @@ class MultivariateDiagonalNormal(TorchDistributionWrapper):
             'std',
             ptu.get_numpy(self.distribution.stddev),
         ))
-        stats.update(create_stats_ordered_dict(
-            'log_std',
-            ptu.get_numpy(torch.log(self.distribution.stddev)),
-        ))
-        stats.update(create_stats_ordered_dict(
-            'entropy',
-            ptu.get_numpy(self.entropy()),
-        ))
         return stats
 
     def __repr__(self):
