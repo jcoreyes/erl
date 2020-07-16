@@ -33,9 +33,6 @@ class GatedMaskedConv2d(nn.Module):
         assert kernel % 2 == 1, print("Kernel size must be odd")
         self.mask_type = mask_type
         self.residual = residual
-        self.dropout = nn.Dropout3d(p=0.2)
-        self.batch_norm_1 = nn.BatchNorm2d(2 * dim)
-        self.batch_norm_2 = nn.BatchNorm2d(2 * dim)
         self.class_cond_embedding = nn.Linear(
             n_classes, 2 * dim
         )

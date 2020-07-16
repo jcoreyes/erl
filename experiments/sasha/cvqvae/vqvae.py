@@ -27,7 +27,7 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         online_vae_exploration=False,
-        imsize=84,
+        imsize=36,
         init_camera=sawyer_init_camera_zoomed_in,
         env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
@@ -166,12 +166,12 @@ if __name__ == "__main__":
             vae_class=VQ_VAE,
             vae_kwargs=dict(
                 input_channels=3,
-                imsize=84,
-                decay=0.0,
-                num_embeddings=1024,
-                num_hiddens=128,
-                num_residual_layers=3,
-                num_residual_hiddens=64,
+                imsize=36,
+                decay=0.99,
+                num_embeddings=512, #try 512
+                num_hiddens=256,
+                #num_residual_layers=4,
+                #num_residual_hiddens=128,
             ),
 
             algo_kwargs=dict(
@@ -221,4 +221,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=12)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=13)

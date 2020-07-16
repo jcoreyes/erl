@@ -49,31 +49,23 @@ class LatentBlockDataset(Dataset):
         n = int(data.shape[0] * test_p)
         self.data = data[:n] if train else data[n:]
         self.transform = transform
-
-    # def get_closest_stats(self, latents):
-    #     from scipy import spatial
-    #     tree = spatial.KDTree(self.all_data)
-    #     all_dists = []
-
-    #     for i in range(latents.shape[0]):
-    #         dist, index = tree.query(latents[i])
-    #         all_dists.append(dist)
-    #     all_dists = np.array(all_dists)
-    #     print("Mean:", all_dists.mean())
-    #     print("Std:", all_dists.std())
-    #     print("Min:", all_dists.min())
-    #     print("Max:", all_dists.mean())
+        self.size = self.data.shape[0]
+        self.traj_length = self.data.shape[1]
 
 
 
-    def __getitem__(self, index):
-        img = self.data[index]
+    def __getitem__(self, idx):
+        traj_i = idx // self.traj_length
+        trans_i = idx % self.traj_length
+
+
+        img = self.data[traj_i, trans_i, :]
         if self.transform is not None:
             img = self.transform(img)
         return img
 
     def __len__(self):
-        return len(self.data)
+        return self.size * self.traj_length
 
 
 

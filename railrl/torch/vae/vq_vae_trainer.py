@@ -109,6 +109,7 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         obs = batch[self.key_to_reconstruct]
+
         vq_loss, quantized, data_recon, perplexity, recon_error = self.model.compute_loss(obs)
         loss = vq_loss + recon_error
 

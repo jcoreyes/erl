@@ -3,7 +3,7 @@ from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset im
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.torch.vae.conv_vae import imsize48_default_architecture, imsize48_default_architecture_with_more_hidden_layers
+from railrl.torch.vae.conv_vae import imsize48_default_architecture, imsize84_default_architecture_with_more_hidden_layers
 from railrl.launchers.arglauncher import run_variants
 from railrl.torch.grill.cvae_experiments import (
     grill_her_td3_offpolicy_online_vae_full_experiment,
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         online_vae_exploration=False,
-        imsize=48,
+        imsize=84,
         init_camera=sawyer_init_camera_zoomed_in,
         env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
@@ -143,7 +143,8 @@ if __name__ == "__main__":
                 N=10000,
                 n_random_steps=2,
                 test_p=.9,
-                dataset_path="/home/ashvin/Desktop/two_obj_pusher.npy",
+                dataset_path={'train': '/home/ashvin/data/sasha/spacemouse/recon_data/train.npy',
+                            'test': '/home/ashvin/data/sasha/spacemouse/recon_data/test.npy'},
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -160,7 +161,8 @@ if __name__ == "__main__":
             vae_class=DeltaCVAE,
             vae_kwargs=dict(
                 input_channels=3,
-                architecture=imsize48_default_architecture_with_more_hidden_layers,
+                imsize=84,
+                architecture=imsize84_default_architecture_with_more_hidden_layers,
                 decoder_distribution='gaussian_identity_variance',
             ),
 
@@ -200,7 +202,7 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(1),
-        'train_vae_variant.latent_sizes': [(12, 6)],
+        'train_vae_variant.latent_sizes': [(20, 20)],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

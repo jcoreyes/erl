@@ -301,6 +301,7 @@ class DeltaCVAETrainer(ConditionalConvVAETrainer):
             priority_function_kwargs=None,
             start_skew_epoch=0,
             weight_decay=0.001,
+            num_epochs=500,
     ):
         super().__init__(
             model,

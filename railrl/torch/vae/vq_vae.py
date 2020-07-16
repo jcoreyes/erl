@@ -80,41 +80,6 @@ class Encoder(nn.Module):
         x = self._conv_3(x)
         return self._residual_stack(x)
 
-class EncoderBottleneck(nn.Module):
-    def __init__(self, in_channels, num_hiddens, num_residual_layers, num_residual_hiddens, embedding_dim, discrete_size):
-        super(Encoder, self).__init__()
-
-        self._conv_1 = nn.Conv2d(in_channels=in_channels,
-                                 out_channels=num_hiddens//2,
-                                 kernel_size=4,
-                                 stride=2, padding=1)
-        self._conv_2 = nn.Conv2d(in_channels=num_hiddens//2,
-                                 out_channels=num_hiddens,
-                                 kernel_size=4,
-                                 stride=2, padding=1)
-        self._conv_3 = nn.Conv2d(in_channels=num_hiddens,
-                                 out_channels=num_hiddens,
-                                 kernel_size=3,
-                                 stride=1, padding=1)
-        self._residual_stack = ResidualStack(in_channels=num_hiddens,
-                                             num_hiddens=num_hiddens,
-                                             num_residual_layers=num_residual_layers,
-                                             num_residual_hiddens=num_residual_hiddens)
-        self._pre_vq_conv = nn.Conv2d(in_channels=num_hiddens,
-                                    out_channels=embedding_dim,
-                                    kernel_size=1,
-                                    stride=1)
-
-    def forward(self, inputs, ):
-        x = self._conv_1(inputs)
-        x = F.relu(x)
-
-        x = self._conv_2(x)
-        x = F.relu(x)
-
-        x = self._conv_3(x)
-        return self._residual_stack(x)
-
 
 class Decoder(nn.Module):
     def __init__(self, in_channels, num_hiddens, num_residual_layers, num_residual_hiddens):
@@ -324,7 +289,11 @@ class VQ_VAE(nn.Module):
                                 num_residual_hiddens)
         
         #Calculate latent sizes
-        if imsize == 48:
+        if imsize == 32:
+            self.root_len = 8
+        elif imsize == 36:
+            self.root_len = 10
+        elif imsize == 48:
             self.root_len = 12
         elif imsize == 84:
             self.root_len = 21
@@ -342,6 +311,10 @@ class VQ_VAE(nn.Module):
                             self.imsize)
 
         vq_loss, quantized, perplexity, _ = self.quantize_image(inputs)
+
+        self.root_len = quantized.shape[2]
+        self.discrete_size = self.root_len * self.root_len
+        self.representation_size = self.discrete_size * self.embedding_dim
         x_recon = self.decode(quantized)
         
         recon_error = F.mse_loss(x_recon, inputs)

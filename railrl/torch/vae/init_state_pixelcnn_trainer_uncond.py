@@ -7,6 +7,8 @@ from sklearn import neighbors
 import numpy as np
 from torchvision.utils import save_image
 import time
+from torchvision.transforms import ColorJitter, RandomResizedCrop, Resize
+from PIL import Image
 from railrl.misc.asset_loader import load_local_or_remote_file
 import os 
 from tqdm import tqdm
@@ -89,12 +91,30 @@ def prep_sample_data():
     test_data = data['test'].reshape(-1, discrete_size)
     return train_data, test_data
 
+def resize_dataset(data, new_imsize=48):
+    resize = Resize((new_imsize, new_imsize), interpolation=Image.NEAREST)
+    data["observations"] = data["observations"].reshape(-1, 50, 84 * 84 * 3)
+    num_traj, traj_len = data['observations'].shape[0], data['observations'].shape[1]
+    all_data = []
+    for traj_i in range(num_traj):
+        traj = []
+        for trans_i in range(traj_len):
+            x = Image.fromarray(data['observations'][traj_i, trans_i].reshape(84, 84, 3), mode='RGB')
+            x = np.array(resize(x)).reshape(1, new_imsize * new_imsize * 3)
+            traj.append(x)
+        traj = np.concatenate(traj, axis=0).reshape(1, traj_len, -1)
+        all_data.append(traj)
+    data['observations'] = np.concatenate(all_data, axis=0)
+
 
 
 def encode_dataset(dataset_path):
     data = load_local_or_remote_file(dataset_path)
     data = data.item()
+    resize_dataset(data)
+
     data["observations"] = data["observations"].reshape(-1, 50, imlength)
+
     all_data = []
     
     vqvae.to('cpu')

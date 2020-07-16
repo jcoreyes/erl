@@ -696,6 +696,7 @@ class CVAE(GaussianLatentVAE):
         batch_size = len(x_t)
         if x_0.shape[0] == 1:
             x_0 = x_0.repeat(batch_size, 1)
+
         x_pos = x_t.reshape(-1, self.input_channels, self.imsize, self.imsize)
         x_obj = x_0.reshape(-1, self.input_channels, self.imsize, self.imsize)
         

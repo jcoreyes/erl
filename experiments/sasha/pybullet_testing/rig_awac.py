@@ -33,9 +33,9 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=False,
             alpha=0,
 
-            bc_num_pretrain_steps=0,
+            bc_num_pretrain_steps=25000,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=25000, #25000
+            q_num_pretrain2_steps=0, #25000
             policy_weight_decay=1e-4,
             q_weight_decay=0,
 
@@ -43,9 +43,9 @@ if __name__ == "__main__":
             use_awr_update=True,
             use_reparam_update=False,
             compute_bc=True,
-            reparam_weight=0.0,
-            awr_weight=1.0,
-            bc_weight=0.0,
+            reparam_weight=0.0, #0.0
+            awr_weight=0.0, #1.0
+            bc_weight=1.0, #0.0
 
             reward_transform_kwargs=None,
             terminal_transform_kwargs=None,
