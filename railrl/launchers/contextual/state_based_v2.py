@@ -378,8 +378,14 @@ def rl_context_experiment(variant):
             batch['next_observations'] = np.concatenate([next_obs, context, task], axis=1)
         elif mask_conditioned:
             if obs_dict is not None and new_contexts is not None:
-                updated_contexts = post_process_mask_fn(obs_dict, new_contexts)
-                batch.update(updated_contexts)
+                if not mask_variant.get('relabel_masks', True):
+                    print(mask_keys, new_contexts.keys())
+                    for k in mask_keys:
+                        new_contexts[k] = next_obs_dict[k][:]
+                    batch.update(new_contexts)
+
+                new_contexts = post_process_mask_fn(obs_dict, new_contexts)
+                batch.update(new_contexts)
 
             if mask_format in ['vector', 'matrix']:
                 assert len(mask_keys) == 1

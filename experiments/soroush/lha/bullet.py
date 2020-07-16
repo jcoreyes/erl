@@ -127,9 +127,9 @@ variant = dict(
     env_class=SawyerLiftEnvGC,
     env_kwargs={
         'action_scale': .06,
-        'action_repeat': 10, #5
-        'timestep': 1./120, #1./240
-        'solver_iterations': 500, #150
+        'action_repeat': 10,
+        'timestep': 1./120,
+        'solver_iterations': 500,
         'max_force': 1000,
 
         'gui': False,
@@ -139,14 +139,15 @@ variant = dict(
         'reset_obj_in_hand_rate': 0.0,
         'goal_sampling_mode': 'ground',
         'random_init_bowl_pos': False,
-        'bowl_pos_in_goal': False,
         'bowl_type': 'fixed',
         'bowl_bounds': [-0.40, 0.40],
 
-        'reward_type': 'obj_dist',
+        'hand_reward': True,
+        'gripper_reward': True,
+        'bowl_reward': True,
 
-        'use_rotated_gripper': True,  # False
-        'use_wide_gripper': True,  # False
+        'use_rotated_gripper': True,
+        'use_wide_gripper': True,
         'soft_clip': True,
         'obj_urdf': 'spam',
         'max_joint_velocity': None,
@@ -167,8 +168,6 @@ env_params = {
         'env_kwargs.random_init_bowl_pos': [True],
         'rl_variant.mask_variant.mask_conditioned': [False],
         'rl_variant.algo_kwargs.num_epochs': [50],
-
-        'env_kwargs.reward_type': ['hand_dist+obj_dist'],
 
         'rl_variant.save_video_period': [5],
         'rl_variant.dump_video_kwargs.columns': [3],
@@ -334,7 +333,6 @@ env_params = {
     },
     'pb-4obj': {
         'env_kwargs.num_obj': [4],
-        # 'rl_variant.max_path_length': [200],
 
         'rl_variant.mask_variant.idx_masks': [[
             {2: 2, 3: 3},
@@ -342,26 +340,6 @@ env_params = {
             {6: 6, 7: 7},
             {8: 8, 9: 9},
         ]],
-
-        # 'rl_variant.mask_variant.eval_rollouts_to_log': [['atomic_seq']],
-
-        'env_kwargs.sliding_bowl': [True],
-        'env_kwargs.heavy_bowl': [True],
-        'env_kwargs.random_init_bowl_pos': [True],
-
-        # 'rl_variant.mask_variant.idx_masks': [[
-        #     {0: -12, 1: -13},
-        #     {2: 2, 3: 3},
-        #     {0: -14, 1: -15},
-        #     {4: 4, 5: 5},
-        #     {0: -16, 1: -17},
-        #     {6: 6, 7: 7},
-        #     {0: -18, 1: -19},
-        #     {8: 8, 9: 9},
-        # ]],
-        # 'rl_variant.mask_variant.mask_groups': [[
-        #     [0, 1], [2, 3], [4, 5], [6, 7],
-        # ]],
 
         'rl_variant.mask_variant.mask_conditioned': [
             True,
@@ -375,7 +353,7 @@ env_params = {
         #     1000,
         # ],
 
-        'rl_variant.algo_kwargs.num_epochs': [6000],
+        'rl_variant.algo_kwargs.num_epochs': [5000],
     },
     'pb-5obj': {
         'env_kwargs.num_obj': [5],
