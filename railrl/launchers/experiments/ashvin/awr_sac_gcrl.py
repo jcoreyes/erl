@@ -3,6 +3,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.samplers.data_collector.path_collector import GoalConditionedPathCollector
 from railrl.torch.networks import ConcatMlp
+from railrl.torch.networks.cnn import ConcatCNN
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
@@ -183,7 +184,7 @@ def experiment(variant):
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = variant.get('achieved_goal_key', 'latent_achieved_goal')
-    
+
     obs_dim = (
             env.observation_space.spaces[observation_key].low.size
             + env.observation_space.spaces[desired_goal_key].low.size
@@ -485,6 +486,8 @@ def awac_rig_experiment(
         pretrained_vae_path="",
         presampled_goals_path="",
         init_camera=None,
+
+        qf_class=ConcatMlp,
     ):
 
     #Kwarg Definitions
@@ -597,7 +600,7 @@ def awac_rig_experiment(
             + expl_env.observation_space.spaces[context_key].low.size
     )
     action_dim = expl_env.action_space.low.size
-    
+
     state_rewards = reward_kwargs.get('reward_type', 'dense') == 'wrapped_env'
     if state_rewards:
         mapper = RemapKeyFn({context_key: observation_key, state_goal_key: state_observation_key})
@@ -607,7 +610,7 @@ def awac_rig_experiment(
         mapper = RemapKeyFn({context_key: observation_key})
         obs_keys = [observation_key]
         cont_keys = [context_key]
-    
+
     #Replay Buffer
     def concat_context_to_obs(batch):
         obs = batch['observations']
@@ -654,8 +657,16 @@ def awac_rig_experiment(
 
     #Neural Network Architecture
     def create_qf():
-        return ConcatMlp(
-            input_size=obs_dim + action_dim,
+        # return ConcatMlp(
+        #     input_size=obs_dim + action_dim,
+        #     output_size=1,
+        #     **qf_kwargs
+        # )
+        if qf_class is ConcatMlp:
+            qf_kwargs["input_size"] = obs_dim + action_dim
+        if qf_class is ConcatCNN:
+            qf_kwargs["added_fc_input_size"] = action_dim
+        return qf_class(
             output_size=1,
             **qf_kwargs
         )
@@ -663,7 +674,7 @@ def awac_rig_experiment(
     qf2 = create_qf()
     target_qf1 = create_qf()
     target_qf2 = create_qf()
-    
+
     policy = policy_class(
         obs_dim=obs_dim,
         action_dim=action_dim,

@@ -185,6 +185,19 @@ class CNN(PyTorchModule):
         return h
 
 
+class ConcatCNN(CNN):
+    """
+    Concatenate inputs along dimension and then pass through MLP.
+    """
+    def __init__(self, *args, dim=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dim = dim
+
+    def forward(self, *inputs, **kwargs):
+        flat_inputs = torch.cat(inputs, dim=self.dim)
+        return super().forward(flat_inputs, **kwargs)
+
+
 class MergedCNN(CNN):
     '''
     CNN that supports input directly into fully connected layers
