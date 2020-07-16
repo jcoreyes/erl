@@ -371,21 +371,25 @@ def rl_context_experiment(variant):
     def concat_context_to_obs(batch, replay_buffer=None, obs_dict=None, next_obs_dict=None, new_contexts=None):
         obs = batch['observations']
         next_obs = batch['next_observations']
-        context = batch[context_key]
         if task_conditioned:
+            context = batch[context_key]
             task = batch[task_key]
             batch['observations'] = np.concatenate([obs, context, task], axis=1)
             batch['next_observations'] = np.concatenate([next_obs, context, task], axis=1)
         elif mask_conditioned:
             if obs_dict is not None and new_contexts is not None:
                 if not mask_variant.get('relabel_masks', True):
-                    print(mask_keys, new_contexts.keys())
                     for k in mask_keys:
                         new_contexts[k] = next_obs_dict[k][:]
+                    batch.update(new_contexts)
+                if not mask_variant.get('relabel_goals', True):
+                    new_contexts[context_key] = next_obs_dict[context_key][:]
                     batch.update(new_contexts)
 
                 new_contexts = post_process_mask_fn(obs_dict, new_contexts)
                 batch.update(new_contexts)
+
+            context = batch[context_key]
 
             if mask_format in ['vector', 'matrix']:
                 assert len(mask_keys) == 1
@@ -408,6 +412,7 @@ def rl_context_experiment(variant):
             else:
                 raise NotImplementedError
         else:
+            context = batch[context_key]
             batch['observations'] = np.concatenate([obs, context], axis=1)
             batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
         return batch
