@@ -138,6 +138,7 @@ variant = dict(
         # Rewards
         action_l2norm_penalty=0,
         reward_type="dense", #dense_l1
+        object_reward_only=False,
         success_threshold=0.60,
         # Reset settings
         fixed_goal=None,
@@ -146,13 +147,12 @@ variant = dict(
         render_dt_msec=0,
         render_onscreen=False,
         render_size=84,
-        show_goal=True,
+        show_goal=False, #True
         # get_image_base_render_size=(48, 48),
         # Goal sampling
         goal_samplers=None,
         goal_sampling_mode='random',
         num_presampled_goals=10000,
-        object_reward_only=False,
 
         init_position_strategy='random',
     ),
@@ -186,6 +186,9 @@ env_params = {
     },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
+
+        'rl_variant.mask_variant.mask_conditioned': [False],
+
         'rl_variant.mask_variant.idx_masks': [
             [
                 {2: 2, 3: 3},
