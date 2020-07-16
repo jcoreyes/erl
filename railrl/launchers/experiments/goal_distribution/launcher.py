@@ -108,19 +108,19 @@ def representation_learning_with_goal_distribution_launcher(
     ]:
         prev_subtask_weight = 0.5
     prev_subtasks_solved = mask_variant.get('prev_subtasks_solved', False)
-    max_subtasks_to_focus_on = mask_variant.get('max_subtasks_to_focus_on',
-                                                None)
-    max_subtasks_per_rollout = mask_variant.get('max_subtasks_per_rollout',
-                                                None)
+    max_subtasks_to_focus_on = mask_variant.get(
+        'max_subtasks_to_focus_on', None)
+    max_subtasks_per_rollout = mask_variant.get(
+        'max_subtasks_per_rollout', None)
     mask_groups = mask_variant.get('mask_groups', None)
     rollout_mask_order_for_expl = mask_variant.get(
         'rollout_mask_order_for_expl', 'fixed')
     rollout_mask_order_for_eval = mask_variant.get(
         'rollout_mask_order_for_eval', 'fixed')
-    masks = mask_variant.get('masks', None),
-    idx_masks = mask_variant.get('idx_masks', None),
-    matrix_masks = mask_variant.get('matrix_masks', None),
-    train_mask_distr = mask_variant.get('train_mask_distr', None),
+    masks = mask_variant.get('masks', None)
+    idx_masks = mask_variant.get('idx_masks', None)
+    matrix_masks = mask_variant.get('matrix_masks', None)
+    train_mask_distr = mask_variant.get('train_mask_distr', None)
     mask_inference_variant = mask_variant.get('mask_inference_variant', {})
     mask_reward_fn = mask_variant.get('reward_fn', default_masked_reward_fn)
     expl_mask_distr = mask_variant['expl_mask_distr']
@@ -345,6 +345,7 @@ def representation_learning_with_goal_distribution_launcher(
         else:
             cumul_mask_to_indices = None
 
+        mode = context_post_process_mode
         if mode in [
             'prev_subtasks_solved', 'dilute_prev_subtasks_uniform',
             'dilute_prev_subtasks_fixed'
