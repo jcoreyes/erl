@@ -53,7 +53,7 @@ def representation_learning_with_goal_distribution_launcher(
         achieved_goal_key='latent_achieved_goal',
         renderer_kwargs=None,
         # mask settings
-        mask_variant=None,
+        mask_variant=None,  # TODO: manually unpack this as well
         mask_conditioned=True,
         mask_format='vector',
         infer_masks=False,
