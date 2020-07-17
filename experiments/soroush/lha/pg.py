@@ -95,11 +95,10 @@ variant = dict(
             mask_format='matrix',
             infer_masks=False,
             mask_inference_variant=dict(
-                n=100,
                 noise=0.10,
                 max_cond_num=1e2,
                 normalize_sigma_inv=True,
-                sigma_inv_entry_threshold=0.10,
+                sigma_inv_entry_threshold=0.15,
             ),
             relabel_goals=True,
             relabel_masks=True,
@@ -195,11 +194,8 @@ env_params = {
 
         'rl_variant.mask_variant.mask_format': ['distribution'],
         'rl_variant.mask_variant.infer_masks': [True],
-        'rl_variant.mask_variant.mask_inference_variant.n': [
+        'rl_variant.example_set_variant.n': [
             30,
-        ],
-        'rl_variant.mask_variant.mask_inference_variant.sigma_inv_entry_threshold': [
-            0.15,
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [4000],

@@ -16,7 +16,6 @@ do_state_exp=True,
         use_cache=False,
         cache_path=None,
     ),
-    # env_id='FourObject-PickAndPlace-RandomInit-2D-v1',
     env_class=PickAndPlaceEnv,
     env_kwargs=dict(
         # Environment dynamics

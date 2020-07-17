@@ -19,6 +19,15 @@ def gen_example_sets(env, example_set_variant):
     if use_cache:
         cache_path = example_set_variant['cache_path']
         dataset = np.load(cache_path)[()]
+        data_idxs = np.arange(dataset['list_of_waypoints'].shape[1])
+        np.random.shuffle(data_idxs)
+        data_idxs = data_idxs[:n]
+        list_of_waypoints = dataset['list_of_waypoints'][:, data_idxs]
+        goals = dataset['goals'][data_idxs]
+        dataset = {
+            'list_of_waypoints': list_of_waypoints,
+            'goals': goals,
+        }
         return dataset
 
     num_subtasks = len(subtask_codes)

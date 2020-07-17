@@ -2,18 +2,13 @@ import numpy as np
 from scipy import linalg
 
 def infer_masks(dataset, mask_inference_variant):
-    n = int(mask_inference_variant.get('n', 50))
     obs_noise = mask_inference_variant['noise']
     max_cond_num = mask_inference_variant['max_cond_num']
     normalize_sigma_inv = mask_inference_variant.get('normalize_sigma_inv', True)
     sigma_inv_entry_threshold = mask_inference_variant.get('sigma_inv_entry_threshold', None)
 
-    # sample from the example set data
-    data_idxs = np.arange(dataset['list_of_waypoints'].shape[1])
-    np.random.shuffle(data_idxs)
-    data_idxs = data_idxs[:n]
-    list_of_waypoints = dataset['list_of_waypoints'][:,data_idxs]
-    goals = dataset['goals'][data_idxs]
+    list_of_waypoints = dataset['list_of_waypoints']
+    goals = dataset['goals']
 
     # add noise to all of the data
     list_of_waypoints += np.random.normal(0, obs_noise, list_of_waypoints.shape)
@@ -115,8 +110,9 @@ def print_matrix(matrix, format="raw", threshold=0.1, normalize=True, precision=
 
 def plot_Gaussian(
         mu,
-        Sigma=None,
-        Sigma_inv=None,
+        sigma=None,
+        sigma_inv=None,
+        bounds=None,
         list_of_dims=[[0, 1], [2, 3], [0, 2], [1, 3]],
         pt1=None,
         pt2=None
@@ -130,16 +126,18 @@ def plot_Gaussian(
         fig, axs = plt.subplots(1, 1, figsize=(6, 6))
     else:
         fig, axs = plt.subplots(2, num_subplots // 2, figsize=(10, 10))
-    x, y = np.mgrid[-0.5:0.5:.01, -0.5:0.5:.01]
+    lb, ub = bounds
+    gran = (ub - lb) / 50
+    x, y = np.mgrid[lb:ub:gran, lb:ub:gran]
     pos = np.dstack((x, y))
 
-    assert (Sigma is not None) ^ (Sigma_inv is not None)
-    if Sigma is None:
-        Sigma = linalg.inv(Sigma_inv)
+    assert (sigma is not None) ^ (sigma_inv is not None)
+    if sigma is None:
+        sigma = linalg.inv(sigma_inv + np.eye(len(mu)) * 1e-6)
 
     for i in range(len(list_of_dims)):
         dims = list_of_dims[i]
-        rv = multivariate_normal(mu[dims], Sigma[dims][:,dims])
+        rv = multivariate_normal(mu[dims], sigma[dims][:,dims], allow_singular=True)
 
         if num_subplots == 1:
             axs_obj = axs
