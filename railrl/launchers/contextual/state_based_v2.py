@@ -301,64 +301,14 @@ def rl_context_experiment(variant):
                     context_dict[mask_key] = obs_dict[mask_key]
         return context_dict
 
-    def post_process_mask_fn(obs_dict, context_dict):
-        assert mask_conditioned
-        pp_context_dict = copy.deepcopy(context_dict)
-
-        mode = mask_variant.get('context_post_process_mode', None)
-        assert mode in [
-            'prev_subtasks_solved',
-            'dilute_prev_subtasks_uniform',
-            'dilute_prev_subtasks_fixed',
-            'atomic_to_corresp_cumul',
-            None
-        ]
-
-        if mode in [
-            'prev_subtasks_solved',
-            'dilute_prev_subtasks_uniform',
-            'dilute_prev_subtasks_fixed',
-            'atomic_to_corresp_cumul'
-        ]:
-            frac = mask_variant.get('context_post_process_frac', 0.50)
-            cumul_mask_to_indices = context_distrib.get_cumul_mask_to_indices(context_dict['mask'])
-            for k in cumul_mask_to_indices:
-                indices = cumul_mask_to_indices[k]
-                subset = np.random.choice(len(indices), int(len(indices)*frac), replace=False)
-                cumul_mask_to_indices[k] = indices[subset]
-        else:
-            cumul_mask_to_indices = None
-
-        if mode in ['prev_subtasks_solved', 'dilute_prev_subtasks_uniform', 'dilute_prev_subtasks_fixed']:
-            cumul_masks = list(cumul_mask_to_indices.keys())
-            for i in range(1, len(cumul_masks)):
-                curr_mask = cumul_masks[i]
-                prev_mask = cumul_masks[i-1]
-                prev_obj_indices = np.where(np.array(prev_mask) > 0)[0]
-                indices = cumul_mask_to_indices[curr_mask]
-                if mode == 'prev_subtasks_solved':
-                    pp_context_dict[context_key][indices][:,prev_obj_indices] = \
-                        obs_dict[achieved_goal_key][indices][:,prev_obj_indices]
-                elif mode == 'dilute_prev_subtasks_uniform':
-                    pp_context_dict['mask'][indices][:, prev_obj_indices] = \
-                        np.random.uniform(size=(len(indices), len(prev_obj_indices)))
-                elif mode == 'dilute_prev_subtasks_fixed':
-                    pp_context_dict['mask'][indices][:, prev_obj_indices] = 0.5
-            indices_to_relabel = np.concatenate(list(cumul_mask_to_indices.values()))
-            orig_masks = obs_dict['mask'][indices_to_relabel]
-            atomic_mask_to_subindices = context_distrib.get_atomic_mask_to_indices(orig_masks)
-            atomic_masks = list(atomic_mask_to_subindices.keys())
-            cumul_masks = list(cumul_mask_to_indices.keys())
-            for i in range(1, len(atomic_masks)):
-                orig_atomic_mask = atomic_masks[i]
-                relabeled_cumul_mask = cumul_masks[i]
-                subindices = atomic_mask_to_subindices[orig_atomic_mask]
-                pp_context_dict['mask'][indices_to_relabel][subindices] = relabeled_cumul_mask
-
-        return pp_context_dict
-
-    # if mask_conditioned:
-    #     variant['contextual_replay_buffer_kwargs']['post_process_batch_fn'] = post_process_mask_fn
+    post_process_mask_fn = partial(
+        full_post_process_mask_fn,
+        mask_conditioned=mask_conditioned,
+        mask_variant=mask_variant,
+        context_distrib=context_distrib,
+        context_key=context_key,
+        achieved_goal_key=achieved_goal_key,
+    )
 
     def concat_context_to_obs(batch, replay_buffer=None, obs_dict=None, next_obs_dict=None, new_contexts=None):
         obs = batch['observations']
@@ -705,8 +655,6 @@ def rl_context_experiment(variant):
 
         # atomic masks
         if 'atomic' in eval_rollouts_to_log:
-            # masks = eval_context_distrib.masks.copy()
-            # num_masks = len(masks[list(masks.keys())[0]])
             num_masks = len(eval_path_collector.mask_groups)
             for mask_id in range(num_masks):
                 mask_kwargs=dict(
@@ -759,15 +707,13 @@ def rl_context_experiment(variant):
 
         def get_mask_diagnostics(unused):
             from railrl.core.logging import append_log, add_prefix, OrderedDict
-            from railrl.misc import eval_util
             log = OrderedDict()
             for prefix, collector in zip(log_prefixes, collectors):
                 paths = collector.collect_new_paths(
                     max_path_length,
-                    max_path_length, #masking_eval_steps,
+                    max_path_length,
                     discard_incomplete_paths=True,
                 )
-                # old_path_info = eval_util.get_generic_path_information(paths)
                 old_path_info = eval_env.get_diagnostics(paths)
 
                 keys_to_keep = []
@@ -791,3 +737,66 @@ def rl_context_experiment(variant):
         algorithm._eval_get_diag_fns.append(get_mask_diagnostics)
 
     algorithm.train()
+
+def full_post_process_mask_fn(
+        obs_dict, context_dict,
+        mask_conditioned,
+        mask_variant,
+        context_distrib,
+        context_key,
+        achieved_goal_key,
+):
+    assert mask_conditioned
+    pp_context_dict = copy.deepcopy(context_dict)
+
+    mode = mask_variant.get('context_post_process_mode', None)
+    assert mode in [
+        'prev_subtasks_solved',
+        'dilute_prev_subtasks_uniform',
+        'dilute_prev_subtasks_fixed',
+        'atomic_to_corresp_cumul',
+        None
+    ]
+
+    if mode in [
+        'prev_subtasks_solved',
+        'dilute_prev_subtasks_uniform',
+        'dilute_prev_subtasks_fixed',
+        'atomic_to_corresp_cumul'
+    ]:
+        frac = mask_variant.get('context_post_process_frac', 0.50)
+        cumul_mask_to_indices = context_distrib.get_cumul_mask_to_indices(context_dict['mask'])
+        for k in cumul_mask_to_indices:
+            indices = cumul_mask_to_indices[k]
+            subset = np.random.choice(len(indices), int(len(indices)*frac), replace=False)
+            cumul_mask_to_indices[k] = indices[subset]
+    else:
+        cumul_mask_to_indices = None
+
+    if mode in ['prev_subtasks_solved', 'dilute_prev_subtasks_uniform', 'dilute_prev_subtasks_fixed']:
+        cumul_masks = list(cumul_mask_to_indices.keys())
+        for i in range(1, len(cumul_masks)):
+            curr_mask = cumul_masks[i]
+            prev_mask = cumul_masks[i-1]
+            prev_obj_indices = np.where(np.array(prev_mask) > 0)[0]
+            indices = cumul_mask_to_indices[curr_mask]
+            if mode == 'prev_subtasks_solved':
+                pp_context_dict[context_key][indices][:,prev_obj_indices] = \
+                    obs_dict[achieved_goal_key][indices][:,prev_obj_indices]
+            elif mode == 'dilute_prev_subtasks_uniform':
+                pp_context_dict['mask'][indices][:, prev_obj_indices] = \
+                    np.random.uniform(size=(len(indices), len(prev_obj_indices)))
+            elif mode == 'dilute_prev_subtasks_fixed':
+                pp_context_dict['mask'][indices][:, prev_obj_indices] = 0.5
+        indices_to_relabel = np.concatenate(list(cumul_mask_to_indices.values()))
+        orig_masks = obs_dict['mask'][indices_to_relabel]
+        atomic_mask_to_subindices = context_distrib.get_atomic_mask_to_indices(orig_masks)
+        atomic_masks = list(atomic_mask_to_subindices.keys())
+        cumul_masks = list(cumul_mask_to_indices.keys())
+        for i in range(1, len(atomic_masks)):
+            orig_atomic_mask = atomic_masks[i]
+            relabeled_cumul_mask = cumul_masks[i]
+            subindices = atomic_mask_to_subindices[orig_atomic_mask]
+            pp_context_dict['mask'][indices_to_relabel][subindices] = relabeled_cumul_mask
+
+    return pp_context_dict
