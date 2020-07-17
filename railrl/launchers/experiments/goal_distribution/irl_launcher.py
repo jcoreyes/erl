@@ -22,6 +22,7 @@ from railrl.envs.contextual.mask_conditioned import (
     default_masked_reward_fn,
 )
 from railrl.envs.contextual.mask_inference import infer_masks as infer_masks_fn
+from railrl.envs.contextual.irl.vice import VICETrainer, VICERewardFn
 from railrl.envs.images import EnvRenderer, InsertImagesEnv
 from railrl.launchers.contextual.rig.rig_launcher import get_gym_env
 from railrl.launchers.contextual.util import (
@@ -30,7 +31,7 @@ from railrl.launchers.contextual.util import (
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
-from railrl.torch.networks import ConcatMlp
+from railrl.torch.networks import ConcatMlp, Mlp
 from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SACTrainer
@@ -197,21 +198,32 @@ def representation_learning_with_goal_distribution_launcher(
                 matrix_masks=matrix_masks,
                 mask_distr=train_mask_distr,
             )
-            reward_fn = ContextualRewardFnFromMultitaskEnv(
-                env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(
-                    achieved_goal_key),  # observation_key
-                desired_goal_key=desired_goal_key,
-                achieved_goal_key=achieved_goal_key,
-                additional_obs_keys=contextual_replay_buffer_kwargs.get(
-                    'observation_keys', None),
-                additional_context_keys=mask_keys,
-                reward_fn=partial(
-                    mask_reward_fn,
-                    mask_format=mask_format,
-                    use_g_for_mean=use_g_for_mean
-                ),
+            classifier = Mlp(
+                hidden_sizes=[64, 64, ],
+                output_size=1,
+                input_size=goal_dim,
+                output_activation=torch.nn.Sigmoid(),
             )
+            classifier.to(ptu.device)
+            positive_buffer = None
+            negative_buffer = None
+            reward_fn = VICERewardFn(classifier)
+            vice_trainer = VICETrainer(classifier, positive_buffer, negative_buffer)
+            # reward_fn = ContextualRewardFnFromMultitaskEnv(
+            #     env=env,
+            #     achieved_goal_from_observation=IndexIntoAchievedGoal(
+            #         achieved_goal_key),  # observation_key
+            #     desired_goal_key=desired_goal_key,
+            #     achieved_goal_key=achieved_goal_key,
+            #     additional_obs_keys=contextual_replay_buffer_kwargs.get(
+            #         'observation_keys', None),
+            #     additional_context_keys=mask_keys,
+            #     reward_fn=partial(
+            #         mask_reward_fn,
+            #         mask_format=mask_format,
+            #         use_g_for_mean=use_g_for_mean
+            #     ),
+            # )
         else:
             context_distrib = GoalDictDistributionFromMultitaskEnv(
                 env,
