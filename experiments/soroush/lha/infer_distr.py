@@ -73,12 +73,13 @@ def set_wp(wp, obs, goal, env, mode='hand_to_obj', obj_id=0, other_dims_random=F
 
 def gen_dataset(
         num_obj=4,
+        obj_ids=None,
         n=50,
         render=False,
         lite_reset=False,
         hand_to_obj=False,
-        obj_and_hand_to_air=True,
-        obj_to_goal=True,
+        obj_and_hand_to_air=False,
+        obj_to_goal=False,
         obj_and_hand_to_goal=False,
         obj_to_bowl=False,
         cumulative=False,
@@ -103,14 +104,16 @@ def gen_dataset(
     if obj_to_bowl:
         stages.append('obj_to_bowl')
     num_stages_per_obj = len(stages)
-    num_wps = num_stages_per_obj * num_obj
+
+    if obj_ids is None:
+        obj_ids = [i for i in range(num_obj)]
+    num_wps = num_stages_per_obj * len(obj_ids)
 
     list_of_waypoints = []
     t1 = time.time()
     print("Generating dataset...")
     for i in tqdm(range(n)):
         list_of_waypoints.append([])
-        obj_ids = [i for i in range(num_obj)]
         if randomize_objs:
             np.random.shuffle(obj_ids)
 
@@ -123,10 +126,16 @@ def gen_dataset(
 
         if render:
             env.set_to_goal({
+                'state_desired_goal': obs
+            })
+            env.render()
+            time.sleep(5)
+
+            env.set_to_goal({
                 'state_desired_goal': goal
             })
             env.render()
-            time.sleep(2)
+            time.sleep(5)
 
         if cumulative:
             wp = obs.copy()
@@ -154,9 +163,6 @@ def gen_dataset(
                 env.render()
                 time.sleep(2)
 
-        if render:
-            time.sleep(2)
-
     list_of_waypoints = np.array(list_of_waypoints)
     goals = np.array(goals)
     states = np.array(states)
@@ -178,57 +184,8 @@ def get_cond_distr(mu, sigma, y):
 
     sigma_yy_inv = linalg.inv(sigma_yy)
 
-    # print("sigma_xx:")
-    # # print(sigma_xx)
-    # # print()
-    # print_matrix(
-    #     sigma_xx,
-    #     format="raw",
-    #     normalize=True,
-    #     threshold=0.4,
-    # )
-    #
-    # print("sigma_xy:")
-    # # print(sigma_xy)
-    # # print()
-    # print_matrix(
-    #     sigma_xy,
-    #     format="raw",
-    #     # normalize=True,
-    #     threshold=0.4,
-    # )
-    #
-    # print("sigma_yy:")
-    # # print(sigma_yy_inv)
-    # # print()
-    # print_matrix(
-    #     sigma_yy,
-    #     format="raw",
-    #     normalize=True,
-    #     threshold=0.4,
-    # )
-    #
-    # print("sigma_yy_inv:")
-    # # print(sigma_yy_inv)
-    # # print()
-    # print_matrix(
-    #     sigma_yy_inv,
-    #     format="raw",
-    #     normalize=True,
-    #     threshold=0.4,
-    # )
-
     mu_xgy = mu_x + sigma_xy @ sigma_yy_inv @ (y - mu_y)
     sigma_xgy = sigma_xx - sigma_xy @ sigma_yy_inv @ sigma_yx
-
-    # print("sigma_xgy")
-    # # print(sigma_xgy)
-    # print_matrix(
-    #     sigma_xgy,
-    #     format="raw",
-    #     # normalize=True,
-    #     threshold=0.4,
-    # )
 
     return mu_xgy, sigma_xgy
 
@@ -304,27 +261,35 @@ def plot_Gaussian(
 
     plt.show()
 
-num_sets = 500 #500
-num_obj = 2
-lite_reset = False #False
+# env settings
+num_sets = 30 #500
+num_obj = 4
+obj_ids = [0]
+
+# data generation settings
 use_cached_data = True
-vis_distr = False
+lite_reset = False
+render = False
+
+# inference settings
 obs_noise = 0.01 #0.01
 correlated_noise = False
 cond_num = 1e2
 context_conditioned = False
+vis_distr = False
 
 if not use_cached_data:
     ### generate and save the data
     list_of_waypoints, goals, states = gen_dataset(
         num_obj=num_obj,
+        obj_ids=obj_ids,
         n=num_sets,
-        render=False,
+        render=render,
         lite_reset=lite_reset,
-        hand_to_obj=True,
-        obj_and_hand_to_air=False,
-        obj_to_goal=True,
-        obj_and_hand_to_goal=False,
+        # hand_to_obj=True,
+        # obj_and_hand_to_air=True,
+        # obj_to_goal=True,
+        # obj_and_hand_to_goal=True,
         obj_to_bowl=True,
         cumulative=False,
         randomize_objs=False,
@@ -367,8 +332,8 @@ else:
     goals += np.random.normal(0, obs_noise, goals.shape)
     states += np.random.normal(0, obs_noise, states.shape)
 
-for i in [2]: #range(num_subtasks)
-# for i in range(num_subtasks):
+# for i in [0]: #range(num_subtasks)
+for i in range(num_subtasks):
     waypoints = list_of_waypoints[:,i,:]
 
     mu = np.mean(np.concatenate((waypoints, goals), axis=1), axis=0)
@@ -383,12 +348,7 @@ for i in [2]: #range(num_subtasks)
         if context_conditioned:
             mu_w_given_c, sigma_w_given_c = get_cond_distr(mu, sigma, goal)
         else:
-            # concat_data = np.concatenate((list_of_waypoints[:,1,:], list_of_waypoints[:,4,:]))
-            concat_data = list_of_waypoints[:, 4, :]
-            mu_w_given_c = np.mean(concat_data, axis=0)
-            sigma_w_given_c = np.cov(concat_data.T)
-            print(concat_data.shape, mu_w_given_c.shape, sigma_w_given_c.shape)
-            # mu_w_given_c, sigma_w_given_c = mu[:len(goal)], sigma[:len(goal),:len(goal)]
+            mu_w_given_c, sigma_w_given_c = mu[:len(goal)], sigma[:len(goal),:len(goal)]
 
         w, v = np.linalg.eig(sigma_w_given_c)
         if j == 0:

@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import linalg
-import time
+
+from railrl.launchers.sets.example_set_gen import gen_example_sets
 
 def get_cond_distr_params(mu, sigma, x_dim, max_cond_num):
     mu_x = mu[:x_dim]
@@ -54,46 +55,6 @@ def print_matrix(matrix, format="raw", threshold=0.1, normalize=True, precision=
         print()
     print()
 
-def gen_data(env, idx_masks, n, other_dims_random=True):
-    from tqdm import tqdm
-    num_masks = len(idx_masks)
-
-    goal_dim = env.observation_space.spaces['state_desired_goal'].low.size
-
-    goals = np.zeros((n, goal_dim))
-    list_of_waypoints = np.zeros((num_masks, n, goal_dim))
-
-    t1 = time.time()
-    print("Generating dataset...")
-
-    # data collection
-    for i in tqdm(range(n)):
-        obs_dict = env.reset()
-        obs = obs_dict['state_achieved_goal']
-        goal = obs_dict['state_desired_goal']
-        for (mask_id, idx_dict) in enumerate(idx_masks):
-            wp = obs.copy()
-            dims = []
-            for (k, v) in idx_dict.items():
-                if v >= 0:
-                    wp[k] = goal[v]
-                    dims.append(k)
-            for (k, v) in idx_dict.items():
-                if v < 0:
-                    wp[k] = wp[-v - 10]
-                    dims.append(k)
-                    dims.append(-v - 10)
-            other_dims = [d for d in np.arange(len(wp)) if d not in dims]
-            if other_dims_random:
-                wp[other_dims] = env.observation_space.spaces['state_achieved_goal'].sample()[other_dims]
-            list_of_waypoints[mask_id][i] = wp
-
-        goals[i] = goal
-
-    print("Done. Time:", time.time() - t1)
-
-    return list_of_waypoints, goals
-
 
 def infer_masks(env, idx_masks, mask_inference_variant):
     n = int(mask_inference_variant.get('n', 50))
@@ -103,7 +64,7 @@ def infer_masks(env, idx_masks, mask_inference_variant):
     sigma_inv_entry_threshold = mask_inference_variant.get('sigma_inv_entry_threshold', None)
     other_dims_random = mask_inference_variant.get('other_dims_random', True)
 
-    list_of_waypoints, goals = gen_data(env, idx_masks, n, other_dims_random)
+    list_of_waypoints, goals = gen_example_sets(env, idx_masks, n, other_dims_random)
 
     # add noise to all of the data
     list_of_waypoints += np.random.normal(0, obs_noise, list_of_waypoints.shape)

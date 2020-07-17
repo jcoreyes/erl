@@ -112,14 +112,6 @@ def rl_context_experiment(variant):
             )
             mask_variant['masks'] = masks
 
-        # relabel_context_key_blacklist = variant['contextual_replay_buffer_kwargs'].get('relabel_context_key_blacklist',
-        #                                                                                [])
-        # if not mask_variant.get('relabel_goals', True):
-        #     relabel_context_key_blacklist += [context_key]
-        # if not mask_variant.get('relabel_masks', True):
-        #     relabel_context_key_blacklist += mask_keys
-        # variant['contextual_replay_buffer_kwargs']['relabel_context_key_blacklist'] = relabel_context_key_blacklist
-
         context_keys = [context_key] + mask_keys
     else:
         context_keys = [context_key]
