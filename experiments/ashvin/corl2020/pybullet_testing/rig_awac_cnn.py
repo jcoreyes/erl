@@ -49,19 +49,19 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=False,
             alpha=0,
 
-            bc_num_pretrain_steps=0,
+            bc_num_pretrain_steps=5000,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=25000, #25000
+            q_num_pretrain2_steps=0, #25000
             policy_weight_decay=1e-4,
             q_weight_decay=0,
 
             rl_weight=1.0,
-            use_awr_update=True,
+            use_awr_update=False,
             use_reparam_update=False,
             compute_bc=True,
             reparam_weight=0.0,
-            awr_weight=1.0,
-            bc_weight=0.0,
+            awr_weight=0.0,
+            bc_weight=1.0,
 
             reward_transform_kwargs=None,
             terminal_transform_kwargs=None,
@@ -113,7 +113,7 @@ if __name__ == "__main__":
                     path='demos/corl2020/multiobj_datasets/demo_data/train.pkl',
                     obs_dict=True,
                     is_demo=True,
-                    data_split=0.1,
+                    # data_split=0.1,
                 ),
             ],
         ),
@@ -140,7 +140,6 @@ if __name__ == "__main__":
         launcher_config=dict(
             unpack_variant=True,
         ),
-
 
         train_vae_kwargs=dict(
             vae_path=None,
@@ -192,4 +191,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(awac_rig_experiment, variants, run_id=3)
+    run_variants(awac_rig_experiment, variants, run_id=0)

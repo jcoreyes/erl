@@ -130,6 +130,8 @@ def experiment(variant):
     debug = variant.get("debug", False)
     vae_path = variant.get("vae_path", False)
 
+    process_args(variant)
+
     env_class = variant["env_class"]
     env_kwargs = variant["env_kwargs"]
     expl_env = env_class(**env_kwargs)
@@ -501,6 +503,19 @@ def awac_rig_experiment(
         save_video_kwargs = {}
     if not renderer_kwargs:
         renderer_kwargs = {}
+
+    if debug:
+        max_path_length = 50
+        batch_size = 5
+        num_epochs = 5
+        num_eval_steps_per_epoch = 100
+        num_expl_steps_per_train_loop = 100
+        num_trains_per_train_loop = 10
+        min_num_steps_before_training = 100
+        min_num_steps_before_training = 100
+        trainer_kwargs['bc_num_pretrain_steps'] = min(10, trainer_kwargs.get('bc_num_pretrain_steps', 0))
+        trainer_kwargs['q_num_pretrain1_steps'] = min(10, trainer_kwargs.get('q_num_pretrain1_steps', 0))
+        trainer_kwargs['q_num_pretrain2_steps'] = min(10, trainer_kwargs.get('q_num_pretrain2_steps', 0))
 
     #Enviorment Wrapping
     renderer = EnvRenderer(init_camera=init_camera, **renderer_kwargs)

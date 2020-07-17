@@ -197,7 +197,7 @@ class DictToMDPPathLoader:
         return batch
 
 class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
-    
+
     def __init__(
             self,
             trainer,
@@ -223,7 +223,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             obs_key=None,
             load_terminals=True,
             **kwargs
-    ):  
+    ):
         super().__init__(trainer,
             replay_buffer,
             demo_train_buffer,
@@ -253,7 +253,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
     def preprocess(self, observation):
         observation = copy.deepcopy(observation)
         images = np.stack([observation[i]['image_observation'] for i in range(len(observation))])
-        
+
         if self.normalize:
             images = images / 255.0
 
@@ -292,6 +292,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             ob = traj_obs[i]
             next_ob = next_traj_obs[i]
             action = path["actions"][i]
+            action[3] /= 5
             reward = path["rewards"][i]
             terminal = path["terminals"][i]
             if not self.load_terminals:
