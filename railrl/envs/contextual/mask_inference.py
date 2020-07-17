@@ -145,7 +145,8 @@ def infer_masks(env, idx_masks, mask_inference_variant):
         # print('mask_mu_mat')
         # print_matrix(masks['mask_mu_mat'][mask_id])
         print('mask_sigma_inv for mask_id={}'.format(mask_id))
-        print_matrix(masks['mask_sigma_inv'][mask_id], precision=5)
+        print_matrix(masks['mask_sigma_inv'][mask_id], precision=5) #precision=5
+        # print(masks['mask_sigma_inv'][mask_id].diagonal())
     # exit()
 
     return masks

@@ -102,7 +102,7 @@ def rl_context_experiment(variant):
         if mask_variant.get('infer_masks', False):
             assert mask_format == 'distribution'
             env_kwargs = copy.deepcopy(variant['env_kwargs'])
-            env_kwargs['lite_reset'] = True
+            # env_kwargs['lite_reset'] = True
             infer_masks_env = variant["env_class"](**env_kwargs)
 
             masks = infer_masks(

@@ -83,11 +83,20 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
                 if idx_masks is not None:
                     for (i, idx_dict) in enumerate(idx_masks):
                         for (k, v) in idx_dict.items():
-                            assert k == v
                             if self.mask_format == 'vector':
+                                assert k == v
                                 self.masks[mask_key][i][k] = 1
                             elif self.mask_format == 'matrix':
-                                self.masks[mask_key][i][k, k] = 1
+                                if v >= 0:
+                                    assert k == v
+                                    self.masks[mask_key][i][k, k] = 1
+                                else:
+                                    src_idx = k
+                                    targ_idx = -(v + 10)
+                                    self.masks[mask_key][i][src_idx, src_idx] = 1
+                                    self.masks[mask_key][i][targ_idx, targ_idx] = 1
+                                    self.masks[mask_key][i][src_idx, targ_idx] = -1
+                                    self.masks[mask_key][i][targ_idx, src_idx] = -1
                 elif matrix_masks is not None:
                     if self.mask_format == 'vector':
                         for mask_id in range(num_masks):

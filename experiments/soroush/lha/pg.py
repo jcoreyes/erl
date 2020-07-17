@@ -84,7 +84,7 @@ variant = dict(
             infer_masks=False,
             mask_inference_variant=dict(
                 n=100,
-                noise=0.01,
+                noise=0.10,
                 max_cond_num=1e2,
                 normalize_sigma_inv=True,
                 sigma_inv_entry_threshold=0.10,
@@ -198,6 +198,15 @@ env_params = {
                 {6: 6, 7: 7},
                 {8: 8, 9: 9},
             ],
+        ],
+
+        'rl_variant.mask_variant.mask_format': ['distribution'],
+        'rl_variant.mask_variant.infer_masks': [True],
+        'rl_variant.mask_variant.mask_inference_variant.n': [
+            30,
+        ],
+        'rl_variant.mask_variant.mask_inference_variant.sigma_inv_entry_threshold': [
+            0.15,
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [4000],

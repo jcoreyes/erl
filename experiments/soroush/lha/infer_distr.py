@@ -8,50 +8,38 @@ import matplotlib
 import matplotlib.pyplot as plt
 from scipy.stats import multivariate_normal
 
-def get_env(num_obj=4, render=False):
+def get_env(num_obj=4, render=False, lite_reset=False):
     env_class=SawyerLiftEnvGC
     env_kwargs={
-        'action_scale': .06, #.06
-        'action_repeat': 10, #5
-        'timestep': 1./120, #1./240 1/120
-        'max_force': 1000, #1000
-        'solver_iterations': 500, #150
+        'action_scale': .06,
+        'action_repeat': 10,
+        'timestep': 1./120,
+        'solver_iterations': 500,
+        'max_force': 1000,
 
-        'gui': True,  # False,
-        'goal_mult': 0,
+        'gui': True,
         'pos_init': [.75, -.3, 0],
-        'pos_high': [.75, .4, .3], #[.75, .4, .3],
-        'pos_low': [.75, -.4, -.36], #[.75, -.4, -.36],
-        'reset_obj_in_hand_rate': 0.0, #0.0
-        'img_dim': 48,
-        # 'goal_sampling_mode': 'obj_in_bowl',
+        'pos_high': [.75, .4, .3],
+        'pos_low': [.75, -.4, -.36],
+        'reset_obj_in_hand_rate': 0.0,
         'goal_sampling_mode': 'ground',
-        'sample_valid_rollout_goals': True,
-        'random_bowl_pos': False,
-        'num_obj': 4, #2
+        'random_init_bowl_pos': True,
+        'bowl_type': 'fixed',
+        'bowl_bounds': [-0.40, 0.40],
 
-        'lite_reset': True,
+        'hand_reward': True,
+        'gripper_reward': True,
+        'bowl_reward': True,
 
-        # 'use_rotated_gripper': True, #False
-        # 'use_wide_gripper': False, #False
-        # 'soft_clip': True,
-        # 'obj_urdf': 'spam_long',
-        # 'max_joint_velocity': 2.0,
-
-        # 'use_rotated_gripper': False,  # False
-        # 'use_wide_gripper': False,  # False
-        # 'soft_clip': False,
-        # 'obj_urdf': 'spam',
-        # 'max_joint_velocity': None,
-
-        'use_rotated_gripper': True,  # False
-        'use_wide_gripper': True,  # False
+        'use_rotated_gripper': True,
+        'use_wide_gripper': True,
         'soft_clip': True,
         'obj_urdf': 'spam',
         'max_joint_velocity': None,
     }
     env_kwargs['gui'] = render
     env_kwargs['num_obj'] = num_obj
+    env_kwargs['lite_reset'] = lite_reset
     env = env_class(**env_kwargs)
     return env
 
@@ -72,6 +60,10 @@ def set_wp(wp, obs, goal, env, mode='hand_to_obj', obj_id=0, other_dims_random=F
         wp[obj_start_idx:obj_end_idx] = goal[obj_start_idx:obj_end_idx]
         wp[0:2] = wp[obj_start_idx:obj_end_idx]
         dims = np.concatenate((dims, np.arange(0, 2)))
+    elif mode == 'obj_to_bowl':
+        bowl_dim = len(wp) - 2
+        wp[obj_start_idx] = wp[bowl_dim]
+        dims = np.concatenate((dims, [bowl_dim]))
     else:
         raise NotImplementedError
 
@@ -83,17 +75,19 @@ def gen_dataset(
         num_obj=4,
         n=50,
         render=False,
+        lite_reset=False,
         hand_to_obj=False,
         obj_and_hand_to_air=True,
         obj_to_goal=True,
         obj_and_hand_to_goal=False,
+        obj_to_bowl=False,
         cumulative=False,
         randomize_objs=False,
         other_dims_random=True,
 ):
     assert not (obj_to_goal and obj_and_hand_to_goal)
 
-    env = get_env(num_obj=num_obj, render=render)
+    env = get_env(num_obj=num_obj, render=render, lite_reset=lite_reset)
     states = []
     goals = []
 
@@ -106,6 +100,8 @@ def gen_dataset(
         stages.append('obj_to_goal')
     if obj_and_hand_to_goal:
         stages.append('obj_and_hand_to_goal')
+    if obj_to_bowl:
+        stages.append('obj_to_bowl')
     num_stages_per_obj = len(stages)
     num_wps = num_stages_per_obj * num_obj
 
@@ -291,29 +287,32 @@ def plot_Gaussian(
         rv = multivariate_normal(mu[dims], Sigma[dims][:,dims])
 
         if num_subplots == 1:
-            axs.contourf(x, y, rv.logpdf(pos))
-            axs.set_title(str(dims))
+            axs_obj = axs
         else:
             plt_idx1 = i // 2
             plt_idx2 = i % 2
-            axs[plt_idx1, plt_idx2].contourf(x, y, rv.logpdf(pos))
-            axs[plt_idx1, plt_idx2].set_title(str(dims))
+            axs_obj = axs[plt_idx1, plt_idx2]
+
+        axs_obj.contourf(x, y, rv.logpdf(pos))
+        axs_obj.set_title(str(dims))
 
         if pt1 is not None:
-            axs[plt_idx1, plt_idx2].scatter([pt1[dims][0]], [pt1[dims][1]])
+            axs_obj.scatter([pt1[dims][0]], [pt1[dims][1]])
 
         if pt2 is not None:
-            axs[plt_idx1, plt_idx2].scatter([pt2[dims][0]], [pt2[dims][1]])
+            axs_obj.scatter([pt2[dims][0]], [pt2[dims][1]])
 
     plt.show()
 
-num_sets = 25
-num_obj = 1
+num_sets = 500 #500
+num_obj = 2
+lite_reset = False #False
 use_cached_data = True
 vis_distr = False
-obs_noise = 0.01
+obs_noise = 0.01 #0.01
 correlated_noise = False
 cond_num = 1e2
+context_conditioned = False
 
 if not use_cached_data:
     ### generate and save the data
@@ -321,10 +320,12 @@ if not use_cached_data:
         num_obj=num_obj,
         n=num_sets,
         render=False,
+        lite_reset=lite_reset,
         hand_to_obj=True,
         obj_and_hand_to_air=False,
         obj_to_goal=True,
         obj_and_hand_to_goal=False,
+        obj_to_bowl=True,
         cumulative=False,
         randomize_objs=False,
         other_dims_random=True,
@@ -366,7 +367,8 @@ else:
     goals += np.random.normal(0, obs_noise, goals.shape)
     states += np.random.normal(0, obs_noise, states.shape)
 
-for i in [0]: #range(num_subtasks)
+for i in [2]: #range(num_subtasks)
+# for i in range(num_subtasks):
     waypoints = list_of_waypoints[:,i,:]
 
     mu = np.mean(np.concatenate((waypoints, goals), axis=1), axis=0)
@@ -378,9 +380,17 @@ for i in [0]: #range(num_subtasks)
         goal = goal.copy()
         # goal[4:6] = goal[0:2]
 
-        mu_w_given_g, sigma_w_given_g = get_cond_distr(mu, sigma, goal)
+        if context_conditioned:
+            mu_w_given_c, sigma_w_given_c = get_cond_distr(mu, sigma, goal)
+        else:
+            # concat_data = np.concatenate((list_of_waypoints[:,1,:], list_of_waypoints[:,4,:]))
+            concat_data = list_of_waypoints[:, 4, :]
+            mu_w_given_c = np.mean(concat_data, axis=0)
+            sigma_w_given_c = np.cov(concat_data.T)
+            print(concat_data.shape, mu_w_given_c.shape, sigma_w_given_c.shape)
+            # mu_w_given_c, sigma_w_given_c = mu[:len(goal)], sigma[:len(goal),:len(goal)]
 
-        w, v = np.linalg.eig(sigma_w_given_g)
+        w, v = np.linalg.eig(sigma_w_given_c)
         if j == 0:
             print("eig:", sorted(w))
             print("cond number:", np.max(w) / np.min(w))
@@ -394,22 +404,22 @@ for i in [0]: #range(num_subtasks)
             eps = (h * target - l) / (1 - target)
         else:
             eps = 0
-        sigma_w_given_g += eps * np.identity(sigma_w_given_g.shape[0])
+        sigma_w_given_c += eps * np.identity(sigma_w_given_c.shape[0])
 
-        sigma_inv = linalg.inv(sigma_w_given_g)
+        sigma_inv = linalg.inv(sigma_w_given_c)
         # sigma_inv = sigma_inv / np.max(np.abs(sigma_inv))
-        # print(sigma_w_given_g)
+        # print(sigma_w_given_c)
         if j == 0:
             print_matrix(
-                sigma_w_given_g,
+                sigma_w_given_c,
                 format="raw",
                 normalize=True,
                 threshold=0.4,
                 precision=10,
             )
             print_matrix(
+                # sigma_inv[[2, 3, 6]][:,[2, 3, 6]],
                 sigma_inv,
-                # sigma_w_given_g,
                 format="raw",
                 normalize=True,
                 threshold=0.4,
@@ -417,19 +427,21 @@ for i in [0]: #range(num_subtasks)
             )
             # exit()
 
-        print("s:", state)
-        print("g:", goal)
-        print("w:", mu_w_given_g)
-        print()
+        # print("s:", state)
+        # print("g:", goal)
+        # print("w:", mu_w_given_c)
+        # print()
 
         if vis_distr:
             if i == 0:
                 list_of_dims = [[0, 1], [2, 3], [0, 2], [1, 3]]
+            elif i == 2:
+                list_of_dims = [[2, len(goal) - 2]]
             else:
                 list_of_dims = [[2, 3], [4, 5], [2, 4], [3, 5]]
             plot_Gaussian(
-                mu_w_given_g,
-                Sigma_inv=sigma_w_given_g,
+                mu_w_given_c,
+                Sigma=sigma_w_given_c,
                 pt1=goal, #pt2=state,
                 list_of_dims=list_of_dims,
             )
