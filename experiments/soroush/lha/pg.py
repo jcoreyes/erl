@@ -179,9 +179,12 @@ env_params = {
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
 
-        'rl_variant.mask_variant.mask_conditioned': [True],
+        # 'rl_variant.mask_variant.mask_conditioned': [True],
         # 'rl_variant.mask_variant.relabel_masks': [False],
         # 'rl_variant.mask_variant.relabel_goals': [False],
+
+        'rl_variant.mask_variant.mask_conditioned': [False],
+        'rl_variant.expl_goal_sampling_mode': ['example_set'],
 
         'rl_variant.example_set_variant.subtask_codes': [
             [

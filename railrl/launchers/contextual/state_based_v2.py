@@ -121,7 +121,7 @@ def rl_context_experiment(variant):
             goal_sampling_mode = variant.get("expl_goal_sampling_mode", None)
         elif mode == 'eval':
             goal_sampling_mode = variant.get("eval_goal_sampling_mode", None)
-        if goal_sampling_mode is not None:
+        if goal_sampling_mode not in [None, 'example_set']:
             env.goal_sampling_mode = goal_sampling_mode
 
         if task_conditioned:
@@ -167,10 +167,18 @@ def rl_context_experiment(variant):
                 reward_fn=partial(reward_fn, mask_format=mask_format, use_g_for_mean=mask_variant['use_g_for_mean']),
             )
         else:
-            context_distrib = GoalDictDistributionFromMultitaskEnv(
-                env,
-                desired_goal_keys=[desired_goal_key],
-            )
+            if goal_sampling_mode == 'example_set':
+                assert len(example_dataset['list_of_waypoints']) == 1
+                from railrl.envs.contextual.set_distributions import GoalDictDistributionFromSet
+                context_distrib = GoalDictDistributionFromSet(
+                    example_dataset['list_of_waypoints'][0],
+                    desired_goal_keys=[desired_goal_key],
+                )
+            else:
+                context_distrib = GoalDictDistributionFromMultitaskEnv(
+                    env,
+                    desired_goal_keys=[desired_goal_key],
+                )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
                 achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
