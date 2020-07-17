@@ -23,7 +23,7 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             mask_keys=['mask'],
             mask_format='vector',
             masks=None,
-            idx_masks=None,
+            subtask_codes=None,
             matrix_masks=None,
             mask_distr=None,
             max_subtasks_to_focus_on=None,
@@ -63,12 +63,12 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
         if masks is not None:
             self.masks = masks
         else:
-            assert ((idx_masks is not None) + (matrix_masks is not None)) == 1
+            assert ((subtask_codes is not None) + (matrix_masks is not None)) == 1
 
             self.masks = {}
 
-            if idx_masks is not None:
-                num_masks = len(idx_masks)
+            if subtask_codes is not None:
+                num_masks = len(subtask_codes)
             elif matrix_masks is not None:
                 num_masks = len(matrix_masks)
             else:
@@ -80,8 +80,8 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             if self.mask_format in ['vector', 'matrix']:
                 assert len(self.mask_keys) == 1
                 mask_key = self.mask_keys[0]
-                if idx_masks is not None:
-                    for (i, idx_dict) in enumerate(idx_masks):
+                if subtask_codes is not None:
+                    for (i, idx_dict) in enumerate(subtask_codes):
                         for (k, v) in idx_dict.items():
                             if self.mask_format == 'vector':
                                 assert k == v
@@ -104,11 +104,11 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
                     else:
                         self.masks[mask_key] = np.array(matrix_masks)
             elif self.mask_format == 'distribution':
-                if idx_masks is not None:
+                if subtask_codes is not None:
                     self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])
-                    idx_masks = np.array(idx_masks)
+                    subtask_codes = np.array(subtask_codes)
 
-                    for (i, idx_dict) in enumerate(idx_masks):
+                    for (i, idx_dict) in enumerate(subtask_codes):
                         for (k, v) in idx_dict.items():
                             assert k == v
                             self.masks['mask_sigma_inv'][i][k, k] = 1

@@ -219,48 +219,6 @@ def print_matrix(matrix, format="signed", threshold=0.1, normalize=False, precis
         print()
     print()
 
-def plot_Gaussian(
-        mu,
-        Sigma=None,
-        Sigma_inv=None,
-        list_of_dims=[[0, 1], [2, 3], [0, 2], [1, 3]],
-        pt1=None,
-        pt2=None
-):
-    num_subplots = len(list_of_dims)
-    if num_subplots == 1:
-        fig, axs = plt.subplots(1, 1, figsize=(6, 6))
-    else:
-        fig, axs = plt.subplots(2, num_subplots // 2, figsize=(10, 10))
-    x, y = np.mgrid[-0.5:0.5:.01, -0.5:0.5:.01]
-    pos = np.dstack((x, y))
-
-    assert (Sigma is not None) ^ (Sigma_inv is not None)
-    if Sigma is None:
-        Sigma = linalg.inv(Sigma_inv)
-
-    for i in range(len(list_of_dims)):
-        dims = list_of_dims[i]
-        rv = multivariate_normal(mu[dims], Sigma[dims][:,dims])
-
-        if num_subplots == 1:
-            axs_obj = axs
-        else:
-            plt_idx1 = i // 2
-            plt_idx2 = i % 2
-            axs_obj = axs[plt_idx1, plt_idx2]
-
-        axs_obj.contourf(x, y, rv.logpdf(pos))
-        axs_obj.set_title(str(dims))
-
-        if pt1 is not None:
-            axs_obj.scatter([pt1[dims][0]], [pt1[dims][1]])
-
-        if pt2 is not None:
-            axs_obj.scatter([pt2[dims][0]], [pt2[dims][1]])
-
-    plt.show()
-
 # env settings
 num_sets = 30 #500
 num_obj = 4

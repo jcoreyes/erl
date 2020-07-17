@@ -75,6 +75,18 @@ variant = dict(
         task_variant=dict(
             task_conditioned=False,
         ),
+        example_set_variant=dict(
+            n=100,
+            subtask_codes=[
+                {2: 2, 3: 3},
+                {4: 4, 5: 5},
+                {6: 6, 7: 7},
+                {8: 8, 9: 9},
+            ],
+            other_dims_random=True,
+            use_cache=False,
+            cache_path=None,
+        ),
         mask_variant=dict(
             mask_conditioned=True,
             rollout_mask_order_for_expl='random',
@@ -165,25 +177,6 @@ variant = dict(
 )
 
 env_params = {
-    'pg-1obj': {
-        'env_kwargs.num_objects': [1],
-        'env_kwargs.object_reward_only': [
-            True,
-            False,
-        ],
-        'rl_variant.algo_kwargs.num_epochs': [500],
-        'rl_variant.save_video_period': [50],
-    },
-    'pg-2obj': {
-        'env_kwargs.num_objects': [2],
-        'rl_variant.algo_kwargs.num_epochs': [500],
-
-        'rl_variant.mask_variant.mask_conditioned': [True],
-        'rl_variant.mask_variant.mask_idxs': [
-            [[0, 1], [2, 3], [4, 5]],
-            [[2, 3, 4, 5]],
-        ],
-    },
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
 
@@ -191,7 +184,7 @@ env_params = {
         # 'rl_variant.mask_variant.relabel_masks': [False],
         # 'rl_variant.mask_variant.relabel_goals': [False],
 
-        'rl_variant.mask_variant.idx_masks': [
+        'rl_variant.example_set_variant.subtask_codes': [
             [
                 {2: 2, 3: 3},
                 {4: 4, 5: 5},

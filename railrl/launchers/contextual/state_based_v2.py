@@ -15,7 +15,8 @@ from railrl.envs.contextual.mask_conditioned import (
     MaskPathCollector,
     default_masked_reward_fn,
 )
-from railrl.envs.contextual.mask_inference import infer_masks
+from railrl.launchers.sets.mask_inference import infer_masks
+from railrl.launchers.sets.example_set_gen import gen_example_sets
 
 from railrl.envs.contextual.task_conditioned import (
     TaskGoalDictDistributionFromMultitaskEnv,
@@ -42,9 +43,6 @@ import numpy as np
 
 def rl_context_experiment(variant):
     import railrl.torch.pytorch_util as ptu
-    from railrl.exploration_strategies.base import (
-        PolicyWrappedWithExplorationStrategy
-    )
     from railrl.torch.td3.td3 import TD3 as TD3Trainer
     from railrl.torch.sac.sac import SACTrainer
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
@@ -76,6 +74,10 @@ def rl_context_experiment(variant):
 
     assert not (task_conditioned and mask_conditioned)
 
+    ### generate the example sets ###
+    example_set_variant = variant.get('example_set_variant', {})
+    example_dataset = gen_example_sets(get_envs(variant), example_set_variant)
+
     if task_conditioned:
         task_key = 'task_id'
         context_keys = [context_key, task_key]
@@ -99,22 +101,17 @@ def rl_context_experiment(variant):
         else:
             raise NotImplementedError
 
-        if mask_variant.get('infer_masks', False):
-            assert mask_format == 'distribution'
-            env_kwargs = copy.deepcopy(variant['env_kwargs'])
-            # env_kwargs['lite_reset'] = True
-            infer_masks_env = variant["env_class"](**env_kwargs)
-
-            masks = infer_masks(
-                infer_masks_env,
-                mask_variant['idx_masks'],
-                mask_variant['mask_inference_variant'],
-            )
-            mask_variant['masks'] = masks
-
         context_keys = [context_key] + mask_keys
     else:
         context_keys = [context_key]
+
+    if mask_conditioned and mask_variant.get('infer_masks', False):
+        assert mask_format == 'distribution'
+
+        mask_variant['masks'] = infer_masks(
+            example_dataset,
+            mask_variant['mask_inference_variant'],
+        )
 
     def contextual_env_distrib_and_reward(mode='expl'):
         assert mode in ['expl', 'eval']
@@ -143,6 +140,9 @@ def rl_context_experiment(variant):
                 additional_context_keys=[task_key],
             )
         elif mask_conditioned:
+            if mask_variant.get('matrix_masks', None) is not None:
+                assert NotImplementedError
+
             context_distrib = MaskedGoalDictDistributionFromMultitaskEnv(
                 env,
                 desired_goal_keys=[desired_goal_key],
@@ -152,7 +152,7 @@ def rl_context_experiment(variant):
                 max_subtasks_to_focus_on=mask_variant.get('max_subtasks_to_focus_on', None),
                 prev_subtask_weight=mask_variant.get('prev_subtask_weight', None),
                 masks=mask_variant.get('masks', None),
-                idx_masks=mask_variant.get('idx_masks', None),
+                subtask_codes=example_set_variant.get('subtask_codes', None),
                 matrix_masks=mask_variant.get('matrix_masks', None),
                 mask_distr=mask_variant.get('train_mask_distr', None),
             )
@@ -285,7 +285,7 @@ def rl_context_experiment(variant):
 
     def context_from_obs_dict_fn(obs_dict):
         context_dict = {
-            context_key: obs_dict[achieved_goal_key], #observation_key
+            context_key: obs_dict[achieved_goal_key],
         }
         if task_conditioned:
             context_dict[task_key] = obs_dict[task_key]

@@ -1,7 +1,65 @@
 import numpy as np
 from scipy import linalg
 
-from railrl.launchers.sets.example_set_gen import gen_example_sets
+def infer_masks(dataset, mask_inference_variant):
+    n = int(mask_inference_variant.get('n', 50))
+    obs_noise = mask_inference_variant['noise']
+    max_cond_num = mask_inference_variant['max_cond_num']
+    normalize_sigma_inv = mask_inference_variant.get('normalize_sigma_inv', True)
+    sigma_inv_entry_threshold = mask_inference_variant.get('sigma_inv_entry_threshold', None)
+
+    # sample from the example set data
+    data_idxs = np.arange(dataset['list_of_waypoints'].shape[1])
+    np.random.shuffle(data_idxs)
+    data_idxs = data_idxs[:n]
+    list_of_waypoints = dataset['list_of_waypoints'][:,data_idxs]
+    goals = dataset['goals'][data_idxs]
+
+    # add noise to all of the data
+    list_of_waypoints += np.random.normal(0, obs_noise, list_of_waypoints.shape)
+    goals += np.random.normal(0, obs_noise, goals.shape)
+
+    masks = {
+        'mask_mu_w': [],
+        'mask_mu_g': [],
+        'mask_mu_mat': [],
+        'mask_sigma_inv': [],
+    }
+    for (mask_id, waypoints) in enumerate(list_of_waypoints):
+        mu = np.mean(np.concatenate((waypoints, goals), axis=1), axis=0)
+        sigma = np.cov(np.concatenate((waypoints, goals), axis=1).T)
+        mu_w, mu_g, mu_mat, sigma_inv = get_cond_distr_params(
+            mu, sigma,
+            x_dim=goals.shape[1],
+            max_cond_num=max_cond_num
+        )
+
+        if normalize_sigma_inv:
+            sigma_inv = sigma_inv / np.max(np.abs(sigma_inv))
+
+        if sigma_inv_entry_threshold is not None:
+            for i in range(len(sigma_inv)):
+                for j in range(len(sigma_inv)):
+                    if sigma_inv[i][j] / np.max(np.abs(sigma_inv)) <= sigma_inv_entry_threshold:
+                        sigma_inv[i][j] = 0.0
+
+        masks['mask_mu_w'].append(mu_w)
+        masks['mask_mu_g'].append(mu_g)
+        masks['mask_mu_mat'].append(mu_mat)
+        masks['mask_sigma_inv'].append(sigma_inv)
+
+    for k in masks.keys():
+        masks[k] = np.array(masks[k])
+
+    for mask_id in range(len(list_of_waypoints)):
+        # print('mask_mu_mat')
+        # print_matrix(masks['mask_mu_mat'][mask_id])
+        print('mask_sigma_inv for mask_id={}'.format(mask_id))
+        print_matrix(masks['mask_sigma_inv'][mask_id], precision=5) #precision=5
+        # print(masks['mask_sigma_inv'][mask_id].diagonal())
+    # exit()
+
+    return masks
 
 def get_cond_distr_params(mu, sigma, x_dim, max_cond_num):
     mu_x = mu[:x_dim]
@@ -55,59 +113,48 @@ def print_matrix(matrix, format="raw", threshold=0.1, normalize=True, precision=
         print()
     print()
 
+def plot_Gaussian(
+        mu,
+        Sigma=None,
+        Sigma_inv=None,
+        list_of_dims=[[0, 1], [2, 3], [0, 2], [1, 3]],
+        pt1=None,
+        pt2=None
+):
+    import matplotlib
+    import matplotlib.pyplot as plt
+    from scipy.stats import multivariate_normal
 
-def infer_masks(env, idx_masks, mask_inference_variant):
-    n = int(mask_inference_variant.get('n', 50))
-    obs_noise = mask_inference_variant['noise']
-    max_cond_num = mask_inference_variant['max_cond_num']
-    normalize_sigma_inv = mask_inference_variant.get('normalize_sigma_inv', True)
-    sigma_inv_entry_threshold = mask_inference_variant.get('sigma_inv_entry_threshold', None)
-    other_dims_random = mask_inference_variant.get('other_dims_random', True)
+    num_subplots = len(list_of_dims)
+    if num_subplots == 1:
+        fig, axs = plt.subplots(1, 1, figsize=(6, 6))
+    else:
+        fig, axs = plt.subplots(2, num_subplots // 2, figsize=(10, 10))
+    x, y = np.mgrid[-0.5:0.5:.01, -0.5:0.5:.01]
+    pos = np.dstack((x, y))
 
-    list_of_waypoints, goals = gen_example_sets(env, idx_masks, n, other_dims_random)
+    assert (Sigma is not None) ^ (Sigma_inv is not None)
+    if Sigma is None:
+        Sigma = linalg.inv(Sigma_inv)
 
-    # add noise to all of the data
-    list_of_waypoints += np.random.normal(0, obs_noise, list_of_waypoints.shape)
-    goals += np.random.normal(0, obs_noise, goals.shape)
+    for i in range(len(list_of_dims)):
+        dims = list_of_dims[i]
+        rv = multivariate_normal(mu[dims], Sigma[dims][:,dims])
 
-    masks = {
-        'mask_mu_w': [],
-        'mask_mu_g': [],
-        'mask_mu_mat': [],
-        'mask_sigma_inv': [],
-    }
-    for (mask_id, waypoints) in enumerate(list_of_waypoints):
-        mu = np.mean(np.concatenate((waypoints, goals), axis=1), axis=0)
-        sigma = np.cov(np.concatenate((waypoints, goals), axis=1).T)
-        mu_w, mu_g, mu_mat, sigma_inv = get_cond_distr_params(
-            mu, sigma,
-            x_dim=goals.shape[1],
-            max_cond_num=max_cond_num
-        )
+        if num_subplots == 1:
+            axs_obj = axs
+        else:
+            plt_idx1 = i // 2
+            plt_idx2 = i % 2
+            axs_obj = axs[plt_idx1, plt_idx2]
 
-        if normalize_sigma_inv:
-            sigma_inv = sigma_inv / np.max(np.abs(sigma_inv))
+        axs_obj.contourf(x, y, rv.logpdf(pos))
+        axs_obj.set_title(str(dims))
 
-        if sigma_inv_entry_threshold is not None:
-            for i in range(len(sigma_inv)):
-                for j in range(len(sigma_inv)):
-                    if sigma_inv[i][j] / np.max(np.abs(sigma_inv)) <= sigma_inv_entry_threshold:
-                        sigma_inv[i][j] = 0.0
+        if pt1 is not None:
+            axs_obj.scatter([pt1[dims][0]], [pt1[dims][1]])
 
-        masks['mask_mu_w'].append(mu_w)
-        masks['mask_mu_g'].append(mu_g)
-        masks['mask_mu_mat'].append(mu_mat)
-        masks['mask_sigma_inv'].append(sigma_inv)
+        if pt2 is not None:
+            axs_obj.scatter([pt2[dims][0]], [pt2[dims][1]])
 
-    for k in masks.keys():
-        masks[k] = np.array(masks[k])
-
-    for mask_id in range(len(idx_masks)):
-        # print('mask_mu_mat')
-        # print_matrix(masks['mask_mu_mat'][mask_id])
-        print('mask_sigma_inv for mask_id={}'.format(mask_id))
-        print_matrix(masks['mask_sigma_inv'][mask_id], precision=5) #precision=5
-        # print(masks['mask_sigma_inv'][mask_id].diagonal())
-    # exit()
-
-    return masks
+    plt.show()
