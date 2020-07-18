@@ -122,7 +122,6 @@ class ContextualRewardFnFromMultitaskEnv(ContextualRewardFn):
             achieved_goal_key='achieved_goal',
             additional_obs_keys=None,
             additional_context_keys=None,
-            reward_fn=None,
     ):
         self._env = env
         self._desired_goal_key = desired_goal_key
@@ -131,7 +130,6 @@ class ContextualRewardFnFromMultitaskEnv(ContextualRewardFn):
 
         self._additional_obs_keys = additional_obs_keys
         self._additional_context_keys = additional_context_keys
-        self._reward_fn = reward_fn
 
     def __call__(self, states, actions, next_states, contexts):
         del states
@@ -150,10 +148,7 @@ class ContextualRewardFnFromMultitaskEnv(ContextualRewardFn):
             for key in self._additional_context_keys:
                 obs[key] = contexts[key]
 
-        if self._reward_fn is not None:
-            return self._reward_fn(actions, obs)
-        else:
-            return self._env.compute_rewards(actions, obs)
+        return self._env.compute_rewards(actions, obs)
 
 
 class IndexIntoAchievedGoal(object):

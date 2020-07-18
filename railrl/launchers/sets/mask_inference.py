@@ -1,33 +1,116 @@
 import numpy as np
 from scipy import linalg
 
-def infer_masks(dataset, mask_inference_variant):
-    obs_noise = mask_inference_variant['noise']
-    max_cond_num = mask_inference_variant['max_cond_num']
-    normalize_sigma_inv = mask_inference_variant.get('normalize_sigma_inv', True)
-    sigma_inv_entry_threshold = mask_inference_variant.get('sigma_inv_entry_threshold', None)
+def get_mask_params(
+        dataset,
+        mask_format=None,
+        mask_dims=None,
+        mask_keys=None,
+        subtask_codes=None,
+        matrix_masks=None,
+        mask_inference_variant=dict(),
+):
+    assert ((subtask_codes is not None) + (matrix_masks is not None)) == 1
 
+    masks = {}
+
+    if subtask_codes is not None:
+        num_masks = len(subtask_codes)
+    elif matrix_masks is not None:
+        num_masks = len(matrix_masks)
+    else:
+        raise NotImplementedError
+
+    for mask_key, mask_dim in zip(mask_keys, mask_dims):
+        masks[mask_key] = np.zeros([num_masks] + list(mask_dim))
+
+    if mask_format in ['vector', 'matrix']:
+        assert len(mask_keys) == 1
+        mask_key = mask_keys[0]
+        if subtask_codes is not None:
+            for (i, idx_dict) in enumerate(subtask_codes):
+                for (k, v) in idx_dict.items():
+                    if mask_format == 'vector':
+                        assert k == v
+                        masks[mask_key][i][k] = 1
+                    elif mask_format == 'matrix':
+                        if v >= 0:
+                            assert k == v
+                            masks[mask_key][i][k, k] = 1
+                        else:
+                            src_idx = k
+                            targ_idx = -(v + 10)
+                            masks[mask_key][i][src_idx, src_idx] = 1
+                            masks[mask_key][i][targ_idx, targ_idx] = 1
+                            masks[mask_key][i][src_idx, targ_idx] = -1
+                            masks[mask_key][i][targ_idx, src_idx] = -1
+        elif matrix_masks is not None:
+            if mask_format == 'vector':
+                for mask_id in range(num_masks):
+                    masks[mask_key][mask_id] = np.diag(matrix_masks[mask_id])
+            else:
+                masks[mask_key] = np.array(matrix_masks)
+    elif mask_format == 'distribution':
+        if subtask_codes is not None:
+            masks['mask_mu_mat'][:] = np.identity(masks['mask_mu_mat'].shape[-1])
+            subtask_codes = np.array(subtask_codes)
+
+            for (i, idx_dict) in enumerate(subtask_codes):
+                for (k, v) in idx_dict.items():
+                    assert k == v
+                    masks['mask_sigma_inv'][i][k, k] = 1
+        elif matrix_masks is not None:
+            masks['mask_mu_mat'][:] = np.identity(masks['mask_mu_mat'].shape[-1])
+            masks['mask_sigma_inv'] = np.array(matrix_masks)
+    else:
+        raise NotImplementedError
+
+def infer_masks(
+        dataset,
+        noise,
+        max_cond_num,
+        mask_format,
+        normalize_sigma_inv=True,
+        sigma_inv_entry_threshold=None,
+):
     list_of_waypoints = dataset['list_of_waypoints']
     goals = dataset['goals']
 
     # add noise to all of the data
-    list_of_waypoints += np.random.normal(0, obs_noise, list_of_waypoints.shape)
-    goals += np.random.normal(0, obs_noise, goals.shape)
+    list_of_waypoints += np.random.normal(0, noise, list_of_waypoints.shape)
+    goals += np.random.normal(0, noise, goals.shape)
 
-    masks = {
-        'mask_mu_w': [],
-        'mask_mu_g': [],
-        'mask_mu_mat': [],
-        'mask_sigma_inv': [],
-    }
+    if mask_format == 'cond_distribution':
+        masks = {
+            'mask_mu_w': [],
+            'mask_mu_g': [],
+            'mask_mu_mat': [],
+            'mask_sigma_inv': [],
+        }
+    elif mask_format == 'distribution':
+        masks = {
+            'mask_mu': [],
+            'mask_sigma_inv': [],
+        }
     for (mask_id, waypoints) in enumerate(list_of_waypoints):
-        mu = np.mean(np.concatenate((waypoints, goals), axis=1), axis=0)
-        sigma = np.cov(np.concatenate((waypoints, goals), axis=1).T)
-        mu_w, mu_g, mu_mat, sigma_inv = get_cond_distr_params(
-            mu, sigma,
-            x_dim=goals.shape[1],
-            max_cond_num=max_cond_num
-        )
+        if mask_format == 'cond_distribution':
+            mu_w, mu_g, mu_mat, sigma = get_cond_distr_params(
+                mu=np.mean(np.concatenate((waypoints, goals), axis=1), axis=0),
+                sigma=np.cov(np.concatenate((waypoints, goals), axis=1).T),
+                x_dim=goals.shape[1],
+            )
+        elif mask_format == 'distribution':
+            mu = np.mean(waypoints, axis=0)
+            sigma = np.cov(waypoints.T)
+
+        w, v = np.linalg.eig(sigma)
+        l, h = np.min(w), np.max(w)
+        target = 1 / max_cond_num
+        if (l / h) < target:
+            eps = (h * target - l) / (1 - target)
+        else:
+            eps = 0
+        sigma_inv = linalg.inv(sigma + eps * np.identity(sigma.shape[0]))
 
         if normalize_sigma_inv:
             sigma_inv = sigma_inv / np.max(np.abs(sigma_inv))
@@ -38,10 +121,14 @@ def infer_masks(dataset, mask_inference_variant):
                     if sigma_inv[i][j] / np.max(np.abs(sigma_inv)) <= sigma_inv_entry_threshold:
                         sigma_inv[i][j] = 0.0
 
-        masks['mask_mu_w'].append(mu_w)
-        masks['mask_mu_g'].append(mu_g)
-        masks['mask_mu_mat'].append(mu_mat)
-        masks['mask_sigma_inv'].append(sigma_inv)
+        if mask_format == 'cond_distribution':
+            masks['mask_mu_w'].append(mu_w)
+            masks['mask_mu_g'].append(mu_g)
+            masks['mask_mu_mat'].append(mu_mat)
+            masks['mask_sigma_inv'].append(sigma_inv)
+        elif mask_format == 'distribution':
+            masks['mask_mu'].append(mu)
+            masks['mask_sigma_inv'].append(sigma_inv)
 
     for k in masks.keys():
         masks[k] = np.array(masks[k])
@@ -56,7 +143,7 @@ def infer_masks(dataset, mask_inference_variant):
 
     return masks
 
-def get_cond_distr_params(mu, sigma, x_dim, max_cond_num):
+def get_cond_distr_params(mu, sigma, x_dim):
     mu_x = mu[:x_dim]
     mu_y = mu[x_dim:]
 
@@ -70,16 +157,7 @@ def get_cond_distr_params(mu, sigma, x_dim, max_cond_num):
     mu_mat = sigma_xy @ sigma_yy_inv
     sigma_xgy = sigma_xx - sigma_xy @ sigma_yy_inv @ sigma_yx
 
-    w, v = np.linalg.eig(sigma_xgy)
-    l, h = np.min(w), np.max(w)
-    target = 1 / max_cond_num
-    if (l / h) < target:
-        eps = (h * target - l) / (1 - target)
-    else:
-        eps = 0
-    sigma_xgy_inv = linalg.inv(sigma_xgy + eps * np.identity(sigma_xgy.shape[0]))
-
-    return mu_x, mu_y, mu_mat, sigma_xgy_inv
+    return mu_x, mu_y, mu_mat, sigma_xgy
 
 def print_matrix(matrix, format="raw", threshold=0.1, normalize=True, precision=5):
     if normalize:

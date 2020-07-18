@@ -11,11 +11,11 @@ from railrl.envs.contextual.goal_conditioned import (
     IndexIntoAchievedGoal,
 )
 from railrl.envs.contextual.mask_conditioned import (
-    MaskedGoalDictDistributionFromMultitaskEnv,
+    MaskDictDistribution,
     MaskPathCollector,
     default_masked_reward_fn,
 )
-from railrl.launchers.sets.mask_inference import infer_masks
+from railrl.launchers.sets.mask_inference import get_mask_params
 from railrl.launchers.sets.example_set_gen import gen_example_sets
 
 from railrl.envs.contextual.task_conditioned import (
@@ -55,7 +55,6 @@ def rl_context_experiment(variant):
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = variant.get('achieved_goal_key', 'latent_achieved_goal')
-    context_key = desired_goal_key
 
     task_variant = variant.get('task_variant', {})
     task_conditioned = task_variant.get('task_conditioned', False)
@@ -80,38 +79,45 @@ def rl_context_experiment(variant):
 
     if task_conditioned:
         task_key = 'task_id'
-        context_keys = [context_key, task_key]
+        context_keys = [desired_goal_key, task_key]
     elif mask_conditioned:
         env = get_envs(variant)
-        mask_format = mask_variant.get('mask_format', 'vector')
-        assert mask_format in ['vector', 'matrix', 'distribution']
-        goal_dim = env.observation_space.spaces[context_key].low.size
+        mask_format = mask_variant['mask_format']
+        assert mask_format in ['vector', 'matrix', 'distribution', 'cond_distribution']
+        goal_dim = env.observation_space.spaces[desired_goal_key].low.size
         if mask_format == 'vector':
             mask_keys = ['mask']
             mask_dims = [(goal_dim,)]
-            context_dim = goal_dim + goal_dim
+            context_dim_for_networks = goal_dim + goal_dim
+            context_keys = [desired_goal_key] + mask_keys
         elif mask_format == 'matrix':
             mask_keys = ['mask']
             mask_dims = [(goal_dim, goal_dim)]
-            context_dim = goal_dim + (goal_dim * goal_dim)
+            context_dim_for_networks = goal_dim + (goal_dim * goal_dim)
+            context_keys = [desired_goal_key] + mask_keys
         elif mask_format == 'distribution':
+            mask_keys = ['mask_mu', 'mask_sigma_inv']
+            mask_dims = [(goal_dim,), (goal_dim, goal_dim)]
+            context_dim_for_networks = goal_dim + (goal_dim * goal_dim)  # mu and sigma_inv
+            context_keys = mask_keys
+        elif mask_format == 'cond_distribution':
             mask_keys = ['mask_mu_w', 'mask_mu_g', 'mask_mu_mat', 'mask_sigma_inv']
             mask_dims = [(goal_dim,), (goal_dim,), (goal_dim, goal_dim), (goal_dim, goal_dim)]
-            context_dim = goal_dim + (goal_dim * goal_dim)  # mu and sigma_inv
+            context_dim_for_networks = goal_dim + (goal_dim * goal_dim)  # mu and sigma_inv
+            context_keys = [desired_goal_key] + mask_keys
         else:
-            raise NotImplementedError
+            raise TypeError
 
-        context_keys = [context_key] + mask_keys
-    else:
-        context_keys = [context_key]
-
-    if mask_conditioned and mask_variant.get('infer_masks', False):
-        assert mask_format == 'distribution'
-
-        mask_variant['masks'] = infer_masks(
+        masks = get_mask_params(
             example_dataset,
-            mask_variant['mask_inference_variant'],
+            mask_format=mask_format,
+            mask_keys=mask_keys,
+            mask_dims=mask_dims,
+            **mask_variant['mask_inference_variant'],
         )
+    else:
+        context_keys = [desired_goal_key]
+
 
     def contextual_env_distrib_and_reward(mode='expl'):
         assert mode in ['expl', 'eval']
@@ -140,31 +146,24 @@ def rl_context_experiment(variant):
                 additional_context_keys=[task_key],
             )
         elif mask_conditioned:
-            if mask_variant.get('matrix_masks', None) is not None:
-                assert NotImplementedError
+            from railrl.envs.contextual.mask_conditioned import ContextualMaskingRewardFn
 
-            context_distrib = MaskedGoalDictDistributionFromMultitaskEnv(
+            context_distrib = MaskDictDistribution(
                 env,
                 desired_goal_keys=[desired_goal_key],
-                mask_keys=mask_keys,
-                mask_dims=mask_dims,
                 mask_format=mask_format,
+                masks=masks,
                 max_subtasks_to_focus_on=mask_variant.get('max_subtasks_to_focus_on', None),
                 prev_subtask_weight=mask_variant.get('prev_subtask_weight', None),
-                masks=mask_variant.get('masks', None),
-                subtask_codes=example_set_variant.get('subtask_codes', None),
-                matrix_masks=mask_variant.get('matrix_masks', None),
                 mask_distr=mask_variant.get('train_mask_distr', None),
             )
-            reward_fn = mask_variant.get('reward_fn', default_masked_reward_fn)
-            reward_fn = ContextualRewardFnFromMultitaskEnv(
-                env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
+            reward_fn = ContextualMaskingRewardFn(
+                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key),
                 desired_goal_key=desired_goal_key,
                 achieved_goal_key=achieved_goal_key,
-                additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
-                additional_context_keys=mask_keys,
-                reward_fn=partial(reward_fn, mask_format=mask_format, use_g_for_mean=mask_variant['use_g_for_mean']),
+                mask_keys=mask_keys,
+                mask_format=mask_format,
+                use_g_for_mean=mask_variant['use_g_for_mean'],
             )
         else:
             if goal_sampling_mode == 'example_set':
@@ -181,7 +180,7 @@ def rl_context_experiment(variant):
                 )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
+                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key),
                 desired_goal_key=desired_goal_key,
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
@@ -207,18 +206,18 @@ def rl_context_experiment(variant):
     if task_conditioned:
         obs_dim = (
             env.observation_space.spaces[observation_key].low.size
-            + env.observation_space.spaces[context_key].low.size
+            + env.observation_space.spaces[desired_goal_key].low.size
             + 1
         )
     elif mask_conditioned:
         obs_dim = (
             env.observation_space.spaces[observation_key].low.size
-            + context_dim
+            + context_dim_for_networks
         )
     else:
         obs_dim = (
             env.observation_space.spaces[observation_key].low.size
-            + env.observation_space.spaces[context_key].low.size
+            + env.observation_space.spaces[desired_goal_key].low.size
         )
 
     action_dim = env.action_space.low.size
@@ -291,9 +290,18 @@ def rl_context_experiment(variant):
             expl_policy = policy
             eval_policy = MakeDeterministic(policy)
 
+    post_process_mask_fn = partial(
+        full_post_process_mask_fn,
+        mask_conditioned=mask_conditioned,
+        mask_variant=mask_variant,
+        context_distrib=context_distrib,
+        context_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+    )
+
     def context_from_obs_dict_fn(obs_dict):
         context_dict = {
-            context_key: obs_dict[achieved_goal_key],
+            desired_goal_key: obs_dict[achieved_goal_key],
         }
         if task_conditioned:
             context_dict[task_key] = obs_dict[task_key]
@@ -309,20 +317,11 @@ def rl_context_experiment(variant):
                     context_dict[mask_key] = obs_dict[mask_key]
         return context_dict
 
-    post_process_mask_fn = partial(
-        full_post_process_mask_fn,
-        mask_conditioned=mask_conditioned,
-        mask_variant=mask_variant,
-        context_distrib=context_distrib,
-        context_key=context_key,
-        achieved_goal_key=achieved_goal_key,
-    )
-
     def concat_context_to_obs(batch, replay_buffer=None, obs_dict=None, next_obs_dict=None, new_contexts=None):
         obs = batch['observations']
         next_obs = batch['next_observations']
         if task_conditioned:
-            context = batch[context_key]
+            context = batch[desired_goal_key]
             task = batch[task_key]
             batch['observations'] = np.concatenate([obs, context, task], axis=1)
             batch['next_observations'] = np.concatenate([next_obs, context, task], axis=1)
@@ -346,7 +345,7 @@ def rl_context_experiment(variant):
                 mask = batch[mask_keys[0]].reshape((len(context), -1))
                 batch['observations'] = np.concatenate([obs, context, mask], axis=1)
                 batch['next_observations'] = np.concatenate([next_obs, context, mask], axis=1)
-            elif mask_format == 'distribution':
+            elif mask_format == 'distribution_cond':
                 g = context
                 mu_w = batch['mask_mu_w']
                 mu_g = batch['mask_mu_g']

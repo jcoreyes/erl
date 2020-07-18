@@ -2,44 +2,55 @@ from functools import partial
 
 import numpy as np
 
-from railrl.envs.contextual.goal_conditioned import (
-    GoalDictDistributionFromMultitaskEnv,
-)
+from railrl.core.distribution import DictDistribution
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
+
+from railrl.envs.contextual import ContextualRewardFn
 
 from gym.spaces import Box
 from railrl.samplers.rollout_functions import contextual_rollout
 from railrl import pythonplusplus as ppp
 from collections import OrderedDict
 
-class MaskedGoalDictDistributionFromMultitaskEnv(
-        GoalDictDistributionFromMultitaskEnv):
+from typing import Any, Callable, Dict, List
+
+Observation = Dict
+Goal = Any
+
+class MaskDictDistribution(DictDistribution):
     def __init__(
             self,
-            *args,
-            mask_dims=[(1,)],
-            mask_keys=['mask'],
+            env,
+            desired_goal_keys=('desired_goal',),
             mask_format='vector',
             masks=None,
-            subtask_codes=None,
-            matrix_masks=None,
             mask_distr=None,
             max_subtasks_to_focus_on=None,
             prev_subtask_weight=None,
-            **kwargs
     ):
-        super().__init__(*args, **kwargs)
-        self.mask_keys = mask_keys
-        self.mask_dims = mask_dims
+        self._env = env
+        self._desired_goal_keys = desired_goal_keys
+        self.mask_keys = masks.keys()
+        self.mask_dims = []
+        for key in self.mask_keys:
+            self.mask_dims.append(masks[key].shape[1:])
+
+        env_spaces = self._env.observation_space.spaces
+        self._spaces = {
+            k: env_spaces[k]
+            for k in self._desired_goal_keys
+        }
         for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
             self._spaces[mask_key] = Box(
                 low=np.zeros(mask_dim),
                 high=np.ones(mask_dim),
                 dtype=np.float32,
             )
+
         self.mask_format = mask_format
+        self.masks = masks
 
         self._max_subtasks_to_focus_on = max_subtasks_to_focus_on
         if self._max_subtasks_to_focus_on is not None:
@@ -60,71 +71,18 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             ))
         self.mask_distr = mask_distr
 
-        if masks is not None:
-            self.masks = masks
-        else:
-            assert ((subtask_codes is not None) + (matrix_masks is not None)) == 1
-
-            self.masks = {}
-
-            if subtask_codes is not None:
-                num_masks = len(subtask_codes)
-            elif matrix_masks is not None:
-                num_masks = len(matrix_masks)
-            else:
-                raise NotImplementedError
-
-            for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
-                self.masks[mask_key] = np.zeros([num_masks] + list(mask_dim))
-
-            if self.mask_format in ['vector', 'matrix']:
-                assert len(self.mask_keys) == 1
-                mask_key = self.mask_keys[0]
-                if subtask_codes is not None:
-                    for (i, idx_dict) in enumerate(subtask_codes):
-                        for (k, v) in idx_dict.items():
-                            if self.mask_format == 'vector':
-                                assert k == v
-                                self.masks[mask_key][i][k] = 1
-                            elif self.mask_format == 'matrix':
-                                if v >= 0:
-                                    assert k == v
-                                    self.masks[mask_key][i][k, k] = 1
-                                else:
-                                    src_idx = k
-                                    targ_idx = -(v + 10)
-                                    self.masks[mask_key][i][src_idx, src_idx] = 1
-                                    self.masks[mask_key][i][targ_idx, targ_idx] = 1
-                                    self.masks[mask_key][i][src_idx, targ_idx] = -1
-                                    self.masks[mask_key][i][targ_idx, src_idx] = -1
-                elif matrix_masks is not None:
-                    if self.mask_format == 'vector':
-                        for mask_id in range(num_masks):
-                            self.masks[mask_key][mask_id] = np.diag(matrix_masks[mask_id])
-                    else:
-                        self.masks[mask_key] = np.array(matrix_masks)
-            elif self.mask_format == 'distribution':
-                if subtask_codes is not None:
-                    self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])
-                    subtask_codes = np.array(subtask_codes)
-
-                    for (i, idx_dict) in enumerate(subtask_codes):
-                        for (k, v) in idx_dict.items():
-                            assert k == v
-                            self.masks['mask_sigma_inv'][i][k, k] = 1
-                elif matrix_masks is not None:
-                    self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])
-                    self.masks['mask_sigma_inv'] = np.array(matrix_masks)
-            else:
-                raise NotImplementedError
-
         self.cumul_masks = None
         self.subset_masks = None
 
     def sample(self, batch_size: int):
-        goals = super().sample(batch_size)
-        mask_goals = self.sample_masks(batch_size)
-        goals.update(mask_goals)
+        goals = self.sample_masks(batch_size)
+        if self.mask_format != 'distribution':
+            env_samples = self._env.sample_goals(batch_size)
+            goals.update({
+                k: env_samples[k]
+                for k in self._desired_goal_keys
+            })
+
         return goals
 
     def sample_masks(self, batch_size):
@@ -415,30 +373,62 @@ class MaskPathCollector(ContextualPathCollector):
             reset_callback=reset_callback,
         )
 
-def default_masked_reward_fn(actions, obs, mask_format='vector', use_g_for_mean=True):
+class ContextualMaskingRewardFn(ContextualRewardFn):
+    def __init__(
+            self,
+            achieved_goal_from_observation: Callable[[Observation], Goal],
+            desired_goal_key='desired_goal',
+            achieved_goal_key='achieved_goal',
+            mask_keys=None,
+            mask_format=None,
+            use_g_for_mean=True,
+    ):
+        self._desired_goal_key = desired_goal_key
+        self._achieved_goal_key = achieved_goal_key
+        self._achieved_goal_from_observation = achieved_goal_from_observation
+
+        self._mask_keys = mask_keys
+        self._mask_format = mask_format
+        self._use_g_for_mean = use_g_for_mean
+
+    def __call__(self, states, actions, next_states, contexts):
+        del states
+        achieved = self._achieved_goal_from_observation(next_states)
+        obs = {
+            self._achieved_goal_key: achieved,
+            self._desired_goal_key: contexts[self._desired_goal_key],
+        }
+        for key in self._mask_keys:
+            obs[key] = contexts[key]
+
+        return default_masked_reward_fn(
+            actions, obs,
+            mask_format=self._mask_format,
+            use_g_for_mean=self._use_g_for_mean,
+        )
+
+def default_masked_reward_fn(actions, obs, mask_format, use_g_for_mean):
     achieved_goals = obs['state_achieved_goal']
     desired_goals = obs['state_desired_goal']
 
     if mask_format == 'vector':
-        # vector mask
         mask = obs['mask']
         prod = (achieved_goals - desired_goals) * mask
         return -np.linalg.norm(prod, axis=-1)
     elif mask_format == 'matrix':
-        # matrix mask
         mask = obs['mask']
-
-        # ### hack for testing H->A ###
-        # if -1 in mask:
-        #     desired_goals = desired_goals.copy()
-        #     desired_goals[:,0:4] = 0
-
         batch_size, state_dim = achieved_goals.shape
         diff = (achieved_goals - desired_goals).reshape((batch_size, state_dim, 1))
         prod = (diff.transpose(0, 2, 1) @ mask @ diff).reshape(batch_size)
         return -np.sqrt(prod)
     elif mask_format == 'distribution':
-        # matrix mask
+        mu = obs['mask_mu']
+        sigma_inv = obs['mask_sigma_inv']
+        batch_size, state_dim = achieved_goals.shape
+        diff = (achieved_goals - mu).reshape((batch_size, state_dim, 1))
+        prod = (diff.transpose(0, 2, 1) @ sigma_inv @ diff).reshape(batch_size)
+        return -np.sqrt(prod)
+    elif mask_format == 'distribution_cond':
         g = desired_goals
         mu_w = obs['mask_mu_w']
         mu_g = obs['mask_mu_g']
@@ -455,10 +445,4 @@ def default_masked_reward_fn(actions, obs, mask_format='vector', use_g_for_mean=
         prod = (diff.transpose(0, 2, 1) @ sigma_w_given_g_inv @ diff).reshape(batch_size)
         return -np.sqrt(prod)
     else:
-        raise NotImplementedError
-
-def action_penalty_masked_reward_fn(actions, obs, mask_format='vector'):
-    orig_reward = default_masked_reward_fn(actions, obs, mask_format=mask_format)
-    action_reward = -np.linalg.norm(actions[:,:2], axis=1) * 0.15
-    reward = orig_reward + action_reward
-    return reward
+        raise TypeError

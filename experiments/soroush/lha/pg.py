@@ -7,11 +7,6 @@ from exp_util import (
 from railrl.launchers.exp_launcher import rl_experiment
 from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
 
-from railrl.envs.contextual.mask_conditioned import (
-    default_masked_reward_fn,
-    action_penalty_masked_reward_fn,
-)
-
 variant = dict(
     rl_variant=dict(
         do_state_exp=True,
@@ -110,7 +105,6 @@ variant = dict(
             max_subtasks_to_focus_on=None,
             max_subtasks_per_rollout=None,
             prev_subtask_weight=0.25,
-            reward_fn=default_masked_reward_fn,
             use_g_for_mean=True,
 
             train_mask_distr=dict(
