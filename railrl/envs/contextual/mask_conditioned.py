@@ -265,8 +265,7 @@ class MaskPathCollector(ContextualPathCollector):
         self.mask_distr = mask_distr
         self.mask_groups = mask_groups
         if self.mask_groups is None:
-            atomic_masks = self.mask_sampler.masks
-            self.mask_groups = np.arange(len(atomic_masks[list(atomic_masks.keys())[0]])).reshape(-1, 1)
+            self.mask_groups = np.arange(self.mask_sampler._num_atomic_masks).reshape(-1, 1)
         self.mask_groups = np.array(self.mask_groups)
 
         self.rollout_mask_order = rollout_mask_order
@@ -286,18 +285,13 @@ class MaskPathCollector(ContextualPathCollector):
                     o[k] = mask_dict[k]
                     self._env._rollout_context_batch[k] = mask_dict[k][None]
 
-            if self._concat_context_to_obs_fn is None:
-                combined_obs = [o[self._observation_key]]
-                for k in self._context_keys_for_policy:
-                    combined_obs.append(o[k])
-                return np.concatenate(combined_obs, axis=0)
-            else:
-                batch = {}
-                batch['observations'] = o[self._observation_key][None]
-                batch['next_observations'] = o[self._observation_key][None]
-                for k in self._context_keys_for_policy:
-                    batch[k] = o[k][None]
-                return self._concat_context_to_obs_fn(batch)['observations'][0]
+            obs_and_context = {
+                'observations': o[self._observation_key][None],
+                'next_observations': o[self._observation_key][None],
+            }
+            for k in self._context_keys_for_policy:
+                obs_and_context[k] = o[k][None]
+            return self._concat_context_to_obs_fn(obs_and_context)['observations'][0]
 
         def unbatchify(d):
             for k in d:
@@ -332,7 +326,7 @@ class MaskPathCollector(ContextualPathCollector):
                     mask_groups = mask_groups[:self._max_subtasks_per_rollout]
 
                 if rollout_type == 'atomic':
-                    mask_groups = mask_groups[0:1]
+                    mask_groups = mask_groups[:1]
 
                 mask_ids = mask_groups.reshape(-1)
 
