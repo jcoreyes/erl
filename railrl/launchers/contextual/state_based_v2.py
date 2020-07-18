@@ -73,10 +73,6 @@ def rl_context_experiment(variant):
 
     assert not (task_conditioned and mask_conditioned)
 
-    ### generate the example sets ###
-    example_set_variant = variant.get('example_set_variant', {})
-    example_dataset = gen_example_sets(get_envs(variant), example_set_variant)
-
     if task_conditioned:
         task_key = 'task_id'
         context_keys = [desired_goal_key, task_key]
@@ -85,34 +81,22 @@ def rl_context_experiment(variant):
         mask_format = mask_variant['mask_format']
         assert mask_format in ['vector', 'matrix', 'distribution', 'cond_distribution']
         goal_dim = env.observation_space.spaces[desired_goal_key].low.size
-        if mask_format == 'vector':
-            mask_keys = ['mask']
-            mask_dims = [(goal_dim,)]
+        if mask_format in ['vector']:
             context_dim_for_networks = goal_dim + goal_dim
-        elif mask_format == 'matrix':
-            mask_keys = ['mask']
-            mask_dims = [(goal_dim, goal_dim)]
+        elif mask_format in ['matrix', 'distribution', 'cond_distribution']:
             context_dim_for_networks = goal_dim + (goal_dim * goal_dim)
-        elif mask_format == 'distribution':
-            mask_keys = ['mask_mu', 'mask_sigma_inv']
-            mask_dims = [(goal_dim,), (goal_dim, goal_dim)]
-            context_dim_for_networks = goal_dim + (goal_dim * goal_dim)  # mu and sigma_inv
-        elif mask_format == 'cond_distribution':
-            mask_keys = ['mask_mu_w', 'mask_mu_g', 'mask_mu_mat', 'mask_sigma_inv']
-            mask_dims = [(goal_dim,), (goal_dim,), (goal_dim, goal_dim), (goal_dim, goal_dim)]
-            context_dim_for_networks = goal_dim + (goal_dim * goal_dim)  # mu and sigma_inv
         else:
             raise TypeError
 
-        context_keys = [desired_goal_key] + mask_keys
-
         masks = get_mask_params(
-            example_dataset,
+            env=env,
             mask_format=mask_format,
-            mask_keys=mask_keys,
-            mask_dims=mask_dims,
-            **mask_variant['mask_inference_variant'],
+            example_set_variant=variant['example_set_variant'],
+            mask_inference_variant=mask_variant['mask_inference_variant'],
         )
+
+        mask_keys = list(masks.keys())
+        context_keys = [desired_goal_key] + mask_keys
     else:
         context_keys = [desired_goal_key]
 
@@ -165,6 +149,8 @@ def rl_context_experiment(variant):
             )
         else:
             if goal_sampling_mode == 'example_set':
+                example_set_variant = variant.get('example_set_variant', {})
+                example_dataset = gen_example_sets(get_envs(variant), example_set_variant)
                 assert len(example_dataset['list_of_waypoints']) == 1
                 from railrl.envs.contextual.set_distributions import GoalDictDistributionFromSet
                 context_distrib = GoalDictDistributionFromSet(
@@ -348,7 +334,7 @@ def rl_context_experiment(variant):
                 sigma_inv = batch['mask_sigma_inv']
                 sigma_inv = sigma_inv.reshape((len(goal), -1))
                 batch['observations'] = np.concatenate([obs, goal, sigma_inv], axis=1)
-            elif mask_format == 'distribution_cond':
+            elif mask_format == 'cond_distribution':
                 goal = batch[desired_goal_key]
                 mu_w = batch['mask_mu_w']
                 mu_g = batch['mask_mu_g']

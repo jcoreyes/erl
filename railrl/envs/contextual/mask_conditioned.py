@@ -74,6 +74,10 @@ class MaskDictDistribution(DictDistribution):
         self.cumul_masks = None
         self.subset_masks = None
 
+    @property
+    def spaces(self):
+        return self._spaces
+
     def sample(self, batch_size: int):
         goals = self.sample_masks(batch_size)
         if self.mask_format == 'distribution':
@@ -422,7 +426,7 @@ def default_masked_reward_fn(actions, obs, mask_format, use_g_for_mean):
         diff = (achieved_goals - mu).reshape((batch_size, state_dim, 1))
         prod = (diff.transpose(0, 2, 1) @ sigma_inv @ diff).reshape(batch_size)
         return -np.sqrt(prod)
-    elif mask_format == 'distribution_cond':
+    elif mask_format == 'cond_distribution':
         g = desired_goals
         mu_w = obs['mask_mu_w']
         mu_g = obs['mask_mu_g']

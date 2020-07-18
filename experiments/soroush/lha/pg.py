@@ -93,7 +93,7 @@ variant = dict(
                 noise=0.10,
                 max_cond_num=1e2,
                 normalize_sigma_inv=True,
-                sigma_inv_entry_threshold=0.15,
+                sigma_inv_threshold=0.15,
             ),
             relabel_goals=True,
             relabel_masks=True,
@@ -173,12 +173,12 @@ env_params = {
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
 
-        # 'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.mask_conditioned': [True],
         # 'rl_variant.mask_variant.relabel_masks': [False],
         # 'rl_variant.mask_variant.relabel_goals': [False],
 
-        'rl_variant.mask_variant.mask_conditioned': [False],
-        'rl_variant.expl_goal_sampling_mode': ['example_set'],
+        # 'rl_variant.mask_variant.mask_conditioned': [False],
+        # 'rl_variant.expl_goal_sampling_mode': ['example_set'],
 
         'rl_variant.example_set_variant.subtask_codes': [
             [
@@ -189,7 +189,7 @@ env_params = {
             ],
         ],
 
-        'rl_variant.mask_variant.mask_format': ['distribution'],
+        'rl_variant.mask_variant.mask_format': ['cond_distribution'],
         'rl_variant.mask_variant.infer_masks': [True],
         'rl_variant.example_set_variant.n': [
             30,

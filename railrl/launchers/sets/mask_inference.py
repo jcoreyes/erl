@@ -2,17 +2,32 @@ import numpy as np
 from scipy import linalg
 
 def get_mask_params(
-        dataset,
-        mask_format=None,
-        mask_dims=None,
-        mask_keys=None,
-        subtask_codes=None,
-        matrix_masks=None,
-        mask_inference_variant=dict(),
+        env,
+        mask_format,
+        example_set_variant,
+        mask_inference_variant,
 ):
+    subtask_codes = example_set_variant.get('subtask_codes', None)
+    matrix_masks = example_set_variant.get('matrix_masks', None)
+
     assert ((subtask_codes is not None) + (matrix_masks is not None)) == 1
 
     masks = {}
+    goal_dim = env.observation_space.spaces['state_desired_goal'].low.size
+    if mask_format == 'vector':
+        mask_keys = ['mask']
+        mask_dims = [(goal_dim,)]
+    elif mask_format == 'matrix':
+        mask_keys = ['mask']
+        mask_dims = [(goal_dim, goal_dim)]
+    elif mask_format == 'distribution':
+        mask_keys = ['mask_mu', 'mask_sigma_inv']
+        mask_dims = [(goal_dim,), (goal_dim, goal_dim)]
+    elif mask_format == 'cond_distribution':
+        mask_keys = ['mask_mu_w', 'mask_mu_g', 'mask_mu_mat', 'mask_sigma_inv']
+        mask_dims = [(goal_dim,), (goal_dim,), (goal_dim, goal_dim), (goal_dim, goal_dim)]
+    else:
+        raise TypeError
 
     if subtask_codes is not None:
         num_masks = len(subtask_codes)
@@ -50,7 +65,7 @@ def get_mask_params(
                     masks[mask_key][mask_id] = np.diag(matrix_masks[mask_id])
             else:
                 masks[mask_key] = np.array(matrix_masks)
-    elif mask_format == 'distribution':
+    elif mask_format == 'cond_distribution':
         if subtask_codes is not None:
             masks['mask_mu_mat'][:] = np.identity(masks['mask_mu_mat'].shape[-1])
             subtask_codes = np.array(subtask_codes)
@@ -63,7 +78,9 @@ def get_mask_params(
             masks['mask_mu_mat'][:] = np.identity(masks['mask_mu_mat'].shape[-1])
             masks['mask_sigma_inv'] = np.array(matrix_masks)
     else:
-        raise NotImplementedError
+        raise TypeError
+
+    return masks
 
 def infer_masks(
         dataset,
@@ -71,7 +88,7 @@ def infer_masks(
         max_cond_num,
         mask_format,
         normalize_sigma_inv=True,
-        sigma_inv_entry_threshold=None,
+        sigma_inv_threshold=None,
 ):
     list_of_waypoints = dataset['list_of_waypoints']
     goals = dataset['goals']
@@ -115,10 +132,10 @@ def infer_masks(
         if normalize_sigma_inv:
             sigma_inv = sigma_inv / np.max(np.abs(sigma_inv))
 
-        if sigma_inv_entry_threshold is not None:
+        if sigma_inv_threshold is not None:
             for i in range(len(sigma_inv)):
                 for j in range(len(sigma_inv)):
-                    if sigma_inv[i][j] / np.max(np.abs(sigma_inv)) <= sigma_inv_entry_threshold:
+                    if sigma_inv[i][j] / np.max(np.abs(sigma_inv)) <= sigma_inv_threshold:
                         sigma_inv[i][j] = 0.0
 
         if mask_format == 'cond_distribution':
