@@ -410,40 +410,33 @@ class ContextualMaskingRewardFn(ContextualRewardFn):
 
 def default_masked_reward_fn(actions, obs, mask_format, use_g_for_mean):
     achieved_goals = obs['state_achieved_goal']
-    desired_goals = obs['state_desired_goal']
 
     if mask_format == 'vector':
+        desired_goals = obs['state_desired_goal']
         mask = obs['mask']
         prod = (achieved_goals - desired_goals) * mask
         return -np.linalg.norm(prod, axis=-1)
-    elif mask_format == 'matrix':
-        mask = obs['mask']
-        batch_size, state_dim = achieved_goals.shape
-        diff = (achieved_goals - desired_goals).reshape((batch_size, state_dim, 1))
-        prod = (diff.transpose(0, 2, 1) @ mask @ diff).reshape(batch_size)
-        return -np.sqrt(prod)
-    elif mask_format == 'distribution':
-        mu = obs['mask_mu']
-        sigma_inv = obs['mask_sigma_inv']
+    elif mask_format in ['matrix', 'distribution', 'cond_distribution']:
+        mu = obs['state_desired_goal']
+        if mask_format == 'matrix':
+            mask = obs['mask']
+        elif mask_format == 'distribution':
+            mask = obs['mask_sigma_inv']
+        elif mask_format == 'cond_distribution':
+            mask = obs['mask_sigma_inv']
+            if not use_g_for_mean:
+                mu_w = obs['mask_mu_w']
+                mu_g = obs['mask_mu_g']
+                mu_A = obs['mask_mu_mat']
+                mu = mu_w + np.squeeze(
+                    mu_A @ np.expand_dims(obs['state_desired_goal'] - mu_g, axis=-1),
+                    axis=-1
+                )
+        else:
+            raise TypeError
         batch_size, state_dim = achieved_goals.shape
         diff = (achieved_goals - mu).reshape((batch_size, state_dim, 1))
-        prod = (diff.transpose(0, 2, 1) @ sigma_inv @ diff).reshape(batch_size)
-        return -np.sqrt(prod)
-    elif mask_format == 'cond_distribution':
-        g = desired_goals
-        mu_w = obs['mask_mu_w']
-        mu_g = obs['mask_mu_g']
-        mu_A = obs['mask_mu_mat']
-        sigma_inv = obs['mask_sigma_inv']
-        if use_g_for_mean:
-            mu_w_given_g = g
-        else:
-            mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(g - mu_g, axis=-1), axis=-1)
-        sigma_w_given_g_inv = sigma_inv
-
-        batch_size, state_dim = achieved_goals.shape
-        diff = (achieved_goals - mu_w_given_g).reshape((batch_size, state_dim, 1))
-        prod = (diff.transpose(0, 2, 1) @ sigma_w_given_g_inv @ diff).reshape(batch_size)
+        prod = (diff.transpose(0, 2, 1) @ mask @ diff).reshape(batch_size)
         return -np.sqrt(prod)
     else:
         raise TypeError
