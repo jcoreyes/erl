@@ -76,7 +76,13 @@ class MaskDictDistribution(DictDistribution):
 
     def sample(self, batch_size: int):
         goals = self.sample_masks(batch_size)
-        if self.mask_format != 'distribution':
+        if self.mask_format == 'distribution':
+            ### the desired goal is exactly the same as mu ###
+            goals.update({
+                k: goals['mask_mu']
+                for k in self._desired_goal_keys
+            })
+        else:
             env_samples = self._env.sample_goals(batch_size)
             goals.update({
                 k: env_samples[k]
@@ -232,7 +238,6 @@ class MaskPathCollector(ContextualPathCollector):
             rollout_mask_order='fixed',
             concat_context_to_obs_fn=None,
             prev_subtask_weight=False,
-            prev_subtasks_solved=True,
             max_subtasks_to_focus_on=None,
             max_subtasks_per_rollout=None,
             **kwargs
@@ -263,7 +268,6 @@ class MaskPathCollector(ContextualPathCollector):
         self._concat_context_to_obs_fn = concat_context_to_obs_fn
 
         self._prev_subtask_weight = prev_subtask_weight
-        self._prev_subtasks_solved = prev_subtasks_solved
         self._max_subtasks_to_focus_on = max_subtasks_to_focus_on
         self._max_subtasks_per_rollout = max_subtasks_per_rollout
 
@@ -274,16 +278,6 @@ class MaskPathCollector(ContextualPathCollector):
                 for k in mask_dict:
                     o[k] = mask_dict[k]
                     self._env._rollout_context_batch[k] = mask_dict[k][None]
-
-                # hack: set previous objects goals to states
-                if self._prev_subtasks_solved:
-                    indices = np.argwhere(mask_dict['mask'] == 1)[:-2].reshape(-1)
-                    if len(indices) > 0:
-                        self._env._rollout_context_batch['state_desired_goal'][0][indices] = o[self._observation_key][indices]
-                        new_goal = {
-                            'state_desired_goal': self._env._rollout_context_batch['state_desired_goal'][0]
-                        }
-                        self._env.env.set_goal(new_goal)
 
             if self._concat_context_to_obs_fn is None:
                 combined_obs = [o[self._observation_key]]

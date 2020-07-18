@@ -89,24 +89,22 @@ def rl_context_experiment(variant):
             mask_keys = ['mask']
             mask_dims = [(goal_dim,)]
             context_dim_for_networks = goal_dim + goal_dim
-            context_keys = [desired_goal_key] + mask_keys
         elif mask_format == 'matrix':
             mask_keys = ['mask']
             mask_dims = [(goal_dim, goal_dim)]
             context_dim_for_networks = goal_dim + (goal_dim * goal_dim)
-            context_keys = [desired_goal_key] + mask_keys
         elif mask_format == 'distribution':
             mask_keys = ['mask_mu', 'mask_sigma_inv']
             mask_dims = [(goal_dim,), (goal_dim, goal_dim)]
             context_dim_for_networks = goal_dim + (goal_dim * goal_dim)  # mu and sigma_inv
-            context_keys = mask_keys
         elif mask_format == 'cond_distribution':
             mask_keys = ['mask_mu_w', 'mask_mu_g', 'mask_mu_mat', 'mask_sigma_inv']
             mask_dims = [(goal_dim,), (goal_dim,), (goal_dim, goal_dim), (goal_dim, goal_dim)]
             context_dim_for_networks = goal_dim + (goal_dim * goal_dim)  # mu and sigma_inv
-            context_keys = [desired_goal_key] + mask_keys
         else:
             raise TypeError
+
+        context_keys = [desired_goal_key] + mask_keys
 
         masks = get_mask_params(
             example_dataset,
@@ -301,30 +299,31 @@ def rl_context_experiment(variant):
 
     def context_from_obs_dict_fn(obs_dict):
         context_dict = {
-            desired_goal_key: obs_dict[achieved_goal_key],
+            desired_goal_key: obs_dict[achieved_goal_key]
         }
+
         if task_conditioned:
             context_dict[task_key] = obs_dict[task_key]
         elif mask_conditioned:
             sample_masks_for_relabeling = mask_variant.get('sample_masks_for_relabeling', True)
             if sample_masks_for_relabeling:
-                batch_size = obs_dict[list(obs_dict.keys())[0]].shape[0]
+                batch_size = next(iter(obs_dict.values())).shape[0]
                 sampled_contexts = context_distrib.sample(batch_size)
                 for mask_key in mask_keys:
                     context_dict[mask_key] = sampled_contexts[mask_key]
             else:
                 for mask_key in mask_keys:
                     context_dict[mask_key] = obs_dict[mask_key]
+
         return context_dict
 
     def concat_context_to_obs(batch, replay_buffer=None, obs_dict=None, next_obs_dict=None, new_contexts=None):
         obs = batch['observations']
         next_obs = batch['next_observations']
         if task_conditioned:
-            context = batch[desired_goal_key]
+            goal = batch[desired_goal_key]
             task = batch[task_key]
-            batch['observations'] = np.concatenate([obs, context, task], axis=1)
-            batch['next_observations'] = np.concatenate([next_obs, context, task], axis=1)
+            batch['observations'] = np.concatenate([obs, goal, task], axis=1)
         elif mask_conditioned:
             if obs_dict is not None and new_contexts is not None:
                 if not mask_variant.get('relabel_masks', True):
@@ -332,38 +331,43 @@ def rl_context_experiment(variant):
                         new_contexts[k] = next_obs_dict[k][:]
                     batch.update(new_contexts)
                 if not mask_variant.get('relabel_goals', True):
-                    new_contexts[context_key] = next_obs_dict[context_key][:]
+                    new_contexts[desired_goal_key] = next_obs_dict[desired_goal_key][:]
                     batch.update(new_contexts)
 
                 new_contexts = post_process_mask_fn(obs_dict, new_contexts)
                 batch.update(new_contexts)
 
-            context = batch[context_key]
-
             if mask_format in ['vector', 'matrix']:
                 assert len(mask_keys) == 1
-                mask = batch[mask_keys[0]].reshape((len(context), -1))
-                batch['observations'] = np.concatenate([obs, context, mask], axis=1)
-                batch['next_observations'] = np.concatenate([next_obs, context, mask], axis=1)
+                goal = batch[desired_goal_key]
+                mask = batch[mask_keys[0]].reshape((len(goal), -1))
+                batch['observations'] = np.concatenate([obs, goal, mask], axis=1)
+                batch['next_observations'] = np.concatenate([next_obs, goal, mask], axis=1)
+            elif mask_format == 'distribution':
+                goal = batch[desired_goal_key]
+                sigma_inv = batch['mask_sigma_inv']
+                sigma_inv = sigma_inv.reshape((len(goal), -1))
+                batch['observations'] = np.concatenate([obs, goal, sigma_inv], axis=1)
             elif mask_format == 'distribution_cond':
-                g = context
+                goal = batch[desired_goal_key]
                 mu_w = batch['mask_mu_w']
                 mu_g = batch['mask_mu_g']
                 mu_A = batch['mask_mu_mat']
                 sigma_inv = batch['mask_sigma_inv']
                 if mask_variant['use_g_for_mean']:
-                    mu_w_given_g = g
+                    mu_w_given_g = goal
                 else:
-                    mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(g - mu_g, axis=-1), axis=-1)
-                sigma_w_given_g_inv = sigma_inv.reshape((len(context), -1))
+                    mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(goal - mu_g, axis=-1), axis=-1)
+                sigma_w_given_g_inv = sigma_inv.reshape((len(goal), -1))
                 batch['observations'] = np.concatenate([obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
-                batch['next_observations'] = np.concatenate([next_obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
             else:
                 raise NotImplementedError
         else:
-            context = batch[context_key]
-            batch['observations'] = np.concatenate([obs, context], axis=1)
-            batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
+            goal = batch[desired_goal_key]
+            batch['observations'] = np.concatenate([obs, goal], axis=1)
+
+        batch['next_observations'] = batch['observations']
+
         return batch
 
     if 'observation_keys' not in variant['contextual_replay_buffer_kwargs']:
@@ -451,7 +455,6 @@ def rl_context_experiment(variant):
                     raise NotImplementedError
 
             prev_subtask_weight = mask_variant.get('prev_subtask_weight', None)
-            prev_subtasks_solved = mask_variant.get('prev_subtasks_solved', False)
             max_subtasks_to_focus_on = mask_variant.get('max_subtasks_to_focus_on', None)
             max_subtasks_per_rollout = mask_variant.get('max_subtasks_per_rollout', None)
             mask_groups = mask_variant.get('mask_groups', None)
@@ -473,7 +476,6 @@ def rl_context_experiment(variant):
                 max_path_length=max_path_length,
                 rollout_mask_order=rollout_mask_order,
                 prev_subtask_weight=prev_subtask_weight,
-                prev_subtasks_solved=prev_subtasks_solved,
                 max_subtasks_to_focus_on=max_subtasks_to_focus_on,
                 max_subtasks_per_rollout=max_subtasks_per_rollout,
             )
