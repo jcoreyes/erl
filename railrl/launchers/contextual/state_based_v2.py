@@ -13,6 +13,7 @@ from railrl.envs.contextual.goal_conditioned import (
 from railrl.envs.contextual.mask_conditioned import (
     MaskDictDistribution,
     MaskPathCollector,
+    ContextualMaskingRewardFn,
 )
 from railrl.launchers.sets.mask_inference import get_mask_params
 from railrl.launchers.sets.example_set_gen import gen_example_sets
@@ -127,8 +128,6 @@ def rl_context_experiment(variant):
                 additional_context_keys=[task_key],
             )
         elif mask_conditioned:
-            from railrl.envs.contextual.mask_conditioned import ContextualMaskingRewardFn
-
             context_distrib = MaskDictDistribution(
                 env,
                 desired_goal_keys=[desired_goal_key],

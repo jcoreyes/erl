@@ -14,7 +14,7 @@ from railrl.samplers.rollout_functions import contextual_rollout
 from railrl import pythonplusplus as ppp
 from collections import OrderedDict
 
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict
 
 Observation = Dict
 Goal = Any
@@ -32,7 +32,7 @@ class MaskDictDistribution(DictDistribution):
     ):
         self._env = env
         self._desired_goal_keys = desired_goal_keys
-        self.mask_keys = masks.keys()
+        self.mask_keys = list(masks.keys())
         self.mask_dims = []
         for key in self.mask_keys:
             self.mask_dims.append(masks[key].shape[1:])
@@ -51,6 +51,7 @@ class MaskDictDistribution(DictDistribution):
 
         self.mask_format = mask_format
         self.masks = masks
+        self._num_atomic_masks = next(iter(masks.values())).shape[0]
 
         self._max_subtasks_to_focus_on = max_subtasks_to_focus_on
         if self._max_subtasks_to_focus_on is not None:
@@ -80,6 +81,8 @@ class MaskDictDistribution(DictDistribution):
 
     def sample(self, batch_size: int):
         goals = self.sample_masks(batch_size)
+
+        ### sample the desired_goal ###
         if self.mask_format == 'distribution':
             ### the desired goal is exactly the same as mu ###
             goals.update({
@@ -123,8 +126,7 @@ class MaskDictDistribution(DictDistribution):
 
     def sample_atomic_masks(self, batch_size):
         sampled_masks = {}
-        num_masks = len(self.masks[list(self.masks.keys())[0]])
-        mask_ids = np.random.choice(num_masks, batch_size)
+        mask_ids = np.random.choice(self._num_atomic_masks, batch_size)
         for mask_key in self.mask_keys:
             sampled_masks[mask_key] = self.masks[mask_key][mask_ids]
         return sampled_masks
@@ -132,8 +134,7 @@ class MaskDictDistribution(DictDistribution):
     def sample_full_masks(self, batch_size):
         assert self.mask_format in ['vector', 'matrix']
         sampled_masks = {}
-        num_masks = len(self.masks[list(self.masks.keys())[0]])
-        mask_ids = np.arange(num_masks)
+        mask_ids = np.arange(self._num_atomic_masks)
         for mask_key in self.mask_keys:
             sampled_masks[mask_key] = np.repeat(
                 np.sum(
@@ -152,8 +153,7 @@ class MaskDictDistribution(DictDistribution):
             self.create_cumul_masks()
 
         sampled_masks = {}
-        num_masks = len(self.cumul_masks[list(self.cumul_masks.keys())[0]])
-        mask_ids = np.random.choice(num_masks, batch_size)
+        mask_ids = np.random.choice(self._num_cumul_masks, batch_size)
         for mask_key in self.mask_keys:
             sampled_masks[mask_key] = self.cumul_masks[mask_key][mask_ids]
         return sampled_masks
@@ -165,8 +165,7 @@ class MaskDictDistribution(DictDistribution):
             self.create_subset_masks()
 
         sampled_masks = {}
-        num_masks = len(self.subset_masks[list(self.subset_masks.keys())[0]])
-        mask_ids = np.random.choice(num_masks, batch_size)
+        mask_ids = np.random.choice(self._num_subset_masks, batch_size)
         for mask_key in self.mask_keys:
             sampled_masks[mask_key] = self.subset_masks[mask_key][mask_ids]
         return sampled_masks
@@ -195,6 +194,8 @@ class MaskDictDistribution(DictDistribution):
                         mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
                 ).reshape(list(self._spaces[mask_key].shape))
 
+        self._num_cumul_masks = next(iter(self.cumul_masks.values())).shape[0]
+
     def create_subset_masks(self):
         assert self.mask_format in ['vector', 'matrix']
         num_atomic_masks = len(self.masks[list(self.masks.keys())[0]])
@@ -214,6 +215,8 @@ class MaskDictDistribution(DictDistribution):
                 self.subset_masks[mask_key][i - 1] = (
                         mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
                 ).reshape(list(self._spaces[mask_key].shape))
+
+        self._num_subset_masks = next(iter(self.subset_masks.values())).shape[0]
 
     def get_cumul_mask_to_indices(self, masks):
         assert self.mask_format in ['vector']
