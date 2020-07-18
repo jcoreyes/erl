@@ -13,7 +13,6 @@ from railrl.envs.contextual.goal_conditioned import (
 from railrl.envs.contextual.mask_conditioned import (
     MaskDictDistribution,
     MaskPathCollector,
-    default_masked_reward_fn,
 )
 from railrl.launchers.sets.mask_inference import get_mask_params
 from railrl.launchers.sets.example_set_gen import gen_example_sets
@@ -310,6 +309,7 @@ def rl_context_experiment(variant):
             goal = batch[desired_goal_key]
             task = batch[task_key]
             batch['observations'] = np.concatenate([obs, goal, task], axis=1)
+            batch['next_observations'] = np.concatenate([next_obs, goal, task], axis=1)
         elif mask_conditioned:
             if obs_dict is not None and new_contexts is not None:
                 if not mask_variant.get('relabel_masks', True):
@@ -324,9 +324,8 @@ def rl_context_experiment(variant):
                 batch.update(new_contexts)
 
             if mask_format in ['vector', 'matrix']:
-                assert len(mask_keys) == 1
                 goal = batch[desired_goal_key]
-                mask = batch[mask_keys[0]].reshape((len(goal), -1))
+                mask = batch['mask'].reshape((len(goal), -1))
                 batch['observations'] = np.concatenate([obs, goal, mask], axis=1)
                 batch['next_observations'] = np.concatenate([next_obs, goal, mask], axis=1)
             elif mask_format == 'distribution':
@@ -334,6 +333,7 @@ def rl_context_experiment(variant):
                 sigma_inv = batch['mask_sigma_inv']
                 sigma_inv = sigma_inv.reshape((len(goal), -1))
                 batch['observations'] = np.concatenate([obs, goal, sigma_inv], axis=1)
+                batch['next_observations'] = np.concatenate([next_obs, goal, sigma_inv], axis=1)
             elif mask_format == 'cond_distribution':
                 goal = batch[desired_goal_key]
                 mu_w = batch['mask_mu_w']
@@ -346,13 +346,13 @@ def rl_context_experiment(variant):
                     mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(goal - mu_g, axis=-1), axis=-1)
                 sigma_w_given_g_inv = sigma_inv.reshape((len(goal), -1))
                 batch['observations'] = np.concatenate([obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
+                batch['next_observations'] = np.concatenate([next_obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
             else:
                 raise NotImplementedError
         else:
             goal = batch[desired_goal_key]
             batch['observations'] = np.concatenate([obs, goal], axis=1)
-
-        batch['next_observations'] = batch['observations']
+            batch['next_observations'] = np.concatenate([next_obs, goal], axis=1)
 
         return batch
 
@@ -428,7 +428,7 @@ def rl_context_experiment(variant):
                 elif mode == 'eval':
                     rollout_mask_order = mask_variant.get('rollout_mask_order_for_eval', 'fixed')
                 else:
-                    raise NotImplementedError
+                    raise TypeError
 
             if 'mask_distr' in mask_kwargs:
                 mask_distr = mask_kwargs['mask_distr']
@@ -438,7 +438,7 @@ def rl_context_experiment(variant):
                 elif mode == 'eval':
                     mask_distr = mask_variant['eval_mask_distr']
                 else:
-                    raise NotImplementedError
+                    raise TypeError
 
             prev_subtask_weight = mask_variant.get('prev_subtask_weight', None)
             max_subtasks_to_focus_on = mask_variant.get('max_subtasks_to_focus_on', None)
@@ -742,8 +742,6 @@ def full_post_process_mask_fn(
         achieved_goal_key,
 ):
     assert mask_conditioned
-    pp_context_dict = copy.deepcopy(context_dict)
-
     mode = mask_variant.get('context_post_process_mode', None)
     assert mode in [
         'prev_subtasks_solved',
@@ -752,6 +750,8 @@ def full_post_process_mask_fn(
         'atomic_to_corresp_cumul',
         None
     ]
+    if mode is None:
+        return context_dict
 
     if mode in [
         'prev_subtasks_solved',
@@ -767,6 +767,7 @@ def full_post_process_mask_fn(
             cumul_mask_to_indices[k] = indices[subset]
     else:
         cumul_mask_to_indices = None
+    pp_context_dict = copy.deepcopy(context_dict)
 
     if mode in ['prev_subtasks_solved', 'dilute_prev_subtasks_uniform', 'dilute_prev_subtasks_fixed']:
         cumul_masks = list(cumul_mask_to_indices.keys())

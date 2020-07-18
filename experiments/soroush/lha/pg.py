@@ -190,7 +190,7 @@ env_params = {
             30,
         ],
 
-        'rl_variant.algo_kwargs.num_epochs': [4000],
+        'rl_variant.algo_kwargs.num_epochs': [6000],
     },
 }
 
