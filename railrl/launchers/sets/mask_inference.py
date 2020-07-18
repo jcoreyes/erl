@@ -31,21 +31,40 @@ def get_mask_params(
     for mask_key, mask_dim in zip(mask_keys, mask_dims):
         masks[mask_key] = np.zeros([num_masks] + list(mask_dim))
 
-    infer_masks = mask_inference_variant['infer_masks']
-    if infer_masks:
-        example_dataset = gen_example_sets(env, example_set_variant)
-    else:
-        if mask_format == 'vector':
-            mask_key = 'mask'
-        elif mask_format == 'matrix':
-            mask_key = 'mask'
-        elif mask_format == 'distribution':
-            mask_key = 'mask_sigma_inv'
-        elif mask_format == 'cond_distribution':
-            mask_key = 'mask_sigma_inv'
-        else:
-            raise TypeError
+    dataset = gen_example_sets(env, example_set_variant)
+    noise = mask_inference_variant['noise']
+    add_noise_to_dataset(dataset, noise)
 
+    ### set the means, if applicable ###
+    if mask_format == 'distribution':
+        for mask_id in range(num_masks):
+            masks['mask_mu'][mask_id] = np.mean(dataset['list_of_waypoints'][mask_id])
+    elif mask_format == 'cond_distribution':
+        for mask_id in range(num_masks):
+            waypoints = dataset['list_of_waypoints'][mask_id]
+            goals = dataset['goals']
+            mu_w, mu_g, mu_mat, _ = get_cond_distr_params(
+                mu=np.mean(np.concatenate((waypoints, goals), axis=1), axis=0),
+                sigma=np.cov(np.concatenate((waypoints, goals), axis=1).T),
+                x_dim=goals.shape[1],
+            )
+            masks['mask_mu_w'][mask_id] = mu_w
+            masks['mask_mu_g'][mask_id] = mu_g
+            masks['mask_mu_mat'][mask_id] = mu_mat
+
+    ### set the variances ###
+    if mask_format in ['vector', 'matrix']:
+        mask_key = 'mask'
+    elif mask_format in ['distribution', 'cond_distribution']:
+        mask_key = 'mask_sigma_inv'
+    else:
+        raise TypeError
+
+    infer_masks = mask_inference_variant['infer_masks']
+
+    if infer_masks:
+        pass
+    else:
         for (mask_id, idx_dict) in enumerate(subtask_codes):
             for (k, v) in idx_dict.items():
                 if mask_format == 'vector':
@@ -63,9 +82,21 @@ def get_mask_params(
                         masks[mask_key][mask_id][src_idx, targ_idx] = -1
                         masks[mask_key][mask_id][targ_idx, src_idx] = -1
 
-    # masks['mask_mu_mat'][:] = np.identity(masks['mask_mu_mat'].shape[-1])
+    normalize_mask = mask_inference_variant['normalize_mask']
+    mask_threshold = mask_inference_variant['mask_threshold']
+    for mask_id in range(num_masks):
+        mask = masks[mask_key][mask_id]
+        if normalize_mask:
+            mask = mask / np.max(np.abs(mask))
+
+        indices = np.argwhere(np.abs(mask) <= mask_threshold * np.max(np.abs(mask)))
+        mask[indices] = 0.0
 
     return masks
+
+def add_noise_to_dataset(dataset, noise):
+    for k in dataset.keys():
+        dataset[k] += np.random.normal(0, noise, dataset[k].shape)
 
 def infer_masks(
         dataset,
@@ -79,8 +110,7 @@ def infer_masks(
     goals = dataset['goals']
 
     # add noise to all of the data
-    list_of_waypoints += np.random.normal(0, noise, list_of_waypoints.shape)
-    goals += np.random.normal(0, noise, goals.shape)
+    add_noise_to_dataset(dataset, noise)
 
     if mask_format == 'cond_distribution':
         masks = {
