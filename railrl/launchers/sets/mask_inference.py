@@ -1,17 +1,14 @@
 import numpy as np
 from scipy import linalg
 
+from railrl.launchers.sets.example_set_gen import gen_example_sets
+
 def get_mask_params(
         env,
         mask_format,
         example_set_variant,
         mask_inference_variant,
 ):
-    subtask_codes = example_set_variant.get('subtask_codes', None)
-    matrix_masks = example_set_variant.get('matrix_masks', None)
-
-    assert ((subtask_codes is not None) + (matrix_masks is not None)) == 1
-
     masks = {}
     goal_dim = env.observation_space.spaces['state_desired_goal'].low.size
     if mask_format == 'vector':
@@ -29,56 +26,44 @@ def get_mask_params(
     else:
         raise TypeError
 
-    if subtask_codes is not None:
-        num_masks = len(subtask_codes)
-    elif matrix_masks is not None:
-        num_masks = len(matrix_masks)
-    else:
-        raise NotImplementedError
-
+    subtask_codes = example_set_variant['subtask_codes']
+    num_masks = len(subtask_codes)
     for mask_key, mask_dim in zip(mask_keys, mask_dims):
         masks[mask_key] = np.zeros([num_masks] + list(mask_dim))
 
-    if mask_format in ['vector', 'matrix']:
-        assert len(mask_keys) == 1
-        mask_key = mask_keys[0]
-        if subtask_codes is not None:
-            for (i, idx_dict) in enumerate(subtask_codes):
-                for (k, v) in idx_dict.items():
-                    if mask_format == 'vector':
-                        assert k == v
-                        masks[mask_key][i][k] = 1
-                    elif mask_format == 'matrix':
-                        if v >= 0:
-                            assert k == v
-                            masks[mask_key][i][k, k] = 1
-                        else:
-                            src_idx = k
-                            targ_idx = -(v + 10)
-                            masks[mask_key][i][src_idx, src_idx] = 1
-                            masks[mask_key][i][targ_idx, targ_idx] = 1
-                            masks[mask_key][i][src_idx, targ_idx] = -1
-                            masks[mask_key][i][targ_idx, src_idx] = -1
-        elif matrix_masks is not None:
-            if mask_format == 'vector':
-                for mask_id in range(num_masks):
-                    masks[mask_key][mask_id] = np.diag(matrix_masks[mask_id])
-            else:
-                masks[mask_key] = np.array(matrix_masks)
-    elif mask_format == 'cond_distribution':
-        if subtask_codes is not None:
-            masks['mask_mu_mat'][:] = np.identity(masks['mask_mu_mat'].shape[-1])
-            subtask_codes = np.array(subtask_codes)
-
-            for (i, idx_dict) in enumerate(subtask_codes):
-                for (k, v) in idx_dict.items():
-                    assert k == v
-                    masks['mask_sigma_inv'][i][k, k] = 1
-        elif matrix_masks is not None:
-            masks['mask_mu_mat'][:] = np.identity(masks['mask_mu_mat'].shape[-1])
-            masks['mask_sigma_inv'] = np.array(matrix_masks)
+    infer_masks = mask_inference_variant['infer_masks']
+    if infer_masks:
+        example_dataset = gen_example_sets(env, example_set_variant)
     else:
-        raise TypeError
+        if mask_format == 'vector':
+            mask_key = 'mask'
+        elif mask_format == 'matrix':
+            mask_key = 'mask'
+        elif mask_format == 'distribution':
+            mask_key = 'mask_sigma_inv'
+        elif mask_format == 'cond_distribution':
+            mask_key = 'mask_sigma_inv'
+        else:
+            raise TypeError
+
+        for (mask_id, idx_dict) in enumerate(subtask_codes):
+            for (k, v) in idx_dict.items():
+                if mask_format == 'vector':
+                    assert k == v
+                    masks['mask'][mask_id][k] = 1
+                elif mask_format in ['matrix', 'distribution', 'cond_distribution']:
+                    if v >= 0:
+                        assert k == v
+                        masks[mask_key][mask_id][k, k] = 1
+                    else:
+                        src_idx = k
+                        targ_idx = -(v + 10)
+                        masks[mask_key][mask_id][src_idx, src_idx] = 1
+                        masks[mask_key][mask_id][targ_idx, targ_idx] = 1
+                        masks[mask_key][mask_id][src_idx, targ_idx] = -1
+                        masks[mask_key][mask_id][targ_idx, src_idx] = -1
+
+    # masks['mask_mu_mat'][:] = np.identity(masks['mask_mu_mat'].shape[-1])
 
     return masks
 
@@ -87,8 +72,8 @@ def infer_masks(
         noise,
         max_cond_num,
         mask_format,
-        normalize_sigma_inv=True,
-        sigma_inv_threshold=None,
+        normalize_mask=True,
+        mask_threshold=None,
 ):
     list_of_waypoints = dataset['list_of_waypoints']
     goals = dataset['goals']
@@ -129,13 +114,13 @@ def infer_masks(
             eps = 0
         sigma_inv = linalg.inv(sigma + eps * np.identity(sigma.shape[0]))
 
-        if normalize_sigma_inv:
+        if normalize_mask:
             sigma_inv = sigma_inv / np.max(np.abs(sigma_inv))
 
-        if sigma_inv_threshold is not None:
+        if mask_threshold is not None:
             for i in range(len(sigma_inv)):
                 for j in range(len(sigma_inv)):
-                    if sigma_inv[i][j] / np.max(np.abs(sigma_inv)) <= sigma_inv_threshold:
+                    if sigma_inv[i][j] / np.max(np.abs(sigma_inv)) <= mask_threshold:
                         sigma_inv[i][j] = 0.0
 
         if mask_format == 'cond_distribution':

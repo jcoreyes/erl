@@ -72,12 +72,7 @@ variant = dict(
         ),
         example_set_variant=dict(
             n=100,
-            subtask_codes=[
-                {2: 2, 3: 3},
-                {4: 4, 5: 5},
-                {6: 6, 7: 7},
-                {8: 8, 9: 9},
-            ],
+            subtask_codes=None,
             other_dims_random=True,
             use_cache=False,
             cache_path=None,
@@ -88,12 +83,12 @@ variant = dict(
             rollout_mask_order_for_eval='fixed',
             log_mask_diagnostics=True,
             mask_format='matrix',
-            infer_masks=False,
             mask_inference_variant=dict(
+                infer_masks=False,
                 noise=0.10,
                 max_cond_num=1e2,
-                normalize_sigma_inv=True,
-                sigma_inv_threshold=0.15,
+                normalize_mask=True,
+                mask_threshold=0.15,
             ),
             relabel_goals=True,
             relabel_masks=True,
@@ -190,7 +185,7 @@ env_params = {
         ],
 
         'rl_variant.mask_variant.mask_format': ['cond_distribution'],
-        'rl_variant.mask_variant.infer_masks': [True],
+        'rl_variant.mask_variant.mask_inference_variant.infer_masks': [False],
         'rl_variant.example_set_variant.n': [
             30,
         ],
