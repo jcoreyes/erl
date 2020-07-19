@@ -1,4 +1,5 @@
 import numpy as np
+import os
 from scipy import linalg
 
 from railrl.launchers.sets.example_set_gen import gen_example_sets
@@ -61,7 +62,8 @@ def get_mask_params(
     else:
         raise TypeError
 
-    if mask_inference_variant['infer_masks']:
+    infer_masks = mask_inference_variant['infer_masks']
+    if infer_masks:
         for mask_id in range(num_masks):
             waypoints = dataset['list_of_waypoints'][mask_id]
             if mask_format == 'cond_distribution':
@@ -104,13 +106,17 @@ def get_mask_params(
         if mask_threshold is not None:
             mask[np.abs(mask) <= mask_threshold * np.max(np.abs(mask))] = 0.0
 
+    from railrl.core import logger
+    logdir = logger.get_snapshot_dir()
+    np.save(
+        os.path.join(logdir, 'masks.npy'),
+        masks
+    )
+
     for mask_id in range(num_masks):
-        # print('mask_mu_mat')
-        # print_matrix(masks['mask_mu_mat'][mask_id])
         print('mask_sigma_inv for mask_id={}'.format(mask_id))
         print_matrix(masks[var_key][mask_id], precision=5) #precision=5
-        # print(masks['mask_sigma_inv'][mask_id].diagonal())
-    # exit()
+        # print(masks[var_key][mask_id].diagonal())
 
     return masks
 

@@ -147,8 +147,7 @@ def rl_context_experiment(variant):
             )
         else:
             if goal_sampling_mode == 'example_set':
-                example_set_variant = variant.get('example_set_variant', {})
-                example_dataset = gen_example_sets(get_envs(variant), example_set_variant)
+                example_dataset = gen_example_sets(get_envs(variant), variant['example_set_variant'])
                 assert len(example_dataset['list_of_waypoints']) == 1
                 from railrl.envs.contextual.set_distributions import GoalDictDistributionFromSet
                 context_distrib = GoalDictDistributionFromSet(
@@ -304,6 +303,7 @@ def rl_context_experiment(variant):
     def concat_context_to_obs(batch, replay_buffer=None, obs_dict=None, next_obs_dict=None, new_contexts=None):
         obs = batch['observations']
         next_obs = batch['next_observations']
+        batch_size = obs.shape[0]
         if task_conditioned:
             goal = batch[desired_goal_key]
             task = batch[task_key]
@@ -324,13 +324,12 @@ def rl_context_experiment(variant):
 
             if mask_format in ['vector', 'matrix']:
                 goal = batch[desired_goal_key]
-                mask = batch['mask'].reshape((len(goal), -1))
+                mask = batch['mask'].reshape((batch_size, -1))
                 batch['observations'] = np.concatenate([obs, goal, mask], axis=1)
                 batch['next_observations'] = np.concatenate([next_obs, goal, mask], axis=1)
             elif mask_format == 'distribution':
                 goal = batch[desired_goal_key]
-                sigma_inv = batch['mask_sigma_inv']
-                sigma_inv = sigma_inv.reshape((len(goal), -1))
+                sigma_inv = batch['mask_sigma_inv'].reshape((batch_size, -1))
                 batch['observations'] = np.concatenate([obs, goal, sigma_inv], axis=1)
                 batch['next_observations'] = np.concatenate([next_obs, goal, sigma_inv], axis=1)
             elif mask_format == 'cond_distribution':
@@ -343,7 +342,7 @@ def rl_context_experiment(variant):
                     mu_w_given_g = goal
                 else:
                     mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(goal - mu_g, axis=-1), axis=-1)
-                sigma_w_given_g_inv = sigma_inv.reshape((len(goal), -1))
+                sigma_w_given_g_inv = sigma_inv.reshape((batch_size, -1))
                 batch['observations'] = np.concatenate([obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
                 batch['next_observations'] = np.concatenate([next_obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
             else:

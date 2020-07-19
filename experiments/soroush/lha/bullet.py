@@ -7,11 +7,6 @@ from exp_util import (
 from railrl.launchers.exp_launcher import rl_experiment
 from roboverse.envs.goal_conditioned.sawyer_lift_gc import SawyerLiftEnvGC
 
-from railrl.envs.contextual.mask_conditioned import (
-    default_masked_reward_fn,
-    action_penalty_masked_reward_fn,
-)
-
 variant = dict(
     rl_variant=dict(
         do_state_exp=True,
@@ -74,19 +69,25 @@ variant = dict(
         task_variant=dict(
             task_conditioned=False,
         ),
+        example_set_variant=dict(
+            n=30,
+            subtask_codes=None,
+            other_dims_random=True,
+            use_cache=False,
+            cache_path=None,
+        ),
         mask_variant=dict(
             mask_conditioned=True,
             rollout_mask_order_for_expl='random',
             rollout_mask_order_for_eval='fixed',
             log_mask_diagnostics=True,
             mask_format='matrix',
-            infer_masks=False,
             mask_inference_variant=dict(
-                n=100,
+                infer_masks=False,
                 noise=0.01,
                 max_cond_num=1e2,
-                normalize_sigma_inv=True,
-                sigma_inv_entry_threshold=0.10,
+                normalize_mask=True,
+                mask_threshold=0.25,
             ),
             relabel_goals=True,
             relabel_masks=True,
@@ -98,7 +99,6 @@ variant = dict(
             max_subtasks_to_focus_on=None,
             max_subtasks_per_rollout=None,
             prev_subtask_weight=0.25,
-            reward_fn=default_masked_reward_fn,
             use_g_for_mean=True,
 
             train_mask_distr=dict(
@@ -137,20 +137,21 @@ variant = dict(
         'pos_high': [.75, .4, .3],
         'pos_low': [.75, -.4, -.36],
         'reset_obj_in_hand_rate': 0.0,
-        'goal_sampling_mode': 'ground',
-        'random_init_bowl_pos': False,
-        'bowl_type': 'fixed',
         'bowl_bounds': [-0.40, 0.40],
-
-        'hand_reward': True,
-        'gripper_reward': True,
-        'bowl_reward': True,
 
         'use_rotated_gripper': True,
         'use_wide_gripper': True,
         'soft_clip': True,
         'obj_urdf': 'spam',
         'max_joint_velocity': None,
+
+        'hand_reward': True,
+        'gripper_reward': True,
+        'bowl_reward': True,
+
+        'goal_sampling_mode': 'ground',
+        'random_init_bowl_pos': False,
+        'bowl_type': 'fixed',
     },
     imsize=400,
 
@@ -204,128 +205,58 @@ env_params = {
 
         'rl_variant.algo_kwargs.num_epochs': [1500],
     },
-    'pb-2obj': {
-        'env_kwargs.num_obj': [2],
-        
-        'rl_variant.mask_variant.idx_masks': [
+    'pb-4obj': {
+        'env_kwargs.num_obj': [4],
+        'env_kwargs.random_init_bowl_pos': [False],
+        'env_kwargs.bowl_type': ['fixed'],
+
+        'rl_variant.example_set_variant.subtask_codes': [
             [
                 {2: 2, 3: 3},
                 {4: 4, 5: 5},
+                {6: 6, 7: 7},
+                {8: 8, 9: 9},
             ],
         ],
-        # 'rl_variant.mask_variant.matrix_masks': [
-        #     [[
-        #         [0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 0, 0],
-        #         [0, 0, 1, 0, 0, 0],
-        #         [0, 0, 0, 1, 0, 0],
-        #         [0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 0, 0],
-        #     ],
-        #     [
-        #         [0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 0, 0],
-        #         [0, 0, 0, 0, 1, 0],
-        #         [0, 0, 0, 0, 0, 1],
-        #     ]],
-        #
-        #     # [[
-        #     #     [0.01, 0, 0, 0, 0, 0],
-        #     #     [0, 0.01, 0, 0, 0, 0],
-        #     #     [0, 0, 0.99, 0, 0, 0],
-        #     #     [0, 0, 0, 1.00, 0, 0],
-        #     #     [0, 0, 0, 0, 0.01, 0],
-        #     #     [0, 0, 0, 0, 0, 0.01],
-        #     # ],
-        #     # [
-        #     #     [0.01, 0, 0, 0, 0, 0],
-        #     #     [0, 0.01, 0, 0, 0, 0],
-        #     #     [0, 0, 0.01, 0, 0, 0],
-        #     #     [0, 0, 0, 0.01, 0, 0],
-        #     #     [0, 0, 0, 0, 0.98, 0],
-        #     #     [0, 0, 0, 0, 0, 1.00],
-        #     # ]],
-        # ],
+        'rl_variant.example_set_variant.n': [30],
 
-        'rl_variant.expl_goal_sampling_mode': ['ground'],
 
-        'rl_variant.mask_variant.mask_format': [
-            'distribution',
-            # 'matrix',
-            # 'vector',
-        ],
-        'rl_variant.mask_variant.infer_masks': [True],
-        'rl_variant.mask_variant.mask_inference_variant.sigma_inv_entry_threshold': [
-            0.10,
-            # None,
-        ],
+        # 'rl_variant.mask_variant.mask_conditioned': [False],
 
-        'rl_variant.algo_kwargs.num_epochs': [1500],
-    },
-    'pb-4obj': {
-        'env_kwargs.num_obj': [4],
-
-        'rl_variant.mask_variant.idx_masks': [
-            # [
-            #     {2: 2, 3: 3},
-            #     {4: 4, 5: 5},
-            #     {6: 6, 7: 7},
-            #     {8: 8, 9: 9},
-            # ],
-            [
-                {2: -20, 3: 3},
-            ],
-        ],
-
-        'env_kwargs.random_init_bowl_pos': [True],
-        'env_kwargs.bowl_type': ['heavy'],
-
-        'rl_variant.mask_variant.mask_conditioned': [
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.mask_format': ['cond_distribution'],
+        'rl_variant.mask_variant.mask_inference_variant.infer_masks': [
             True,
             # False,
         ],
 
+        'rl_variant.algo_kwargs.num_epochs': [5000],
+    },
+    'pb-4obj-rel': {
+        'env_kwargs.num_obj': [4],
+        'env_kwargs.random_init_bowl_pos': [True],
+        'env_kwargs.bowl_type': ['heavy'],
+
+        'rl_variant.expl_goal_sampling_mode': ['example_set'],
+        'rl_variant.eval_goal_sampling_mode': ['obj_in_bowl'],
+
+        'rl_variant.example_set_variant.subtask_codes': [
+            [
+                {2: -20, 3: 3},
+            ],
+        ],
+        'rl_variant.example_set_variant.n': [30],
+
+        'rl_variant.mask_variant.mask_conditioned': [False],
+
+        # 'rl_variant.mask_variant.mask_conditioned': [True],
         # 'rl_variant.mask_variant.mask_format': ['distribution'],
-        # 'rl_variant.mask_variant.infer_masks': [True],
-        # 'rl_variant.mask_variant.mask_inference_variant.n': [
-        #     # 50,
-        #     1000,
+        # 'rl_variant.mask_variant.mask_inference_variant.infer_masks': [
+        #     # True,
+        #     False,
         # ],
 
         'rl_variant.algo_kwargs.num_epochs': [5000],
-    },
-    'pb-5obj': {
-        'env_kwargs.num_obj': [5],
-
-        'rl_variant.max_path_length': [150],
-        'rl_variant.algo_kwargs.num_eval_steps_per_epoch': [1500],
-        'rl_variant.algo_kwargs.num_expl_steps_per_train_loop': [1500],
-        'rl_variant.algo_kwargs.num_trains_per_train_loop': [1500],
-        'rl_variant.algo_kwargs.min_num_steps_before_training': [1500],
-
-        'rl_variant.mask_variant.idx_masks': [
-            # [
-            #     {2: 2, 3: 3},
-            #     {4: 4, 5: 5},
-            #     {6: 6, 7: 7},
-            #     {8: 8, 9: 9},
-            #     {10: 10, 11: 11},
-            # ],
-
-            [
-                {i:i for i in range(12)}
-            ],
-        ],
-
-        # 'rl_variant.mask_variant.infer_masks': [True],
-        # 'rl_variant.mask_variant.mask_inference_variant.n': [
-        #     # 50,
-        #     1000,
-        # ],
-
-        'rl_variant.algo_kwargs.num_epochs': [8000],
     },
 }
 
@@ -342,7 +273,7 @@ def process_variant(variant):
         rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
         rl_variant['dump_video_kwargs']['columns'] = 2
         rl_variant['save_video_period'] = 2
-        rl_variant['log_expl_video'] = False
+        # rl_variant['log_expl_video'] = False
         variant['imsize'] = 256
     rl_variant['renderer_kwargs']['width'] = variant['imsize']
     rl_variant['renderer_kwargs']['height'] = variant['imsize']

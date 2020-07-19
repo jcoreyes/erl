@@ -71,7 +71,7 @@ variant = dict(
             task_conditioned=False,
         ),
         example_set_variant=dict(
-            n=100,
+            n=30,
             subtask_codes=None,
             other_dims_random=True,
             use_cache=False,
