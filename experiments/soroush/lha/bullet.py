@@ -161,19 +161,6 @@ variant = dict(
 )
 
 env_params = {
-    'pb-reach': {
-        'env_kwargs.num_obj': [0],
-        'env_kwargs.sliding_bowl': [True],
-        'env_kwargs.heavy_bowl': [False],
-        'env_kwargs.random_init_bowl_pos': [True],
-        'rl_variant.mask_variant.mask_conditioned': [False],
-        'rl_variant.algo_kwargs.num_epochs': [50],
-
-        'rl_variant.save_video_period': [5],
-        'rl_variant.dump_video_kwargs.columns': [3],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [1],
-
-    },
     'pb-1obj': {
         'env_kwargs.num_obj': [1],
         'env_kwargs.bowl_type': [
@@ -276,60 +263,6 @@ env_params = {
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [1500],
-    },
-    'pb-3obj': {
-        'env_kwargs.num_obj': [3],
-        'env_kwargs.sliding_bowl': [True],
-        'env_kwargs.random_init_bowl_pos': [True],
-
-        # 'rl_variant.mask_variant.idx_masks': [
-        #     [
-        #         {2: -14, 3: -13},
-        #     ],
-        # ],
-
-        'rl_variant.mask_variant.matrix_masks': [
-            # [[
-            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
-            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
-            #     [0, 0, 1, 0, 0, 0, 0, 0, -1],
-            #     [0, 0, 0, 1, 0, 0, 0, 0, 0],
-            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
-            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
-            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
-            #     [0, 0, 0, 0, 0, 0, 0, 0, 0],
-            #     [0, 0, -1, 0, 0, 0, 0, 0, 1],
-            # ]],
-            [[
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 1, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 1, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 1, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 1, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 1, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 1],
-            ]],
-        ],
-
-        'rl_variant.mask_variant.mask_format': [
-            # 'distribution',
-            'matrix',
-        ],
-
-        # 'rl_variant.mask_variant.mask_conditioned': [
-        #     # True,
-        #     False,
-        # ],
-        # 'rl_variant.mask_variant.mask_format': ['distribution'],
-        # 'rl_variant.mask_variant.infer_masks': [True],
-        # 'rl_variant.mask_variant.mask_inference_variant.n': [
-        #     # 50,
-        #     1000,
-        # ],
-
-        'rl_variant.algo_kwargs.num_epochs': [6000],
     },
     'pb-4obj': {
         'env_kwargs.num_obj': [4],

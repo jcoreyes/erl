@@ -33,12 +33,13 @@ def get_mask_params(
 
     dataset = gen_example_sets(env, example_set_variant)
     noise = mask_inference_variant['noise']
-    add_noise_to_dataset(dataset, noise)
+    dataset = get_noisy_dataset(dataset, noise)
 
     ### set the means, if applicable ###
     if mask_format == 'distribution':
         for mask_id in range(num_masks):
-            masks['mask_mu'][mask_id] = np.mean(dataset['list_of_waypoints'][mask_id])
+            waypoints = dataset['list_of_waypoints'][mask_id]
+            masks['mask_mu'][mask_id] = np.mean(waypoints, axis=0)
     elif mask_format == 'cond_distribution':
         for mask_id in range(num_masks):
             waypoints = dataset['list_of_waypoints'][mask_id]
@@ -54,16 +55,27 @@ def get_mask_params(
 
     ### set the variances ###
     if mask_format in ['vector', 'matrix']:
-        mask_key = 'mask'
+        var_key = 'mask'
     elif mask_format in ['distribution', 'cond_distribution']:
-        mask_key = 'mask_sigma_inv'
+        var_key = 'mask_sigma_inv'
     else:
         raise TypeError
 
-    infer_masks = mask_inference_variant['infer_masks']
-
-    if infer_masks:
-        pass
+    if mask_inference_variant['infer_masks']:
+        for mask_id in range(num_masks):
+            waypoints = dataset['list_of_waypoints'][mask_id]
+            if mask_format == 'cond_distribution':
+                goals = dataset['goals']
+                _, _, _, sigma = get_cond_distr_params(
+                    mu=np.mean(np.concatenate((waypoints, goals), axis=1), axis=0),
+                    sigma=np.cov(np.concatenate((waypoints, goals), axis=1).T),
+                    x_dim=goals.shape[1],
+                )
+            elif mask_format == 'distribution':
+                sigma = np.cov(waypoints.T)
+            else:
+                raise TypeError
+            masks[var_key][mask_id] = invert_matrix(sigma, mask_inference_variant['max_cond_num'])
     else:
         for (mask_id, idx_dict) in enumerate(subtask_codes):
             for (k, v) in idx_dict.items():
@@ -73,107 +85,54 @@ def get_mask_params(
                 elif mask_format in ['matrix', 'distribution', 'cond_distribution']:
                     if v >= 0:
                         assert k == v
-                        masks[mask_key][mask_id][k, k] = 1
+                        masks[var_key][mask_id][k, k] = 1
                     else:
                         src_idx = k
                         targ_idx = -(v + 10)
-                        masks[mask_key][mask_id][src_idx, src_idx] = 1
-                        masks[mask_key][mask_id][targ_idx, targ_idx] = 1
-                        masks[mask_key][mask_id][src_idx, targ_idx] = -1
-                        masks[mask_key][mask_id][targ_idx, src_idx] = -1
+                        masks[var_key][mask_id][src_idx, src_idx] = 1
+                        masks[var_key][mask_id][targ_idx, targ_idx] = 1
+                        masks[var_key][mask_id][src_idx, targ_idx] = -1
+                        masks[var_key][mask_id][targ_idx, src_idx] = -1
 
     normalize_mask = mask_inference_variant['normalize_mask']
     mask_threshold = mask_inference_variant['mask_threshold']
     for mask_id in range(num_masks):
-        mask = masks[mask_key][mask_id]
+        mask = masks[var_key][mask_id]
         if normalize_mask:
-            mask = mask / np.max(np.abs(mask))
+            mask /= np.max(np.abs(mask))
 
-        indices = np.argwhere(np.abs(mask) <= mask_threshold * np.max(np.abs(mask)))
-        mask[indices] = 0.0
+        if mask_threshold is not None:
+            mask[np.abs(mask) <= mask_threshold * np.max(np.abs(mask))] = 0.0
+
+    for mask_id in range(num_masks):
+        # print('mask_mu_mat')
+        # print_matrix(masks['mask_mu_mat'][mask_id])
+        print('mask_sigma_inv for mask_id={}'.format(mask_id))
+        print_matrix(masks[var_key][mask_id], precision=5) #precision=5
+        # print(masks['mask_sigma_inv'][mask_id].diagonal())
+    # exit()
 
     return masks
 
-def add_noise_to_dataset(dataset, noise):
-    for k in dataset.keys():
-        dataset[k] += np.random.normal(0, noise, dataset[k].shape)
+def get_noisy_dataset(dataset, noise):
+    return {
+        k: dataset[k] + np.random.normal(0, noise, dataset[k].shape)
+        for k in dataset.keys()
+    }
 
-def infer_masks(
-        dataset,
-        noise,
-        max_cond_num,
-        mask_format,
-        normalize_mask=True,
-        mask_threshold=None,
-):
-    list_of_waypoints = dataset['list_of_waypoints']
-    goals = dataset['goals']
-
-    # add noise to all of the data
-    add_noise_to_dataset(dataset, noise)
-
-    if mask_format == 'cond_distribution':
-        masks = {
-            'mask_mu_w': [],
-            'mask_mu_g': [],
-            'mask_mu_mat': [],
-            'mask_sigma_inv': [],
-        }
-    elif mask_format == 'distribution':
-        masks = {
-            'mask_mu': [],
-            'mask_sigma_inv': [],
-        }
-    for (mask_id, waypoints) in enumerate(list_of_waypoints):
-        if mask_format == 'cond_distribution':
-            mu_w, mu_g, mu_mat, sigma = get_cond_distr_params(
-                mu=np.mean(np.concatenate((waypoints, goals), axis=1), axis=0),
-                sigma=np.cov(np.concatenate((waypoints, goals), axis=1).T),
-                x_dim=goals.shape[1],
-            )
-        elif mask_format == 'distribution':
-            mu = np.mean(waypoints, axis=0)
-            sigma = np.cov(waypoints.T)
-
-        w, v = np.linalg.eig(sigma)
+def invert_matrix(matrix, max_cond_num=None):
+    if max_cond_num is not None:
+        w, v = np.linalg.eig(matrix)
         l, h = np.min(w), np.max(w)
         target = 1 / max_cond_num
         if (l / h) < target:
             eps = (h * target - l) / (1 - target)
         else:
             eps = 0
-        sigma_inv = linalg.inv(sigma + eps * np.identity(sigma.shape[0]))
-
-        if normalize_mask:
-            sigma_inv = sigma_inv / np.max(np.abs(sigma_inv))
-
-        if mask_threshold is not None:
-            for i in range(len(sigma_inv)):
-                for j in range(len(sigma_inv)):
-                    if sigma_inv[i][j] / np.max(np.abs(sigma_inv)) <= mask_threshold:
-                        sigma_inv[i][j] = 0.0
-
-        if mask_format == 'cond_distribution':
-            masks['mask_mu_w'].append(mu_w)
-            masks['mask_mu_g'].append(mu_g)
-            masks['mask_mu_mat'].append(mu_mat)
-            masks['mask_sigma_inv'].append(sigma_inv)
-        elif mask_format == 'distribution':
-            masks['mask_mu'].append(mu)
-            masks['mask_sigma_inv'].append(sigma_inv)
-
-    for k in masks.keys():
-        masks[k] = np.array(masks[k])
-
-    for mask_id in range(len(list_of_waypoints)):
-        # print('mask_mu_mat')
-        # print_matrix(masks['mask_mu_mat'][mask_id])
-        print('mask_sigma_inv for mask_id={}'.format(mask_id))
-        print_matrix(masks['mask_sigma_inv'][mask_id], precision=5) #precision=5
-        # print(masks['mask_sigma_inv'][mask_id].diagonal())
-    # exit()
-
-    return masks
+        matrix_inv = linalg.inv(matrix + eps * np.identity(matrix.shape[0]))
+    else:
+        matrix_inv = linalg.inv(matrix)
+    return matrix_inv
 
 def get_cond_distr_params(mu, sigma, x_dim):
     mu_x = mu[:x_dim]
@@ -194,6 +153,8 @@ def get_cond_distr_params(mu, sigma, x_dim):
 def print_matrix(matrix, format="raw", threshold=0.1, normalize=True, precision=5):
     if normalize:
         matrix = matrix.copy() / np.max(np.abs(matrix))
+
+    matrix = matrix.reshape((matrix.shape[0], -1))
 
     assert format in ["signed", "raw"]
 

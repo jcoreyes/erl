@@ -169,25 +169,31 @@ env_params = {
         'env_kwargs.num_objects': [4],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
-        # 'rl_variant.mask_variant.relabel_masks': [False],
-        # 'rl_variant.mask_variant.relabel_goals': [False],
 
         # 'rl_variant.mask_variant.mask_conditioned': [False],
         # 'rl_variant.expl_goal_sampling_mode': ['example_set'],
 
+        # 'rl_variant.mask_variant.mask_format': ['cond_distribution'],
+        # 'rl_variant.example_set_variant.subtask_codes': [
+        #     [
+        #         {2: 2, 3: 3},
+        #         {4: 4, 5: 5},
+        #         {6: 6, 7: 7},
+        #         {8: 8, 9: 9},
+        #     ],
+        # ],
+
+        'rl_variant.mask_variant.mask_format': ['distribution'],
         'rl_variant.example_set_variant.subtask_codes': [
             [
-                {2: 2, 3: 3},
-                {4: 4, 5: 5},
-                {6: 6, 7: 7},
-                {8: 8, 9: 9},
+                {2: -16, 3: -17},
             ],
         ],
 
-        'rl_variant.mask_variant.mask_format': ['cond_distribution'],
-        'rl_variant.mask_variant.mask_inference_variant.infer_masks': [False],
+        'rl_variant.mask_variant.mask_inference_variant.infer_masks': [True],
         'rl_variant.example_set_variant.n': [
-            30,
+            # 30,
+            1000,
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [6000],
