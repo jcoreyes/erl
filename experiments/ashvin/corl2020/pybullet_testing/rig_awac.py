@@ -1,6 +1,12 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.demos.source.dict_to_mdp_path_loader import EncoderDictToMDPPathLoader
-from railrl.launchers.experiments.ashvin.awr_sac_gcrl import awac_rig_experiment
+from railrl.demos.source.dict_to_mdp_path_loader import (
+    DictToMDPPathLoader,
+    EncoderDictToMDPPathLoader,
+)
+from railrl.launchers.experiments.ashvin.awr_sac_gcrl import (
+    awac_rig_experiment,
+    experiment,
+)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
@@ -76,8 +82,8 @@ if __name__ == "__main__":
             epsilon=2.0,
         ),
 
-        observation_key='latent_observation',
-        desired_goal_key='latent_desired_goal',
+        observation_key='state_observation',
+        desired_goal_key='state_desired_goal',
         save_video=True,
         save_video_kwargs=dict(
             save_video_period=25,
@@ -91,6 +97,7 @@ if __name__ == "__main__":
         path_loader_class=EncoderDictToMDPPathLoader,
         path_loader_kwargs=dict(
             recompute_reward=True,
+            do_preprocess=False,
             demo_paths=[
                 dict(
                     #path='sasha/cvqvae/vqvae/run11/id0/train.pkl',
@@ -176,4 +183,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(awac_rig_experiment, variants, run_id=3)
+    run_variants(experiment, variants, run_id=3)

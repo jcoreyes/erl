@@ -33,7 +33,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 import os.path as osp
 from railrl.core import logger
 from railrl.misc.asset_loader import load_local_or_remote_file
-from railrl.launchers.contextual.rig.rig_launcher import RewardFn, StateImageGoalDiagnosticsFn
+from railrl.launchers.contextual.rig.rig_launcher import StateImageGoalDiagnosticsFn
 from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
 from railrl.data_management.wrappers.concat_to_obs_wrapper import \
@@ -132,10 +132,13 @@ def experiment(variant):
 
     process_args(variant)
 
-    env_class = variant["env_class"]
-    env_kwargs = variant["env_kwargs"]
-    expl_env = env_class(**env_kwargs)
-    eval_env = env_class(**env_kwargs)
+    env_class = variant.get("env_class")
+    env_kwargs = variant.get("env_kwargs")
+    env_id = variant.get("env_id")
+    # expl_env = env_class(**env_kwargs)
+    # eval_env = env_class(**env_kwargs)
+    expl_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
+    eval_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
     env = eval_env
 
     if variant.get('sparse_reward', False):
@@ -441,6 +444,48 @@ def experiment(variant):
 
 
 
+class RewardFn:
+    def __init__(self,
+            env,
+            observation_key,
+            desired_goal_key,
+            reward_type='dense',
+            epsilon=1.0
+            ):
+        self.env = env
+        self.reward_type = reward_type
+        self.epsilon = epsilon
+        self.observation_key = observation_key
+        self.desired_goal_key = desired_goal_key
+
+    def process(self, obs):
+        if len(obs.shape) == 1:
+            return obs.reshape(1, -1)
+        return obs
+
+    def __call__(self, states, actions, next_states, contexts):
+        s = next_states[self.observation_key]
+        c = contexts[self.desired_goal_key]
+
+        if self.reward_type == 'dense':
+            reward = -np.linalg.norm(s - c, axis=1)
+        elif self.reward_type == 'sparse':
+            success = np.linalg.norm(s - c, axis=1) < self.epsilon
+            reward = success - 1
+        elif self.reward_type == 'wrapped_env':
+            reward = self.env.compute_reward(states, actions, next_states, contexts)
+        else:
+            raise ValueError(self.reward_type)
+        return reward
+
+
+class GraspingRewardFn:
+    def __call__(self, states, actions, next_states, contexts):
+        height = next_states['state_observation'][:, 6]
+        # reward = (height + 0.345) / 0.16 - 1
+        reward = (height > -0.3) - 1
+        return reward
+
 def awac_rig_experiment(
         max_path_length,
         qf_kwargs,
@@ -505,14 +550,14 @@ def awac_rig_experiment(
         renderer_kwargs = {}
 
     if debug:
-        max_path_length = 50
-        batch_size = 5
-        num_epochs = 5
-        num_eval_steps_per_epoch = 100
-        num_expl_steps_per_train_loop = 100
-        num_trains_per_train_loop = 10
-        min_num_steps_before_training = 100
-        min_num_steps_before_training = 100
+        max_path_length = 5
+        algo_kwargs['batch_size'] = 5
+        algo_kwargs['num_epochs'] = 5
+        algo_kwargs['num_eval_steps_per_epoch'] = 100
+        algo_kwargs['num_expl_steps_per_train_loop'] = 100
+        algo_kwargs['num_trains_per_train_loop'] = 10
+        algo_kwargs['min_num_steps_before_training'] = 100
+        algo_kwargs['min_num_steps_before_training'] = 100
         trainer_kwargs['bc_num_pretrain_steps'] = min(10, trainer_kwargs.get('bc_num_pretrain_steps', 0))
         trainer_kwargs['q_num_pretrain1_steps'] = min(10, trainer_kwargs.get('q_num_pretrain1_steps', 0))
         trainer_kwargs['q_num_pretrain2_steps'] = min(10, trainer_kwargs.get('q_num_pretrain2_steps', 0))
@@ -526,64 +571,75 @@ def awac_rig_experiment(
         renderer = EnvRenderer(init_camera=init_camera, **renderer_kwargs)
         img_env = InsertImageEnv(state_env, renderer=renderer)
 
-        encoded_env = EncoderWrappedEnv(
-            img_env,
-            model,
-            dict(image_observation="latent_observation", ),
+        # encoded_env = EncoderWrappedEnv(
+        #     img_env,
+        #     model,
+        #     dict(image_observation="latent_observation", ),
+        # )
+        # if goal_sampling_mode == "vae_prior":
+        #     latent_goal_distribution = PriorDistribution(
+        #         model.representation_size,
+        #         desired_goal_key,
+        #     )
+        #     diagnostics = StateImageGoalDiagnosticsFn({}, )
+        # elif goal_sampling_mode == "presampled":
+        #     diagnostics = state_env.get_contextual_diagnostics
+        #     image_goal_distribution = PresampledPathDistribution(
+        #         presampled_goals_path,
+        #     )
+
+        #     latent_goal_distribution = AddLatentDistribution(
+        #         image_goal_distribution,
+        #         image_goal_key,
+        #         desired_goal_key,
+        #         model,
+        #     )
+        # elif goal_sampling_mode == "reset_of_env":
+        #     state_goal_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
+        #     state_goal_distribution = GoalDictDistributionFromMultitaskEnv(
+        #         state_goal_env,
+        #         desired_goal_keys=[state_goal_key],
+        #     )
+        #     image_goal_distribution = AddImageDistribution(
+        #         env=state_env,
+        #         base_distribution=state_goal_distribution,
+        #         image_goal_key=image_goal_key,
+        #         renderer=renderer,
+        #     )
+        #     latent_goal_distribution = AddLatentDistribution(
+        #         image_goal_distribution,
+        #         image_goal_key,
+        #         desired_goal_key,
+        #         model,
+        #     )
+        #     no_goal_distribution = PriorDistribution(
+        #         representation_size=0,
+        #         key="no_goal",
+        #     )
+        #     diagnostics = state_goal_env.get_contextual_diagnostics
+        # else:
+        #     error
+        diagnostics = StateImageGoalDiagnosticsFn({}, )
+        no_goal_distribution = PriorDistribution(
+            representation_size=0,
+            key="no_goal",
         )
-        if goal_sampling_mode == "vae_prior":
-            latent_goal_distribution = PriorDistribution(
-                model.representation_size,
-                desired_goal_key,
-            )
-            diagnostics = StateImageGoalDiagnosticsFn({}, )
-        elif goal_sampling_mode == "presampled":
-            diagnostics = state_env.get_contextual_diagnostics
-            image_goal_distribution = PresampledPathDistribution(
-                presampled_goals_path,
-            )
 
-            latent_goal_distribution = AddLatentDistribution(
-                image_goal_distribution,
-                image_goal_key,
-                desired_goal_key,
-                model,
-            )
-        elif goal_sampling_mode == "reset_of_env":
-            state_goal_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
-            state_goal_distribution = GoalDictDistributionFromMultitaskEnv(
-                state_goal_env,
-                desired_goal_keys=[state_goal_key],
-            )
-            image_goal_distribution = AddImageDistribution(
-                env=state_env,
-                base_distribution=state_goal_distribution,
-                image_goal_key=image_goal_key,
-                renderer=renderer,
-            )
-            latent_goal_distribution = AddLatentDistribution(
-                image_goal_distribution,
-                image_goal_key,
-                desired_goal_key,
-                model,
-            )
-            diagnostics = state_goal_env.get_contextual_diagnostics
-        else:
-            error
-
-        reward_fn = RewardFn(
-            state_env,
-            **reward_kwargs
+        reward_fn = GraspingRewardFn(
+            # img_env, # state_env,
+            # observation_key=observation_key,
+            # desired_goal_key=desired_goal_key,
+            # **reward_kwargs
         )
 
         env = ContextualEnv(
-            encoded_env,
-            context_distribution=latent_goal_distribution,
+            img_env, # state_env,
+            context_distribution=no_goal_distribution,
             reward_fn=reward_fn,
             observation_key=observation_key,
             contextual_diagnostics_fns=[diagnostics],
         )
-        return env, latent_goal_distribution, reward_fn
+        return env, no_goal_distribution, reward_fn
 
     #VAE Setup
     if pretrained_vae_path:
@@ -617,14 +673,14 @@ def awac_rig_experiment(
     action_dim = expl_env.action_space.low.size
 
     state_rewards = reward_kwargs.get('reward_type', 'dense') == 'wrapped_env'
-    if state_rewards:
-        mapper = RemapKeyFn({context_key: observation_key, state_goal_key: state_observation_key})
-        obs_keys = [state_observation_key, observation_key]
-        cont_keys = [state_goal_key, context_key]
-    else:
-        mapper = RemapKeyFn({context_key: observation_key})
-        obs_keys = [observation_key]
-        cont_keys = [context_key]
+    # if state_rewards:
+    #     mapper = RemapKeyFn({context_key: observation_key, state_goal_key: state_observation_key})
+    #     obs_keys = [state_observation_key, observation_key]
+    #     cont_keys = [state_goal_key, context_key]
+    # else:
+    mapper = RemapKeyFn({context_key: observation_key})
+    obs_keys = [observation_key]
+    cont_keys = [context_key]
 
     #Replay Buffer
     def concat_context_to_obs(batch):
@@ -744,8 +800,8 @@ def awac_rig_experiment(
             model,
             expl_path_collector,
             "train",
-            decode_goal_image_key="image_decoded_goal",
-            reconstruction_key="image_reconstruction",
+            # decode_goal_image_key="image_decoded_goal",
+            # reconstruction_key="image_reconstruction",
             rows=2,
             columns=5,
             unnormalize=True,
@@ -759,9 +815,9 @@ def awac_rig_experiment(
             model,
             eval_path_collector,
             "eval",
-            goal_image_key=image_goal_key,
-            decode_goal_image_key="image_decoded_goal",
-            reconstruction_key="image_reconstruction",
+            # goal_image_key=image_goal_key,
+            # decode_goal_image_key="image_decoded_goal",
+            # reconstruction_key="image_reconstruction",
             num_imgs=4,
             rows=2,
             columns=5,

@@ -142,7 +142,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             next_obs_dict,
             new_contexts,
         )
-        
+
         if len(new_rewards.shape) == 1:
             new_rewards = new_rewards.reshape(-1, 1)
         batch = {

@@ -222,6 +222,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             env_info_key=None,
             obs_key=None,
             load_terminals=True,
+            do_preprocess=True,
             **kwargs
     ):
         super().__init__(trainer,
@@ -247,10 +248,15 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         self.model = load_encoder(model_path)
         self.normalize = normalize
         self.env = env
+        self.do_preprocess = do_preprocess
 
         print("ASSUMING FINAL STATE IS GOAL")
 
     def preprocess(self, observation):
+        if not self.do_preprocess:
+            for i in range(len(observation)):
+                observation[i]["no_goal"] = np.zeros((0, ))
+            return observation
         observation = copy.deepcopy(observation)
         images = np.stack([observation[i]['image_observation'] for i in range(len(observation))])
 
@@ -279,7 +285,6 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
 
         print("loading path, length", len(path["observations"]), len(path["actions"]))
         H = min(len(path["observations"]), len(path["actions"]))
-        print("actions", np.min(path["actions"]), np.max(path["actions"]))
 
         if obs_dict:
             traj_obs = self.preprocess(path["observations"])
@@ -300,9 +305,10 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             agent_info = path["agent_infos"][i]
             env_info = path["env_infos"][i]
 
-            if self.recompute_reward:
-                #reward = self.env.compute_rewards(action, path["next_observations"][i])
-                reward = self.env._compute_reward(ob, action, next_ob, context=next_ob)
+            # if self.recompute_reward:
+            #     #reward = self.env.compute_rewards(action, path["next_observations"][i])
+            #     import ipdb; ipdb.set_trace()
+            #     reward = self.env._compute_reward(ob, action, next_ob, context=next_ob)
 
             reward = np.array([reward]).flatten()
             rewards.append(reward)
@@ -319,6 +325,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         self.demo_trajectory_rewards.append(rewards)
         path = path_builder.get_all_stacked()
         replay_buffer.add_path(path)
+        print("rewards", np.min(rewards), np.max(rewards))
         print("path sum rewards", sum(rewards), len(rewards))
 
 

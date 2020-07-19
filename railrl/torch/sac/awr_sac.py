@@ -531,7 +531,7 @@ class AWRSACTrainer(TorchTrainer):
         """
         Policy and Alpha Loss
         """
-                
+
         dist = self.policy(obs)
         new_obs_actions, log_pi = dist.rsample_and_logprob()
         policy_mle = dist.mle_estimate()
@@ -577,7 +577,6 @@ class AWRSACTrainer(TorchTrainer):
             qf1_new_actions,
             qf2_new_actions,
         )
-
 
         # Advantage-weighted regression
         if self.awr_use_mle_for_vf:
@@ -752,9 +751,9 @@ class AWRSACTrainer(TorchTrainer):
         if self.compute_bc:
             train_policy_loss, train_logp_loss, train_mse_loss, _ = self.run_bc_batch(self.demo_train_buffer, self.policy)
             policy_loss = policy_loss + self.bc_weight * train_policy_loss
-        
-        
-                
+
+
+
         if not pretrain and self.buffer_policy_reset_period > 0 and self._n_train_steps_total % self.buffer_policy_reset_period==0:
             del self.buffer_policy_optimizer
             self.buffer_policy_optimizer =  self.optimizer_class(
@@ -771,7 +770,7 @@ class AWRSACTrainer(TorchTrainer):
                         buffer_new_obs_actions, _ = buffer_dist.rsample_and_logprob()
                         buffer_policy_logpp = buffer_dist.log_prob(buffer_u)
                         buffer_policy_logpp = buffer_policy_logpp[:, None]
-            
+
                         buffer_q1_pred = self.qf1(obs, buffer_u)
                         buffer_q2_pred = self.qf2(obs, buffer_u)
                         buffer_q_adv = torch.min(buffer_q1_pred, buffer_q2_pred)
@@ -779,14 +778,14 @@ class AWRSACTrainer(TorchTrainer):
                         buffer_v1_pi = self.qf1(obs, buffer_new_obs_actions)
                         buffer_v2_pi = self.qf2(obs, buffer_new_obs_actions)
                         buffer_v_pi = torch.min(buffer_v1_pi, buffer_v2_pi)
-            
+
                         buffer_score = buffer_q_adv - buffer_v_pi
                         buffer_weights = F.softmax(buffer_score / beta, dim=0)
                         buffer_policy_loss = self.awr_weight * (-buffer_policy_logpp * len(buffer_weights)*buffer_weights.detach()).mean()
                     else:
                         buffer_policy_loss, buffer_train_logp_loss, buffer_train_mse_loss, _ = self.run_bc_batch(
                         self.replay_buffer.train_replay_buffer, self.buffer_policy)
-    
+
                     self.buffer_policy_optimizer.zero_grad()
                     buffer_policy_loss.backward(retain_graph=True)
                     self.buffer_policy_optimizer.step()
@@ -798,7 +797,7 @@ class AWRSACTrainer(TorchTrainer):
                 buffer_new_obs_actions, _ = buffer_dist.rsample_and_logprob()
                 buffer_policy_logpp = buffer_dist.log_prob(buffer_u)
                 buffer_policy_logpp = buffer_policy_logpp[:, None]
-            
+
                 buffer_q1_pred = self.qf1(obs, buffer_u)
                 buffer_q2_pred = self.qf2(obs, buffer_u)
                 buffer_q_adv = torch.min(buffer_q1_pred, buffer_q2_pred)
@@ -806,7 +805,7 @@ class AWRSACTrainer(TorchTrainer):
                 buffer_v1_pi = self.qf1(obs, buffer_new_obs_actions)
                 buffer_v2_pi = self.qf2(obs, buffer_new_obs_actions)
                 buffer_v_pi = torch.min(buffer_v1_pi, buffer_v2_pi)
-            
+
                 buffer_score = buffer_q_adv - buffer_v_pi
                 buffer_weights = F.softmax(buffer_score / beta, dim=0)
                 buffer_policy_loss = self.awr_weight * (-buffer_policy_logpp * len(buffer_weights)*buffer_weights.detach()).mean()
@@ -962,6 +961,14 @@ class AWRSACTrainer(TorchTrainer):
                     'klac/p_buffer',
                     ptu.get_numpy(p_buffer),
                 ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'rewards',
+                ptu.get_numpy(rewards),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'terminals',
+                ptu.get_numpy(terminals),
+            ))
 
             # if self.validation_qlearning:
             #     train_data = self.replay_buffer.validation_replay_buffer.random_batch(self.bc_batch_size)
