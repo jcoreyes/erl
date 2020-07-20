@@ -88,7 +88,7 @@ variant = dict(
                 noise=0.10,
                 max_cond_num=1e2,
                 normalize_mask=True,
-                mask_threshold=0.15,
+                mask_threshold=0.25,
             ),
             relabel_goals=True,
             relabel_masks=True,
@@ -168,32 +168,21 @@ env_params = {
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
 
-        'rl_variant.mask_variant.mask_conditioned': [True],
-
-        # 'rl_variant.mask_variant.mask_conditioned': [False],
-        # 'rl_variant.expl_goal_sampling_mode': ['example_set'],
-
-        # 'rl_variant.mask_variant.mask_format': ['cond_distribution'],
-        # 'rl_variant.example_set_variant.subtask_codes': [
-        #     [
-        #         {2: 2, 3: 3},
-        #         {4: 4, 5: 5},
-        #         {6: 6, 7: 7},
-        #         {8: 8, 9: 9},
-        #     ],
-        # ],
-
-        'rl_variant.mask_variant.mask_format': ['distribution'],
         'rl_variant.example_set_variant.subtask_codes': [
             [
-                {2: -16, 3: -17},
+                {2: 2, 3: 3},
+                {4: 4, 5: 5},
+                {6: 6, 7: 7},
+                {8: 8, 9: 9},
             ],
         ],
+        'rl_variant.example_set_variant.n': [30],
 
-        'rl_variant.mask_variant.mask_inference_variant.infer_masks': [True],
-        'rl_variant.example_set_variant.n': [
-            # 30,
-            1000,
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.mask_format': ['cond_distribution'],
+        'rl_variant.mask_variant.mask_inference_variant.infer_masks': [
+            True,
+            # False,
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [6000],

@@ -221,14 +221,14 @@ env_params = {
         'rl_variant.example_set_variant.n': [30],
 
 
-        # 'rl_variant.mask_variant.mask_conditioned': [False],
+        'rl_variant.mask_variant.mask_conditioned': [False],
 
-        'rl_variant.mask_variant.mask_conditioned': [True],
-        'rl_variant.mask_variant.mask_format': ['cond_distribution'],
-        'rl_variant.mask_variant.mask_inference_variant.infer_masks': [
-            True,
-            # False,
-        ],
+        # 'rl_variant.mask_variant.mask_conditioned': [True],
+        # 'rl_variant.mask_variant.mask_format': ['cond_distribution'],
+        # 'rl_variant.mask_variant.mask_inference_variant.infer_masks': [
+        #     # True,
+        #     False,
+        # ],
 
         'rl_variant.algo_kwargs.num_epochs': [5000],
     },
