@@ -71,6 +71,13 @@ def rl_context_experiment(variant):
         raise NotImplementedError
     print("RL algorithm:", rl_algo)
 
+    ### load the example dataset, if running checkpoints ###
+    if 'ckpt' in variant:
+        import os.path as osp
+        example_set_variant = variant.get('example_set_variant', dict())
+        example_set_variant['use_cache'] = True
+        example_set_variant['cache_path'] = osp.join(variant['ckpt'], 'example_dataset.npy')
+
     assert not (task_conditioned and mask_conditioned)
 
     if task_conditioned:
@@ -88,11 +95,18 @@ def rl_context_experiment(variant):
         else:
             raise TypeError
 
-        masks = get_mask_params(
-            env=env,
-            example_set_variant=variant['example_set_variant'],
-            param_variant=mask_variant['param_variant'],
-        )
+        if 'ckpt' in variant:
+            from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+            import os.path as osp
+
+            filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'masks.npy'))
+            masks = np.load(filename)[()]
+        else:
+            masks = get_mask_params(
+                env=env,
+                example_set_variant=variant['example_set_variant'],
+                param_variant=mask_variant['param_variant'],
+            )
 
         mask_keys = list(masks.keys())
         context_keys = [desired_goal_key] + mask_keys

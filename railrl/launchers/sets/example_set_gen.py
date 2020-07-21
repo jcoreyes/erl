@@ -24,11 +24,7 @@ def gen_example_sets(env, example_set_variant):
         data_idxs = data_idxs[:n]
         list_of_waypoints = dataset['list_of_waypoints'][:, data_idxs]
         goals = dataset['goals'][data_idxs]
-        dataset = {
-            'list_of_waypoints': list_of_waypoints,
-            'goals': goals,
-        }
-        return dataset
+        return create_and_save_dict(list_of_waypoints, goals)
 
     num_subtasks = len(subtask_codes)
     goal_dim = env.observation_space.spaces['state_desired_goal'].low.size
@@ -64,16 +60,17 @@ def gen_example_sets(env, example_set_variant):
 
     print("Done. Time:", time.time() - t1)
 
+    return create_and_save_dict(list_of_waypoints, goals)
+
+def create_and_save_dict(list_of_waypoints, goals):
     dataset = {
         'list_of_waypoints': list_of_waypoints,
         'goals': goals,
     }
-
     from railrl.core import logger
     logdir = logger.get_snapshot_dir()
     np.save(
         os.path.join(logdir, 'example_dataset.npy'),
         dataset
     )
-
     return dataset

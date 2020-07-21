@@ -130,10 +130,10 @@ variant = dict(
     env_kwargs=dict(
         # Environment dynamics
         action_scale=1.0,
-        ball_radius=0.75, #1.
+        ball_radius=1.0, #1.
         boundary_dist=4,
-        object_radius=0.50,
-        min_grab_distance=0.5,
+        object_radius=1.0,
+        min_grab_distance=1.0,
         walls=None,
         # Rewards
         action_l2norm_penalty=0,
@@ -159,7 +159,7 @@ variant = dict(
     imsize=256,
 
     logger_config=dict(
-        snapshot_gap=50,
+        snapshot_gap=25,
         snapshot_mode='gap_and_last',
     ),
 )
@@ -167,10 +167,6 @@ variant = dict(
 env_params = {
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
-
-        'env_kwargs.ball_radius': [1.0],
-        'env_kwargs.object_radius': [1.0],
-        'env_kwargs.min_grab_distance': [1.0],
 
         'rl_variant.example_set_variant.subtask_codes': [
             [
@@ -185,22 +181,25 @@ env_params = {
         # 'rl_variant.mask_variant.mask_conditioned': [False],
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
+        'rl_variant.mask_variant.use_g_for_mean': [False],
         'rl_variant.mask_variant.param_variant.infer_masks': [
             True,
             # False,
         ],
+        # 'rl_variant.mask_variant.relabel_masks': [False],
+        'rl_variant.mask_variant.relabel_goals': [False],
 
-        'rl_variant.algo_kwargs.eval_only': [True],
-        'rl_variant.ckpt': [
-            '/home/soroush/data/local/pg-4obj/07-20-larger-objs/07-20-larger-objs_2020_07_20_13_51_48_id000--s75170',
-        ],
-        'rl_variant.ckpt_epoch': [
-            # 100,
-            None,
-        ],
+        # 'rl_variant.algo_kwargs.eval_only': [True],
+        # 'rl_variant.ckpt': [
+        #     '/home/soroush/data/local/pg-4obj/07-20-larger-objs/07-20-larger-objs_2020_07_20_13_51_48_id000--s75170',
+        # ],
+        # 'rl_variant.ckpt_epoch': [
+        #     100,
+        #     # None,
+        # ],
 
 
-        'rl_variant.algo_kwargs.num_epochs': [6000],
+        'rl_variant.algo_kwargs.num_epochs': [3000],
     },
 }
 

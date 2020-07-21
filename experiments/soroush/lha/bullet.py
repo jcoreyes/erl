@@ -17,7 +17,7 @@ variant = dict(
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000, #4000,
             min_num_steps_before_training=1000,
-            eval_epoch_freq=20,
+            eval_epoch_freq=25,
         ),
         max_path_length=100,
         td3_trainer_kwargs=dict(
@@ -156,7 +156,7 @@ variant = dict(
     imsize=400,
 
     logger_config=dict(
-        snapshot_gap=50,
+        snapshot_gap=25,
         snapshot_mode='gap_and_last',
     ),
 )
@@ -178,16 +178,17 @@ env_params = {
         'rl_variant.example_set_variant.n': [30],
 
 
-        'rl_variant.mask_variant.mask_conditioned': [False],
+        # 'rl_variant.mask_variant.mask_conditioned': [False],
 
-        # 'rl_variant.mask_variant.mask_conditioned': [True],
-        # 'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
-        # 'rl_variant.mask_variant.param_variant.infer_masks': [
-        #     # True,
-        #     False,
-        # ],
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
+        'rl_variant.mask_variant.use_g_for_mean': [False],
+        'rl_variant.mask_variant.param_variant.infer_masks': [
+            # True,
+            False,
+        ],
 
-        'rl_variant.algo_kwargs.num_epochs': [5000],
+        'rl_variant.algo_kwargs.num_epochs': [4000],
     },
     'pb-4obj-rel': {
         'env_kwargs.num_obj': [4],
