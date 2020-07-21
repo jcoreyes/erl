@@ -5,7 +5,7 @@ from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
 variant = dict(
 do_state_exp=True,
     example_set_variant=dict(
-        n=100,
+        n=30,
         subtask_codes=[
             {2: 2, 3: 3},
             {4: 4, 5: 5},
