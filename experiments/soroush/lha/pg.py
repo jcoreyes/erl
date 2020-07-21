@@ -82,8 +82,8 @@ variant = dict(
             rollout_mask_order_for_expl='random',
             rollout_mask_order_for_eval='fixed',
             log_mask_diagnostics=True,
-            mask_format='matrix',
-            mask_inference_variant=dict(
+            param_variant=dict(
+                mask_format='matrix',
                 infer_masks=False,
                 noise=0.10,
                 max_cond_num=1e2,
@@ -168,6 +168,10 @@ env_params = {
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
 
+        'env_kwargs.ball_radius': [1.0],
+        'env_kwargs.object_radius': [1.0],
+        'env_kwargs.min_grab_distance': [1.0],
+
         'rl_variant.example_set_variant.subtask_codes': [
             [
                 {2: 2, 3: 3},
@@ -178,12 +182,23 @@ env_params = {
         ],
         'rl_variant.example_set_variant.n': [30],
 
+        # 'rl_variant.mask_variant.mask_conditioned': [False],
         'rl_variant.mask_variant.mask_conditioned': [True],
-        'rl_variant.mask_variant.mask_format': ['cond_distribution'],
-        'rl_variant.mask_variant.mask_inference_variant.infer_masks': [
+        'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
+        'rl_variant.mask_variant.param_variant.infer_masks': [
             True,
             # False,
         ],
+
+        'rl_variant.algo_kwargs.eval_only': [True],
+        'rl_variant.ckpt': [
+            '/home/soroush/data/local/pg-4obj/07-20-larger-objs/07-20-larger-objs_2020_07_20_13_51_48_id000--s75170',
+        ],
+        'rl_variant.ckpt_epoch': [
+            # 100,
+            None,
+        ],
+
 
         'rl_variant.algo_kwargs.num_epochs': [6000],
     },

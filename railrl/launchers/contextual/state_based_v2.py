@@ -78,7 +78,7 @@ def rl_context_experiment(variant):
         context_keys = [desired_goal_key, task_key]
     elif mask_conditioned:
         env = get_envs(variant)
-        mask_format = mask_variant['mask_format']
+        mask_format = mask_variant['param_variant']['mask_format']
         assert mask_format in ['vector', 'matrix', 'distribution', 'cond_distribution']
         goal_dim = env.observation_space.spaces[desired_goal_key].low.size
         if mask_format in ['vector']:
@@ -90,9 +90,8 @@ def rl_context_experiment(variant):
 
         masks = get_mask_params(
             env=env,
-            mask_format=mask_format,
             example_set_variant=variant['example_set_variant'],
-            mask_inference_variant=mask_variant['mask_inference_variant'],
+            param_variant=mask_variant['param_variant'],
         )
 
         mask_keys = list(masks.keys())

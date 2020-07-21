@@ -81,8 +81,8 @@ variant = dict(
             rollout_mask_order_for_expl='random',
             rollout_mask_order_for_eval='fixed',
             log_mask_diagnostics=True,
-            mask_format='matrix',
-            mask_inference_variant=dict(
+            param_variant=dict(
+                mask_format='matrix',
                 infer_masks=False,
                 noise=0.01,
                 max_cond_num=1e2,
@@ -162,49 +162,6 @@ variant = dict(
 )
 
 env_params = {
-    'pb-1obj': {
-        'env_kwargs.num_obj': [1],
-        'env_kwargs.bowl_type': [
-            # 'fixed',
-            'heavy',
-        ],
-        'env_kwargs.bowl_pos_in_goal': [True],
-        'env_kwargs.random_init_bowl_pos': [True],
-
-        'rl_variant.expl_goal_sampling_mode': ['obj_in_bowl'],
-
-        # 'rl_variant.mask_variant.idx_masks': [
-        #     [
-        #         {2: -14, 3: -13},
-        #     ],
-        # ],
-
-        'rl_variant.mask_variant.matrix_masks': [
-            # [[
-            #     [0, 0, 0, 0, 0],
-            #     [0, 0, 0, 0, 0],
-            #     [0, 0, 1, 0, -1],
-            #     [0, 0, 0, 1, 0],
-            #     [0, 0, -1, 0, 1],
-            # ]],
-            # [[
-            #     [0, 0, 0, 0, 0],
-            #     [0, 0, 0, 0, 0],
-            #     [0, 0, 1, 0, 0],
-            #     [0, 0, 0, 1, 0],
-            #     [0, 0, 0, 0, 1],
-            # ]],
-            [[
-                [0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0],
-                [0, 0, 1, 0, -1],
-                [0, 0, 0, 0.2, 0],
-                [0, 0, -1, 0, 1],
-            ]],
-        ],
-
-        'rl_variant.algo_kwargs.num_epochs': [1500],
-    },
     'pb-4obj': {
         'env_kwargs.num_obj': [4],
         'env_kwargs.random_init_bowl_pos': [False],
@@ -224,8 +181,8 @@ env_params = {
         'rl_variant.mask_variant.mask_conditioned': [False],
 
         # 'rl_variant.mask_variant.mask_conditioned': [True],
-        # 'rl_variant.mask_variant.mask_format': ['cond_distribution'],
-        # 'rl_variant.mask_variant.mask_inference_variant.infer_masks': [
+        # 'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
+        # 'rl_variant.mask_variant.param_variant.infer_masks': [
         #     # True,
         #     False,
         # ],
@@ -250,8 +207,8 @@ env_params = {
         'rl_variant.mask_variant.mask_conditioned': [False],
 
         # 'rl_variant.mask_variant.mask_conditioned': [True],
-        # 'rl_variant.mask_variant.mask_format': ['distribution'],
-        # 'rl_variant.mask_variant.mask_inference_variant.infer_masks': [
+        # 'rl_variant.mask_variant.param_variant.mask_format': ['distribution'],
+        # 'rl_variant.mask_variant.param_variant.infer_masks': [
         #     # True,
         #     False,
         # ],

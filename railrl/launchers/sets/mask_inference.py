@@ -6,12 +6,12 @@ from railrl.launchers.sets.example_set_gen import gen_example_sets
 
 def get_mask_params(
         env,
-        mask_format,
         example_set_variant,
-        mask_inference_variant,
+        param_variant,
 ):
     masks = {}
     goal_dim = env.observation_space.spaces['state_desired_goal'].low.size
+    mask_format = param_variant['mask_format']
     if mask_format == 'vector':
         mask_keys = ['mask']
         mask_dims = [(goal_dim,)]
@@ -33,7 +33,7 @@ def get_mask_params(
         masks[mask_key] = np.zeros([num_masks] + list(mask_dim))
 
     dataset = gen_example_sets(env, example_set_variant)
-    noise = mask_inference_variant['noise']
+    noise = param_variant['noise']
     dataset = get_noisy_dataset(dataset, noise)
 
     ### set the means, if applicable ###
@@ -62,7 +62,7 @@ def get_mask_params(
     else:
         raise TypeError
 
-    infer_masks = mask_inference_variant['infer_masks']
+    infer_masks = param_variant['infer_masks']
     if infer_masks:
         for mask_id in range(num_masks):
             waypoints = dataset['list_of_waypoints'][mask_id]
@@ -77,7 +77,7 @@ def get_mask_params(
                 sigma = np.cov(waypoints.T)
             else:
                 raise TypeError
-            masks[var_key][mask_id] = invert_matrix(sigma, mask_inference_variant['max_cond_num'])
+            masks[var_key][mask_id] = invert_matrix(sigma, param_variant['max_cond_num'])
     else:
         for (mask_id, idx_dict) in enumerate(subtask_codes):
             for (k, v) in idx_dict.items():
@@ -96,8 +96,8 @@ def get_mask_params(
                         masks[var_key][mask_id][src_idx, targ_idx] = -1
                         masks[var_key][mask_id][targ_idx, src_idx] = -1
 
-    normalize_mask = mask_inference_variant['normalize_mask']
-    mask_threshold = mask_inference_variant['mask_threshold']
+    normalize_mask = param_variant['normalize_mask']
+    mask_threshold = param_variant['mask_threshold']
     for mask_id in range(num_masks):
         mask = masks[var_key][mask_id]
         if normalize_mask:
