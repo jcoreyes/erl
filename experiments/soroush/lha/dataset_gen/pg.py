@@ -13,21 +13,19 @@ do_state_exp=True,
             {8: 8, 9: 9},
         ],
         other_dims_random=True,
-        use_cache=False,
-        cache_path=None,
     ),
     env_class=PickAndPlaceEnv,
     env_kwargs=dict(
         # Environment dynamics
         action_scale=1.0,
-        ball_radius=0.75, #1.
+        ball_radius=1.0,  # 1.
         boundary_dist=4,
-        object_radius=0.50,
-        min_grab_distance=0.5,
+        object_radius=1.0,
+        min_grab_distance=1.0,
         walls=None,
         # Rewards
         action_l2norm_penalty=0,
-        reward_type="dense", #dense_l1
+        reward_type="dense",  # dense_l1
         object_reward_only=False,
         success_threshold=0.60,
         # Reset settings
@@ -37,7 +35,7 @@ do_state_exp=True,
         render_dt_msec=0,
         render_onscreen=False,
         render_size=84,
-        show_goal=False, #True
+        show_goal=False,  # True
         # get_image_base_render_size=(48, 48),
         # Goal sampling
         goal_samplers=None,

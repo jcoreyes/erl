@@ -14,7 +14,7 @@ def gen_example_sets(env, example_set_variant):
     subtask_codes = example_set_variant['subtask_codes']
     n = example_set_variant['n']
     other_dims_random = example_set_variant['other_dims_random']
-    use_cache = example_set_variant['use_cache']
+    use_cache = example_set_variant.get('use_cache', False)
 
     if use_cache:
         cache_path = example_set_variant['cache_path']

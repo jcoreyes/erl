@@ -18,10 +18,6 @@ from railrl.envs.contextual.mask_conditioned import (
 from railrl.launchers.sets.mask_inference import get_mask_params
 from railrl.launchers.sets.example_set_gen import gen_example_sets
 
-from railrl.envs.contextual.task_conditioned import (
-    TaskGoalDictDistributionFromMultitaskEnv,
-    TaskPathCollector,
-)
 from railrl.envs.images import EnvRenderer, InsertImagesEnv
 from railrl.launchers.contextual.util import (
     get_save_video_function,
@@ -56,9 +52,6 @@ def rl_context_experiment(variant):
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = variant.get('achieved_goal_key', 'latent_achieved_goal')
 
-    task_variant = variant.get('task_variant', {})
-    task_conditioned = task_variant.get('task_conditioned', False)
-
     mask_variant = variant.get('mask_variant', {})
     mask_conditioned = mask_variant.get('mask_conditioned', False)
     print("mask_conditioned:", mask_conditioned)
@@ -78,12 +71,7 @@ def rl_context_experiment(variant):
         example_set_variant['use_cache'] = True
         example_set_variant['cache_path'] = osp.join(variant['ckpt'], 'example_dataset.npy')
 
-    assert not (task_conditioned and mask_conditioned)
-
-    if task_conditioned:
-        task_key = 'task_id'
-        context_keys = [desired_goal_key, task_key]
-    elif mask_conditioned:
+    if mask_conditioned:
         env = get_envs(variant)
         mask_format = mask_variant['param_variant']['mask_format']
         assert mask_format in ['vector', 'matrix', 'distribution', 'cond_distribution']
@@ -125,22 +113,7 @@ def rl_context_experiment(variant):
         if goal_sampling_mode not in [None, 'example_set']:
             env.goal_sampling_mode = goal_sampling_mode
 
-        if task_conditioned:
-            context_distrib = TaskGoalDictDistributionFromMultitaskEnv(
-                env,
-                desired_goal_keys=[desired_goal_key],
-                task_key=task_key,
-                task_ids=task_variant['task_ids']
-            )
-            reward_fn = ContextualRewardFnFromMultitaskEnv(
-                env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
-                desired_goal_key=desired_goal_key,
-                achieved_goal_key=achieved_goal_key,
-                additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
-                additional_context_keys=[task_key],
-            )
-        elif mask_conditioned:
+        if mask_conditioned:
             context_distrib = MaskDictDistribution(
                 env,
                 desired_goal_keys=[desired_goal_key],
@@ -197,13 +170,7 @@ def rl_context_experiment(variant):
     env, context_distrib, reward_fn = contextual_env_distrib_and_reward(mode='expl')
     eval_env, eval_context_distrib, _ = contextual_env_distrib_and_reward(mode='eval')
 
-    if task_conditioned:
-        obs_dim = (
-            env.observation_space.spaces[observation_key].low.size
-            + env.observation_space.spaces[desired_goal_key].low.size
-            + 1
-        )
-    elif mask_conditioned:
+    if mask_conditioned:
         obs_dim = (
             env.observation_space.spaces[observation_key].low.size
             + context_dim_for_networks
@@ -298,9 +265,7 @@ def rl_context_experiment(variant):
             desired_goal_key: obs_dict[achieved_goal_key]
         }
 
-        if task_conditioned:
-            context_dict[task_key] = obs_dict[task_key]
-        elif mask_conditioned:
+        if mask_conditioned:
             sample_masks_for_relabeling = mask_variant.get('sample_masks_for_relabeling', True)
             if sample_masks_for_relabeling:
                 batch_size = next(iter(obs_dict.values())).shape[0]
@@ -317,12 +282,7 @@ def rl_context_experiment(variant):
         obs = batch['observations']
         next_obs = batch['next_observations']
         batch_size = obs.shape[0]
-        if task_conditioned:
-            goal = batch[desired_goal_key]
-            task = batch[task_key]
-            batch['observations'] = np.concatenate([obs, goal, task], axis=1)
-            batch['next_observations'] = np.concatenate([next_obs, goal, task], axis=1)
-        elif mask_conditioned:
+        if mask_conditioned:
             if obs_dict is not None and new_contexts is not None:
                 if not mask_variant.get('relabel_masks', True):
                     for k in mask_keys:
@@ -416,21 +376,7 @@ def rl_context_experiment(variant):
 
         save_env_in_snapshot = variant.get('save_env_in_snapshot', True)
 
-        if task_conditioned:
-            rotate_freq = task_variant['rotate_task_freq_for_expl'] if mode == 'expl' \
-                else task_variant['rotate_task_freq_for_eval']
-            return TaskPathCollector(
-                env,
-                policy,
-                observation_key=observation_key,
-                context_keys_for_policy=context_keys,
-                save_env_in_snapshot=save_env_in_snapshot,
-                task_key=task_key,
-                max_path_length=max_path_length,
-                task_ids=task_variant['task_ids'],
-                rotate_freq=rotate_freq,
-            )
-        elif mask_conditioned:
+        if mask_conditioned:
             if 'rollout_mask_order' in mask_kwargs:
                 rollout_mask_order = mask_kwargs['rollout_mask_order']
             else:
