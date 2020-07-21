@@ -31,7 +31,7 @@ if __name__ == "__main__":
         ),
 
         trainer_kwargs=dict(
-            discount=0.99,
+            discount=0.95,
             soft_target_tau=5e-3,
             target_update_period=1,
             policy_lr=3E-4,
@@ -179,11 +179,12 @@ if __name__ == "__main__":
 
     search_space = {
         "seed": range(3),
-        'trainer_kwargs.beta': [1.0, 3.0],
+        'trainer_kwargs.beta': [0.1], # [0.3, 1.0, 3.0, ],
         'trainer_kwargs.q_num_pretrain2_steps': [100001],
-        'policy_kwargs.min_log_std': [-6],
-        'trainer_kwargs.clip_score': [3.0, 10.0],
-        'trainer_kwargs.awr_use_mle_for_vf': [False, ],
+        'policy_kwargs.max_log_std': [0, ],
+        'trainer_kwargs.discount': [0.95, 0.96, ],
+        'trainer_kwargs.clip_score': [10.0],
+        'trainer_kwargs.awr_use_mle_for_vf': [True, ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

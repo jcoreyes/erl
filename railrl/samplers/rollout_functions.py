@@ -4,6 +4,7 @@ import numpy as np
 
 create_rollout_function = partial
 
+import copy
 
 def multitask_rollout(
         env,
