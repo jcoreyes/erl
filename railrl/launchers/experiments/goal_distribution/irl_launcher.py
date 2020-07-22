@@ -36,6 +36,7 @@ from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from railrl.torch.irl.torch_irl_algorithm import TorchIRLAlgorithm
 
 
 def representation_learning_with_goal_distribution_launcher(
@@ -75,6 +76,7 @@ def representation_learning_with_goal_distribution_launcher(
         ckpt=None,
         ckpt_epoch=None,
         seedid=0,
+        debug=False,
 ):
     if eval_rollouts_to_log is None:
         eval_rollouts_to_log = [
@@ -171,6 +173,18 @@ def representation_learning_with_goal_distribution_launcher(
     else:
         context_keys = [context_key]
 
+    classifier = Mlp(
+        hidden_sizes=[64, 64, ],
+        output_size=1,
+        input_size=goal_dim,
+        output_activation=torch.nn.Sigmoid(),
+    )
+    classifier.to(ptu.device)
+    positive_buffer = None
+    negative_buffer = None
+    reward_fn = VICERewardFn(classifier)
+    vice_trainer = VICETrainer(classifier, positive_buffer, negative_buffer)
+
     def contextual_env_distrib_and_reward(mode='expl'):
         assert mode in ['expl', 'eval']
         env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
@@ -198,17 +212,6 @@ def representation_learning_with_goal_distribution_launcher(
                 matrix_masks=matrix_masks,
                 mask_distr=train_mask_distr,
             )
-            classifier = Mlp(
-                hidden_sizes=[64, 64, ],
-                output_size=1,
-                input_size=goal_dim,
-                output_activation=torch.nn.Sigmoid(),
-            )
-            classifier.to(ptu.device)
-            positive_buffer = None
-            negative_buffer = None
-            reward_fn = VICERewardFn(classifier)
-            vice_trainer = VICETrainer(classifier, positive_buffer, negative_buffer)
             # reward_fn = ContextualRewardFnFromMultitaskEnv(
             #     env=env,
             #     achieved_goal_from_observation=IndexIntoAchievedGoal(
@@ -224,20 +227,20 @@ def representation_learning_with_goal_distribution_launcher(
             #         use_g_for_mean=use_g_for_mean
             #     ),
             # )
-        else:
-            context_distrib = GoalDictDistributionFromMultitaskEnv(
-                env,
-                desired_goal_keys=[desired_goal_key],
-            )
-            reward_fn = ContextualRewardFnFromMultitaskEnv(
-                env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(
-                    achieved_goal_key),  # observation_key
-                desired_goal_key=desired_goal_key,
-                achieved_goal_key=achieved_goal_key,
-                additional_obs_keys=contextual_replay_buffer_kwargs.get(
-                    'observation_keys', None),
-            )
+        # else:
+        #     context_distrib = GoalDictDistributionFromMultitaskEnv(
+        #         env,
+        #         desired_goal_keys=[desired_goal_key],
+        #     )
+        #     reward_fn = ContextualRewardFnFromMultitaskEnv(
+        #         env=env,
+        #         achieved_goal_from_observation=IndexIntoAchievedGoal(
+        #             achieved_goal_key),  # observation_key
+        #         desired_goal_key=desired_goal_key,
+        #         achieved_goal_key=achieved_goal_key,
+        #         additional_obs_keys=contextual_replay_buffer_kwargs.get(
+        #             'observation_keys', None),
+        #     )
         diag_fn = GoalConditionedDiagnosticsToContextualDiagnostics(
             env.goal_conditioned_diagnostics,
             desired_goal_key=desired_goal_key,
@@ -457,6 +460,9 @@ def representation_learning_with_goal_distribution_launcher(
         **contextual_replay_buffer_kwargs
     )
 
+    vice_trainer.positive_buffer = replay_buffer
+    vice_trainer.negative_buffer = replay_buffer
+
     trainer = SACTrainer(
         env=env,
         policy=policy,
@@ -528,7 +534,7 @@ def representation_learning_with_goal_distribution_launcher(
     eval_path_collector = create_path_collector(eval_env, eval_policy,
                                                 mode='eval')
 
-    algorithm = TorchBatchRLAlgorithm(
+    algorithm = TorchIRLAlgorithm(
         trainer=trainer,
         exploration_env=env,
         evaluation_env=eval_env,
@@ -536,6 +542,7 @@ def representation_learning_with_goal_distribution_launcher(
         evaluation_data_collector=eval_path_collector,
         replay_buffer=replay_buffer,
         max_path_length=max_path_length,
+        reward_trainer=vice_trainer,
         **algo_kwargs
     )
 
