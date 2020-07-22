@@ -105,7 +105,6 @@ variant = dict(
             train_mask_distr=dict(
                 atomic=1.0,
                 subset=0.0,
-                cumul=0.0,
                 full=0.0,
             ),
             expl_mask_distr=dict(

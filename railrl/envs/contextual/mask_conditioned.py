@@ -61,9 +61,9 @@ class MaskDictDistribution(DictDistribution):
             assert isinstance(self._prev_subtask_weight, float)
 
         for key in mask_distr:
-            assert key in ['atomic', 'cumul', 'subset', 'full']
+            assert key in ['atomic', 'subset', 'full']
             assert mask_distr[key] >= 0
-        for key in ['atomic', 'cumul', 'subset', 'full']:
+        for key in ['atomic', 'subset', 'full']:
             if key not in mask_distr:
                 mask_distr[key] = 0.0
         if np.sum(list(mask_distr.values())) > 1:
@@ -71,9 +71,8 @@ class MaskDictDistribution(DictDistribution):
                 np.sum(list(mask_distr.values()))
             ))
         self.mask_distr = mask_distr
-
-        self.cumul_masks = None
         self.subset_masks = None
+        self.full_masks = None
 
     @property
     def spaces(self):
@@ -100,22 +99,18 @@ class MaskDictDistribution(DictDistribution):
 
     def sample_masks(self, batch_size):
         num_atomic_masks = int(batch_size * self.mask_distr['atomic'])
-        num_cumul_masks = int(batch_size * self.mask_distr['cumul'])
         num_subset_masks = int(batch_size * self.mask_distr['subset'])
-        num_full_masks = batch_size - num_atomic_masks - num_cumul_masks - num_subset_masks
+        num_full_masks = batch_size - num_atomic_masks - num_subset_masks
 
         mask_goals = []
         if num_atomic_masks > 0:
             mask_goals.append(self.sample_atomic_masks(num_atomic_masks))
 
-        if num_full_masks > 0:
-            mask_goals.append(self.sample_full_masks(num_full_masks))
-
-        if num_cumul_masks > 0:
-            mask_goals.append(self.sample_cumul_masks(num_cumul_masks))
-
         if num_subset_masks > 0:
             mask_goals.append(self.sample_subset_masks(num_subset_masks))
+
+        if num_full_masks > 0:
+            mask_goals.append(self.sample_full_masks(num_full_masks))
 
         def concat(*x):
             return np.concatenate(x, axis=0)
@@ -131,38 +126,9 @@ class MaskDictDistribution(DictDistribution):
             sampled_masks[mask_key] = self.masks[mask_key][mask_ids]
         return sampled_masks
 
-    def sample_full_masks(self, batch_size):
-        assert self.mask_format in ['vector', 'matrix']
-        sampled_masks = {}
-        mask_ids = np.arange(self._num_atomic_masks)
-        for mask_key in self.mask_keys:
-            sampled_masks[mask_key] = np.repeat(
-                np.sum(
-                    self.masks[mask_key][mask_ids],
-                    axis=0
-                )[np.newaxis, ...],
-                batch_size,
-                axis=0
-            )
-        return sampled_masks
-
-    def sample_cumul_masks(self, batch_size):
-        assert self.mask_format in ['vector', 'matrix']
-
-        if self.cumul_masks is None:
-            self.create_cumul_masks()
-
-        sampled_masks = {}
-        mask_ids = np.random.choice(self._num_cumul_masks, batch_size)
-        for mask_key in self.mask_keys:
-            sampled_masks[mask_key] = self.cumul_masks[mask_key][mask_ids]
-        return sampled_masks
-
     def sample_subset_masks(self, batch_size):
-        assert self.mask_format in ['vector', 'matrix']
-
         if self.subset_masks is None:
-            self.create_subset_masks()
+            self.create_subset_and_full_masks()
 
         sampled_masks = {}
         mask_ids = np.random.choice(self._num_subset_masks, batch_size)
@@ -170,62 +136,59 @@ class MaskDictDistribution(DictDistribution):
             sampled_masks[mask_key] = self.subset_masks[mask_key][mask_ids]
         return sampled_masks
 
-    def create_cumul_masks(self):
-        assert self.mask_format in ['vector', 'matrix']
-        num_atomic_masks = len(self.masks[list(self.masks.keys())[0]])
+    def sample_full_masks(self, batch_size):
+        if self.full_masks is None:
+            self.create_subset_and_full_masks()
 
-        self.cumul_masks = {}
-        for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
-            self.cumul_masks[mask_key] = np.zeros([num_atomic_masks] + list(mask_dim))
+        sampled_masks = {}
+        mask_ids = np.random.choice(self._num_full_masks, batch_size)
+        for mask_key in self.mask_keys:
+            sampled_masks[mask_key] = self.full_masks[mask_key][mask_ids]
+        return sampled_masks
 
-        for i in range(1, num_atomic_masks + 1):
-            mask_idx_bitmap = np.zeros(num_atomic_masks)
-            if self._max_subtasks_to_focus_on is None:
-                start_idx = 0
-                end_idx = i
-            else:
-                start_idx = max(0, i - self._max_subtasks_to_focus_on)
-                end_idx = i
-            mask_idx_bitmap[start_idx:end_idx] = 1
-            if self._prev_subtask_weight is not None:
-                mask_idx_bitmap[start_idx:end_idx - 1] = self._prev_subtask_weight
-            for mask_key in self.mask_keys:
-                self.cumul_masks[mask_key][i - 1] = (
-                        mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
-                ).reshape(list(self._spaces[mask_key].shape))
+    def create_subset_and_full_masks(self):
+        self.subset_masks = {key: [] for key in self.mask_keys}
+        self.full_masks = {key: [] for key in self.mask_keys}
 
-        self._num_cumul_masks = next(iter(self.cumul_masks.values())).shape[0]
+        def nCkBitmaps(n, k):
+            """
+            Shamelessly pilfered from
+            https://stackoverflow.com/questions/1851134/generate-all-binary-strings-of-length-n-with-k-bits-set
+            """
+            result = []
+            for bits in itertools.combinations(range(n), k):
+                s = [0] * n
+                for bit in bits:
+                    s[bit] = 1
+                result.append(s)
+            return np.array(result)
 
-    def create_subset_masks(self):
-        assert self.mask_format in ['vector', 'matrix']
-        num_atomic_masks = len(self.masks[list(self.masks.keys())[0]])
+        def npify(d):
+            for key in d.keys():
+                d[key] = np.array(d[key])
+            return d
 
-        self.subset_masks = {}
-        for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
-            self.subset_masks[mask_key] = np.zeros([2 ** num_atomic_masks - 1] + list(mask_dim))
+        def append_to_dict(d, keys, bm):
+            for k in keys:
+                d[k].append(
+                    bm @ (self.masks[k].reshape((num_atomic_masks, -1)))
+                ).reshape(list(self._spaces[k].shape))
 
-        def bin_array(num, m):
-            """https://stackoverflow.com/questions/22227595/convert-integer-to-binary-array-with-suitable-padding"""
-            """Convert a positive integer num into an m-bit bit vector"""
-            return np.array(list(np.binary_repr(num).zfill(m))).astype(np.int8)
 
-        for i in range(1, 2 ** num_atomic_masks):
-            mask_idx_bitmap = bin_array(i, num_atomic_masks)
-            for mask_key in self.mask_keys:
-                self.subset_masks[mask_key][i - 1] = (
-                        mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
-                ).reshape(list(self._spaces[mask_key].shape))
+        n = self._max_subtasks_to_focus_on \
+            if (self._max_subtasks_to_focus_on is not None) \
+            else self._num_atomic_masks
+        for k in range(1, n + 1):
+            list_of_bitmaps = nCkBitmaps(n, k)
+            for bm in list_of_bitmaps:
+                append_to_dict(self.subset_masks, self.mask_keys, bm)
+                if k == n:
+                    append_to_dict(self.full_masks, self.mask_keys, bm)
 
+        self.subset_masks = npify(self.subset_masks)
+        self.full_masks = npify(self.full_masks)
         self._num_subset_masks = next(iter(self.subset_masks.values())).shape[0]
-
-    def get_cumul_mask_to_indices(self, masks):
-        assert self.mask_format in ['vector']
-        if self.cumul_masks is None:
-            self.create_cumul_masks()
-        cumul_masks_to_indices = OrderedDict()
-        for mask in self.cumul_masks['mask']:
-            cumul_masks_to_indices[tuple(mask)] = np.where(np.all(masks == mask, axis=1))[0]
-        return cumul_masks_to_indices
+        self._num_full_masks = next(iter(self.full_masks.values())).shape[0]
 
     def get_atomic_mask_to_indices(self, masks):
         assert self.mask_format in ['vector']
