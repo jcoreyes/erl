@@ -192,7 +192,8 @@ def plot_Gaussian(
         bounds=None,
         list_of_dims=[[0, 1], [2, 3], [0, 2], [1, 3]],
         pt1=None,
-        pt2=None
+        pt2=None,
+        add_title=True,
 ):
     import matplotlib
     import matplotlib.pyplot as plt
@@ -223,8 +224,9 @@ def plot_Gaussian(
             plt_idx2 = i % 2
             axs_obj = axs[plt_idx1, plt_idx2]
 
-        axs_obj.contourf(x, y, rv.logpdf(pos))
-        axs_obj.set_title(str(dims))
+        axs_obj.contourf(x, y, rv.pdf(pos), cmap="Blues")
+        if add_title:
+            axs_obj.set_title(str(dims))
 
         if pt1 is not None:
             axs_obj.scatter([pt1[dims][0]], [pt1[dims][1]])
@@ -232,4 +234,9 @@ def plot_Gaussian(
         if pt2 is not None:
             axs_obj.scatter([pt2[dims][0]], [pt2[dims][1]])
 
-    plt.show()
+    return fig, axs
+    # plt.show()
+    # plt.axis('off')
+    # axs.get_xaxis().set_visible(False)
+    # axs.get_yaxis().set_visible(False)
+    # plt.savefig("/tmp/test.png", bbox_inches='tight', pad_inches=0)

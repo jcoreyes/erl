@@ -35,7 +35,7 @@ def plot_variant(
     if y_lim is not None:
         plt.ylim(y_lim)
     plt.ylabel(y_label)
-    plt.title("2D Navigation")
+    plt.title("2D Pick and Place")
     plot_dir = '/home/soroush/research/railrl/experiments/soroush/lha/plots'
     full_plot_name = osp.join(plot_dir, plot_name)
 
@@ -63,7 +63,7 @@ gdcrl_no_mask_relabeling = get_trials(
 )
 
 name_to_trials = OrderedDict()
-name_to_trials['TBD (ours)'] = gdcrl
+name_to_trials['DisCo RL (ours)'] = gdcrl
 name_to_trials['GCRL'] = gcrl
 name_to_trials['Ours - mean relabeling'] = gdcrl_no_goal_relabeling
 name_to_trials['Ours - cov relabeling'] = gdcrl_no_mask_relabeling
