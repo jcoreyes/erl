@@ -66,9 +66,6 @@ variant = dict(
         ),
         save_video_period=200,
         renderer_kwargs=dict(),
-        task_variant=dict(
-            task_conditioned=False,
-        ),
         example_set_variant=dict(
             n=30,
             subtask_codes=None,
@@ -107,14 +104,14 @@ variant = dict(
                 full=0.0,
             ),
             expl_mask_distr=dict(
-                atomic=0.5,
-                atomic_seq=0.5,
+                atomic=1.0,
+                atomic_seq=0.0,
                 cumul_seq=0.0,
                 full=0.0,
             ),
             eval_mask_distr=dict(
-                atomic=0.0,
-                atomic_seq=1.0,
+                atomic=1.0,
+                atomic_seq=0.0,
                 cumul_seq=0.0,
                 full=0.0,
             ),
@@ -183,8 +180,8 @@ env_params = {
         'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
         'rl_variant.mask_variant.use_g_for_mean': [False],
         'rl_variant.mask_variant.param_variant.infer_masks': [
-            # True,
-            False,
+            True,
+            # False,
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [4000],

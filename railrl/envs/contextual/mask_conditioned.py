@@ -1,5 +1,5 @@
 from functools import partial
-
+import itertools
 import numpy as np
 
 from railrl.core.distribution import DictDistribution
@@ -147,8 +147,8 @@ class MaskDictDistribution(DictDistribution):
         return sampled_masks
 
     def create_subset_and_full_masks(self):
-        self.subset_masks = {key: [] for key in self.mask_keys}
-        self.full_masks = {key: [] for key in self.mask_keys}
+        self.subset_masks = {k: [] for k in self.mask_keys}
+        self.full_masks = {k: [] for k in self.mask_keys}
 
         def nCkBitmaps(n, k):
             """
@@ -170,10 +170,16 @@ class MaskDictDistribution(DictDistribution):
 
         def append_to_dict(d, keys, bm):
             for k in keys:
+                print(k, self.masks[k].shape, list(self._spaces[k].shape))
+                print(
+                    bm.shape,
+                    self.masks[k].reshape((self._num_atomic_masks, -1)).shape,
+                    bm @ (self.masks[k].reshape((self._num_atomic_masks, -1))).shape
+                )
                 d[k].append(
-                    bm @ (self.masks[k].reshape((num_atomic_masks, -1)))
-                ).reshape(list(self._spaces[k].shape))
-
+                    bm @ (self.masks[k].reshape((self._num_atomic_masks, -1)))
+                    .reshape(list(self._spaces[k].shape))
+                )
 
         n = self._max_subtasks_to_focus_on \
             if (self._max_subtasks_to_focus_on is not None) \
