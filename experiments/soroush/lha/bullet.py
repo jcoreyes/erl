@@ -96,7 +96,7 @@ variant = dict(
             max_subtasks_to_focus_on=None,
             max_subtasks_per_rollout=None,
             prev_subtask_weight=0.25,
-            use_g_for_mean=True,
+            use_g_for_mean=False,
 
             train_mask_distr=dict(
                 atomic=1.0,
@@ -178,10 +178,9 @@ env_params = {
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
-        'rl_variant.mask_variant.use_g_for_mean': [False],
         'rl_variant.mask_variant.param_variant.infer_masks': [
-            True,
-            # False,
+            # True,
+            False,
         ],
 
         'rl_variant.algo_kwargs.num_epochs': [4000],

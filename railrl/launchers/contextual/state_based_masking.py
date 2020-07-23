@@ -107,11 +107,13 @@ def rl_context_experiment(variant):
         env = get_envs(variant)
 
         if mode == 'expl':
-            goal_sampling_mode = variant.get("expl_goal_sampling_mode", None)
+            goal_sampling_mode = variant.get('expl_goal_sampling_mode', None)
         elif mode == 'eval':
-            goal_sampling_mode = variant.get("eval_goal_sampling_mode", None)
+            goal_sampling_mode = variant.get('eval_goal_sampling_mode', None)
         if goal_sampling_mode not in [None, 'example_set']:
             env.goal_sampling_mode = goal_sampling_mode
+
+        mask_ids_for_training = mask_variant.get('mask_ids_for_training', None)
 
         if mask_conditioned:
             context_distrib = MaskDictDistribution(
@@ -122,6 +124,7 @@ def rl_context_experiment(variant):
                 max_subtasks_to_focus_on=mask_variant.get('max_subtasks_to_focus_on', None),
                 prev_subtask_weight=mask_variant.get('prev_subtask_weight', None),
                 mask_distr=mask_variant.get('train_mask_distr', None),
+                mask_ids=mask_ids_for_training,
             )
             reward_fn = ContextualMaskingRewardFn(
                 achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key),
@@ -397,10 +400,19 @@ def rl_context_experiment(variant):
                 else:
                     raise TypeError
 
+            if 'mask_ids' in mask_kwargs:
+                mask_ids = mask_kwargs['mask_ids']
+            else:
+                if mode == 'expl':
+                    mask_ids = mask_variant.get('mask_ids_for_expl', None)
+                elif mode == 'eval':
+                    mask_ids = mask_variant.get('mask_ids_for_eval', None)
+                else:
+                    raise TypeError
+
             prev_subtask_weight = mask_variant.get('prev_subtask_weight', None)
             max_subtasks_to_focus_on = mask_variant.get('max_subtasks_to_focus_on', None)
             max_subtasks_per_rollout = mask_variant.get('max_subtasks_per_rollout', None)
-            mask_groups = mask_variant.get('mask_groups', None)
 
             mode = mask_variant.get('context_post_process_mode', None)
             if mode in ['dilute_prev_subtasks_uniform', 'dilute_prev_subtasks_fixed']:
@@ -415,7 +427,7 @@ def rl_context_experiment(variant):
                 save_env_in_snapshot=save_env_in_snapshot,
                 mask_sampler=(context_distrib if mode=='expl' else eval_context_distrib),
                 mask_distr=mask_distr.copy(),
-                mask_groups=mask_groups,
+                mask_ids=mask_ids,
                 max_path_length=max_path_length,
                 rollout_mask_order=rollout_mask_order,
                 prev_subtask_weight=prev_subtask_weight,
@@ -607,19 +619,18 @@ def rl_context_experiment(variant):
 
         # atomic masks
         if 'atomic' in eval_rollouts_to_log:
-            num_masks = len(eval_path_collector.mask_groups)
-            for mask_id in range(num_masks):
+            for mask_id in eval_path_collector.mask_ids:
                 mask_kwargs=dict(
-                    rollout_mask_order=[mask_id],
+                    mask_ids=[mask_id],
                     mask_distr=dict(
-                        atomic_seq=1.0,
+                        atomic=1.0,
                     ),
                 )
                 collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
                 collectors.append(collector)
             log_prefixes += [
                 'mask_{}/'.format(''.join(str(mask_id)))
-                for mask_id in range(num_masks)
+                for mask_id in eval_path_collector.mask_ids
             ]
 
         # full mask

@@ -8,8 +8,6 @@ from railrl.launchers.rl_exp_launcher_util import (
     twin_sac_experiment,
 )
 
-from railrl.launchers.contextual.state_based_v2 import rl_context_experiment
-
 def rl_experiment(variant):
     experiment_variant_preprocess(variant)
     rl_variant = variant['rl_variant']
@@ -17,6 +15,7 @@ def rl_experiment(variant):
         train_vae_and_update_variant(variant)
     if rl_variant.get('context_based', False):
         print("Using contexts")
+        from railrl.launchers.contextual.state_based_masking import rl_context_experiment
         rl_context_experiment(rl_variant)
     else:
         print("NOT using contexts")

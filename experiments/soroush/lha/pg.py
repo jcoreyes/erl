@@ -97,7 +97,7 @@ variant = dict(
             max_subtasks_to_focus_on=None,
             max_subtasks_per_rollout=None,
             prev_subtask_weight=0.25,
-            use_g_for_mean=True,
+            use_g_for_mean=False,
 
             train_mask_distr=dict(
                 atomic=1.0,
@@ -177,13 +177,12 @@ env_params = {
         # 'rl_variant.mask_variant.mask_conditioned': [False],
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
-        'rl_variant.mask_variant.use_g_for_mean': [False],
         'rl_variant.mask_variant.param_variant.infer_masks': [
             True,
             # False,
         ],
         # 'rl_variant.mask_variant.relabel_masks': [False],
-        'rl_variant.mask_variant.relabel_goals': [False],
+        # 'rl_variant.mask_variant.relabel_goals': [False],
 
         # 'rl_variant.algo_kwargs.eval_only': [True],
         # 'rl_variant.ckpt': [
@@ -196,6 +195,68 @@ env_params = {
 
 
         'rl_variant.algo_kwargs.num_epochs': [3000],
+    },
+    'pg-4obj-maskgen': {
+        'env_kwargs.num_objects': [4],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [25],
+
+        'rl_variant.example_set_variant.subtask_codes': [
+            [
+                ### two obj masks we see ###
+                {2: 2, 3: 3, 4: 4, 5: 5},
+                {4: 4, 5: 5, 6: 6, 7: 7},
+                {6: 6, 7: 7, 8: 8, 9: 9},
+
+                ### two obj masks we don't see ###
+                {2: 2, 3: 3, 6: 6, 7: 7},
+                {2: 2, 3: 3, 8: 8, 9: 9},
+                {4: 4, 5: 5, 8: 8, 9: 9},
+
+                ### single obj masks ###
+                {2: 2, 3: 3},
+                {4: 4, 5: 5},
+                {6: 6, 7: 7},
+                {8: 8, 9: 9},
+            ],
+        ],
+        'rl_variant.example_set_variant.n': [30],
+
+        # ### train and expl with everything, + atomic masks ###
+        # 'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
+        # 'rl_variant.mask_variant.mask_ids_for_expl': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
+        #
+        # ### train with everything, + atomic masks ###
+        # 'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
+        # 'rl_variant.mask_variant.mask_ids_for_expl': [[3, 4, 5, 6, 7, 8, 9]],
+        #
+        # ### train with limited set, + atomic masks ###
+        # 'rl_variant.mask_variant.mask_ids_for_training': [[3, 4, 5, 6, 7, 8, 9]],
+        # 'rl_variant.mask_variant.mask_ids_for_expl': [[3, 4, 5, 6, 7, 8, 9]],
+        #
+        # ### train and expl with everything ###
+        # 'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5]],
+        # 'rl_variant.mask_variant.mask_ids_for_expl': [[0, 1, 2, 3, 4, 5]],
+
+        ### train with everything ###
+        'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5]],
+        'rl_variant.mask_variant.mask_ids_for_expl': [[3, 4, 5]],
+
+        # ### train with limited set ###
+        # 'rl_variant.mask_variant.mask_ids_for_training': [[3, 4, 5]],
+        # 'rl_variant.mask_variant.mask_ids_for_expl': [[3, 4, 5]],
+
+
+        'rl_variant.mask_variant.mask_ids_for_eval': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
+
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
+        'rl_variant.mask_variant.param_variant.infer_masks': [
+            # True,
+            False,
+        ],
+        'rl_variant.mask_variant.eval_rollouts_to_log': [['atomic']],
+
+        'rl_variant.algo_kwargs.num_epochs': [5000],
     },
 }
 
@@ -212,7 +273,7 @@ def process_variant(variant):
         rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
         rl_variant['dump_video_kwargs']['columns'] = 2
         rl_variant['save_video_period'] = 2
-        rl_variant['log_expl_video'] = False
+        # rl_variant['log_expl_video'] = False
         variant['imsize'] = 256
     rl_variant['renderer_kwargs']['width'] = variant['imsize']
     rl_variant['renderer_kwargs']['height'] = variant['imsize']

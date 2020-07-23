@@ -29,6 +29,7 @@ class MaskDictDistribution(DictDistribution):
             mask_distr=None,
             max_subtasks_to_focus_on=None,
             prev_subtask_weight=None,
+            mask_ids=None,
     ):
         self._env = env
         self._desired_goal_keys = desired_goal_keys
@@ -51,7 +52,11 @@ class MaskDictDistribution(DictDistribution):
 
         self.mask_format = mask_format
         self.masks = masks
-        self._num_atomic_masks = next(iter(masks.values())).shape[0]
+        self.mask_ids = mask_ids
+        if self.mask_ids is None:
+            self.mask_ids = np.arange(next(iter(masks.values())).shape[0])
+        self.mask_ids = np.array(self.mask_ids)
+        self._num_atomic_masks = len(self.mask_ids)
 
         self._max_subtasks_to_focus_on = max_subtasks_to_focus_on
         if self._max_subtasks_to_focus_on is not None:
@@ -121,9 +126,9 @@ class MaskDictDistribution(DictDistribution):
 
     def sample_atomic_masks(self, batch_size):
         sampled_masks = {}
-        mask_ids = np.random.choice(self._num_atomic_masks, batch_size)
+        sampled_mask_ids = np.random.choice(self.mask_ids, batch_size)
         for mask_key in self.mask_keys:
-            sampled_masks[mask_key] = self.masks[mask_key][mask_ids]
+            sampled_masks[mask_key] = self.masks[mask_key][sampled_mask_ids]
         return sampled_masks
 
     def sample_subset_masks(self, batch_size):
@@ -131,9 +136,9 @@ class MaskDictDistribution(DictDistribution):
             self.create_subset_and_full_masks()
 
         sampled_masks = {}
-        mask_ids = np.random.choice(self._num_subset_masks, batch_size)
+        sampled_mask_ids = np.random.choice(self._num_subset_masks, batch_size)
         for mask_key in self.mask_keys:
-            sampled_masks[mask_key] = self.subset_masks[mask_key][mask_ids]
+            sampled_masks[mask_key] = self.subset_masks[mask_key][sampled_mask_ids]
         return sampled_masks
 
     def sample_full_masks(self, batch_size):
@@ -141,9 +146,9 @@ class MaskDictDistribution(DictDistribution):
             self.create_subset_and_full_masks()
 
         sampled_masks = {}
-        mask_ids = np.random.choice(self._num_full_masks, batch_size)
+        sampled_mask_ids = np.random.choice(self._num_full_masks, batch_size)
         for mask_key in self.mask_keys:
-            sampled_masks[mask_key] = self.full_masks[mask_key][mask_ids]
+            sampled_masks[mask_key] = self.full_masks[mask_key][sampled_mask_ids]
         return sampled_masks
 
     def create_subset_and_full_masks(self):
@@ -170,15 +175,8 @@ class MaskDictDistribution(DictDistribution):
 
         def append_to_dict(d, keys, bm):
             for k in keys:
-                print(k, self.masks[k].shape, list(self._spaces[k].shape))
-                print(
-                    bm.shape,
-                    self.masks[k].reshape((self._num_atomic_masks, -1)).shape,
-                    bm @ (self.masks[k].reshape((self._num_atomic_masks, -1))).shape
-                )
                 d[k].append(
-                    bm @ (self.masks[k].reshape((self._num_atomic_masks, -1)))
-                    .reshape(list(self._spaces[k].shape))
+                    (bm @ self.masks[k].reshape((self._num_atomic_masks, -1))).reshape(list(self._spaces[k].shape))
                 )
 
         n = self._max_subtasks_to_focus_on \
@@ -209,7 +207,7 @@ class MaskPathCollector(ContextualPathCollector):
             *args,
             mask_sampler=None,
             mask_distr=None,
-            mask_groups=None,
+            mask_ids=None,
             max_path_length=100,
             rollout_mask_order='fixed',
             concat_context_to_obs_fn=None,
@@ -232,12 +230,13 @@ class MaskPathCollector(ContextualPathCollector):
                 np.sum(list(mask_distr.values()))
             ))
         self.mask_distr = mask_distr
-        self.mask_groups = mask_groups
-        if self.mask_groups is None:
-            self.mask_groups = np.arange(self.mask_sampler._num_atomic_masks).reshape(-1, 1)
-        self.mask_groups = np.array(self.mask_groups)
+        if mask_ids is None:
+            mask_ids = self.mask_sampler.mask_ids.copy()
+        self.mask_ids = np.array(mask_ids)
 
+        assert rollout_mask_order in ['fixed', 'random']
         self.rollout_mask_order = rollout_mask_order
+
         self.max_path_length = max_path_length
         self.rollout_masks = []
         self._concat_context_to_obs_fn = concat_context_to_obs_fn
@@ -280,39 +279,29 @@ class MaskPathCollector(ContextualPathCollector):
                     self.rollout_masks.append(mask)
             else:
                 atomic_masks = self.mask_sampler.masks
-                mask_groups = self.mask_groups.copy()
+                mask_ids_for_rollout = self.mask_ids.copy()
 
-                if self.rollout_mask_order == 'fixed':
-                    pass
-                elif self.rollout_mask_order == 'random':
-                    np.random.shuffle(mask_groups)
-                elif isinstance(self.rollout_mask_order, list):
-                    mask_groups = mask_groups[self.rollout_mask_order]
-                else:
-                    raise NotImplementedError
-
+                if self.rollout_mask_order == 'random':
+                    np.random.shuffle(mask_ids_for_rollout)
                 if self._max_subtasks_per_rollout is not None:
-                    mask_groups = mask_groups[:self._max_subtasks_per_rollout]
-
+                    mask_ids_for_rollout = mask_ids_for_rollout[:self._max_subtasks_per_rollout]
                 if rollout_type == 'atomic':
-                    mask_groups = mask_groups[:1]
+                    mask_ids_for_rollout = mask_ids_for_rollout[:1]
 
-                mask_ids = mask_groups.reshape(-1)
+                num_steps_per_mask = self.max_path_length // len(mask_ids_for_rollout)
 
-                num_steps_per_mask = self.max_path_length // len(mask_ids)
-
-                for i in range(len(mask_ids)):
+                for i in range(len(mask_ids_for_rollout)):
                     mask = {}
                     for k in atomic_masks.keys():
                         if rollout_type in ['atomic_seq', 'atomic']:
-                            mask[k] = atomic_masks[k][mask_ids[i]]
+                            mask[k] = atomic_masks[k][mask_ids_for_rollout[i]]
                         elif rollout_type == 'cumul_seq':
                             if self._max_subtasks_to_focus_on is not None:
                                 start_idx = max(0, i + 1 - self._max_subtasks_to_focus_on)
                                 end_idx = i + 1
-                                atomic_mask_ids_for_rollout_mask = mask_ids[start_idx:end_idx]
+                                atomic_mask_ids_for_rollout_mask = mask_ids_for_rollout[start_idx:end_idx]
                             else:
-                                atomic_mask_ids_for_rollout_mask = mask_ids[0:i + 1]
+                                atomic_mask_ids_for_rollout_mask = mask_ids_for_rollout[0:i + 1]
 
                             atomic_mask_weights = np.ones(len(atomic_mask_ids_for_rollout_mask))
                             if self._prev_subtask_weight is not None:
@@ -325,7 +314,7 @@ class MaskPathCollector(ContextualPathCollector):
                         else:
                             raise NotImplementedError
                     num_steps = num_steps_per_mask
-                    if i == len(mask_ids) - 1:
+                    if i == len(mask_ids_for_rollout) - 1:
                         num_steps = self.max_path_length - len(self.rollout_masks)
                     self.rollout_masks += num_steps*[mask]
 
