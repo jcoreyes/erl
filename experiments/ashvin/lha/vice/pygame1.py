@@ -141,7 +141,7 @@ if __name__ == '__main__':
             object_reward_only=False,
 
             init_position_strategy='random',
-            num_objects=2,
+            num_objects=4,
         ),
         logger_config=dict(
             snapshot_gap=50,
@@ -150,6 +150,7 @@ if __name__ == '__main__':
         launcher_config=dict(
             unpack_variant=True,
         ),
+        example_set_path="ashvin/lha/example_set_gen/07-22-pg-example-set/07-22-pg-example-set_2020_07_22_12_16_57_id000--s70609/example_dataset.npy",
     )
 
     search_space = {

@@ -18,6 +18,10 @@ from railrl.envs.images import Renderer
 from railrl.core.loss import LossFunction
 from railrl.torch import pytorch_util as ptu
 
+import torch
+from torch import optim
+import collections
+
 Observation = Dict
 Goal = Any
 GoalConditionedDiagnosticsFn = Callable[
@@ -30,59 +34,63 @@ class VICETrainer(LossFunction):
     def __init__(
         self,
         model,
-        positive_buffer,
-        negative_buffer,
-        batch_size=128,
+        positives,
+        lr=1e-3,
+        weight_decay=1e-4,
+        batch_size=30,
     ):
+        """positives are a 2D numpy array"""
+
         self.model = model
-        self.positive_buffer = positive_buffer
-        self.negative_buffer = negative_buffer
+        self.positives = positives
+        self.batch_size = batch_size
+        self.feature_size = positives.shape[1]
+        self.epoch = 0
 
-    def train_epoch(self, epoch, dataset, batches=100):
-        start_time = time.time()
-        for b in range(batches):
-            self.train_batch(epoch, dataset.random_batch(self.batch_size))
-        self.eval_statistics["train/epoch_duration"].append(time.time() - start_time)
+        self.loss_fn = torch.nn.BCEWithLogitsLoss()
 
-    def test_epoch(self, epoch, dataset, batches=10):
-        start_time = time.time()
-        for b in range(batches):
-            self.test_batch(epoch, dataset.random_batch(self.batch_size))
-        self.eval_statistics["test/epoch_duration"].append(time.time() - start_time)
+        self.lr = lr
+        params = list(self.model.parameters())
+        self.optimizer = optim.Adam(params,
+            lr=self.lr,
+            weight_decay=weight_decay,
+        )
+
+        # stateful tracking variables, reset every epoch
+        self.eval_statistics = collections.defaultdict(list)
+        self.eval_data = collections.defaultdict(list)
 
     def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
 
-        beta = float(self.beta_schedule.get_value(epoch))
-        obs = batch[self.key_to_reconstruct]
-        reconstructions, obs_distribution_params, latent_distribution_params = self.model(obs)
-        log_prob = self.model.logprob(obs, obs_distribution_params)
-        kle = self.model.kl_divergence(latent_distribution_params)
-        loss = -1 * log_prob + beta * kle
+        X = np.zeros((2 * self.batch_size, self.feature_size))
+        Y = np.zeros((2 * self.batch_size, 1))
+        X[:self.batch_size] = batch['observations'][:self.batch_size, :self.feature_size]
+        Y[:self.batch_size] = 0
+        X[self.batch_size:] = self.positives
+        Y[self.batch_size:] = 1
+
+        X = ptu.from_numpy(X)
+        Y = ptu.from_numpy(Y)
+        y_pred = self.model(X)
+        loss = self.loss_fn(y_pred, Y)
 
         self.eval_statistics['epoch'] = epoch
-        self.eval_statistics['beta'] = beta
         self.eval_statistics[prefix + "losses"].append(loss.item())
-        self.eval_statistics[prefix + "log_probs"].append(log_prob.item())
-        self.eval_statistics[prefix + "kles"].append(kle.item())
-
-        encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
-        z_data = ptu.get_numpy(encoder_mean.cpu())
-        for i in range(len(z_data)):
-            self.eval_data[prefix + "zs"].append(z_data[i, :])
-        self.eval_data[prefix + "last_batch"] = (obs, reconstructions)
 
         return loss
 
-    def train_batch(self, epoch, batch):
+    def train(self, batch):
         self.model.train()
         self.optimizer.zero_grad()
 
-        loss = self.compute_loss(batch, epoch, False)
+        loss = self.compute_loss(batch, self.epoch, False)
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        self.epoch += 1
 
     def test_batch(
             self,

@@ -38,6 +38,9 @@ from railrl.torch.sac.sac import SACTrainer
 from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from railrl.torch.irl.torch_irl_algorithm import TorchIRLAlgorithm
 
+from railrl.misc.asset_loader import (
+    load_local_or_remote_file, sync_down_folder, get_absolute_path
+)
 
 def representation_learning_with_goal_distribution_launcher(
         max_path_length,
@@ -59,6 +62,7 @@ def representation_learning_with_goal_distribution_launcher(
         mask_conditioned=True,
         mask_format='vector',
         infer_masks=False,
+        example_set_path=None,
         # rollout
         expl_goal_sampling_mode=None,
         eval_goal_sampling_mode=None,
@@ -173,17 +177,23 @@ def representation_learning_with_goal_distribution_launcher(
     else:
         context_keys = [context_key]
 
+    example_set = load_local_or_remote_file(example_set_path)
+    example_set = example_set.item()['list_of_waypoints'][0, :, :]
+    feature_size = example_set.shape[1]
     classifier = Mlp(
         hidden_sizes=[64, 64, ],
         output_size=1,
         input_size=goal_dim,
-        output_activation=torch.nn.Sigmoid(),
+        # output_activation=torch.nn.Sigmoid(),
     )
     classifier.to(ptu.device)
-    positive_buffer = None
-    negative_buffer = None
+
+    # ipdb> example_set.item()['list_of_waypoints'].shape
+    # (4, 30, 10)
+    # ipdb> example_set.item()['goals'].shape
+    # (30, 10)
     reward_fn = VICERewardFn(classifier)
-    vice_trainer = VICETrainer(classifier, positive_buffer, negative_buffer)
+    vice_trainer = VICETrainer(classifier, example_set)
 
     def contextual_env_distrib_and_reward(mode='expl'):
         assert mode in ['expl', 'eval']
@@ -459,9 +469,6 @@ def representation_learning_with_goal_distribution_launcher(
         post_process_batch_fn=concat_context_to_obs,
         **contextual_replay_buffer_kwargs
     )
-
-    vice_trainer.positive_buffer = replay_buffer
-    vice_trainer.negative_buffer = replay_buffer
 
     trainer = SACTrainer(
         env=env,
