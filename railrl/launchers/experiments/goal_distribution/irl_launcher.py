@@ -41,6 +41,10 @@ from railrl.torch.irl.torch_irl_algorithm import TorchIRLAlgorithm
 from railrl.misc.asset_loader import (
     load_local_or_remote_file, sync_down_folder, get_absolute_path
 )
+from railrl.envs.contextual.latent_distributions import (
+    AddLatentDistribution,
+    PriorDistribution,
+)
 
 def representation_learning_with_goal_distribution_launcher(
         max_path_length,
@@ -63,6 +67,7 @@ def representation_learning_with_goal_distribution_launcher(
         mask_format='vector',
         infer_masks=False,
         example_set_path=None,
+        reward_trainer_kwargs=None,
         # rollout
         expl_goal_sampling_mode=None,
         eval_goal_sampling_mode=None,
@@ -106,7 +111,21 @@ def representation_learning_with_goal_distribution_launcher(
         policy_kwargs = {}
     if qf_kwargs is None:
         qf_kwargs = {}
-    context_key = desired_goal_key
+    if reward_trainer_kwargs is None:
+        reward_trainer_kwargs = {}
+    if debug:
+        algo_kwargs=dict(
+            num_epochs=5,
+            batch_size=10,
+            num_eval_steps_per_epoch=10,
+            num_expl_steps_per_train_loop=10,
+            num_trains_per_train_loop=10, #4000,
+            min_num_steps_before_training=10,
+            eval_epoch_freq=1,
+        )
+        max_path_length=2
+
+    context_key = "no_goal" # desired_goal_key
     prev_subtask_weight = mask_variant.get('prev_subtask_weight', None)
 
     context_post_process_mode = mask_variant.get('context_post_process_mode',
@@ -139,51 +158,16 @@ def representation_learning_with_goal_distribution_launcher(
     sample_masks_for_relabeling = mask_variant.get(
         'sample_masks_for_relabeling', True)
 
-    if mask_conditioned:
-        env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
-        assert mask_format in ['vector', 'matrix', 'distribution']
-        goal_dim = env.observation_space.spaces[context_key].low.size
-        if mask_format == 'vector':
-            mask_keys = ['mask']
-            mask_dims = [(goal_dim,)]
-            context_dim = goal_dim + goal_dim
-        elif mask_format == 'matrix':
-            mask_keys = ['mask']
-            mask_dims = [(goal_dim, goal_dim)]
-            context_dim = goal_dim + (goal_dim * goal_dim)
-        elif mask_format == 'distribution':
-            mask_keys = ['mask_mu_w', 'mask_mu_g', 'mask_mu_mat',
-                         'mask_sigma_inv']
-            mask_dims = [(goal_dim,), (goal_dim,), (goal_dim, goal_dim),
-                         (goal_dim, goal_dim)]
-            context_dim = goal_dim + (goal_dim * goal_dim)  # mu and sigma_inv
-        else:
-            raise NotImplementedError
+    context_keys = [context_key, ]
 
-        if infer_masks:
-            assert mask_format == 'distribution'
-            env_kwargs_copy = copy.deepcopy(env_kwargs)
-            env_kwargs_copy['lite_reset'] = True
-            infer_masks_env = get_gym_env(env_id, env_class=env_class,
-                                          env_kwargs=env_kwargs_copy)
-
-            masks = infer_masks_fn(
-                infer_masks_env,
-                idx_masks,
-                mask_inference_variant,
-            )
-
-        context_keys = [context_key] + mask_keys
-    else:
-        context_keys = [context_key]
-
+    env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
     example_set = load_local_or_remote_file(example_set_path)
     example_set = example_set.item()['list_of_waypoints'][0, :, :]
     feature_size = example_set.shape[1]
     classifier = Mlp(
         hidden_sizes=[64, 64, ],
         output_size=1,
-        input_size=goal_dim,
+        input_size=env.observation_space.spaces[observation_key].low.size,
         # output_activation=torch.nn.Sigmoid(),
     )
     classifier.to(ptu.device)
@@ -193,7 +177,6 @@ def representation_learning_with_goal_distribution_launcher(
     # ipdb> example_set.item()['goals'].shape
     # (30, 10)
     reward_fn = VICERewardFn(classifier)
-    vice_trainer = VICETrainer(classifier, example_set)
 
     def contextual_env_distrib_and_reward(mode='expl'):
         assert mode in ['expl', 'eval']
@@ -208,79 +191,40 @@ def representation_learning_with_goal_distribution_launcher(
         if goal_sampling_mode is not None:
             env.goal_sampling_mode = goal_sampling_mode
 
-        if mask_conditioned:
-            context_distrib = MaskedGoalDictDistributionFromMultitaskEnv(
-                env,
-                desired_goal_keys=[desired_goal_key],
-                mask_keys=mask_keys,
-                mask_dims=mask_dims,
-                mask_format=mask_format,
-                max_subtasks_to_focus_on=max_subtasks_to_focus_on,
-                prev_subtask_weight=prev_subtask_weight,
-                masks=masks,
-                idx_masks=idx_masks,
-                matrix_masks=matrix_masks,
-                mask_distr=train_mask_distr,
-            )
-            # reward_fn = ContextualRewardFnFromMultitaskEnv(
-            #     env=env,
-            #     achieved_goal_from_observation=IndexIntoAchievedGoal(
-            #         achieved_goal_key),  # observation_key
-            #     desired_goal_key=desired_goal_key,
-            #     achieved_goal_key=achieved_goal_key,
-            #     additional_obs_keys=contextual_replay_buffer_kwargs.get(
-            #         'observation_keys', None),
-            #     additional_context_keys=mask_keys,
-            #     reward_fn=partial(
-            #         mask_reward_fn,
-            #         mask_format=mask_format,
-            #         use_g_for_mean=use_g_for_mean
-            #     ),
-            # )
-        # else:
-        #     context_distrib = GoalDictDistributionFromMultitaskEnv(
-        #         env,
-        #         desired_goal_keys=[desired_goal_key],
-        #     )
-        #     reward_fn = ContextualRewardFnFromMultitaskEnv(
-        #         env=env,
-        #         achieved_goal_from_observation=IndexIntoAchievedGoal(
-        #             achieved_goal_key),  # observation_key
-        #         desired_goal_key=desired_goal_key,
-        #         achieved_goal_key=achieved_goal_key,
-        #         additional_obs_keys=contextual_replay_buffer_kwargs.get(
-        #             'observation_keys', None),
-        #     )
-        diag_fn = GoalConditionedDiagnosticsToContextualDiagnostics(
+        goal_distribution = GoalDictDistributionFromMultitaskEnv(
+            env,
+            desired_goal_keys=["state_desired_goal"],
+        )
+        state_diag_fn = GoalConditionedDiagnosticsToContextualDiagnostics(
             env.goal_conditioned_diagnostics,
-            desired_goal_key=desired_goal_key,
+            desired_goal_key="state_desired_goal",
             observation_key=observation_key,
+        )
+
+        no_goal_distribution = PriorDistribution(
+            representation_size=0,
+            key="no_goal",
+            dist=goal_distribution,
         )
         env = ContextualEnv(
             env,
-            context_distribution=context_distrib,
+            context_distribution=no_goal_distribution,
             reward_fn=reward_fn,
             observation_key=observation_key,
-            contextual_diagnostics_fns=[diag_fn],
+            contextual_diagnostics_fns=[state_diag_fn],
             update_env_info_fn=delete_info,
         )
-        return env, context_distrib, reward_fn
+        return env, no_goal_distribution, reward_fn
 
     env, context_distrib, reward_fn = contextual_env_distrib_and_reward(
         mode='expl')
     eval_env, eval_context_distrib, _ = contextual_env_distrib_and_reward(
         mode='eval')
 
-    if mask_conditioned:
-        obs_dim = (
-                env.observation_space.spaces[observation_key].low.size
-                + context_dim
-        )
-    else:
-        obs_dim = (
-                env.observation_space.spaces[observation_key].low.size
-                + env.observation_space.spaces[context_key].low.size
-        )
+    obs_dim = (
+            env.observation_space.spaces[observation_key].low.size
+            + env.observation_space.spaces[context_key].low.size
+    )
 
     action_dim = env.action_space.low.size
 
@@ -460,6 +404,13 @@ def representation_learning_with_goal_distribution_launcher(
     if achieved_goal_key not in observation_keys:
         observation_keys.append(achieved_goal_key)
 
+    vice_trainer = VICETrainer(
+        classifier,
+        example_set,
+        policy,
+        **reward_trainer_kwargs
+    )
+
     replay_buffer = ContextualRelabelingReplayBuffer(
         env=env,
         context_keys=context_keys,
@@ -578,7 +529,10 @@ def representation_learning_with_goal_distribution_launcher(
             )
             return context_env
 
-        img_eval_env = add_images(eval_env, eval_context_distrib)
+        # img_eval_env = add_images(eval_env, eval_context_distrib)
+        img_eval_env = InsertImagesEnv(eval_env, renderers={
+            'image_observation': renderer,
+        })
 
         if log_eval_video:
             video_path_collector = create_path_collector(img_eval_env,

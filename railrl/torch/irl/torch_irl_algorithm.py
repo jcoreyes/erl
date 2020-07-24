@@ -8,6 +8,8 @@ from railrl.misc import eval_util
 from railrl.samplers.data_collector.path_collector import PathCollector
 from railrl.core.batch_rl_algorithm import BatchRLAlgorithm
 
+from railrl.core.logging import append_log
+
 class TorchIRLAlgorithm(BatchRLAlgorithm):
     def __init__(
             self,
@@ -66,6 +68,12 @@ class TorchIRLAlgorithm(BatchRLAlgorithm):
                 timer.stop_timer('training')
         log_stats = self._get_diagnostics()
         return log_stats, False
+
+    def _get_diagnostics(self):
+        algo_log = super()._get_diagnostics()
+        append_log(algo_log, self.reward_trainer.get_diagnostics(),
+                   prefix='reward_trainer/')
+        return algo_log
 
     def to(self, device):
         for net in self.trainer.networks:
