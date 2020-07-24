@@ -186,73 +186,51 @@ def rl_context_experiment(variant):
 
     action_dim = env.action_space.low.size
 
-    if 'ckpt' in variant:
-        from railrl.misc.asset_loader import local_path_from_s3_or_local_path
-        import joblib
-        import os.path as osp
-
-        ckpt_epoch = variant.get('ckpt_epoch', None)
-        if ckpt_epoch is not None:
-            epoch = variant['ckpt_epoch']
-            filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'itr_%d.pkl' % epoch))
-        else:
-            filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'params.pkl'))
-        print("Loading ckpt from", filename)
-        # data = joblib.load(filename)
-        data = torch.load(filename, map_location='cuda:1')
-        qf1 = data['trainer/qf1']
-        qf2 = data['trainer/qf2']
-        target_qf1 = data['trainer/target_qf1']
-        target_qf2 = data['trainer/target_qf2']
-        policy = data['trainer/policy']
-        eval_policy = data['evaluation/policy']
-        expl_policy = data['exploration/policy']
-    else:
-        qf1 = ConcatMlp(
-            input_size=obs_dim + action_dim,
-            output_size=1,
-            **variant['qf_kwargs']
+    qf1 = ConcatMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    qf2 = ConcatMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    target_qf1 = ConcatMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    target_qf2 = ConcatMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    if rl_algo == 'td3':
+        policy = TanhMlpPolicy(
+            input_size=obs_dim,
+            output_size=action_dim,
+            **variant['policy_kwargs']
         )
-        qf2 = ConcatMlp(
-            input_size=obs_dim + action_dim,
-            output_size=1,
-            **variant['qf_kwargs']
+        target_policy = TanhMlpPolicy(
+            input_size=obs_dim,
+            output_size=action_dim,
+            **variant['policy_kwargs']
         )
-        target_qf1 = ConcatMlp(
-            input_size=obs_dim + action_dim,
-            output_size=1,
-            **variant['qf_kwargs']
+        expl_policy = create_exploration_policy(
+            env, policy,
+            exploration_version=variant['exploration_type'],
+            exploration_noise=variant['exploration_noise'],
         )
-        target_qf2 = ConcatMlp(
-            input_size=obs_dim + action_dim,
-            output_size=1,
-            **variant['qf_kwargs']
+        eval_policy = policy
+    elif rl_algo == 'sac':
+        policy = TanhGaussianPolicy(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            **variant['policy_kwargs']
         )
-        if rl_algo == 'td3':
-            policy = TanhMlpPolicy(
-                input_size=obs_dim,
-                output_size=action_dim,
-                **variant['policy_kwargs']
-            )
-            target_policy = TanhMlpPolicy(
-                input_size=obs_dim,
-                output_size=action_dim,
-                **variant['policy_kwargs']
-            )
-            expl_policy = create_exploration_policy(
-                env, policy,
-                exploration_version=variant['exploration_type'],
-                exploration_noise=variant['exploration_noise'],
-            )
-            eval_policy = policy
-        elif rl_algo == 'sac':
-            policy = TanhGaussianPolicy(
-                obs_dim=obs_dim,
-                action_dim=action_dim,
-                **variant['policy_kwargs']
-            )
-            expl_policy = policy
-            eval_policy = MakeDeterministic(policy)
+        expl_policy = policy
+        eval_policy = MakeDeterministic(policy)
 
     post_process_mask_fn = partial(
         full_post_process_mask_fn,
@@ -587,7 +565,7 @@ def rl_context_experiment(variant):
                 )
                 algorithm.post_train_funcs.append(eval_video_func)
 
-        if variant.get('log_expl_video', True):
+        if variant.get('log_expl_video', True) and not variant['algo_kwargs'].get('eval_only', False):
             img_expl_env = add_images(env, context_distrib)
             video_path_collector = create_path_collector(img_expl_env, expl_policy, mode='expl')
             rollout_function = video_path_collector._rollout_fn
@@ -603,10 +581,9 @@ def rl_context_experiment(variant):
             )
             algorithm.post_train_funcs.append(expl_video_func)
 
+    addl_collectors = []
+    addl_log_prefixes = []
     if mask_conditioned and mask_variant.get('log_mask_diagnostics', True):
-        collectors = []
-        log_prefixes = []
-
         default_list = [
             'atomic',
             'atomic_seq',
@@ -627,8 +604,8 @@ def rl_context_experiment(variant):
                     ),
                 )
                 collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-                collectors.append(collector)
-            log_prefixes += [
+                addl_collectors.append(collector)
+            addl_log_prefixes += [
                 'mask_{}/'.format(''.join(str(mask_id)))
                 for mask_id in eval_path_collector.mask_ids
             ]
@@ -641,8 +618,8 @@ def rl_context_experiment(variant):
                 ),
             )
             collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-            collectors.append(collector)
-            log_prefixes.append('mask_full/')
+            addl_collectors.append(collector)
+            addl_log_prefixes.append('mask_full/')
 
         # cumulative, sequential mask
         if 'cumul_seq' in eval_rollouts_to_log:
@@ -653,8 +630,8 @@ def rl_context_experiment(variant):
                 ),
             )
             collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-            collectors.append(collector)
-            log_prefixes.append('mask_cumul_seq/')
+            addl_collectors.append(collector)
+            addl_log_prefixes.append('mask_cumul_seq/')
 
         # atomic, sequential mask
         if 'atomic_seq' in eval_rollouts_to_log:
@@ -665,16 +642,16 @@ def rl_context_experiment(variant):
                 ),
             )
             collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-            collectors.append(collector)
-            log_prefixes.append('mask_atomic_seq/')
+            addl_collectors.append(collector)
+            addl_log_prefixes.append('mask_atomic_seq/')
 
         def get_mask_diagnostics(unused):
             from railrl.core.logging import append_log, add_prefix, OrderedDict
             log = OrderedDict()
-            for prefix, collector in zip(log_prefixes, collectors):
+            for prefix, collector in zip(addl_log_prefixes, addl_collectors):
                 paths = collector.collect_new_paths(
                     max_path_length,
-                    max_path_length,
+                    variant['algo_kwargs']['num_eval_steps_per_epoch'],
                     discard_incomplete_paths=True,
                 )
                 old_path_info = eval_env.get_diagnostics(paths)
@@ -693,11 +670,37 @@ def rl_context_experiment(variant):
                 )
                 append_log(log, generic_info)
 
-            for collector in collectors:
+            for collector in addl_collectors:
                 collector.end_epoch(0)
             return log
 
         algorithm._eval_get_diag_fns.append(get_mask_diagnostics)
+        
+    if 'ckpt' in variant:
+        from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+        import os.path as osp
+        assert variant['algo_kwargs'].get('eval_only', False)
+
+        def update_networks(algo, epoch):
+            if epoch % algo._eval_epoch_freq == 0:
+                # epoch = variant['ckpt_epoch']
+                filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'itr_%d.pkl' % epoch))
+                print("Loading ckpt from", filename)
+                # data = joblib.load(filename)
+                data = torch.load(filename)#, map_location='cuda:1')
+                # qf1 = data['trainer/qf1']
+                # qf2 = data['trainer/qf2']
+                # target_qf1 = data['trainer/target_qf1']
+                # target_qf2 = data['trainer/target_qf2']
+                # policy = data['trainer/policy']
+                eval_policy = data['evaluation/policy']
+                # expl_policy = data['exploration/policy']
+                eval_policy.to(ptu.device)
+                algo.eval_data_collector._policy = eval_policy
+                for collector in addl_collectors:
+                    collector._policy = eval_policy
+
+        algorithm.post_train_funcs.insert(0, update_networks)
 
     algorithm.train()
 

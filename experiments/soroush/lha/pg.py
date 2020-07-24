@@ -184,17 +184,29 @@ env_params = {
         # 'rl_variant.mask_variant.relabel_masks': [False],
         # 'rl_variant.mask_variant.relabel_goals': [False],
 
-        # 'rl_variant.algo_kwargs.eval_only': [True],
-        # 'rl_variant.ckpt': [
-        #     '/home/soroush/data/local/pg-4obj/07-20-larger-objs/07-20-larger-objs_2020_07_20_13_51_48_id000--s75170',
-        # ],
+        # 'rl_variant.algo_kwargs.num_epochs': [3000],
+
+        'rl_variant.algo_kwargs.num_epochs': [2000],
+        'rl_variant.algo_kwargs.eval_only': [True],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [50],
+        'rl_variant.algo_kwargs.num_eval_steps_per_epoch': [5000],
+        'rl_variant.ckpt': [
+            # '/home/soroush/data/local/pg-4obj/07-22-disco-no-mask-relabeling/07-22-disco-no-mask-relabeling_2020_07_23_00_32_06_id000--s10021',
+            '/home/soroush/data/local/pg-4obj/07-22-disco/07-22-disco_2020_07_23_00_40_40_id000--s1846',
+        ],
         # 'rl_variant.ckpt_epoch': [
-        #     100,
+        #     1000,
+        #     # 100,
         #     # None,
         # ],
-
-
-        'rl_variant.algo_kwargs.num_epochs': [3000],
+        # 'rl_variant.mask_variant.eval_mask_distr': [
+        #     dict(
+        #         atomic=0.0,
+        #         atomic_seq=1.0,
+        #         cumul_seq=0.0,
+        #         full=0.0,
+        #     ),
+        # ]
     },
     'pg-4obj-maskgen': {
         'env_kwargs.num_objects': [4],
@@ -224,26 +236,18 @@ env_params = {
         # ### train and expl with everything, + atomic masks ###
         # 'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
         # 'rl_variant.mask_variant.mask_ids_for_expl': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
-        #
-        # ### train with everything, + atomic masks ###
-        # 'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
-        # 'rl_variant.mask_variant.mask_ids_for_expl': [[3, 4, 5, 6, 7, 8, 9]],
-        #
-        # ### train with limited set, + atomic masks ###
-        # 'rl_variant.mask_variant.mask_ids_for_training': [[3, 4, 5, 6, 7, 8, 9]],
-        # 'rl_variant.mask_variant.mask_ids_for_expl': [[3, 4, 5, 6, 7, 8, 9]],
-        #
+
         # ### train and expl with everything ###
         # 'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5]],
         # 'rl_variant.mask_variant.mask_ids_for_expl': [[0, 1, 2, 3, 4, 5]],
 
-        ### train with everything ###
-        'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5]],
-        'rl_variant.mask_variant.mask_ids_for_expl': [[3, 4, 5]],
-
-        # ### train with limited set ###
-        # 'rl_variant.mask_variant.mask_ids_for_training': [[3, 4, 5]],
+        # ### train with everything ###
+        # 'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5]],
         # 'rl_variant.mask_variant.mask_ids_for_expl': [[3, 4, 5]],
+
+        ### train with limited set ###
+        'rl_variant.mask_variant.mask_ids_for_training': [[3, 4, 5]],
+        'rl_variant.mask_variant.mask_ids_for_expl': [[3, 4, 5]],
 
 
         'rl_variant.mask_variant.mask_ids_for_eval': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
