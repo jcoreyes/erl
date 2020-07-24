@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.misc.exp_util import (
+from exp_util import (
     run_experiment,
     parse_args,
     preprocess_args,
@@ -12,42 +12,35 @@ variant = dict(
         do_state_exp=True,
         algo_kwargs=dict(
             num_epochs=1000,
-            batch_size=2048, #128,
+            batch_size=2048,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000, #4000,
+            num_trains_per_train_loop=1000,  # 4000,
             min_num_steps_before_training=1000,
+            eval_epoch_freq=1,
         ),
         max_path_length=100,
         td3_trainer_kwargs=dict(
-            use_policy_saturation_cost=True,
-            policy_saturation_cost_threshold=5.0,
+            discount=0.99,
+            reward_scale=10,
         ),
         sac_trainer_kwargs=dict(
             soft_target_tau=1e-3,
             target_update_period=1,
             use_automatic_entropy_tuning=True,
             reward_scale=100,
-        ),
-        replay_buffer_kwargs=dict(
-            max_size=int(1E6),
-            fraction_goals_rollout_goals=1.0,
-            fraction_goals_env_goals=0.0,
-            recompute_rewards=False,
-            ob_keys_to_save=[
-                'oracle_connector_info',
-                'oracle_robot_info',
-            ],
+            discount=0.99,
         ),
         contextual_replay_buffer_kwargs=dict(
             max_size=int(1E6),
-            fraction_future_context=0.0,
-            fraction_distribution_context=0.0,
-            recompute_rewards=False,
-            observation_keys=[
-                'oracle_connector_info',
-                'oracle_robot_info',
-            ],
+            fraction_future_context=0.4,
+            fraction_distribution_context=0.4,
+            fraction_replay_buffer_context=0.0,
+            # recompute_rewards=False,
+            # ob_keys_to_save=[
+            #     'oracle_connector_info',
+            #     'oracle_robot_info',
+            # ],
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -58,38 +51,78 @@ variant = dict(
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
-        use_subgoal_policy=False,
-        subgoal_policy_kwargs=dict(
-            num_subgoals_per_episode=2,
-        ),
-        use_masks=False,
-        exploration_type='gaussian_and_epsilon',
-        exploration_noise=0.6,
-        # es_kwargs=dict(
-        #     max_sigma=.2,
-        #     min_sigma=.2,
-        #     epsilon=.3,
-        # ),
-        algorithm="td3",
+        exploration_type='ou',
+        exploration_noise=0.3,
+        expl_goal_sampling_mode=None,
+        eval_goal_sampling_mode=None,
+        algorithm="sac",
         context_based=True,
+        save_env_in_snapshot=False,
         save_video=True,
         dump_video_kwargs=dict(
             rows=1,
             columns=8,
             pad_color=0,
             pad_length=0,
-            subpad_length=0,
+            subpad_length=1,
         ),
         vis_kwargs=dict(
             vis_list=dict(),
         ),
-        save_video_period=50,
+        save_video_period=150,
         renderer_kwargs=dict(),
-        task_variant=dict(
-            task_conditioned=False,
+        example_set_variant=dict(
+            n=30,
+            subtask_codes=None,
+            other_dims_random=True,
+            use_cache=False,
+            cache_path=None,
         ),
         mask_variant=dict(
-            mask_conditioned=False,
+            mask_conditioned=True,
+            rollout_mask_order_for_expl='random',
+            rollout_mask_order_for_eval='fixed',
+            log_mask_diagnostics=True,
+            param_variant=dict(
+                mask_format='matrix',
+                infer_masks=False,
+                noise=0.10,
+                max_cond_num=1e2,
+                normalize_mask=True,
+                mask_threshold=0.25,
+            ),
+            relabel_goals=True,
+            relabel_masks=True,
+            sample_masks_for_relabeling=True,
+
+            context_post_process_mode=None,
+            context_post_process_frac=0.5,
+
+            max_subtasks_to_focus_on=None,
+            max_subtasks_per_rollout=None,
+            prev_subtask_weight=0.25,
+            use_g_for_mean=False,
+
+            train_mask_distr=dict(
+                atomic=1.0,
+                subset=0.0,
+                full=0.0,
+            ),
+            expl_mask_distr=dict(
+                atomic=1.0,
+                atomic_seq=0.0,
+                cumul_seq=0.0,
+                full=0.0,
+            ),
+            eval_mask_distr=dict(
+                atomic=1.0,
+                atomic_seq=0.0,
+                cumul_seq=0.0,
+                full=0.0,
+            ),
+
+            eval_rollouts_to_log=['atomic', 'atomic_seq'],
+            eval_rollouts_for_videos=[],
         ),
     ),
     env_class=FurnitureMultiworld,
@@ -116,6 +149,11 @@ variant = dict(
         light_logging=True,
     ),
     imsize=400,
+
+    logger_config=dict(
+        snapshot_gap=25,
+        snapshot_mode='gap_and_last',
+    ),
 )
 
 env_params = {
@@ -289,15 +327,10 @@ env_params = {
 def process_variant(variant):
     rl_variant = variant['rl_variant']
 
-    mpl = rl_variant['max_path_length']
-    rl_variant['td3_trainer_kwargs']['discount'] = 1 - 1 / mpl
-    rl_variant['sac_trainer_kwargs']['discount'] = 1 - 1 / mpl
-
     if args.debug:
         rl_variant['algo_kwargs']['num_epochs'] = 4
         rl_variant['algo_kwargs']['batch_size'] = 128
         rl_variant['contextual_replay_buffer_kwargs']['max_size'] = int(1e4)
-        rl_variant['replay_buffer_kwargs']['max_size'] = int(1e4)
         rl_variant['algo_kwargs']['num_eval_steps_per_epoch'] = 200
         rl_variant['algo_kwargs']['num_expl_steps_per_train_loop'] = 200
         rl_variant['algo_kwargs']['num_trains_per_train_loop'] = 200
@@ -305,9 +338,9 @@ def process_variant(variant):
         rl_variant['dump_video_kwargs']['columns'] = 2
         rl_variant['save_video_period'] = 2
         rl_variant['log_expl_video'] = False
-        variant['imsize'] = 250
-    rl_variant['renderer_kwargs']['img_width'] = variant['imsize']
-    rl_variant['renderer_kwargs']['img_height'] = variant['imsize']
+        variant['imsize'] = 256
+    rl_variant['renderer_kwargs']['width'] = variant['imsize']
+    rl_variant['renderer_kwargs']['height'] = variant['imsize']
 
     if args.no_video:
         rl_variant['save_video'] = False
@@ -324,8 +357,9 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters(print_info=False)):
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters(verbose=False)):
         process_variant(variant)
+        variant['exp_id'] = exp_id
         run_experiment(
             exp_function=rl_experiment,
             variant=variant,
