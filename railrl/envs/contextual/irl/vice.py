@@ -59,6 +59,7 @@ class VICETrainer(LossFunction):
 
         # self.loss_fn = torch.nn.CrossEntropyLoss()
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
+        self.softmax = torch.nn.Softmax()
 
         self.lr = lr
         params = list(self.model.parameters())
@@ -95,7 +96,8 @@ class VICETrainer(LossFunction):
 
         X = ptu.from_numpy(X)
         Y = ptu.from_numpy(Y)
-        y_pred = self.airl_discriminator_logits(X) # self.model(X)
+        y_pred = self.softmax(self.airl_discriminator_logits(X)) # self.model(X) # todo: logsumexp
+
         # import ipdb; ipdb.set_trace()
         loss = self.loss_fn(y_pred, Y)
 

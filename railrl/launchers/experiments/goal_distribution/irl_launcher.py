@@ -171,11 +171,6 @@ def representation_learning_with_goal_distribution_launcher(
         # output_activation=torch.nn.Sigmoid(),
     )
     classifier.to(ptu.device)
-
-    # ipdb> example_set.item()['list_of_waypoints'].shape
-    # (4, 30, 10)
-    # ipdb> example_set.item()['goals'].shape
-    # (30, 10)
     reward_fn = VICERewardFn(classifier)
 
     def contextual_env_distrib_and_reward(mode='expl'):
