@@ -48,7 +48,7 @@ class VICETrainer(LossFunction):
 
         self.model = model
         self.positives = positives
-        self.positives[:, :2] = np.random.randn(1000, 2)/10
+        # self.positives[:, :2] = np.random.randn(1000, 2)/10
         self.policy = policy
         self.data_N = len(positives) * data_split
         self.train_N = int(train_split * self.data_N)
@@ -166,10 +166,15 @@ class VICERewardFn(ContextualRewardFn):
     def __init__(
         self,
         model,
+        context_keys=None
     ):
         self.model = model
+        self.context_keys = context_keys or []
 
     def __call__(self, states, actions, next_states, contexts):
-        obs = ptu.from_numpy(next_states["observation"])
+        contexts = [contexts[k] for k in self.context_keys]
+        full_obs = [next_states["observation"], ] + contexts
+        np_obs = np.concatenate(full_obs, axis=1)
+        obs = ptu.from_numpy(np_obs)
         r = self.model(obs)
         return ptu.get_numpy(r)

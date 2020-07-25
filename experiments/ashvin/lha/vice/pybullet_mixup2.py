@@ -16,8 +16,8 @@ if __name__ == '__main__':
     imsize = 48
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=4000,
-            batch_size=2048,
+            num_epochs=2501,
+            batch_size=128,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000, #4000,
@@ -46,7 +46,7 @@ if __name__ == '__main__':
             hidden_sizes=[400, 300],
         ),
         observation_key='state_observation',
-        desired_goal_key='state_desired_goal',
+        desired_goal_key='no_goal',
         achieved_goal_key='state_achieved_goal',
         expl_goal_sampling_mode='uniform',
         eval_goal_sampling_mode='uniform',

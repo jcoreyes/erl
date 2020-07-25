@@ -16,7 +16,7 @@ if __name__ == '__main__':
     imsize = 200
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=101,
+            num_epochs=501,
             batch_size=128,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
@@ -46,10 +46,10 @@ if __name__ == '__main__':
             hidden_sizes=[400, 300],
         ),
         observation_key='state_observation',
-        desired_goal_key='no_goal',
+        desired_goal_key='state_desired_goal',
         achieved_goal_key='state_achieved_goal',
-        expl_goal_sampling_mode=None,
-        eval_goal_sampling_mode=None,
+        expl_goal_sampling_mode='random',
+        eval_goal_sampling_mode='random',
         save_env_in_snapshot=False,
         save_video=True,
         dump_video_kwargs=dict(
@@ -59,7 +59,7 @@ if __name__ == '__main__':
             pad_length=0,
             subpad_length=1,
         ),
-        save_video_period=10,
+        save_video_period=25,
         renderer_kwargs=dict(
             width=imsize,
             height=imsize,
@@ -130,7 +130,7 @@ if __name__ == '__main__':
             reward_type="dense",
             success_threshold=0.60,
             # Reset settings
-            fixed_goal=(0, 0, 0, 0, 0, 0, 0, 0, 0, 0,),
+            fixed_goal=None,
             # Visualization settings
             images_are_rgb=True,
             render_dt_msec=0,
@@ -138,7 +138,7 @@ if __name__ == '__main__':
             render_size=400,
             show_goal=True,
             goal_samplers=None,
-            goal_sampling_mode='fixed',
+            goal_sampling_mode='random',
             num_presampled_goals=10000,
             object_reward_only=False,
 

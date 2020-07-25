@@ -125,7 +125,7 @@ def representation_learning_with_goal_distribution_launcher(
         )
         max_path_length=2
 
-    context_key = "no_goal" # desired_goal_key
+    context_key = desired_goal_key
     prev_subtask_weight = mask_variant.get('prev_subtask_weight', None)
 
     context_post_process_mode = mask_variant.get('context_post_process_mode',
@@ -162,16 +162,22 @@ def representation_learning_with_goal_distribution_launcher(
 
     env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
     example_set = load_local_or_remote_file(example_set_path)
-    example_set = example_set.item()['list_of_waypoints'][0, :, :]
+    if context_key == "no_goal":
+        example_set = example_set.item()['list_of_waypoints'][0, :, :]
+    else:
+        example_set = np.concatenate((
+            example_set.item()['list_of_waypoints'][0, :, :],
+            example_set.item()['goals'],
+        ), axis=1)
     feature_size = example_set.shape[1]
     classifier = Mlp(
         hidden_sizes=[64, 64, ],
         output_size=1,
-        input_size=env.observation_space.spaces[observation_key].low.size,
+        input_size=feature_size,
         # output_activation=torch.nn.Sigmoid(),
     )
     classifier.to(ptu.device)
-    reward_fn = VICERewardFn(classifier)
+    reward_fn = VICERewardFn(classifier, context_keys)
 
     def contextual_env_distrib_and_reward(mode='expl'):
         assert mode in ['expl', 'eval']
