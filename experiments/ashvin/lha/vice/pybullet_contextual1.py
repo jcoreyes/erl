@@ -46,7 +46,7 @@ if __name__ == '__main__':
             hidden_sizes=[400, 300],
         ),
         observation_key='state_observation',
-        desired_goal_key='no_goal',
+        desired_goal_key='state_desired_goal',
         achieved_goal_key='state_achieved_goal',
         expl_goal_sampling_mode='obj_in_bowl',
         eval_goal_sampling_mode='obj_in_bowl',
