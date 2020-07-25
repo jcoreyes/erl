@@ -48,6 +48,7 @@ class VICETrainer(LossFunction):
 
         self.model = model
         self.positives = positives
+        self.positives[:, :2] = np.random.randn(1000, 2)/10
         self.policy = policy
         self.data_N = len(positives) * data_split
         self.train_N = int(train_split * self.data_N)
@@ -82,8 +83,8 @@ class VICETrainer(LossFunction):
             X2 = self.get_batch(test)
             Y1 = np.zeros((self.batch_size, 2))
             Y2 = np.zeros((self.batch_size, 2))
-            Y1[:, 0] = 1
-            Y2[:, 1] = 1
+            Y1[:, 1] = 1
+            Y2[:, 0] = 1 # example set are positives
             X = lmbda * X1 + (1 - lmbda) * X2
             Y = lmbda * Y1 + (1 - lmbda) * Y2
         else:

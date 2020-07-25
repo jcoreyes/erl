@@ -13,10 +13,10 @@ from railrl.launchers.exp_launcher import rl_context_experiment
 from roboverse.envs.goal_conditioned.sawyer_lift_gc import SawyerLiftEnvGC
 
 if __name__ == '__main__':
-    imsize = 48
+    imsize = 200
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=501,
+            num_epochs=101,
             batch_size=128,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
@@ -51,7 +51,7 @@ if __name__ == '__main__':
         expl_goal_sampling_mode='random',
         eval_goal_sampling_mode='random',
         save_env_in_snapshot=False,
-        save_video=False,
+        save_video=True,
         dump_video_kwargs=dict(
             rows=1,
             columns=8,
@@ -59,7 +59,7 @@ if __name__ == '__main__':
             pad_length=0,
             subpad_length=1,
         ),
-        save_video_period=150,
+        save_video_period=10,
         renderer_kwargs=dict(
             width=imsize,
             height=imsize,
@@ -130,12 +130,12 @@ if __name__ == '__main__':
             reward_type="dense",
             success_threshold=0.60,
             # Reset settings
-            fixed_goal=None,
+            fixed_goal=(0, 0, 0, 0, 0, 0, 0, 0, 0, 0,),
             # Visualization settings
             images_are_rgb=True,
             render_dt_msec=0,
             render_onscreen=False,
-            render_size=84,
+            render_size=400,
             show_goal=True,
             goal_samplers=None,
             goal_sampling_mode='random',
