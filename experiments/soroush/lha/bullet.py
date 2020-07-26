@@ -171,8 +171,6 @@ env_params = {
                 {8: 8, 9: 9},
             ],
         ],
-        'rl_variant.example_set_variant.n': [30],
-
 
         # 'rl_variant.mask_variant.mask_conditioned': [False],
 
@@ -182,15 +180,18 @@ env_params = {
             True,
             # False,
         ],
+        'rl_variant.mask_variant.relabel_masks': [False],
+        # 'rl_variant.mask_variant.relabel_goals': [False],
 
-        # 'rl_variant.algo_kwargs.num_epochs': [4000],
+        'rl_variant.algo_kwargs.num_epochs': [4000],
 
-        'rl_variant.algo_kwargs.num_epochs': [2500],
-        'rl_variant.algo_kwargs.eval_only': [True],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [100],
-        # 'rl_variant.algo_kwargs.num_eval_steps_per_epoch': [5000],
-        'rl_variant.ckpt': [
-            '/home/soroush/data/local/pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s13680',
+        'rl_variant.mask_variant.expl_mask_distr': [
+            dict(
+                atomic=0.5,
+                atomic_seq=0.5,
+                cumul_seq=0.0,
+                full=0.0,
+            ),
         ],
         'rl_variant.mask_variant.eval_mask_distr': [
             dict(
@@ -199,7 +200,24 @@ env_params = {
                 cumul_seq=0.0,
                 full=0.0,
             ),
-        ]
+        ],
+        'rl_variant.mask_variant.eval_rollouts_to_log': [[]],
+
+        # 'rl_variant.algo_kwargs.num_epochs': [2500],
+        # 'rl_variant.algo_kwargs.eval_only': [True],
+        # 'rl_variant.algo_kwargs.eval_epoch_freq': [100],
+        # # 'rl_variant.algo_kwargs.num_eval_steps_per_epoch': [5000],
+        # 'rl_variant.ckpt': [
+        #     '/home/soroush/data/local/pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s13680',
+        # ],
+        # 'rl_variant.mask_variant.eval_mask_distr': [
+        #     dict(
+        #         atomic=0.0,
+        #         atomic_seq=1.0,
+        #         cumul_seq=0.0,
+        #         full=0.0,
+        #     ),
+        # ]
     },
     'pb-4obj-rel': {
         'env_kwargs.num_obj': [4],

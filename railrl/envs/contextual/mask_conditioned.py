@@ -335,6 +335,7 @@ class ContextualMaskingRewardFn(ContextualRewardFn):
             mask_keys=None,
             mask_format=None,
             use_g_for_mean=True,
+            use_squared_reward=False,
     ):
         self._desired_goal_key = desired_goal_key
         self._achieved_goal_key = achieved_goal_key
@@ -343,6 +344,7 @@ class ContextualMaskingRewardFn(ContextualRewardFn):
         self._mask_keys = mask_keys
         self._mask_format = mask_format
         self._use_g_for_mean = use_g_for_mean
+        self._use_squared_reward = use_squared_reward
 
     def __call__(self, states, actions, next_states, contexts):
         del states
@@ -358,16 +360,17 @@ class ContextualMaskingRewardFn(ContextualRewardFn):
             actions, obs,
             mask_format=self._mask_format,
             use_g_for_mean=self._use_g_for_mean,
+            use_squared_reward=self._use_squared_reward,
         )
 
-def default_masked_reward_fn(actions, obs, mask_format, use_g_for_mean):
+def default_masked_reward_fn(actions, obs, mask_format, use_g_for_mean, use_squared_reward):
     achieved_goals = obs['state_achieved_goal']
 
     if mask_format == 'vector':
         desired_goals = obs['state_desired_goal']
         mask = obs['mask']
         prod = (achieved_goals - desired_goals) * mask
-        return -np.linalg.norm(prod, axis=-1)
+        dist = np.linalg.norm(prod, axis=-1)
     elif mask_format in ['matrix', 'distribution', 'cond_distribution']:
         mu = obs['state_desired_goal']
         if mask_format == 'matrix':
@@ -389,6 +392,11 @@ def default_masked_reward_fn(actions, obs, mask_format, use_g_for_mean):
         batch_size, state_dim = achieved_goals.shape
         diff = (achieved_goals - mu).reshape((batch_size, state_dim, 1))
         prod = (diff.transpose(0, 2, 1) @ mask @ diff).reshape(batch_size)
-        return -np.sqrt(prod)
+        dist = np.sqrt(prod)
     else:
         raise TypeError
+
+    if use_squared_reward:
+        return -dist**2
+    else:
+        return -dist

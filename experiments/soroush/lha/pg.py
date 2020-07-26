@@ -105,14 +105,14 @@ variant = dict(
                 full=0.0,
             ),
             expl_mask_distr=dict(
-                atomic=1.0,
-                atomic_seq=0.0,
+                atomic=0.5,
+                atomic_seq=0.5,
                 cumul_seq=0.0,
                 full=0.0,
             ),
             eval_mask_distr=dict(
-                atomic=1.0,
-                atomic_seq=0.0,
+                atomic=0.0,
+                atomic_seq=1.0,
                 cumul_seq=0.0,
                 full=0.0,
             ),
@@ -163,6 +163,7 @@ variant = dict(
 env_params = {
     'pg-4obj': {
         'env_kwargs.num_objects': [4],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [25],
 
         'rl_variant.example_set_variant.subtask_codes': [
             [
@@ -172,7 +173,6 @@ env_params = {
                 {8: 8, 9: 9},
             ],
         ],
-        'rl_variant.example_set_variant.n': [30],
 
         # 'rl_variant.mask_variant.mask_conditioned': [False],
         'rl_variant.mask_variant.mask_conditioned': [True],
@@ -183,17 +183,18 @@ env_params = {
         ],
         # 'rl_variant.mask_variant.relabel_masks': [False],
         # 'rl_variant.mask_variant.relabel_goals': [False],
+        'rl_variant.mask_variant.use_squared_reward': [True],
 
-        # 'rl_variant.algo_kwargs.num_epochs': [3000],
+        'rl_variant.algo_kwargs.num_epochs': [3000],
 
-        'rl_variant.algo_kwargs.num_epochs': [2000],
-        'rl_variant.algo_kwargs.eval_only': [True],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [50],
-        'rl_variant.algo_kwargs.num_eval_steps_per_epoch': [5000],
-        'rl_variant.ckpt': [
-            # '/home/soroush/data/local/pg-4obj/07-22-disco-no-mask-relabeling/07-22-disco-no-mask-relabeling_2020_07_23_00_32_06_id000--s10021',
-            '/home/soroush/data/local/pg-4obj/07-22-disco/07-22-disco_2020_07_23_00_40_40_id000--s1846',
-        ],
+        # 'rl_variant.algo_kwargs.num_epochs': [2000],
+        # 'rl_variant.algo_kwargs.eval_only': [True],
+        # 'rl_variant.algo_kwargs.eval_epoch_freq': [50],
+        # 'rl_variant.algo_kwargs.num_eval_steps_per_epoch': [5000],
+        # 'rl_variant.ckpt': [
+        #     # '/home/soroush/data/local/pg-4obj/07-22-disco-no-mask-relabeling/07-22-disco-no-mask-relabeling_2020_07_23_00_32_06_id000--s10021',
+        #     '/home/soroush/data/local/pg-4obj/07-22-disco/07-22-disco_2020_07_23_00_40_40_id000--s1846',
+        # ],
         # 'rl_variant.ckpt_epoch': [
         #     1000,
         #     # 100,
@@ -231,26 +232,55 @@ env_params = {
                 {8: 8, 9: 9},
             ],
         ],
-        'rl_variant.example_set_variant.n': [30],
 
-        # ### train and expl with everything, + atomic masks ###
-        # 'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
-        # 'rl_variant.mask_variant.mask_ids_for_expl': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
+        'rl_variant.mask_variant.mask_ids_for_training': [[i for i in range(0, 10)]],
+        'rl_variant.mask_variant.mask_ids_for_expl': [[i for i in range(0, 6)]],
 
-        # ### train and expl with everything ###
-        # 'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5]],
-        # 'rl_variant.mask_variant.mask_ids_for_expl': [[0, 1, 2, 3, 4, 5]],
+        'rl_variant.mask_variant.mask_ids_for_eval': [[i for i in range(10)]],
 
-        # ### train with everything ###
-        # 'rl_variant.mask_variant.mask_ids_for_training': [[0, 1, 2, 3, 4, 5]],
-        # 'rl_variant.mask_variant.mask_ids_for_expl': [[3, 4, 5]],
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
+        'rl_variant.mask_variant.param_variant.infer_masks': [
+            True,
+            # False,
+        ],
+        'rl_variant.mask_variant.eval_rollouts_to_log': [['atomic', 'atomic_seq']],
 
-        ### train with limited set ###
-        'rl_variant.mask_variant.mask_ids_for_training': [[3, 4, 5]],
-        'rl_variant.mask_variant.mask_ids_for_expl': [[3, 4, 5]],
+        'rl_variant.algo_kwargs.num_epochs': [5000],
+    },
+    'pg-5obj-maskgen': {
+        'env_kwargs.num_objects': [5],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [25],
 
+        'rl_variant.example_set_variant.subtask_codes': [
+            [
+                ### two obj masks we see ###
+                {2: 2, 3: 3, 4: 4, 5: 5},
+                {4: 4, 5: 5, 6: 6, 7: 7},
+                {6: 6, 7: 7, 8: 8, 9: 9},
+                {8: 8, 9: 9, 10: 10, 11: 11},
+                {2: 2, 3: 3, 10: 10, 11: 11},
 
-        'rl_variant.mask_variant.mask_ids_for_eval': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
+                ### two obj masks we don't see ###
+                {2: 2, 3: 3, 6: 6, 7: 7},
+                {2: 2, 3: 3, 8: 8, 9: 9},
+                {4: 4, 5: 5, 8: 8, 9: 9},
+                {4: 4, 5: 5, 10: 10, 11: 11},
+                {6: 6, 7: 7, 10: 10, 11: 11},
+
+                ### single obj masks ###
+                {2: 2, 3: 3},
+                {4: 4, 5: 5},
+                {6: 6, 7: 7},
+                {8: 8, 9: 9},
+                {10: 10, 11: 11},
+            ],
+        ],
+
+        'rl_variant.mask_variant.mask_ids_for_training': [[i for i in range(1, 15)]],
+        'rl_variant.mask_variant.mask_ids_for_expl': [[i for i in range(1, 15)]],
+
+        'rl_variant.mask_variant.mask_ids_for_eval': [[i for i in range(15)]],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
@@ -259,6 +289,29 @@ env_params = {
             False,
         ],
         'rl_variant.mask_variant.eval_rollouts_to_log': [['atomic']],
+
+        'rl_variant.algo_kwargs.num_epochs': [5000],
+    },
+    'pg-5obj': {
+        'env_kwargs.num_objects': [5],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [25],
+
+        'rl_variant.example_set_variant.subtask_codes': [
+            [
+                {2: 2, 3: 3},
+                {4: 4, 5: 5},
+                {6: 6, 7: 7},
+                {8: 8, 9: 9},
+                {10: 10, 11: 11},
+            ],
+        ],
+
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
+        'rl_variant.mask_variant.param_variant.infer_masks': [
+            # True,
+            False,
+        ],
 
         'rl_variant.algo_kwargs.num_epochs': [5000],
     },

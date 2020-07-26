@@ -133,6 +133,7 @@ def rl_context_experiment(variant):
                 mask_keys=mask_keys,
                 mask_format=mask_format,
                 use_g_for_mean=mask_variant['use_g_for_mean'],
+                use_squared_reward=mask_variant.get('use_squared_reward', False),
             )
         else:
             if goal_sampling_mode == 'example_set':
@@ -166,7 +167,7 @@ def rl_context_experiment(variant):
             reward_fn=reward_fn,
             observation_key=observation_key,
             contextual_diagnostics_fns=[diag_fn],
-            update_env_info_fn=delete_info,
+            update_env_info_fn=delete_info if not variant.get('keep_env_infos', False) else None,
         )
         return env, context_distrib, reward_fn
 
