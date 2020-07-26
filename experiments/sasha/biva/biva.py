@@ -20,7 +20,7 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         online_vae_exploration=False,
-        imsize=84,
+        imsize=48,
         env_class=SawyerMultiobjectEnv,
         env_kwargs={},
 
@@ -100,10 +100,10 @@ if __name__ == "__main__":
                     ),
         train_vae_variant=dict(
             beta=1.0,
-            # beta_schedule_kwargs=dict(
-            #     x_values=(0, 500),
-            #     y_values=(1, 50),
-            # ),
+            beta_schedule_kwargs=dict(
+                x_values=(0, 500),
+                y_values=(1, 50),
+            ),
             num_epochs=501,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
@@ -133,10 +133,10 @@ if __name__ == "__main__":
             vae_trainer_class=BIVATrainer,
             vae_class=BIVA,
             vae_kwargs=dict(
-                imsize=84,
+                imsize=48,
                 input_channels=3,
-                q_dropout=0.2,
-                p_dropout=0.0,
+                q_dropout=0.5,
+                p_dropout=0.5,
             ),
             only_kwargs=True,
             algo_kwargs=dict(

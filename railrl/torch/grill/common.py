@@ -157,7 +157,7 @@ def train_vae(variant, return_data=False):
         should_save_imgs = (epoch % save_period == 0)
         trainer.train_epoch(epoch, train_dataset)
         trainer.test_epoch(epoch, test_dataset)
-
+        
         if should_save_imgs:
             trainer.dump_reconstructions(epoch)
             trainer.dump_samples(epoch)
@@ -475,35 +475,33 @@ def generate_vae_dataset(variant):
         else:
             dataset_class = InitialObservationNumpyDataset
 
-        if 'env' in dataset:
+        if 'env' not in dataset:
+            dataset['env'] = dataset['observations'][:, 0]
+        if use_test_dataset and ('env' not in test_dataset):
+            test_dataset['env'] = test_dataset['observations'][:, 0]
+
+
+        if use_test_dataset:
+            train_dataset = dataset_class({
+                'observations': dataset['observations'],
+                'env': dataset['env']
+            })
+
+            test_dataset = dataset_class({
+                'observations': test_dataset['observations'],
+                'env': test_dataset['env']
+            })
+        else:
             train_dataset = dataset_class({
                 'observations': dataset['observations'][train_i, :, :],
                 'env': dataset['env'][train_i, :]
             })
 
-            if use_test_dataset:
-                test_dataset = dataset_class({
-                    'observations': test_dataset['observations'],
-                    'env': test_dataset['env']
-                })
-            else:
-                test_dataset = dataset_class({
-                    'observations': dataset['observations'][test_i, :, :],
-                    'env': dataset['env'][test_i, :]
-                })
-        else:
-            train_dataset = dataset_class({
-                'observations': dataset['observations'][train_i, :, :],
+            test_dataset = dataset_class({
+                'observations': dataset['observations'][test_i, :, :],
+                'env': dataset['env'][test_i, :]
             })
 
-            if use_test_dataset:
-                test_dataset = dataset_class({
-                    'observations': test_dataset['observations'],
-                })
-            else:
-                test_dataset = dataset_class({
-                    'observations': dataset['observations'][test_i, :, :],
-                })
 
         train_batch_loader_kwargs = variant.get(
             'train_batch_loader_kwargs',

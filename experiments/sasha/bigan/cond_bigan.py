@@ -138,7 +138,8 @@ if __name__ == "__main__":
             use_linear_dynamics=False,
             generate_vae_dataset_kwargs=dict(
                 #dataset_path='/home/ashvin/Desktop/sim_puck_data.npy',
-                dataset_path='/tmp/SawyerMultiobjectEnv_N10000_sawyer_init_camera_zoomed_in_imsize32_random_oracle_split_0.npy',
+                dataset_path={'train': '/home/ashvin/data/sasha/spacemouse/recon_data/train.npy',
+                            'test': '/home/ashvin/data/sasha/spacemouse/recon_data/test.npy'},
                 N=10000,
                 n_random_steps=2,
                 test_p=.9,
@@ -185,7 +186,7 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(1),
-        'train_vae_variant.vae_kwargs.representation_size': [4],
+        'train_vae_variant.vae_kwargs.representation_size': [20],
         'train_vae_variant.algo_kwargs.batch_size': [128],
         'grill_variant.algo_kwargs.num_trains_per_train_loop':[4000],
     }
@@ -197,4 +198,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=0)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)

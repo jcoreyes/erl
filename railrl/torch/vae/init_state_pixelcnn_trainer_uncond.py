@@ -59,6 +59,7 @@ def load_vae(vae_file, ):
     vae = pickle.load(open(local_path, "rb"))
     print("loaded", local_path)
     vae.to('cuda')
+    vae.eval()
     return vae
 
 """
@@ -87,8 +88,8 @@ new_path = "/home/ashvin/tmp/encoded_multiobj_bullet_data.npy"
 
 def prep_sample_data():
     data = np.load(new_path, allow_pickle=True).item()
-    train_data = data['train'].reshape(-1, discrete_size)
-    test_data = data['test'].reshape(-1, discrete_size)
+    train_data = data['train']#.reshape(-1, discrete_size)
+    test_data = data['test']#.reshape(-1, discrete_size)
     return train_data, test_data
 
 def resize_dataset(data, new_imsize=48):
@@ -216,7 +217,7 @@ def generate_samples(epoch, test=True, batch_size=64):
         dtype = 'train'
 
     rand_indices = np.random.choice(dataset.shape[0], size=(8,))
-    data_points = ptu.from_numpy(dataset[rand_indices]).long().cuda()
+    data_points = ptu.from_numpy(dataset[rand_indices, 0]).long().cuda()
 
     samples = []
 

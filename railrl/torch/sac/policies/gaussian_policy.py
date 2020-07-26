@@ -240,7 +240,6 @@ class GaussianCNNPolicy(CNN, TorchStochasticPolicy):
 
     def forward(self, obs):
         h = super().forward(obs, return_last_activations=True)
-
         preactivation = self.last_fc(h)
         mean = self.output_activation(preactivation)
         if self.std is None:

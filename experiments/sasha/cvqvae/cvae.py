@@ -27,7 +27,7 @@ if __name__ == "__main__":
     variant = dict(
         double_algo=False,
         online_vae_exploration=False,
-        imsize=84,
+        imsize=48,
         init_camera=sawyer_init_camera_zoomed_in,
         env_class=SawyerMultiobjectEnv,
         env_kwargs=dict(
@@ -160,13 +160,13 @@ if __name__ == "__main__":
             vae_class=CVAE,
             vae_kwargs=dict(
                 input_channels=3,
-                imsize=84,
+                imsize=48,
             ),
 
             algo_kwargs=dict(
                 start_skew_epoch=5000,
                 is_auto_encoder=False,
-                batch_size=128,
+                batch_size=48,
                 lr=1e-3, #1E-4
                 skew_config=dict(
                     method='vae_prob',
@@ -199,7 +199,7 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(1),
-        'train_vae_variant.embedding_dim': [3,],
+        'train_vae_variant.representation_size': [50,],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -209,4 +209,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=22)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)

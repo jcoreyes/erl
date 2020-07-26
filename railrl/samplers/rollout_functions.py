@@ -1,3 +1,4 @@
+
 from functools import partial
 
 import numpy as np
@@ -109,7 +110,7 @@ def rollout(
         if full_o_postprocess_func:
             full_o_postprocess_func(env, agent, o)
 
-        next_o, r, d, env_info = env.step(a)
+        next_o, r, d, env_info = env.step(a.copy())
         if render:
             env.render(**render_kwargs)
         observations.append(o)
@@ -163,7 +164,6 @@ def deprecated_rollout(
      - rewards
      - next_observations
      - terminals
-
     The next two elements will be lists of dictionaries, with the index into
     the list being the index into the time
      - agent_infos

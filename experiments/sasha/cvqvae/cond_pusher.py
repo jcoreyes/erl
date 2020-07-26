@@ -160,8 +160,8 @@ if __name__ == "__main__":
             vae_kwargs=dict(
                 input_channels=3,
                 imsize=84,
-                decay=0.0,
-                num_embeddings=512,
+                #decay=0.0,
+                #num_embeddings=512,
             ),
 
             algo_kwargs=dict(
