@@ -86,6 +86,7 @@ def representation_learning_with_goal_distribution_launcher(
         ckpt_epoch=None,
         seedid=0,
         debug=False,
+        task_id=0,
 ):
     if eval_rollouts_to_log is None:
         eval_rollouts_to_log = [
@@ -163,10 +164,10 @@ def representation_learning_with_goal_distribution_launcher(
     env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
     example_set = load_local_or_remote_file(example_set_path)
     if context_key == "no_goal":
-        example_set = example_set.item()['list_of_waypoints'][0, :, :]
+        example_set = example_set.item()['list_of_waypoints'][task_id, :, :]
     else:
         example_set = np.concatenate((
-            example_set.item()['list_of_waypoints'][0, :, :],
+            example_set.item()['list_of_waypoints'][task_id, :, :],
             example_set.item()['goals'],
         ), axis=1)
     feature_size = example_set.shape[1]

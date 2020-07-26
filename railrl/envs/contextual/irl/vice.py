@@ -48,7 +48,7 @@ class VICETrainer(LossFunction):
 
         self.model = model
         self.positives = positives
-        # self.positives[:, :2] = np.random.randn(1000, 2)/10
+        # self.positives[:, :2] = self.positives[:, 2:4] + np.random.randn(1000, 2)/10
         self.policy = policy
         self.data_N = len(positives) * data_split
         self.train_N = int(train_split * self.data_N)
