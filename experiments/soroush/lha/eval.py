@@ -1,0 +1,234 @@
+import railrl.misc.hyperparameter as hyp
+from exp_util import (
+    run_experiment,
+    parse_args,
+    preprocess_args,
+)
+from railrl.launchers.exp_launcher import rl_experiment
+from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
+
+variant = dict(
+    rl_variant=dict(
+        do_state_exp=True,
+        algo_kwargs=dict(
+            num_epochs=1000,
+            batch_size=2048,
+            num_expl_steps_per_train_loop=1000,
+            num_trains_per_train_loop=1000, #4000,
+            min_num_steps_before_training=1000,
+
+            num_eval_steps_per_epoch=2500, #1000
+            eval_only=True,
+            eval_epoch_freq=25,
+        ),
+        max_path_length=100,
+        td3_trainer_kwargs=dict(
+            discount=0.99,
+            reward_scale=10,
+        ),
+        sac_trainer_kwargs=dict(
+            soft_target_tau=1e-3,
+            target_update_period=1,
+            use_automatic_entropy_tuning=True,
+            reward_scale=100,
+            discount=0.99,
+        ),
+        contextual_replay_buffer_kwargs=dict(
+            max_size=int(1E6),
+            fraction_future_context=0.4,
+            fraction_distribution_context=0.4,
+            fraction_replay_buffer_context=0.0,
+        ),
+        qf_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
+        vf_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
+        policy_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
+        exploration_type='ou',
+        exploration_noise=0.3,
+        expl_goal_sampling_mode=None,
+        eval_goal_sampling_mode=None,
+        algorithm="sac",
+        context_based=True,
+        save_env_in_snapshot=False,
+        save_video=True,
+        dump_video_kwargs=dict(
+            rows=1,
+            columns=6,
+            pad_color=0,
+            pad_length=0,
+            subpad_length=1,
+        ),
+        vis_kwargs=dict(
+            vis_list=dict(),
+        ),
+        save_video_period=400,
+        renderer_kwargs=dict(),
+        example_set_variant=dict(
+            # n=30,
+            # subtask_codes=None,
+            # other_dims_random=True,
+            # use_cache=False,
+            # cache_path=None,
+        ),
+        mask_variant=dict(
+            mask_conditioned=True,
+            rollout_mask_order_for_expl='random',
+            rollout_mask_order_for_eval='fixed',
+            log_mask_diagnostics=False,
+            param_variant=dict(
+                mask_format='cond_distribution',
+                # infer_masks=False,
+                # noise=0.10,
+                # max_cond_num=1e2,
+                # normalize_mask=True,
+                # mask_threshold=0.25,
+            ),
+            relabel_goals=True,
+            relabel_masks=True,
+            sample_masks_for_relabeling=True,
+
+            context_post_process_mode=None,
+            context_post_process_frac=0.5,
+
+            max_subtasks_to_focus_on=None,
+            max_subtasks_per_rollout=None,
+            prev_subtask_weight=0.25,
+            use_g_for_mean=False,
+
+            train_mask_distr=dict(
+                atomic=1.0,
+                subset=0.0,
+                full=0.0,
+            ),
+            expl_mask_distr=dict(
+                atomic=0.5,
+                atomic_seq=0.5,
+                cumul_seq=0.0,
+                full=0.0,
+            ),
+
+            ### change one of these values later! ###
+            eval_mask_distr=dict(
+                atomic=0.0,
+                atomic_seq=0.0,
+                cumul_seq=0.0,
+                full=0.0,
+            ),
+
+            eval_rollouts_to_log=[],
+            eval_rollouts_for_videos=[],
+        ),
+    ),
+    imsize=256,
+
+    logger_config=dict(
+        snapshot_gap=25,
+        snapshot_mode='none',
+    ),
+)
+
+env_params = {
+    'pg-4obj': {
+        'env_class': [PickAndPlaceEnv],
+        'env_kwargs': [dict(
+            # Environment dynamics
+            action_scale=1.0,
+            ball_radius=1.5, #1.
+            boundary_dist=4,
+            object_radius=1.0,
+            min_grab_distance=1.0,
+            walls=None,
+            # Rewards
+            action_l2norm_penalty=0,
+            reward_type="dense", #dense_l1
+            object_reward_only=False,
+            # success_threshold=0.60,
+            # Reset settings
+            fixed_goal=None,
+            # Visualization settings
+            images_are_rgb=True,
+            render_dt_msec=0,
+            render_onscreen=False,
+            render_size=84,
+            show_goal=False, #True
+            # get_image_base_render_size=(48, 48),
+            # Goal sampling
+            goal_samplers=None,
+            goal_sampling_mode='random',
+            num_presampled_goals=10000,
+            init_position_strategy='random',
+
+            num_objects=4,
+            success_threshold=1.0,
+        )],
+        'rl_variant.eval_goal_sampling_mode': ['random'],
+
+        # 'rl_variant.mask_variant.mask_conditioned': [False],
+        'rl_variant.mask_variant.mask_conditioned': [True],
+
+        'rl_variant.algo_kwargs.num_epochs': [2000],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [25],
+        'rl_variant.ckpt': [
+            # '/home/soroush/data/local/pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s40057',
+            # '/home/soroush/data/local/pg-4obj/07-21-inferred-n-30-no-goal-relabeling/07-21-inferred-n-30-no-goal-relabeling_2020_07_21_20_08_52_id000--s88487',
+            '/home/soroush/data/local/pg-4obj/07-21-inferred-n-30-no-mask-relabeling/07-21-inferred-n-30-no-mask-relabeling_2020_07_21_12_44_56_id000--s40880',
+        ],
+        # 'rl_variant.ckpt_epoch': [
+        #     1000,
+        #     # 100,
+        #     # None,
+        # ],
+        'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
+        # 'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
+    },
+}
+
+def process_variant(variant):
+    rl_variant = variant['rl_variant']
+
+    if args.debug:
+        rl_variant['algo_kwargs']['num_epochs'] = 4
+        rl_variant['algo_kwargs']['batch_size'] = 128
+        rl_variant['contextual_replay_buffer_kwargs']['max_size'] = int(1e4)
+        rl_variant['algo_kwargs']['num_eval_steps_per_epoch'] = 200
+        rl_variant['algo_kwargs']['num_expl_steps_per_train_loop'] = 200
+        rl_variant['algo_kwargs']['num_trains_per_train_loop'] = 200
+        rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
+        rl_variant['dump_video_kwargs']['columns'] = 2
+        rl_variant['save_video_period'] = 2
+        # rl_variant['log_expl_video'] = False
+        variant['imsize'] = 256
+    rl_variant['renderer_kwargs']['width'] = variant['imsize']
+    rl_variant['renderer_kwargs']['height'] = variant['imsize']
+
+    if args.no_video:
+        rl_variant['save_video'] = False
+
+if __name__ == "__main__":
+    args = parse_args()
+    args.mem_per_exp = 3.5
+    mount_blacklist = [
+        'MountLocal@/home/soroush/research/furniture',
+        'MountLocal@/home/soroush/research/bullet-manipulation',
+    ]
+    preprocess_args(args)
+    search_space = env_params[args.env]
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters(verbose=False)):
+        process_variant(variant)
+        variant['exp_id'] = exp_id
+        run_experiment(
+            exp_function=rl_experiment,
+            variant=variant,
+            args=args,
+            exp_id=exp_id,
+            mount_blacklist=mount_blacklist,
+        )
+
