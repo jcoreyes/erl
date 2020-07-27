@@ -51,5 +51,5 @@ if __name__ == "__main__":
     run_experiment(
         method_call=gen_example_sets_full_experiment,
         variant=variant,
-        exp_prefix='shelf-4obj-oracle-goal-set', # change to exp_name is this doesn't work
+        exp_prefix='shelf-4obj-oracle-goal-example-set', # change to exp_name is this doesn't work
     )
