@@ -17,7 +17,7 @@ if __name__ == '__main__':
     variant = dict(
         algo_kwargs=dict(
             num_epochs=2501,
-            batch_size=128,
+            batch_size=2048,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000, #4000,
@@ -48,7 +48,7 @@ if __name__ == '__main__':
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
         achieved_goal_key='state_achieved_goal',
-        expl_goal_sampling_mode='50p_ground__50p_obj_in_bowl',
+        expl_goal_sampling_mode='obj_in_bowl',
         eval_goal_sampling_mode='obj_in_bowl',
         save_env_in_snapshot=False,
         save_video=True,
@@ -141,9 +141,9 @@ if __name__ == '__main__':
             'gripper_reward': True,
             'bowl_reward': True,
 
-            'goal_sampling_mode': 'ground',
-            'random_init_bowl_pos': False,
-            'bowl_type': 'fixed',
+            'goal_sampling_mode': 'obj_in_bowl',
+            'random_init_bowl_pos': True,
+            'bowl_type': 'heavy',
 
             'num_obj': 4,
         },
@@ -159,15 +159,13 @@ if __name__ == '__main__':
             data_split=0.1, # use 10% = 100 examples as data
             train_split=0.3, # use 30% of data = 30 examples for train
         ),
-        task_id=0,
-        example_set_path="ashvin/lha/example_set_gen/07-22-pb-abs-example-set/07-22-pb-abs-example-set_2020_07_22_18_35_52_id000--s57269/example_dataset.npy",
-        # example_set_path="ashvin/lha/example_set_gen/07-22-pb-rel-example-set/07-22-pb-rel-example-set_2020_07_22_18_36_47_id000--s21183/example_dataset.npy",
+        # example_set_path="ashvin/lha/example_set_gen/07-22-pb-abs-example-set/07-22-pb-abs-example-set_2020_07_22_18_35_52_id000--s57269/example_dataset.npy",
+        example_set_path="ashvin/lha/example_set_gen/07-22-pb-rel-example-set/07-22-pb-rel-example-set_2020_07_22_18_36_47_id000--s21183/example_dataset.npy",
         # example_set_path="ashvin/lha/example_set_gen/07-22-pg-example-set/07-22-pg-example-set_2020_07_22_18_35_29_id000--s6012/example_dataset.npy",
     )
 
     search_space = {
         'seedid': range(5),
-        'task_id': range(4),
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

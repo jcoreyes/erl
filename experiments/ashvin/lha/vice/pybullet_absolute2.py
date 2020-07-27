@@ -17,7 +17,7 @@ if __name__ == '__main__':
     variant = dict(
         algo_kwargs=dict(
             num_epochs=2501,
-            batch_size=128,
+            batch_size=2048,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000, #4000,

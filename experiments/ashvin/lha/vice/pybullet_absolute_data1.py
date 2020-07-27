@@ -17,7 +17,7 @@ if __name__ == '__main__':
     variant = dict(
         algo_kwargs=dict(
             num_epochs=2501,
-            batch_size=128,
+            batch_size=2048,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
             num_trains_per_train_loop=1000, #4000,
@@ -156,8 +156,8 @@ if __name__ == '__main__':
         ),
         reward_trainer_kwargs=dict(
             mixup_alpha=0.5,
-            data_split=0.1, # use 10% = 100 examples as data
-            train_split=0.3, # use 30% of data = 30 examples for train
+            data_split=1, # use 100% = 1000 examples as data
+            train_split=0.9, # use 90% of data = 900 examples for train
         ),
         task_id=0,
         example_set_path="ashvin/lha/example_set_gen/07-22-pb-abs-example-set/07-22-pb-abs-example-set_2020_07_22_18_35_52_id000--s57269/example_dataset.npy",
@@ -167,7 +167,7 @@ if __name__ == '__main__':
 
     search_space = {
         'seedid': range(5),
-        'task_id': range(4),
+        'task_id': range(1),
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

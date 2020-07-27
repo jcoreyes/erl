@@ -9,6 +9,7 @@ from railrl.samplers.data_collector.path_collector import PathCollector
 from railrl.core.batch_rl_algorithm import BatchRLAlgorithm
 
 from railrl.core.logging import append_log
+import railrl.torch.pytorch_util as ptu
 
 class TorchIRLAlgorithm(BatchRLAlgorithm):
     def __init__(
@@ -61,10 +62,16 @@ class TorchIRLAlgorithm(BatchRLAlgorithm):
                 timer.stop_timer('replay buffer data storing')
 
                 timer.start_timer('training', unique=False)
+                # self.reward_trainer.model.cuda()
+                # self.trainer.policy.cuda()
+                # ptu.set_gpu_mode(True)
                 for _ in range(self.num_trains_per_train_loop):
                     train_data = self.replay_buffer.random_batch(self.batch_size)
                     self.trainer.train(train_data)
                     self.reward_trainer.train(train_data)
+                # self.reward_trainer.model.cpu()
+                # self.trainer.policy.cpu()
+                # ptu.set_gpu_mode(False)
                 timer.stop_timer('training')
         log_stats = self._get_diagnostics()
         return log_stats, False
