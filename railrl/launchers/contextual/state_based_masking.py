@@ -52,9 +52,15 @@ def rl_context_experiment(variant):
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = variant.get('achieved_goal_key', 'latent_achieved_goal')
 
+    contextual_mdp = variant.get('contextual_mdp', True)
+    print("contextual_mdp:", contextual_mdp)
+
     mask_variant = variant.get('mask_variant', {})
     mask_conditioned = mask_variant.get('mask_conditioned', False)
     print("mask_conditioned:", mask_conditioned)
+
+    if mask_conditioned:
+        assert contextual_mdp
 
     if 'sac' in variant['algorithm'].lower():
         rl_algo = 'sac'
@@ -179,11 +185,13 @@ def rl_context_experiment(variant):
             env.observation_space.spaces[observation_key].low.size
             + context_dim_for_networks
         )
-    else:
+    elif contextual_mdp:
         obs_dim = (
             env.observation_space.spaces[observation_key].low.size
             + env.observation_space.spaces[desired_goal_key].low.size
         )
+    else:
+        obs_dim = env.observation_space.spaces[observation_key].low.size
 
     action_dim = env.action_space.low.size
 
@@ -302,10 +310,13 @@ def rl_context_experiment(variant):
                 batch['next_observations'] = np.concatenate([next_obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
             else:
                 raise NotImplementedError
-        else:
+        elif contextual_mdp:
             goal = batch[desired_goal_key]
             batch['observations'] = np.concatenate([obs, goal], axis=1)
             batch['next_observations'] = np.concatenate([next_obs, goal], axis=1)
+        else:
+            batch['observations'] = obs
+            batch['next_observations'] = next_obs
 
         return batch
 
@@ -413,12 +424,20 @@ def rl_context_experiment(variant):
                 max_subtasks_to_focus_on=max_subtasks_to_focus_on,
                 max_subtasks_per_rollout=max_subtasks_per_rollout,
             )
-        else:
+        elif contextual_mdp:
             return ContextualPathCollector(
                 env,
                 policy,
                 observation_key=observation_key,
                 context_keys_for_policy=context_keys,
+                save_env_in_snapshot=save_env_in_snapshot,
+            )
+        else:
+            return ContextualPathCollector(
+                env,
+                policy,
+                observation_key=observation_key,
+                context_keys_for_policy=[],
                 save_env_in_snapshot=save_env_in_snapshot,
             )
 

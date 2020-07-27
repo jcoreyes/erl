@@ -244,7 +244,7 @@ env_params = {
             True,
             # False,
         ],
-        'rl_variant.mask_variant.eval_rollouts_to_log': [['atomic', 'atomic_seq']],
+        'rl_variant.mask_variant.eval_rollouts_to_log': [['atomic']],
 
         'rl_variant.algo_kwargs.num_epochs': [5000],
     },

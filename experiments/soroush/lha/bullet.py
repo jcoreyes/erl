@@ -104,8 +104,8 @@ variant = dict(
                 full=0.0,
             ),
             expl_mask_distr=dict(
-                atomic=1.0,
-                atomic_seq=0.0,
+                atomic=0.5,
+                atomic_seq=0.5,
                 cumul_seq=0.0,
                 full=0.0,
             ),
@@ -185,22 +185,6 @@ env_params = {
 
         'rl_variant.algo_kwargs.num_epochs': [4000],
 
-        'rl_variant.mask_variant.expl_mask_distr': [
-            dict(
-                atomic=0.5,
-                atomic_seq=0.5,
-                cumul_seq=0.0,
-                full=0.0,
-            ),
-        ],
-        'rl_variant.mask_variant.eval_mask_distr': [
-            dict(
-                atomic=0.0,
-                atomic_seq=1.0,
-                cumul_seq=0.0,
-                full=0.0,
-            ),
-        ],
         'rl_variant.mask_variant.eval_rollouts_to_log': [[]],
 
         # 'rl_variant.algo_kwargs.num_epochs': [2500],
@@ -232,18 +216,21 @@ env_params = {
                 {2: -20, 3: 3},
             ],
         ],
-        'rl_variant.example_set_variant.n': [30],
 
         'rl_variant.mask_variant.mask_conditioned': [False],
+        'rl_variant.contextual_mdp': [False],  # regular RL
+        'env_kwargs.reward_type': ['bowl_cube0_dist'],
 
         # 'rl_variant.mask_variant.mask_conditioned': [True],
         # 'rl_variant.mask_variant.param_variant.mask_format': ['distribution'],
         # 'rl_variant.mask_variant.param_variant.infer_masks': [
-        #     # True,
-        #     False,
+        #     True,
+        #     # False,
         # ],
+        # 'rl_variant.contextual_replay_buffer_kwargs.fraction_future_context': [0.0], # no future relabeling
 
         'rl_variant.algo_kwargs.num_epochs': [5000],
+        'rl_variant.mask_variant.eval_rollouts_to_log': [[]],
     },
 }
 
