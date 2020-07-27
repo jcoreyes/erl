@@ -233,8 +233,8 @@ env_params = {
             ],
         ],
 
-        'rl_variant.mask_variant.mask_ids_for_training': [[i for i in range(0, 10)]],
-        'rl_variant.mask_variant.mask_ids_for_expl': [[i for i in range(0, 6)]],
+        'rl_variant.mask_variant.mask_ids_for_training': [[i for i in range(10)]],
+        'rl_variant.mask_variant.mask_ids_for_expl': [[i for i in range(10)]],
 
         'rl_variant.mask_variant.mask_ids_for_eval': [[i for i in range(10)]],
 

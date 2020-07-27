@@ -64,7 +64,7 @@ variant = dict(
         vis_kwargs=dict(
             vis_list=dict(),
         ),
-        save_video_period=150,
+        save_video_period=100,
         renderer_kwargs=dict(),
         example_set_variant=dict(
             n=50,
@@ -74,12 +74,12 @@ variant = dict(
             cache_path=None,
         ),
         mask_variant=dict(
-            mask_conditioned=True,
+            mask_conditioned=False,
             rollout_mask_order_for_expl='random',
             rollout_mask_order_for_eval='fixed',
             log_mask_diagnostics=True,
             param_variant=dict(
-                mask_format='matrix',
+                mask_format='cond_distribution',
                 infer_masks=False,
                 noise=0.01,
                 max_cond_num=1e2,
@@ -140,6 +140,10 @@ variant = dict(
         obj_joint_type='slide',
         connector_ob_type=None, #'dist',
 
+        move_speed=0.05,
+
+        reward_type='state_distance',
+
         clip_action_on_collision=True,
 
         light_logging=True,
@@ -174,31 +178,7 @@ env_params = {
     'shelf-4obj': {
         'env_kwargs.furniture_name': ['shelf_ivar_0678_4obj_bb'],
         'env_kwargs.anchor_objects': [['1_column']],
-        'env_kwargs.reward_type': [
-            'state_distance',
-        ],
-        'env_kwargs.move_speed': [0.05],
         'env_kwargs.goal_sampling_mode': ['uniform'],
-
-        # 'env_kwargs.task_type': [
-        #     # 'move2',
-        #     'select2+move2',
-        #     # 'reach2+select2+move2',
-        # ],
-        # 'rl_variant.expl_goal_sampling_mode' : ['assembled'],
-        # 'rl_variant.eval_goal_sampling_mode' : ['assembled'],
-        # 'rl_variant.example_set_variant.subtask_codes': [
-        #     [
-        #         {17: 17, 18: 18, 19: 19},
-        #         {14: 14, 15: 15, 16: 16},
-        #         {11: 11, 12: 12, 13: 13},
-        #     ],
-        # ],
-        # # 'rl_variant.example_set_variant.subtask_codes': [
-        # #     [
-        # #         {17: 17, 18: 18, 19: 19},
-        # #     ],
-        # # ],
 
         'env_kwargs.task_type': ['select2'],
         'rl_variant.expl_goal_sampling_mode': ['assembled_random'],
@@ -210,115 +190,40 @@ env_params = {
                 {8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13},
             ],
         ],
-        # 'rl_variant.example_set_variant.subtask_codes': [
-        #     [
-        #         {8: 8, 9: 9, 10: 10, 17: 17, 18: 18, 19: 19},
-        #     ],
-        # ],
-
-        # 'rl_variant.mask_variant.mask_conditioned': [False],
 
         'rl_variant.mask_variant.mask_conditioned': [True],
-        'rl_variant.mask_variant.param_variant.mask_format': ['cond_distribution'],
         'rl_variant.mask_variant.param_variant.infer_masks': [
             True,
             # False,
         ],
 
         'rl_variant.algo_kwargs.eval_epoch_freq': [25],
-        'rl_variant.algo_kwargs.num_epochs': [5000], #500
-        'rl_variant.save_video_period': [100],  # 25
+        'rl_variant.algo_kwargs.num_epochs': [5000],
     },
-    'chair-2obj': {
-        'env_kwargs.furniture_name': ['chair_agne_0007_2obj'],
-        'env_kwargs.reward_type': [
-            'oib+nc',
-            'oib+nc+sel_conn_dist',
-        ],
-
-        'rl_variant.algo_kwargs.num_epochs': [500],
-        'rl_variant.save_video_period': [25],  # 50
-    },
-    'chair': {
-        'env_kwargs.furniture_name': ['chair_agne_0007'],
-        'env_kwargs.reward_type': [
-            'oib+nc+first_conn_dist',
-            'oib+nc+first_conn_dist+cursor_dist',
-            'oib+nc+first_conn_dist+cursor_dist+cursor_sparse_dist',
-            'oib+nc+next_conn_dist',
-            'oib+nc+next_conn_dist+cursor_dist',
-            'oib+nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
-            'oib+nc+sel_conn_dist',
-            'oib+nc+sel_conn_dist+cursor_dist',
-            'oib+nc+sel_conn_dist+cursor_dist+cursor_sparse_dist',
-
-        ],
-        'env_kwargs.task_connect_sequence': [
-            [0, 1, 2], # leg1 -> leg2 -> seat
-        ],
-
-        'rl_variant.algo_kwargs.num_trains_per_train_loop': [1000],
-        'rl_variant.algo_kwargs.num_epochs': [1500],
-
-        'rl_variant.save_video_period': [50],  # 25
-    },
-    'shelf': {
-        'env_kwargs.furniture_name': ['shelf_ivar_0678_bb'],
+    'shelf-4obj-oracle-goal': {
+        'env_kwargs.furniture_name': ['shelf_ivar_0678_4obj_bb'],
         'env_kwargs.anchor_objects': [['1_column']],
-        'env_kwargs.reward_type': [
-            # 'nc',
-            # 'nc+next_conn_dist',
-            # 'nc+next_conn_dist+cursor_dist',
-            'nc+next_conn_dist+cursor_dist+cursor_sparse_dist',
-            # 'nc+cursor_dist+cursor_sparse_dist',
-            # 'cursor_dist',
-            # 'cursor_dist+cursor_sparse_dist',
+        'env_kwargs.goal_sampling_mode': ['uniform'],
+
+        'env_kwargs.task_type': ['select2+move2'],
+        'rl_variant.expl_goal_sampling_mode' : ['assembled'],
+        'rl_variant.eval_goal_sampling_mode' : ['assembled'],
+        'rl_variant.example_set_variant.subtask_codes': [
+            [
+                {17: 17, 18: 18, 19: 19},
+                {14: 14, 15: 15, 16: 16},
+                {11: 11, 12: 12, 13: 13},
+            ],
         ],
 
-        'rl_variant.max_path_length': [75],
-
-        'env_kwargs.task_connect_sequence': [[0, 1, 2, 3, 4, 5]],  # col -> box1 -> box2 -> box3 -> box4 -> box5
-        'rl_variant.task_variant.task_conditioned': [
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.param_variant.infer_masks': [
             True,
             # False,
         ],
-        'rl_variant.task_variant.task_ids': [
-            # [1],
-            [3],
-            # [1, 2, 3],
-            # [1, 2, 3, 4, 5],
-        ],
 
-        'rl_variant.task_variant.rotate_task_freq_for_expl': [0.25],
-        'rl_variant.task_variant.rotate_task_freq_for_eval': [1.0],
-
-        'env_kwargs.task_type': [
-            # "connect",
-            # "select2+connect",
-
-            "reach2+select2+connect",
-            # "reach2+select2",
-        ],
-
-        'rl_variant.td3_trainer_kwargs.reward_scale': [1000],
-
-        # 'env_kwargs.select_next_obj_only': [True],
-
-        'rl_variant.algo_kwargs.num_epochs': [500],
-        'rl_variant.save_video_period': [50],  # 25
-    },
-    'swivel': {
-        'env_kwargs.furniture_name': ['swivel_chair_0700'],
-        'env_kwargs.pos_dist': [
-            0.2,
-        ],
-
-        'env_kwargs.reward_type': [
-            'oib+nc+conn_dist',
-        ],
-
-        'rl_variant.algo_kwargs.num_epochs': [500],
-        'rl_variant.save_video_period': [25],  # 50
+        'rl_variant.algo_kwargs.eval_epoch_freq': [25],
+        'rl_variant.algo_kwargs.num_epochs': [5000],
     },
 }
 
