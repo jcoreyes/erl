@@ -5,7 +5,10 @@ from exp_util import (
     preprocess_args,
 )
 from railrl.launchers.exp_launcher import rl_experiment
+
 from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
+from roboverse.envs.goal_conditioned.sawyer_lift_gc import SawyerLiftEnvGC
+from furniture.env.furniture_multiworld import FurnitureMultiworld
 
 variant = dict(
     rl_variant=dict(
@@ -19,7 +22,7 @@ variant = dict(
 
             num_eval_steps_per_epoch=2500, #1000
             eval_only=True,
-            eval_epoch_freq=25,
+            eval_epoch_freq=50,
         ),
         max_path_length=100,
         td3_trainer_kwargs=dict(
@@ -34,7 +37,7 @@ variant = dict(
             discount=0.99,
         ),
         contextual_replay_buffer_kwargs=dict(
-            max_size=int(1E6),
+            max_size=int(1E4),
             fraction_future_context=0.4,
             fraction_distribution_context=0.4,
             fraction_replay_buffer_context=0.0,
@@ -124,7 +127,7 @@ variant = dict(
             eval_rollouts_for_videos=[],
         ),
     ),
-    imsize=256,
+    imsize=400, #256
 
     logger_config=dict(
         snapshot_gap=25,
@@ -186,25 +189,171 @@ env_params = {
         'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
         # 'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
     },
+    'pb-4obj-rel': {
+        'env_class': [SawyerLiftEnvGC],
+        'env_kwargs': [{
+            'action_scale': .06,
+            'action_repeat': 10,
+            'timestep': 1./120,
+            'solver_iterations': 500,
+            'max_force': 1000,
+
+            'gui': False,
+            'pos_init': [.75, -.3, 0],
+            'pos_high': [.75, .4, .3],
+            'pos_low': [.75, -.4, -.36],
+            'reset_obj_in_hand_rate': 0.0,
+            'bowl_bounds': [-0.40, 0.40],
+
+            'use_rotated_gripper': True,
+            'use_wide_gripper': True,
+            'soft_clip': True,
+            'obj_urdf': 'spam',
+            'max_joint_velocity': None,
+
+            'hand_reward': True,
+            'gripper_reward': True,
+            'bowl_reward': True,
+
+            'goal_sampling_mode': 'ground',
+            'random_init_bowl_pos': True,
+            'bowl_type': 'heavy',
+
+            'num_obj': 4,
+        }],
+        'rl_variant.eval_goal_sampling_mode': ['obj_in_bowl'],
+
+        # 'rl_variant.mask_variant.mask_conditioned': [False],
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.param_variant.mask_format': ['distribution'],
+
+        'rl_variant.algo_kwargs.num_epochs': [2000],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [50],
+        'rl_variant.ckpt': [
+            '/home/soroush/data/local/pb-4obj-rel/07-18-distr-inferred-n-30/07-18-distr-inferred-n-30_2020_07_19_06_57_28_id000--s14736',
+        ],
+        # 'rl_variant.ckpt_epoch': [
+        #     1000,
+        #     # 100,
+        #     # None,
+        # ],
+        'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
+        # 'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
+    },
+    'pb-4obj': {
+        'env_class': [SawyerLiftEnvGC],
+        'env_kwargs': [{
+            'action_scale': .06,
+            'action_repeat': 10,
+            'timestep': 1./120,
+            'solver_iterations': 500,
+            'max_force': 1000,
+
+            'gui': False,
+            'pos_init': [.75, -.3, 0],
+            'pos_high': [.75, .4, .3],
+            'pos_low': [.75, -.4, -.36],
+            'reset_obj_in_hand_rate': 0.0,
+            'bowl_bounds': [-0.40, 0.40],
+
+            'use_rotated_gripper': True,
+            'use_wide_gripper': True,
+            'soft_clip': True,
+            'obj_urdf': 'spam',
+            'max_joint_velocity': None,
+
+            'hand_reward': True,
+            'gripper_reward': True,
+            'bowl_reward': True,
+
+            'goal_sampling_mode': 'ground',
+            'random_init_bowl_pos': False,
+            'bowl_type': 'fixed',
+
+            'num_obj': 4,
+        }],
+        'rl_variant.eval_goal_sampling_mode': ['obj_in_bowl'],
+
+        # 'rl_variant.mask_variant.mask_conditioned': [False],
+        'rl_variant.mask_variant.mask_conditioned': [True],
+
+        'rl_variant.algo_kwargs.num_epochs': [4000],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [500],
+        'rl_variant.ckpt': [
+            '/home/soroush/data/local/pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s13680',
+        ],
+        # 'rl_variant.ckpt_epoch': [
+        #     1000,
+        #     # 100,
+        #     # None,
+        # ],
+        'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
+        # 'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
+    },
+    'shelf-4obj': {
+        'env_class': [FurnitureMultiworld],
+        'env_kwargs': [dict(
+            name="FurnitureCursorRLEnv",
+            unity=False,
+            tight_action_space=True,
+            preempt_collisions=True,
+            boundary=[0.5, 0.5, 0.95],
+            pos_dist=0.2,
+            num_connect_steps=0,
+            num_connected_ob=False,
+            num_connected_reward_scale=5.0,
+            goal_type='zeros', #reset
+            reset_type='var_2dpos+no_rot', #'var_2dpos+var_1drot', 'var_2dpos+objs_near',
+
+            # task_type='connect',
+            control_degrees='3dpos+select+connect',
+            obj_joint_type='slide',
+            connector_ob_type=None, #'dist',
+
+            move_speed=0.05,
+            reward_type='state_distance',
+            clip_action_on_collision=True,
+            light_logging=True,
+
+            furniture_name='shelf_ivar_0678_4obj_bb',
+            anchor_objects=['1_column'],
+            goal_sampling_mode='uniform',
+            task_type='select2',
+        ),],
+        'rl_variant.eval_goal_sampling_mode': ['assembled_random'],
+
+        # 'rl_variant.mask_variant.mask_conditioned': [False],
+        'rl_variant.mask_variant.mask_conditioned': [True],
+
+        'rl_variant.algo_kwargs.num_epochs': [4000],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [500],
+        'rl_variant.ckpt': [
+            '/home/soroush/data/local/shelf-4obj/07-26-select2-three-subtasks/07-26-select2-three-subtasks_2020_07_26_08_50_00_id000--s94704',
+        ],
+        # 'rl_variant.ckpt_epoch': [
+        #     1000,
+        #     # 100,
+        #     # None,
+        # ],
+        'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
+        # 'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
+    },
 }
 
 def process_variant(variant):
     rl_variant = variant['rl_variant']
 
     if args.debug:
-        rl_variant['algo_kwargs']['num_epochs'] = 4
-        rl_variant['algo_kwargs']['batch_size'] = 128
-        rl_variant['contextual_replay_buffer_kwargs']['max_size'] = int(1e4)
         rl_variant['algo_kwargs']['num_eval_steps_per_epoch'] = 200
-        rl_variant['algo_kwargs']['num_expl_steps_per_train_loop'] = 200
-        rl_variant['algo_kwargs']['num_trains_per_train_loop'] = 200
-        rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
+        # rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
         rl_variant['dump_video_kwargs']['columns'] = 2
-        rl_variant['save_video_period'] = 2
-        # rl_variant['log_expl_video'] = False
+        # rl_variant['save_video_period'] = 2
         variant['imsize'] = 256
+
     rl_variant['renderer_kwargs']['width'] = variant['imsize']
     rl_variant['renderer_kwargs']['height'] = variant['imsize']
+    if args.env in ['pb-4obj', 'pb-4obj-rel']:
+        variant['env_kwargs']['img_dim'] = variant['imsize']
 
     if args.no_video:
         rl_variant['save_video'] = False
@@ -212,10 +361,15 @@ def process_variant(variant):
 if __name__ == "__main__":
     args = parse_args()
     args.mem_per_exp = 3.5
-    mount_blacklist = [
-        'MountLocal@/home/soroush/research/furniture',
-        'MountLocal@/home/soroush/research/bullet-manipulation',
-    ]
+    mount_blacklist = []
+    if args.env not in ['pb-4obj', 'pb-4obj-rel']:
+        mount_blacklist += [
+            'MountLocal@/home/soroush/research/bullet-manipulation',
+        ]
+    if args.env not in ['shelf-4obj', 'shelf-4obj-oracle-goal']:
+        mount_blacklist += [
+            'MountLocal@/home/soroush/research/furniture',
+        ]
     preprocess_args(args)
     search_space = env_params[args.env]
     sweeper = hyp.DeterministicHyperparameterSweeper(
