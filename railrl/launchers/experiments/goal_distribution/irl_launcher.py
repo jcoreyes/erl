@@ -45,6 +45,24 @@ from railrl.envs.contextual.latent_distributions import (
     AddLatentDistribution,
     PriorDistribution,
 )
+from railrl.torch.sac.policies.base import (
+    TorchStochasticPolicy,
+    PolicyFromDistributionGenerator,
+    MakeDeterministic,
+)
+
+class SwitchingPolicy(TorchStochasticPolicy):
+    def __init__(self, policies, switch_every):
+        self.policies = policies
+        self.switch_every = switch_every
+
+    def get_action(self, obs_np, t=0):
+        if self.switch_every > 0:
+            i = int(t / self.switch_every) # % len(self.policies)
+        else:
+            i = 0
+        active_policy = self.policies[i]
+        return active_policy.get_action(obs_np)
 
 def representation_learning_with_goal_distribution_launcher(
         max_path_length,
@@ -87,6 +105,7 @@ def representation_learning_with_goal_distribution_launcher(
         seedid=0,
         debug=False,
         task_id=0,
+        switch_every=-1,
 ):
     if eval_rollouts_to_log is None:
         eval_rollouts_to_log = [
@@ -234,14 +253,16 @@ def representation_learning_with_goal_distribution_launcher(
         from railrl.misc.asset_loader import local_path_from_s3_or_local_path
         import os.path as osp
 
-        if ckpt_epoch is not None:
-            epoch = ckpt_epoch
-            filename = local_path_from_s3_or_local_path(
-                osp.join(ckpt, 'itr_%d.pkl' % epoch))
-        else:
-            filename = local_path_from_s3_or_local_path(
-                osp.join(ckpt, 'params.pkl'))
-        print("Loading ckpt from", filename)
+        policies = []
+        for ckpt_path in ckpt:
+            epoch = 0
+            filename = local_path_from_s3_or_local_path(osp.join(ckpt_path, 'itr_%d.pkl' % epoch))
+            print("Loading ckpt from", filename)
+            data = torch.load(filename)#, map_location='cuda:1')
+            eval_policy = data['evaluation/policy']
+            eval_policy.to(ptu.device)
+            policies.append(eval_policy)
+
         # data = joblib.load(filename)
         data = torch.load(filename, map_location='cuda:1')
         qf1 = data['trainer/qf1']
@@ -249,8 +270,8 @@ def representation_learning_with_goal_distribution_launcher(
         target_qf1 = data['trainer/target_qf1']
         target_qf2 = data['trainer/target_qf2']
         policy = data['trainer/policy']
-        eval_policy = data['evaluation/policy']
-        expl_policy = data['exploration/policy']
+        eval_policy = SwitchingPolicy(policies, switch_every)
+        expl_policy = SwitchingPolicy(policies, switch_every)
     else:
         def create_qf():
             return ConcatMlp(
@@ -507,6 +528,26 @@ def representation_learning_with_goal_distribution_launcher(
     )
 
     algorithm.to(ptu.device)
+
+    if ckpt:
+        from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+        import os.path as osp
+
+        def update_networks(algo, epoch):
+            if epoch % algo._eval_epoch_freq == 0:
+                policies = []
+                for ckpt_path in ckpt:
+                    filename = local_path_from_s3_or_local_path(osp.join(ckpt_path, 'itr_%d.pkl' % epoch))
+                    print("Loading ckpt from", filename)
+                    data = torch.load(filename)#, map_location='cuda:1')
+                    eval_policy = data['evaluation/policy']
+                    eval_policy.to(ptu.device)
+                    policies.append(eval_policy)
+                algo.eval_data_collector._policy = SwitchingPolicy(policies, switch_every)
+                # for collector in addl_collectors:
+                #     collector._policy = eval_policy
+
+        algorithm.post_train_funcs.insert(0, update_networks)
 
     if save_video:
         renderer = EnvRenderer(**renderer_kwargs)

@@ -16,12 +16,12 @@ if __name__ == '__main__':
     imsize = 48
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1001,
+            num_epochs=2501,
             batch_size=2048,
             num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000, #4000,
-            min_num_steps_before_training=1000,
+            num_expl_steps_per_train_loop=0,
+            num_trains_per_train_loop=1, #4000,
+            min_num_steps_before_training=1,
             # eval_epoch_freq=1,
             eval_only=True,
             eval_epoch_freq=50,
@@ -50,10 +50,10 @@ if __name__ == '__main__':
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
         achieved_goal_key='state_achieved_goal',
-        expl_goal_sampling_mode='obj_in_bowl',
+        # expl_goal_sampling_mode='obj_in_bowl',
         eval_goal_sampling_mode='obj_in_bowl',
         save_env_in_snapshot=False,
-        save_video=True,
+        save_video=False,
         dump_video_kwargs=dict(
             rows=1,
             columns=8,
@@ -143,11 +143,13 @@ if __name__ == '__main__':
             'gripper_reward': True,
             'bowl_reward': True,
 
-            'goal_sampling_mode': 'obj_in_bowl',
+            'goal_sampling_mode': 'ground',
             'random_init_bowl_pos': True,
             'bowl_type': 'heavy',
-
             'num_obj': 4,
+            'obj_success_threshold': 0.10,
+
+            'objs_to_reset_outside_bowl': [0],
         },
         logger_config=dict(
             snapshot_gap=25,
@@ -164,12 +166,32 @@ if __name__ == '__main__':
         # example_set_path="ashvin/lha/example_set_gen/07-22-pb-abs-example-set/07-22-pb-abs-example-set_2020_07_22_18_35_52_id000--s57269/example_dataset.npy",
         example_set_path="ashvin/lha/example_set_gen/07-22-pb-rel-example-set/07-22-pb-rel-example-set_2020_07_22_18_36_47_id000--s21183/example_dataset.npy",
         # example_set_path="ashvin/lha/example_set_gen/07-22-pg-example-set/07-22-pg-example-set_2020_07_22_18_35_29_id000--s6012/example_dataset.npy",
-        ckpt="ashvin/lha/vice/pybullet-contextual2/run11/id0/",
+        ckpt=(
+            "ashvin/lha/vice/pybullet-contextual2/run11/id0/",
+        ),
         ckpt_epoch=0,
+        switch_every=-1,
     )
 
     search_space = {
-        'seedid': range(5),
+        'seedid': range(1),
+        'ckpt': [
+            (
+                "ashvin/lha/vice/pybullet-contextual2/run11/id0/",
+            ),
+            (
+                "ashvin/lha/vice/pybullet-contextual2/run11/id1/",
+            ),
+            (
+                "ashvin/lha/vice/pybullet-contextual2/run11/id2/",
+            ),
+            (
+                "ashvin/lha/vice/pybullet-contextual2/run11/id3/",
+            ),
+            (
+                "ashvin/lha/vice/pybullet-contextual2/run11/id4/",
+            ),
+        ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

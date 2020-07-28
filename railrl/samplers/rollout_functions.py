@@ -103,6 +103,7 @@ def rollout(
         env.render(**render_kwargs)
     while path_length < max_path_length:
         raw_obs.append(o)
+        get_action_kwargs["t"] = path_length
         o_for_agent = preprocess_obs_for_policy_fn(o)
         a, agent_info = agent.get_action(o_for_agent, **get_action_kwargs)
 

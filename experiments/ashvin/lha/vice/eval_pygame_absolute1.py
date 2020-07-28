@@ -16,12 +16,12 @@ if __name__ == '__main__':
     imsize = 48
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1001,
+            num_epochs=2501,
             batch_size=2048,
             num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000, #4000,
-            min_num_steps_before_training=1000,
+            num_expl_steps_per_train_loop=0,
+            num_trains_per_train_loop=1, #4000,
+            min_num_steps_before_training=1,
             # eval_epoch_freq=1,
             eval_only=True,
             eval_epoch_freq=50,
@@ -50,8 +50,8 @@ if __name__ == '__main__':
         observation_key='state_observation',
         desired_goal_key='state_desired_goal',
         achieved_goal_key='state_achieved_goal',
-        expl_goal_sampling_mode='obj_in_bowl',
-        eval_goal_sampling_mode='obj_in_bowl',
+        # expl_goal_sampling_mode='obj_in_bowl',
+        # eval_goal_sampling_mode='obj_in_bowl',
         save_env_in_snapshot=False,
         save_video=True,
         dump_video_kwargs=dict(
@@ -118,37 +118,38 @@ if __name__ == '__main__':
             eval_rollouts_to_log=['atomic', 'atomic_seq'],
             eval_rollouts_for_videos=[],
         ),
-        env_class=SawyerLiftEnvGC,
-        env_kwargs={
-            'action_scale': .06,
-            'action_repeat': 10,
-            'timestep': 1./120,
-            'solver_iterations': 500,
-            'max_force': 1000,
+        env_class=PickAndPlaceEnv,
+        env_kwargs=dict(
+            # Environment dynamics
+            action_scale=1.0,
+            ball_radius=1.5, #1.
+            boundary_dist=4,
+            object_radius=1.0,
+            min_grab_distance=1.0,
+            walls=None,
+            # Rewards
+            action_l2norm_penalty=0,
+            reward_type="dense", #dense_l1
+            object_reward_only=False,
+            # success_threshold=0.60,
+            # Reset settings
+            fixed_goal=None,
+            # Visualization settings
+            images_are_rgb=True,
+            render_dt_msec=0,
+            render_onscreen=False,
+            render_size=84,
+            show_goal=False, #True
+            # get_image_base_render_size=(48, 48),
+            # Goal sampling
+            goal_samplers=None,
+            goal_sampling_mode='random',
+            num_presampled_goals=10000,
+            init_position_strategy='random',
 
-            'gui': False,
-            'pos_init': [.75, -.3, 0],
-            'pos_high': [.75, .4, .3],
-            'pos_low': [.75, -.4, -.36],
-            'reset_obj_in_hand_rate': 0.0,
-            'bowl_bounds': [-0.40, 0.40],
-
-            'use_rotated_gripper': True,
-            'use_wide_gripper': True,
-            'soft_clip': True,
-            'obj_urdf': 'spam',
-            'max_joint_velocity': None,
-
-            'hand_reward': True,
-            'gripper_reward': True,
-            'bowl_reward': True,
-
-            'goal_sampling_mode': 'obj_in_bowl',
-            'random_init_bowl_pos': True,
-            'bowl_type': 'heavy',
-
-            'num_obj': 4,
-        },
+            num_objects=4,
+            success_threshold=1.0,
+        ),
         logger_config=dict(
             snapshot_gap=25,
             snapshot_mode='gap_and_last',
@@ -162,14 +163,52 @@ if __name__ == '__main__':
             train_split=0.3, # use 30% of data = 30 examples for train
         ),
         # example_set_path="ashvin/lha/example_set_gen/07-22-pb-abs-example-set/07-22-pb-abs-example-set_2020_07_22_18_35_52_id000--s57269/example_dataset.npy",
-        example_set_path="ashvin/lha/example_set_gen/07-22-pb-rel-example-set/07-22-pb-rel-example-set_2020_07_22_18_36_47_id000--s21183/example_dataset.npy",
-        # example_set_path="ashvin/lha/example_set_gen/07-22-pg-example-set/07-22-pg-example-set_2020_07_22_18_35_29_id000--s6012/example_dataset.npy",
-        ckpt="ashvin/lha/vice/pybullet-contextual2/run11/id0/",
+        # example_set_path="ashvin/lha/example_set_gen/07-22-pb-rel-example-set/07-22-pb-rel-example-set_2020_07_22_18_36_47_id000--s21183/example_dataset.npy",
+        example_set_path="ashvin/lha/example_set_gen/07-22-pg-example-set/07-22-pg-example-set_2020_07_22_18_35_29_id000--s6012/example_dataset.npy",
+        ckpt=(
+            "ashvin/lha/vice/pygame-contextual2/run20/id0/",
+            "ashvin/lha/vice/pygame-contextual2/run20/id1/",
+            "ashvin/lha/vice/pygame-contextual2/run20/id2/",
+            "ashvin/lha/vice/pygame-contextual2/run20/id3/",
+        ),
         ckpt_epoch=0,
+        switch_every=50,
     )
 
     search_space = {
-        'seedid': range(5),
+        'seedid': range(1),
+        'ckpt': [
+            (
+                "ashvin/lha/vice/pygame-contextual2/run20/id0/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id1/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id2/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id3/",
+            ),
+            (
+                "ashvin/lha/vice/pygame-contextual2/run20/id4/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id5/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id6/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id7/",
+            ),
+            (
+                "ashvin/lha/vice/pygame-contextual2/run20/id8/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id9/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id10/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id11/",
+            ),
+            (
+                "ashvin/lha/vice/pygame-contextual2/run20/id12/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id13/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id14/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id15/",
+            ),
+            (
+                "ashvin/lha/vice/pygame-contextual2/run20/id16/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id17/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id18/",
+                "ashvin/lha/vice/pygame-contextual2/run20/id19/",
+            ),
+        ],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
