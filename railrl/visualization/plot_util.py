@@ -431,6 +431,9 @@ def plot_trials(
             all_values.append(values)
             x_values = trial.data[x_key]
         try:
+            # min_len = np.min([len(values) for values in all_values])
+            # y_values = np.vstack([values[:min_len] for values in all_values])
+            # x_values = x_values[:min_len]
             min_len = np.min([len(values) for values in all_values])
             y_values = np.vstack([values[:min_len] for values in all_values])
             x_values = x_values[:min_len]

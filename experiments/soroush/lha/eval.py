@@ -171,16 +171,34 @@ env_params = {
         )],
         'rl_variant.eval_goal_sampling_mode': ['random'],
 
-        # 'rl_variant.mask_variant.mask_conditioned': [False],
-        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.mask_conditioned': [False],
+        # 'rl_variant.mask_variant.mask_conditioned': [True],
 
         'rl_variant.algo_kwargs.num_epochs': [2500],
         'rl_variant.ckpt': [
-            'pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s40057',
-            'pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s54673',
-            'pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s57147',
-            'pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s58208',
-            'pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s99224',
+            # 'pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s40057',
+            # 'pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s54673',
+            # 'pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s57147',
+            # 'pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s58208',
+            # 'pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s99224',
+
+            # 'pg-4obj/07-21-inferred-n-30-no-goal-relabeling/07-21-inferred-n-30-no-goal-relabeling_2020_07_21_20_08_52_id000--s88487',
+            # 'pg-4obj/07-21-inferred-n-30-no-goal-relabeling/07-21-inferred-n-30-no-goal-relabeling_2020_07_21_20_08_58_id000--s96671',
+            # 'pg-4obj/07-21-inferred-n-30-no-goal-relabeling/07-21-inferred-n-30-no-goal-relabeling_2020_07_21_20_09_01_id000--s7957',
+            # 'pg-4obj/07-21-inferred-n-30-no-goal-relabeling/07-21-inferred-n-30-no-goal-relabeling_2020_07_21_20_09_01_id000--s18819',
+            # 'pg-4obj/07-21-inferred-n-30-no-goal-relabeling/07-21-inferred-n-30-no-goal-relabeling_2020_07_21_20_09_01_id000--s26471',
+
+            # 'pg-4obj/07-21-inferred-n-30-no-mask-relabeling/07-21-inferred-n-30-no-mask-relabeling_2020_07_21_12_44_56_id000--s40880',
+            # 'pg-4obj/07-21-inferred-n-30-no-mask-relabeling/07-21-inferred-n-30-no-mask-relabeling_2020_07_21_12_45_02_id000--s44330',
+            # 'pg-4obj/07-21-inferred-n-30-no-mask-relabeling/07-21-inferred-n-30-no-mask-relabeling_2020_07_21_12_45_06_id000--s84870',
+            # 'pg-4obj/07-21-inferred-n-30-no-mask-relabeling/07-21-inferred-n-30-no-mask-relabeling_2020_07_21_12_45_18_id000--s24778',
+            # 'pg-4obj/07-21-inferred-n-30-no-mask-relabeling/07-21-inferred-n-30-no-mask-relabeling_2020_07_21_13_02_10_id000--s29398',
+
+            'pg-4obj/07-21-point/07-21-point_2020_07_21_07_57_10_id000--s10234',
+            'pg-4obj/07-21-point/07-21-point_2020_07_21_07_57_10_id000--s46866',
+            'pg-4obj/07-21-point/07-21-point_2020_07_21_07_57_10_id000--s50307',
+            'pg-4obj/07-21-point/07-21-point_2020_07_21_07_57_10_id000--s51011',
+            'pg-4obj/07-21-point/07-21-point_2020_07_21_07_57_10_id000--s75857',
         ],
         # 'rl_variant.ckpt_epoch': [
         #     1000,
@@ -343,31 +361,44 @@ env_params = {
             'obj_success_threshold': 0.10,
 
             'objs_to_reset_outside_bowl': [0, 1, 2, 3], # for goal_sampling_mode=obj_in_bowl
-            # 'objs_to_reset_outside_bowl': [], # for goal_sampling_mode=ground
+            # 'objs_to_reset_outside_bowl': [], # for goal_sampling_mode=gorund, or ground_away_from_curr_state
         }],
         'rl_variant.eval_goal_sampling_mode': [
             'obj_in_bowl',
-            # 'ground',
+            # 'ground_away_from_curr_state',
         ],
 
         'rl_variant.max_path_length': [400],
 
-        'rl_variant.mask_variant.mask_conditioned': [False],
-        # 'rl_variant.mask_variant.mask_conditioned': [True],
+        # 'rl_variant.mask_variant.mask_conditioned': [False],
+        'rl_variant.mask_variant.mask_conditioned': [True],
 
         'rl_variant.algo_kwargs.num_epochs': [4000],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [100],
         'rl_variant.ckpt': [
-            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s13680',
-            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s30933',
-            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s35977',
-            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s59054',
-            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s76689',
+            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s13680',
+            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s30933',
+            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s35977',
+            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s59054',
+            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s76689',
 
-            'pb-4obj/07-19-point/07-19-point_2020_07_19_07_08_36_id000--s34433',
-            'pb-4obj/07-19-point/07-19-point_2020_07_19_07_08_38_id000--s40777',
-            'pb-4obj/07-19-point/07-19-point_2020_07_19_07_08_39_id000--s68457',
-            'pb-4obj/07-19-point/07-19-point_2020_07_19_07_08_40_id000--s46274',
-            'pb-4obj/07-19-point/07-19-point_2020_07_19_07_08_40_id000--s73376',
+            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_30_id000--s13809',
+            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_33_id000--s30928',
+            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_34_id000--s26983',
+            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_34_id000--s56342',
+            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_36_id000--s99625',
+
+            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling_2020_07_24_20_01_45_id000--s12717',
+            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling_2020_07_24_20_01_45_id000--s33575',
+            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling_2020_07_24_20_01_49_id000--s50361',
+            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling_2020_07_24_20_01_50_id000--s496',
+            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling_2020_07_24_20_01_52_id000--s11119',
+
+            # 'pb-4obj/07-19-point/07-19-point_2020_07_19_07_08_36_id000--s34433',
+            # 'pb-4obj/07-19-point/07-19-point_2020_07_19_07_08_38_id000--s40777',
+            # 'pb-4obj/07-19-point/07-19-point_2020_07_19_07_08_39_id000--s68457',
+            # 'pb-4obj/07-19-point/07-19-point_2020_07_19_07_08_40_id000--s46274',
+            # 'pb-4obj/07-19-point/07-19-point_2020_07_19_07_08_40_id000--s73376',
         ],
         # 'rl_variant.ckpt_epoch': [
         #     3000,
