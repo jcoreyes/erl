@@ -189,6 +189,57 @@ env_params = {
         'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
         # 'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
     },
+    'pg-4obj-maskgen': {
+        'env_class': [PickAndPlaceEnv],
+        'env_kwargs': [dict(
+            # Environment dynamics
+            action_scale=1.0,
+            ball_radius=1.5,  # 1.
+            boundary_dist=4,
+            object_radius=1.0,
+            min_grab_distance=1.0,
+            walls=None,
+            # Rewards
+            action_l2norm_penalty=0,
+            reward_type="dense",  # dense_l1
+            object_reward_only=False,
+            # success_threshold=0.60,
+            # Reset settings
+            fixed_goal=None,
+            # Visualization settings
+            images_are_rgb=True,
+            render_dt_msec=0,
+            render_onscreen=False,
+            render_size=84,
+            show_goal=False,  # True
+            # get_image_base_render_size=(48, 48),
+            # Goal sampling
+            goal_samplers=None,
+            goal_sampling_mode='random',
+            num_presampled_goals=10000,
+            init_position_strategy='random',
+
+            num_objects=4,
+            success_threshold=1.0,
+        )],
+        'rl_variant.eval_goal_sampling_mode': ['random'],
+
+        # 'rl_variant.mask_variant.mask_conditioned': [False],
+        'rl_variant.mask_variant.mask_conditioned': [True],
+
+        'rl_variant.algo_kwargs.num_epochs': [5000],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [100],
+        'rl_variant.ckpt': [
+            '/home/soroush/data/local/pg-4obj-maskgen/07-25-expl-atomic-train-atomic-and-pairs/07-25-expl-atomic-train-atomic-and-pairs_2020_07_26_00_34_59_id000--s12685',
+        ],
+        # 'rl_variant.ckpt_epoch': [
+        #     1000,
+        #     # 100,
+        #     # None,
+        # ],
+        # 'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
+        'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
+    },
     'pb-4obj-rel': {
         'env_class': [SawyerLiftEnvGC],
         'env_kwargs': [{
