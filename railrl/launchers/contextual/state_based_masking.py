@@ -94,7 +94,7 @@ def rl_context_experiment(variant):
             import os.path as osp
 
             filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'masks.npy'))
-            masks = np.load(filename)[()]
+            masks = np.load(filename, allow_pickle=True)[()]
         else:
             masks = get_mask_params(
                 env=env,
@@ -195,51 +195,71 @@ def rl_context_experiment(variant):
 
     action_dim = env.action_space.low.size
 
-    qf1 = ConcatMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    qf2 = ConcatMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    target_qf1 = ConcatMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    target_qf2 = ConcatMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    if rl_algo == 'td3':
-        policy = TanhMlpPolicy(
-            input_size=obs_dim,
-            output_size=action_dim,
-            **variant['policy_kwargs']
+    if 'ckpt' in variant and 'ckpt_epoch' in variant:
+        from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+        import os.path as osp
+
+        ckpt_epoch = variant['ckpt_epoch']
+        if ckpt_epoch is not None:
+            epoch = variant['ckpt_epoch']
+            filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'itr_%d.pkl' % epoch))
+        else:
+            filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'params.pkl'))
+        print("Loading ckpt from", filename)
+        data = torch.load(filename)
+        qf1 = data['trainer/qf1']
+        qf2 = data['trainer/qf2']
+        target_qf1 = data['trainer/target_qf1']
+        target_qf2 = data['trainer/target_qf2']
+        policy = data['trainer/policy']
+        eval_policy = data['evaluation/policy']
+        expl_policy = data['exploration/policy']
+    else:
+        qf1 = ConcatMlp(
+            input_size=obs_dim + action_dim,
+            output_size=1,
+            **variant['qf_kwargs']
         )
-        target_policy = TanhMlpPolicy(
-            input_size=obs_dim,
-            output_size=action_dim,
-            **variant['policy_kwargs']
+        qf2 = ConcatMlp(
+            input_size=obs_dim + action_dim,
+            output_size=1,
+            **variant['qf_kwargs']
         )
-        expl_policy = create_exploration_policy(
-            env, policy,
-            exploration_version=variant['exploration_type'],
-            exploration_noise=variant['exploration_noise'],
+        target_qf1 = ConcatMlp(
+            input_size=obs_dim + action_dim,
+            output_size=1,
+            **variant['qf_kwargs']
         )
-        eval_policy = policy
-    elif rl_algo == 'sac':
-        policy = TanhGaussianPolicy(
-            obs_dim=obs_dim,
-            action_dim=action_dim,
-            **variant['policy_kwargs']
+        target_qf2 = ConcatMlp(
+            input_size=obs_dim + action_dim,
+            output_size=1,
+            **variant['qf_kwargs']
         )
-        expl_policy = policy
-        eval_policy = MakeDeterministic(policy)
+        if rl_algo == 'td3':
+            policy = TanhMlpPolicy(
+                input_size=obs_dim,
+                output_size=action_dim,
+                **variant['policy_kwargs']
+            )
+            target_policy = TanhMlpPolicy(
+                input_size=obs_dim,
+                output_size=action_dim,
+                **variant['policy_kwargs']
+            )
+            expl_policy = create_exploration_policy(
+                env, policy,
+                exploration_version=variant['exploration_type'],
+                exploration_noise=variant['exploration_noise'],
+            )
+            eval_policy = policy
+        elif rl_algo == 'sac':
+            policy = TanhGaussianPolicy(
+                obs_dim=obs_dim,
+                action_dim=action_dim,
+                **variant['policy_kwargs']
+            )
+            expl_policy = policy
+            eval_policy = MakeDeterministic(policy)
 
     post_process_mask_fn = partial(
         full_post_process_mask_fn,
@@ -702,19 +722,14 @@ def rl_context_experiment(variant):
         assert variant['algo_kwargs'].get('eval_only', False)
 
         def update_networks(algo, epoch):
+            if 'ckpt_epoch' in variant:
+                return
+
             if epoch % algo._eval_epoch_freq == 0:
-                # epoch = variant['ckpt_epoch']
                 filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'itr_%d.pkl' % epoch))
                 print("Loading ckpt from", filename)
-                # data = joblib.load(filename)
                 data = torch.load(filename)#, map_location='cuda:1')
-                # qf1 = data['trainer/qf1']
-                # qf2 = data['trainer/qf2']
-                # target_qf1 = data['trainer/target_qf1']
-                # target_qf2 = data['trainer/target_qf2']
-                # policy = data['trainer/policy']
                 eval_policy = data['evaluation/policy']
-                # expl_policy = data['exploration/policy']
                 eval_policy.to(ptu.device)
                 algo.eval_data_collector._policy = eval_policy
                 for collector in addl_collectors:

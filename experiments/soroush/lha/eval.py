@@ -320,24 +320,39 @@ env_params = {
             'goal_sampling_mode': 'ground',
             'random_init_bowl_pos': False,
             'bowl_type': 'fixed',
-
             'num_obj': 4,
+            'obj_success_threshold': 0.10,
+
+            # 'reset_objs_outside_bowl': True, # for goal_sampling_mode=obj_in_bowl
+            'reset_objs_outside_bowl': False, # for goal_sampling_mode=ground
         }],
-        'rl_variant.eval_goal_sampling_mode': ['obj_in_bowl'],
+        'rl_variant.eval_goal_sampling_mode': [
+            # 'obj_in_bowl',
+            'ground',
+        ],
+
+        'rl_variant.max_path_length': [
+            100,
+            # 200,
+        ],
+        'rl_variant.algo_kwargs.num_eval_steps_per_epoch': [
+            2500,
+            # 5000,
+        ],
 
         # 'rl_variant.mask_variant.mask_conditioned': [False],
         'rl_variant.mask_variant.mask_conditioned': [True],
 
         'rl_variant.algo_kwargs.num_epochs': [4000],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [500],
+        'rl_variant.algo_kwargs.eval_epoch_freq': [50],
         'rl_variant.ckpt': [
-            '/home/soroush/data/local/pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s13680',
+            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s13680',
+            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s30933',
+            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s35977',
         ],
-        # 'rl_variant.ckpt_epoch': [
-        #     1000,
-        #     # 100,
-        #     # None,
-        # ],
+        'rl_variant.ckpt_epoch': [
+            3000,
+        ],
         'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
         # 'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
     },
@@ -394,8 +409,12 @@ env_params = {
 def process_variant(variant):
     rl_variant = variant['rl_variant']
 
+    if 'ckpt_epoch' in rl_variant:
+        rl_variant['algo_kwargs']['num_epochs'] = 3
+        rl_variant['algo_kwargs']['eval_epoch_freq'] = 1
+
     if args.debug:
-        rl_variant['algo_kwargs']['num_eval_steps_per_epoch'] = 200
+        rl_variant['algo_kwargs']['num_eval_steps_per_epoch'] = rl_variant['max_path_length'] * 2
         # rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
         rl_variant['dump_video_kwargs']['columns'] = 2
         # rl_variant['save_video_period'] = 2
