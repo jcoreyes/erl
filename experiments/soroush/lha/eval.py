@@ -13,6 +13,7 @@ from furniture.env.furniture_multiworld import FurnitureMultiworld
 variant = dict(
     rl_variant=dict(
         do_state_exp=True,
+        num_rollouts_per_epoch=15,
         algo_kwargs=dict(
             num_epochs=1000,
             batch_size=2048,
@@ -20,7 +21,6 @@ variant = dict(
             num_trains_per_train_loop=1000, #4000,
             min_num_steps_before_training=1000,
 
-            num_eval_steps_per_epoch=2500, #1000
             eval_only=True,
             eval_epoch_freq=50,
         ),
@@ -175,7 +175,6 @@ env_params = {
         'rl_variant.mask_variant.mask_conditioned': [True],
 
         'rl_variant.algo_kwargs.num_epochs': [2000],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [25],
         'rl_variant.ckpt': [
             # '/home/soroush/data/local/pg-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_56_41_id000--s40057',
             # '/home/soroush/data/local/pg-4obj/07-21-inferred-n-30-no-goal-relabeling/07-21-inferred-n-30-no-goal-relabeling_2020_07_21_20_08_52_id000--s88487',
@@ -228,7 +227,6 @@ env_params = {
         'rl_variant.mask_variant.mask_conditioned': [True],
 
         'rl_variant.algo_kwargs.num_epochs': [5000],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [100],
         'rl_variant.ckpt': [
             '/home/soroush/data/local/pg-4obj-maskgen/07-25-expl-atomic-train-atomic-and-pairs/07-25-expl-atomic-train-atomic-and-pairs_2020_07_26_00_34_59_id000--s12685',
         ],
@@ -269,8 +267,10 @@ env_params = {
             'goal_sampling_mode': 'ground',
             'random_init_bowl_pos': True,
             'bowl_type': 'heavy',
-
             'num_obj': 4,
+            'obj_success_threshold': 0.10,
+
+            'objs_to_reset_outside_bowl': [0],
         }],
         'rl_variant.eval_goal_sampling_mode': ['obj_in_bowl'],
 
@@ -278,18 +278,20 @@ env_params = {
         'rl_variant.mask_variant.mask_conditioned': [True],
         'rl_variant.mask_variant.param_variant.mask_format': ['distribution'],
 
-        'rl_variant.algo_kwargs.num_epochs': [2000],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [50],
+        'rl_variant.algo_kwargs.num_epochs': [3000],
         'rl_variant.ckpt': [
-            '/home/soroush/data/local/pb-4obj-rel/07-18-distr-inferred-n-30/07-18-distr-inferred-n-30_2020_07_19_06_57_28_id000--s14736',
+            'pb-4obj-rel/07-18-distr-inferred-n-30/07-18-distr-inferred-n-30_2020_07_19_06_57_28_id000--s14736',
+            'pb-4obj-rel/07-18-distr-inferred-n-30/07-18-distr-inferred-n-30_2020_07_19_06_57_28_id000--s62041',
+            'pb-4obj-rel/07-18-distr-inferred-n-30/07-18-distr-inferred-n-30_2020_07_19_06_57_28_id000--s72900',
+            'pb-4obj-rel/07-18-distr-inferred-n-30/07-18-distr-inferred-n-30_2020_07_19_06_57_29_id000--s58063',
+            'pb-4obj-rel/07-18-distr-inferred-n-30/07-18-distr-inferred-n-30_2020_07_19_06_57_29_id000--s68725',
         ],
         # 'rl_variant.ckpt_epoch': [
-        #     1000,
+        #     2000,
         #     # 100,
         #     # None,
         # ],
-        'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
-        # 'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
+        'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
     },
     'pb-4obj': {
         'env_class': [SawyerLiftEnvGC],
@@ -323,38 +325,31 @@ env_params = {
             'num_obj': 4,
             'obj_success_threshold': 0.10,
 
-            # 'reset_objs_outside_bowl': True, # for goal_sampling_mode=obj_in_bowl
-            'reset_objs_outside_bowl': False, # for goal_sampling_mode=ground
+            'objs_to_reset_outside_bowl': [0, 1, 2, 3], # for goal_sampling_mode=obj_in_bowl
+            # 'objs_to_reset_outside_bowl': [], # for goal_sampling_mode=ground
         }],
         'rl_variant.eval_goal_sampling_mode': [
             # 'obj_in_bowl',
             'ground',
         ],
 
-        'rl_variant.max_path_length': [
-            100,
-            # 200,
-        ],
-        'rl_variant.algo_kwargs.num_eval_steps_per_epoch': [
-            2500,
-            # 5000,
-        ],
+        'rl_variant.max_path_length': [400],
 
         # 'rl_variant.mask_variant.mask_conditioned': [False],
         'rl_variant.mask_variant.mask_conditioned': [True],
 
         'rl_variant.algo_kwargs.num_epochs': [4000],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [50],
         'rl_variant.ckpt': [
             'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s13680',
-            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s30933',
-            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s35977',
+            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s30933',
+            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s35977',
+            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s59054',
+            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s76689',
         ],
-        'rl_variant.ckpt_epoch': [
-            3000,
-        ],
+        # 'rl_variant.ckpt_epoch': [
+        #     3000,
+        # ],
         'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
-        # 'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
     },
     'shelf-4obj': {
         'env_class': [FurnitureMultiworld],
@@ -392,7 +387,6 @@ env_params = {
         'rl_variant.mask_variant.mask_conditioned': [True],
 
         'rl_variant.algo_kwargs.num_epochs': [4000],
-        'rl_variant.algo_kwargs.eval_epoch_freq': [500],
         'rl_variant.ckpt': [
             '/home/soroush/data/local/shelf-4obj/07-26-select2-three-subtasks/07-26-select2-three-subtasks_2020_07_26_08_50_00_id000--s94704',
         ],
@@ -414,11 +408,15 @@ def process_variant(variant):
         rl_variant['algo_kwargs']['eval_epoch_freq'] = 1
 
     if args.debug:
-        rl_variant['algo_kwargs']['num_eval_steps_per_epoch'] = rl_variant['max_path_length'] * 2
+        rl_variant['num_rollouts_per_epoch'] = 2
         # rl_variant['algo_kwargs']['min_num_steps_before_training'] = 200
         rl_variant['dump_video_kwargs']['columns'] = 2
         # rl_variant['save_video_period'] = 2
         variant['imsize'] = 256
+
+    rl_variant['algo_kwargs']['num_eval_steps_per_epoch'] = (
+        rl_variant['max_path_length'] * rl_variant['num_rollouts_per_epoch']
+    )
 
     rl_variant['renderer_kwargs']['width'] = variant['imsize']
     rl_variant['renderer_kwargs']['height'] = variant['imsize']
