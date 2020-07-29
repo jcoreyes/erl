@@ -24,7 +24,7 @@ if __name__ == '__main__':
             min_num_steps_before_training=1,
             # eval_epoch_freq=1,
             eval_only=True,
-            eval_epoch_freq=50,
+            eval_epoch_freq=100,
         ),
         max_path_length=400,
         sac_trainer_kwargs=dict(

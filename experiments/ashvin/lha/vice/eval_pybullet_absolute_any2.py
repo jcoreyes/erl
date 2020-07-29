@@ -24,7 +24,7 @@ if __name__ == '__main__':
             min_num_steps_before_training=1,
             # eval_epoch_freq=1,
             eval_only=True,
-            eval_epoch_freq=50,
+            eval_epoch_freq=100,
         ),
         max_path_length=400,
         sac_trainer_kwargs=dict(
@@ -51,7 +51,7 @@ if __name__ == '__main__':
         desired_goal_key='state_desired_goal',
         achieved_goal_key='state_achieved_goal',
         # expl_goal_sampling_mode='obj_in_bowl',
-        eval_goal_sampling_mode='obj_in_bowl',
+        eval_goal_sampling_mode='ground_away_from_curr_state',
         save_env_in_snapshot=False,
         save_video=False,
         dump_video_kwargs=dict(
@@ -61,7 +61,7 @@ if __name__ == '__main__':
             pad_length=0,
             subpad_length=1,
         ),
-        save_video_period=50,
+        save_video_period=150,
         renderer_kwargs=dict(
             width=imsize,
             height=imsize,
@@ -143,13 +143,13 @@ if __name__ == '__main__':
             'gripper_reward': True,
             'bowl_reward': True,
 
-            'goal_sampling_mode': 'ground',
+            'goal_sampling_mode': 'ground_away_from_curr_state',
             'random_init_bowl_pos': False,
             'bowl_type': 'fixed',
             'num_obj': 4,
             'obj_success_threshold': 0.10,
 
-            'objs_to_reset_outside_bowl': [0, 1, 2, 3],
+            'objs_to_reset_outside_bowl': [],
         },
         logger_config=dict(
             snapshot_gap=25,

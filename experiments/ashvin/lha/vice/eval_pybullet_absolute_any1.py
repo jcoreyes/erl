@@ -18,7 +18,7 @@ if __name__ == '__main__':
         algo_kwargs=dict(
             num_epochs=2501,
             batch_size=2048,
-            num_eval_steps_per_epoch=4000,
+            num_eval_steps_per_epoch=6000,
             num_expl_steps_per_train_loop=0,
             num_trains_per_train_loop=1, #4000,
             min_num_steps_before_training=1,
@@ -145,7 +145,7 @@ if __name__ == '__main__':
 
             'goal_sampling_mode': 'ground',
             'random_init_bowl_pos': False,
-            'bowl_type': 'heavy',
+            'bowl_type': 'fixed',
             'num_obj': 4,
             'obj_success_threshold': 0.10,
 

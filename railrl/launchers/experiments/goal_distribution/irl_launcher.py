@@ -233,7 +233,7 @@ def representation_learning_with_goal_distribution_launcher(
             reward_fn=reward_fn,
             observation_key=observation_key,
             contextual_diagnostics_fns=[state_diag_fn],
-            update_env_info_fn=delete_info,
+            update_env_info_fn=None,
         )
         return env, no_goal_distribution, reward_fn
 
@@ -258,13 +258,13 @@ def representation_learning_with_goal_distribution_launcher(
             epoch = 0
             filename = local_path_from_s3_or_local_path(osp.join(ckpt_path, 'itr_%d.pkl' % epoch))
             print("Loading ckpt from", filename)
-            data = torch.load(filename)#, map_location='cuda:1')
+            data = torch.load(filename, map_location='cuda')
             eval_policy = data['evaluation/policy']
             eval_policy.to(ptu.device)
             policies.append(eval_policy)
 
         # data = joblib.load(filename)
-        data = torch.load(filename, map_location='cuda:1')
+        data = torch.load(filename, map_location='cuda')
         qf1 = data['trainer/qf1']
         qf2 = data['trainer/qf2']
         target_qf1 = data['trainer/target_qf1']
@@ -539,7 +539,7 @@ def representation_learning_with_goal_distribution_launcher(
                 for ckpt_path in ckpt:
                     filename = local_path_from_s3_or_local_path(osp.join(ckpt_path, 'itr_%d.pkl' % epoch))
                     print("Loading ckpt from", filename)
-                    data = torch.load(filename)#, map_location='cuda:1')
+                    data = torch.load(filename, map_location='cuda')
                     eval_policy = data['evaluation/policy']
                     eval_policy.to(ptu.device)
                     policies.append(eval_policy)
@@ -568,7 +568,7 @@ def representation_learning_with_goal_distribution_launcher(
                 context_distribution=image_goal_distribution,
                 reward_fn=reward_fn,
                 observation_key=observation_key,
-                update_env_info_fn=delete_info,
+                update_env_info_fn=None,
             )
             return context_env
 

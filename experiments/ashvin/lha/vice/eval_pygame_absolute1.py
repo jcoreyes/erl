@@ -172,7 +172,7 @@ if __name__ == '__main__':
             "ashvin/lha/vice/pygame-contextual2/run20/id3/",
         ),
         ckpt_epoch=0,
-        switch_every=50,
+        switch_every=25,
     )
 
     search_space = {
