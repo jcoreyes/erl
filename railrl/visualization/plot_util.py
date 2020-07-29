@@ -423,10 +423,16 @@ def plot_trials(
             if len(y_keys) == 1:
                 values = trial.data[y_keys[0]]
             else:
-                multiple_values = [
-                    trial.data[k] for k in y_keys
-                ]
-                values = process_values(multiple_values)
+                # multiple_values = [
+                #     trial.data[k] for k in y_keys
+                # ]
+                # values = process_values(multiple_values)
+                for k in y_keys:
+                    try:
+                        values = trial.data[k]
+                        break
+                    except:
+                        pass
             values = process_time_series(values)
             all_values.append(values)
             x_values = trial.data[x_key]

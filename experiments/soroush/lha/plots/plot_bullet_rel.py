@@ -9,29 +9,36 @@ from railrl.misc.data_processing import get_trials
 from common import plot_variant
 
 plt.style.use("ggplot")
-
 base_path = "/home/soroush/data/local/"
 
 disco = get_trials(
-    # osp.join(base_path, 'pb-4obj-rel/07-18-distr-inferred-n-30'),
     osp.join(base_path, 'pb-4obj-rel/07-28-eval-disco'),
+    excluded_seeds=[98106],
 )
 gcrl = get_trials(
     # osp.join(base_path, 'pb-4obj-rel/07-19-point'),
     osp.join(base_path, 'pb-4obj-rel/07-28-eval-gcrl-oracle'),
 )
+vice = get_trials(
+    osp.join(base_path, 'pb-4obj-rel/pb-4obj-rel-vice'),
+)
+disco_hard_coded = get_trials(
+    osp.join(base_path, 'pb-4obj-rel/07-28-eval-disco-hard-coded'),
+)
 
 name_to_trials = OrderedDict()
 name_to_trials['DisCo RL (ours)'] = disco
 name_to_trials['GCRL'] = gcrl
+name_to_trials['VICE'] = vice
+name_to_trials['Ours: hard coded cov'] = disco_hard_coded
 x_label = 'Num Env Steps Total (x1000)'
 x_key = 'epoch'
 x_lim = (0, 2000)
-y_lim = (-0.1, 1.2)
+y_lim = (-0.1, 1.05)
 
 ### xy distance ###
 y_keys = [
-    # 'evalenv_infosfinalbowl_cube_0_dist_Mean',
+    'evaluationenv_infosfinalbowl_cube_0_success Mean',
     'evalenv_infosfinalbowl_cube_0_success Mean',
 ]
 y_label = 'Success Rate'
@@ -44,6 +51,6 @@ plot_variant(
     x_lim=x_lim, y_lim=y_lim,
     show_legend=True,
     filter_frame=100,
-    upper_limit=4.0,
-    title='Sawyer Pick and Place',
+    upper_limit=1.0,
+    # title='Sawyer Pick and Place: Single Task',
 )

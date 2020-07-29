@@ -296,6 +296,9 @@ env_params = {
         'rl_variant.mask_variant.mask_conditioned': [False],
         'rl_variant.eval_goal_sampling_mode': ['first_obj_in_bowl_oracle'],
 
+        ### For the vanilla RL version ###
+        'rl_variant.contextual_mdp': [False],
+
         # ### Disco RL ###
         # 'rl_variant.mask_variant.mask_conditioned': [True],
         # 'rl_variant.mask_variant.param_variant.mask_format': ['distribution'],
@@ -315,14 +318,26 @@ env_params = {
             # 'pb-4obj-rel/07-18-distr-hard-coded/07-18-distr-hard-coded_2020_07_19_06_59_35_id000--s99383',
             # 'pb-4obj-rel/07-18-distr-hard-coded/07-18-distr-hard-coded_2020_07_19_06_59_37_id000--s34153',
 
-            'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s15273',
-            'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s24524',
-            'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s48038',
-            'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s81190',
-            'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s99824',
+            # 'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_12_59_id000--s60261',
+            # 'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_06_id000--s30704',
+            # 'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_07_id000--s21024',
+            # 'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_07_id000--s57337',
+            # 'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_08_id000--s754',
+
+            'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_35_id000--s99034',
+            'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_36_id000--s59972',
+            'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_37_id000--s24033',
+            'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_37_id000--s54305',
+            'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_19_21_id000--s72661',
+
+            # 'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s15273',
+            # 'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s24524',
+            # 'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s48038',
+            # 'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s81190',
+            # 'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s99824',
         ],
         # 'rl_variant.ckpt_epoch': [
-        #     2000,
+        #     1500,
         #     # 100,
         #     # None,
         # ],
@@ -360,12 +375,12 @@ env_params = {
             'num_obj': 4,
             'obj_success_threshold': 0.10,
 
-            'objs_to_reset_outside_bowl': [0, 1, 2, 3], # for goal_sampling_mode=obj_in_bowl
-            # 'objs_to_reset_outside_bowl': [], # for goal_sampling_mode=gorund, or ground_away_from_curr_state
+            # 'objs_to_reset_outside_bowl': [0, 1, 2, 3], # for goal_sampling_mode=obj_in_bowl
+            'objs_to_reset_outside_bowl': [], # for goal_sampling_mode=gorund, or ground_away_from_curr_state
         }],
         'rl_variant.eval_goal_sampling_mode': [
-            'obj_in_bowl',
-            # 'ground_away_from_curr_state',
+            # 'obj_in_bowl',
+            'ground_away_from_curr_state',
         ],
 
         'rl_variant.max_path_length': [400],
@@ -376,17 +391,17 @@ env_params = {
         'rl_variant.algo_kwargs.num_epochs': [4000],
         'rl_variant.algo_kwargs.eval_epoch_freq': [100],
         'rl_variant.ckpt': [
-            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s13680',
-            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s30933',
-            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s35977',
-            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s59054',
-            'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s76689',
+            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s13680',
+            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s30933',
+            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s35977',
+            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s59054',
+            # 'pb-4obj/07-21-distr-use-proper-mean-inferred-n-30/07-21-distr-use-proper-mean-inferred-n-30_2020_07_21_07_46_02_id000--s76689',
 
-            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_30_id000--s13809',
-            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_33_id000--s30928',
-            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_34_id000--s26983',
-            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_34_id000--s56342',
-            'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_36_id000--s99625',
+            # 'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_30_id000--s13809',
+            # 'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_33_id000--s30928',
+            # 'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_34_id000--s26983',
+            # 'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_34_id000--s56342',
+            # 'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-goal-relabeling_2020_07_24_19_59_36_id000--s99625',
 
             'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling_2020_07_24_20_01_45_id000--s12717',
             'pb-4obj/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling/07-24-distr-use-proper-mean-inferred-n-30-no-mask-relabeling_2020_07_24_20_01_45_id000--s33575',
@@ -436,19 +451,24 @@ env_params = {
             task_type='select2',
         ),],
         'rl_variant.eval_goal_sampling_mode': ['assembled_random'],
+        'rl_variant.keep_env_infos': [True],
 
         # 'rl_variant.mask_variant.mask_conditioned': [False],
         'rl_variant.mask_variant.mask_conditioned': [True],
 
         'rl_variant.algo_kwargs.num_epochs': [4000],
         'rl_variant.ckpt': [
-            '/home/soroush/data/local/shelf-4obj/07-26-select2-three-subtasks/07-26-select2-three-subtasks_2020_07_26_08_50_00_id000--s94704',
+            'shelf-4obj/07-26-select2-three-subtasks/07-26-select2-three-subtasks_2020_07_26_08_50_00_id000--s94704',
+            'shelf-4obj/07-26-select2-three-subtasks/07-26-select2-three-subtasks_2020_07_26_08_50_03_id000--s5323',
+            'shelf-4obj/07-26-select2-three-subtasks/07-26-select2-three-subtasks_2020_07_26_08_50_21_id000--s30739',
+            'shelf-4obj/07-26-select2-three-subtasks/07-26-select2-three-subtasks_2020_07_26_08_50_22_id000--s12924',
+            'shelf-4obj/07-26-select2-three-subtasks/07-26-select2-three-subtasks_2020_07_26_08_50_22_id000--s24008',
         ],
-        # 'rl_variant.ckpt_epoch': [
-        #     1000,
-        #     # 100,
-        #     # None,
-        # ],
+        'rl_variant.ckpt_epoch': [
+            2500,
+            # 100,
+            # None,
+        ],
         'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
         # 'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
     },
