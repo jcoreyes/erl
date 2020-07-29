@@ -292,17 +292,17 @@ env_params = {
             'objs_to_reset_outside_bowl': [0],
         }],
 
-        ### GCRL with oracle ###
-        'rl_variant.mask_variant.mask_conditioned': [False],
-        'rl_variant.eval_goal_sampling_mode': ['first_obj_in_bowl_oracle'],
+        # ### GCRL with oracle ###
+        # 'rl_variant.mask_variant.mask_conditioned': [False],
+        # 'rl_variant.eval_goal_sampling_mode': ['first_obj_in_bowl_oracle'],
+        #
+        # ### For the vanilla RL version ###
+        # 'rl_variant.contextual_mdp': [False],
 
-        ### For the vanilla RL version ###
-        'rl_variant.contextual_mdp': [False],
-
-        # ### Disco RL ###
-        # 'rl_variant.mask_variant.mask_conditioned': [True],
-        # 'rl_variant.mask_variant.param_variant.mask_format': ['distribution'],
-        # 'rl_variant.eval_goal_sampling_mode': ['obj_in_bowl'],
+        ### Disco RL ###
+        'rl_variant.mask_variant.mask_conditioned': [True],
+        'rl_variant.mask_variant.param_variant.mask_format': ['distribution'],
+        'rl_variant.eval_goal_sampling_mode': ['obj_in_bowl'],
 
         'rl_variant.algo_kwargs.num_epochs': [3000],
         'rl_variant.ckpt': [
@@ -318,17 +318,17 @@ env_params = {
             # 'pb-4obj-rel/07-18-distr-hard-coded/07-18-distr-hard-coded_2020_07_19_06_59_35_id000--s99383',
             # 'pb-4obj-rel/07-18-distr-hard-coded/07-18-distr-hard-coded_2020_07_19_06_59_37_id000--s34153',
 
-            # 'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_12_59_id000--s60261',
-            # 'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_06_id000--s30704',
-            # 'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_07_id000--s21024',
-            # 'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_07_id000--s57337',
-            # 'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_08_id000--s754',
+            'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_12_59_id000--s60261',
+            'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_06_id000--s30704',
+            'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_07_id000--s21024',
+            'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_07_id000--s57337',
+            'pb-4obj-rel/07-27-disco-no-relabeling/07-27-disco-no-relabeling_2020_07_27_08_16_08_id000--s754',
 
-            'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_35_id000--s99034',
-            'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_36_id000--s59972',
-            'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_37_id000--s24033',
-            'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_37_id000--s54305',
-            'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_19_21_id000--s72661',
+            # 'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_35_id000--s99034',
+            # 'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_36_id000--s59972',
+            # 'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_37_id000--s24033',
+            # 'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_14_37_id000--s54305',
+            # 'pb-4obj-rel/07-27-regular-rl/07-27-regular-rl_2020_07_27_08_19_21_id000--s72661',
 
             # 'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s15273',
             # 'pb-4obj-rel/07-19-point/07-19-point_2020_07_19_07_07_47_id000--s24524',
@@ -463,12 +463,18 @@ env_params = {
             'shelf-4obj/07-26-select2-three-subtasks/07-26-select2-three-subtasks_2020_07_26_08_50_21_id000--s30739',
             'shelf-4obj/07-26-select2-three-subtasks/07-26-select2-three-subtasks_2020_07_26_08_50_22_id000--s12924',
             'shelf-4obj/07-26-select2-three-subtasks/07-26-select2-three-subtasks_2020_07_26_08_50_22_id000--s24008',
+
+            # 'shelf-4obj/07-26-select2-gcrl/07-26-select2-gcrl_2020_07_26_08_50_22_id000--s42843',
+            # 'shelf-4obj/07-26-select2-gcrl/07-26-select2-gcrl_2020_07_26_08_50_24_id000--s46544',
+            # 'shelf-4obj/07-26-select2-gcrl/07-26-select2-gcrl_2020_07_26_08_50_24_id000--s84034',
+            # 'shelf-4obj/07-26-select2-gcrl/07-26-select2-gcrl_2020_07_26_08_50_28_id000--s21069',
+            # 'shelf-4obj/07-26-select2-gcrl/07-26-select2-gcrl_2020_07_26_08_50_29_id000--s67458',
         ],
-        'rl_variant.ckpt_epoch': [
-            2500,
-            # 100,
-            # None,
-        ],
+        # 'rl_variant.ckpt_epoch': [
+        #     2500,
+        #     # 100,
+        #     # None,
+        # ],
         'rl_variant.mask_variant.eval_mask_distr.atomic_seq': [1.0],
         # 'rl_variant.mask_variant.eval_mask_distr.atomic': [1.0],
     },
