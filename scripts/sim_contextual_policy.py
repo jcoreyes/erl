@@ -10,13 +10,12 @@ from railrl.samplers.rollout_functions import (
 )
 from railrl.torch.core import PyTorchModule
 import railrl.torch.pytorch_util as ptu
-from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+
 
 def simulate_policy(args):
     if args.pause:
         import ipdb; ipdb.set_trace()
-    # data = pickle.load(open(args.file, "rb")) # joblib.load(args.file)
-    data = local_path_from_s3_or_local_path(args.file)
+    data = pickle.load(open(args.file, "rb")) # joblib.load(args.file)
     if 'policy' in data:
         policy = data['policy']
     elif 'evaluation/policy' in data:
