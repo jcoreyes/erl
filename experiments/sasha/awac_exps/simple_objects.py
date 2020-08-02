@@ -3,39 +3,25 @@ from railrl.demos.source.dict_to_mdp_path_loader import EncoderDictToMDPPathLoad
 from railrl.launchers.experiments.ashvin.awr_sac_gcrl import awac_rig_experiment
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
-from railrl.torch.sac.policies import GaussianCNNPolicy, GaussianMixturePolicy
+from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
 from roboverse.envs.sawyer_rig_multiobj_v0 import SawyerRigMultiobjV0
-from railrl.torch.networks.cnn import ConcatCNN
+from railrl.torch.networks import Clamp
+
 
 if __name__ == "__main__":
     variant = dict(
+        imsize=48,
         env_class=SawyerRigMultiobjV0,
-        policy_class=GaussianCNNPolicy,
+        policy_class=GaussianPolicy,
         policy_kwargs=dict(
-            hidden_sizes=[128, 128],
+            hidden_sizes=[256, 256, 256, 256],
             max_log_std=0,
             min_log_std=-6,
             std_architecture="values",
-
-            input_width=21,
-            input_height=21,
-            input_channels=6,
-            kernel_sizes=[5, 3, 3],
-            n_channels=[16, 32, 32],
-            strides=[3, 2, 2],
-            paddings=[1, 1, 1],
         ),
 
-        qf_class=ConcatCNN,
         qf_kwargs=dict(
-            hidden_sizes=[128, 128],
-            input_width=21,
-            input_height=21,
-            input_channels=6,
-            kernel_sizes=[5, 3, 3],
-            n_channels=[16, 32, 32],
-            strides=[3, 2, 2],
-            paddings=[1, 1, 1],
+            hidden_sizes=[256, 256],
         ),
 
         trainer_kwargs=dict(
@@ -59,9 +45,9 @@ if __name__ == "__main__":
             use_awr_update=True,
             use_reparam_update=False,
             compute_bc=True,
-            reparam_weight=0.0,
-            awr_weight=1.0,
-            bc_weight=0.0,
+            reparam_weight=0.0, #0.0
+            awr_weight=1.0, #1.0
+            bc_weight=0.0, #0.0
 
             reward_transform_kwargs=None,
             terminal_transform_kwargs=None,
@@ -69,17 +55,17 @@ if __name__ == "__main__":
 
         max_path_length=50, #50
         algo_kwargs=dict(
-            batch_size=512,
-            num_epochs=501,
-            num_eval_steps_per_epoch=1000,
-            num_expl_steps_per_train_loop=1000,
-            num_trains_per_train_loop=1000,
-            min_num_steps_before_training=4000,
+            batch_size=1024,
+            num_epochs=250, #250
+            num_eval_steps_per_epoch=1000, #1000
+            num_expl_steps_per_train_loop=1000, #1000
+            num_trains_per_train_loop=1000, #1000
+            min_num_steps_before_training=4000, #4000
         ),
         replay_buffer_kwargs=dict(
-            fraction_future_context=0.0,
-            fraction_distribution_context=1.0,
-            max_size=int(1e5),
+            fraction_future_context=0.2,
+            fraction_distribution_context=0.5,
+            max_size=int(1E6),
         ),
         demo_replay_buffer_kwargs=dict(
             fraction_future_context=0.0,
@@ -87,8 +73,6 @@ if __name__ == "__main__":
         ),
         reward_kwargs=dict(
             reward_type='wrapped_env',
-            #reward_type='sparse',
-            obs_type='latent',
             epsilon=2.0,
         ),
 
@@ -99,30 +83,24 @@ if __name__ == "__main__":
             save_video_period=25,
             pad_color=0,
         ),
-        #pretrained_vae_path="/home/ashvin/data/sasha/cvqvae/vqvae/run12/id0/itr_200.pkl",
-        pretrained_vae_path="/home/ashvin/data/sasha/cvqvae/vqvae/run10/id0/vae.pkl",
-        #pretrained_vae_path="/home/ashvin/data/sasha/cvqvae/vqvae/run13/id0/vae.pkl",
-        presampled_goals_path="/home/ashvin/data/sasha/demos/multiobj_goals.pkl",
+        
+        pretrained_vae_path="/home/ashvin/data/sasha/cvqvae/vqvae/run20/id0/itr_300.pkl",
+        presampled_goals_path="/home/ashvin/data/sasha/demos/zero_goals.pkl",
+
+        # pretrained_vae_path="sasha/simple_obj/vae.pkl",
+        # presampled_goals_path="sasha/simple_obj/zero_goals.pkl",
 
         path_loader_class=EncoderDictToMDPPathLoader,
         path_loader_kwargs=dict(
             recompute_reward=True,
-            demo_paths=[
-                dict(
-                    path='/home/ashvin/data/sasha/spacemouse/demo_data/train.pkl',
-                    obs_dict=True,
-                    is_demo=True,
-                    #data_split=0.1,
-                ),
-            ],
         ),
 
         renderer_kwargs=dict(
             create_image_format='HWC',
             output_image_format='CWH',
             flatten_image=True,
-            width=84,
-            height=84,
+            width=48,
+            height=48,
         ),
 
 
@@ -179,13 +157,29 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        "seed": range(1),
-        'trainer_kwargs.beta': [0.1],
-        'trainer_kwargs.discount': [0.95,],
-        'trainer_kwargs.awr_use_mle_for_vf': [True,],
-        'trainer_kwargs.clip_score': [10.0],
+        "seed": range(2),
+        'path_loader_kwargs.demo_paths': [
+            [dict(path='/home/ashvin/data/sasha/demos/4dof_demos.pkl', obs_dict=True, is_demo=True)],
+            [dict(path='/home/ashvin/data/sasha/demos/4dof_demos.pkl', obs_dict=True, is_demo=True, data_split=0.35)]
+            ],
+
+        # 'path_loader_kwargs.demo_paths': [
+        #     [dict(path='sasha/simple_obj/4dof_demos.pkl', obs_dict=True, is_demo=True,)],
+        #     [dict(path='sasha/simple_obj/4dof_demos.pkl', obs_dict=True, is_demo=True, data_split=0.35)]
+        #     ],
+
+        'trainer_kwargs.beta': [0.5],
         'policy_kwargs.min_log_std': [-6],
-        'policy_kwargs.max_log_std': [0],
+        'trainer_kwargs.bc_loss_type': ["mle"],
+        'trainer_kwargs.awr_loss_type': ["mle"],
+        'trainer_kwargs.awr_weight': [1.0],
+        'trainer_kwargs.awr_use_mle_for_vf': [True, ],
+        'trainer_kwargs.awr_sample_actions': [False, ],
+        'trainer_kwargs.clip_score': [2, ],
+        'trainer_kwargs.awr_min_q': [True, ],
+        'trainer_kwargs.reward_transform_kwargs': [None, ],
+        'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0), ],
+        'qf_kwargs.output_activation': [Clamp(max=0)],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

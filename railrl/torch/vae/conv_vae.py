@@ -141,6 +141,38 @@ imsize84_default_architecture=dict(
         )
     )
 
+imsize84_default_architecture_with_more_hidden_layers=dict(
+        conv_args = dict(
+            kernel_sizes=[5, 5, 5],
+            n_channels=[16, 32, 32],
+            strides=[3, 3, 3],
+        ),
+        conv_kwargs=dict(
+            hidden_sizes=[500, 300, 150],
+            conv_normalization_type="batch",
+            fc_normalization_type="batch",
+        ),
+        deconv_args=dict(
+            hidden_sizes=[150, 300, 500],
+
+            deconv_input_width=2,
+            deconv_input_height=2,
+            deconv_input_channels=32,
+
+            deconv_output_kernel_size=6,
+            deconv_output_strides=3,
+            deconv_output_channels=3,
+
+            kernel_sizes=[5,6],
+            n_channels=[32, 16],
+            strides=[3,3],
+        ),
+        deconv_kwargs=dict(
+            deconv_normalization_type="batch",
+            fc_normalization_type="batch",
+        )
+    )
+
 
 class ConvVAE(GaussianLatentVAE):
     def __init__(

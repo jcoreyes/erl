@@ -137,7 +137,7 @@ if __name__ == "__main__":
 
         'trainer_kwargs.reward_transform_kwargs': [None, ],
         'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0), ],
-        'qf_kwargs.output_activation': [Clamp(max=0)], #Clamp(max=0)
+        'qf_kwargs.output_activation': [Clamp(max=0)],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

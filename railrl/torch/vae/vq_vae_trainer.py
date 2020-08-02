@@ -83,25 +83,22 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
             self.test_batch(epoch, dataset.random_batch(self.batch_size))
         self.eval_statistics["test/epoch_duration"].append(time.time() - start_time)
 
+
     # def compute_loss(self, batch, epoch=-1, test=False):
     #     prefix = "test/" if test else "train/"
     #     beta = float(self.beta_schedule.get_value(epoch))
-    #     vq_loss_1, quantized_1, data_recon_1, perplexity_1, recon_error_1 = self.model.compute_loss(batch['env'])
-    #     vq_loss_2, quantized_2, data_recon_2, perplexity_2, recon_error_2 = self.model.compute_loss(batch['x_t'])
-        
-    #     dist_1 = F.mse(quantized_1.detach() - quantized_2, reduction='sum')
-    #     dist_2 = F.mse(quantized_1 - quantized_2.detach(), reduction='sum')
-    #     dist = dist_1 + dist_2
-    #     loss = vq_loss_1 + vq_loss_2 + recon_error + dist
+    #     obs = batch[self.key_to_reconstruct]
+    #     vq_loss, kle, perplexity, vq_recon, vae_recon, vq_recon_error, vae_recon_error = self.model.compute_loss(obs)
+    #     loss = vq_loss + vq_recon_error + vae_recon_error + beta * kle
 
     #     self.eval_statistics['epoch'] = epoch
     #     self.eval_statistics[prefix + "losses"].append(loss.item())
-    #     self.eval_statistics[prefix + "Recon Error"].append(recon_error_2.item())
-    #     self.eval_statistics[prefix + "Recon Error"].append(recon_error_2.item())
-    #     self.eval_statistics[prefix + "VQ Loss"].append(vq_loss_2.item())
-    #     self.eval_statistics[prefix + "Env Distance"].append(dist.item())
-    #     self.eval_statistics[prefix + "Perplexity"].append(perplexity_2.item())
-    #     self.eval_data[prefix + "last_batch"] = (batch['x_t'], data_recon_2)
+    #     self.eval_statistics[prefix + "VQ Recon Error"].append(vq_recon_error.item())
+    #     self.eval_statistics[prefix + "VAE Recon Error"].append(vae_recon_error.item())
+    #     self.eval_statistics[prefix + "kle"].append(kle.item())
+    #     self.eval_statistics[prefix + "VQ Loss"].append(vq_loss.item())
+    #     self.eval_statistics[prefix + "Perplexity"].append(perplexity.item())
+    #     self.eval_data[prefix + "last_batch"] = (obs, vq_recon.detach())
 
     #     return loss
 
@@ -109,7 +106,8 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
         obs = batch[self.key_to_reconstruct]
-        vq_loss, quantized, data_recon, perplexity, recon_error = self.model.compute_loss(obs)
+
+        vq_loss, data_recon, perplexity, recon_error = self.model.compute_loss(obs)
         loss = vq_loss + recon_error
 
         self.eval_statistics['epoch'] = epoch
@@ -123,6 +121,14 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
 
     def dump_samples(self, epoch):
         return
+        self.model.eval()
+        z = self.model.sample_prior(64)
+        sample = self.model.decode(z, quantized=False).cpu()
+        save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
+        save_image(
+            sample.data.transpose(2, 3),
+            save_dir
+        )
 
 class CVQVAETrainer(VQ_VAETrainer):
 
@@ -288,14 +294,14 @@ class CVAETrainer(VQ_VAETrainer):
     def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
-        recon, error, kle = self.model.compute_loss(batch["x_t"], batch["env"])
-        loss = error + beta * kle
+        recon, x_recon_error, c_recon_error, kle = self.model.compute_loss(batch["x_t"], batch["env"])
+        loss = x_recon_error + c_recon_error + beta * kle
         self.eval_statistics['epoch'] = epoch
         self.eval_statistics['beta'] = beta
         self.eval_statistics[prefix + "losses"].append(loss.item())
         self.eval_statistics[prefix + "kle"].append(kle.item())
-        self.eval_statistics[prefix + "Obs Recon Error"].append(error.item())
-        #self.eval_statistics[prefix + "Cond Obs Recon Error"].append(errors[1].item())
+        self.eval_statistics[prefix + "Obs Recon Error"].append(x_recon_error.item())
+        self.eval_statistics[prefix + "Cond Obs Recon Error"].append(c_recon_error.item())
         self.eval_data[prefix + "last_batch"] = (batch, recon)
 
         return loss
@@ -305,6 +311,7 @@ class CVAETrainer(VQ_VAETrainer):
         batch, reconstructions, env_reconstructions = self.eval_data["test/last_batch"]
         x_t, env = batch["x_t"][:n], batch["env"][:n]
         z_comb = self.model.encode(x_t, env)
+
         z_pos = z_comb[:, :self.model.latent_sizes[0]]
         z_obj = z_comb[:, self.model.latent_sizes[0]:]
         grid = []
@@ -355,6 +362,7 @@ class CVAETrainer(VQ_VAETrainer):
         comparison = torch.cat(all_imgs)
         save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
         save_image(comparison.data.cpu(), save_dir, nrow=8)
+
 
     def dump_reconstructions(self, epoch):
         #self.dump_mixed_latents(epoch)

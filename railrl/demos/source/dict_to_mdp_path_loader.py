@@ -30,6 +30,9 @@ import glob
 
 def load_encoder(encoder_file):
     encoder = load_local_or_remote_file(encoder_file)
+    # TEMP #
+    #encoder.representation_size = encoder.discrete_size * encoder.embedding_dim
+    # TEMP #
     return encoder
 
 
@@ -250,7 +253,17 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         self.env = env
         self.do_preprocess = do_preprocess
 
-        print("ASSUMING FINAL STATE IS GOAL")
+        #print("USING TEMPORARY ACTION SCALING FIX")
+
+    def resize_img(self, obs):
+        from torchvision.transforms import Resize
+        from PIL import Image
+        resize = Resize((48, 48), interpolation=Image.NEAREST)
+
+        obs = obs.reshape(84, 84, 3) * 255.0
+        obs = Image.fromarray(obs, mode='RGB')
+        obs = np.array(resize(obs))
+        return obs.flatten() / 255.0
 
     def preprocess(self, observation):
         if not self.do_preprocess:
@@ -259,16 +272,28 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             return observation
         observation = copy.deepcopy(observation)
         images = np.stack([observation[i]['image_observation'] for i in range(len(observation))])
+        goals = np.stack([np.zeros_like(observation[i]['image_observation']) for i in range(len(observation))])
+        #images = np.stack([self.resize_img(observation[i]['image_observation']) for i in range(len(observation))])
+
+        # latents = self.model.encode(ptu.from_numpy(images))
+        # recon = ptu.get_numpy(self.model.decode(latents))
+
+        # from torch.nn import functional as F
+
+        # print(F.mse_loss(ptu.from_numpy(recon), ptu.from_numpy(images.reshape(50, 3, 48, 48))))
+        # import ipdb; ipdb.set_trace()
 
         if self.normalize:
             images = images / 255.0
 
         latents = ptu.get_numpy(self.model.encode(ptu.from_numpy(images)))
+        goals = ptu.get_numpy(self.model.encode(ptu.from_numpy(goals)))
 
         for i in range(len(observation)):
             observation[i]["latent_observation"] = latents[i]
             observation[i]["latent_achieved_goal"] = latents[i]
-            observation[i]["latent_desired_goal"] = latents[-1]
+            observation[i]["latent_desired_goal"] = goals[-1]
+            #observation[i]["latent_desired_goal"] = latents[-1]
             del observation[i]['image_observation']
 
         return observation
@@ -282,8 +307,6 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
     def load_path(self, path, replay_buffer, obs_dict=None):
         rewards = []
         path_builder = PathBuilder()
-
-        print("loading path, length", len(path["observations"]), len(path["actions"]))
         H = min(len(path["observations"]), len(path["actions"]))
 
         if obs_dict:
@@ -297,13 +320,23 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             ob = traj_obs[i]
             next_ob = next_traj_obs[i]
             action = path["actions"][i]
+
+            # #temp fix#
+            # ob['state_desired_goal'] = np.zeros_like(ob['state_desired_goal'])
+            # ob['latent_desired_goal'] = np.zeros_like(ob['latent_desired_goal'])
+
+            # next_ob['state_desired_goal'] = np.zeros_like(next_ob['state_desired_goal'])
+            # next_ob['latent_desired_goal'] = np.zeros_like(next_ob['latent_desired_goal'])
+
+            # action[3] /= 5
+            # #temp fix#
+
             reward = path["rewards"][i]
             terminal = path["terminals"][i]
             if not self.load_terminals:
                 terminal = np.zeros(terminal.shape)
             agent_info = path["agent_infos"][i]
             env_info = path["env_infos"][i]
-
             if self.recompute_reward:
                 #reward = self.env.compute_rewards(action, path["next_observations"][i])
                 reward = self.env._compute_reward(ob, action, next_ob, context=next_ob)
@@ -324,6 +357,8 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         path = path_builder.get_all_stacked()
         replay_buffer.add_path(path)
         print("rewards", np.min(rewards), np.max(rewards))
+        print("loading path, length", len(path["observations"]), len(path["actions"]))
+        print("actions", np.min(path["actions"]), np.max(path["actions"]))
         print("path sum rewards", sum(rewards), len(rewards))
 
 

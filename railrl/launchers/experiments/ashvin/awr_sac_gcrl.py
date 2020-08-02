@@ -86,17 +86,6 @@ import multiworld
 
 from railrl.launchers.contextual.rig.model_train_launcher import train_vae
 
-def load_vae(vae_file):
-    if vae_file[0] == "/":
-        local_path = vae_file
-    else:
-        local_path = sync_down(vae_file)
-    vae = pickle.load(open(local_path, "rb"))
-    # vae = torch.load(local_path, map_location='cpu')
-    print("loaded", local_path)
-    vae.to("cuda")
-    return vae
-
 def compute_hand_sparse_reward(next_obs, reward, done, info):
     return info['goal_achieved'] - 1
 
@@ -501,7 +490,6 @@ def awac_rig_experiment(
         save_video_kwargs = {}
     if not renderer_kwargs:
         renderer_kwargs = {}
-
     #Enviorment Wrapping
     renderer = EnvRenderer(init_camera=init_camera, **renderer_kwargs)
     def contextual_env_distrib_and_reward(
@@ -573,6 +561,10 @@ def awac_rig_experiment(
     #VAE Setup
     if pretrained_vae_path:
         model = load_local_or_remote_file(pretrained_vae_path)
+
+        # TEMP #
+        #model.representation_size = model.discrete_size * model.embedding_dim
+        # TEMP #
     else:
         model = train_vae(train_vae_kwargs, env_kwargs, env_id, env_class, imsize, init_camera)
     path_loader_kwargs['model_path'] = pretrained_vae_path

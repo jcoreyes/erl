@@ -94,8 +94,6 @@ class BiGANTrainer(ConvVAETrainer, LossFunction):
     def noise(self, size, num_epochs, epoch):
         noise = ptu.randn(size)
         std = 0.1 * (num_epochs - epoch) / num_epochs
-
-        import ipdb; ipdb.set_trace()
         return std * noise
 
     def fixed_noise(self, b_size):

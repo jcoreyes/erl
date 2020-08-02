@@ -143,7 +143,8 @@ if __name__ == "__main__":
                 N=10000,
                 n_random_steps=2,
                 test_p=.9,
-                dataset_path="/home/ashvin/Desktop/two_obj_pusher.npy",
+                dataset_path={'train': '/home/ashvin/data/sasha/spacemouse/recon_data/train.npy',
+                            'test': '/home/ashvin/data/sasha/spacemouse/recon_data/test.npy'},
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -160,6 +161,7 @@ if __name__ == "__main__":
             vae_class=DeltaCVAE,
             vae_kwargs=dict(
                 input_channels=3,
+                imsize=48,
                 architecture=imsize48_default_architecture_with_more_hidden_layers,
                 decoder_distribution='gaussian_identity_variance',
             ),
@@ -200,7 +202,7 @@ if __name__ == "__main__":
 
     search_space = {
         'seedid': range(1),
-        'train_vae_variant.latent_sizes': [(12, 6)],
+        'train_vae_variant.latent_sizes': [(11, 20)],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

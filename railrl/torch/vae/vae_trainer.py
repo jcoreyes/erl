@@ -263,7 +263,7 @@ class VAETrainer(LossFunction):
         loss.backward()
         
         self.optimizer.step()
-        self.scheduler.step()
+        #self.scheduler.step()
 
     def test_batch(
             self,

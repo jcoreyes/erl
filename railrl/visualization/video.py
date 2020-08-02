@@ -318,7 +318,6 @@ def dump_paths(
 
     H = num_imgs * imheight  # imsize
     W = imwidth  # imsize
-
     rows = min(rows, int(len(paths) / columns))
 
     N = rows * columns

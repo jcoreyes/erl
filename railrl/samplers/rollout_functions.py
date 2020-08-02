@@ -1,3 +1,4 @@
+
 from functools import partial
 
 import numpy as np
@@ -164,7 +165,6 @@ def deprecated_rollout(
      - rewards
      - next_observations
      - terminals
-
     The next two elements will be lists of dictionaries, with the index into
     the list being the index into the time
      - agent_infos
