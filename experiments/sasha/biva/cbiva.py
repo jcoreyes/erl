@@ -112,12 +112,9 @@ if __name__ == "__main__":
                 N=1000,
                 n_random_steps=2,
                 test_p=.9,
-                #dataset_path='/home/ashvin/Desktop/two_obj_pusher.npy',
-                #dataset_path='/home/ashvin/Desktop/sim_puck_data.npy',
-                dataset_path={'train': '/home/ashvin/data/sasha/spacemouse/recon_data/train.npy',
-                            'test': '/home/ashvin/data/sasha/spacemouse/recon_data/test.npy'},
-                # dataset_path='/home/ashvin/data/pusher_pucks/all_data_flat.npy',
-                #augment_data=True,
+                dataset_path='/home/ashvin/data/sasha/demos/4dof_complex_objects_images.npy',
+                # dataset_path={'train': '/home/ashvin/data/sasha/spacemouse/recon_data/train.npy',
+                #             'test': '/home/ashvin/data/sasha/spacemouse/recon_data/test.npy'},
                 use_cached=False,
                 show=False,
                 oracle_dataset=False,
@@ -135,8 +132,8 @@ if __name__ == "__main__":
             vae_kwargs=dict(
                 imsize=48,
                 input_channels=3,
-                q_dropout=0.5,
-                p_dropout=0.5,
+                q_dropout=0.2,
+                p_dropout=0.0,
             ),
             only_kwargs=True,
             algo_kwargs=dict(
@@ -184,4 +181,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=1)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=3)

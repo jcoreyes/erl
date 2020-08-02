@@ -210,7 +210,7 @@ class InitialObservationNumpyDataset(data.Dataset):
     def __getitem__(self, idx):
         traj_i = idx // self.traj_length
         trans_i = idx % self.traj_length
-        cond_i = np.random.randint(0, self.traj_length)
+        #cond_i = np.random.randint(0, self.traj_length)
 
         # x = self.data['observations'][traj_i, trans_i]
         # c = self.data['observations'][traj_i, cond_i]

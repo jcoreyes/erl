@@ -251,7 +251,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         self.normalize = normalize
         self.env = env
 
-        #print("USING TEMPORARY ACTION SCALING FIX")
+        print("ZEROING OUT GOALS")
 
     def resize_img(self, obs):
         from torchvision.transforms import Resize
