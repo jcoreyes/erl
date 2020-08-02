@@ -200,7 +200,7 @@ class DictToMDPPathLoader:
         return batch
 
 class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
-    
+
     def __init__(
             self,
             trainer,
@@ -225,8 +225,9 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             env_info_key=None,
             obs_key=None,
             load_terminals=True,
+            do_preprocess=True,
             **kwargs
-    ):  
+    ):
         super().__init__(trainer,
             replay_buffer,
             demo_train_buffer,
@@ -250,6 +251,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         self.model = load_encoder(model_path)
         self.normalize = normalize
         self.env = env
+        self.do_preprocess = do_preprocess
 
         print("ZEROING OUT GOALS")
 
@@ -264,6 +266,10 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         return obs.flatten() / 255.0
 
     def preprocess(self, observation):
+        if not self.do_preprocess:
+            for i in range(len(observation)):
+                observation[i]["no_goal"] = np.zeros((0, ))
+            return observation
         observation = copy.deepcopy(observation)
         images = np.stack([observation[i]['image_observation'] for i in range(len(observation))])
         goals = np.stack([np.zeros_like(observation[i]['image_observation']) for i in range(len(observation))])
@@ -271,12 +277,12 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
 
         # latents = self.model.encode(ptu.from_numpy(images))
         # recon = ptu.get_numpy(self.model.decode(latents))
-        
+
         # from torch.nn import functional as F
 
         # print(F.mse_loss(ptu.from_numpy(recon), ptu.from_numpy(images.reshape(50, 3, 48, 48))))
         # import ipdb; ipdb.set_trace()
-        
+
         if self.normalize:
             images = images / 255.0
 
@@ -350,9 +356,8 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         self.demo_trajectory_rewards.append(rewards)
         path = path_builder.get_all_stacked()
         replay_buffer.add_path(path)
-
+        print("rewards", np.min(rewards), np.max(rewards))
         print("loading path, length", len(path["observations"]), len(path["actions"]))
-
         print("actions", np.min(path["actions"]), np.max(path["actions"]))
         print("path sum rewards", sum(rewards), len(rewards))
 

@@ -1,41 +1,33 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.demos.source.dict_to_mdp_path_loader import EncoderDictToMDPPathLoader
-from railrl.launchers.experiments.ashvin.awr_sac_gcrl import awac_rig_experiment
+from railrl.demos.source.dict_to_mdp_path_loader import (
+    DictToMDPPathLoader,
+    EncoderDictToMDPPathLoader,
+)
+from railrl.launchers.experiments.ashvin.awr_grasping import (
+    awac_rig_experiment,
+    experiment,
+)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
-from railrl.torch.sac.policies import GaussianCNNPolicy, GaussianMixturePolicy
+from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
 from roboverse.envs.sawyer_rig_multiobj_v0 import SawyerRigMultiobjV0
-from railrl.torch.networks.cnn import ConcatCNN
+
+from railrl.torch.networks import Clamp
 
 if __name__ == "__main__":
     variant = dict(
         env_class=SawyerRigMultiobjV0,
-        policy_class=GaussianCNNPolicy,
+        policy_class=GaussianPolicy,
         policy_kwargs=dict(
-            hidden_sizes=[128, 128],
-            max_log_std=0,
+            hidden_sizes=[256, 256, 256, 256],
+            max_log_std=-2,
             min_log_std=-6,
             std_architecture="values",
-
-            input_width=21,
-            input_height=21,
-            input_channels=6,
-            kernel_sizes=[5, 3, 3],
-            n_channels=[16, 32, 32],
-            strides=[3, 2, 2],
-            paddings=[1, 1, 1],
         ),
 
-        qf_class=ConcatCNN,
         qf_kwargs=dict(
-            hidden_sizes=[128, 128],
-            input_width=21,
-            input_height=21,
-            input_channels=6,
-            kernel_sizes=[5, 3, 3],
-            n_channels=[16, 32, 32],
-            strides=[3, 2, 2],
-            paddings=[1, 1, 1],
+            hidden_sizes=[256, 256],
+            output_activation=Clamp(max=0),
         ),
 
         trainer_kwargs=dict(
@@ -51,10 +43,9 @@ if __name__ == "__main__":
 
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=50, #25000
+            q_num_pretrain2_steps=25000, #25000
             policy_weight_decay=1e-4,
             q_weight_decay=0,
-            pretraining_logging_period=5,
 
             rl_weight=1.0,
             use_awr_update=True,
@@ -78,23 +69,26 @@ if __name__ == "__main__":
             min_num_steps_before_training=4000,
         ),
         replay_buffer_kwargs=dict(
-            fraction_future_context=0.2,
-            fraction_distribution_context=0.5,
+            # fraction_future_context=0.2,
+            # fraction_distribution_context=0.5,
+            fraction_future_context=0.0,
+            fraction_distribution_context=0.0,
             max_size=int(1e5),
         ),
         demo_replay_buffer_kwargs=dict(
             fraction_future_context=0.0,
             fraction_distribution_context=0.0,
+            max_size=int(1e5),
         ),
         reward_kwargs=dict(
             reward_type='wrapped_env',
             #reward_type='sparse',
-            obs_type='latent',
-            epsilon=2.0,
+            # obs_type='latent',
+            # epsilon=2.0,
         ),
 
-        observation_key='latent_observation',
-        desired_goal_key='latent_desired_goal',
+        observation_key='state_observation',
+        desired_goal_key='no_goal',
         save_video=True,
         save_video_kwargs=dict(
             save_video_period=25,
@@ -108,13 +102,14 @@ if __name__ == "__main__":
         path_loader_class=EncoderDictToMDPPathLoader,
         path_loader_kwargs=dict(
             recompute_reward=True,
+            do_preprocess=False,
             demo_paths=[
                 dict(
                     #path='sasha/cvqvae/vqvae/run11/id0/train.pkl',
                     path='demos/corl2020/multiobj_datasets/demo_data/train.pkl',
                     obs_dict=True,
                     is_demo=True,
-                    data_split=0.1,
+                    #data_split=0.1,
                 ),
             ],
         ),
@@ -180,9 +175,12 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        "seed": range(1),
-        'trainer_kwargs.beta': [0.5],
+        "seed": range(3),
+        'trainer_kwargs.beta': [1.0, 3.0],
+        'trainer_kwargs.q_num_pretrain2_steps': [100001],
         'policy_kwargs.min_log_std': [-6],
+        'trainer_kwargs.clip_score': [3.0, 10.0],
+        'trainer_kwargs.awr_use_mle_for_vf': [True, ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -192,4 +190,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(awac_rig_experiment, variants, run_id=0)
+    run_variants(awac_rig_experiment, variants, run_id=3)
