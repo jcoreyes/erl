@@ -297,7 +297,6 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             ob = traj_obs[i]
             next_ob = next_traj_obs[i]
             action = path["actions"][i]
-            action[3] /= 5
             reward = path["rewards"][i]
             terminal = path["terminals"][i]
             if not self.load_terminals:
@@ -305,10 +304,9 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             agent_info = path["agent_infos"][i]
             env_info = path["env_infos"][i]
 
-            # if self.recompute_reward:
-            #     #reward = self.env.compute_rewards(action, path["next_observations"][i])
-            #     import ipdb; ipdb.set_trace()
-            #     reward = self.env._compute_reward(ob, action, next_ob, context=next_ob)
+            if self.recompute_reward:
+                #reward = self.env.compute_rewards(action, path["next_observations"][i])
+                reward = self.env._compute_reward(ob, action, next_ob, context=next_ob)
 
             reward = np.array([reward]).flatten()
             rewards.append(reward)

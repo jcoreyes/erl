@@ -3,7 +3,7 @@ from railrl.demos.source.dict_to_mdp_path_loader import (
     DictToMDPPathLoader,
     EncoderDictToMDPPathLoader,
 )
-from railrl.launchers.experiments.ashvin.awr_sac_gcrl import (
+from railrl.launchers.experiments.ashvin.awr_grasping import (
     awac_rig_experiment,
     experiment,
 )
