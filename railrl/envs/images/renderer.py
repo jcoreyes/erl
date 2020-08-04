@@ -14,7 +14,7 @@ class Renderer(metaclass=abc.ABCMeta):
             width=48,
             height=48,
             num_channels=3,
-            normalize_image=True,
+            normalize_image=False,
             flatten_image=False,
             create_image_format=None,
             output_image_format='CHW',
@@ -86,6 +86,12 @@ class Renderer(metaclass=abc.ABCMeta):
     def image_shape(self):
         return tuple(
             self._letter_to_size[letter] for letter in self.output_image_format
+        )
+
+    @property
+    def _create_image_shape(self):
+        return tuple(
+            self._letter_to_size[letter] for letter in self._create_image_format
         )
 
     @property

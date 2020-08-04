@@ -1,10 +1,7 @@
-from multiworld.core.image_env import ImageEnv
-from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
-import numpy as np
 from railrl.demos.collect_demo import collect_demos_fixed
 from railrl.misc.asset_loader import load_local_or_remote_file
 
-from railrl.launchers.experiments.ashvin.awr_sac_rl import ENV_PARAMS
+from railrl.launchers.experiments.awac.awac_rl import ENV_PARAMS
 
 if __name__ == '__main__':
     data = load_local_or_remote_file('ashvin/icml2020/mujoco/reference/run1/id0/itr_1000.pkl')

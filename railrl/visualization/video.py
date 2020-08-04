@@ -269,11 +269,13 @@ def reshape_for_video(frames, N, rows, columns, num_channels):
 
 
 def get_generic_env_imgs(path, i_in_path, env):
-    x_0 = path['full_observations'][0]['image_observation']
-    d = path['full_observations'][i_in_path]
     is_vae_env = isinstance(env, VAEWrappedEnv)
     is_conditional_vae_env = isinstance(env, ConditionalVAEWrappedEnv)
     imgs = []
+    if not is_conditional_vae_env or not is_vae_env:
+        return imgs
+    x_0 = path['full_observations'][0]['image_observation']
+    d = path['full_observations'][i_in_path]
     if is_conditional_vae_env:
         imgs.append(
             np.clip(env._reconstruct_img(d['image_observation'], x_0), 0, 1)

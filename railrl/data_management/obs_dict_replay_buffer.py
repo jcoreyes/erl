@@ -50,14 +50,13 @@ class ObsDictReplayBuffer(ReplayBuffer):
         self.save_data_in_snapshot = save_data_in_snapshot
 
         self._action_dim = env.action_space.low.size
-        self._actions = np.zeros((max_size, self._action_dim), dtype=np.float32)
+        self._actions = np.ones((max_size, self._action_dim), dtype=np.float32)
         # Make everything a 2D np array to make it easier for other code to
         # reason about the shape of the data
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros((max_size, 1), dtype='uint8')
-        self._rewards = np.zeros((max_size, 1))
+        self._terminals = np.ones((max_size, 1), dtype='uint8')
         self.vectorized = reward_dim > 1
-        self._rewards = np.zeros((max_size, reward_dim))
+        self._rewards = np.ones((max_size, reward_dim))
         # self._obs[key][i] is the value of observation[key] at time i
         self._obs = {}
         self._next_obs = {}
@@ -71,17 +70,15 @@ class ObsDictReplayBuffer(ReplayBuffer):
             arr_initializer = np
             if key.startswith('image'):
                 arr_initializer = image_np
-            self._obs[key] = arr_initializer.zeros(
+            self._obs[key] = arr_initializer.ones(
                 (max_size, *self.ob_spaces[key].low.shape), dtype=np.float32)
-            self._next_obs[key] = arr_initializer.zeros(
+            self._next_obs[key] = arr_initializer.ones(
                 (max_size, *self.ob_spaces[key].low.shape), dtype=np.float32)
 
         self._top = 0
         self._size = 0
 
-        # Let j be any index in self._idx_to_future_obs_idx[i]
-        # Then self._next_obs[j] is a valid next observation for observation i
-        self._idx_to_future_obs_idx = [None] * max_size
+        self._idx_to_future_obs_idx = np.ones((max_size, 2), dtype=np.int)
 
         if isinstance(self.env.action_space, Discrete):
             raise NotImplementedError("TODO")
@@ -130,18 +127,10 @@ class ObsDictReplayBuffer(ReplayBuffer):
                     self._next_obs[key][buffer_slice] = next_obs[key][path_slice]
             # Pointers from before the wrap
             for i in range(self._top, self.max_size):
-                self._idx_to_future_obs_idx[i] = np.hstack((
-                    # Pre-wrap indices
-                    np.arange(i, self.max_size),
-                    # Post-wrap indices
-                    np.arange(0, num_post_wrap_steps)
-                ))
+                self._idx_to_future_obs_idx[i] = [i, num_post_wrap_steps]
             # Pointers after the wrap
             for i in range(0, num_post_wrap_steps):
-                self._idx_to_future_obs_idx[i] = np.arange(
-                    i,
-                    num_post_wrap_steps,
-                )
+                self._idx_to_future_obs_idx[i] = [i, num_post_wrap_steps]
         else:
             slc = np.s_[self._top:self._top + path_len, :]
             self._actions[slc] = actions
@@ -152,9 +141,7 @@ class ObsDictReplayBuffer(ReplayBuffer):
                 self._obs[key][slc] = obs[key]
                 self._next_obs[key][slc] = next_obs[key]
             for i in range(self._top, self._top + path_len):
-                self._idx_to_future_obs_idx[i] = np.arange(
-                    i, self._top + path_len
-                )
+                self._idx_to_future_obs_idx[i] = [i, self._top + path_len]
         self._top = (self._top + path_len) % self.max_size
         self._size = min(self._size + path_len, self.max_size)
 
@@ -215,6 +202,19 @@ class ObsDictReplayBuffer(ReplayBuffer):
         for key in self.ob_keys_to_save + self.internal_keys:
             new_dict[key] = obs_dict[key][slc]
         return new_dict
+
+    def _get_future_obs_indices(self, start_state_indices):
+        future_obs_idxs = []
+        for i in start_state_indices:
+            possible_future_obs_idxs = self._idx_to_future_obs_idx[i]
+            lb, ub = possible_future_obs_idxs
+            if ub > lb:
+                next_obs_i = int(np.random.randint(lb, ub))
+            else:
+                next_obs_i = int(np.random.randint(lb, ub + self.max_size)) % self.max_size
+            future_obs_idxs.append(next_obs_i)
+        future_obs_idxs = np.array(future_obs_idxs)
+        return future_obs_idxs
 
 
 class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
@@ -316,15 +316,7 @@ class ObsDictRelabelingBuffer(ObsDictReplayBuffer):
                 new_next_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = \
                     env_goals[goal_key]
         if num_future_goals > 0:
-            future_obs_idxs = []
-            for i in indices[-num_future_goals:]:
-                possible_future_obs_idxs = self._idx_to_future_obs_idx[i]
-                # This is generally faster than random.choice. Makes you wonder what
-                # random.choice is doing
-                num_options = len(possible_future_obs_idxs)
-                next_obs_i = int(np.random.randint(0, num_options))
-                future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
-            future_obs_idxs = np.array(future_obs_idxs)
+            future_obs_idxs = self._get_future_obs_indices(indices[-num_future_goals:])
             for goal_key in self.goal_keys:
                 achieved_k = goal_key.replace('desired', 'achieved')
                 new_obs_dict[goal_key][-num_future_goals:] = (

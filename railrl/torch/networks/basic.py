@@ -47,6 +47,44 @@ class Flatten(nn.Module):
         return inputs.view(inputs.size(0), -1)
 
 
+class Map(nn.Module):
+    """Apply a module to each input."""
+    def __init__(self, module):
+        super().__init__()
+        self.module = module
+
+    def forward(self, inputs):
+        return tuple(self.module(x) for x in inputs)
+
+
+class ApplyMany(nn.Module):
+    """Apply many modules to one input."""
+    def __init__(self, *modules):
+        super().__init__()
+        self.modules_to_apply = nn.ModuleList(modules)
+
+    def forward(self, inputs):
+        return tuple(m(inputs) for m in self.modules_to_apply)
+
+
+class LearnedPositiveConstant(nn.Module):
+    def __init__(self, init_value):
+        super().__init__()
+        self._constant = nn.Parameter(init_value)
+
+    def forward(self, _):
+        return self._constant
+
+
+class Reshape(nn.Module):
+    def __init__(self, *output_shape):
+        super().__init__()
+        self._output_shape_with_batch_size = (-1, *output_shape)
+
+    def forward(self, inputs):
+        return inputs.view(self._output_shape_with_batch_size)
+
+
 class ConcatTuple(nn.Module):
     def __init__(self, dim=1):
         super().__init__()

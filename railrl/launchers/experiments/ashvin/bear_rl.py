@@ -7,7 +7,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector, ObsDictPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic, PolicyFromQ
-from railrl.torch.sac.awr_sac import AWRSACTrainer
+from railrl.torch.sac.awac_trainer import AWACTrainer
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,

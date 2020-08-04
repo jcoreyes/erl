@@ -1,10 +1,13 @@
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
+import copy
 import numpy as np
 from functools import partial
 from torch import nn
 
 import railrl.samplers.rollout_functions as rf
 import railrl.torch.pytorch_util as ptu
+from railrl.core import logger
+from railrl.core.logging import append_log
 from railrl.core.distribution import DictDistribution
 from railrl.data_management.contextual_replay_buffer import (
     ContextualRelabelingReplayBuffer,
@@ -28,6 +31,7 @@ from railrl.launchers.contextual.util import (
     get_save_video_function,
     get_gym_env,
 )
+from railrl.launchers.experiments.disentanglement.util import train_ae
 from railrl.launchers.experiments.disentanglement.debug import (
     DebugTrainer,
     DebugEnvRenderer,
@@ -57,6 +61,8 @@ from railrl.torch.networks import (
     Flatten,
     ConcatTuple,
     ConcatMultiHeadedMlp,
+    Detach,
+    Reshape,
 )
 from railrl.torch.networks.mlp import MultiHeadedMlp, Mlp
 from railrl.torch.networks.stochastic.distribution_generator import TanhGaussian
@@ -167,6 +173,40 @@ def invert_encoder_mlp_params(encoder_kwargs):
     return reverse_params
 
 
+def recursive_dict_update(orig_dict, differences):
+    new_dict = orig_dict.copy()
+    for key, val in differences.items():
+        if (
+            key in orig_dict and
+            isinstance(orig_dict[key], dict) and
+            isinstance(differences[key], dict)
+        ):
+            new_dict[key] = recursive_dict_update(new_dict[key],
+                                                  differences[key])
+        else:
+            new_dict[key] = copy.deepcopy(differences[key])
+    return new_dict
+
+def transfer_encoder_goal_conditioned_sac_experiment(train_variant, transfer_variant=None):
+    rl_csv_fname = 'progress.csv'
+    retrain_rl_csv_fname = 'retrain_progress.csv'
+    train_results = encoder_goal_conditioned_sac_experiment(
+        **train_variant,
+        rl_csv_fname=rl_csv_fname)
+    logger.remove_tabular_output(rl_csv_fname, relative_to_snapshot_dir=True)
+    logger.add_tabular_output(retrain_rl_csv_fname,
+                              relative_to_snapshot_dir=True)
+    if not transfer_variant:
+        transfer_variant = {}
+
+    transfer_variant = recursive_dict_update(train_variant, transfer_variant)
+    print('Starting transfer exp')
+    encoder_goal_conditioned_sac_experiment(**transfer_variant,
+                                            is_retraining_from_scratch=True,
+                                            train_results=train_results,
+                                            rl_csv_fname=retrain_rl_csv_fname)
+
+
 def encoder_goal_conditioned_sac_experiment(
         max_path_length,
         qf_kwargs,
@@ -215,6 +255,15 @@ def encoder_goal_conditioned_sac_experiment(
         train_encoder_as_vae=False,
         vae_trainer_kwargs=None,
         decoder_kwargs=None,
+        encoder_backprop_settings="rl_n_vae",
+        mlp_for_image_decoder=False,
+        pretrain_vae=False,
+        pretrain_vae_kwargs=None,
+
+        # Should only be set by transfer_encoder_goal_conditioned_sac_experiment
+        is_retraining_from_scratch=False,
+        train_results=None,
+        rl_csv_fname='progress.csv',
 ):
     if reward_config is None:
         reward_config = {}
@@ -237,11 +286,22 @@ def encoder_goal_conditioned_sac_experiment(
     if debug_renderer_kwargs is None:
         debug_renderer_kwargs = {}
 
+    assert (
+        is_retraining_from_scratch != (train_results is None)
+    )
+
     img_observation_key = 'image_observation'
     state_observation_key = 'state_observation'
     latent_desired_goal_key = 'latent_desired_goal'
     state_desired_goal_key = 'state_desired_goal'
     img_desired_goal_key = 'image_desired_goal'
+
+    backprop_rl_into_encoder = False
+    backprop_vae_into_encoder = False
+    if 'rl' in encoder_backprop_settings:
+        backprop_rl_into_encoder = True
+    if 'vae' in encoder_backprop_settings:
+        backprop_vae_into_encoder = True
 
     if use_image_observations:
         env_renderer = EnvRenderer(**env_renderer_kwargs)
@@ -342,6 +402,9 @@ def encoder_goal_conditioned_sac_experiment(
             return enc
 
     encoder_net = create_encoder()
+    if train_results:
+        print("Using transfer encoder")
+        encoder_net = train_results.encoder_net
     mu_encoder_net = EncoderMuFromEncoderDistribution(encoder_net)
     target_encoder_net = create_encoder()
     mu_target_encoder_net = EncoderMuFromEncoderDistribution(target_encoder_net)
@@ -381,10 +444,13 @@ def encoder_goal_conditioned_sac_experiment(
     action_dim = expl_env.action_space.low.size
 
     def make_qf(goal_encoder):
+        if not backprop_rl_into_encoder:
+            goal_encoder = Detach(goal_encoder)
         if qf_state_encoder_is_goal_encoder:
             state_encoder = goal_encoder
         else:
             state_encoder = EncoderMuFromEncoderDistribution(create_encoder())
+            raise RuntimeError("State encoder must be goal encoder for resuming exps")
         if use_parallel_qf:
             return ParallelDisentangledMlpQf(
                 goal_encoder=goal_encoder,
@@ -421,8 +487,11 @@ def encoder_goal_conditioned_sac_experiment(
             detach_encoder_via_state=False,
         )
     else:
+        policy_obs_encoder = mu_encoder_net
+        if not backprop_rl_into_encoder:
+            policy_obs_encoder = Detach(policy_obs_encoder)
         policy_encoder_net = EncodeObsAndGoal(
-            mu_encoder_net,
+            policy_obs_encoder,
             encoder_input_dim,
             **policy_using_encoder_settings
         )
@@ -439,7 +508,7 @@ def encoder_goal_conditioned_sac_experiment(
         TanhGaussian(obs_processor)
     )
 
-    def concat_context_to_obs(batch):
+    def concat_context_to_obs(batch, *args, **kwargs):
         obs = batch['observations']
         next_obs = batch['next_observations']
         context = batch[context_key_for_rl]
@@ -503,6 +572,8 @@ def encoder_goal_conditioned_sac_experiment(
     )
 
     if train_encoder_as_vae:
+        assert backprop_vae_into_encoder, \
+            "No point in training the vae if not backpropagating into encoder"
         if vae_trainer_kwargs is None:
             vae_trainer_kwargs = {}
         if decoder_kwargs is None:
@@ -511,30 +582,42 @@ def encoder_goal_conditioned_sac_experiment(
         # VAE training
         def make_decoder():
             if use_image_observations:
-                dcnn_in_channels, dcnn_in_height, dcnn_in_width = (
-                    encoder_net._modules['0'].output_shape
-                )
-                dcnn_input_size = (
-                    dcnn_in_channels * dcnn_in_width * dcnn_in_height
-                )
                 img_num_channels, img_height, img_width = env_renderer.image_chw
-                decoder_cnn_kwargs = invert_encoder_params(
-                    encoder_cnn_kwargs,
-                    img_num_channels,
-                )
-                dcnn = BasicDCNN(
-                    input_width=dcnn_in_width,
-                    input_height=dcnn_in_height,
-                    input_channels=dcnn_in_channels,
-                    **decoder_cnn_kwargs
-                )
-                mlp = Mlp(
-                    input_size=latent_dim,
-                    output_size=dcnn_input_size,
-                    **decoder_kwargs
-                )
-                dec = nn.Sequential(mlp, dcnn)
-                dec.input_size = latent_dim
+                if not mlp_for_image_decoder:
+                    dcnn_in_channels, dcnn_in_height, dcnn_in_width = (
+                        encoder_net._modules['0'].output_shape
+                    )
+                    dcnn_input_size = (
+                        dcnn_in_channels * dcnn_in_width * dcnn_in_height
+                    )
+                    decoder_cnn_kwargs = invert_encoder_params(
+                        encoder_cnn_kwargs,
+                        img_num_channels,
+                    )
+                    dcnn = BasicDCNN(
+                        input_width=dcnn_in_width,
+                        input_height=dcnn_in_height,
+                        input_channels=dcnn_in_channels,
+                        **decoder_cnn_kwargs
+                    )
+                    mlp = Mlp(
+                        input_size=latent_dim,
+                        output_size=dcnn_input_size,
+                        **decoder_kwargs
+                    )
+                    dec = nn.Sequential(mlp, dcnn)
+                    dec.input_size = latent_dim
+                else:
+                    dec = nn.Sequential(
+                        Mlp(
+                            input_size=latent_dim,
+                            output_size=img_num_channels * img_height * img_width,
+                            **decoder_kwargs
+                        ),
+                        Reshape(img_num_channels, img_height, img_width)
+                    )
+                    dec .input_size = latent_dim
+                    dec.output_size = img_num_channels * img_height * img_width
                 return dec
             else:
                 return Mlp(
@@ -551,6 +634,15 @@ def encoder_goal_conditioned_sac_experiment(
             **vae_trainer_kwargs
         )
 
+        if pretrain_vae:
+            goal_key = (
+                img_desired_goal_key if use_image_observations
+                else state_desired_goal_key
+            )
+            vae.to(ptu.device)
+            train_ae(vae_trainer, expl_context_distrib,
+                      **pretrain_vae_kwargs, goal_key=goal_key,
+                     rl_csv_fname=rl_csv_fname)
         trainers = OrderedDict()
         trainers['vae_trainer'] = vae_trainer
         trainers['disentangled_trainer'] = disentangled_trainer
@@ -844,7 +936,11 @@ def encoder_goal_conditioned_sac_experiment(
             observation_key_for_rl,
         ))
     algorithm.train()
-
+    train_results = dict(
+        encoder_net=encoder_net,
+    )
+    TrainResults = namedtuple('TrainResults', sorted(train_results))
+    return TrainResults(**train_results)
 
 def create_save_h_vs_state_distance_fn(
         save_period, initial_save_period, encoder, encoder_input_key):

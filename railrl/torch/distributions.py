@@ -2,16 +2,17 @@
 Add custom distributions in addition to th existing ones
 """
 import torch
-from torch.distributions import Categorical, OneHotCategorical
+from torch.distributions import Categorical, OneHotCategorical, kl_divergence
 from torch.distributions import Normal as TorchNormal
 from torch.distributions import Beta as TorchBeta
 from torch.distributions import Distribution as TorchDistribution
-from torch.distributions import Independent
+from torch.distributions import Bernoulli as TorchBernoulli
+from torch.distributions import Independent as TorchIndependent
+from torch.distributions.utils import _sum_rightmost
 from railrl.misc.eval_util import create_stats_ordered_dict
 import railrl.torch.pytorch_util as ptu
 import numpy as np
 from collections import OrderedDict
-
 
 class Distribution(TorchDistribution):
     def sample_and_logprob(self):
@@ -35,14 +36,21 @@ class TorchDistributionWrapper(Distribution):
     def __init__(self, distribution: TorchDistribution):
         self.distribution = distribution
 
-    def sample(self, sample_size=torch.Size()):
-        return self.distribution.sample(sample_shape=sample_size)
+    @property
+    def batch_shape(self):
+        return self.distribution.batch_shape
 
-    def rsample(self, sample_size=torch.Size()):
-        return self.distribution.rsample(sample_shape=sample_size)
+    @property
+    def event_shape(self):
+        return self.distribution.event_shape
 
-    def log_prob(self, value):
-        return self.distribution.log_prob(value)
+    @property
+    def arg_constraints(self):
+        return self.distribution.arg_constraints
+
+    @property
+    def support(self):
+        return self.distribution.support
 
     @property
     def mean(self):
@@ -52,8 +60,33 @@ class TorchDistributionWrapper(Distribution):
     def variance(self):
         return self.distribution.variance
 
+    @property
+    def stddev(self):
+        return self.distribution.stddev
+
+    def sample(self, sample_size=torch.Size()):
+        return self.distribution.sample(sample_shape=sample_size)
+
+    def rsample(self, sample_size=torch.Size()):
+        return self.distribution.rsample(sample_shape=sample_size)
+
+    def log_prob(self, value):
+        return self.distribution.log_prob(value)
+
+    def cdf(self, value):
+        return self.distribution.cdf(value)
+
+    def icdf(self, value):
+        return self.distribution.icdf(value)
+
+    def enumerate_support(self, expand=True):
+        return self.distribution.enumerate_support(expand=expand)
+
     def entropy(self):
         return self.distribution.entropy()
+
+    def perplexity(self):
+        return self.distribution.perplexity()
 
     def __repr__(self):
         return 'Wrapped ' + self.distribution.__repr__()
@@ -83,6 +116,21 @@ class Delta(Distribution):
         return 0
 
 
+class Bernoulli(Distribution, TorchBernoulli):
+    def get_diagnostics(self):
+        stats = OrderedDict()
+        stats.update(create_stats_ordered_dict(
+            'probability',
+            ptu.get_numpy(self.probs),
+        ))
+        return stats
+
+
+class Independent(Distribution, TorchIndependent):
+    def get_diagnostics(self):
+        return self.base_dist.get_diagnostics()
+
+
 class Beta(Distribution, TorchBeta):
     def get_diagnostics(self):
         stats = OrderedDict()
@@ -105,8 +153,9 @@ class MultivariateDiagonalNormal(TorchDistributionWrapper):
     from torch.distributions import constraints
     arg_constraints = {'loc': constraints.real, 'scale': constraints.positive}
 
-    def __init__(self, loc, scale_diag):
-        dist = Independent(TorchNormal(loc, scale_diag), 1)
+    def __init__(self, loc, scale_diag, reinterpreted_batch_ndims=1):
+        dist = Independent(TorchNormal(loc, scale_diag),
+                           reinterpreted_batch_ndims=reinterpreted_batch_ndims)
         super().__init__(dist)
 
     def get_diagnostics(self):
@@ -119,24 +168,25 @@ class MultivariateDiagonalNormal(TorchDistributionWrapper):
             'std',
             ptu.get_numpy(self.distribution.stddev),
         ))
-        stats.update(create_stats_ordered_dict(
-            'log_std',
-            ptu.get_numpy(torch.log(self.distribution.stddev)),
-        ))
-        stats.update(create_stats_ordered_dict(
-            'entropy',
-            ptu.get_numpy(self.entropy()),
-        ))
         return stats
 
     def __repr__(self):
         return self.distribution.base_dist.__repr__()
 
-@torch.distributions.kl.register_kl(MultivariateDiagonalNormal, MultivariateDiagonalNormal)
+
+@torch.distributions.kl.register_kl(TorchDistributionWrapper,
+                                    TorchDistributionWrapper)
 def _kl_mv_diag_normal_mv_diag_normal(p, q):
-    var_ratio = (p.distribution.stddev / q.distribution.stddev).pow(2)
-    t1 = ((p.mean - q.mean) / q.distribution.stddev).pow(2)
-    return 0.5 * (var_ratio + t1 - 1 - var_ratio.log())
+    return kl_divergence(p.distribution, q.distribution)
+
+# Independent RV KL handling - https://github.com/pytorch/pytorch/issues/13545
+
+@torch.distributions.kl.register_kl(TorchIndependent, TorchIndependent)
+def _kl_independent_independent(p, q):
+    if p.reinterpreted_batch_ndims != q.reinterpreted_batch_ndims:
+        raise NotImplementedError
+    result = kl_divergence(p.base_dist, q.base_dist)
+    return _sum_rightmost(result, p.reinterpreted_batch_ndims)
 
 class GaussianMixture(Distribution):
     def __init__(self, normal_means, normal_stds, weights):

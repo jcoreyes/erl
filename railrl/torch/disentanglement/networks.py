@@ -29,6 +29,7 @@ class DisentangledMlpQf(PyTorchModule):
             architecture='splice',
             detach_encoder_via_goal=False,
             detach_encoder_via_state=False,
+            num_heads=None,
     ):
         """
 
@@ -97,7 +98,9 @@ class DisentangledMlpQf(PyTorchModule):
                 **new_qf_kwargs
             ))
         elif architecture in {'many_heads', 'splice'}:
-            for _ in range(self.postprocess_goal_dim):
+            if num_heads is None:
+                num_heads = self.postprocess_goal_dim
+            for _ in range(num_heads):
                 self.feature_qfs.append(ConcatMlp(
                     input_size=qf_input_size,
                     output_size=1,
@@ -109,13 +112,13 @@ class DisentangledMlpQf(PyTorchModule):
     def forward(self, obs, actions, return_individual_q_vals=False, **kwargs):
         obs_and_goal = obs
         # TODO: undo hack. probably just get rid of these variables
-        obs, goal = obs_and_goal.chunk(2, dim=1)
-        # if self.preprocess_obs_dim == self.preprocess_goal_dim:
-        # else:
-            # assert obs_and_goal.shape[1] == (
-                    # self.preprocess_obs_dim + self.preprocess_goal_dim)
-            # obs = obs_and_goal[:, :self.preprocess_obs_dim]
-            # goal = obs_and_goal[:, self.preprocess_obs_dim:]
+        if self.preprocess_obs_dim == self.preprocess_goal_dim:
+            obs, goal = obs_and_goal.chunk(2, dim=1)
+        else:
+            assert obs_and_goal.shape[1] == (
+                    self.preprocess_obs_dim + self.preprocess_goal_dim)
+            obs = obs_and_goal[:, :self.preprocess_obs_dim]
+            goal = obs_and_goal[:, self.preprocess_obs_dim:]
 
         h_obs = self.state_encoder(obs)
         h_obs = h_obs.detach() if self._detach_encoder_via_state else h_obs
@@ -163,6 +166,7 @@ class ParallelDisentangledMlpQf(PyTorchModule):
             architecture='splice',
             detach_encoder_via_goal=False,
             detach_encoder_via_state=False,
+            num_heads=None,
     ):
         """
 
@@ -229,10 +233,11 @@ class ParallelDisentangledMlpQf(PyTorchModule):
                 **new_qf_kwargs
             )
         elif architecture == 'many_heads':
+            num_heads = num_heads or self.postprocess_goal_dim
             self.post_encoder_qf = MultiInputSequential(
                 Concat(),
                 ParallelMlp(
-                    num_heads=self.postprocess_goal_dim,
+                    num_heads=num_heads,
                     input_size=qf_input_size,
                     output_size_per_mlp=1,
                     **post_encoder_mlp_kwargs

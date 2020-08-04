@@ -2,19 +2,17 @@ import gym
 
 from railrl.demos.source.mdp_path_loader import MDPPathLoader
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer, AWREnvReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.data_collector import MdpPathCollector
 from railrl.samplers.data_collector.step_collector import MdpStepCollector
 from railrl.torch.networks import ConcatMlp
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.sac.awr_sac import AWRSACTrainer
+from railrl.torch.sac.awac_trainer import AWACTrainer
 from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy, GaussianPolicy
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )
-from railrl.launchers.experiments.ashvin.awr_sac_rl import experiment
 
 from gym.envs.mujoco import (
     HalfCheetahEnv,
@@ -126,7 +124,7 @@ def experiment(variant):
         weight_update_period=variant['weight_update_period'],
         beta=variant['trainer_kwargs']['beta'],
     )
-    trainer = AWRSACTrainer(
+    trainer = AWACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,

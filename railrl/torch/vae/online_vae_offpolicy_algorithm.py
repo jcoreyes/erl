@@ -123,8 +123,9 @@ class OnlineVaeOffpolicyAlgorithm(TorchBatchRLAlgorithm):
             self.replay_buffer.add_path(path)
 
     def _end_epoch(self):
+        timer.start_timer('vae training')
         self._train_vae(self.epoch)
-        timer.stamp('vae training')
+        timer.stop_timer('vae training')
         super()._end_epoch()
 
     def _get_diagnostics(self):

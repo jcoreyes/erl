@@ -194,7 +194,7 @@ class CVQVAETrainer(VQ_VAETrainer):
         samples = torch.cat(grid)
         save_dir = osp.join(self.log_dir, 'mixed_latents_%d.png' % epoch)
         save_image(samples.data.cpu().transpose(2, 3), save_dir, nrow=n)
-    
+
     def dump_samples(self, epoch):
         return
     # def dump_samples(self, epoch):
@@ -331,7 +331,7 @@ class CVAETrainer(VQ_VAETrainer):
         samples = torch.cat(grid)
         save_dir = osp.join(self.log_dir, 'mixed_latents_%d.png' % epoch)
         save_image(samples.data.cpu().transpose(2, 3), save_dir, nrow=n)
-    
+
 
     def dump_samples(self, epoch):
         self.model.eval()
@@ -417,7 +417,7 @@ class VAETrainer(VQ_VAETrainer):
         self.eval_data[prefix + "last_batch"] = (batch, recon)
 
         return loss
-    
+
 
     def dump_samples(self, epoch):
         self.model.eval()
@@ -452,3 +452,6 @@ class VAETrainer(VQ_VAETrainer):
         ])
         save_dir = osp.join(self.log_dir, 'r%d.png' % epoch)
         save_image(comparison.data.cpu(), save_dir, nrow=n)
+
+    def dump_samples(self, epoch):
+        return

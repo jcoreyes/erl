@@ -6,11 +6,13 @@ https://github.com/rll/rllab
 import csv
 import datetime
 import errno
+import joblib
 import json
 import os
 import os.path as osp
 import pickle
 import sys
+import torch
 from collections import OrderedDict
 from contextlib import contextmanager
 from enum import Enum
@@ -111,6 +113,8 @@ class Logger(object):
         self._use_tensorboard = False
         self.epoch = 0
 
+        self._save_param_mode = 'torch'
+
     def reset(self):
         self.__init__()
 
@@ -174,6 +178,13 @@ class Logger(object):
     def set_snapshot_gap(self, gap):
         self._snapshot_gap = gap
 
+    def get_save_param_mode(self, ):
+        return self._save_param_mode
+
+    def set_save_param_mode(self, mode):
+        assert mode in ['pickle', 'torch', 'joblib']
+        self._save_param_mode = mode
+
     def set_log_tabular_only(self, log_tabular_only):
         self._log_tabular_only = log_tabular_only
 
@@ -224,13 +235,7 @@ class Logger(object):
         :param data: Something pickle'able.
         """
         file_name = osp.join(self._snapshot_dir, file_name)
-        if mode == 'joblib':
-            import joblib
-            joblib.dump(data, file_name, compress=3)
-        elif mode == 'pickle':
-            pickle.dump(data, open(file_name, "wb"))
-        else:
-            raise ValueError("Invalid mode: {}".format(mode))
+        self._save_params_to_file(data, file_name, mode=mode)
         return file_name
 
     def get_table_dict(self, ):
@@ -311,25 +316,35 @@ class Logger(object):
         del self._prefixes[-1]
         self._prefix_str = ''.join(self._prefixes)
 
+    def _save_params_to_file(self, params, file_name, mode):
+        if mode == 'joblib':
+            joblib.dump(params, file_name, compress=3)
+        elif mode == 'pickle':
+            pickle.dump(params, open(file_name, "wb"))
+        elif mode == 'torch':
+            torch.save(params, file_name)
+        else:
+            raise ValueError("Invalid mode: {}".format(mode))
+
     def save_itr_params(self, itr, params):
         if self._snapshot_dir:
             if self._snapshot_mode == 'all':
                 file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
-                pickle.dump(params, open(file_name, "wb"))
+                self._save_params_to_file(params, file_name, mode=self._save_param_mode)
             elif self._snapshot_mode == 'last':
                 # override previous params
                 file_name = osp.join(self._snapshot_dir, 'params.pkl')
-                pickle.dump(params, open(file_name, "wb"))
+                self._save_params_to_file(params, file_name, mode=self._save_param_mode)
             elif self._snapshot_mode == "gap":
                 if itr % self._snapshot_gap == 0:
                     file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
-                    pickle.dump(params, open(file_name, "wb"))
+                    self._save_params_to_file(params, file_name, mode=self._save_param_mode)
             elif self._snapshot_mode == "gap_and_last":
                 if itr % self._snapshot_gap == 0:
                     file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
-                    pickle.dump(params, open(file_name, "wb"))
+                    self._save_params_to_file(params, file_name, mode=self._save_param_mode)
                 file_name = osp.join(self._snapshot_dir, 'params.pkl')
-                pickle.dump(params, open(file_name, "wb"))
+                self._save_params_to_file(params, file_name, mode=self._save_param_mode)
             elif self._snapshot_mode == 'none':
                 pass
             else:
@@ -373,6 +388,7 @@ def setup_logger(
     :param log_dir:
     :return:
     """
+    logger.reset()
     variant = variant or {}
     unique_id = unique_id or str(uuid.uuid4())
 
@@ -463,6 +479,7 @@ def create_log_dir(
         seed=0,
         variant=None,
         trial_dir_suffix=None,
+        add_time_suffix=True,
         include_exp_name_sub_dir=True,
         run_id=None,
 ):
@@ -482,7 +499,7 @@ def create_log_dir(
         else:
             trial_name = "run{}/id{}".format(run_id, exp_id)
     else:
-        trial_name = create_trial_name(exp_name, exp_id=exp_id, seed=seed)
+        trial_name = create_trial_name(exp_name, exp_id=exp_id, seed=seed, add_time_suffix=add_time_suffix)
     if trial_dir_suffix is not None:
         trial_name = "{}-{}".format(trial_name, trial_dir_suffix)
     if include_exp_name_sub_dir:
@@ -495,7 +512,7 @@ def create_log_dir(
     return log_dir
 
 
-def create_trial_name(exp_name, exp_id=0, seed=0):
+def create_trial_name(exp_name, exp_id=0, seed=0, add_time_suffix=True):
     """
     Create a semi-unique experiment name that has a timestamp
     :param exp_name:
@@ -504,7 +521,10 @@ def create_trial_name(exp_name, exp_id=0, seed=0):
     """
     now = datetime.datetime.now(dateutil.tz.tzlocal())
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
-    return "%s_%s_id%03d--s%d" % (exp_name, timestamp, exp_id, seed)
+    if add_time_suffix:
+        return "%s_%s_id%03d--s%d" % (exp_name, timestamp, exp_id, seed)
+    else:
+        return "%s_id%03d--s%d" % (exp_name, exp_id, seed)
 
 
 logger = Logger()

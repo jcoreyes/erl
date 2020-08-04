@@ -1,29 +1,32 @@
 import time
 
+from collections import defaultdict
+
 
 class Timer:
     def __init__(self, return_global_times=False):
         self.stamps = None
         self.epoch_start_time = None
-        self.last_stamp_time = None
         self.global_start_time = time.time()
         self._return_global_times = return_global_times
 
         self.reset()
 
     def reset(self):
-        self.stamps = {}
+        self.stamps = defaultdict(lambda: 0)
+        self.start_times = {}
         self.epoch_start_time = time.time()
-        self.last_stamp_time = self.epoch_start_time
 
-    def stamp(self, name, unique=True):
+    def start_timer(self, name, unique=True):
         if unique:
-            assert name not in self.stamps.keys()
-        cur_time = time.time()
-        if name not in self.stamps:
-            self.stamps[name] = 0.0
-        self.stamps[name] += (cur_time - self.last_stamp_time)
-        self.last_stamp_time = cur_time
+            assert name not in self.start_times.keys()
+        self.start_times[name] = time.time()
+
+    def stop_timer(self, name):
+        assert name in self.start_times.keys()
+        start_time = self.start_times[name]
+        end_time = time.time()
+        self.stamps[name] += (end_time - start_time)
 
     def get_times(self):
         global_times = {}

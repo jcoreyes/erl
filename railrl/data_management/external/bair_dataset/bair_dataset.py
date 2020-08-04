@@ -38,7 +38,19 @@ class BAIRDataset(data.Dataset):
     train_data = {}
     test_data = {}
 
-    def __init__(self, is_train, camera=1, n_train_files=10, info=None, image_size = 64, flatten = False, transpose = None, shift = 0):
+    def __init__(self,
+        is_train,
+        dataset_location,
+        camera=1,
+        n_train_files=10,
+        info=None,
+        image_size = 64,
+        flatten = False,
+        transpose = None,
+        shift = 0,
+        x_crop = 8,
+        y_crop = 8,
+    ):
         self.is_train = is_train
         self.N = 1024 if is_train else 256
         self.traj_length = 15
@@ -47,22 +59,27 @@ class BAIRDataset(data.Dataset):
         self.flatten = flatten
         self.transpose = transpose
         self.shift = shift
+        self.x_crop = x_crop
+        self.y_crop = y_crop
 
+        # dataset_location = BAIR_DATASET_LOCATION # sync_down_folder(BAIR_DATASET_LOCATION)
 
         if is_train:
             self.n_files = n_train_files
             for i in range(self.n_files):
                 suffix = 'train{:0>2d}.npz'.format(i)
-                filename = BAIR_DATASET_LOCATION + "/" + suffix
+                # filename = BAIR_DATASET_LOCATION + "/" + suffix
                 #filename = sync_down_folder(BAIR_DATASET_LOCATION) + "/" + suffix
+                filename = dataset_location + "/" + suffix
                 data = np.load(filename)
                 images = data['images']
                 self.train_data[i] = images
         else:
             self.n_files = 1
             suffix = "test.npz"
-            filename = BAIR_DATASET_LOCATION + "/" + suffix
+            # filename = BAIR_DATASET_LOCATION + "/" + suffix
             #filename = sync_down_folder(BAIR_DATASET_LOCATION) + "/" + suffix
+            filename = dataset_location + "/" + suffix
             data = np.load(filename)
             images = data['images']
             self.test_data[0] = images
@@ -102,24 +119,39 @@ class BAIRDataset(data.Dataset):
         # x_t = normalize_image(np.array(x).flatten()).squeeze()
         # env = normalize_image(np.array(c).flatten()).squeeze()
         step = 64 // self.image_size
-        x_timages = images[traj_i, self.camera, trans_i, 0:64:step, 0:64:step, :]
+        # x_timages = images[traj_i, self.camera, trans_i, 0:64:step, 0:64:step, :]
+        x_min = self.x_crop
+        x_max = self.x_crop + self.image_size
+        y_min = self.y_crop
+        y_max = self.y_crop + self.image_size
+
+        x_timages = images[traj_i, self.camera, trans_i, y_min:y_max, x_min:x_max, :]
+        env_images = images[traj_i, self.camera, 0, y_min:y_max, x_min:x_max, :]
         if self.transpose != None:
-            x_timages = x_timages.transpose(self.transpose)
+            if type(self.transpose) is bool:
+                x_timages = x_timages.transpose()
+                env_images = env_images.transpose()
+            else:
+                x_timages = x_timages.transpose(self.transpose)
+                env_images = env_images.transpose(self.transpose)
         if self.flatten:
             x_timages = x_timages.flatten()
+            env_images = env_images.flatten()
 
         x_timages = x_timages / 255.0 - self.shift
+        env_images = env_images / 255.0 - self.shift
 
         data_dict = {
             'x_t': x_timages,
-            'env': images[traj_i, self.camera, 0, 8:56, 8:56, :].transpose().flatten() / 255.0,
+            'env': env_images,
         }
         return data_dict
 
 
 def generate_dataset(variant):
-    train_dataset = BAIRDataset(is_train=True, image_size = variant["image_size"], flatten = variant["flatten"], transpose = variant["transpose"], shift = variant["shift"])
-    test_dataset = BAIRDataset(is_train=False, image_size = variant["image_size"], flatten = variant["flatten"], transpose = variant["transpose"], shift = variant["shift"])
+    dataset_kwargs = variant.get("dataset_kwargs", {})
+    train_dataset = BAIRDataset(is_train=True, **dataset_kwargs)
+    test_dataset = BAIRDataset(is_train=False, **dataset_kwargs)
 
     train_batch_loader_kwargs = variant.get(
         'train_batch_loader_kwargs',
