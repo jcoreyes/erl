@@ -491,6 +491,20 @@ def awac_rig_experiment(
         save_video_kwargs = {}
     if not renderer_kwargs:
         renderer_kwargs = {}
+
+    if debug:
+        max_path_length = 5
+        algo_kwargs['batch_size'] = 5
+        algo_kwargs['num_epochs'] = 5
+        algo_kwargs['num_eval_steps_per_epoch'] = 100
+        algo_kwargs['num_expl_steps_per_train_loop'] = 100
+        algo_kwargs['num_trains_per_train_loop'] = 10
+        algo_kwargs['min_num_steps_before_training'] = 100
+        algo_kwargs['min_num_steps_before_training'] = 100
+        trainer_kwargs['bc_num_pretrain_steps'] = min(10, trainer_kwargs.get('bc_num_pretrain_steps', 0))
+        trainer_kwargs['q_num_pretrain1_steps'] = min(10, trainer_kwargs.get('q_num_pretrain1_steps', 0))
+        trainer_kwargs['q_num_pretrain2_steps'] = min(10, trainer_kwargs.get('q_num_pretrain2_steps', 0))
+
     #Enviorment Wrapping
     renderer = EnvRenderer(init_camera=init_camera, **renderer_kwargs)
     def contextual_env_distrib_and_reward(
@@ -759,6 +773,7 @@ def awac_rig_experiment(
             replay_buffer=replay_buffer,
             demo_train_buffer=demo_train_buffer,
             demo_test_buffer=demo_test_buffer,
+            reward_fn=eval_reward,
             **path_loader_kwargs
         )
         path_loader.load_demos()

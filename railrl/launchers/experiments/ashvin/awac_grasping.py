@@ -8,7 +8,7 @@ from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
 from railrl.envs.encoder_wrappers import VQVAEWrappedEnv
-from railrl.torch.sac.awr_sac import AWRSACTrainer
+from railrl.torch.sac.awac_trainer import AWACTrainer
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
@@ -283,7 +283,7 @@ def experiment(variant):
         else:
             error
 
-    trainer = AWRSACTrainer(
+    trainer = AWACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
@@ -486,6 +486,7 @@ class GraspingRewardFn:
         reward = (height > -0.3) - 1
         return reward
 
+
 def awac_rig_experiment(
         max_path_length,
         qf_kwargs,
@@ -683,7 +684,7 @@ def awac_rig_experiment(
     cont_keys = [context_key]
 
     #Replay Buffer
-    def concat_context_to_obs(batch):
+    def concat_context_to_obs(batch, replay_buffer, obs_dict, next_obs_dict, new_contexts):
         obs = batch['observations']
         next_obs = batch['next_observations']
         context = batch[context_key]
@@ -769,7 +770,7 @@ def awac_rig_experiment(
     )
 
     #Algorithm
-    trainer = AWRSACTrainer(
+    trainer = AWACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
@@ -837,6 +838,7 @@ def awac_rig_experiment(
             replay_buffer=replay_buffer,
             demo_train_buffer=demo_train_buffer,
             demo_test_buffer=demo_test_buffer,
+            # reward_fn=eval_reward, # omit reward because its recomputed later
             **path_loader_kwargs
         )
         path_loader.load_demos()
