@@ -403,6 +403,7 @@ def experiment(variant):
             replay_buffer=replay_buffer,
             demo_train_buffer=demo_train_buffer,
             demo_test_buffer=demo_test_buffer,
+            reward_fn=eval_reward,
             **path_loader_kwargs
         )
         path_loader.load_demos()
@@ -604,7 +605,7 @@ def awac_rig_experiment(
         cont_keys = [context_key]
 
     #Replay Buffer
-    def concat_context_to_obs(batch):
+    def concat_context_to_obs(batch, replay_buffer, obs_dict, next_obs_dict, new_contexts):
         obs = batch['observations']
         next_obs = batch['next_observations']
         context = batch[context_key]

@@ -1,5 +1,5 @@
 import railrl.misc.hyperparameter as hyp
-from railrl.demos.source.dict_to_mdp_path_loader import EncoderDictToMDPPathLoader
+from railrl.demos.source.contextual_mdp_path_loader import EncodingContextualPathLoader
 from railrl.launchers.experiments.ashvin.awac_rig import awac_rig_experiment
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
@@ -19,6 +19,8 @@ demo_paths_3=[dict(path='sasha/complex_obj/4dof_complex_objects_demos_0.pkl',obs
 demo_paths_4=[dict(path='sasha/complex_obj/4dof_complex_objects_demos_0.pkl',obs_dict=True, is_demo=True, data_split=0.5,)]
 
 demo_paths_5=[dict(path='sasha/complex_obj/4dof_complex_objects_demos_0.pkl',obs_dict=True, is_demo=True, data_split=0.25,)]
+
+demo_paths_6=[dict(path='sasha/complex_obj/4dof_complex_objects_demos_0.pkl',obs_dict=True, is_demo=True, data_split=0.01,)]
 
 
 if __name__ == "__main__":
@@ -100,7 +102,7 @@ if __name__ == "__main__":
         pretrained_vae_path="sasha/complex_obj/vae.pkl",
         presampled_goals_path="sasha/complex_obj/zero_goals.pkl",
 
-        path_loader_class=EncoderDictToMDPPathLoader,
+        path_loader_class=EncodingContextualPathLoader,
         path_loader_kwargs=dict(
             recompute_reward=True,
             demo_paths=[
@@ -200,7 +202,7 @@ if __name__ == "__main__":
 
     search_space = {
         "seed": range(5),
-        'path_loader_kwargs.demo_paths': [demo_paths_1], # , demo_paths_2, demo_paths_3, demo_paths_4, demo_paths_5],
+        'path_loader_kwargs.demo_paths': [demo_paths_6], # , demo_paths_2, demo_paths_3, demo_paths_4, demo_paths_5],
         'trainer_kwargs.beta': [0.3, 1.0, 3.0],
         'policy_kwargs.min_log_std': [-6],
         'trainer_kwargs.awr_weight': [1.0],
