@@ -76,23 +76,17 @@ class ContextualEnv(gym.Wrapper):
         info = self._update_env_info(self, info, obs, reward, done)
         return obs, new_reward, done, info
 
-    def _compute_reward(self, state, action, next_state, context=None):
+    def _compute_reward(self, state, action, next_state):
         """Do reshaping for reward_fn, which is implemented for batches."""
         # TODO: don't assume these things are just vectors
         states = batchify(state)
         actions = batchify(action)
         next_states = batchify(next_state)
-        
-        if context is None:
-            contexts = self._rollout_context_batch
-        else:
-            contexts = batchify(context)
-    
         return self._reward_fn(
             states,
             actions,
             next_states,
-            contexts,
+            self._rollout_context_batch,
         )[0]
 
     def _update_obs(self, obs):

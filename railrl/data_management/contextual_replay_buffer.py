@@ -159,16 +159,16 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
 
         actions = self._actions[indices]
 
-        # keys = set(contexts[0].keys())
-        # for c in contexts[1:]:
-        #     if set(c.keys()) != keys:
-        #         raise RuntimeError(
-        #             "Context distributions don't match. Replay buffer context "
-        #             "distribution keys={}, other distribution keys={}".format(
-        #                 keys,
-        #                 set(c.keys())
-        #             )
-        #         )
+        keys = set(contexts[0].keys())
+        for c in contexts[1:]:
+            if set(c.keys()) != keys:
+                raise RuntimeError(
+                    "Context distributions don't match. Replay buffer context "
+                    "distribution keys={}, other distribution keys={}".format(
+                        keys,
+                        set(c.keys())
+                    )
+                )
 
         def concat(*x):
             return np.concatenate(x, axis=0)

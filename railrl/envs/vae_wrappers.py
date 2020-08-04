@@ -36,7 +36,7 @@ class VAEWrappedEnv(ProxyEnv, MultitaskEnv):
         goal_sampling_mode="vae_prior",
         presampled_goals_path=None,
         num_goals_to_presample=0,
-        imsize=48,
+        imsize=84,
         obs_size=None,
         norm_order=2,
         epsilon=20,
