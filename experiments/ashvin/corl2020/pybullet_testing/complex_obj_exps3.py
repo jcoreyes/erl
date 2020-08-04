@@ -1,6 +1,6 @@
 import railrl.misc.hyperparameter as hyp
 from railrl.demos.source.dict_to_mdp_path_loader import EncoderDictToMDPPathLoader
-from railrl.launchers.experiments.ashvin.awr_sac_gcrl import awac_rig_experiment
+from railrl.launchers.experiments.ashvin.awac_rig import awac_rig_experiment
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.arglauncher import run_variants
 from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
@@ -203,8 +203,6 @@ if __name__ == "__main__":
         'path_loader_kwargs.demo_paths': [demo_paths_1], # , demo_paths_2, demo_paths_3, demo_paths_4, demo_paths_5],
         'trainer_kwargs.beta': [0.3, 1.0, 3.0],
         'policy_kwargs.min_log_std': [-6],
-        'trainer_kwargs.bc_loss_type': ["mle"],
-        'trainer_kwargs.awr_loss_type': ["mle"],
         'trainer_kwargs.awr_weight': [1.0],
         'trainer_kwargs.awr_use_mle_for_vf': [True, ],
         'trainer_kwargs.awr_sample_actions': [False, ],

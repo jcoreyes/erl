@@ -8,7 +8,7 @@ from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from railrl.envs.images import EnvRenderer, InsertImageEnv
 from railrl.misc.asset_loader import load_local_or_remote_file
 from railrl.envs.encoder_wrappers import VQVAEWrappedEnv
-from railrl.torch.sac.awr_sac import AWRSACTrainer
+from railrl.torch.sac.awac_trainer import AWACTrainer
 from railrl.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
@@ -267,7 +267,7 @@ def experiment(variant):
         else:
             error
 
-    trainer = AWRSACTrainer(
+    trainer = AWACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
@@ -690,7 +690,7 @@ def awac_rig_experiment(
     )
 
     #Algorithm
-    trainer = AWRSACTrainer(
+    trainer = AWACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
