@@ -28,6 +28,7 @@ class ObsDictReplayBuffer(ReplayBuffer):
             observation_key='observation',
             save_data_in_snapshot=False,
             reward_dim=1,
+            preallocate_arrays=False,
     ):
         """
 
@@ -67,12 +68,11 @@ class ObsDictReplayBuffer(ReplayBuffer):
         for key in ob_keys_to_save + internal_keys:
             assert key in self.ob_spaces, \
                 "Key not found in the observation space: %s" % key
-            arr_initializer = np
-            if key.startswith('image'):
-                arr_initializer = image_np
-            self._obs[key] = arr_initializer.ones(
+            module = image_np if key.startswith('image') else np
+            arr_initializer = module.ones if preallocate_arrays else module.zeros
+            self._obs[key] = arr_initializer(
                 (max_size, *self.ob_spaces[key].low.shape), dtype=np.float32)
-            self._next_obs[key] = arr_initializer.ones(
+            self._next_obs[key] = arr_initializer(
                 (max_size, *self.ob_spaces[key].low.shape), dtype=np.float32)
 
         self._top = 0

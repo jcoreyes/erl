@@ -33,6 +33,11 @@ def zeros(shape, *args, **kwargs):
     return _ImageNumpyArr(arr)
 
 
+def ones(shape, *args, **kwargs):
+    arr = np.ones(shape, dtype=np.uint8)
+    return _ImageNumpyArr(arr)
+
+
 def from_np(np_arr):
     return _ImageNumpyArr(np_arr)
 
