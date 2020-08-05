@@ -194,7 +194,7 @@ if __name__ == "__main__":
     search_space = {
         "seed": range(3),
         'path_loader_kwargs.demo_paths': [demo_paths_1],
-        'trainer_kwargs.beta': [0.1], # [0.3, 1.0, 3.0, ],
+        'trainer_kwargs.beta': [0.1, 0.3, 1.0, 3.0, ],
         'trainer_kwargs.q_num_pretrain2_steps': [100001],
         'policy_kwargs.max_log_std': [0, ],
         'trainer_kwargs.discount': [0.95, 0.96, ],

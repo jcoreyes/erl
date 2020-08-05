@@ -481,7 +481,7 @@ class RewardFn:
 
 class GraspingRewardFn:
     def __call__(self, states, actions, next_states, contexts):
-        height = next_states['state_observation'][:, 6]
+        height = next_states['state_observation'][:, 10]
         # reward = (height + 0.345) / 0.16 - 1
         reward = (height > -0.3) - 1
         return reward

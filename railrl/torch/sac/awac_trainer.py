@@ -778,6 +778,14 @@ class AWACTrainer(TorchTrainer):
                 'Log Pis',
                 ptu.get_numpy(log_pi),
             ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'rewards',
+                ptu.get_numpy(rewards),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'terminals',
+                ptu.get_numpy(terminals),
+            ))
             policy_statistics = add_prefix(dist.get_diagnostics(), "policy/")
             self.eval_statistics.update(policy_statistics)
             self.eval_statistics.update(create_stats_ordered_dict(
