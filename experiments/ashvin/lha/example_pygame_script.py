@@ -1,0 +1,186 @@
+import railrl.misc.hyperparameter as hyp
+from multiworld.envs.pygame import PickAndPlaceEnv
+from railrl.launchers.experiments.goal_distribution.launcher import \
+    representation_learning_with_goal_distribution_launcher
+
+from railrl.launchers.launcher_util import run_experiment
+# from railrl.torch.sets.launcher import test_offline_set_vae
+# from railrl.launchers.masking_launcher import default_masked_reward_fn
+from railrl.envs.contextual.mask_conditioned import default_masked_reward_fn
+from railrl.launchers.exp_launcher import rl_context_experiment
+
+if __name__ == '__main__':
+    imsize = 48
+    variant = dict(
+        algo_kwargs=dict(
+            num_epochs=4000,
+            batch_size=2048,
+            num_eval_steps_per_epoch=1000,
+            num_expl_steps_per_train_loop=1000,
+            num_trains_per_train_loop=1000, #4000,
+            min_num_steps_before_training=1000,
+            eval_epoch_freq=1,
+        ),
+        max_path_length=100,
+        sac_trainer_kwargs=dict(
+            soft_target_tau=1e-3,
+            target_update_period=1,
+            use_automatic_entropy_tuning=True,
+            reward_scale=100,
+            discount=0.99,
+        ),
+        contextual_replay_buffer_kwargs=dict(
+            max_size=int(1E6),
+            fraction_future_context=0.4,
+            fraction_distribution_context=0.4,
+            fraction_replay_buffer_context=0.0,
+            # recompute_rewards=True,
+        ),
+        qf_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
+        policy_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
+        observation_key='state_observation',
+        desired_goal_key='state_desired_goal',
+        achieved_goal_key='state_achieved_goal',
+        expl_goal_sampling_mode='random',
+        eval_goal_sampling_mode='random',
+        save_env_in_snapshot=False,
+        save_video=True,
+        dump_video_kwargs=dict(
+            rows=1,
+            columns=8,
+            pad_color=0,
+            pad_length=0,
+            subpad_length=1,
+        ),
+        save_video_period=150,
+        renderer_kwargs=dict(
+            width=imsize,
+            height=imsize,
+        ),
+        mask_variant=dict(
+            mask_conditioned=True,
+            rollout_mask_order_for_expl='random',
+            rollout_mask_order_for_eval='fixed',
+            log_mask_diagnostics=True,
+            mask_format='matrix',
+            infer_masks=False,
+            mask_inference_variant=dict(
+                n=100,
+                noise=0.01,
+                max_cond_num=1e2,
+                normalize_sigma_inv=True,
+                sigma_inv_entry_threshold=0.10,
+            ),
+            relabel_goals=True,
+            relabel_masks=True,
+            sample_masks_for_relabeling=True,
+
+            context_post_process_mode=None,
+            context_post_process_frac=0.5,
+
+            max_subtasks_to_focus_on=None,
+            max_subtasks_per_rollout=None,
+            prev_subtask_weight=0.25,
+            reward_fn=default_masked_reward_fn,
+            use_g_for_mean=True,
+
+            train_mask_distr=dict(
+                atomic=1.0,
+                subset=0.0,
+                cumul=0.0,
+                full=0.0,
+            ),
+            expl_mask_distr=dict(
+                atomic=0.5,
+                atomic_seq=0.5,
+                cumul_seq=0.0,
+                full=0.0,
+            ),
+            eval_mask_distr=dict(
+                atomic=0.0,
+                atomic_seq=1.0,
+                cumul_seq=0.0,
+                full=0.0,
+            ),
+            idx_masks=[
+                {2: 2, 3: 3},
+                {4: 4, 5: 5},
+            ],
+            eval_rollouts_to_log=['atomic', 'atomic_seq'],
+            eval_rollouts_for_videos=[],
+        ),
+        env_class=PickAndPlaceEnv,
+        env_kwargs=dict(
+            # Environment dynamics
+            action_scale=1.0,
+            ball_radius=0.75,
+            boundary_dist=4,
+            object_radius=0.50,
+            min_grab_distance=0.5,
+            walls=None,
+            # Rewards
+            action_l2norm_penalty=0,
+            reward_type="dense",
+            success_threshold=0.60,
+            # Reset settings
+            fixed_goal=None,
+            # Visualization settings
+            images_are_rgb=True,
+            render_dt_msec=0,
+            render_onscreen=False,
+            render_size=84,
+            show_goal=True,
+            goal_samplers=None,
+            goal_sampling_mode='random',
+            num_presampled_goals=10000,
+            object_reward_only=False,
+
+            init_position_strategy='random',
+            num_objects=2,
+        ),
+        logger_config=dict(
+            snapshot_gap=50,
+            snapshot_mode='gap_and_last',
+        ),
+        launcher_config=dict(
+            unpack_variant=True,
+        ),
+    )
+    n_seeds = 1
+
+    search_space = {
+    }
+    n_seeds = 1
+    # mode = 'local'
+    mode = 'here_no_doodad'
+    exp_prefix = 'dev-{}'.format(
+        __file__.replace('/', '-').replace('_', '-').split('.')[0]
+    )
+
+    # n_seeds = 3
+    # mode = 'sss'
+    # exp_prefix = 'exp2-pygame-mask-2obj-experiment-first-try'
+
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        # beta = variant['vae_trainer_kwargs']['beta']
+        # slw = variant['vae_trainer_kwargs']['set_loss_weight']
+        for _ in range(n_seeds):
+            run_experiment(
+                # rl_context_experiment,
+                # unpack_variant=False,
+                representation_learning_with_goal_distribution_launcher,
+                variant=variant,
+                exp_name=exp_prefix,
+                mode=mode,
+                # slurm_config_name='cpu',
+                # slurm_config_name='gpu_low_pri',
+                slurm_config_name='gpu_fc',
+                use_gpu=True,
+            )

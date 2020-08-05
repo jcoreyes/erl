@@ -1,34 +1,77 @@
-from collections import OrderedDict, namedtuple
 import os.path as osp
+from collections import OrderedDict, namedtuple
 from typing import Tuple
 
 import cv2
 import numpy as np
 import torch
 import torch.optim as optim
-from torch import nn as nn
+from torch.distributions.kl import kl_divergence
 
-from railrl.core import logger
-from railrl.core.logging import add_prefix
-from railrl.core.loss import LossFunction
-from railrl.misc.eval_util import create_stats_ordered_dict
 import railrl.torch.pytorch_util as ptu
-from railrl.torch.torch_rl_algorithm import TorchTrainer
-from railrl.core.logging import add_prefix
+from railrl.core import logger
+from railrl.core.loss import LossFunction
 from railrl.core.timer import timer
+from railrl.torch.core import PyTorchModule
+from railrl.torch.distributions import Distribution
+from railrl.torch.networks.stochastic.distribution_generator import (
+    DistributionGenerator
+)
+from railrl.torch.torch_rl_algorithm import TorchTrainer
 from railrl.visualization.image import combine_images_into_grid
 
-VAELosses = namedtuple(
-    'VAELoss',
-    'vae_loss',
+
+class VAE(PyTorchModule):
+    def __init__(
+            self,
+            encoder: DistributionGenerator,
+            decoder: DistributionGenerator,
+            latent_prior: Distribution,
+    ):
+        super().__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+        self.latent_prior = latent_prior
+        if self.latent_prior.batch_shape != torch.Size([1]):
+            raise ValueError('Use batch_shape of 1 for KL computation.')
+
+    def reconstruct(self, x, use_latent_mean=True, use_generative_model_mean=True):
+        q_z = self.encoder(x)
+        if use_latent_mean:
+            z = q_z.mean
+        else:
+            z = q_z.sample()
+
+        p_x_given_z = self.decoder(z)
+        if use_generative_model_mean:
+            x_hat = p_x_given_z.mean
+        else:
+            x_hat = p_x_given_z.sample()
+        return x_hat
+
+    def sample(self, batch_size, use_generative_model_mean=True):
+        # squeeze out extra batch dimension that was there for KL computation
+        z = self.latent_prior.sample(torch.Size([batch_size])).squeeze(1)
+        p_x_given_z = self.decoder(z)
+        if use_generative_model_mean:
+            x = p_x_given_z.mean
+        else:
+            x = p_x_given_z.sample()
+        return x
+
+
+VAETerms = namedtuple(
+    'VAETerms',
+    'likelihood kl q_z p_x_given_z',
 )
 LossStatistics = OrderedDict
+Loss = torch.Tensor
 
 
 class VAETrainer(TorchTrainer, LossFunction):
     def __init__(
             self,
-            vae,
+            vae: VAE,
             vae_lr=1e-3,
             beta=1,
             loss_scale=1.0,
@@ -66,50 +109,31 @@ class VAETrainer(TorchTrainer, LossFunction):
             self.example_obs_batch = batch['raw_next_observations']
         timer.stop_timer('vae training')
 
-    def kl_divergence(self, z_mu, logvar):
-        return - 0.5 * torch.sum(
-            1 + logvar - z_mu.pow(2) - logvar.exp(), dim=1
-        ).mean()
-
     def compute_loss(
         self,
         batch,
         skip_statistics=False
-    ) -> Tuple[VAELosses, LossStatistics]:
-        next_obs = batch['raw_next_observations']
+    ) -> Tuple[Loss, LossStatistics]:
+        x = batch['raw_next_observations']
+        vae_terms = compute_vae_terms(self.vae, x)
+        vae_loss = - vae_terms.likelihood + self.beta * vae_terms.kl
 
-        recon, z_mu, z_logvar = self.vae.reconstruct(
-            next_obs,
-            use_mean=False,
-            return_latent_params=True,
-        )
-
-        vae_logprob = self.vae.logprob(next_obs, recon)
-        recon_loss = -vae_logprob
-
-        kl_divergence = self.kl_divergence(z_mu, z_logvar)
-        kl_loss = kl_divergence
-        scaled_kl_loss = self.beta * kl_loss
-        vae_loss = recon_loss + scaled_kl_loss
-
-        loss = VAELosses(
-            vae_loss=vae_loss * self.loss_scale,
-        )
-        """
-        Save some statistics
-        """
         eval_statistics = OrderedDict()
         if not skip_statistics:
-            mean_vae_logprob = vae_logprob.mean()
-            mean_kl_divergence = kl_divergence.mean()
-
             eval_statistics['Log Prob'] = np.mean(ptu.get_numpy(
-                mean_vae_logprob
+                vae_terms.likelihood
             ))
             eval_statistics['KL'] = np.mean(ptu.get_numpy(
-                mean_kl_divergence
+                vae_terms.kl
             ))
-        return loss, eval_statistics
+            eval_statistics['loss'] = np.mean(ptu.get_numpy(
+                vae_loss
+            ))
+            for k, v in vae_terms.p_x_given_z.get_diagnostics().items():
+                eval_statistics['p_x_given_z/{}'.format(k)] = v
+            for k, v in vae_terms.q_z.get_diagnostics().items():
+                eval_statistics['q_z_given_x/{}'.format(k)] = v
+        return vae_loss, eval_statistics
 
     def get_diagnostics(self):
         stats = super().get_diagnostics()
@@ -125,13 +149,27 @@ class VAETrainer(TorchTrainer, LossFunction):
         epoch,
         dump_images=True,
         num_recons=10,
-        num_samples=25
+        num_samples=25,
+        debug_period=10,
+        unnormalize_images=False,
     ):
-        if not dump_images:
+        """
+
+        :param epoch:
+        :param dump_images: Set to False to not dump any images.
+        :param num_recons:
+        :param num_samples:
+        :param debug_period: How often do you dump debug images?
+        :param unnormalize_images: Should your unnormalize images before
+            dumping them? Set to True if images are floats in [0, 1].
+        :return:
+        """
+        if not dump_images or epoch % debug_period != 0:
             return
         example_obs_batch_np = ptu.get_numpy(self.example_obs_batch)
         recon_examples_np = ptu.get_numpy(
-            self.vae.reconstruct(self.example_obs_batch, use_mean=True))
+            self.vae.reconstruct(self.example_obs_batch)
+        )
 
         top_row_example = example_obs_batch_np[:num_recons]
         bottom_row_recon = np.clip(recon_examples_np, 0, 1)[:num_recons]
@@ -142,7 +180,7 @@ class VAETrainer(TorchTrainer, LossFunction):
             imheight=example_obs_batch_np.shape[3],
             max_num_cols=len(top_row_example),
             image_format='CWH',
-            unnormalize=True,
+            unnormalize=unnormalize_images,
         )
 
         logdir = logger.get_snapshot_dir()
@@ -151,13 +189,14 @@ class VAETrainer(TorchTrainer, LossFunction):
             recon_vis,
         )
 
-        vae_samples = np.clip(self.vae.sample_np(num_samples), 0, 1)
+        raw_samples = ptu.get_numpy(self.vae.sample(num_samples))
+        vae_samples = np.clip(raw_samples, 0, 1)
         vae_sample_vis = combine_images_into_grid(
             imgs=list(vae_samples),
             imwidth=example_obs_batch_np.shape[2],
             imheight=example_obs_batch_np.shape[3],
             image_format='CWH',
-            unnormalize=True,
+            unnormalize=unnormalize_images,
         )
         cv2.imwrite(
             osp.join(logdir, '{}_vae_samples.png'.format(epoch)),
@@ -180,3 +219,21 @@ class VAETrainer(TorchTrainer, LossFunction):
         return dict(
             vae=self.vae,
         )
+
+
+def compute_vae_terms(vae, x) -> VAETerms:
+    q_z = vae.encoder(x)
+    kl = kl_divergence(q_z, vae.latent_prior)
+    z = q_z.rsample()
+    p_x_given_z = vae.decoder(z)
+    log_prob = p_x_given_z.log_prob(x)
+
+    mean_log_prob = log_prob.mean()
+    mean_kl = kl.mean()
+
+    return VAETerms(
+        likelihood=mean_log_prob,
+        kl=mean_kl,
+        q_z=q_z,
+        p_x_given_z=p_x_given_z,
+    )

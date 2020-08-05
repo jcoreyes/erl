@@ -40,10 +40,12 @@ class PriorDistribution(DictDistribution):
             self,
             representation_size,
             key,
+            dist=None,
     ):
-        self._spaces = {}
+        self._spaces = dist.spaces if dist else {}
         self.key = key
         self.representation_size = representation_size
+        self.dist = dist
         latent_space = Box(
             -10 * np.ones(self.representation_size),
             10 * np.ones(self.representation_size),
@@ -52,9 +54,10 @@ class PriorDistribution(DictDistribution):
         self._spaces[key] = latent_space
 
     def sample(self, batch_size: int):
+        s = self.dist.sample(batch_size) if self.dist else {}
         mu, sigma = 0, 1 # sample from prior
         n = np.random.randn(batch_size, self.representation_size)
-        s = {self.key: sigma * n + mu}
+        s[self.key] = sigma * n + mu
         return s
 
     @property
