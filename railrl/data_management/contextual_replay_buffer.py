@@ -140,25 +140,27 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
             k: next_obs_dict[k][:num_rollout_contexts]
             for k in self._context_keys
         }]
-        keys = set(self._context_keys)
 
         if num_distrib_contexts > 0:
             sampled_contexts = self._context_distribution.sample(
                 num_distrib_contexts)
-            assert keys.issubset(set(sampled_contexts.keys()))
+            sampled_contexts = {
+                k: sampled_contexts[k] for k in self._context_keys}
             contexts.append(sampled_contexts)
 
         if num_replay_buffer_contexts > 0:
             replay_buffer_contexts = self._get_replay_buffer_contexts(
                 num_replay_buffer_contexts,
             )
-            assert keys.issubset(set(sampled_contexts.keys()))
+            replay_buffer_contexts = {
+                k: replay_buffer_contexts[k] for k in self._context_keys}
             contexts.append(replay_buffer_contexts)
 
         if num_future_contexts > 0:
             start_state_indices = indices[-num_future_contexts:]
             future_contexts = self._get_future_contexts(start_state_indices)
-            assert keys.issubset(set(sampled_contexts.keys()))
+            future_contexts = {
+                k: future_contexts[k] for k in self._context_keys}
             contexts.append(future_contexts)
 
         actions = self._actions[indices]
