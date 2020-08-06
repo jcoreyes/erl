@@ -42,6 +42,7 @@ class ContextualEnv(gym.Wrapper):
             observation_key='observation',
             update_env_info_fn=None,
             contextual_diagnostics_fns: Union[None, List[ContextualDiagnosticsFn]]=None,
+            unbatched_reward_fn=None,
     ):
         super().__init__(env)
         if contextual_diagnostics_fns is None:
@@ -53,13 +54,16 @@ class ContextualEnv(gym.Wrapper):
             spaces[k] = space
         self.observation_space = gym.spaces.Dict(spaces)
         self.context_distribution = context_distribution
-        self._reward_fn = reward_fn
+        self.reward_fn = reward_fn
         self._context_keys = list(context_distribution.spaces.keys())
         self._observation_key = observation_key
         self._last_obs = None
         self._rollout_context_batch = None
         self._update_env_info = update_env_info_fn or insert_reward
         self._contextual_diagnostics_fns = contextual_diagnostics_fns
+        if unbatched_reward_fn is None:
+            unbatched_reward_fn = UnbatchRewardFn(reward_fn)
+        self.unbatched_reward_fn = unbatched_reward_fn
 
     def reset(self):
         obs = self.env.reset()
@@ -79,15 +83,8 @@ class ContextualEnv(gym.Wrapper):
     def _compute_reward(self, state, action, next_state):
         """Do reshaping for reward_fn, which is implemented for batches."""
         # TODO: don't assume these things are just vectors
-        states = batchify(state)
-        actions = batchify(action)
-        next_states = batchify(next_state)
-        return self._reward_fn(
-            states,
-            actions,
-            next_states,
-            self._rollout_context_batch,
-        )[0]
+        return self.unbatched_reward_fn(
+            state, action, next_state, self._rollout_context_batch)
 
     def _update_obs(self, obs):
         for k in self._context_keys:
@@ -105,6 +102,28 @@ class ContextualEnv(gym.Wrapper):
         return {
             k: first_observation[k] for k in self._context_keys
         }
+
+
+class UnbatchRewardFn(object):
+    def __init__(self, reward_fn: ContextualRewardFn):
+        self._reward_fn = reward_fn
+
+    def __call__(
+            self,
+            state: dict,
+            action,
+            next_state: dict,
+            context: dict
+    ):
+        states = batchify(state)
+        actions = batchify(action)
+        next_states = batchify(next_state)
+        return self._reward_fn(
+            states,
+            actions,
+            next_states,
+            context,
+        )[0]
 
 
 def insert_reward(contexutal_env, info, obs, reward, done):
