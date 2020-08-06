@@ -27,10 +27,8 @@ class RemapKeyFn(SampleContextFromObsDictFn):
         self._context_to_input_key = context_to_input_key
 
     def __call__(self, obs: dict) -> Any:
-        return {
-            k: obs[v]
-            for k, v in self._context_to_input_key.items()
-        }
+        new_obs = {k: obs[v] for k, v in self._context_to_input_key.items()}
+        return new_obs
 
 
 class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
@@ -146,31 +144,26 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
         if num_distrib_contexts > 0:
             sampled_contexts = self._context_distribution.sample(
                 num_distrib_contexts)
+            sampled_contexts = {
+                k: sampled_contexts[k] for k in self._context_keys}
             contexts.append(sampled_contexts)
 
         if num_replay_buffer_contexts > 0:
             replay_buffer_contexts = self._get_replay_buffer_contexts(
                 num_replay_buffer_contexts,
             )
+            replay_buffer_contexts = {
+                k: replay_buffer_contexts[k] for k in self._context_keys}
             contexts.append(replay_buffer_contexts)
 
         if num_future_contexts > 0:
             start_state_indices = indices[-num_future_contexts:]
             future_contexts = self._get_future_contexts(start_state_indices)
+            future_contexts = {
+                k: future_contexts[k] for k in self._context_keys}
             contexts.append(future_contexts)
 
         actions = self._actions[indices]
-
-        keys = set(contexts[0].keys())
-        for c in contexts[1:]:
-            if set(c.keys()) != keys:
-                raise RuntimeError(
-                    "Context distributions don't match. Replay buffer context "
-                    "distribution keys={}, other distribution keys={}".format(
-                        keys,
-                        set(c.keys())
-                    )
-                )
 
         def concat(*x):
             return np.concatenate(x, axis=0)
