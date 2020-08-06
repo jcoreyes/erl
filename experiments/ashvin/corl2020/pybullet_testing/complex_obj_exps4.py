@@ -202,7 +202,7 @@ if __name__ == "__main__":
 
     search_space = {
         "seed": range(5),
-        'path_loader_kwargs.demo_paths': [demo_paths_1], # , demo_paths_2, demo_paths_3, demo_paths_4, demo_paths_5],
+        'path_loader_kwargs.demo_paths': [demo_paths_6], # , demo_paths_2, demo_paths_3, demo_paths_4, demo_paths_5],
         'trainer_kwargs.beta': [0.3, 1.0, 3.0],
         'policy_kwargs.min_log_std': [-6],
         'trainer_kwargs.awr_weight': [1.0],

@@ -39,7 +39,6 @@ class VideoSaveFunction:
         self.dump_video_kwargs = variant.get("dump_video_kwargs", dict())
         if 'imsize' not in self.dump_video_kwargs:
             self.dump_video_kwargs['imsize'] = env.imsize
-
         self.dump_video_kwargs.setdefault("rows", 2)
         # self.dump_video_kwargs.setdefault("columns", 5)
         self.dump_video_kwargs.setdefault("columns", 1)
@@ -269,11 +268,13 @@ def reshape_for_video(frames, N, rows, columns, num_channels):
 
 
 def get_generic_env_imgs(path, i_in_path, env):
-    x_0 = path['full_observations'][0]['image_observation']
-    d = path['full_observations'][i_in_path]
     is_vae_env = isinstance(env, VAEWrappedEnv)
     is_conditional_vae_env = isinstance(env, ConditionalVAEWrappedEnv)
     imgs = []
+    if not is_conditional_vae_env or not is_vae_env:
+        return imgs
+    x_0 = path['full_observations'][0]['image_observation']
+    d = path['full_observations'][i_in_path]
     if is_conditional_vae_env:
         imgs.append(
             np.clip(env._reconstruct_img(d['image_observation'], x_0), 0, 1)
@@ -318,8 +319,8 @@ def dump_paths(
 
     H = num_imgs * imheight  # imsize
     W = imwidth  # imsize
-    rows = min(rows, int(len(paths) / columns))
 
+    rows = min(rows, int(len(paths) / columns))
     N = rows * columns
     for i in range(N):
         start = time.time()
