@@ -32,8 +32,12 @@ class NPTestCase(unittest.TestCase):
             self,
             np_arrays1,
             np_arrays2,
-            msg="Numpy array lists are not equal.",
+            msg=None,
     ):
+        msg = msg or "Numpy arrays {} and {} are not equal".format(
+            np_arrays1,
+            np_arrays2,
+        )
         self.assertTrue(
             are_np_array_iterables_equal(
                 np_arrays1,

@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from numbers import Number
 
 
 def is_binomial_trial_likely(n, p, num_success, num_std=3):
@@ -17,10 +18,15 @@ def is_binomial_trial_likely(n, p, num_success, num_std=3):
     return mean - margin < num_success < mean + margin
 
 
-def are_np_array_iterables_equal(np_itr1, np_itr2, threshold=1e-5):
+def are_np_array_iterables_equal(np_list1, np_list2, threshold=1e-5):
+    # import ipdb; ipdb.set_trace()
+    # if isinstance(np_list1.shape ==, Number) and isinstance(np_itr2, Number):
+    #     return are_np_arrays_equal(np_itr1, np_itr2)
+    if np_list1.shape == () and np_list2.shape == ():
+        return are_np_arrays_equal(np_list1, np_list2)
     # in case generators were passed in
-    np_list1 = list(np_itr1)
-    np_list2 = list(np_itr2)
+    # np_list1 = list(np_itr1)
+    # np_list2 = list(np_itr2)
     return (
         len(np_list1) == len(np_list2) and
         all(are_np_arrays_equal(arr1, arr2, threshold=threshold)
