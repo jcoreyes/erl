@@ -2,10 +2,12 @@ import torch
 import torch.nn as nn
 from torchvision import datasets, transforms
 from railrl.torch import pytorch_util as ptu
+from railrl.misc.asset_loader import load_local_or_remote_file
 from os import path as osp
 from sklearn import neighbors
 import numpy as np
 from torchvision.utils import save_image
+from tqdm import tqdm
 import time
 import os 
 import pickle
@@ -38,10 +40,10 @@ parser.add_argument("-gen_samples", action="store_true", default=True)
 parser.add_argument("--dataset",  type=str, default='LATENT_BLOCK',
     help='accepts CIFAR10 | MNIST | FashionMNIST | LATENT_BLOCK')
 parser.add_argument("--num_workers", type=int, default=4)
-parser.add_argument("--img_dim", type=int, default=12)
+parser.add_argument("--img_dim", type=int, default=21)
 parser.add_argument("--input_dim", type=int, default=1,
     help='1 for grayscale 3 for rgb')
-parser.add_argument("--n_embeddings", type=int, default=512,
+parser.add_argument("--n_embeddings", type=int, default=1024,
     help='number of embeddings from VQ VAE')
 parser.add_argument("--n_layers", type=int, default=15)
 parser.add_argument("--learning_rate", type=float, default=3e-4)
@@ -56,7 +58,6 @@ def load_vae(vae_file):
     else:
         local_path = sync_down(vae_file)
     vae = pickle.load(open(local_path, "rb"))
-    # vae = torch.load(local_path, map_location='cpu')
     print("loaded", local_path)
     vae.to("cuda")
     return vae
@@ -64,60 +65,48 @@ def load_vae(vae_file):
 """
 data loaders
 """
-all_data = np.load(args.filepath, allow_pickle=True)
+
+# Load VQVAE + Define Args
 vqvae = load_vae(args.vaepath)
-
-if isinstance(vqvae, CVQVAE):
-    cond_size = vqvae.num_embeddings
-    #cond_size = 1
-else:
-    cond_size = 1
-
-
-
-def ind_to_cont(e_indices):
-    input_shape = e_indices.shape + (vqvae.representation_size,)
-    e_indices = e_indices.reshape(-1).unsqueeze(1)#, input_shape[1]*input_shape[2])
-    
-    min_encodings = torch.zeros(e_indices.shape[0], vqvae.num_embeddings, device=e_indices.device)
-    min_encodings.scatter_(1, e_indices, 1)
-
-    e_weights = vqvae._embedding.weight
-    quantized = torch.matmul(
-        min_encodings, e_weights).view(input_shape)
-    
-    z_q = torch.matmul(min_encodings, e_weights).view(input_shape) 
-    z_q = z_q.permute(0, 3, 1, 2).contiguous()
-    return z_q
+root_len = vqvae.root_len
+num_embeddings = vqvae.num_embeddings
+embedding_dim = vqvae.embedding_dim
+imsize = vqvae.imsize
+input_channels = vqvae.input_channels
+# Load VQVAE + Define Args
 
 
-def get_closest_stats(latents):
-    #latents = ind_to_cont(latents)
-    latents = ptu.get_numpy(latents).reshape(-1, 144)
-    all_dists = []
-    all_index = []
-    for i in range(latents.shape[0]):
-        smallest_dist = float('inf')
-        index = 0
-        for j in range(all_data.shape[0]):
-            dist = np.count_nonzero(latents[i]!= all_data[j])
-            if dist < smallest_dist:
-                smallest_dist = dist
-                index = j
+dataset_path = '/home/ashvin/data/sasha/demos/33_objects.npy'
+new_path = "/home/ashvin/tmp/encoded_multiobj_bullet_data.npy"
 
-        all_dists.append(smallest_dist)
-        all_index.append(index)
-    all_dists = np.array(all_dists)
-    all_index = np.array(all_index)
-    print("Mean:", np.mean(all_dists))
-    print("Std:", np.std(all_dists))
-    print("Min:", np.min(all_dists))
-    print("Max:", np.max(all_dists))
-    return torch.LongTensor(all_data[all_index].reshape(-1, 12, 12))
 
+# data = load_local_or_remote_file(dataset_path)
+# data = data.item()
+# del data['env']
+# data['env'] = data['observations'][:, 0, :]
+
+# vqvae.to('cpu')
+# all_data = []
+# for i in tqdm(range(data["observations"].shape[0])):
+#     obs = ptu.from_numpy(data["observations"][i] / 255.0 )
+#     cond = ptu.from_numpy(data["env"][i] / 255.0 )
+#     cond = cond.repeat(obs.shape[0], 1)
+
+#     encodings = vqvae.encode(obs, cond, cont=False)
+#     all_data.append(encodings)
+
+# encodings = ptu.get_numpy(torch.cat(all_data, dim=0))
+# np.save(new_path, encodings)
+# vqvae.to('cuda')
+
+all_data = np.load(new_path, allow_pickle=True)
+
+
+
+cond_size = vqvae.num_embeddings
 
 if args.dataset == 'LATENT_BLOCK':
-    _, _, train_loader, test_loader, _ = railrl.torch.vae.pixelcnn_utils.load_data_and_data_loaders(args.filepath, 'LATENT_BLOCK', args.batch_size)
+    _, _, train_loader, test_loader, _ = railrl.torch.vae.pixelcnn_utils.load_data_and_data_loaders(new_path, 'LATENT_BLOCK', args.batch_size)
 else:
     train_loader = torch.utils.data.DataLoader(
         eval('datasets.'+args.dataset)(
@@ -134,7 +123,7 @@ else:
         num_workers=args.num_workers, pin_memory=True
     )
 
-model = GatedPixelCNN(args.n_embeddings, args.img_dim**2, args.n_layers, n_classes=vqvae.latent_sizes[1]).to(device)
+model = GatedPixelCNN(num_embeddings, root_len**2, args.n_layers, n_classes=vqvae.latent_sizes[1]).to(device)
 criterion = nn.CrossEntropyLoss().cuda()
 opt = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
@@ -152,16 +141,14 @@ def cond_train():
         ind_size = vqvae.latent_sizes[0] // vqvae.embedding_dim
         cont_x = vqvae.conditioned_discrete_to_cont(x)
         cond = cont_x[:, vqvae.embedding_dim:].reshape(x.shape[0], -1)
-        #cond = x[:, ind_size:].reshape(-1, 12, 12)
-        x = x[:, :ind_size].reshape(-1, 12, 12)
-        
+        x = x[:, :ind_size].reshape(-1, root_len, root_len)
 
         # Train PixelCNN with images
         logits = model(x, cond)
         logits = logits.permute(0, 2, 3, 1).contiguous()
 
         loss = criterion(
-            logits.view(-1, args.n_embeddings),
+            logits.view(-1, num_embeddings),
             x.contiguous().view(-1)
         )
 
@@ -191,12 +178,12 @@ def cond_test():
             ind_size = vqvae.latent_sizes[0] // vqvae.embedding_dim
             cont_x = vqvae.conditioned_discrete_to_cont(x)
             cond = cont_x[:, vqvae.embedding_dim:].reshape(x.shape[0], -1)
-            x = x[:, :ind_size].reshape(-1, 12, 12)
+            x = x[:, :ind_size].reshape(-1, root_len, root_len)
 
             logits = model(x, cond)
             logits = logits.permute(0, 2, 3, 1).contiguous()
             loss = criterion(
-                logits.view(-1, args.n_embeddings),
+                logits.view(-1, num_embeddings),
                 x.contiguous().view(-1)
             )
             
@@ -209,50 +196,32 @@ def cond_test():
     return np.asarray(val_loss).mean(0)
 
 def generate_cond_samples(epoch, batch_size=64):
-    ind_size1 = vqvae.latent_sizes[0] // vqvae.embedding_dim
-    ind_size = vqvae.discrete_size // 2
-    assert ind_size1 == ind_size
     data_points = ptu.from_numpy(all_data[np.random.choice(all_data.shape[0], size=(8,))]).long().cuda()
-
-    envs = data_points[:, ind_size:]
+    envs = data_points[:, vqvae.discrete_size:]
     samples = []
 
     for i in range(8):
         env_latent = data_points[i].reshape(1, -1)
 
         cont_x = vqvae.conditioned_discrete_to_cont(env_latent)
-        cond = cont_x[:, vqvae.embedding_dim:].reshape(1, -1)
-
-        # cont = vqvae.conditioned_discrete_to_cont(env_latent)
-        # cont_cond = cont[:, vqvae.latent_sizes[0]:].reshape(1, -1).cuda()
-        cond_latent = env_latent[:, ind_size:]
+        cont_cond = cont_x[:, vqvae.embedding_dim:].reshape(1, -1)
+        cond_latent = env_latent[:, vqvae.discrete_size:]
 
         env_image = vqvae.decode(env_latent, cont=False)
         samples.append(env_image)
 
-        e_indices = model.generate(shape=(args.img_dim, args.img_dim),
-                batch_size=7, cond=cond.repeat(7, 1)).reshape(-1, args.img_dim**2)
+        e_indices = model.generate(shape=(root_len, root_len),
+                batch_size=7, cond=cont_cond.repeat(7, 1)).reshape(-1, root_len**2)
 
         latents = torch.cat([e_indices, cond_latent.repeat(7, 1)], dim=1)
         samples.append(vqvae.decode(latents, cont=False))
-        
-
-        # for j in range(7):
-        #     # e_indices = model.generate(shape=(args.img_dim, args.img_dim),
-        #     #     batch_size=1, cond=cond_latent.cuda()).reshape(-1, args.img_dim**2).cpu()
-        #     e_indices = model.generate(shape=(args.img_dim, args.img_dim),
-        #         batch_size=1, cond=cond).reshape(-1, args.img_dim**2)
-        #     #latent = torch.cat([e_indices, cond_latent], dim=1)
-
-        #     latent = torch.cat([e_indices, cond_latent], dim=1)
-        #     samples.append(vqvae.decode(latent, cont=False))
 
     samples = torch.cat(samples, dim=0)
 
     save_dir = "/home/ashvin/data/sasha/pixelcnn/vqvae_samples/cond_sample{0}.png".format(epoch)
 
     save_image(
-        samples.data.view(batch_size, 3, 48, 48).transpose(2, 3),
+        samples.data.view(batch_size, input_channels, imsize, imsize).transpose(2, 3),
         save_dir
     )
 

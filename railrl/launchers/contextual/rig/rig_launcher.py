@@ -205,7 +205,7 @@ def rig_experiment(
         **policy_kwargs
     )
 
-    def concat_context_to_obs(batch, *args, **kwargs):
+    def concat_context_to_obs(batch):
         obs = batch['observations']
         next_obs = batch['next_observations']
         context = batch[context_key]

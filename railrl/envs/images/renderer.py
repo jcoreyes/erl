@@ -61,6 +61,7 @@ class Renderer(metaclass=abc.ABCMeta):
             image = image / 255.0
         transpose_index = [self._create_image_format.index(c) for c in
                            self.output_image_format]
+
         image = image.transpose(transpose_index)
         if image.shape != self.image_shape:
             raise RuntimeError("Image shape mismatch: {}, {}".format(

@@ -77,7 +77,6 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         self,
         wrapped_env,
         vae,
-        pixel_cnn=None,
         vae_input_key_prefix='image',
         sample_from_true_prior=False,
         decode_goals=False,
@@ -87,7 +86,8 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         reward_params=None,
         goal_sampling_mode="vae_prior",
         num_goals_to_presample=0,
-        imsize=84,
+        presampled_goals_path=None,
+        imsize=48,
         obs_size=None,
         norm_order=2,
         epsilon=20,
@@ -106,6 +106,7 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
             render_rollouts,
             reward_params,
             goal_sampling_mode,
+            presampled_goals_path,
             num_goals_to_presample,
             imsize,
             obs_size,
@@ -142,12 +143,12 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
         self.vae.eval()
         latent_obs = self._encode_one(obs[self.vae_input_observation_key])[None]
         latent_goal = self.desired_goal['latent_desired_goal'][None]
-        dist = np.linalg.norm(latent_obs - latent_goal)
-        info["vae_success"] = 1 if dist < self.epsilon else 0
-        info["vae_dist"] = dist
+        dist = latent_obs - latent_goal
+        info["vae_success"] = 1 if np.linalg.norm(dist, ord=2) < self.epsilon else 0
+        info["vae_dist"] = np.linalg.norm(dist, ord=2)
         info["vae_mdist"] = 0
-        info["vae_dist_l1"] = 0 #np.linalg.norm(dist, ord=1)
-        info["vae_dist_l2"] = 0 #np.linalg.norm(dist, ord=2)
+        info["vae_dist_l1"] = np.linalg.norm(dist, ord=1)
+        info["vae_dist_l2"] = np.linalg.norm(dist, ord=2)
 
     def compute_rewards(self, actions, obs):
         self.vae.eval()

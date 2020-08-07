@@ -1,10 +1,12 @@
 import warnings
 from typing import Any, Callable, Dict, List
-
+import random
 import numpy as np
+import gym
 from gym.spaces import Box, Dict
 from multiworld.core.multitask_env import MultitaskEnv
-
+from railrl.misc.asset_loader import load_local_or_remote_file
+from gym.spaces import Box, Dict
 from railrl import pythonplusplus as ppp
 from railrl.core.distribution import DictDistribution
 from railrl.envs.contextual import ContextualRewardFn
@@ -111,6 +113,35 @@ class PresampledDistribution(DictDistribution):
     @property
     def spaces(self):
         return self._sampler.spaces
+
+class PresampledPathDistribution(DictDistribution):
+    def __init__(
+            self,
+            datapath,
+    ):
+        self._presampled_goals = load_local_or_remote_file(datapath)
+        self._num_presampled_goals = self._presampled_goals[0].shape[0]
+
+        self._set_spaces()
+
+    def sample(self, batch_size: int):
+        idx = np.random.randint(0, self._num_presampled_goals, batch_size)
+        sampled_goals = {
+            k: v[idx] for k, v in self._presampled_goals.items()
+        }
+        return sampled_goals
+
+    def _set_spaces(self):
+        pairs = []
+        for key in self._presampled_goals:
+            dim = self._presampled_goals[key][0].shape[0]
+            box = gym.spaces.Box(-np.ones(dim), np.ones(dim))
+            pairs.append((key, box))
+        self.observation_space = Dict(pairs)
+
+    @property
+    def spaces(self):
+        return self.observation_space.spaces
 
 
 class ContextualRewardFnFromMultitaskEnv(ContextualRewardFn):

@@ -5,13 +5,13 @@ import torch
 import torch.optim as optim
 from torch import nn as nn
 import torch.nn.functional as F
-
+import copy
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.torch_rl_algorithm import TorchTrainer
 
 from railrl.misc.asset_loader import (
-    load_local_or_remote_file, sync_down_folder, get_absolute_path
+    load_local_or_remote_file, sync_down_folder, get_absolute_path, sync_down
 )
 
 import random
@@ -29,13 +29,10 @@ from railrl.core import logger
 import glob
 
 def load_encoder(encoder_file):
-    if encoder_file[0] == "/":
-        local_path = encoder_file
-    else:
-        local_path = sync_down(encoder_file)
-    encoder = pickle.load(open(local_path, "rb"))
-    print("loaded", local_path)
-    encoder.to("cuda")
+    encoder = load_local_or_remote_file(encoder_file)
+    # TEMP #
+    #encoder.representation_size = encoder.discrete_size * encoder.embedding_dim
+    # TEMP #
     return encoder
 
 
@@ -213,7 +210,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             model_path=None,
             env=None,
             demo_paths=[], # list of dicts
-            normalize=True,
+            normalize=False,
             demo_train_split=0.9,
             demo_data_split=1,
             add_demos_to_replay_buffer=True,
@@ -228,6 +225,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             env_info_key=None,
             obs_key=None,
             load_terminals=True,
+            do_preprocess=True,
             **kwargs
     ):
         super().__init__(trainer,
@@ -253,47 +251,95 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         self.model = load_encoder(model_path)
         self.normalize = normalize
         self.env = env
+        self.do_preprocess = do_preprocess
 
-    def encode(self, observation):
-        # observation["latent_achieved_goal"] =
-        # observation["latent_desired_goal"] =
+        print("ZEROING OUT GOALS")
+
+    def resize_img(self, obs):
+        from torchvision.transforms import Resize
+        from PIL import Image
+        resize = Resize((48, 48), interpolation=Image.NEAREST)
+
+        obs = obs.reshape(84, 84, 3) * 255.0
+        obs = Image.fromarray(obs, mode='RGB')
+        obs = np.array(resize(obs))
+        return obs.flatten() / 255.0
+
+    def preprocess(self, observation):
+        if not self.do_preprocess:
+            for i in range(len(observation)):
+                observation[i]["no_goal"] = np.zeros((0, ))
+            return observation
+        observation = copy.deepcopy(observation)
+        images = np.stack([observation[i]['image_observation'] for i in range(len(observation))])
+        goals = np.stack([np.zeros_like(observation[i]['image_observation']) for i in range(len(observation))])
+        #images = np.stack([self.resize_img(observation[i]['image_observation']) for i in range(len(observation))])
+
+        # latents = self.model.encode(ptu.from_numpy(images))
+        # recon = ptu.get_numpy(self.model.decode(latents))
+
+        # from torch.nn import functional as F
+
+        # print(F.mse_loss(ptu.from_numpy(recon), ptu.from_numpy(images.reshape(50, 3, 48, 48))))
+        # import ipdb; ipdb.set_trace()
+
+        if self.normalize:
+            images = images / 255.0
+
+        latents = ptu.get_numpy(self.model.encode(ptu.from_numpy(images)))
+        goals = ptu.get_numpy(self.model.encode(ptu.from_numpy(goals)))
+
+        for i in range(len(observation)):
+            observation[i]["latent_observation"] = latents[i]
+            observation[i]["latent_achieved_goal"] = latents[i]
+            observation[i]["latent_desired_goal"] = goals[-1]
+            #observation[i]["latent_desired_goal"] = latents[-1]
+            del observation[i]['image_observation']
+
+        return observation
+
+    def encode(self, obs):
         if self.normalize:
             return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs) / 255.0))
         return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs)))
-
-    # def encode(self, obs):
-    #     if self.normalize:
-    #         return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs) / 255.0))
-    #     return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs)))
 
 
     def load_path(self, path, replay_buffer, obs_dict=None):
         rewards = []
         path_builder = PathBuilder()
-
-        print("loading path, length", len(path["observations"]), len(path["actions"]))
         H = min(len(path["observations"]), len(path["actions"]))
-        print("actions", np.min(path["actions"]), np.max(path["actions"]))
 
-        traj_obs = self.encode(path["observations"])
-        next_traj_obs = self.encode(path["next_observations"])
-        #traj_obs = self.env._encode(path["observations"])
-        #next_traj_obs = self.env._encode(path["next_observations"])
+        if obs_dict:
+            traj_obs = self.preprocess(path["observations"])
+            next_traj_obs = self.preprocess(path["next_observations"])
+        else:
+            traj_obs = self.env.encode(path["observations"])
+            next_traj_obs = self.env.encode(path["next_observations"])
 
         for i in range(H):
             ob = traj_obs[i]
             next_ob = next_traj_obs[i]
-            next_img = path["next_observations"][i]
             action = path["actions"][i]
+
+            # #temp fix#
+            # ob['state_desired_goal'] = np.zeros_like(ob['state_desired_goal'])
+            # ob['latent_desired_goal'] = np.zeros_like(ob['latent_desired_goal'])
+
+            # next_ob['state_desired_goal'] = np.zeros_like(next_ob['state_desired_goal'])
+            # next_ob['latent_desired_goal'] = np.zeros_like(next_ob['latent_desired_goal'])
+
+            # action[3] /= 5
+            # #temp fix#
+
             reward = path["rewards"][i]
             terminal = path["terminals"][i]
             if not self.load_terminals:
                 terminal = np.zeros(terminal.shape)
             agent_info = path["agent_infos"][i]
             env_info = path["env_infos"][i]
-
             if self.recompute_reward:
-                reward = self.env.compute_reward(action, next_img)
+                #reward = self.env.compute_rewards(action, path["next_observations"][i])
+                reward = self.env._compute_reward(ob, action, next_ob, context=next_ob)
 
             reward = np.array([reward]).flatten()
             rewards.append(reward)
@@ -310,6 +356,9 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
         self.demo_trajectory_rewards.append(rewards)
         path = path_builder.get_all_stacked()
         replay_buffer.add_path(path)
+        print("rewards", np.min(rewards), np.max(rewards))
+        print("loading path, length", len(path["observations"]), len(path["actions"]))
+        print("actions", np.min(path["actions"]), np.max(path["actions"]))
         print("path sum rewards", sum(rewards), len(rewards))
 
 

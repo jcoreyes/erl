@@ -5,7 +5,8 @@ from railrl.data_management.images import normalize_image, unnormalize_image
 from railrl.torch.core import np_to_pytorch_batch
 import railrl.torch.pytorch_util as ptu
 from torch.utils import data
-from torchvision.transforms import ColorJitter, RandomResizedCrop
+from torchvision.transforms import ColorJitter, RandomResizedCrop, Resize
+
 from PIL import Image
 
 import torchvision.transforms.functional as F
@@ -186,11 +187,19 @@ class TripletReplayBufferWrapper(BatchLoader):
 class InitialObservationNumpyDataset(data.Dataset):
     def __init__(self, data, info=None):
         assert data['observations'].dtype == np.uint8
+        
+        # # TEMP #
+        # self.resize = Resize((48, 48), interpolation=Image.NEAREST)
+        # data['observations'] = data['observations'].reshape(-1, 50, 21168)
+        # # TEMP #
+
 
         self.size = data['observations'].shape[0]
         self.traj_length = data['observations'].shape[1]
+        self.root_len = int((data['observations'].shape[2] / 3)**0.5)
         self.data = data
         self.info = info
+
 
         if 'env' not in self.data:
             self.data['env'] = self.data['observations'][:, 0, :]
@@ -201,6 +210,20 @@ class InitialObservationNumpyDataset(data.Dataset):
     def __getitem__(self, idx):
         traj_i = idx // self.traj_length
         trans_i = idx % self.traj_length
+        #cond_i = np.random.randint(0, self.traj_length)
+
+        # x = self.data['observations'][traj_i, trans_i]
+        # c = self.data['observations'][traj_i, cond_i]
+        # # c = self.data['env'][traj_i]
+
+        # x = Image.fromarray(x.reshape(self.root_len, self.root_len, 3), mode='RGB')
+        # c = Image.fromarray(c.reshape(self.root_len, self.root_len, 3), mode='RGB')
+
+        # x, c = self.resize(x), self.resize(c)
+
+        # x_t = normalize_image(np.array(x).flatten()).squeeze()
+        # env = normalize_image(np.array(c).flatten()).squeeze()
+
 
         env = normalize_image(self.data['env'][traj_i, :])
         x_t = normalize_image(self.data['observations'][traj_i, trans_i, :])
@@ -220,8 +243,8 @@ class InitialObservationNumpyJitteringDataset(data.Dataset):
         self.data = data
         self.info = info
 
-        self.jitter = ColorJitter((0.5,1.5), (0.9,1.1), (0.9,1.1), (-0.1,0.1))
-        self.crop = RandomResizedCrop((48, 48), (0.9, 0.9), (1, 1))
+        self.jitter = ColorJitter((0.75,1.25), (0.9,1.1), (0.9,1.1), (-0.1,0.1))
+        #self.crop = RandomResizedCrop((48, 48), (0.9, 0.9), (1, 1))
         # RandomResizedCrop((int(sqrt(self.imlength)), int(sqrt(self.imlength))), (0.9, 0.9), (1, 1))
 
         if 'env' not in self.data:
@@ -239,13 +262,13 @@ class InitialObservationNumpyJitteringDataset(data.Dataset):
 
         # upsampling gives bad images so random resizing params set to 1 for now
         # crop = self.crop.get_params(c, (0.9, 0.9), (1, 1))
-        crop = self.crop.get_params(c, (1, 1), (1, 1))
+        #crop = self.crop.get_params(c, (1, 1), (1, 1))
 
-        # jitter = self.jitter.get_params((0.5,1.5), (0.9,1.1), (0.9,1.1), (-0.1,0.1))
-        jitter = self.jitter.get_params(0.5, 0.1, 0.1, 0.1)
+        jitter = self.jitter.get_params((0.75,1.25), (0.9,1.1), (0.9,1.1), (-0.1,0.1))
+        #jitter = self.jitter.get_params(0.5, 0.1, 0.1, 0.1)
 
-        x = jitter(F.resized_crop(x, crop[0], crop[1], crop[2], crop[3], (48, 48), Image.BICUBIC))
-        c = jitter(F.resized_crop(c, crop[0], crop[1], crop[2], crop[3], (48, 48), Image.BICUBIC))
+        x, c = jitter(x), jitter(c)
+        #c = jitter(F.resized_crop(c, crop[0], crop[1], crop[2], crop[3], (48, 48), Image.BICUBIC))
         x_t = normalize_image(np.array(x).flatten()).squeeze()
         env = normalize_image(np.array(c).flatten()).squeeze()
 

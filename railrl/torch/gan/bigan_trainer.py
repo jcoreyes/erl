@@ -1,163 +1,304 @@
-import argparse
 from collections import OrderedDict
 import os
 from os import path as osp
-import random
-import torch
-import torch.nn as nn
-import torch.nn.parallel
-import torch.backends.cudnn as cudnn
-import torch.optim as optim
-import torchvision.utils as vutils
-from torchvision import datasets, transforms
-from torch.autograd import Variable
 import numpy as np
-import matplotlib
-import argparse
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
+import torch
 from railrl.core.loss import LossFunction
-from railrl.core import logger
+from railrl.torch.vae.vae_trainer import ConvVAETrainer
+from torch import optim
+from torch.distributions import Normal
+from torch.utils.data import DataLoader
+from torch.nn import functional as F
+import torch.nn as nn
 from torchvision.utils import save_image
+from railrl.data_management.images import normalize_image
+from railrl.core import logger
+import railrl.core.util as util
+from railrl.misc.eval_util import create_stats_ordered_dict
+from railrl.misc.ml_util import ConstantSchedule
+from railrl.torch import pytorch_util as ptu
+from railrl.torch.data import (
+    ImageDataset, InfiniteWeightedRandomSampler,
+    InfiniteRandomSampler,
+)
+from railrl.torch.core import np_to_pytorch_batch
+import collections
+import time
 
-class BiGANTrainer():
 
-    def __init__(self, model, ngpu, lr, beta, latent_size, generator_threshold, batch_size = None):
-        self.model = model
-        self.device = self.model.device
-
-        self.img_list = []
-        self.G_losses = {}
-        self.D_losses = {}
-        self.iters = 0
+class BiGANTrainer(ConvVAETrainer, LossFunction):
+    def __init__(
+            self,
+            model,
+            batch_size=128,
+            log_interval=0,
+            beta=1.0,
+            beta_schedule=None,
+            lr=2e-3,
+            do_scatterplot=False,
+            normalize=False,
+            mse_weight=0.1,
+            is_auto_encoder=False,
+            background_subtract=False,
+            linearity_weight=0.0,
+            distance_weight=0.0,
+            loss_weights=None,
+            use_linear_dynamics=False,
+            use_parallel_dataloading=False,
+            train_data_workers=2,
+            skew_dataset=False,
+            skew_config=None,
+            priority_function_kwargs=None,
+            start_skew_epoch=0,
+            weight_decay=0,
+            key_to_reconstruct='x_t',
+            generator_threshold=3.5,
+            num_epochs=500,
+            
+            b_low=0.5,
+            b_high=0.999,
+        ):
+        super().__init__(
+            model,
+            batch_size,
+            log_interval,
+            beta,
+            beta_schedule,
+            lr,
+            do_scatterplot,
+            normalize,
+            mse_weight,
+            is_auto_encoder,
+            background_subtract,
+            linearity_weight,
+            distance_weight,
+            loss_weights,
+            use_linear_dynamics,
+            use_parallel_dataloading,
+            train_data_workers,
+            skew_dataset,
+            skew_config,
+            priority_function_kwargs,
+            start_skew_epoch,
+            weight_decay,
+            key_to_reconstruct,
+            num_epochs
+        )
+        self.num_epochs = num_epochs
         self.criterion = nn.BCELoss()
-        
-        self.ngpu = ngpu
-        self.lr = lr
-        self.beta = beta
-        self.latent_size = latent_size
         self.generator_threshold = generator_threshold
-        self.batch_size = batch_size
-
         self.optimizerG = optim.Adam([{'params' : self.model.netE.parameters()},
-                         {'params' : self.model.netG.parameters()}], lr=lr, betas=(beta,0.999))
-        self.optimizerD = optim.Adam(self. model.netD.parameters(), lr=lr, betas=(beta, 0.999))
-    
-   
-    @property
-    def log_dir(self):
-        return logger.get_snapshot_dir()
-
-    def log_sum_exp(self, input):
-        m, _ = torch.max(input, dim=1, keepdim=True)
-        input0 = input - m
-        m.squeeze()
-        return m + torch.log(torch.sum(torch.exp(input0), dim=1))
+                         {'params' : self.model.netG.parameters()}], lr=lr, betas=(b_low, b_high))
+        self.optimizerD = optim.Adam(self. model.netD.parameters(), lr=lr, betas=(b_low, b_high))
 
     def noise(self, size, num_epochs, epoch):
-        return torch.Tensor(size).normal_(0, 0.1 * (num_epochs - epoch) / num_epochs).to(self.device)
+        noise = ptu.randn(size)
+        std = 0.1 * (num_epochs - epoch) / num_epochs
+        return std * noise
 
     def fixed_noise(self, b_size):
-        return torch.randn(b_size, self.latent_size, 1, 1, device=self.device)
+        return ptu.randn(b_size, self.representation_size, 1, 1)
 
-    def train_epoch(self, dataloader, epoch, num_epochs, get_data = id):
-        for i, data in enumerate(dataloader, 0):
-            data = get_data(data)
-            ############################
-            # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
-            ###########################
-            real_d = data.to(self.device).float()
-            b_size = real_d.size(0)
+    def train_batch(self, epoch, batch):
+        self.model.train()
+        errD, errG = self.compute_loss(batch, epoch, False)
 
-            real_label = torch.ones(b_size, device = self.device)
-            fake_label = torch.zeros(b_size, device = self.device) 
+        if errG.item() < self.generator_threshold:
+            self.optimizerD.zero_grad()
+            errD.backward(retain_graph=True)
+            self.optimizerD.step()
 
-            noise1 = self.noise(data.size(), num_epochs, epoch)
-            noise2 = self.noise(data.size(), num_epochs, epoch)
+        self.optimizerG.zero_grad()
+        errG.backward()
+        self.optimizerG.step()
 
-            fake_z = self.fixed_noise(b_size)
-            fake_d = self.model.netG(fake_z)
-            # Encoder
-            real_z, _, _, _= self.model.netE(real_d)
-            #real_z = torch.zeros([b_size, self.latent_size*2], device = self.device)
-            real_z = real_z.view(b_size, -1)
-            #mu, log_sigma = real_z[:, :self.latent_size], real_z[:, self.latent_size:]
-            #sigma = torch.exp(log_sigma)
-            #epsilon = torch.randn(b_size, self.latent_size, device = self.device)
-            #output_z = mu + epsilon * sigma
-            output_z = real_z
+    def test_batch(
+            self,
+            epoch,
+            batch,
+    ):
+        self.model.eval()
+        errD, errG = self.compute_loss(batch, epoch, True)
 
-            output_real, _ = self.model.netD(real_d + noise1, output_z.view(b_size, self.latent_size, 1, 1))
-            output_fake, _ = self.model.netD(fake_d + noise2, fake_z)
+    def compute_loss(self, batch, epoch=-1, test=False):
+        prefix = "test/" if test else "train/"
+        real_data = batch[self.key_to_reconstruct].reshape(-1, self.input_channels, self.imsize, self.imsize)
+        batch_size = real_data.size(0)
+        
+        fake_latent = self.fixed_noise(batch_size)
+        noise1 = self.noise(real_data.size(), self.num_epochs, epoch)
+        noise2 = self.noise(real_data.size(), self.num_epochs, epoch)
 
-            errD_real = self.criterion(output_real, real_label)
-            errD_fake = self.criterion(output_fake, fake_label)
-            errD = errD_real + errD_fake
-            errG = self.criterion(output_fake, real_label) + self.criterion(output_real, fake_label)
+        real_label = ptu.ones(batch_size)
+        fake_label = ptu.zeros(batch_size) 
 
+        fake_data = self.model.netG(fake_latent)
+        real_latent, _, _, _= self.model.netE(real_data)
+        real_latent = real_latent.view(batch_size, self.representation_size, 1, 1)
 
-            if errG.item() < self.generator_threshold:
-                self.optimizerD.zero_grad()
-                errD_real.backward(retain_graph=True)
-                errD_fake.backward(retain_graph=True)
-                self.optimizerD.step()
+        real_pred, _ = self.model.netD(real_data + noise1, real_latent)
+        fake_pred, _ = self.model.netD(fake_data + noise2, fake_latent)
 
-            ############################
-            # (2) Update G network: maximize log(D(G(z)))
-            ###########################
-            self.optimizerG.zero_grad()
-            errG.backward()
-            self.optimizerG.step()
+        errD = self.criterion(real_pred, real_label) + self.criterion(fake_pred, fake_label)
+        errG = self.criterion(fake_pred, real_label) + self.criterion(real_pred, fake_label)
 
-            # Output training stats
-            if i % 50 == 0:
-                print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f'
-                      % (epoch, num_epochs, i, len(dataloader),
-                         errD.item(), errG.item(), output_real.mean().item(), output_fake.mean().item()))
-            # Save Losses for plotting later
-            self.G_losses.setdefault(epoch, []).append(errG.item())
-            self.D_losses.setdefault(epoch, []).append(errD.item())
+        recon = self.model.netG(real_latent)
+        recon_error = F.mse_loss(recon, real_data)
 
-            # Check how the generator is doing by saving G's output on fixed_noise
-            if (self.iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
-                #import ipdb; ipdb.set_trace()
-                with torch.no_grad():
-                    fake = self.model.netG(self.fixed_noise(64)).detach().cpu()
-                sample = vutils.make_grid(fake, padding=2, normalize=True)
-                self.img_list.append(sample)
-                self.dump_samples("sample " + str(epoch), self.iters, sample)
-                self.dump_samples("real " + str(epoch), self.iters, vutils.make_grid(real_d.cpu(), padding=2, normalize=True))
+        self.eval_statistics['epoch'] = epoch
+        self.eval_statistics[prefix + "errD"].append(errD.item())
+        self.eval_statistics[prefix + "errG"].append(errG.item())
+        self.eval_statistics[prefix + "Recon Error"].append(recon_error.item())
+        self.eval_data[prefix + "last_batch"] = (real_data.reshape(batch_size, -1), recon.reshape(batch_size, -1))
+        
+        return errD, errG
 
-            self.iters += 1
+    def dump_samples(self, epoch):
+        save_dir = osp.join(self.log_dir, 'samples_%d.png' % epoch)
+        n_samples = 64
+        samples = self.model.netG(self.fixed_noise(n_samples))
 
-    def dump_samples(self, epoch, iters, sample):
-        fig = plt.figure(figsize=(8,8))
-        plt.axis("off")
-        plt.imshow(np.transpose(sample,(1,2,0)))
-        save_dir = osp.join(self.log_dir, str(epoch) + '-' + str(iters) + '.png')
-        plt.savefig(save_dir)
-        plt.close()
-
-    def get_stats(self, epoch):
-        stats = OrderedDict()
-        stats["epoch"] = epoch
-        stats["Generator Loss"] = np.mean(self.G_losses[epoch])
-        stats["Discriminator Loss"] = np.mean(self.D_losses[epoch])
-        return stats
-
-    def get_G_losses(self):
-        return self.G_losses
-
-    def get_D_losses(self):
-        return self.D_losses    
-
-    def get_model(self):
-        return self.model
+        save_image(
+            samples.data.view(n_samples, self.input_channels, self.imsize, self.imsize).transpose(2, 3),
+            save_dir
+        )
 
 
-    def get_img_list(self):
-        return self.img_list
+class ConditionalBiGANTrainer(BiGANTrainer, LossFunction):
 
-    def get_diagnostics(self):
-        return {}
+    def fixed_noise(self, b_size, latent):
+        z_cond = latent[:, self.model.latent_size:]
+        z_delta = ptu.randn(b_size, self.model.latent_size, 1, 1)
+        return torch.cat([z_delta, z_cond], dim=1)
+
+    def compute_loss(self, batch, epoch=-1, test=False):
+        prefix = "test/" if test else "train/"
+        real_data = batch['x_t'].reshape(-1, self.input_channels, self.imsize, self.imsize)
+        cond = batch['env'].reshape(-1, self.input_channels, self.imsize, self.imsize)
+        batch_size = real_data.size(0)
+        
+        noise1a = self.noise(real_data.size(), self.num_epochs, epoch)
+        noise2a = self.noise(real_data.size(), self.num_epochs, epoch)
+        noise1b = self.noise(real_data.size(), self.num_epochs, epoch)
+        noise2b = self.noise(real_data.size(), self.num_epochs, epoch)
+
+        real_label, fake_label = ptu.ones(batch_size), ptu.zeros(batch_size) 
+
+        real_latent, _, _, _= self.model.netE(real_data, cond)
+        fake_latent = self.fixed_noise(batch_size, real_latent)
+        fake_data = self.model.netG(fake_latent)
+
+        real_pred, _ = self.model.netD(real_data + noise1a, cond + noise1b, real_latent)
+        fake_pred, _ = self.model.netD(fake_data + noise2a, cond + noise2b, fake_latent)
+
+        errD = self.criterion(real_pred, real_label) + self.criterion(fake_pred, fake_label)
+        errG = self.criterion(fake_pred, real_label) + self.criterion(real_pred, fake_label)
+
+        recon = self.model.netG(real_latent)
+        recon_error = F.mse_loss(recon, real_data)
+
+        self.eval_statistics['epoch'] = epoch
+        self.eval_statistics[prefix + "errD"].append(errD.item())
+        self.eval_statistics[prefix + "errG"].append(errG.item())
+        self.eval_statistics[prefix + "Recon Error"].append(recon_error.item())
+        self.eval_data[prefix + "last_batch"] = (batch, recon.reshape(batch_size, -1))
+        
+        return errD, errG
+
+    def dump_reconstructions(self, epoch):
+        batch, reconstructions = self.eval_data["test/last_batch"]
+        obs = batch["x_t"]
+        env = batch["env"]
+        n = min(obs.size(0), 8)
+        comparison = torch.cat([
+            env[:n].narrow(start=0, length=self.imlength, dim=1)
+                .contiguous().view(
+                -1,
+                3,
+                self.imsize,
+                self.imsize
+            ).transpose(2, 3),
+            obs[:n].narrow(start=0, length=self.imlength, dim=1)
+                .contiguous().view(
+                -1,
+                3,
+                self.imsize,
+                self.imsize
+            ).transpose(2, 3),
+            reconstructions.view(
+                self.batch_size,
+                3,
+                self.imsize,
+                self.imsize,
+            )[:n].transpose(2, 3),
+        ])
+        save_dir = osp.join(self.log_dir, 'r%d.png' % epoch)
+        save_image(comparison.data.cpu(), save_dir, nrow=n)
+
+    def dump_samples(self, epoch):
+        self.model.eval()
+        batch, reconstructions = self.eval_data["test/last_batch"]
+        env = batch["env"]
+        n = min(env.size(0), 8)
+
+        all_imgs = [
+            env[:n].narrow(start=0, length=self.imlength, dim=1)
+                .contiguous().view(
+                -1,
+                self.input_channels,
+                self.imsize,
+                self.imsize
+            ).transpose(2, 3)]
+
+        for i in range(7):
+            latent = self.model.sample_prior(self.batch_size, env)
+            samples = self.model.netG(latent)
+            all_imgs.extend([
+                samples.view(
+                    self.batch_size,
+                    self.input_channels,
+                    self.imsize,
+                    self.imsize,
+                )[:n].transpose(2, 3)])
+        comparison = torch.cat(all_imgs)
+        save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
+        save_image(comparison.data.cpu(), save_dir, nrow=8)
+
+    # def dump_samples(self, epoch):
+    #     self.model.eval()
+    #     batch, reconstructions, = self.eval_data["test/last_batch"]
+    #     env = batch["env"]
+    #     n = min(env.size(0), 8)
+
+    #     all_imgs = [
+    #         env[:n].narrow(start=0, length=self.imlength, dim=1)
+    #             .contiguous().view(
+    #             -1,
+    #             3,
+    #             self.imsize,
+    #             self.imsize
+    #         ).transpose(2, 3)]
+
+    #     for i in range(7):
+    #         latent = self.model.sample_prior(n - 1, env[i])
+    #         samples = self.model.decode(latent)[0]
+    #         all_imgs.extend([
+    #             samples.view(
+    #                 -1,
+    #                 3,
+    #                 self.imsize,
+    #                 self.imsize,
+    #             )[:n].transpose(2, 3)])
+    #     comparison = torch.cat(all_imgs)
+    #     save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
+    #     save_image(comparison.data.cpu(), save_dir, nrow=8)
+
+    # def dump_samples(self, epoch):
+    #     save_dir = osp.join(self.log_dir, 's%d.png' % epoch)
+    #     n_samples = 64
+    #     samples = self.model.netG(self.fixed_noise(n_samples))
+
+    #     save_image(
+    #         samples.data.view(n_samples, self.input_channels, self.imsize, self.imsize).transpose(2, 3),
+    #         save_dir
+    #     )

@@ -33,13 +33,9 @@ class GatedMaskedConv2d(nn.Module):
         assert kernel % 2 == 1, print("Kernel size must be odd")
         self.mask_type = mask_type
         self.residual = residual
-
         self.class_cond_embedding = nn.Linear(
             n_classes, 2 * dim
         )
-        # self.class_cond_embedding = nn.Embedding(
-        #     n_classes, 2
-        # )
 
         kernel_shp = (kernel // 2 + 1, kernel)  # (ceil(n/2), n)
         padding_shp = (kernel // 2, kernel // 2)
@@ -74,16 +70,15 @@ class GatedMaskedConv2d(nn.Module):
         h_vert = self.vert_stack(x_v)
         h_vert = h_vert[:, :, :x_v.size(-1), :]
 
-        h = self.class_cond_embedding(h).reshape(x_v.shape[0], -1)
-        out_v = self.gate(h_vert + h[:, :, None, None])
-        #out_v = self.gate(h_vert + h)
+        reg = h_vert + h[:, :, None, None]
+        out_v = self.gate(reg)
 
         h_horiz = self.horiz_stack(x_h)
         h_horiz = h_horiz[:, :, :, :x_h.size(-2)]
         v2h = self.vert_to_horiz(h_vert)
 
-        out = self.gate(v2h + h_horiz + h[:, :, None, None])
-        #out = self.gate(v2h + h_horiz + h)
+        reg = v2h + h_horiz + h[:, :, None, None]
+        out = self.gate(reg)
 
         if self.residual:
             out_h = self.horiz_resid(out) + x_h
@@ -100,7 +95,6 @@ class GatedPixelCNN(nn.Module):
 
         # Create embedding layer to embed input
         self.embedding = nn.Embedding(input_dim, dim)
-
         # Building the PixelCNN layer by layer
         self.layers = nn.ModuleList()
 
@@ -126,6 +120,7 @@ class GatedPixelCNN(nn.Module):
         self.apply(weights_init)
 
     def forward(self, x, cond=None):
+
         param = next(self.parameters())
         shp = x.size() + (-1, )
         x = self.embedding(x.contiguous().view(-1)).view(shp)  # (B, H, W, C)
