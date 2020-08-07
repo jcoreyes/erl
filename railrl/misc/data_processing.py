@@ -100,7 +100,7 @@ def get_dirs(root):
             yield os.path.join(root, directory)
 
 
-def get_trials(base_dir, verbose=False, criteria=None, excluded_seeds=[]):
+def get_trials(base_dir, verbose=False, criteria=None, excluded_seeds=None):
     """
     Get a list of (data, variant, directory) tuples, loaded from
         - process.csv
