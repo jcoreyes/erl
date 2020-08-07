@@ -34,6 +34,7 @@ class UnsupervisedTorchAlgorithm(object):
             data_loader: DictLoader,
             num_iters: int,
             num_epochs_per_iter=1,
+            progress_csv_file_name='progress.csv',
     ):
         self.trainer = trainer
         self.data_loader = data_loader
@@ -41,8 +42,16 @@ class UnsupervisedTorchAlgorithm(object):
         self.epoch = self._start_epoch
         self.num_iters = num_iters
         self.num_epochs_per_iter = num_epochs_per_iter
+        self.progress_csv_file_name = progress_csv_file_name
 
     def run(self):
+        if self.progress_csv_file_name != 'progress.csv':
+            logger.remove_tabular_output(
+                'progress.csv', relative_to_snapshot_dir=True
+            )
+            logger.add_tabular_output(
+                self.progress_csv_file_name, relative_to_snapshot_dir=True,
+            )
         timer.return_global_times = True
         for _ in range(self.num_iters):
             self._begin_epoch()
@@ -54,6 +63,13 @@ class UnsupervisedTorchAlgorithm(object):
             logger.dump_tabular(with_prefix=True, with_timestamp=False)
             self._end_epoch()
         logger.save_itr_params(self.epoch, self._get_snapshot())
+        if self.progress_csv_file_name != 'progress.csv':
+            logger.remove_tabular_output(
+                self.progress_csv_file_name, relative_to_snapshot_dir=True,
+            )
+            logger.add_tabular_output(
+                'progress.csv', relative_to_snapshot_dir=True,
+            )
 
     def _train(self):
         done = (self.epoch == self.num_iters)

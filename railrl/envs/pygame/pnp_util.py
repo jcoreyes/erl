@@ -1,6 +1,15 @@
 import time
 
 import numpy as np
+from railrl.envs.images import EnvRenderer
+import railrl.torch.sets.set_projection as sp
+from railrl.torch.sets.vae_launcher import (
+    sample_point_set_projector,
+    sample_axis_set_projector,
+)
+
+from multiworld.envs.pygame import PickAndPlaceEnv
+
 from scipy import linalg
 
 
@@ -123,6 +132,33 @@ def sample_sets(env, set_descriptions, n):
     return sets
 
 
+def sample_examples_with_images(
+        env: PickAndPlaceEnv,
+        renderer: EnvRenderer,
+        set_projection: sp.SetProjection,
+        num_samples: int,
+        state_key,
+        image_key,
+):
+    goal_dim = env.observation_space.spaces['state_desired_goal'].low.size
+
+    states = np.zeros((num_samples, goal_dim))
+    imgs = np.zeros((num_samples, *renderer.image_shape))
+    for i in range(num_samples):
+        obs_dict = env.reset()
+        orig_state = obs_dict['state_achieved_goal']
+        new_state = set_projection(orig_state)
+        env._set_positions(new_state)
+        img = renderer(env)
+        states[i, :] = new_state
+        imgs[i, ...] = img
+    data_dict = {
+        state_key: states,
+        image_key: imgs,
+    }
+    return data_dict
+
+
 def generate_goals(env, n):
     """
     :param env:  PickAndPlace env
@@ -187,3 +223,61 @@ def infer_masks(env, idx_masks, mask_inference_variant):
     # exit()
 
     return masks
+
+
+def generate_set_images(
+        env,
+        env_renderer,
+        num_sets=1,
+        num_samples_per_set=32,
+):
+
+    set_projections = sample_set_projections(env, num_sets)
+    sets = sample_sets(env, set_projections, n=num_samples_per_set)
+
+    def create_images(states):
+        for state in states:
+            env._set_positions(state)
+            img = env_renderer(env)
+            yield img
+
+    for states in sets:
+        yield list(create_images(states))
+
+
+def sample_set_projections(env, num_sets):
+    set_descriptions = []
+    for i in range(num_sets // 3):
+        set_descriptions.append(sample_point_set_projector(
+            (env.num_objects + 1) * 2,
+            index=(i % (env.num_objects + 1))
+        ))
+        set_descriptions.append(sample_axis_set_projector(
+            (env.num_objects + 1) * 2,
+            index=(i % (env.num_objects + 1)) * 2
+        ))
+        set_descriptions.append(sample_axis_set_projector(
+            (env.num_objects + 1) * 2,
+            index=(i % (env.num_objects + 1)) * 2 + 1
+        ))
+    # if num_sets % 2 == 1:
+    #     set_descriptions.append(
+    #         sample_point_set_projector((env.num_objects + 1) * 2)
+    #     )
+    return set_descriptions
+
+
+def create_set_projection(
+        version='point',
+        axis_idx_to_value=None,
+        a_axis_to_b_axis=None,
+):
+    if version == 'project_onto_axis':
+        for k in axis_idx_to_value:
+            if axis_idx_to_value[k] is None:
+                axis_idx_to_value[k] = np.random.uniform(-4, 4, 1)
+        return sp.ProjectOntoAxis(axis_idx_to_value)
+    elif version == 'move_a_to_b':
+        return sp.MoveAtoB(a_axis_to_b_axis)
+    else:
+        raise ValueError(version)

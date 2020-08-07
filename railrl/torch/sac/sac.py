@@ -1,4 +1,5 @@
 from collections import OrderedDict, namedtuple
+from numbers import Number
 from typing import Tuple
 
 import numpy as np
@@ -30,6 +31,7 @@ class SACTrainer(TorchTrainer, LossFunction):
 
             discount=0.99,
             reward_scale=1.0,
+            reward_tracking_momentum=0.999,
 
             policy_lr=1e-3,
             qf_lr=1e-3,
@@ -44,6 +46,14 @@ class SACTrainer(TorchTrainer, LossFunction):
             target_entropy=None,
     ):
         super().__init__()
+        if not isinstance(reward_scale, Number) and reward_scale not in {
+            'auto_normalize_by_max_magnitude',
+            'auto_normalize_by_max_magnitude_times_10',
+        }:
+            raise ValueError("Invalid reward_scale type: {}".format(
+                reward_scale
+            ))
+
         self.env = env
         self.policy = policy
         self.qf1 = qf1
@@ -87,7 +97,9 @@ class SACTrainer(TorchTrainer, LossFunction):
         )
 
         self.discount = discount
-        self.reward_scale = reward_scale
+        self._reward_scale = reward_scale
+        self._reward_tracking_momentum = reward_tracking_momentum
+        self._reward_normalizer = ptu.from_numpy(np.array(1))
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
         self.eval_statistics = OrderedDict()
@@ -118,8 +130,21 @@ class SACTrainer(TorchTrainer, LossFunction):
         losses.qf2_loss.backward()
         self.qf2_optimizer.step()
 
-        self._n_train_steps_total += 1
+        if self._reward_scale in {
+            'auto_normalize_by_max_magnitude',
+            'auto_normalize_by_max_magnitude_times_10',
+        }:
+            rewards = batch['rewards']
+            self._reward_normalizer = (
+                    self._reward_normalizer * self._reward_tracking_momentum
+                    + rewards.abs().max() * (1 - self._reward_tracking_momentum)
+            )
+        elif isinstance(self._reward_scale, Number):
+            pass
+        else:
+            raise NotImplementedError()
 
+        self._n_train_steps_total += 1
         self.try_update_target_networks()
         if self._need_to_update_eval_statistics:
             self.eval_statistics = stats
@@ -182,7 +207,10 @@ class SACTrainer(TorchTrainer, LossFunction):
             self.target_qf2(next_obs, new_next_actions),
         ) - alpha * new_log_pi
 
-        q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
+        q_target = (
+                self.reward_scale * rewards
+                + (1. - terminals) * self.discount * target_q_values
+        )
         qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
         qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
 
@@ -212,6 +240,10 @@ class SACTrainer(TorchTrainer, LossFunction):
                 'Log Pis',
                 ptu.get_numpy(log_pi),
             ))
+            reward_scale = self.reward_scale
+            if isinstance(reward_scale, torch.Tensor):
+                reward_scale = ptu.get_numpy(reward_scale)
+            eval_statistics['reward scale'] = reward_scale
             policy_statistics = add_prefix(dist.get_diagnostics(), "policy/")
             eval_statistics.update(policy_statistics)
             if self.use_automatic_entropy_tuning:
@@ -234,6 +266,17 @@ class SACTrainer(TorchTrainer, LossFunction):
 
     def end_epoch(self, epoch):
         self._need_to_update_eval_statistics = True
+
+    @property
+    def reward_scale(self):
+        if self._reward_scale == 'auto_normalize_by_max_magnitude':
+            return 1. / self._reward_normalizer
+        elif self._reward_scale == 'auto_normalize_by_max_magnitude_times_10':
+            return 10. / self._reward_normalizer
+        elif isinstance(self._reward_scale, Number):
+            return self._reward_scale
+        else:
+            raise ValueError(self._reward_scale)
 
     @property
     def networks(self):

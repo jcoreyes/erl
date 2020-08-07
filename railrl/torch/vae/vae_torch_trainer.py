@@ -18,20 +18,22 @@ from railrl.torch.networks.stochastic.distribution_generator import (
     DistributionGenerator
 )
 from railrl.torch.torch_rl_algorithm import TorchTrainer
+from railrl.torch.vae.vae_base import VAEBase
 from railrl.visualization.image import combine_images_into_grid
 
 
-class VAE(PyTorchModule):
+class VAE(VAEBase):
     def __init__(
             self,
             encoder: DistributionGenerator,
             decoder: DistributionGenerator,
             latent_prior: Distribution,
     ):
-        super().__init__()
+        super().__init__(np.prod(latent_prior.mean.shape))
         self.encoder = encoder
         self.decoder = decoder
         self.latent_prior = latent_prior
+        self.latent_shape = latent_prior.mean.shape[1:]
         if self.latent_prior.batch_shape != torch.Size([1]):
             raise ValueError('Use batch_shape of 1 for KL computation.')
 
@@ -58,6 +60,39 @@ class VAE(PyTorchModule):
         else:
             x = p_x_given_z.sample()
         return x
+
+    def encode(self, input):
+        return self.encoder(input).mean
+
+    def decode(self, latents):
+        return self.decoder(latents).mean
+
+    def rsample(self, latent_distribution_params):
+        raise NotImplementedError()
+
+    def reparameterize(self, latent_distribution_params):
+        raise NotImplementedError()
+
+    def logprob(self, inputs, obs_distribution_params):
+        raise NotImplementedError()
+
+    def kl_divergence(self, latent_distribution_params):
+        raise NotImplementedError()
+
+    def get_encoding_from_latent_distribution_params(self, latent_distribution_params):
+        raise NotImplementedError()
+
+    # hack for now (I don't think this should be part of this interface)
+    def encode_np(self, x):
+        x_torch = ptu.from_numpy(x)
+        z_torch = self.encoder(x_torch).mean
+        return ptu.get_numpy(z_torch)
+
+    def decode_np(self, latents):
+        self.eval()
+        reconstructions = self.decode(ptu.from_numpy(latents))
+        decoded = ptu.get_numpy(reconstructions)
+        return decoded
 
 
 VAETerms = namedtuple(
@@ -186,7 +221,7 @@ class VAETrainer(TorchTrainer, LossFunction):
         logdir = logger.get_snapshot_dir()
         cv2.imwrite(
             osp.join(logdir, '{}_recons.png'.format(epoch)),
-            recon_vis,
+            cv2.cvtColor(recon_vis, cv2.COLOR_RGB2BGR),
         )
 
         raw_samples = ptu.get_numpy(self.vae.sample(num_samples))
@@ -200,7 +235,7 @@ class VAETrainer(TorchTrainer, LossFunction):
         )
         cv2.imwrite(
             osp.join(logdir, '{}_vae_samples.png'.format(epoch)),
-            vae_sample_vis,
+            cv2.cvtColor(vae_sample_vis, cv2.COLOR_RGB2BGR),
         )
 
     @property

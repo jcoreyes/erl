@@ -4,6 +4,7 @@ from torch import nn
 from railrl.launchers.experiments.disentanglement import (
     contextual_encoder_distance_launcher as cedl,
 )
+from railrl.torch.core import PyTorchModule
 from railrl.torch.distributions import MultivariateDiagonalNormal
 from railrl.torch.networks import (
     BasicCNN,
@@ -27,6 +28,45 @@ from railrl.torch.sets.fancy_vae_architecture import (
 )
 
 
+class DummyNetwork(PyTorchModule):
+    def __init__(self, *output_shapes):
+        super().__init__()
+        self._output_shapes = output_shapes
+        # if len(output_shapes) == 1:
+        #     self.output = ptu.zeros(output_shapes[0])
+        # else:
+        #     self.output = tuple(
+        #         ptu.zeros(shape) for shape in output_shapes
+        #     )
+
+    def forward(self, input):
+        # import ipdb; ipdb.set_trace()
+        if len(self._output_shapes) == 1:
+            return ptu.zeros((input.shape[0], *self._output_shapes[0]))
+        else:
+            return tuple(
+                ptu.zeros((input.shape[0], *shape))
+                for shape in self._output_shapes
+            )
+        # return self.output
+
+
+def create_dummy_image_vae(
+        img_chw,
+        latent_dim,
+        *args,
+        **kwargs
+) -> VAE:
+    encoder_network = DummyNetwork((latent_dim,), (latent_dim,))
+    decoder_network = DummyNetwork(img_chw)
+    encoder = Gaussian(encoder_network)
+    decoder = Gaussian(decoder_network, std=1, reinterpreted_batch_ndims=3)
+    prior = MultivariateDiagonalNormal(
+        loc=ptu.zeros(1, latent_dim), scale_diag=ptu.ones(1, latent_dim),
+    )
+    return VAE(encoder, decoder, prior)
+
+
 def create_image_vae(
     img_chw,
     latent_dim,
@@ -37,7 +77,7 @@ def create_image_vae(
     use_mlp_decoder=False,
     decoder_distribution="bernoulli",
     use_fancy_architecture=False,
-):
+) -> VAE:
     img_num_channels, img_height, img_width = img_chw
     if use_fancy_architecture:
         decoder_network, encoder_network = get_fancy_vae(img_height,
@@ -71,7 +111,6 @@ def create_image_vae(
                 latent_dim,
                 decoder_dcnn_kwargs,
                 decoder_mlp_kwargs,
-                decoder_distribution=decoder_distribution,
             )
     encoder = Gaussian(encoder_network)
     encoder.input_size = encoder_network.input_size
@@ -130,7 +169,6 @@ def create_image_decoder(
     latent_dim,
     decoder_dcnn_kwargs,
     decoder_kwargs,
-    decoder_distribution,
 ):
     dcnn_in_channels, dcnn_in_height, dcnn_in_width = pre_dcnn_chw
     dcnn_input_size = dcnn_in_channels * dcnn_in_width * dcnn_in_height
@@ -143,7 +181,7 @@ def create_image_decoder(
     mlp = Mlp(
         input_size=latent_dim, output_size=dcnn_input_size, **decoder_kwargs
     )
-    dec = nn.Sequential(mlp, dnn)
+    dec = nn.Sequential(mlp, dcnn)
     dec.input_size = latent_dim
     return dec
 

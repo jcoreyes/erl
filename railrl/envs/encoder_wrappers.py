@@ -1,27 +1,27 @@
-import copy
-import random
-import warnings
-
-import torch
-
-# import cv2
+import abc
 import numpy as np
-from gym import Env
-from gym.spaces import Box, Dict
 import railrl.torch.pytorch_util as ptu
-from multiworld.core.multitask_env import MultitaskEnv
-from multiworld.envs.env_util import get_stat_in_paths, create_stats_ordered_dict
-from railrl.envs.wrappers import ProxyEnv
-from railrl.misc.asset_loader import load_local_or_remote_file
-import time
-
+from gym.spaces import Box, Dict
 from railrl.envs.vae_wrappers import VAEWrappedEnv
+from railrl.envs.wrappers import ProxyEnv
+
+
+class Encoder(object, metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    def encode_one_np(self, observation):
+        pass
+
+    @property
+    @abc.abstractmethod
+    def representation_size(self) -> int:
+        pass
 
 
 class EncoderWrappedEnv(ProxyEnv, ):
     def __init__(self,
         wrapped_env,
-        model,
+        model: Encoder,
         step_keys_map=None,
         reset_keys_map=None,
     ):
@@ -136,7 +136,7 @@ class VQVAEWrappedEnv(VAEWrappedEnv):
     def get_latent_distance(self, latent1, latent2):
         latent1 = ptu.from_numpy(latent1 * self.num_keys).long()
         latent2 = ptu.from_numpy(latent2 * self.num_keys).long()
-        return self.vae.get_distance(latent1, latent2)        
+        return self.vae.get_distance(latent1, latent2)
 
 
     def _update_info(self, info, obs):

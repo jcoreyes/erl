@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import torch
 import torch.optim as optim
+from railrl.misc.eval_util import create_stats_ordered_dict
 from torch.distributions.kl import kl_divergence
 
 import railrl.torch.pytorch_util as ptu
@@ -72,6 +73,7 @@ class SetVAETrainer(TorchTrainer, LossFunction):
 
         self.example_batch = {}
         self._iteration = 0
+        self._num_train_batches = 0
 
     @property
     def _beta(self):
@@ -92,6 +94,8 @@ class SetVAETrainer(TorchTrainer, LossFunction):
             self.eval_statistics = stats
             self._need_to_update_eval_statistics = False
             self.example_batch = batch
+            self.eval_statistics['num_train_batches'] = self._num_train_batches
+        self._num_train_batches += 1
         timer.stop_timer('vae training')
 
     def compute_loss(
@@ -126,23 +130,40 @@ class SetVAETrainer(TorchTrainer, LossFunction):
                 eval_statistics['p_x_given_z/{}'.format(k)] = v
             for k, v in vae_terms.q_z.get_diagnostics().items():
                 eval_statistics['q_z_given_x/{}'.format(k)] = v
-            for set_i, eval_set in enumerate(self.eval_sets):
-                vae_terms = compute_vae_terms(self.vae, eval_set)
-                kl = vae_terms.kl
-                likelihood = vae_terms.likelihood
-                set_loss = compute_set_loss(self.vae, eval_set)
-                eval_statistics['eval/set{}/log_prob'.format(set_i)] = np.mean(
-                    ptu.get_numpy(likelihood))
-                eval_statistics['eval/set{}/kl'.format(set_i)] = np.mean(
-                    ptu.get_numpy(kl))
-                eval_statistics['eval/set{}/set_loss'.format(set_i)] = (
-                    np.mean(ptu.get_numpy(set_loss)))
-                for k, v in vae_terms.p_x_given_z.get_diagnostics().items():
-                    eval_statistics['eval/set{}/p_x_given_z/{}'.format(
-                        set_i, k)] = v
-                for k, v in vae_terms.q_z.get_diagnostics().items():
-                    eval_statistics['eval/set{}/q_z_given_x/{}'.format(
-                        set_i, k)] = v
+            for name, set_list in [
+                ('eval', self.eval_sets),
+                ('train', self.train_sets),
+            ]:
+                for set_i, set in enumerate(set_list):
+                    vae_terms = compute_vae_terms(self.vae, set)
+                    kl = vae_terms.kl
+                    likelihood = vae_terms.likelihood
+                    set_loss = compute_set_loss(self.vae, set)
+                    eval_statistics['{}/set{}/log_prob'.format(name, set_i)] = np.mean(
+                        ptu.get_numpy(likelihood))
+                    eval_statistics['{}/set{}/kl'.format(name, set_i)] = np.mean(
+                        ptu.get_numpy(kl))
+                    eval_statistics['{}/set{}/set_loss'.format(name, set_i)] = (
+                        np.mean(ptu.get_numpy(set_loss)))
+                    set_prior = compute_prior(self.vae.encoder(set))
+                    eval_statistics.update(
+                        create_stats_ordered_dict(
+                            '{}/set{}/learned_prior/mean'.format(name, set_i),
+                            ptu.get_numpy(set_prior.mean)
+                        )
+                    )
+                    eval_statistics.update(
+                        create_stats_ordered_dict(
+                            '{}/set{}/learned_prior/stddev'.format(name, set_i),
+                            ptu.get_numpy(set_prior.stddev)
+                        )
+                    )
+                    for k, v in vae_terms.p_x_given_z.get_diagnostics().items():
+                        eval_statistics['{}/set{}/p_x_given_z/{}'.format(
+                            name, set_i, k)] = v
+                    for k, v in vae_terms.q_z.get_diagnostics().items():
+                        eval_statistics['{}/set{}/q_z_given_x/{}'.format(
+                            name, set_i, k)] = v
 
         return total_loss, eval_statistics
 
@@ -164,6 +185,7 @@ class SetVAETrainer(TorchTrainer, LossFunction):
             num_samples=25,
             debug_period=10,
             unnormalize_images=True,
+            image_format='CHW',
     ):
         """
 
@@ -193,6 +215,7 @@ class SetVAETrainer(TorchTrainer, LossFunction):
                 file_path=osp.join(logdir, '{}_{}.png'.format(epoch, name)),
                 unnormalize=unnormalize_images,
                 max_num_cols=len(top_row_example),
+                image_format=image_format,
             )
 
         batch = self.example_batch[self.data_key]
@@ -202,7 +225,8 @@ class SetVAETrainer(TorchTrainer, LossFunction):
         save_imgs(
             imgs=raw_samples,
             file_path=osp.join(logdir, '{}_vae_samples.png'.format(epoch)),
-            unnormalize=unnormalize_images
+            unnormalize=unnormalize_images,
+            image_format=image_format,
         )
 
         for name, list_of_sets in [
@@ -226,6 +250,7 @@ class SetVAETrainer(TorchTrainer, LossFunction):
                         ),
                     ),
                     unnormalize=unnormalize_images,
+                    image_format=image_format,
                 )
 
     @property
@@ -257,12 +282,12 @@ def save_imgs(imgs, file_path, **kwargs):
     imwidth = imgs[0].shape[1]
     imheight = imgs[0].shape[2]
     imgs = np.clip(imgs, 0, 1)
-    vae_sample_vis = combine_images_into_grid(
+    combined_img = combine_images_into_grid(
         imgs=list(imgs),
         imwidth=imwidth,
         imheight=imheight,
-        image_format='CWH',
         **kwargs
     )
-    cv2.imwrite(file_path, vae_sample_vis)
+    cv2_img = cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR)
+    cv2.imwrite(file_path, cv2_img)
 

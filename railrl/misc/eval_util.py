@@ -2,7 +2,8 @@
 Common evaluation utilities.
 """
 
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
+from typing import Dict, List
 from numbers import Number
 import railrl.pythonplusplus as ppp
 
@@ -131,3 +132,26 @@ def get_stat_in_paths(paths, dict_name, scalar_name):
         [info[scalar_name] for info in path[dict_name]]
         for path in paths
     ]
+
+
+def diagnostics_from_paths_statistics(stat_to_lists: Dict[str, List[List]]):
+    statistics = OrderedDict()
+    for stat_name, stat_list in stat_to_lists.items():
+        statistics.update(create_stats_ordered_dict(
+            stat_name,
+            stat_list,
+            always_show_all_stats=True,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}/final'.format(stat_name),
+            [s[-1:] for s in stat_list],
+            always_show_all_stats=True,
+            exclude_max_min=True,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}/initial'.format(stat_name),
+            [s[:1] for s in stat_list],
+            always_show_all_stats=True,
+            exclude_max_min=True,
+        ))
+    return statistics

@@ -152,6 +152,7 @@ class VAETrainer(LossFunction):
         # stateful tracking variables, reset every epoch
         self.eval_statistics = collections.defaultdict(list)
         self.eval_data = collections.defaultdict(list)
+        self.num_batches = 0
 
     @property
     def log_dir(self):
@@ -246,6 +247,7 @@ class VAETrainer(LossFunction):
         self.eval_statistics[prefix + "losses"].append(loss.item())
         self.eval_statistics[prefix + "log_probs"].append(log_prob.item())
         self.eval_statistics[prefix + "kles"].append(kle.item())
+        self.eval_statistics["num_train_batches"].append(self.num_batches)
 
         encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
         z_data = ptu.get_numpy(encoder_mean.cpu())
@@ -256,6 +258,7 @@ class VAETrainer(LossFunction):
         return loss
 
     def train_batch(self, epoch, batch):
+        self.num_batches += 1
         self.model.train()
         self.optimizer.zero_grad()
 

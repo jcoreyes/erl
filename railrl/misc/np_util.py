@@ -43,6 +43,12 @@ def to_onehot(x, num_values):
     return onehot
 
 
+def onehot(indices, max_index):
+    one_hot = np.zeros((indices.size, max_index))
+    one_hot[np.arange(indices.size), indices] = 1
+    return one_hot
+
+
 def softmax(x, axis=-1, T=1):
     """Compute softmax values for each sets of scores in x."""
     x = x/float(T)

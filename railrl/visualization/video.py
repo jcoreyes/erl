@@ -359,7 +359,6 @@ def dump_paths(
     skvideo.io.vwrite(filename, outputdata)
     print("Saved video to ", filename)
 
-    print("Pickle?", dump_pickle)
     if dump_pickle:
         pickle_filename = filename[:-4] + ".p"
         pickle.dump(paths, open(pickle_filename, "wb"))
