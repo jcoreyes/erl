@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=25000, #25000
+            q_num_pretrain2_steps=0, #25000
             policy_weight_decay=1e-4,
             q_weight_decay=0,
             bc_loss_type="mse",
@@ -94,20 +94,19 @@ if __name__ == "__main__":
             num_exps_per_instance=1,
             region='us-west-2',
         ),
+        
 
-
+        pretrained_vae_path="/home/ashvin/data/sasha/cvqvae/vqvae/run11/id0/itr_400.pkl",
         path_loader_class=EncoderDictToMDPPathLoader,
         path_loader_kwargs=dict(
-            model_path="/home/ashvin/data/sasha/pixelcnn/vqvae.pkl",
-            env=SawyerRigVaeEnv,
-            #model_path="/home/ashvin/data/sasha/pybullet-testing/vqvae/run10/id0/vae.pkl",
-            #recompute_reward=True,
+            recompute_reward=True,
             obs_key="image_observations",
             demo_paths=[
                 dict(
-                    path="/home/ashvin/data/sasha/demos/image_demos_48.pkl",
+                    path='/home/ashvin/data/sasha/spacemouse/demo_data/train.pkl',
                     obs_dict=False,
                     is_demo=True,
+                    data_split=0.1,
                 ),
             ],
         ),

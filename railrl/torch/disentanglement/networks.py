@@ -484,8 +484,8 @@ class DDRArchitecture(PyTorchModule):
 class VAE(PyTorchModule):
     def __init__(self, encoder, decoder):
         super().__init__()
-        self._encoder = encoder
-        self._decoder = decoder
+        self.encoder = encoder
+        self.decoder = decoder
         self.latent_dim = self._decoder.input_size
 
     def encode(self, x):

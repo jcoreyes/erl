@@ -50,6 +50,7 @@ class VAETrainer(LossFunction):
             start_skew_epoch=0,
             weight_decay=0,
             key_to_reconstruct='observations',
+            num_epochs=None,
     ):
         #TODO:steven fix pickling
         assert not use_parallel_dataloading, "Have to fix pickling the dataloaders first"
@@ -67,6 +68,7 @@ class VAETrainer(LossFunction):
             else:
                 lr = 1e-3
         self.beta_schedule = beta_schedule
+        self.num_epochs = num_epochs
         if self.beta_schedule is None or is_auto_encoder:
             self.beta_schedule = ConstantSchedule(self.beta)
         self.imsize = model.imsize
@@ -86,7 +88,6 @@ class VAETrainer(LossFunction):
         )
 
         self.key_to_reconstruct = key_to_reconstruct
-        self.batch_size = batch_size
         self.use_parallel_dataloading = use_parallel_dataloading
         self.train_data_workers = train_data_workers
         self.skew_dataset = skew_dataset
@@ -151,6 +152,7 @@ class VAETrainer(LossFunction):
         # stateful tracking variables, reset every epoch
         self.eval_statistics = collections.defaultdict(list)
         self.eval_data = collections.defaultdict(list)
+        self.num_batches = 0
 
     @property
     def log_dir(self):
@@ -245,6 +247,7 @@ class VAETrainer(LossFunction):
         self.eval_statistics[prefix + "losses"].append(loss.item())
         self.eval_statistics[prefix + "log_probs"].append(log_prob.item())
         self.eval_statistics[prefix + "kles"].append(kle.item())
+        self.eval_statistics["num_train_batches"].append(self.num_batches)
 
         encoder_mean = self.model.get_encoding_from_latent_distribution_params(latent_distribution_params)
         z_data = ptu.get_numpy(encoder_mean.cpu())
@@ -255,14 +258,15 @@ class VAETrainer(LossFunction):
         return loss
 
     def train_batch(self, epoch, batch):
+        self.num_batches += 1
         self.model.train()
         self.optimizer.zero_grad()
 
         loss = self.compute_loss(batch, epoch, False)
-
-        self.optimizer.zero_grad()
         loss.backward()
+        
         self.optimizer.step()
+        #self.scheduler.step()
 
     def test_batch(
             self,

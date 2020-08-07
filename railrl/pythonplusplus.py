@@ -289,6 +289,8 @@ def treemap(f, *args, atomic_type=None, **kwargs):
     if atomic_type and isinstance(args[0], atomic_type):
         return f(*args, **kwargs)
     if isinstance(args[0], collections.Mapping):
+        keys0 = args[0].keys()
+        assert all(keys0 == arg.keys() for arg in args) # same keys in all args
         return type(args[0])({
             k: treemap(f, *tuple(d[k] for d in args),
                        atomic_type=atomic_type, **kwargs)

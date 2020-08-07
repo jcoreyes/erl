@@ -7,6 +7,9 @@ from sklearn import neighbors
 import numpy as np
 from torchvision.utils import save_image
 import time
+from torchvision.transforms import ColorJitter, RandomResizedCrop, Resize
+from PIL import Image
+from railrl.misc.asset_loader import load_local_or_remote_file
 import os 
 import pickle
 import sys
@@ -63,9 +66,78 @@ def load_vae(vae_file):
 """
 data loaders
 """
-all_data = np.load(args.filepath, allow_pickle=True)
 
+# Load VQVAE + Define Args
 vqvae = load_vae(args.vaepath)
+root_len = vqvae.root_len
+num_embeddings = vqvae.num_embeddings
+embedding_dim = vqvae.embedding_dim
+cond_size = vqvae.num_embeddings
+imsize = vqvae.imsize
+discrete_size = root_len * root_len
+representation_size = embedding_dim * discrete_size
+input_channels = vqvae.input_channels
+imlength = imsize * imsize * input_channels
+# Load VQVAE + Define Args
+
+# Define data loading info
+train_path = '/home/ashvin/data/sasha/spacemouse/recon_data/train.npy'
+test_path = '/home/ashvin/data/sasha/spacemouse/recon_data/test.npy'
+new_path = "/home/ashvin/tmp/encoded_multiobj_bullet_data.npy"
+# Define data loading info
+
+def prep_sample_data():
+    data = np.load(new_path, allow_pickle=True).item()
+    train_data = data['train'].reshape(-1, discrete_size)
+    test_data = data['test'].reshape(-1, discrete_size)
+    return train_data, test_data
+
+def resize_dataset(data, new_imsize=48):
+    resize = Resize((new_imsize, new_imsize), interpolation=Image.NEAREST)
+    data["observations"] = data["observations"].reshape(-1, 50, 84 * 84 * 3)
+    num_traj, traj_len = data['observations'].shape[0], data['observations'].shape[1]
+    all_data = []
+    for traj_i in range(num_traj):
+        traj = []
+        for trans_i in range(traj_len):
+            x = Image.fromarray(data['observations'][traj_i, trans_i].reshape(84, 84, 3), mode='RGB')
+            x = np.array(resize(x)).reshape(1, new_imsize * new_imsize * 3)
+            traj.append(x)
+        traj = np.concatenate(traj, axis=0).reshape(1, traj_len, -1)
+        all_data.append(traj)
+    data['observations'] = np.concatenate(all_data, axis=0)
+
+
+
+def encode_dataset(dataset_path):
+    data = load_local_or_remote_file(dataset_path)
+    data = data.item()
+    resize_dataset(data)
+
+    data["observations"] = data["observations"].reshape(-1, 50, imlength)
+
+    all_data = []
+    
+    vqvae.to('cpu')
+    for i in range(data["observations"].shape[0]):
+        obs = ptu.from_numpy(data["observations"][i] / 255.0 )
+        latent = vqvae.encode(obs, cont=False).reshape(-1, 50, discrete_size)
+        all_data.append(latent)
+    vqvae.to('cuda')
+    
+    encodings = ptu.get_numpy(torch.cat(all_data, dim=0))
+    return encodings
+
+#### Only run to encode new data ####
+# train_data = encode_dataset(train_path)
+# test_data = encode_dataset(test_path)
+# dataset = {'train': train_data, 'test': test_data}
+# np.save(new_path, train_data)
+#### Only run to encode new data ####
+#all_data = train_data.reshape(-1, discrete_size)
+all_data = np.load(new_path, allow_pickle=True)
+
+#vqvae = load_vae(args.vaepath)
 
 
 def ind_to_cont(e_indices):
@@ -114,7 +186,7 @@ def get_closest_stats(latents):
 
 
 if args.dataset == 'LATENT_BLOCK':
-    _, _, train_loader, test_loader, _ = railrl.torch.vae.pixelcnn_utils.load_data_and_data_loaders(args.filepath, 'LATENT_BLOCK', args.batch_size)
+    _, _, train_loader, test_loader, _ = railrl.torch.vae.pixelcnn_utils.load_data_and_data_loaders(new_path, 'LATENT_BLOCK', args.batch_size)
 else:
     train_loader = torch.utils.data.DataLoader(
         eval('datasets.'+args.dataset)(
@@ -197,7 +269,7 @@ def test():
 
 def generate_samples(epoch, batch_size=64):
     e_indices = model.generate(shape=(args.img_dim, args.img_dim), batch_size=batch_size).reshape(-1, args.img_dim**2)
-    samples = vqvae.decode(e_indices.cpu())
+    samples = vqvae.decode(e_indices.cpu(),cont=False)
 
     save_dir = "/home/ashvin/data/sasha/pixelcnn/vqvae_samples/sample{0}.png".format(epoch)
 

@@ -163,6 +163,7 @@ class MultivariateDiagonalNormal(TorchDistributionWrapper):
         stats.update(create_stats_ordered_dict(
             'mean',
             ptu.get_numpy(self.mean),
+            # exclude_max_min=True,
         ))
         stats.update(create_stats_ordered_dict(
             'std',

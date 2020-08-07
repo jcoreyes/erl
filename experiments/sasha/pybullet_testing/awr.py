@@ -16,11 +16,11 @@ if __name__ == "__main__":
     variant = dict(
         save_video=True,
         num_epochs=151,
-        num_eval_steps_per_epoch=1000,
-        num_trains_per_train_loop=1000,
-        num_expl_steps_per_train_loop=1000,
-        min_num_steps_before_training=1000,
-        max_path_length=50,
+        num_eval_steps_per_epoch=100,
+        num_trains_per_train_loop=100,
+        num_expl_steps_per_train_loop=100,
+        min_num_steps_before_training=100,
+        max_path_length=10,
         batch_size=1024,
         replay_buffer_size=int(1E6),
 
@@ -98,13 +98,13 @@ if __name__ == "__main__":
         path_loader_class=DictToMDPPathLoader,
         path_loader_kwargs=dict(
             obs_key="observations",
-            demo_paths=[
-                dict(
-                    path="/home/ashvin/data/sasha/demos/awr_demos.pkl",
-                    obs_dict=False,
-                    is_demo=True,
-                ),
-            ],
+            # demo_paths=[
+            #     dict(
+            #         path='/home/ashvin/data/sasha/spacemouse/demo_data/train.pkl',
+            #         obs_dict=False,
+            #         is_demo=True,
+            #     ),
+            # ],
         ),
         add_env_demos=False,
         add_env_offpolicy_data=False,
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     )
 
     search_space = {
-        'seedid': range(2),
+        'seedid': range(1),
         'trainer_kwargs.bc_loss_type': ["mle"],
         'trainer_kwargs.awr_loss_type': ["mle"],
         'trainer_kwargs.beta': [0.5,], #0.2 to 0.5
@@ -137,7 +137,7 @@ if __name__ == "__main__":
 
         'trainer_kwargs.reward_transform_kwargs': [None, ],
         'trainer_kwargs.terminal_transform_kwargs': [dict(m=0, b=0), ],
-        #'qf_kwargs.output_activation': [Clamp(max=0)], #Clamp(max=0)
+        'qf_kwargs.output_activation': [Clamp(max=0)],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

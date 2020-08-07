@@ -211,8 +211,7 @@ def dump_video(
 
         l = []
         for i_in_path, d in enumerate(path['full_observations']):
-            imgs_to_stack = [d.get(k, None) for k in keys_to_show]
-            imgs_to_stack = [img for img in imgs_to_stack if img is not None]
+            imgs_to_stack = [d[k] for k in keys_to_show]
             imgs_to_stack += get_extra_imgs(path, i_in_path, env)
             l.append(
                 combine_images_into_grid(
@@ -360,7 +359,6 @@ def dump_paths(
     skvideo.io.vwrite(filename, outputdata)
     print("Saved video to ", filename)
 
-    print("Pickle?", dump_pickle)
     if dump_pickle:
         pickle_filename = filename[:-4] + ".p"
         pickle.dump(paths, open(pickle_filename, "wb"))

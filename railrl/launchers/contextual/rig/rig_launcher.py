@@ -15,6 +15,7 @@ from railrl.envs.contextual.goal_conditioned import (
     GoalDictDistributionFromMultitaskEnv,
     ContextualRewardFnFromMultitaskEnv,
     AddImageDistribution,
+    GoalConditionedDiagnosticsToContextualDiagnostics,
 )
 from railrl.envs.contextual.latent_distributions import (
     AddLatentDistribution,
@@ -92,6 +93,7 @@ def rig_experiment(
         observation_key='latent_observation',
         desired_goal_key='latent_desired_goal',
         state_goal_key='state_desired_goal',
+        state_observation_key='state_observation',
         image_goal_key='image_desired_goal',
         exploration_policy_kwargs=None,
         evaluation_goal_sampling_mode=None,
@@ -150,8 +152,15 @@ def rig_experiment(
                 desired_goal_key,
                 model,
             )
-            state_goal_env.get_contextual_diagnostics
-            diagnostics = state_goal_env.get_contextual_diagnostics
+            if hasattr(state_goal_env, 'goal_conditioned_diagnostics'):
+                diagnostics = GoalConditionedDiagnosticsToContextualDiagnostics(
+                    state_goal_env.goal_conditioned_diagnostics,
+                    desired_goal_key=state_goal_key,
+                    observation_key=state_observation_key,
+                )
+            else:
+                state_goal_env.get_contextual_diagnostics
+                diagnostics = state_goal_env.get_contextual_diagnostics
         else:
             error
 
@@ -205,7 +214,7 @@ def rig_experiment(
         **policy_kwargs
     )
 
-    def concat_context_to_obs(batch, *args, **kwargs):
+    def concat_context_to_obs(batch):
         obs = batch['observations']
         next_obs = batch['next_observations']
         context = batch[context_key]

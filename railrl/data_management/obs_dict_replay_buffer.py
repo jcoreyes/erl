@@ -28,6 +28,7 @@ class ObsDictReplayBuffer(ReplayBuffer):
             observation_key='observation',
             save_data_in_snapshot=False,
             reward_dim=1,
+            preallocate_arrays=False,
     ):
         """
 
@@ -50,7 +51,10 @@ class ObsDictReplayBuffer(ReplayBuffer):
         self.save_data_in_snapshot = save_data_in_snapshot
 
         self._action_dim = env.action_space.low.size
-        self._actions = np.ones((max_size, self._action_dim), dtype=np.float32)
+        self._actions = np.ones(
+            (max_size, *env.action_space.shape),
+            dtype=env.action_space.dtype,
+        )
         # Make everything a 2D np array to make it easier for other code to
         # reason about the shape of the data
         # self._terminals[i] = a terminal was received at time i
@@ -67,13 +71,16 @@ class ObsDictReplayBuffer(ReplayBuffer):
         for key in ob_keys_to_save + internal_keys:
             assert key in self.ob_spaces, \
                 "Key not found in the observation space: %s" % key
-            arr_initializer = np
-            if key.startswith('image'):
-                arr_initializer = image_np
-            self._obs[key] = arr_initializer.ones(
-                (max_size, *self.ob_spaces[key].low.shape), dtype=np.float32)
-            self._next_obs[key] = arr_initializer.ones(
-                (max_size, *self.ob_spaces[key].low.shape), dtype=np.float32)
+            module = image_np if key.startswith('image') else np
+            arr_initializer = module.ones if preallocate_arrays else module.zeros
+            self._obs[key] = arr_initializer(
+                (max_size, *self.ob_spaces[key].shape),
+                dtype=self.ob_spaces[key].dtype,
+            )
+            self._next_obs[key] = arr_initializer(
+                (max_size, *self.ob_spaces[key].shape),
+                dtype=self.ob_spaces[key].dtype,
+            )
 
         self._top = 0
         self._size = 0
@@ -132,7 +139,7 @@ class ObsDictReplayBuffer(ReplayBuffer):
             for i in range(0, num_post_wrap_steps):
                 self._idx_to_future_obs_idx[i] = [i, num_post_wrap_steps]
         else:
-            slc = np.s_[self._top:self._top + path_len, :]
+            slc = np.s_[self._top:self._top + path_len, ...]
             self._actions[slc] = actions
             self._terminals[slc] = terminals
             self._rewards[slc] = rewards

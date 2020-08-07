@@ -5,15 +5,21 @@ import abc
 from torch.distributions import Normal
 from torch.nn import functional as F
 from railrl.torch import pytorch_util as ptu
+from railrl.envs.encoder_wrappers import Encoder
 
 
-class VAEBase(PyTorchModule, metaclass=abc.ABCMeta):
+class VAEBase(PyTorchModule, Encoder, metaclass=abc.ABCMeta):
     def __init__(
             self,
             representation_size,
     ):
         super().__init__()
-        self.representation_size = representation_size
+        self._representation_size = representation_size
+
+    @property
+    def representation_size(self):
+        return self._representation_size
+
 
     @abc.abstractmethod
     def encode(self, input):
