@@ -54,6 +54,7 @@ class InsertImagesEnv(gym.Wrapper):
         return obs
 
     def get_observation(self):
+        """TODO: not part of this interface, should delete this function"""
         obs = self.env.get_observation()
         self._update_obs(obs)
         return obs

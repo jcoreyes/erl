@@ -15,7 +15,6 @@ from railrl.envs.contextual.goal_conditioned import (
     GoalDictDistributionFromMultitaskEnv,
     ContextualRewardFnFromMultitaskEnv,
     AddImageDistribution,
-    PresampledPathDistribution,
 )
 from railrl.envs.contextual.latent_distributions import (
     AddLatentDistribution,
@@ -45,42 +44,16 @@ import multiworld
 
 from railrl.launchers.contextual.rig.model_train_launcher import train_vae
 
-class RewardFn:
-    def __init__(self,
-            env,
-            obs_type='latent',
-            reward_type='dense',
-            epsilon=1.0
-            ):
-        if obs_type == 'latent':
-            self.observation_key = 'latent_observation'
-            self.desired_goal_key = 'latent_desired_goal'
-        elif obs_type == 'state':
-            self.observation_key = 'state_observation'
-            self.desired_goal_key = 'state_desired_goal'
-        self.env = env
-        self.reward_type = reward_type
-        self.epsilon = epsilon
 
-    def process(self, obs):
-        if len(obs.shape) == 1:
-            return obs.reshape(1, -1)
-        return obs
+class DistanceRewardFn:
+    def __init__(self, observation_key, desired_goal_key):
+        self.observation_key = observation_key
+        self.desired_goal_key = desired_goal_key
 
     def __call__(self, states, actions, next_states, contexts):
         s = next_states[self.observation_key]
         c = contexts[self.desired_goal_key]
-        
-        if self.reward_type == 'dense':
-            reward = -np.linalg.norm(s - c, axis=1)
-        elif self.reward_type == 'sparse':
-            success = np.linalg.norm(s - c, axis=1) < self.epsilon
-            reward = success - 1
-        elif self.reward_type == 'wrapped_env':
-            reward = self.env.compute_reward(states, actions, next_states, contexts)
-        else:
-            raise ValueError(self.reward_type)
-        return reward
+        return -np.linalg.norm(s - c, axis=1)
 
 
 class StateImageGoalDiagnosticsFn:
@@ -116,12 +89,10 @@ def rig_experiment(
         env_id=None,
         env_class=None,
         env_kwargs=None,
-        reward_kwargs=None,
         observation_key='latent_observation',
         desired_goal_key='latent_desired_goal',
         state_goal_key='state_desired_goal',
         image_goal_key='image_desired_goal',
-        epsilon=1.0,
         exploration_policy_kwargs=None,
         evaluation_goal_sampling_mode=None,
         exploration_goal_sampling_mode=None,
@@ -131,7 +102,6 @@ def rig_experiment(
         renderer_kwargs=None,
         imsize=48,
         pretrained_vae_path="",
-        presampled_goals_path="",
         init_camera=None,
 ):
     if exploration_policy_kwargs is None:
@@ -144,9 +114,10 @@ def rig_experiment(
     renderer = EnvRenderer(init_camera=init_camera, **renderer_kwargs)
 
     def contextual_env_distrib_and_reward(
-            env_id, env_class, env_kwargs, goal_sampling_mode, presampled_goals_path
+            env_id, env_class, env_kwargs, goal_sampling_mode
     ):
         state_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
+
         renderer = EnvRenderer(init_camera=init_camera, **renderer_kwargs)
         img_env = InsertImageEnv(state_env, renderer=renderer)
 
@@ -161,19 +132,6 @@ def rig_experiment(
                 desired_goal_key,
             )
             diagnostics = StateImageGoalDiagnosticsFn({}, )
-        elif goal_sampling_mode == "presampled":
-            diagnostics = state_env.get_contextual_diagnostics
-            image_goal_distribution = PresampledPathDistribution(
-                presampled_goals_path,
-            )
-
-            latent_goal_distribution = AddLatentDistribution(
-                image_goal_distribution,
-                image_goal_key,
-                desired_goal_key,
-                model,
-            )
-
         elif goal_sampling_mode == "reset_of_env":
             state_goal_env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
             state_goal_distribution = GoalDictDistributionFromMultitaskEnv(
@@ -192,13 +150,14 @@ def rig_experiment(
                 desired_goal_key,
                 model,
             )
+            state_goal_env.get_contextual_diagnostics
             diagnostics = state_goal_env.get_contextual_diagnostics
         else:
             error
 
-        reward_fn = RewardFn(
-            encoded_env,
-            **reward_kwargs
+        reward_fn = DistanceRewardFn(
+            observation_key=observation_key,
+            desired_goal_key=desired_goal_key,
         )
 
         env = ContextualEnv(
@@ -216,10 +175,10 @@ def rig_experiment(
         model = train_vae(train_vae_kwargs, env_kwargs, env_id, env_class, imsize, init_camera)
 
     expl_env, expl_context_distrib, expl_reward = contextual_env_distrib_and_reward(
-        env_id, env_class, env_kwargs, exploration_goal_sampling_mode, presampled_goals_path
+        env_id, env_class, env_kwargs, exploration_goal_sampling_mode
     )
     eval_env, eval_context_distrib, eval_reward = contextual_env_distrib_and_reward(
-        env_id, env_class, env_kwargs, evaluation_goal_sampling_mode, presampled_goals_path
+        env_id, env_class, env_kwargs, evaluation_goal_sampling_mode
     )
     context_key = desired_goal_key
 
@@ -246,7 +205,7 @@ def rig_experiment(
         **policy_kwargs
     )
 
-    def concat_context_to_obs(batch, *args, **kwargs):
+    def concat_context_to_obs(batch):
         obs = batch['observations']
         next_obs = batch['next_observations']
         context = batch[context_key]

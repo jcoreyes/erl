@@ -33,7 +33,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 import os.path as osp
 from railrl.core import logger
 from railrl.misc.asset_loader import load_local_or_remote_file
-from railrl.launchers.contextual.rig.rig_launcher import RewardFn, StateImageGoalDiagnosticsFn
+from railrl.launchers.contextual.rig.rig_launcher import StateImageGoalDiagnosticsFn
 from railrl.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
 from railrl.data_management.wrappers.concat_to_obs_wrapper import \
@@ -85,6 +85,47 @@ from multiworld.core.image_env import ImageEnv, unormalize_image
 import multiworld
 
 from railrl.launchers.contextual.rig.model_train_launcher import train_vae
+
+
+class RewardFn:
+    def __init__(self,
+            env,
+            obs_type='latent',
+            reward_type='dense',
+            epsilon=1.0
+    ):
+        if obs_type == 'latent':
+            self.observation_key = 'latent_observation'
+            self.desired_goal_key = 'latent_desired_goal'
+        elif obs_type == 'state':
+            self.observation_key = 'state_observation'
+            self.desired_goal_key = 'state_desired_goal'
+        self.env = env
+        self.reward_type = reward_type
+        self.epsilon = epsilon
+
+    def process(self, obs):
+        if len(obs.shape) == 1:
+            return obs.reshape(1, -1)
+        return obs
+
+    def __call__(self, states, actions, next_states, contexts):
+        s = next_states[self.observation_key]
+        c = contexts[self.desired_goal_key]
+
+        if self.reward_type == 'dense':
+            reward = -np.linalg.norm(s - c, axis=1)
+        elif self.reward_type == 'sparse':
+            success = np.linalg.norm(s - c, axis=1) < self.epsilon
+            reward = success - 1
+        elif self.reward_type == 'wrapped_env':
+            reward = self.env.compute_reward(states, actions, next_states,
+                contexts)
+        else:
+            raise ValueError(self.reward_type)
+        return reward
+
+
 
 def compute_hand_sparse_reward(next_obs, reward, done, info):
     return info['goal_achieved'] - 1
