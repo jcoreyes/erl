@@ -11,16 +11,13 @@ from railrl.envs.contextual.goal_conditioned import (
     IndexIntoAchievedGoal,
 )
 from railrl.envs.contextual.mask_conditioned import (
-    MaskedGoalDictDistributionFromMultitaskEnv,
+    MaskDictDistribution,
     MaskPathCollector,
-    default_masked_reward_fn,
+    ContextualMaskingRewardFn,
 )
-from railrl.envs.contextual.mask_inference import infer_masks
+from railrl.launchers.sets.mask_inference import get_mask_params
+from railrl.launchers.sets.example_set_gen import gen_example_sets
 
-from railrl.envs.contextual.task_conditioned import (
-    TaskGoalDictDistributionFromMultitaskEnv,
-    TaskPathCollector,
-)
 from railrl.envs.images import EnvRenderer, InsertImagesEnv
 from railrl.launchers.contextual.util import (
     get_save_video_function,
@@ -42,9 +39,6 @@ import numpy as np
 
 def rl_context_experiment(variant):
     import railrl.torch.pytorch_util as ptu
-    from railrl.exploration_strategies.base import (
-        PolicyWrappedWithExplorationStrategy
-    )
     from railrl.torch.td3.td3 import TD3 as TD3Trainer
     from railrl.torch.sac.sac import SACTrainer
     from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
@@ -57,14 +51,16 @@ def rl_context_experiment(variant):
     observation_key = variant.get('observation_key', 'latent_observation')
     desired_goal_key = variant.get('desired_goal_key', 'latent_desired_goal')
     achieved_goal_key = variant.get('achieved_goal_key', 'latent_achieved_goal')
-    context_key = desired_goal_key
 
-    task_variant = variant.get('task_variant', {})
-    task_conditioned = task_variant.get('task_conditioned', False)
+    contextual_mdp = variant.get('contextual_mdp', True)
+    print("contextual_mdp:", contextual_mdp)
 
     mask_variant = variant.get('mask_variant', {})
     mask_conditioned = mask_variant.get('mask_conditioned', False)
     print("mask_conditioned:", mask_conditioned)
+
+    if mask_conditioned:
+        assert contextual_mdp
 
     if 'sac' in variant['algorithm'].lower():
         rl_algo = 'sac'
@@ -74,114 +70,94 @@ def rl_context_experiment(variant):
         raise NotImplementedError
     print("RL algorithm:", rl_algo)
 
-    assert not (task_conditioned and mask_conditioned)
+    ### load the example dataset, if running checkpoints ###
+    if 'ckpt' in variant:
+        import os.path as osp
+        example_set_variant = variant.get('example_set_variant', dict())
+        example_set_variant['use_cache'] = True
+        example_set_variant['cache_path'] = osp.join(variant['ckpt'], 'example_dataset.npy')
 
-    if task_conditioned:
-        task_key = 'task_id'
-        context_keys = [context_key, task_key]
-    elif mask_conditioned:
+    if mask_conditioned:
         env = get_envs(variant)
-        mask_format = mask_variant.get('mask_format', 'vector')
-        assert mask_format in ['vector', 'matrix', 'distribution']
-        goal_dim = env.observation_space.spaces[context_key].low.size
-        if mask_format == 'vector':
-            mask_keys = ['mask']
-            mask_dims = [(goal_dim,)]
-            context_dim = goal_dim + goal_dim
-        elif mask_format == 'matrix':
-            mask_keys = ['mask']
-            mask_dims = [(goal_dim, goal_dim)]
-            context_dim = goal_dim + (goal_dim * goal_dim)
-        elif mask_format == 'distribution':
-            mask_keys = ['mask_mu_w', 'mask_mu_g', 'mask_mu_mat', 'mask_sigma_inv']
-            mask_dims = [(goal_dim,), (goal_dim,), (goal_dim, goal_dim), (goal_dim, goal_dim)]
-            context_dim = goal_dim + (goal_dim * goal_dim)  # mu and sigma_inv
+        mask_format = mask_variant['param_variant']['mask_format']
+        assert mask_format in ['vector', 'matrix', 'distribution', 'cond_distribution']
+        goal_dim = env.observation_space.spaces[desired_goal_key].low.size
+        if mask_format in ['vector']:
+            context_dim_for_networks = goal_dim + goal_dim
+        elif mask_format in ['matrix', 'distribution', 'cond_distribution']:
+            context_dim_for_networks = goal_dim + (goal_dim * goal_dim)
         else:
-            raise NotImplementedError
+            raise TypeError
 
-        if mask_variant.get('infer_masks', False):
-            assert mask_format == 'distribution'
-            env_kwargs = copy.deepcopy(variant['env_kwargs'])
-            env_kwargs['lite_reset'] = True
-            infer_masks_env = variant["env_class"](**env_kwargs)
+        if 'ckpt' in variant:
+            from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+            import os.path as osp
 
-            masks = infer_masks(
-                infer_masks_env,
-                mask_variant['idx_masks'],
-                mask_variant['mask_inference_variant'],
+            filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'masks.npy'))
+            masks = np.load(filename, allow_pickle=True)[()]
+        else:
+            masks = get_mask_params(
+                env=env,
+                example_set_variant=variant['example_set_variant'],
+                param_variant=mask_variant['param_variant'],
             )
-            mask_variant['masks'] = masks
 
-        # relabel_context_key_blacklist = variant['contextual_replay_buffer_kwargs'].get('relabel_context_key_blacklist',
-        #                                                                                [])
-        # if not mask_variant.get('relabel_goals', True):
-        #     relabel_context_key_blacklist += [context_key]
-        # if not mask_variant.get('relabel_masks', True):
-        #     relabel_context_key_blacklist += mask_keys
-        # variant['contextual_replay_buffer_kwargs']['relabel_context_key_blacklist'] = relabel_context_key_blacklist
-
-        context_keys = [context_key] + mask_keys
+        mask_keys = list(masks.keys())
+        context_keys = [desired_goal_key] + mask_keys
     else:
-        context_keys = [context_key]
+        context_keys = [desired_goal_key]
+
 
     def contextual_env_distrib_and_reward(mode='expl'):
         assert mode in ['expl', 'eval']
         env = get_envs(variant)
 
         if mode == 'expl':
-            goal_sampling_mode = variant.get("expl_goal_sampling_mode", None)
+            goal_sampling_mode = variant.get('expl_goal_sampling_mode', None)
         elif mode == 'eval':
-            goal_sampling_mode = variant.get("eval_goal_sampling_mode", None)
-        if goal_sampling_mode is not None:
+            goal_sampling_mode = variant.get('eval_goal_sampling_mode', None)
+        if goal_sampling_mode not in [None, 'example_set']:
             env.goal_sampling_mode = goal_sampling_mode
 
-        if task_conditioned:
-            context_distrib = TaskGoalDictDistributionFromMultitaskEnv(
+        mask_ids_for_training = mask_variant.get('mask_ids_for_training', None)
+
+        if mask_conditioned:
+            context_distrib = MaskDictDistribution(
                 env,
                 desired_goal_keys=[desired_goal_key],
-                task_key=task_key,
-                task_ids=task_variant['task_ids']
-            )
-            reward_fn = ContextualRewardFnFromMultitaskEnv(
-                env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
-                desired_goal_key=desired_goal_key,
-                achieved_goal_key=achieved_goal_key,
-                additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
-                additional_context_keys=[task_key],
-            )
-        elif mask_conditioned:
-            context_distrib = MaskedGoalDictDistributionFromMultitaskEnv(
-                env,
-                desired_goal_keys=[desired_goal_key],
-                mask_keys=mask_keys,
-                mask_dims=mask_dims,
                 mask_format=mask_format,
+                masks=masks,
                 max_subtasks_to_focus_on=mask_variant.get('max_subtasks_to_focus_on', None),
                 prev_subtask_weight=mask_variant.get('prev_subtask_weight', None),
-                masks=mask_variant.get('masks', None),
-                idx_masks=mask_variant.get('idx_masks', None),
-                matrix_masks=mask_variant.get('matrix_masks', None),
                 mask_distr=mask_variant.get('train_mask_distr', None),
+                mask_ids=mask_ids_for_training,
             )
-            reward_fn = mask_variant.get('reward_fn', default_masked_reward_fn)
-            reward_fn = ContextualRewardFnFromMultitaskEnv(
-                env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
+            reward_fn = ContextualMaskingRewardFn(
+                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key),
                 desired_goal_key=desired_goal_key,
                 achieved_goal_key=achieved_goal_key,
-                additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
-                additional_context_keys=mask_keys,
-                reward_fn=partial(reward_fn, mask_format=mask_format, use_g_for_mean=mask_variant['use_g_for_mean']),
+                mask_keys=mask_keys,
+                mask_format=mask_format,
+                use_g_for_mean=mask_variant['use_g_for_mean'],
+                use_squared_reward=mask_variant.get('use_squared_reward', False),
             )
         else:
-            context_distrib = GoalDictDistributionFromMultitaskEnv(
-                env,
-                desired_goal_keys=[desired_goal_key],
-            )
+            if goal_sampling_mode == 'example_set':
+                example_dataset = gen_example_sets(get_envs(variant), variant['example_set_variant'])
+                assert len(example_dataset['list_of_waypoints']) == 1
+                from railrl.envs.contextual.set_distributions import GoalDictDistributionFromSet
+                context_distrib = GoalDictDistributionFromSet(
+                    example_dataset['list_of_waypoints'][0],
+                    desired_goal_keys=[desired_goal_key],
+                )
+            else:
+                context_distrib = GoalDictDistributionFromMultitaskEnv(
+                    env,
+                    desired_goal_keys=[desired_goal_key],
+                )
             reward_fn = ContextualRewardFnFromMultitaskEnv(
                 env=env,
-                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key), # observation_key
+                achieved_goal_from_observation=IndexIntoAchievedGoal(achieved_goal_key),
                 desired_goal_key=desired_goal_key,
                 achieved_goal_key=achieved_goal_key,
                 additional_obs_keys=variant['contextual_replay_buffer_kwargs'].get('observation_keys', None),
@@ -197,46 +173,40 @@ def rl_context_experiment(variant):
             reward_fn=reward_fn,
             observation_key=observation_key,
             contextual_diagnostics_fns=[diag_fn],
-            update_env_info_fn=delete_info,
+            update_env_info_fn=delete_info if not variant.get('keep_env_infos', False) else None,
         )
         return env, context_distrib, reward_fn
 
     env, context_distrib, reward_fn = contextual_env_distrib_and_reward(mode='expl')
     eval_env, eval_context_distrib, _ = contextual_env_distrib_and_reward(mode='eval')
 
-    if task_conditioned:
+    if mask_conditioned:
         obs_dim = (
             env.observation_space.spaces[observation_key].low.size
-            + env.observation_space.spaces[context_key].low.size
-            + 1
+            + context_dim_for_networks
         )
-    elif mask_conditioned:
+    elif contextual_mdp:
         obs_dim = (
             env.observation_space.spaces[observation_key].low.size
-            + context_dim
+            + env.observation_space.spaces[desired_goal_key].low.size
         )
     else:
-        obs_dim = (
-            env.observation_space.spaces[observation_key].low.size
-            + env.observation_space.spaces[context_key].low.size
-        )
+        obs_dim = env.observation_space.spaces[observation_key].low.size
 
     action_dim = env.action_space.low.size
 
-    if 'ckpt' in variant:
+    if 'ckpt' in variant and 'ckpt_epoch' in variant:
         from railrl.misc.asset_loader import local_path_from_s3_or_local_path
-        import joblib
         import os.path as osp
 
-        ckpt_epoch = variant.get('ckpt_epoch', None)
+        ckpt_epoch = variant['ckpt_epoch']
         if ckpt_epoch is not None:
             epoch = variant['ckpt_epoch']
             filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'itr_%d.pkl' % epoch))
         else:
             filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'params.pkl'))
         print("Loading ckpt from", filename)
-        # data = joblib.load(filename)
-        data = torch.load(filename, map_location='cuda:1')
+        data = torch.load(filename)
         qf1 = data['trainer/qf1']
         qf2 = data['trainer/qf2']
         target_qf1 = data['trainer/target_qf1']
@@ -291,119 +261,83 @@ def rl_context_experiment(variant):
             expl_policy = policy
             eval_policy = MakeDeterministic(policy)
 
+    post_process_mask_fn = partial(
+        full_post_process_mask_fn,
+        mask_conditioned=mask_conditioned,
+        mask_variant=mask_variant,
+        context_distrib=context_distrib,
+        context_key=desired_goal_key,
+        achieved_goal_key=achieved_goal_key,
+    )
+
     def context_from_obs_dict_fn(obs_dict):
         context_dict = {
-            context_key: obs_dict[achieved_goal_key], #observation_key
+            desired_goal_key: obs_dict[achieved_goal_key]
         }
-        if task_conditioned:
-            context_dict[task_key] = obs_dict[task_key]
-        elif mask_conditioned:
+
+        if mask_conditioned:
             sample_masks_for_relabeling = mask_variant.get('sample_masks_for_relabeling', True)
             if sample_masks_for_relabeling:
-                batch_size = obs_dict[list(obs_dict.keys())[0]].shape[0]
+                batch_size = next(iter(obs_dict.values())).shape[0]
                 sampled_contexts = context_distrib.sample(batch_size)
                 for mask_key in mask_keys:
                     context_dict[mask_key] = sampled_contexts[mask_key]
             else:
                 for mask_key in mask_keys:
                     context_dict[mask_key] = obs_dict[mask_key]
+
         return context_dict
-
-    def post_process_mask_fn(obs_dict, context_dict):
-        assert mask_conditioned
-        pp_context_dict = copy.deepcopy(context_dict)
-
-        mode = mask_variant.get('context_post_process_mode', None)
-        assert mode in [
-            'prev_subtasks_solved',
-            'dilute_prev_subtasks_uniform',
-            'dilute_prev_subtasks_fixed',
-            'atomic_to_corresp_cumul',
-            None
-        ]
-
-        if mode in [
-            'prev_subtasks_solved',
-            'dilute_prev_subtasks_uniform',
-            'dilute_prev_subtasks_fixed',
-            'atomic_to_corresp_cumul'
-        ]:
-            frac = mask_variant.get('context_post_process_frac', 0.50)
-            cumul_mask_to_indices = context_distrib.get_cumul_mask_to_indices(context_dict['mask'])
-            for k in cumul_mask_to_indices:
-                indices = cumul_mask_to_indices[k]
-                subset = np.random.choice(len(indices), int(len(indices)*frac), replace=False)
-                cumul_mask_to_indices[k] = indices[subset]
-        else:
-            cumul_mask_to_indices = None
-
-        if mode in ['prev_subtasks_solved', 'dilute_prev_subtasks_uniform', 'dilute_prev_subtasks_fixed']:
-            cumul_masks = list(cumul_mask_to_indices.keys())
-            for i in range(1, len(cumul_masks)):
-                curr_mask = cumul_masks[i]
-                prev_mask = cumul_masks[i-1]
-                prev_obj_indices = np.where(np.array(prev_mask) > 0)[0]
-                indices = cumul_mask_to_indices[curr_mask]
-                if mode == 'prev_subtasks_solved':
-                    pp_context_dict[context_key][indices][:,prev_obj_indices] = \
-                        obs_dict[achieved_goal_key][indices][:,prev_obj_indices]
-                elif mode == 'dilute_prev_subtasks_uniform':
-                    pp_context_dict['mask'][indices][:, prev_obj_indices] = \
-                        np.random.uniform(size=(len(indices), len(prev_obj_indices)))
-                elif mode == 'dilute_prev_subtasks_fixed':
-                    pp_context_dict['mask'][indices][:, prev_obj_indices] = 0.5
-            indices_to_relabel = np.concatenate(list(cumul_mask_to_indices.values()))
-            orig_masks = obs_dict['mask'][indices_to_relabel]
-            atomic_mask_to_subindices = context_distrib.get_atomic_mask_to_indices(orig_masks)
-            atomic_masks = list(atomic_mask_to_subindices.keys())
-            cumul_masks = list(cumul_mask_to_indices.keys())
-            for i in range(1, len(atomic_masks)):
-                orig_atomic_mask = atomic_masks[i]
-                relabeled_cumul_mask = cumul_masks[i]
-                subindices = atomic_mask_to_subindices[orig_atomic_mask]
-                pp_context_dict['mask'][indices_to_relabel][subindices] = relabeled_cumul_mask
-
-        return pp_context_dict
-
-    # if mask_conditioned:
-    #     variant['contextual_replay_buffer_kwargs']['post_process_batch_fn'] = post_process_mask_fn
 
     def concat_context_to_obs(batch, replay_buffer=None, obs_dict=None, next_obs_dict=None, new_contexts=None):
         obs = batch['observations']
         next_obs = batch['next_observations']
-        context = batch[context_key]
-        if task_conditioned:
-            task = batch[task_key]
-            batch['observations'] = np.concatenate([obs, context, task], axis=1)
-            batch['next_observations'] = np.concatenate([next_obs, context, task], axis=1)
-        elif mask_conditioned:
+        batch_size = obs.shape[0]
+        if mask_conditioned:
             if obs_dict is not None and new_contexts is not None:
-                updated_contexts = post_process_mask_fn(obs_dict, new_contexts)
-                batch.update(updated_contexts)
+                if not mask_variant.get('relabel_masks', True):
+                    for k in mask_keys:
+                        new_contexts[k] = next_obs_dict[k][:]
+                    batch.update(new_contexts)
+                if not mask_variant.get('relabel_goals', True):
+                    new_contexts[desired_goal_key] = next_obs_dict[desired_goal_key][:]
+                    batch.update(new_contexts)
+
+                new_contexts = post_process_mask_fn(obs_dict, new_contexts)
+                batch.update(new_contexts)
 
             if mask_format in ['vector', 'matrix']:
-                assert len(mask_keys) == 1
-                mask = batch[mask_keys[0]].reshape((len(context), -1))
-                batch['observations'] = np.concatenate([obs, context, mask], axis=1)
-                batch['next_observations'] = np.concatenate([next_obs, context, mask], axis=1)
+                goal = batch[desired_goal_key]
+                mask = batch['mask'].reshape((batch_size, -1))
+                batch['observations'] = np.concatenate([obs, goal, mask], axis=1)
+                batch['next_observations'] = np.concatenate([next_obs, goal, mask], axis=1)
             elif mask_format == 'distribution':
-                g = context
+                goal = batch[desired_goal_key]
+                sigma_inv = batch['mask_sigma_inv'].reshape((batch_size, -1))
+                batch['observations'] = np.concatenate([obs, goal, sigma_inv], axis=1)
+                batch['next_observations'] = np.concatenate([next_obs, goal, sigma_inv], axis=1)
+            elif mask_format == 'cond_distribution':
+                goal = batch[desired_goal_key]
                 mu_w = batch['mask_mu_w']
                 mu_g = batch['mask_mu_g']
                 mu_A = batch['mask_mu_mat']
                 sigma_inv = batch['mask_sigma_inv']
                 if mask_variant['use_g_for_mean']:
-                    mu_w_given_g = g
+                    mu_w_given_g = goal
                 else:
-                    mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(g - mu_g, axis=-1), axis=-1)
-                sigma_w_given_g_inv = sigma_inv.reshape((len(context), -1))
+                    mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(goal - mu_g, axis=-1), axis=-1)
+                sigma_w_given_g_inv = sigma_inv.reshape((batch_size, -1))
                 batch['observations'] = np.concatenate([obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
                 batch['next_observations'] = np.concatenate([next_obs, mu_w_given_g, sigma_w_given_g_inv], axis=1)
             else:
                 raise NotImplementedError
+        elif contextual_mdp:
+            goal = batch[desired_goal_key]
+            batch['observations'] = np.concatenate([obs, goal], axis=1)
+            batch['next_observations'] = np.concatenate([next_obs, goal], axis=1)
         else:
-            batch['observations'] = np.concatenate([obs, context], axis=1)
-            batch['next_observations'] = np.concatenate([next_obs, context], axis=1)
+            batch['observations'] = obs
+            batch['next_observations'] = next_obs
+
         return batch
 
     if 'observation_keys' not in variant['contextual_replay_buffer_kwargs']:
@@ -455,21 +389,7 @@ def rl_context_experiment(variant):
 
         save_env_in_snapshot = variant.get('save_env_in_snapshot', True)
 
-        if task_conditioned:
-            rotate_freq = task_variant['rotate_task_freq_for_expl'] if mode == 'expl' \
-                else task_variant['rotate_task_freq_for_eval']
-            return TaskPathCollector(
-                env,
-                policy,
-                observation_key=observation_key,
-                context_keys_for_policy=context_keys,
-                save_env_in_snapshot=save_env_in_snapshot,
-                task_key=task_key,
-                max_path_length=max_path_length,
-                task_ids=task_variant['task_ids'],
-                rotate_freq=rotate_freq,
-            )
-        elif mask_conditioned:
+        if mask_conditioned:
             if 'rollout_mask_order' in mask_kwargs:
                 rollout_mask_order = mask_kwargs['rollout_mask_order']
             else:
@@ -478,7 +398,7 @@ def rl_context_experiment(variant):
                 elif mode == 'eval':
                     rollout_mask_order = mask_variant.get('rollout_mask_order_for_eval', 'fixed')
                 else:
-                    raise NotImplementedError
+                    raise TypeError
 
             if 'mask_distr' in mask_kwargs:
                 mask_distr = mask_kwargs['mask_distr']
@@ -488,13 +408,21 @@ def rl_context_experiment(variant):
                 elif mode == 'eval':
                     mask_distr = mask_variant['eval_mask_distr']
                 else:
-                    raise NotImplementedError
+                    raise TypeError
+
+            if 'mask_ids' in mask_kwargs:
+                mask_ids = mask_kwargs['mask_ids']
+            else:
+                if mode == 'expl':
+                    mask_ids = mask_variant.get('mask_ids_for_expl', None)
+                elif mode == 'eval':
+                    mask_ids = mask_variant.get('mask_ids_for_eval', None)
+                else:
+                    raise TypeError
 
             prev_subtask_weight = mask_variant.get('prev_subtask_weight', None)
-            prev_subtasks_solved = mask_variant.get('prev_subtasks_solved', False)
             max_subtasks_to_focus_on = mask_variant.get('max_subtasks_to_focus_on', None)
             max_subtasks_per_rollout = mask_variant.get('max_subtasks_per_rollout', None)
-            mask_groups = mask_variant.get('mask_groups', None)
 
             mode = mask_variant.get('context_post_process_mode', None)
             if mode in ['dilute_prev_subtasks_uniform', 'dilute_prev_subtasks_fixed']:
@@ -509,20 +437,27 @@ def rl_context_experiment(variant):
                 save_env_in_snapshot=save_env_in_snapshot,
                 mask_sampler=(context_distrib if mode=='expl' else eval_context_distrib),
                 mask_distr=mask_distr.copy(),
-                mask_groups=mask_groups,
+                mask_ids=mask_ids,
                 max_path_length=max_path_length,
                 rollout_mask_order=rollout_mask_order,
                 prev_subtask_weight=prev_subtask_weight,
-                prev_subtasks_solved=prev_subtasks_solved,
                 max_subtasks_to_focus_on=max_subtasks_to_focus_on,
                 max_subtasks_per_rollout=max_subtasks_per_rollout,
+            )
+        elif contextual_mdp:
+            return ContextualPathCollector(
+                env,
+                policy,
+                observation_key=observation_key,
+                context_keys_for_policy=context_keys,
+                save_env_in_snapshot=save_env_in_snapshot,
             )
         else:
             return ContextualPathCollector(
                 env,
                 policy,
                 observation_key=observation_key,
-                context_keys_for_policy=context_keys,
+                context_keys_for_policy=[],
                 save_env_in_snapshot=save_env_in_snapshot,
             )
 
@@ -670,7 +605,7 @@ def rl_context_experiment(variant):
                 )
                 algorithm.post_train_funcs.append(eval_video_func)
 
-        if variant.get('log_expl_video', True):
+        if variant.get('log_expl_video', True) and not variant['algo_kwargs'].get('eval_only', False):
             img_expl_env = add_images(env, context_distrib)
             video_path_collector = create_path_collector(img_expl_env, expl_policy, mode='expl')
             rollout_function = video_path_collector._rollout_fn
@@ -686,10 +621,9 @@ def rl_context_experiment(variant):
             )
             algorithm.post_train_funcs.append(expl_video_func)
 
+    addl_collectors = []
+    addl_log_prefixes = []
     if mask_conditioned and mask_variant.get('log_mask_diagnostics', True):
-        collectors = []
-        log_prefixes = []
-
         default_list = [
             'atomic',
             'atomic_seq',
@@ -702,21 +636,18 @@ def rl_context_experiment(variant):
 
         # atomic masks
         if 'atomic' in eval_rollouts_to_log:
-            # masks = eval_context_distrib.masks.copy()
-            # num_masks = len(masks[list(masks.keys())[0]])
-            num_masks = len(eval_path_collector.mask_groups)
-            for mask_id in range(num_masks):
+            for mask_id in eval_path_collector.mask_ids:
                 mask_kwargs=dict(
-                    rollout_mask_order=[mask_id],
+                    mask_ids=[mask_id],
                     mask_distr=dict(
-                        atomic_seq=1.0,
+                        atomic=1.0,
                     ),
                 )
                 collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-                collectors.append(collector)
-            log_prefixes += [
+                addl_collectors.append(collector)
+            addl_log_prefixes += [
                 'mask_{}/'.format(''.join(str(mask_id)))
-                for mask_id in range(num_masks)
+                for mask_id in eval_path_collector.mask_ids
             ]
 
         # full mask
@@ -727,8 +658,8 @@ def rl_context_experiment(variant):
                 ),
             )
             collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-            collectors.append(collector)
-            log_prefixes.append('mask_full/')
+            addl_collectors.append(collector)
+            addl_log_prefixes.append('mask_full/')
 
         # cumulative, sequential mask
         if 'cumul_seq' in eval_rollouts_to_log:
@@ -739,8 +670,8 @@ def rl_context_experiment(variant):
                 ),
             )
             collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-            collectors.append(collector)
-            log_prefixes.append('mask_cumul_seq/')
+            addl_collectors.append(collector)
+            addl_log_prefixes.append('mask_cumul_seq/')
 
         # atomic, sequential mask
         if 'atomic_seq' in eval_rollouts_to_log:
@@ -751,20 +682,18 @@ def rl_context_experiment(variant):
                 ),
             )
             collector = create_path_collector(eval_env, eval_policy, mode='eval', mask_kwargs=mask_kwargs)
-            collectors.append(collector)
-            log_prefixes.append('mask_atomic_seq/')
+            addl_collectors.append(collector)
+            addl_log_prefixes.append('mask_atomic_seq/')
 
         def get_mask_diagnostics(unused):
             from railrl.core.logging import append_log, add_prefix, OrderedDict
-            from railrl.misc import eval_util
             log = OrderedDict()
-            for prefix, collector in zip(log_prefixes, collectors):
+            for prefix, collector in zip(addl_log_prefixes, addl_collectors):
                 paths = collector.collect_new_paths(
                     max_path_length,
-                    max_path_length, #masking_eval_steps,
+                    variant['algo_kwargs']['num_eval_steps_per_epoch'],
                     discard_incomplete_paths=True,
                 )
-                # old_path_info = eval_util.get_generic_path_information(paths)
                 old_path_info = eval_env.get_diagnostics(paths)
 
                 keys_to_keep = []
@@ -781,10 +710,95 @@ def rl_context_experiment(variant):
                 )
                 append_log(log, generic_info)
 
-            for collector in collectors:
+            for collector in addl_collectors:
                 collector.end_epoch(0)
             return log
 
         algorithm._eval_get_diag_fns.append(get_mask_diagnostics)
+        
+    if 'ckpt' in variant:
+        from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+        import os.path as osp
+        assert variant['algo_kwargs'].get('eval_only', False)
+
+        def update_networks(algo, epoch):
+            if 'ckpt_epoch' in variant:
+                return
+
+            if epoch % algo._eval_epoch_freq == 0:
+                filename = local_path_from_s3_or_local_path(osp.join(variant['ckpt'], 'itr_%d.pkl' % epoch))
+                print("Loading ckpt from", filename)
+                data = torch.load(filename)#, map_location='cuda:1')
+                eval_policy = data['evaluation/policy']
+                eval_policy.to(ptu.device)
+                algo.eval_data_collector._policy = eval_policy
+                for collector in addl_collectors:
+                    collector._policy = eval_policy
+
+        algorithm.post_train_funcs.insert(0, update_networks)
 
     algorithm.train()
+
+def full_post_process_mask_fn(
+        obs_dict, context_dict,
+        mask_conditioned,
+        mask_variant,
+        context_distrib,
+        context_key,
+        achieved_goal_key,
+):
+    assert mask_conditioned
+    mode = mask_variant.get('context_post_process_mode', None)
+    assert mode in [
+        'prev_subtasks_solved',
+        'dilute_prev_subtasks_uniform',
+        'dilute_prev_subtasks_fixed',
+        'atomic_to_corresp_cumul',
+        None
+    ]
+    if mode is None:
+        return context_dict
+
+    if mode in [
+        'prev_subtasks_solved',
+        'dilute_prev_subtasks_uniform',
+        'dilute_prev_subtasks_fixed',
+        'atomic_to_corresp_cumul'
+    ]:
+        frac = mask_variant.get('context_post_process_frac', 0.50)
+        cumul_mask_to_indices = context_distrib.get_cumul_mask_to_indices(context_dict['mask'])
+        for k in cumul_mask_to_indices:
+            indices = cumul_mask_to_indices[k]
+            subset = np.random.choice(len(indices), int(len(indices)*frac), replace=False)
+            cumul_mask_to_indices[k] = indices[subset]
+    else:
+        cumul_mask_to_indices = None
+    pp_context_dict = copy.deepcopy(context_dict)
+
+    if mode in ['prev_subtasks_solved', 'dilute_prev_subtasks_uniform', 'dilute_prev_subtasks_fixed']:
+        cumul_masks = list(cumul_mask_to_indices.keys())
+        for i in range(1, len(cumul_masks)):
+            curr_mask = cumul_masks[i]
+            prev_mask = cumul_masks[i-1]
+            prev_obj_indices = np.where(np.array(prev_mask) > 0)[0]
+            indices = cumul_mask_to_indices[curr_mask]
+            if mode == 'prev_subtasks_solved':
+                pp_context_dict[context_key][indices][:,prev_obj_indices] = \
+                    obs_dict[achieved_goal_key][indices][:,prev_obj_indices]
+            elif mode == 'dilute_prev_subtasks_uniform':
+                pp_context_dict['mask'][indices][:, prev_obj_indices] = \
+                    np.random.uniform(size=(len(indices), len(prev_obj_indices)))
+            elif mode == 'dilute_prev_subtasks_fixed':
+                pp_context_dict['mask'][indices][:, prev_obj_indices] = 0.5
+        indices_to_relabel = np.concatenate(list(cumul_mask_to_indices.values()))
+        orig_masks = obs_dict['mask'][indices_to_relabel]
+        atomic_mask_to_subindices = context_distrib.get_atomic_mask_to_indices(orig_masks)
+        atomic_masks = list(atomic_mask_to_subindices.keys())
+        cumul_masks = list(cumul_mask_to_indices.keys())
+        for i in range(1, len(atomic_masks)):
+            orig_atomic_mask = atomic_masks[i]
+            relabeled_cumul_mask = cumul_masks[i]
+            subindices = atomic_mask_to_subindices[orig_atomic_mask]
+            pp_context_dict['mask'][indices_to_relabel][subindices] = relabeled_cumul_mask
+
+    return pp_context_dict

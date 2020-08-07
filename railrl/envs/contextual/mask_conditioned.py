@@ -1,45 +1,62 @@
 from functools import partial
-
+import itertools
 import numpy as np
 
-from railrl.envs.contextual.goal_conditioned import (
-    GoalDictDistributionFromMultitaskEnv,
-)
+from railrl.core.distribution import DictDistribution
 from railrl.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
+
+from railrl.envs.contextual import ContextualRewardFn
 
 from gym.spaces import Box
 from railrl.samplers.rollout_functions import contextual_rollout
 from railrl import pythonplusplus as ppp
 from collections import OrderedDict
 
-class MaskedGoalDictDistributionFromMultitaskEnv(
-        GoalDictDistributionFromMultitaskEnv):
+from typing import Any, Callable, Dict
+
+Observation = Dict
+Goal = Any
+
+class MaskDictDistribution(DictDistribution):
     def __init__(
             self,
-            *args,
-            mask_dims=[(1,)],
-            mask_keys=['mask'],
+            env,
+            desired_goal_keys=('desired_goal',),
             mask_format='vector',
             masks=None,
-            idx_masks=None,
-            matrix_masks=None,
             mask_distr=None,
             max_subtasks_to_focus_on=None,
             prev_subtask_weight=None,
-            **kwargs
+            mask_ids=None,
     ):
-        super().__init__(*args, **kwargs)
-        self.mask_keys = mask_keys
-        self.mask_dims = mask_dims
+        self._env = env
+        self._desired_goal_keys = desired_goal_keys
+        self.mask_keys = list(masks.keys())
+        self.mask_dims = []
+        for key in self.mask_keys:
+            self.mask_dims.append(masks[key].shape[1:])
+
+        env_spaces = self._env.observation_space.spaces
+        self._spaces = {
+            k: env_spaces[k]
+            for k in self._desired_goal_keys
+        }
         for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
             self._spaces[mask_key] = Box(
                 low=np.zeros(mask_dim),
                 high=np.ones(mask_dim),
                 dtype=np.float32,
             )
+
         self.mask_format = mask_format
+        self.masks = masks
+        self.mask_ids = mask_ids
+        if self.mask_ids is None:
+            self.mask_ids = np.arange(next(iter(masks.values())).shape[0])
+        self.mask_ids = np.array(self.mask_ids)
+        self._num_atomic_masks = len(self.mask_ids)
 
         self._max_subtasks_to_focus_on = max_subtasks_to_focus_on
         if self._max_subtasks_to_focus_on is not None:
@@ -49,9 +66,9 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
             assert isinstance(self._prev_subtask_weight, float)
 
         for key in mask_distr:
-            assert key in ['atomic', 'cumul', 'subset', 'full']
+            assert key in ['atomic', 'subset', 'full']
             assert mask_distr[key] >= 0
-        for key in ['atomic', 'cumul', 'subset', 'full']:
+        for key in ['atomic', 'subset', 'full']:
             if key not in mask_distr:
                 mask_distr[key] = 0.0
         if np.sum(list(mask_distr.values())) > 1:
@@ -59,83 +76,46 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
                 np.sum(list(mask_distr.values()))
             ))
         self.mask_distr = mask_distr
-
-        if masks is not None:
-            self.masks = masks
-        else:
-            assert ((idx_masks is not None) + (matrix_masks is not None)) == 1
-
-            self.masks = {}
-
-            if idx_masks is not None:
-                num_masks = len(idx_masks)
-            elif matrix_masks is not None:
-                num_masks = len(matrix_masks)
-            else:
-                raise NotImplementedError
-
-            for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
-                self.masks[mask_key] = np.zeros([num_masks] + list(mask_dim))
-
-            if self.mask_format in ['vector', 'matrix']:
-                assert len(self.mask_keys) == 1
-                mask_key = self.mask_keys[0]
-                if idx_masks is not None:
-                    for (i, idx_dict) in enumerate(idx_masks):
-                        for (k, v) in idx_dict.items():
-                            assert k == v
-                            if self.mask_format == 'vector':
-                                self.masks[mask_key][i][k] = 1
-                            elif self.mask_format == 'matrix':
-                                self.masks[mask_key][i][k, k] = 1
-                elif matrix_masks is not None:
-                    if self.mask_format == 'vector':
-                        for mask_id in range(num_masks):
-                            self.masks[mask_key][mask_id] = np.diag(matrix_masks[mask_id])
-                    else:
-                        self.masks[mask_key] = np.array(matrix_masks)
-            elif self.mask_format == 'distribution':
-                if idx_masks is not None:
-                    self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])
-                    idx_masks = np.array(idx_masks)
-
-                    for (i, idx_dict) in enumerate(idx_masks):
-                        for (k, v) in idx_dict.items():
-                            assert k == v
-                            self.masks['mask_sigma_inv'][i][k, k] = 1
-                elif matrix_masks is not None:
-                    self.masks['mask_mu_mat'][:] = np.identity(self.masks['mask_mu_mat'].shape[-1])
-                    self.masks['mask_sigma_inv'] = np.array(matrix_masks)
-            else:
-                raise NotImplementedError
-
-        self.cumul_masks = None
         self.subset_masks = None
+        self.full_masks = None
+
+    @property
+    def spaces(self):
+        return self._spaces
 
     def sample(self, batch_size: int):
-        goals = super().sample(batch_size)
-        mask_goals = self.sample_masks(batch_size)
-        goals.update(mask_goals)
+        goals = self.sample_masks(batch_size)
+
+        ### sample the desired_goal ###
+        if self.mask_format == 'distribution':
+            ### the desired goal is exactly the same as mu ###
+            goals.update({
+                k: goals['mask_mu']
+                for k in self._desired_goal_keys
+            })
+        else:
+            env_samples = self._env.sample_goals(batch_size)
+            goals.update({
+                k: env_samples[k]
+                for k in self._desired_goal_keys
+            })
+
         return goals
 
     def sample_masks(self, batch_size):
         num_atomic_masks = int(batch_size * self.mask_distr['atomic'])
-        num_cumul_masks = int(batch_size * self.mask_distr['cumul'])
         num_subset_masks = int(batch_size * self.mask_distr['subset'])
-        num_full_masks = batch_size - num_atomic_masks - num_cumul_masks - num_subset_masks
+        num_full_masks = batch_size - num_atomic_masks - num_subset_masks
 
         mask_goals = []
         if num_atomic_masks > 0:
             mask_goals.append(self.sample_atomic_masks(num_atomic_masks))
 
-        if num_full_masks > 0:
-            mask_goals.append(self.sample_full_masks(num_full_masks))
-
-        if num_cumul_masks > 0:
-            mask_goals.append(self.sample_cumul_masks(num_cumul_masks))
-
         if num_subset_masks > 0:
             mask_goals.append(self.sample_subset_masks(num_subset_masks))
+
+        if num_full_masks > 0:
+            mask_goals.append(self.sample_full_masks(num_full_masks))
 
         def concat(*x):
             return np.concatenate(x, axis=0)
@@ -146,106 +126,73 @@ class MaskedGoalDictDistributionFromMultitaskEnv(
 
     def sample_atomic_masks(self, batch_size):
         sampled_masks = {}
-        num_masks = len(self.masks[list(self.masks.keys())[0]])
-        mask_ids = np.random.choice(num_masks, batch_size)
+        sampled_mask_ids = np.random.choice(self.mask_ids, batch_size)
         for mask_key in self.mask_keys:
-            sampled_masks[mask_key] = self.masks[mask_key][mask_ids]
-        return sampled_masks
-
-    def sample_full_masks(self, batch_size):
-        assert self.mask_format in ['vector', 'matrix']
-        sampled_masks = {}
-        num_masks = len(self.masks[list(self.masks.keys())[0]])
-        mask_ids = np.arange(num_masks)
-        for mask_key in self.mask_keys:
-            sampled_masks[mask_key] = np.repeat(
-                np.sum(
-                    self.masks[mask_key][mask_ids],
-                    axis=0
-                )[np.newaxis, ...],
-                batch_size,
-                axis=0
-            )
-        return sampled_masks
-
-    def sample_cumul_masks(self, batch_size):
-        assert self.mask_format in ['vector', 'matrix']
-
-        if self.cumul_masks is None:
-            self.create_cumul_masks()
-
-        sampled_masks = {}
-        num_masks = len(self.cumul_masks[list(self.cumul_masks.keys())[0]])
-        mask_ids = np.random.choice(num_masks, batch_size)
-        for mask_key in self.mask_keys:
-            sampled_masks[mask_key] = self.cumul_masks[mask_key][mask_ids]
+            sampled_masks[mask_key] = self.masks[mask_key][sampled_mask_ids]
         return sampled_masks
 
     def sample_subset_masks(self, batch_size):
-        assert self.mask_format in ['vector', 'matrix']
-
         if self.subset_masks is None:
-            self.create_subset_masks()
+            self.create_subset_and_full_masks()
 
         sampled_masks = {}
-        num_masks = len(self.subset_masks[list(self.subset_masks.keys())[0]])
-        mask_ids = np.random.choice(num_masks, batch_size)
+        sampled_mask_ids = np.random.choice(self._num_subset_masks, batch_size)
         for mask_key in self.mask_keys:
-            sampled_masks[mask_key] = self.subset_masks[mask_key][mask_ids]
+            sampled_masks[mask_key] = self.subset_masks[mask_key][sampled_mask_ids]
         return sampled_masks
 
-    def create_cumul_masks(self):
-        assert self.mask_format in ['vector', 'matrix']
-        num_atomic_masks = len(self.masks[list(self.masks.keys())[0]])
+    def sample_full_masks(self, batch_size):
+        if self.full_masks is None:
+            self.create_subset_and_full_masks()
 
-        self.cumul_masks = {}
-        for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
-            self.cumul_masks[mask_key] = np.zeros([num_atomic_masks] + list(mask_dim))
+        sampled_masks = {}
+        sampled_mask_ids = np.random.choice(self._num_full_masks, batch_size)
+        for mask_key in self.mask_keys:
+            sampled_masks[mask_key] = self.full_masks[mask_key][sampled_mask_ids]
+        return sampled_masks
 
-        for i in range(1, num_atomic_masks + 1):
-            mask_idx_bitmap = np.zeros(num_atomic_masks)
-            if self._max_subtasks_to_focus_on is None:
-                start_idx = 0
-                end_idx = i
-            else:
-                start_idx = max(0, i - self._max_subtasks_to_focus_on)
-                end_idx = i
-            mask_idx_bitmap[start_idx:end_idx] = 1
-            if self._prev_subtask_weight is not None:
-                mask_idx_bitmap[start_idx:end_idx - 1] = self._prev_subtask_weight
-            for mask_key in self.mask_keys:
-                self.cumul_masks[mask_key][i - 1] = (
-                        mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
-                ).reshape(list(self._spaces[mask_key].shape))
+    def create_subset_and_full_masks(self):
+        self.subset_masks = {k: [] for k in self.mask_keys}
+        self.full_masks = {k: [] for k in self.mask_keys}
 
-    def create_subset_masks(self):
-        assert self.mask_format in ['vector', 'matrix']
-        num_atomic_masks = len(self.masks[list(self.masks.keys())[0]])
+        def nCkBitmaps(n, k):
+            """
+            Shamelessly pilfered from
+            https://stackoverflow.com/questions/1851134/generate-all-binary-strings-of-length-n-with-k-bits-set
+            """
+            result = []
+            for bits in itertools.combinations(range(n), k):
+                s = [0] * n
+                for bit in bits:
+                    s[bit] = 1
+                result.append(s)
+            return np.array(result)
 
-        self.subset_masks = {}
-        for mask_key, mask_dim in zip(self.mask_keys, self.mask_dims):
-            self.subset_masks[mask_key] = np.zeros([2 ** num_atomic_masks - 1] + list(mask_dim))
+        def npify(d):
+            for key in d.keys():
+                d[key] = np.array(d[key])
+            return d
 
-        def bin_array(num, m):
-            """https://stackoverflow.com/questions/22227595/convert-integer-to-binary-array-with-suitable-padding"""
-            """Convert a positive integer num into an m-bit bit vector"""
-            return np.array(list(np.binary_repr(num).zfill(m))).astype(np.int8)
+        def append_to_dict(d, keys, bm):
+            for k in keys:
+                d[k].append(
+                    (bm @ self.masks[k].reshape((self._num_atomic_masks, -1))).reshape(list(self._spaces[k].shape))
+                )
 
-        for i in range(1, 2 ** num_atomic_masks):
-            mask_idx_bitmap = bin_array(i, num_atomic_masks)
-            for mask_key in self.mask_keys:
-                self.subset_masks[mask_key][i - 1] = (
-                        mask_idx_bitmap @ (self.masks[mask_key].reshape((num_atomic_masks, -1)))
-                ).reshape(list(self._spaces[mask_key].shape))
+        n = self._max_subtasks_to_focus_on \
+            if (self._max_subtasks_to_focus_on is not None) \
+            else self._num_atomic_masks
+        for k in range(1, n + 1):
+            list_of_bitmaps = nCkBitmaps(n, k)
+            for bm in list_of_bitmaps:
+                append_to_dict(self.subset_masks, self.mask_keys, bm)
+                if k == n:
+                    append_to_dict(self.full_masks, self.mask_keys, bm)
 
-    def get_cumul_mask_to_indices(self, masks):
-        assert self.mask_format in ['vector']
-        if self.cumul_masks is None:
-            self.create_cumul_masks()
-        cumul_masks_to_indices = OrderedDict()
-        for mask in self.cumul_masks['mask']:
-            cumul_masks_to_indices[tuple(mask)] = np.where(np.all(masks == mask, axis=1))[0]
-        return cumul_masks_to_indices
+        self.subset_masks = npify(self.subset_masks)
+        self.full_masks = npify(self.full_masks)
+        self._num_subset_masks = next(iter(self.subset_masks.values())).shape[0]
+        self._num_full_masks = next(iter(self.full_masks.values())).shape[0]
 
     def get_atomic_mask_to_indices(self, masks):
         assert self.mask_format in ['vector']
@@ -260,12 +207,11 @@ class MaskPathCollector(ContextualPathCollector):
             *args,
             mask_sampler=None,
             mask_distr=None,
-            mask_groups=None,
+            mask_ids=None,
             max_path_length=100,
             rollout_mask_order='fixed',
             concat_context_to_obs_fn=None,
             prev_subtask_weight=False,
-            prev_subtasks_solved=True,
             max_subtasks_to_focus_on=None,
             max_subtasks_per_rollout=None,
             **kwargs
@@ -284,19 +230,18 @@ class MaskPathCollector(ContextualPathCollector):
                 np.sum(list(mask_distr.values()))
             ))
         self.mask_distr = mask_distr
-        self.mask_groups = mask_groups
-        if self.mask_groups is None:
-            atomic_masks = self.mask_sampler.masks
-            self.mask_groups = np.arange(len(atomic_masks[list(atomic_masks.keys())[0]])).reshape(-1, 1)
-        self.mask_groups = np.array(self.mask_groups)
+        if mask_ids is None:
+            mask_ids = self.mask_sampler.mask_ids.copy()
+        self.mask_ids = np.array(mask_ids)
 
+        assert rollout_mask_order in ['fixed', 'random']
         self.rollout_mask_order = rollout_mask_order
+
         self.max_path_length = max_path_length
         self.rollout_masks = []
         self._concat_context_to_obs_fn = concat_context_to_obs_fn
 
         self._prev_subtask_weight = prev_subtask_weight
-        self._prev_subtasks_solved = prev_subtasks_solved
         self._max_subtasks_to_focus_on = max_subtasks_to_focus_on
         self._max_subtasks_per_rollout = max_subtasks_per_rollout
 
@@ -308,28 +253,13 @@ class MaskPathCollector(ContextualPathCollector):
                     o[k] = mask_dict[k]
                     self._env._rollout_context_batch[k] = mask_dict[k][None]
 
-                # hack: set previous objects goals to states
-                if self._prev_subtasks_solved:
-                    indices = np.argwhere(mask_dict['mask'] == 1)[:-2].reshape(-1)
-                    if len(indices) > 0:
-                        self._env._rollout_context_batch['state_desired_goal'][0][indices] = o[self._observation_key][indices]
-                        new_goal = {
-                            'state_desired_goal': self._env._rollout_context_batch['state_desired_goal'][0]
-                        }
-                        self._env.env.set_goal(new_goal)
-
-            if self._concat_context_to_obs_fn is None:
-                combined_obs = [o[self._observation_key]]
-                for k in self._context_keys_for_policy:
-                    combined_obs.append(o[k])
-                return np.concatenate(combined_obs, axis=0)
-            else:
-                batch = {}
-                batch['observations'] = o[self._observation_key][None]
-                batch['next_observations'] = o[self._observation_key][None]
-                for k in self._context_keys_for_policy:
-                    batch[k] = o[k][None]
-                return self._concat_context_to_obs_fn(batch)['observations'][0]
+            obs_and_context = {
+                'observations': o[self._observation_key][None],
+                'next_observations': o[self._observation_key][None],
+            }
+            for k in self._context_keys_for_policy:
+                obs_and_context[k] = o[k][None]
+            return self._concat_context_to_obs_fn(obs_and_context)['observations'][0]
 
         def unbatchify(d):
             for k in d:
@@ -349,39 +279,29 @@ class MaskPathCollector(ContextualPathCollector):
                     self.rollout_masks.append(mask)
             else:
                 atomic_masks = self.mask_sampler.masks
-                mask_groups = self.mask_groups.copy()
+                mask_ids_for_rollout = self.mask_ids.copy()
 
-                if self.rollout_mask_order == 'fixed':
-                    pass
-                elif self.rollout_mask_order == 'random':
-                    np.random.shuffle(mask_groups)
-                elif isinstance(self.rollout_mask_order, list):
-                    mask_groups = mask_groups[self.rollout_mask_order]
-                else:
-                    raise NotImplementedError
-
+                if self.rollout_mask_order == 'random':
+                    np.random.shuffle(mask_ids_for_rollout)
                 if self._max_subtasks_per_rollout is not None:
-                    mask_groups = mask_groups[:self._max_subtasks_per_rollout]
-
+                    mask_ids_for_rollout = mask_ids_for_rollout[:self._max_subtasks_per_rollout]
                 if rollout_type == 'atomic':
-                    mask_groups = mask_groups[0:1]
+                    mask_ids_for_rollout = mask_ids_for_rollout[:1]
 
-                mask_ids = mask_groups.reshape(-1)
+                num_steps_per_mask = self.max_path_length // len(mask_ids_for_rollout)
 
-                num_steps_per_mask = self.max_path_length // len(mask_ids)
-
-                for i in range(len(mask_ids)):
+                for i in range(len(mask_ids_for_rollout)):
                     mask = {}
                     for k in atomic_masks.keys():
                         if rollout_type in ['atomic_seq', 'atomic']:
-                            mask[k] = atomic_masks[k][mask_ids[i]]
+                            mask[k] = atomic_masks[k][mask_ids_for_rollout[i]]
                         elif rollout_type == 'cumul_seq':
                             if self._max_subtasks_to_focus_on is not None:
                                 start_idx = max(0, i + 1 - self._max_subtasks_to_focus_on)
                                 end_idx = i + 1
-                                atomic_mask_ids_for_rollout_mask = mask_ids[start_idx:end_idx]
+                                atomic_mask_ids_for_rollout_mask = mask_ids_for_rollout[start_idx:end_idx]
                             else:
-                                atomic_mask_ids_for_rollout_mask = mask_ids[0:i + 1]
+                                atomic_mask_ids_for_rollout_mask = mask_ids_for_rollout[0:i + 1]
 
                             atomic_mask_weights = np.ones(len(atomic_mask_ids_for_rollout_mask))
                             if self._prev_subtask_weight is not None:
@@ -394,7 +314,7 @@ class MaskPathCollector(ContextualPathCollector):
                         else:
                             raise NotImplementedError
                     num_steps = num_steps_per_mask
-                    if i == len(mask_ids) - 1:
+                    if i == len(mask_ids_for_rollout) - 1:
                         num_steps = self.max_path_length - len(self.rollout_masks)
                     self.rollout_masks += num_steps*[mask]
 
@@ -406,50 +326,77 @@ class MaskPathCollector(ContextualPathCollector):
             reset_callback=reset_callback,
         )
 
-def default_masked_reward_fn(actions, obs, mask_format='vector', use_g_for_mean=True):
+class ContextualMaskingRewardFn(ContextualRewardFn):
+    def __init__(
+            self,
+            achieved_goal_from_observation: Callable[[Observation], Goal],
+            desired_goal_key='desired_goal',
+            achieved_goal_key='achieved_goal',
+            mask_keys=None,
+            mask_format=None,
+            use_g_for_mean=True,
+            use_squared_reward=False,
+    ):
+        self._desired_goal_key = desired_goal_key
+        self._achieved_goal_key = achieved_goal_key
+        self._achieved_goal_from_observation = achieved_goal_from_observation
+
+        self._mask_keys = mask_keys
+        self._mask_format = mask_format
+        self._use_g_for_mean = use_g_for_mean
+        self._use_squared_reward = use_squared_reward
+
+    def __call__(self, states, actions, next_states, contexts):
+        del states
+        achieved = self._achieved_goal_from_observation(next_states)
+        obs = {
+            self._achieved_goal_key: achieved,
+            self._desired_goal_key: contexts[self._desired_goal_key],
+        }
+        for key in self._mask_keys:
+            obs[key] = contexts[key]
+
+        return default_masked_reward_fn(
+            actions, obs,
+            mask_format=self._mask_format,
+            use_g_for_mean=self._use_g_for_mean,
+            use_squared_reward=self._use_squared_reward,
+        )
+
+def default_masked_reward_fn(actions, obs, mask_format, use_g_for_mean, use_squared_reward):
     achieved_goals = obs['state_achieved_goal']
-    desired_goals = obs['state_desired_goal']
 
     if mask_format == 'vector':
-        # vector mask
+        desired_goals = obs['state_desired_goal']
         mask = obs['mask']
         prod = (achieved_goals - desired_goals) * mask
-        return -np.linalg.norm(prod, axis=-1)
-    elif mask_format == 'matrix':
-        # matrix mask
-        mask = obs['mask']
-
-        # ### hack for testing H->A ###
-        # if -1 in mask:
-        #     desired_goals = desired_goals.copy()
-        #     desired_goals[:,0:4] = 0
-
-        batch_size, state_dim = achieved_goals.shape
-        diff = (achieved_goals - desired_goals).reshape((batch_size, state_dim, 1))
-        prod = (diff.transpose(0, 2, 1) @ mask @ diff).reshape(batch_size)
-        return -np.sqrt(prod)
-    elif mask_format == 'distribution':
-        # matrix mask
-        g = desired_goals
-        mu_w = obs['mask_mu_w']
-        mu_g = obs['mask_mu_g']
-        mu_A = obs['mask_mu_mat']
-        sigma_inv = obs['mask_sigma_inv']
-        if use_g_for_mean:
-            mu_w_given_g = g
+        dist = np.linalg.norm(prod, axis=-1)
+    elif mask_format in ['matrix', 'distribution', 'cond_distribution']:
+        mu = obs['state_desired_goal']
+        if mask_format == 'matrix':
+            mask = obs['mask']
+        elif mask_format == 'distribution':
+            mask = obs['mask_sigma_inv']
+        elif mask_format == 'cond_distribution':
+            mask = obs['mask_sigma_inv']
+            if not use_g_for_mean:
+                mu_w = obs['mask_mu_w']
+                mu_g = obs['mask_mu_g']
+                mu_A = obs['mask_mu_mat']
+                mu = mu_w + np.squeeze(
+                    mu_A @ np.expand_dims(obs['state_desired_goal'] - mu_g, axis=-1),
+                    axis=-1
+                )
         else:
-            mu_w_given_g = mu_w + np.squeeze(mu_A @ np.expand_dims(g - mu_g, axis=-1), axis=-1)
-        sigma_w_given_g_inv = sigma_inv
-
+            raise TypeError
         batch_size, state_dim = achieved_goals.shape
-        diff = (achieved_goals - mu_w_given_g).reshape((batch_size, state_dim, 1))
-        prod = (diff.transpose(0, 2, 1) @ sigma_w_given_g_inv @ diff).reshape(batch_size)
-        return -np.sqrt(prod)
+        diff = (achieved_goals - mu).reshape((batch_size, state_dim, 1))
+        prod = (diff.transpose(0, 2, 1) @ mask @ diff).reshape(batch_size)
+        dist = np.sqrt(prod)
     else:
-        raise NotImplementedError
+        raise TypeError
 
-def action_penalty_masked_reward_fn(actions, obs, mask_format='vector'):
-    orig_reward = default_masked_reward_fn(actions, obs, mask_format=mask_format)
-    action_reward = -np.linalg.norm(actions[:,:2], axis=1) * 0.15
-    reward = orig_reward + action_reward
-    return reward
+    if use_squared_reward:
+        return -dist**2
+    else:
+        return -dist

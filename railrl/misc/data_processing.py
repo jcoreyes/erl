@@ -100,7 +100,7 @@ def get_dirs(root):
             yield os.path.join(root, directory)
 
 
-def get_trials(base_dir, verbose=False, criteria=None, ):
+def get_trials(base_dir, verbose=False, criteria=None, excluded_seeds=None):
     """
     Get a list of (data, variant, directory) tuples, loaded from
         - process.csv
@@ -126,6 +126,10 @@ def get_trials(base_dir, verbose=False, criteria=None, ):
         with open(variant_file_name) as variant_file:
             variant = json.load(variant_file)
         variant = nested_dict_to_dot_map_dict(variant)
+
+        if 'seed' in variant and int(variant['seed']) in excluded_seeds:
+            continue
+
         if not matches_dict(criteria, variant):
             continue
 
